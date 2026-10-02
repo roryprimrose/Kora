@@ -1,0 +1,278 @@
+# Architecture and Contracts
+
+Status: proposed. Contracts below describe required semantics, not an existing SDK API.
+
+Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
+
+## Runtime Ownership Decision
+
+Kora owns task lifecycle, context selection, permission evaluation, approvals, and presentation.
+A runtime adapter may own model/tool iteration, but must not bypass those responsibilities.
+
+This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
+It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.
+
+There are two adapter families:
+
+- Agent SDK adapter: delegates iteration to an SDK while enforcing Kora's control points.
+- Inference adapter: uses a Kora-owned loop to turn model responses into mediated tool requests.
+
+Both expose the same task-facing protocol. Inference adapters share one loop implementation rather than duplicating it per provider.
+That loop is built when an inference provider is introduced, not speculatively for Slice A.
+
+## Platform Boundaries and Support
+
+Windows is the only supported application platform for the foreseeable future.
+Multi-platform extensibility is an implementation principle, not a commitment to Linux/macOS releases, feature parity, or a porting schedule.
+Linux GitHub Actions are build infrastructure, not evidence of Linux application support.
+
+Keep portable domain logic and shared Avalonia presentation separate from first-party Windows integrations:
+
+- Core: task/queue state, policy decisions, approvals, configuration, declarative skills, provider contracts, and presentation data.
+- Desktop presentation: native question models, captions, answer/navigation UI, and shared rendering orchestration.
+- Windows integration: actual device/session/clipboard APIs, native UI hooks, known folders, credential storage, containment, computer controls, startup, browser backend, and installer/maintenance execution.
+
+The shared core initially targets portable `net10.0`, not `net10.0-windows`, and references no Windows-only API assemblies.
+Windows-specific targets/dependencies belong in integration modules or the platform composition/launch layer.
+The exact .NET 10 SDK/runtime versions are pinned during implementation; moving to .NET 11 is a deliberate tested dependency upgrade, not a portability strategy.
+The logical separation may become projects when real dependencies justify it; do not create empty Linux/macOS projects or speculative backends.
+
+Use narrowly scoped host-owned contracts at real platform seams:
+
+| Contract area | Shared semantics | Windows implementation responsibility |
+|---|---|---|
+| Audio endpoints/capture | Stable device identity, readiness, explicit consent, generation/cancellation | Enumeration, permissions, capture handles and device notifications |
+| Session privacy | Locked/disconnected/unknown denies capture and approvals | Authoritative interactive-session observation and prompt/device shutdown |
+| Clipboard and storage locations | Explicit scoped snapshots, app-owned data partitions, canonical resources | Clipboard threading/formats and Windows known-folder resolution |
+| Credentials and containment | Opaque credential references; enforce protected-resource denial | Secure store and verified native execution/deployment isolation |
+| Desktop integration | Accessible status/recovery, no hidden listening/focus theft | Tray lifecycle, display/window constraints, local startup registration |
+| Computer controls | Fixed registered effects, action-bound confirmations/receipts | Embedded Windows script resources and admitted OS actions |
+| Content viewing | Typed content, resource limits, isolation and provenance | Verified Windows browser/renderer integration |
+| Maintenance | Unsigned-phase notify-only release metadata and canonical-page navigation; future signed-metadata approval/quiescence/recovery boundary | Initial external Windows replacement; future installation/UAC/ACLs, activation and unprivileged relaunch only after separate gate |
+
+A platform adapter supplies observations and mechanisms; it cannot replace or weaken shared policy.
+Keep native handles, Windows paths, registry details, and OS exceptions behind these boundaries; do not spread OS checks through task/skill/provider logic.
+Model/skill inputs cannot select arbitrary adapter assemblies or executable paths.
+Future adapters are trusted application code, not user-installed policy replacements.
+Missing/unknown observations fail closed for the affected capability, never default to unlocked, permission granted, plaintext credentials, or unrestricted execution.
+
+Portable tests run on Linux with controlled platform fakes; actual Windows integrations still require Windows evidence.
+Launching Kora on another OS reports unsupported platform before enabling native/capture/execution capabilities, rather than advertising a partially supported port.
+A future supported platform needs an explicit scope decision, its own native dependencies/package/signing choices, and the same applicable privacy/integrity/approval gates.
+Existing Windows AppData, tray, power, and installer requirements remain the concrete supported implementation.
+
+## Component View
+
+The shared lifecycle coordinator and Windows exclusive-ownership/IPC adapter follow [Instance Coordination](Instance_Coordination.md).
+Ownership is acquired before assistant/audio/provider/store-migration startup; a return supervisor has lifecycle-only authority, not another assistant execution slot.
+
+```text
+Avalonia Shell
+  |-- Voice Session Controller -- Local Wake Detector / Endpointing / Speech Adapters
+  |       `-- Session Privacy Contract -- Windows Adapter / Microphone Lifetime Gate
+  |-- Native Prompt/Recovery UI -- Mouse Answers / Microphone Selection / Readiness
+  |-- Reserved Intent Registry -- App Lifecycle / Fixed Computer Controls / Exact Local Management
+  |-- Work Manager -- Management Model Adapter
+  |       `-- Work Ledger / Queue Scheduler -- Single Execution Slot
+  |-- Proactive Interaction Broker -- Trusted Task Events / Release-Availability Events
+  |-- Speech Policy Service -- Call-State Aggregator / Local and Opt-In Communication Detectors
+  |-- Speaker Confidence Service -- Optional Local Verifier / Enrollment and Anti-Spoof Boundary
+  |-- Environment Setup Controller -- Dependency Catalogue / Probes / Readiness / Scoped Helpers
+  |-- Configuration Service -- Typed Option Registry / Verbal and UI Operations
+  |-- Task Controller
+  |     |-- Context Broker -- Clipboard / Explicit File Selection
+  |     |-- Policy + Approval Service
+  |     |-- Runtime Adapter -- SDK or Inference Loop
+  |     |       |-- Mediated Context Egress
+  |     |       `-- Tool Gateway -- Built-In Tools / MCP / Script Worker
+  |     `-- Response Presenter -- Speech Text / Rich Details / Local TTS
+  |           `-- Content Viewer -- Isolated HTML / Approved Browser Navigation
+  `-- Configuration, Credential References, Audit, and Task Metadata
+```
+
+Knowledge retrieval is a later context source, not a mandatory path for every request.
+Deterministic cancellation and basic ledger status stay local.
+Contextual work-management decisions use a separate model session, independently schedulable from the execution runtime.
+Detailed task interpretation and model/tool iteration remain in the task runtime.
+
+## Core Responsibilities
+
+| Component | Owns | Must not own |
+|---|---|---|
+| Shell | Rendering, input, accessible controls, approval interaction | Direct tool execution or provider credentials |
+| Native prompt/recovery service | Mouse/keyboard accessible questions, typed replies, endpoint selection/recovery, shared prompt identity | Capture before consent, silent device replacement, or relaxing approvals when speech fails |
+| Voice controller | Wake-listening consent, local configured-name detection ("Kora" by default), bounded audio buffer, endpointing, transcript, playback-aware interruption | Ambient transcription or authorising actions based on wake detection/speaker verification |
+| Task controller | Task IDs, state transitions, deadlines, cancellation | Provider-specific model iteration |
+| Work manager/scheduler | Contextual request routing, versioned ledger, queue, grounded status, exclusive execution slot | Running task tools or bypassing task approvals |
+| Context broker | Snapshots, provenance, classification, context selection | Implicit background collection |
+| Policy/approval service | Resource-scoped grants, outbound decisions, approval tokens | Trusting model-produced permission claims |
+| Runtime adapter | Provider session and event translation | Unreviewed tools, undisclosed egress, global policy |
+| Tool gateway | Validate, authorise, invoke, bound, and audit tools | Giving an adapter unrestricted OS access |
+| Response presenter | Streamed display, optional speech text, typed rich detail, summary, citations, TTS | Treating partial answers as completed work or untrusted content as controls |
+| Content viewer/rendering service | Bounded Markdown/diagram/static HTML rendering, browser provenance/navigation/isolation | Browser automation, implicit context capture, arbitrary renderer plugins or host bridges |
+| Proactive interaction broker | Event eligibility, speech timing, deduplication, prompt identity, trusted maintenance dialogue routing | Autonomous tool execution or treating untrusted content as system events |
+| Speech policy service | Central playback eligibility, call-state freshness, voice-configurable preferences, one-shot overrides | Claiming universal call detection or allowing lock/mute bypass |
+| Speaker confidence service | Optional local per-SID enrollment, protected template storage, verification/anti-spoof observations, privacy-policy signal | Identifying arbitrary people, granting actions, satisfying approvals, exposing scores/templates, or silently enrolling |
+| Reserved intent/lifecycle controller | Exact local control routing, target disambiguation, named confirmations, serialised app/power/maintenance lifecycle | Arbitrary shell commands or user-skill shadowing of privileged controls |
+| Storage services | Configuration, metadata, optional approved history | Storing plaintext credentials or clipboard history by default |
+| Environment setup controller | Internal storage/schema initialisation, capability probes, approved dependency setup, ownership and readiness | Arbitrary model-supplied installers or changing Kora code |
+| Configuration service | Option schema, validation/scope, revision-safe persistence, voice/UI parity, effective settings | Arbitrary config-file patches or weakening mandatory policy |
+
+Speech decisions are revalidated at playback start and when policy/detector state changes.
+Private speech decisions also revalidate current speaker-confidence availability and result; missing or uncertain verification never defaults to owner.
+Communication detector adapters expose observations, not authority; see [Call-Aware Speech](Call_Aware_Speech.md).
+Every user preference, including admitted extension settings, uses [User Configuration](User_Configuration.md); voice and UI share validation and persistence.
+Rich presentation follows [Information Display](Information_Display.md); native approvals and trust indicators remain outside rendered content.
+Native questions and first-run/device-loss recovery follow [Interaction Fallback](Interaction_Fallback.md) and require no working microphone, model, or rich renderer.
+
+## Parallel Management, Serial Execution
+
+The work manager stays responsive independently of the task runtime's event loop, tool calls, and approval waits.
+Management uses a separate session and cancellation/deadline scope; it does not inherit executable tools or ambient task context.
+It proposes typed ledger operations that the host validates and commits atomically.
+Local stop and basic status paths bypass management inference.
+
+An adapter must prove that execution and management requests can make progress independently, using separate sessions or runtime instances where needed.
+Do not share mutable SDK conversation state between lanes.
+A provider that serialises all inference behind a long-running execution call does not satisfy this contract without a separately schedulable management implementation.
+Remote management still requires the same context egress controls; it is not an exempt background service.
+The initial management envelope allows one in-flight request, at most 32 KiB input and 4 KiB output, a 15-second deadline without automatic retry, and 30 remote calls per rolling hour per profile.
+Quota, cost, rate-limit, SDK, account-tier, and terms constraints are capability evidence, not deployment assumptions.
+Exhaustion or incompatibility activates the deterministic local queue/status/choice path; it never blocks cancellation or the executor.
+See [Work Management](Work_Management.md).
+
+## Voice Activation Pipeline
+
+Wake-word activation is a built-in Slice A capability, independent of the agent runtime.
+The voice controller owns microphone consent, device lifetime, and a bounded in-memory pre-roll buffer.
+A local detector recognises the configured active names ("Kora" initially) without sending ambient audio to transcription or a model.
+The host-owned profile/alias registry and atomic detector switching follow [Custom Activation Names](Activation_Name.md); names are data-only settings, not replacement executable code.
+
+On detection, the controller emits activation feedback and captures the command, preserving words spoken immediately after the wake word.
+Local voice activity detection ends the command; only activated command audio reaches the local transcription engine.
+The wake word is excluded from the task request.
+Optional push-to-talk enters the same capture path without requiring the wake word.
+
+During speech output, playback-reference echo rejection prevents Kora's own audio from activating the detector or entering command transcription.
+A genuine user activation stops playback and opens command capture.
+If reliable playback rejection is unavailable for the current device, disable spoken output with an explicit explanation while retaining wake activation and visual responses; do not silently fall back to push-to-talk.
+The selected detector, endpointing, and playback handling require a packaged integration proof and the acceptance tests in [Acceptance Criteria](Acceptance_Criteria.md).
+The microphone lifetime gate also requires authoritative unlocked-session state.
+Lock/disconnect immediately blocks acquisition and stale callbacks, stops recognition, clears audio, and releases devices.
+This policy is not implemented inside a skill and applies to every lock origin.
+The original bundled lock skill has a fixed, verified embedded-resource script registration and priority session-control route; see [Bundled Skills](Built_In_Skills.md).
+
+## Runtime Protocol
+
+The implementation must define versioned, strongly typed equivalents of these messages:
+
+| Contract | Required fields and semantics |
+|---|---|
+| Runtime capabilities | Runtime/version, local or remote destinations, streaming, tool mediation, cancellation, context filtering, supported input types |
+| Task request | Task ID, user request, approved context IDs, effective policy, deadline, selected runtime |
+| Management request/proposal | Management request ID, minimal approved context, ledger revision, typed operation, target task IDs, reason or clarification |
+| Work status | Task/step states, observation timestamps, provenance of progress, queue position, blocker; distinguish plans from confirmed outcomes |
+| Context item | ID, immutable content reference, content hash, source, media type, trust/classification, identity scope, capture time, expiry |
+| Runtime event | Task ID, sequence, event type, typed payload; no state-changing work hidden in display text |
+| Tool invocation | Invocation ID, tool/version, schema-valid parameters, target resources, effect class, deadline |
+| Tool result | Invocation ID, success/failure/unknown status, bounded content, provenance, classification, side-effect receipt |
+| Approval request | Exact action/destination, resources, relevant content/parameter hashes, expiry, host-assigned risk, required channel/owner-presence class, creator/lineage, user-readable summary |
+| Completion | Completed/cancelled/failed/unknown-side-effects, final answer references, action receipts, error detail |
+
+Runtime events include answer deltas, tool proposals, context transmission proposals, progress, and terminal events.
+The host must await decisions on proposals before execution or transmission. Approval is not a retrospective notification.
+
+A provider's built-in filesystem, shell, browsing, memory, telemetry, or connector features must be disabled unless they satisfy the same controls.
+Passing approved initial context to an SDK is insufficient if the SDK can later collect or transmit additional data independently.
+Untrusted content is structurally separated from system/developer policy and workflow-stage controls.
+Every proposed operation carries intent lineage to the authenticated user request or native-approved host plan step; capability/grant scope alone is not sufficient justification.
+
+## Capability Negotiation
+
+Capabilities are verified for the pinned adapter/runtime version and intersected with current user policy.
+They are not accepted solely from a self-declared extension manifest.
+
+- Local-only tasks reject runtimes with remote model execution or undisclosed destinations.
+- Tools are disabled if the adapter cannot delegate every invocation to the gateway.
+- Remote tool results cannot be submitted to a model unless their egress can be mediated.
+- If an SDK cannot pause before newly introduced context is sent, restrict it to approved immutable context and host-mediated tool handling, or reject that workflow.
+- Cancellation limitations are displayed before enabling affected workflows.
+- Unsupported input types produce an explicit capability error, not a lossy conversion.
+
+Automatic provider switching is excluded from the MVP. Changing runtime starts a new task with a new destination/approval assessment.
+
+## Tool Gateway
+
+All built-in and external tools use the same authorisation path:
+
+1. Resolve the tool/version and validate parameters.
+2. Resolve canonical target resources and identity.
+3. Verify intent lineage and reject resources/actions introduced only by untrusted content.
+4. Evaluate grants, host-assigned risk, owner presence, and any required approval.
+5. Bind approval to the resolved action and content.
+6. Revalidate immediately before execution.
+7. Execute with deadline and output limits.
+8. Produce an action receipt and provenance-bearing result.
+
+Tool names and descriptions are untrusted metadata. Policy bindings are maintained by Kora and reviewed when tools change.
+
+## Storage and Processes
+
+The MVP uses SQLite for configuration and task/action metadata; ephemeral content remains in memory by default.
+Machine-local configuration/enablement/audit storage is under `%LOCALAPPDATA%\Kora`.
+Kora-specific declarative skill packages are under the Windows Roaming AppData folder at `%APPDATA%\Kora\Skills`.
+Shared profile skill roots are registered read-only sources, not writable storage.
+Credentials are represented by opaque references to an OS-protected credential store.
+Large approved persistent content, if later introduced, uses a separately managed encrypted store.
+The running app creates its stores and migrates embedded SQLite schemas; installers do not provision a database server.
+Setup is usable before any model is configured and can offer missing speech/Ollama/model requirements for selected capabilities.
+See [Environment Setup](Environment_Setup.md).
+
+Kora-owned native speech workers may run out of process for crash containment.
+Third-party MCP servers and script workers run separately from the UI process.
+Process separation does not imply filesystem or network sandboxing; see the execution trust model.
+Agent-executable components must additionally be unable to mutate protected Kora resources; unrestricted ambient-rights workers are not admitted merely because their code is trusted.
+
+## Skill Data Versus Application Code
+
+The built-in authoring service accepts voice refinements and produces declarative skill packages.
+Validation, bounded skill-store writes, version registration, and activation are host-owned services.
+The store is outside protected code roots and is never an executable loading location.
+Models propose package content, not arbitrary destination paths or changes to executable components.
+Missing implementation dependencies are reported, not generated/installed as an implicit part of authoring.
+All write-capable tools, connectors, and future process workers enforce [Application Integrity](Security_Data_Flows.md#application-integrity-and-no-self-modification).
+Application updating is outside the runtime/tool graph entirely.
+Automatic release checks publish bounded availability events for proactive speech.
+During the unsigned phase the host-owned dialogue is notify-only and cannot reach download, staging, execution, source mutation, or activation.
+Any future per-release installation approval reaches a separately gated maintenance controller through native secure confirmation, never a model-callable tool.
+Installation metadata distinguishes managed source and binary deployments from developer checkouts.
+Source builds and binary publication converge on versioned deployment outputs; logon launches published code, not the build toolchain.
+See [Distribution and Updates](Distribution_And_Updates.md).
+The source registry normalises supported native and instruction-only `SKILL.md` packages into source-qualified, digest-pinned descriptors.
+It cannot infer trust from a package name, location in the user profile, or roaming metadata.
+See [Skill Sources and Roaming Storage](Skill_Storage.md).
+
+## Copilot Integration Proof
+
+Before building the product around Copilot SDK, implement a small disposable integration test that demonstrates:
+
+1. Streaming output and explicit terminal/error events.
+2. Disabling or intercepting built-in tools and automatic context collection.
+3. Blocking a proposed tool before its side effect occurs.
+4. Controlling initial and subsequent outgoing context, including tool results.
+5. Detecting required endpoints, session storage, and diagnostic content handling.
+6. Cancellation and suppression of late results.
+7. Supported authentication without exposing credentials to the model.
+8. Version-specific behaviour recorded in automated adapter conformance tests.
+9. Independent management session progress while task execution is blocked, without cross-session context, tool, or approval leakage.
+
+Use a mock side-effect tool and distinctive synthetic context markers.
+Evidence must show rejected actions never executed and rejected markers never entered outbound model requests.
+If supported SDK hooks cannot establish that, the affected capability is unsupported.
+Do not monkey-patch undocumented internals or claim that a UI approval compensates for an unmediated SDK path.
+
+## Evolution
+
+Use dependency-injected interfaces and typed protocols internally; do not expose private application services directly to extensions.
+Version adapter protocols and skill schemas independently.
+Add providers and connectors only after they pass the same applicable lifecycle, egress, and tool tests.

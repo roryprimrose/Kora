@@ -1,0 +1,109 @@
+# Single Active Instance and Version Handoff
+
+Status: required from Slice A. Only one Kora instance may interact as the assistant, listen, or dispatch work within a Windows interactive-user scope.
+
+Related: [Architecture](Architecture.md), [Lifecycle](Task_Lifecycle.md), [Distribution](Distribution_And_Updates.md), [Mouse Interaction](Interaction_Fallback.md).
+
+## Scope and Identity
+
+Use one host-owned coordinator namespace across installed releases, developer checkouts, architectures, and activation names.
+Scope coordination to the Windows user SID across that user's interactive sessions; another user's instance cannot accept or control this user's handoff.
+Only the selected authoritative unlocked interactive session may capture/interact; unsupported multi-session ambiguity denies capture and requests explicit resolution.
+Do not key exclusivity on executable path, assembly version, checkout, or custom wake name.
+Non-interactive installer/hooks must not acquire assistant ownership or start microphone/UI work.
+
+Identify an incoming build using application version, source revision/build ID, binary content identity, release/debug mode, deployment identity, and canonical executable location.
+Show a readable label such as "Kora 0.3.0, Debug, commit abc123, checkout Q:\Repos\Kora" with expandable exact details.
+Never treat caller-supplied label/path/version as authenticated identity: the Windows coordinator validates the peer process and obtains image identity independently.
+"Same version" means the same compatible build/content identity, not merely identical assembly version text.
+Debug/release or rebuilt developer binaries with the same semantic version but different content follow the different-build path.
+Unknown identity/protocol incompatibility reports an explicit error and prevents takeover.
+
+## Same Build Launch
+
+Before opening databases for migration, registering tray icons, starting providers/workers, or acquiring audio, the new process checks ownership.
+If the same build is active, send a bounded authenticated Activate Existing request.
+The existing process reveals its status/questions window, subject to Windows foreground restrictions and lock privacy.
+The new process exits after acknowledgement; it does not replay startup/task arguments, enable listening, duplicate tray icons, or execute work.
+If locked, acknowledge presence without displaying sensitive content; expose details only after unlock and user activation.
+Timeout is not proof the owner is dead: report an unreachable instance and exit without competing capture/execution.
+
+## Different Build Launch
+
+The incoming process remains a waiting startup candidate, without assistant services, recording, task tools, migrations, or a second assistant tray.
+The active instance asks:
+
+> "Kora 0.3.0 Debug (commit abc123) wants to run instead of this release. Shut down this instance and allow that build to run?"
+
+Use a native question with exact validated incoming/original identities, consequences, Accept/Decline, and normal prompt expiry.
+Speech is optional and follows current call/private-output rules; no microphone/model is needed to answer.
+Default is no change. Lock, expiry, rejection, candidate exit, or stale identity leaves the original active.
+The question offers "Wait until current work finishes" or explicit cancellation of affected work; switching cannot silently kill work.
+This host handoff grants a running local candidate ownership only, not trust in arbitrary executable content, permission to install code, or tool/egress grants.
+The developer has already chosen to launch the debug executable externally; Kora does not build or launch it from a model request.
+
+After approval:
+
+1. Bind a single-use handoff ticket to original/candidate process creation identities, validated image digests, user, coordinator epoch, and expiry.
+2. Hold queue admission/dispatch and resolve active work explicitly through existing cancellation/quiescence rules.
+3. Revoke pending grants, clear ephemeral queue/context, stop playback/capture, invalidate audio callbacks, release owned workers and mutable-store handles.
+4. Stop the original assistant host. A minimal lifecycle-only supervisor may remain for handoff/restart monitoring; it is not an active Kora assistant.
+5. Transfer exclusive ownership through the coordinator only after actual quiescence; the candidate acquires ownership and acknowledges startup readiness.
+6. Candidate starts normally with its own verified configuration/readiness. Listening requires explicit re-enabling; no grants, tasks, owner-confidence caches, or voice-session consent transfer.
+
+One candidate/handoff may be pending; competing launches receive a truthful pending/busy response, not independent approvals.
+Ownership transfer, app/power restart, update activation (when available), and source/deployment maintenance share a lifecycle barrier.
+Do not broaden the current unsigned-release notification-only update policy through a handoff.
+The original installation is not uninstalled or replaced by the debug session.
+
+## Return to the Original
+
+An out-of-band, host-owned lifecycle supervisor observes the candidate's actual process lifetime, not a model callback or PID alone.
+After candidate exit/crash and verified release of ownership/resources, it presents:
+
+> "Kora 0.3.0 Debug has exited. Start the original Kora 0.2.0 release again?"
+
+This is a minimal native lifecycle prompt, not a second assistant: no wake detection, TTS, model/tools, queue processing, or background task work.
+When locked/disconnected, defer sensitive display until eligible; never start or listen automatically.
+Accept revalidates the original canonical launch identity/digest and availability, launches that exact original unprivileged with no task arguments, and waits for normal exclusive-owner/readiness acknowledgement.
+If another assistant has become active, do not launch a competing original; explain the changed state.
+Decline closes the return offer/supervisor and leaves no assistant running.
+Dismissal does not restart; the non-sensitive tray return offer may remain until accepted/declined or sign-out.
+No launch loop, automatic timeout acceptance, or crash-triggered automatic restart.
+Changed/deleted original executable, incompatible settings/schema, lost access, or failed startup yields an actionable error, not a different executable fallback.
+Nested handoffs are initially refused until the existing return transaction is completed or explicitly abandoned.
+
+The supervisor stores only bounded transaction/launch identity and status metadata, not conversations, credentials, approvals, or biometric data.
+It has no general process-launch API: only the exact original launch identity in the user-approved transaction.
+Restart is performed by the user-level supervisor, never an elevated installer identity.
+If supervisor monitoring fails, report the loss of automatic return offer where possible and retain normal manual launch; never claim the offer is guaranteed after sign-out/reboot.
+
+## Coordinator and Data Safety
+
+Provide a portable coordination contract with a Windows implementation using OS-backed exclusive ownership and authenticated bounded local IPC.
+Use restricted per-user object/pipe permissions, validated peer process/user/session identities, protocol versions, generation counters, and handle-based lifetime checks to avoid PID reuse and stale tickets.
+Named mutexes alone do not authenticate IPC or prove workers stopped.
+No remote IPC listener, arbitrary command-line forwarding, executable payloads, unrestricted path launching, or model-visible handoff ticket.
+Same-user compromised programs and administrators remain outside the existing host-integrity threat boundary.
+
+Owner death invalidates its tickets, but does not prove orphaned workers/remote effects are quiescent.
+Use existing owned-worker lifetime containment and reconcile uncertainty before enabling overlapping execution; never kill unrelated processes by name.
+Release failure or unknown worker effects blocks takeover and reports a blocker.
+The lifecycle supervisor cannot reserve assistant ownership permanently after decline/failure.
+
+Debug and installed builds share the coordination domain but must not mutate the same data concurrently.
+Developer runs default to an isolated device-local development data partition, not production credentials/database/schema or enablement.
+Any explicit shared-store experiment requires compatibility checks and normal data-mutation consent; handoff consent alone never authorises production migrations.
+Resume the original only when its store remains compatible; keep original data outside the candidate's default write scope.
+
+## Test Requirements
+
+- Simultaneous same-build launches yield one assistant/tray/capture owner and reveal the existing window; only acknowledged secondary processes exit successfully.
+- Different semantic version, debug/release, and changed binary under unchanged version text yield the exact-identity handoff question.
+- Rejection, expiry, lock, missing microphone, incompatible protocol, candidate death, stale/forged tickets, and unreachable owner never create a competing assistant.
+- Approved transfer cannot start new capture/tools until old host/owned workers are quiescent; remote uncertain effects remain explicit blockers.
+- Test multiple competing candidates and lifecycle/update/power races; at most one owner performs assistant work.
+- Return prompt appears after replacement normal exit/crash, works entirely by mouse, and cannot restart under lock or without explicit acceptance.
+- PID reuse, original binary replacement, supervisor failure, lost IPC, startup failure and another-owner acquisition produce truthful recovery without arbitrary launches.
+- Debug data is isolated; no production migration/grant/task/microphone-consent reuse across handoff.
+- Restarted original acquires ownership normally and never resumes ephemeral work or listening automatically.

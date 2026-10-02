@@ -97,8 +97,9 @@ Task labels, requests, and step descriptions are potentially sensitive content, 
 - The active-task deadline begins when dispatched, not while queued.
 - Normal successful completion dispatches the next ready entry automatically by default, after policy/context revalidation; user-selected manual dispatch adds a start decision. Queuing or approving dispatch is not action approval.
 - Failure, cancellation, or unknown side effects pause automatic dispatch and explain why. The user can resume or explicitly choose a replacement.
-- Cancelling the current request preserves pending entries. "Clear the queue" removes pending entries without cancelling the active task.
-- "Stop all work" cancels the active task, clears pending entries, and pauses dispatch.
+- A voice cancellation request immediately pauses new dispatch; destructive cancellation requires owner presence and native confirmation, then preserves unrelated pending entries.
+- "Clear the queue" pauses dispatch and requires owner presence/native confirmation before removing the displayed pending entries.
+- "Stop all work" pauses dispatch immediately and requires owner presence/native confirmation before cancelling active execution and clearing pending entries.
 - "Pause the queue" blocks new dispatch without suspending/cancelling the active task; resume still revalidates dependencies/policy.
 - A replacement waits for host-side execution quiescence. If remote work may still be running, report the uncertainty and require an explicit decision before dispatching more work.
 - Scheduling mutations and slot acquisition are atomic host operations. Concurrent model proposals with stale revisions are re-evaluated, not blindly replayed.
@@ -108,6 +109,9 @@ Task labels, requests, and step descriptions are potentially sensitive content, 
 Bind explicit "this clipboard" requests to the requested immutable snapshot at admission; do not read a later clipboard value silently.
 If source selection is ambiguous, clarify before capturing it.
 Queue interpretation receives only the context required to identify the work, not all snapshots or tool outputs.
+Raw clipboard, retrieved documents, tool results, rendered content, and skill instruction bodies are never sent to management inference.
+Host-derived task IDs, safe labels, state, dependencies, and the authenticated user management utterance are structurally separated; untrusted task labels cannot become management instructions.
+Any inferred cancellation, replacement, removal, or reordering proposal pauses at native confirmation rather than mutating the ledger directly.
 
 At dispatch, revalidate context existence/expiry, identities, dependencies, tool capabilities, policy, and any changed write base.
 Missing/expired context requires a fresh selection or recapture decision.
@@ -124,7 +128,8 @@ Only one voice prompt is foreground at a time, with an explicit prompt ID and ex
 Showing another prompt withdraws the previous prompt's response eligibility; a paused action must be re-presented before accepting approval.
 Do not silently extend an action approval's expiry while managing the queue.
 
-Clearing a conversation cancels its active work, clears its pending entries, and releases its ephemeral ledger content.
+Clearing a conversation first pauses its work, then requires owner presence/native confirmation for the displayed active/pending/context deletion set.
+Confirmed deletion releases ephemeral ledger content; interrupted work remains visible until that decision so a bystander cannot erase it by voice.
 Restart never restores/replays queued requests under the default memory-only retention policy.
 Persist only content-minimising interruption/outcome metadata, not queue labels, plans, or request bodies.
 

@@ -48,7 +48,7 @@ Use narrowly scoped host-owned contracts at real platform seams:
 | Desktop integration | Accessible status/recovery, no hidden listening/focus theft | Tray lifecycle, display/window constraints, local startup registration |
 | Computer controls | Fixed registered effects, action-bound confirmations/receipts | Embedded Windows script resources and admitted OS actions |
 | Content viewing | Typed content, resource limits, isolation and provenance | Verified Windows browser/renderer integration |
-| Maintenance | Exact verified release, approval, quiescence, truthful recovery | Windows installation/UAC/ACLs, activation and unprivileged relaunch |
+| Maintenance | Unsigned-phase notify-only release metadata and canonical-page navigation; future signed-metadata approval/quiescence/recovery boundary | Initial external Windows replacement; future installation/UAC/ACLs, activation and unprivileged relaunch only after separate gate |
 
 A platform adapter supplies observations and mechanisms; it cannot replace or weaken shared policy.
 Keep native handles, Windows paths, registry details, and OS exceptions behind these boundaries; do not spread OS checks through task/skill/provider logic.
@@ -62,6 +62,9 @@ A future supported platform needs an explicit scope decision, its own native dep
 Existing Windows AppData, tray, power, and installer requirements remain the concrete supported implementation.
 
 ## Component View
+
+The shared lifecycle coordinator and Windows exclusive-ownership/IPC adapter follow [Instance Coordination](Instance_Coordination.md).
+Ownership is acquired before assistant/audio/provider/store-migration startup; a return supervisor has lifecycle-only authority, not another assistant execution slot.
 
 ```text
 Avalonia Shell
@@ -173,7 +176,7 @@ The implementation must define versioned, strongly typed equivalents of these me
 | Runtime event | Task ID, sequence, event type, typed payload; no state-changing work hidden in display text |
 | Tool invocation | Invocation ID, tool/version, schema-valid parameters, target resources, effect class, deadline |
 | Tool result | Invocation ID, success/failure/unknown status, bounded content, provenance, classification, side-effect receipt |
-| Approval request | Exact action/destination, resources, relevant content/parameter hashes, expiry, risk, user-readable summary |
+| Approval request | Exact action/destination, resources, relevant content/parameter hashes, expiry, host-assigned risk, required channel/owner-presence class, creator/lineage, user-readable summary |
 | Completion | Completed/cancelled/failed/unknown-side-effects, final answer references, action receipts, error detail |
 
 Runtime events include answer deltas, tool proposals, context transmission proposals, progress, and terminal events.
@@ -181,6 +184,8 @@ The host must await decisions on proposals before execution or transmission. App
 
 A provider's built-in filesystem, shell, browsing, memory, telemetry, or connector features must be disabled unless they satisfy the same controls.
 Passing approved initial context to an SDK is insufficient if the SDK can later collect or transmit additional data independently.
+Untrusted content is structurally separated from system/developer policy and workflow-stage controls.
+Every proposed operation carries intent lineage to the authenticated user request or native-approved host plan step; capability/grant scope alone is not sufficient justification.
 
 ## Capability Negotiation
 
@@ -202,11 +207,12 @@ All built-in and external tools use the same authorisation path:
 
 1. Resolve the tool/version and validate parameters.
 2. Resolve canonical target resources and identity.
-3. Evaluate grants, risk, and any required approval.
-4. Bind approval to the resolved action and content.
-5. Revalidate immediately before execution.
-6. Execute with deadline and output limits.
-7. Produce an action receipt and provenance-bearing result.
+3. Verify intent lineage and reject resources/actions introduced only by untrusted content.
+4. Evaluate grants, host-assigned risk, owner presence, and any required approval.
+5. Bind approval to the resolved action and content.
+6. Revalidate immediately before execution.
+7. Execute with deadline and output limits.
+8. Produce an action receipt and provenance-bearing result.
 
 Tool names and descriptions are untrusted metadata. Policy bindings are maintained by Kora and reviewed when tools change.
 
@@ -236,7 +242,9 @@ Models propose package content, not arbitrary destination paths or changes to ex
 Missing implementation dependencies are reported, not generated/installed as an implicit part of authoring.
 All write-capable tools, connectors, and future process workers enforce [Application Integrity](Security_Data_Flows.md#application-integrity-and-no-self-modification).
 Application updating is outside the runtime/tool graph entirely.
-Automatic release checks publish trusted availability events for proactive speech; per-release user approval reaches the separate maintenance controller through a host-owned dialogue, not a model-callable tool.
+Automatic release checks publish bounded availability events for proactive speech.
+During the unsigned phase the host-owned dialogue is notify-only and cannot reach download, staging, execution, source mutation, or activation.
+Any future per-release installation approval reaches a separately gated maintenance controller through native secure confirmation, never a model-callable tool.
 Installation metadata distinguishes managed source and binary deployments from developer checkouts.
 Source builds and binary publication converge on versioned deployment outputs; logon launches published code, not the build toolchain.
 See [Distribution and Updates](Distribution_And_Updates.md).

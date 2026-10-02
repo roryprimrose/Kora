@@ -1,7 +1,7 @@
 # Distribution, Startup, and Application Maintenance
 
 Status: proposed. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
-Installer/package technology remains undecided. Update policy is automatic checking with explicit per-release installation approval.
+Installer/package technology remains undecided. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
 The expected source host is a public open-source GitHub repository; Linux GitHub Actions runners are the build/package/release baseline.
 Initial binary and setup artifacts are intentionally unsigned.
 Windows remains the only supported application runtime for the foreseeable future; Linux build runners do not imply Linux releases.
@@ -130,6 +130,8 @@ After either installation option, Kora's setup offers start-at-logon registratio
 Use a stable registered launcher/package identity that survives version changes; the startup entry must not point to a transient checkout or staging directory.
 The application runs as the interactive user, without elevation or a pre-logon microphone service.
 Enforce a single desktop instance and avoid duplicate startup registrations.
+Use [Instance Coordination](Instance_Coordination.md) across installed/developer builds: same-build launch reveals the owner; different-build launch requires approved quiescent handoff and an explicit return offer after exit.
+No handoff installs code or bypasses the current maintenance restrictions.
 
 Startup opens the shell/tray with microphone acquisition gated by session policy and existing explicit listening consent rules.
 Under the current lifecycle, app restart/logon requires explicit re-enabling of listening; start-at-logon does not silently change that rule.
@@ -139,10 +141,11 @@ It does not delete shared profile skills.
 ## Update Ownership and Deployment Mode
 
 Application maintenance is separate from the agent's model, tools, scripts, skills, and work queue.
-The policy is automatic update checking with explicit user approval before each installation.
-Kora proactively offers eligible updates verbally through the host interaction broker; no user query is required.
-Approval can come through the trusted maintenance voice prompt or equivalent UI, not an agent tool.
-There is no unattended installation merely because a new release exists.
+During the initial unsigned phase, Kora checks for updates and notifies through the host interaction broker, but has no install-capable updater.
+Voice may defer, suppress reminders, show release details, or open the configured canonical release page.
+It cannot approve download, staging, execution, source mutation, or activation.
+The user obtains and launches a replacement outside Kora under the normal unsigned-install disclosure and OS prompts.
+An install-capable updater is a future capability requiring independently authenticated signed metadata with a protected offline/root trust anchor, expiry, rollback/freeze protection, threshold/key-rotation design, native secure approval, and separate acceptance evidence.
 
 Do not infer update ownership merely by finding `.git`.
 Use installation metadata to distinguish a managed source deployment, binary deployment, and developer checkout.
@@ -151,15 +154,15 @@ Protected update origins/channels cannot be changed by skill content or agent to
 
 Proposed maintenance paths:
 
-- Binary deployment: poll the configured hosted repository release feed and obtain verified precompiled release artifacts through a package installer or separate maintenance process. No Git or SDK is needed.
-- Managed source deployment: fetch the configured channel, build an exact revision in separate staging, validate, and activate it through maintenance.
+- Binary deployment: poll the configured hosted repository release feed and notify/open the canonical release page. Kora does not obtain or execute replacement artifacts during the unsigned phase.
+- Managed source deployment: notify that an update exists; leave fetch/build/activation to an explicit external operator workflow during the unsigned phase.
 - Developer checkout: notify only; leave branch selection, fetching, building, and local changes to the developer.
 
 A release channel should identify tested releases; default-branch tracking is an explicit development-channel choice, not an implicit default.
 Update checks have bounded frequency/timeouts, respect offline/maintenance network policy, and do not block voice controls.
 Never describe a failed check as proof that the installation is current.
 
-## Hosted Release Feed and Verbal Approval
+## Hosted Release Feed and Notify-Only Interaction
 
 Use the host's configured repository/release API or authenticated release manifest, not arbitrary page text or a model's proposed download URL.
 Select the configured channel and matching architecture/runtime; stable excludes drafts and prereleases.
@@ -170,31 +173,26 @@ Repository credentials, if required, remain confined to maintenance.
 
 Proposed checking cadence is startup plus every 6 hours with jitter, bounded requests, and failure backoff.
 Network-disabled/offline mode reports deferred checking and permits a later explicit check; it does not report "up to date".
-Never check/download through an unapproved remote path under local-only mode.
-Routine checks discover metadata only; download/staging starts after per-release approval.
+Never check through an unapproved remote path under local-only mode.
+Routine checks discover metadata only; no Kora-owned download or staging path exists during the unsigned phase.
 
-The proactive prompt identifies version and restart impact.
-An accepted proposal is bound to exact release/origin/digest, expiry, and safe activation timing.
-If work is active, explain the wait; do not cancel work automatically to install.
-Revalidate approval/session state before activation, and require renewed approval if the proposal changed or expired.
-Locked/disconnected sessions cannot approve or begin activation; after unlock, re-present an eligible pending proposal.
+The proactive prompt identifies version, unsigned status, expected manual replacement impact, and canonical release origin.
+“Open the release page” is a browser-navigation proposal bound to that exact canonical URL, not installation approval.
+Locked/disconnected sessions do not open it; after unlock, the user can request it again.
 See [Proactive Voice Interaction](Proactive_Interaction.md).
 
-Before activation, reach task/worker quiescence and release audio resources; do not replace executable files underneath active work.
-Preserve skill partitions, credentials, and settings outside deployment directories.
-Keep the previous deployment for recovery, with an explicit settings/schema compatibility strategy.
-A failed validation or activation must leave a known runnable version and truthful status.
+Manual replacement instructions require the user to exit Kora and preserve skill partitions, credentials, and settings outside deployment directories.
+Kora never replaces executable files underneath active work.
 
 ## Technology Decision Still Required
 
-The leading proposal is NSIS for a single setup EXE plus a narrowly scoped protected maintenance coordinator.
+The leading initial proposal is NSIS for a single setup EXE without an install-capable maintenance coordinator.
 NSIS can generate Windows installers on POSIX/Linux without Windows or Wine; it does not supply a complete release-feed/self-update framework.
-The coordinator handles approved exact-release discovery/staging; protected installation/activation remains outside normal application/agent write authority.
-Installation/updates may require Windows UAC; verbal approval does not bypass elevation, and Kora restarts unprivileged.
+The application handles notify-only release discovery; protected installation/activation remains an external user operation.
 
 Velopack is the alternative for integrated packaging/update machinery and can build Windows packages on Linux.
 Its default per-user writable setup is not sufficient for the current protected-code requirement.
-Any protected deployment must prove actual updater rights, graceful process handling, exact-origin/digest verification, and no automatic pending-update activation.
+Any future updater must first prove independent signed-metadata trust, actual updater rights, graceful process handling, exact-origin/digest verification, and no automatic pending-update activation.
 Do not assume Linux cross-packaging also proves a selected MSI/per-machine configuration.
 Its feed packages/manifests are additional release assets even when users initially download one setup EXE.
 
@@ -203,7 +201,7 @@ MSIX/App Installer is deferred while initial artifacts remain unsigned because i
 Select the implementation only after demonstrating the Linux build/package/release path and Windows protection/update gates.
 Installer/activation mechanisms sit behind the platform boundary; NSIS is a Windows candidate, not a universal installer or a commitment to other platform packages.
 The bootstrap concept does not commit Kora to Chocolatey as a dependency.
-Package configuration must preserve per-release approval; do not enable unattended App Installer updates that would bypass the selected policy.
+Future package configuration must preserve per-release native secure approval; do not enable unattended App Installer updates that would bypass the selected policy.
 Do not implement multiple independent update authorities for the same installation.
 
 References: [NSIS portable compiler](https://nsis.sourceforge.io/Features), [Velopack cross-compiling](https://docs.velopack.io/packaging/cross-compiling), [Velopack update controls](https://docs.velopack.io/integrating/overview).

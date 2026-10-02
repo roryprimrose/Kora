@@ -65,6 +65,8 @@ Locked/disconnected/unknown Windows session: no capture/test/interactive approva
 
 ## Mouse Answers Across Kora
 
+Different-build takeover and original-version return use native mouse prompts under [Instance Coordination](Instance_Coordination.md); they require no working microphone, and the waiting/supervisor process cannot act as another assistant.
+
 Use the same prompt identity, validation, scope, and expiry for voice and visual responses.
 Examples include microphone/provider selection, setup plans, task clarification, queue choices, skill revision review, update proposals, and permitted action approval.
 Prefer selectable typed choices and source-qualified device/task/skill labels over forcing text entry.

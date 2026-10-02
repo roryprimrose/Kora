@@ -6,6 +6,8 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 
 ## State Model
 
+Assistant startup and release/debug takeover obey [Instance Coordination](Instance_Coordination.md): one exclusive active owner, explicit quiescent transfer, and no task/grant/listening replay on return.
+
 The MVP permits one task in the execution slot, plus pending work and a concurrently responsive management lane.
 Requests enter a ledger as Queued or Needs Clarification before dispatch to Preparing.
 Voice capture/transcription feeds management independently of the active task's state.
@@ -50,6 +52,7 @@ Endpoint loss invalidates capture/transcript generations and offers recovery wit
 - Each follow-up, correction, or low-risk voice approval starts with a current active name or optional push-to-talk; there is no unbounded open conversation microphone.
 - During a running task, local control commands are handled immediately. The independent manager interprets other requests in context, updates the queue when intent is clear, and asks when ambiguous; it never starts a second task executor.
 - During TTS, keep local wake detection active with playback echo rejection. User activation stops TTS and captures the command; it does not by itself cancel the task.
+- When Windows exposes a supported system-output/loopback reference, correlate all device playback, not only Kora TTS, and reject commands attributable to local media or conference output. If that proof is unavailable, disclose the limitation and prefer headset/PTT for disruptive controls.
 - If playback rejection cannot be established, suspend TTS and explain why; wake activation remains available with visual output.
 - After capture/transcription, return to Wake Listening if consent is still active, independently of task execution or approval waits.
 - A mute control closes microphone capture and clears buffered audio. Voice cannot unmute a closed microphone; use the explicit UI/control.
@@ -61,14 +64,15 @@ Rename/alias-mode changes follow [Custom Activation Names](Activation_Name.md): 
 Optional local speaker verification is only a profile-owner confidence signal for privacy decisions; it never supplies an approval or action grant.
 False activations with no valid command end locally; recognised commands still pass normal context and action controls.
 When the speaker is not `LikelyOwner` or verification is unavailable, sensitive status and context default to a neutral visual notice rather than spoken disclosure.
-Safety-preserving stop, mute, cancel, and lock controls remain available without owner matching.
+Safety-preserving stop-speech, mute, pause-dispatch, and lock controls remain available without owner matching.
+Lock intentionally prioritises confidentiality over availability and therefore remains callable without owner authentication; media-loopback rejection, explicit availability disclosure, and false-activation tests mitigate but cannot eliminate acoustic nuisance locking.
 
 ## Voice Controls
 
 | Intent | Behaviour |
 |---|---|
 | "Stop speaking" | Stop TTS and clear its playback queue; task continues |
-| "Cancel task" | Revoke pending approvals and cancel the active task and tool calls |
+| "Cancel task" | Pause new task/tool dispatch immediately; require owner presence and native confirmation before destructive cancellation/revocation |
 | "Lock the machine" | Invoke the fixed bundled lock skill as a priority session control; enforce microphone shutdown on the actual Windows lock event |
 | "Shut down the computer" / "Restart the computer" | Open a fixed local power proposal; require matching named confirmation, safe work handling, a native secure confirmation outside the speech/model path, and a cancellable host countdown |
 | "Hide Kora" / "Show Kora" | Change presentation only; do not mute, exit, or alter active work |
@@ -77,15 +81,15 @@ Safety-preserving stop, mute, cancel, and lock controls remain available without
 | "What do you have left to do?" | Report known remaining active steps and queued work; explicitly identify unknowns |
 | "Do that next" | Contextually move the uniquely identified pending task next; clarify ambiguous targets |
 | "Cancel the queued documentation update" | Remove the identified pending entry; do not cancel unrelated work |
-| "Clear the queue" | Remove pending entries; active execution continues |
+| "Clear the queue" | Pause dispatch and present the affected entries; require owner presence and native confirmation before removal |
 | "Resume the queue" | Resume paused dispatch after revalidation and any required uncertainty decision |
 | "Pause the queue" | Stop new dispatch while the current task continues |
-| "Stop all work" | Cancel active execution, clear pending entries, and pause dispatch |
-| "Stop" | Stop TTS and cancel the active task; if only capture is active, stop and discard it |
+| "Stop all work" | Immediately pause new dispatch, then require owner presence and native confirmation before cancelling active execution and clearing pending entries |
+| "Stop" | Stop TTS immediately and pause new dispatch; destructive task cancellation requires the separate confirmed cancel flow |
 | "Repeat the summary" | Replay the current safe summary without rerunning tools |
 | "Use the clipboard" | Capture a new snapshot; do not reuse an old snapshot silently |
 | "Explain the next item" | Navigate the existing result without rerunning the original task |
-| "Clear this conversation" | Cancel its active work, remove its pending entries, then clear ephemeral context |
+| "Clear this conversation" | Pause its work and show affected state; require owner presence and native confirmation before cancellation, queue removal, and context deletion |
 
 Equivalent visual controls are always available.
 Questions/clarifications accept mouse-based typed choices under the same prompt identity, expiry, validation, and approval rules, including when voice input is unavailable.

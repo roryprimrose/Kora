@@ -6,6 +6,9 @@ Related: [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Ac
 
 ## Trust Boundaries
 
+Cross-build startup/handoff uses authenticated user-scoped local coordination under [Instance Coordination](Instance_Coordination.md).
+No second assistant may capture/dispatch during transfer; takeover approval does not approve code installation, production migrations, or transfer of grants/credentials.
+
 1. User input and captured content are data, not trusted system instructions.
 2. Kora's host services enforce policy independently of model decisions.
 3. Runtime adapters and bundled code have an explicit installation trust boundary.
@@ -82,7 +85,8 @@ Apply speaker confidence primarily to output privacy:
 
 | Situation | Required behavior |
 |---|---|
-| Safety-preserving stop, mute, cancel, or lock | Accept from any speaker under normal intent checks |
+| Safety-preserving stop speech, mute, pause new dispatch, or lock | Accept from any speaker under normal intent checks |
+| Cancel task, clear queue/conversation, or stop all work | Pause affected dispatch immediately, then require owner presence and native confirmation before destructive cancellation/deletion |
 | General non-sensitive request | Process under normal context and egress policy; do not infer owner identity |
 | Private clipboard, task, account, message, or queue content with `LikelyOwner` | Speech is permitted only when the content's normal output policy also permits it |
 | Private content with `Uncertain`, `NotOwner`, or `Unavailable` | Default to a neutral visual notice; do not speak the content or confirm sensitive resource details |
@@ -91,6 +95,9 @@ Apply speaker confidence primarily to output privacy:
 
 Headset/private-output mode and a short recent Windows Hello/unlock presence window may reduce unnecessary visual fallback, but neither creates a reusable grant.
 Changing output privacy policy or enrolling/replacing/deleting a template requires native visual interaction; voice can open the page but cannot complete the change.
+For access decisions, `owner presence` means one of: a current `LikelyOwner` observation, a deliberate configured PTT/physical gesture, native confirmation, or a short host-recorded presence window following Windows Hello/unlock.
+It is a risk-reduction condition, not an identity credential.
+Without owner presence, voice can request a private operation but cannot capture private context, approve egress, create/reuse a grant, enable a skill, or weaken privacy; present the exact native confirmation instead.
 
 ## Locked-Session Microphone Policy
 
@@ -163,17 +170,38 @@ Executable extensions need real containment or explicit trust; a path-scoped gat
 
 | Action | Default treatment |
 |---|---|
-| Requested local clipboard capture | Explicit request is consent for that snapshot; no repeated prompt |
+| Requested local clipboard capture | Owner presence is required before capture; the request then authorises one snapshot, not monitoring |
 | Explicit current-session lock request | Consent for the fixed bundled lock action; no generic script grant |
 | Local shutdown/restart | Named second confirmation of exact graceful action, warning, and bounded host countdown |
-| Local read within a user-selected scope | Bounded session grant; visible source selection |
-| New remote context transmission | Review destination and payload; approve immutable context for this task |
-| Remote read tool | Approve parameters/destination or use a narrowly preconfigured read grant |
+| Local read within a user-selected scope | Default single-use; a bounded process-session grant requires native review and visible source selection |
+| New remote context transmission | Review destination and payload; native-confirm immutable context and transformation class for this task |
+| Remote read tool | Single-use exact parameters/destination, or a separately native-confirmed preconfigured read grant |
 | Local write | Approve exact target and change |
 | External write | Approve exact account, destination, parameters, and effect |
 | Executable code or destructive operation | Separate high-risk review; no generic "allow everything" |
 
-An immutable-context task grant may cover repeated use of the same approved items with the same destination.
+### Grant Types and Inheritance
+
+`Single-use` is the default action approval and is consumed by one exact invocation.
+A `task` grant may cover repeated use of named immutable source items, a declared transformation class, and one destination for one task.
+A `conversation` grant is memory-only and may retain selected context but does not approve new tools, egress sources, writes, or queued tasks.
+A `process-session` grant expires on process exit/restart and, unless explicitly documented otherwise, on lock, sign-out, or account/provider change.
+A `time-bound` grant has an explicit expiry no longer than one hour for interactive read access.
+A `persistent-device` or `preconfigured` grant is exceptional, requires native secure confirmation, and is limited to supported read capabilities; write, executable, destructive, credential, security-policy, update, and unrestricted-egress grants cannot be persistent.
+
+No grant implicitly inherits across a new task, queued task, follow-up with new sources, conversation, provider, account, destination, skill/revision, process, Windows user SID, or device.
+Child/follow-up operations must cite the exact parent user request and remain within its sources, transformation class, effects, and destination.
+Changing any of those dimensions requires reassessment and, where applicable, a new approval.
+
+Every reusable grant records a stable grant ID, capability/action, canonical resources, authenticated identity, destination, source/content hashes, allowed transformation class, creator channel, owner-presence/native-confirmation evidence class, creation/expiry, last use, use count, policy/schema revision, parent task/request, and non-inheritance flags.
+Store hashes and canonical identifiers rather than raw sensitive content.
+
+Provide a native Permissions & Approvals surface and deterministic host commands to list active/recent/expired grants, explain why an action is allowed, inspect exact scope and use, revoke one grant, revoke all grants for a provider/resource/skill/account, and export content-minimising audit evidence.
+Narrowing scope or shortening expiry can edit a grant in place.
+Broadening scope, changing identity/destination, converting to persistence, or re-enabling a revoked grant always creates a new native-confirmed grant.
+Revocation blocks new dispatch immediately; in-flight remote work is reported as cancellable, cancelled, or uncertain rather than silently claimed revoked.
+
+An immutable-context task grant may cover repeated use of the same approved items, declared transformation class, and destination.
 New user utterances are visible task input; follow-ups are previewed before remote submission.
 New sources, changed snapshots, derived payloads, tool results, destinations, or increased effects require reassessment.
 
@@ -181,12 +209,41 @@ Approval tokens bind task/invocation IDs, identity, resource and parameter/conte
 They are invalid after cancellation, expiry, relevant policy change, or changed action.
 Do not approve an action based only on a model-written description.
 
-Voice confirmation can answer a low-risk approval prompt with an unambiguous repeated summary.
-Executable code, destructive actions, and credential/security changes require deliberate visual confirmation.
-Narrow exceptions are a host-owned maintenance prompt for an exact verified Kora release, and a fixed local-machine shutdown/restart proposal with distinct named spoken confirmation.
-These do not permit arbitrary script/code installation or generic destructive commands; power actions warn about unsaved work and never force application termination.
+Approval risk is host-classified:
+
+| Risk | Examples | Required channel |
+|---|---|---|
+| Informational | Show help, inspect non-sensitive status | No action approval |
+| Safety interruption | Stop speech, mute, pause new dispatch, request lock | Immediate deterministic control; no reusable grant |
+| Low | One non-sensitive local read with no egress | Voice only with owner presence and exact repeated summary; otherwise native confirmation |
+| Medium | Private-context capture, any egress, remote read, privacy expansion, persistent preference, skill save/enable | Native confirmation bound to exact proposal; voice may initiate/navigate |
+| High | Write, executable/destructive action, credentials/security, grant persistence/broadening, software installation/update | Native secure confirmation; additional OS/UAC/Windows Hello where specified |
+
+The host taxonomy, not a model/skill/tool declaration, assigns risk.
+Unknown or mixed effects use the highest applicable class.
+Executable code, destructive actions, credential/security changes, and software installation require deliberate native confirmation.
+Fixed local-machine shutdown/restart additionally uses distinct named spoken confirmation as specified; speech alone is insufficient.
+During the initial unsigned phase, application update checks are notify-only and cannot create an installation approval.
+These rules do not permit arbitrary script/code installation or generic destructive commands; power actions warn about unsaved work and never force application termination.
 See [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).
 No speaker recognition claim substitutes for user identity.
+
+### Approval Fatigue and Coercion
+
+A denial or expiry suppresses an identical proposal for the current task/session unless the user explicitly reopens it.
+Models, tools, providers, skills, and maintenance events cannot loop, rephrase, escalate, or split an unchanged denied request to solicit another approval.
+Prompt attempts are rate-limited and deduplicated by canonical proposal hash.
+Do not combine distinct resources, destinations, identities, or effects into a broad approval merely to reduce prompt count.
+Scope escalation or changed content produces a visibly new proposal and never preserves the prior approval.
+Newly shown native approval controls are unarmed for at least 500 ms and ignore key/mouse events that began before presentation.
+
+### Intent Lineage and Prompt-Injection Controls
+
+Untrusted skill instructions, MCP/tool results, retrieved content, rendered content, and derived summaries occupy structurally separated data fields with provenance and non-instruction semantics; they never occupy host policy, approval, system/developer, or workflow-stage control fields.
+Every model-proposed tool, context, queue, or egress operation cites the authenticated user request or previously native-approved host plan step that requires it.
+An existing grant cannot authorise a new resource, destination, tool, workflow stage, or effect introduced only by untrusted content.
+Derived content preserves the restrictions and taint of every source unless a separately approved transformation explicitly changes them.
+The host compares each outbound envelope to approved source IDs and transformation classes; protocol framing need not be byte-identical, but every new content-bearing source or materially broader derivation requires delta review.
 
 ## Application Integrity and No Self-Modification
 
@@ -230,7 +287,8 @@ The agent has no elevation, installer, updater, or executable-extension activati
 The built-in environment controller is a separate trusted host path for exact catalogue-defined dependency setup, not a model/skill installer capability.
 It may initialise Kora data and offer approved external prerequisites, but cannot alter Kora code or use arbitrary supplied installer paths.
 See [Environment Setup](Environment_Setup.md).
-Application updates use a separate verified maintenance path with explicit per-release user approval and no model-callable entry point.
+During the unsigned phase, application maintenance is notify-only with no model-callable or host-install-capable entry point.
+Any future updater requires an independently authenticated metadata trust root, native secure per-release approval, and separate acceptance evidence.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.
 Automatic checks may produce proactive verbal suggestions, but cannot install without that scoped approval.
 See [Distribution and Updates](Distribution_And_Updates.md) and [Proactive Interaction](Proactive_Interaction.md) for protected feed, dialogue, and event boundaries.
@@ -302,14 +360,15 @@ If containment cannot enforce a requested restriction, reject that profile rathe
 | Conversation answers/tool content | Memory only; no automatic restart restoration |
 | Queue requests, labels, context references, and content-bearing work ledger | Memory only; clear on conversation close/clear or app exit; pending entries expire after 30 minutes by default, with bounded configurable lifetime |
 | Conversation idle lifetime | Clear ephemeral context after 30 minutes of inactivity, except while a task is active; user may shorten expiry |
-| Task/action audit metadata | Local SQLite, at most 30-day expiry; user may shorten it; IDs, timestamps, destination, outcome, and error codes, not raw parameters/content |
-| Configuration and grants | Persist until removed or expired; no secrets in configuration |
+| Task/action/approval audit metadata | Local SQLite, at most 30-day expiry; stable IDs, canonical action/resource/destination identifiers, parameter/content hashes, scope, creator channel, presence/confirmation class, policy/schema revision, creation/expiry/use/revocation events, outcome, and error codes; no raw parameters/content |
+| Configuration and grants | Persist only for their declared grant type until revoked/expired; inventoried in Permissions & Approvals; no secrets in configuration |
 | Kora-specific skill definitions/revisions | Persist in `%APPDATA%\Kora\Skills` until explicitly removed; not cleared with conversation history |
 | Shared profile skill snapshots | Approved in-memory revision snapshots; re-read/revalidate on restart; source files remain untouched |
 | Approved export | User-selected location with an explicit content preview |
 
 Persistent conversation history is deferred and opt-in when introduced.
 Bounded retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/content persistence or restore consumed grants.
+Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.
 Crash reports and diagnostics omit raw context, speech, tool arguments, credentials, and answer content by default.
 Content-bearing diagnostic export requires explicit preview/consent; OS or third-party crash dumps remain a deployment concern.
 In-memory disposal is best-effort, not a guarantee of forensic erasure from OS paging.

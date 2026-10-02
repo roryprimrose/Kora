@@ -20,11 +20,12 @@ Kora cannot modify its own source, installed components, runtime adapters, secur
 4. Explain the proposed behaviour and requested capabilities aloud; show the exact files/diff.
 5. Accept voice refinements such as "make it read-only" or "ask me which environment first", producing a new proposal.
 6. Run built-in structural/dependency checks and simulated examples with mocked tool results.
-7. Obtain approval for the exact validated revision and save it to the designated user skill store.
-8. Separately ask whether to enable the saved revision after capability review.
+7. Present native confirmation for the exact validated revision and save it disabled to the designated user skill store.
+8. Separately present native confirmation to enable the saved revision after capability, tool, resource, destination, and instruction-risk review.
 9. Confirm the skill name, version, and how to invoke it: for example, "Kora, use Deployment Explanation".
 
-A normal declarative skill save/enable can be confirmed verbally after an unambiguous summary; no typing is required.
+Voice can create, refine, explain, and test a declarative proposal, but cannot persist or enable it without native confirmation and owner presence.
+Saving and enabling are separate proposals; a saved revision remains disabled.
 Enablement does not grant a missing tool permission or approve future actions.
 High-risk tool actions during actual skill use retain their existing approval requirements.
 Every changed proposal invalidates any prior approval of that proposal.

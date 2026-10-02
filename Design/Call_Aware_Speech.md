@@ -89,17 +89,18 @@ Examples:
 | "During calls, only speak when I ask" | Select default suppression with speak-once override |
 | "Only suppress unsolicited suggestions during calls" | Persist a policy allowing requested answers but not proactive speech |
 | "Stay silent when you can't tell whether I'm in a call" | Persist conservative Unknown handling |
-| "Use normal speech when call detection is unavailable" | Change Unknown fallback after explaining reduced protection |
+| "Use normal speech when call detection is unavailable" | Open a native confirmation for the reduced-protection Unknown fallback |
 | "I'm in a call" | Set manual Active override until explicitly cleared |
 | "My call has ended" | Clear manual Active override; enabled automatic sources still apply |
 | "Read that answer aloud once" | Authorise one identified response despite the call gate |
-| "Allow normal speech for this call" | Temporarily relax only the call gate; default expiry 1 hour or observed call end, whichever is first |
+| "Allow normal speech for this call" | Open native confirmation for a bounded call-wide relaxation; default expiry 1 hour or observed call end, whichever is first |
 | "Restore call-aware speech defaults" | Reset configurable call preferences and temporary overrides |
 | "What are my call speech settings?" | Show policy, sources, freshness, and override state; speak only if permitted |
 
-An explicit persistent request can allow normal speech during calls, but it never overrides lock, microphone consent, user mute, or another mandatory policy.
+An explicit persistent request can propose normal speech during calls, but native secure confirmation is required before the privacy downgrade and it never overrides lock, microphone consent, user mute, owner-aware private speech, or another mandatory policy.
 Speak-once tokens bind a response/prompt ID and current policy generation, expire after 2 minutes, and are consumed once.
 They cannot drain accumulated speech or change persistent settings.
+Voice may request a single identified response, but when owner presence is absent that request also falls back to native confirmation.
 Temporary overrides are revoked on lock/sign-out/restart; unresolved call-end detection cannot extend their time limit.
 Intent/target ambiguity produces visual clarification while speech is gated.
 

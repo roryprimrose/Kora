@@ -6,7 +6,8 @@ Related: [Vision](Vision_Statement.md), [Architecture](Architecture.md), [Decisi
 
 ## Product Outcome
 
-A Windows user can say "Kora, explain the clipboard", see the answer, hear a short summary, and interrupt the interaction without typing or pressing an activation control.
+A Windows user with current owner presence can say "Kora, explain the clipboard", see the answer, hear a short summary, and interrupt the interaction without typing or pressing an activation control.
+When owner presence is absent or uncertain, the same request pauses at native confirmation before clipboard capture or egress.
 
 The first release proves a complete, predictable interaction rather than shipping an incomplete version of every capability in the vision.
 
@@ -46,6 +47,7 @@ Each checkpoint preserves all earlier controls and has a separately reported acc
 Included:
 
 - A .NET/Avalonia desktop shell with explicit microphone and task status.
+- Cross-build single-active-instance coordination, same-build activation, approved different-build handoff, and mouse-based original-version return offer under [Instance Coordination](Instance_Coordination.md).
 - Always-available native questions with mouse answers, explicit first-run microphone selection, and device/permission-loss recovery without speech/model/network dependencies.
 - Persistent system tray icon/context menu as the primary non-voice recovery route, including detected microphone choice and explicit listening enablement.
 - Built-in first-run/re-enterable setup, automatic internal storage/database initialisation, and capability-based dependency detection/configuration.
@@ -104,7 +106,7 @@ Add a narrowly scoped Builder workflow that develops usable skills through voice
 3. Review the exact diff and hear a behaviour/capability summary.
 4. Run built-in schema/dependency checks and data-only simulated examples.
 5. Approve and save the validated revision to the dedicated user skill store.
-6. Separately enable it and invoke it by voice under normal task permissions.
+6. Separately native-confirm enablement, then invoke it by voice under normal task permissions.
 
 See [Voice-Driven Skill Authoring](Skill_Authoring.md).
 Kora-specific skills and edited copies of shared skills are saved under `%APPDATA%\Kora\Skills`; shared profile sources are never edited.
@@ -158,7 +160,7 @@ Both offer optional start-at-logon registration without weakening microphone/ses
 Delivery provides Kora, not a preconfigured environment. Once launched, Kora initialises its own stores and offers setup of the chosen speech/provider/runtime requirements.
 Ollama provisioning is available with the required Slice A2 adapter, but installation remains optional for users who select only remote processing.
 See [Environment Setup](Environment_Setup.md).
-Binary deployments check the hosted release feed and proactively offer updates verbally; installation requires explicit approval for each verified release.
+Binary deployments check the hosted release feed and proactively offer unsigned/manual update notices; installation remains external and Kora has no install-capable updater during the unsigned phase.
 Package format remains a separate decision.
 Source is expected to be public/open-source on GitHub, with Linux GitHub Actions building, packaging, and publishing initially unsigned official Windows releases.
 Release and setup surfaces disclose the lack of Authenticode publisher identity and provide final-byte hashes/provenance.

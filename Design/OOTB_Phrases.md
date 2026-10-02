@@ -52,7 +52,7 @@ Do not promise to save other applications' documents or prevent all data loss; a
 Warn, report blockers, and never escalate silently to forced termination.
 Cancellation/expiry restores the prior queue-pause state unless another event requires it to stay paused.
 Power actions never target remote computers, change executable code, or obtain unrestricted elevation.
-Host lifecycle operations are serialised: an update activation and a computer/app restart cannot race.
+Host lifecycle operations are serialised; unsigned-phase update checks have no activation path, and any future updater must not race computer/app restart.
 While a power preparation owns a dispatch hold, "resume the queue" requires cancelling that preparation first.
 
 ## Kora Application Lifecycle
@@ -83,17 +83,17 @@ Hide is not exit, microphone mute, queue pause, or permission to conceal listeni
 | "What do you have left to do?" | "What's left?" | Known remaining steps plus queued work; unknowns labelled |
 | "Show the queue" | "List pending requests" | Ordered source-qualified task labels/states |
 | "How many requests are queued?" | "How much work is waiting?" | Pending count and capacity |
-| "Queue {request}" | "Do {request} after this" | Admit a request with explicit context binding |
-| "Do {queued task} next" | "Move {task} to the front" | Reorder uniquely identified pending work |
-| "Move {task} after {other task}" | "Do {task} before {other task}" | Relative ordering, preserving dependency constraints |
-| "Remove {queued task}" | "Cancel the queued {task}" | Remove that pending entry, not active work |
+| "Queue {request}" | "Do {request} after this" | Require owner presence before admitting a request with explicit context binding |
+| "Do {queued task} next" | "Move {task} to the front" | Require owner presence before reordering uniquely identified pending work |
+| "Move {task} after {other task}" | "Do {task} before {other task}" | Require owner presence for relative ordering while preserving dependencies |
+| "Remove {queued task}" | "Cancel the queued {task}" | Pause dispatch and native-confirm removal of that pending entry |
 | "Pause the queue" | "Don't start the next task yet" | Stop new dispatch; active task continues |
 | "Resume the queue" | "Continue queued work" | Resume after policy/dependency/uncertainty checks |
-| "Clear the queue" | "Remove all pending requests" | Remove pending entries; active task continues |
-| "Cancel the current task" | "Cancel task", "Stop this task" | Cancel active work and pause dispatch; preserve pending entries |
-| "Stop all work" | "Cancel everything" | Cancel active work, clear queue, pause dispatch |
-| "Stop this and {new request} instead" | "Replace the current task with {request}" | Cancel/settle active execution, then admit replacement |
-| "Stop" | None | Stop speech and cancel active work; preserve pending entries under cancellation policy |
+| "Clear the queue" | "Remove all pending requests" | Pause dispatch, show affected entries, and require owner presence/native confirmation before removal |
+| "Cancel the current task" | "Cancel task", "Stop this task" | Pause new dispatch, then require owner presence/native confirmation before cancellation; preserve pending entries |
+| "Stop all work" | "Cancel everything" | Pause dispatch immediately; require owner presence/native confirmation before cancel/clear |
+| "Stop this and {new request} instead" | "Replace the current task with {request}" | Pause, then native-confirm active cancellation/replacement admission |
+| "Stop" | None | Stop speech and pause new dispatch immediately; destructive cancellation uses the separate confirmed flow |
 
 Task IDs/labels and pronouns must resolve against the ledger; ambiguous targets require clarification.
 "Pause the queue" does not suspend an arbitrary tool/process halfway through a side effect.
@@ -107,10 +107,10 @@ Re-running a completed task is a new request with new context/permissions, not r
 | "Repeat the summary" | Repeat existing summary if speech policy permits; do not rerun tools |
 | "Explain the next item" / "Go back to the previous item" | Navigate the existing result |
 | "That isn't what I meant" / "Correct that to {text}" | Clarify/correct the referenced request; invalidate changed approvals |
-| "Clear this conversation" | Cancel its work, clear queue/context; preserve saved skills |
+| "Clear this conversation" | Pause its work, show affected queue/context, and require owner presence/native confirmation before destructive clearing; preserve saved skills |
 | "Show my skills" | List bundled, enabled shared, and Kora-specific skills with their sources |
 | "Show the skills in my profile" | Offer/register bounded read-only profile discovery |
-| "Enable {skill} from {source}" | Review exact revision/dependencies and enable; no new tool grant |
+| "Enable {skill} from {source}" | Review exact revision/dependencies/tools/destinations, then require owner presence and native confirmation; no new tool grant |
 | "Disable {skill}" | Block new invocations; cancel affected calls where supported |
 | "Use {skill} to {request}" | Invoke the selected pinned revision under normal policy |
 | "Create a skill that {behaviour}" | Begin voice-driven declarative authoring |
@@ -133,9 +133,9 @@ User requests to delete a saved skill require exact selection/confirmation and n
 | "Don't speak while I'm in a call" | Persist conservative call suppression |
 | "Only suppress unsolicited suggestions during calls" | Allow requested answers but suppress proactive speech in calls |
 | "Stay silent when you can't tell whether I'm in a call" | Persist conservative Unknown handling |
-| "Use normal speech when call detection is unavailable" | Change configurable Unknown handling with reduced-protection explanation |
+| "Use normal speech when call detection is unavailable" | Present reduced-protection explanation and require native confirmation |
 | "I'm in a call" / "My call has ended" | Set/clear manual call state; automatic sources still apply |
-| "Allow normal speech for this call" | Bounded temporary call-policy override |
+| "Allow normal speech for this call" | Propose a bounded temporary call-policy override requiring native confirmation |
 | "Restore call-aware speech defaults" | Reset configurable call policy |
 | "What are my call speech settings?" | Policy, sources, freshness, overrides; visual if gated |
 | "Don't interrupt me" / "Use quiet mode" | Suppress routine proactive speech until changed; visual notifications remain |
@@ -160,6 +160,11 @@ Every supported preference has verbal discovery/get/set/reset operations; see [U
 | "Make that my default" | Promote an identified compatible temporary preference with normal confirmation |
 | "Reset {category} settings to defaults" | Preview affected preferences; reset without erasing skills or credentials |
 | "Undo the last settings change" | Revalidate a compatible prior preference; never replay grants or external side effects |
+| "Show my active approvals" | Open the native Permissions & Approvals view filtered to active grants |
+| "Why can {skill/provider} access {resource}?" | Show the matching grant, scope, creator channel, expiry, and use history without raw content |
+| "Revoke approval {grant/resource/provider}" | Open an exact native revocation proposal; voice alone does not complete it |
+| "Revoke all approvals for {provider/resource/skill}" | Open a bulk native revocation proposal listing affected grants |
+| "Show recent approval history" | Open content-minimising use/denial/expiry/revocation history |
 
 Ambiguous settings, targets, values, units, and durations require clarification.
 Skill/tool text cannot manufacture a user settings request.
@@ -172,18 +177,17 @@ Closed microphone/locked sessions cannot receive speech; no hidden microphone ex
 | "Check for updates" | Trigger bounded host maintenance check against configured source; install nothing |
 | "Is an update available?" | Report verified availability/check time, or Unknown/failed check |
 | "What's new in that update?" | Show/summarise release notes as untrusted content, not executable instructions |
-| "Update Kora" / "Install the update" | Present/select the verified release proposal; install only with exact scoped maintenance approval |
-| "Install that update when this task finishes" | Approve the foreground exact release with safe timing, revalidated before activation |
-| "Cancel the update" | Cancel an owned check/download/staging step when safe; activation may no longer be cancellable |
-| "What is the update doing?" | Actual maintenance stage/result; no invented percentage |
+| "Update Kora" / "Install the update" | Explain that unsigned-phase updates are manual and offer the exact canonical release page; do not download or install |
+| "Show that release" | Present the exact canonical release-page navigation proposal |
+| "Cancel the update" | Cancel an owned metadata check or dismiss the notification; there is no Kora-owned staging/activation |
+| "What is the update doing?" | Report metadata-check/notification state and that installation is external; no invented percentage |
 | "What do you need to finish setup?" | Readiness and scoped missing requirements |
 | "Set up local models" | Offer supported local adapter/runtime/model plan; no automatic broad install |
 | "Use my existing Ollama installation" | Probe selected endpoint and reuse only after validation |
 | "Enable start at logon" / "Disable start at logon" | Modify only Kora's own startup registration after scoped consent |
 
-"Update Kora" is routed to trusted maintenance dialogue, not a model-generated script or Git pull.
-When no release is currently selected, first check/review; the initial utterance is not approval for an unknown future payload.
-If activation has begun, cancellation reports the real safe boundary and does not claim an impossible rollback.
+"Update Kora" is routed to trusted notify-only maintenance dialogue, not a model-generated script, Git pull, download, or installer.
+When no release is currently selected, first check/review; the initial utterance is not approval for an unknown future payload or browser navigation.
 
 ## Confirmation and Phrase Tests
 

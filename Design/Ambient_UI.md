@@ -47,6 +47,11 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
 - Passive status never steals focus. Only explicit interaction opens interactive
   detail; expose context, cancellation, and approvals through equivalent visual
   controls. A real approval must not be satisfied by the push-to-talk key.
+- Transparent/hidden regions are always non-hit-testable. Native approval controls
+  accept input only inside their visible bounds, remain unarmed for at least 500 ms
+  after presentation, and ignore mouse/key gestures that began before the approval
+  appeared. Focus may describe the proposal but never lands on an armed affirmative
+  action as a side effect of showing the surface.
 - Keep the presence above ordinary app windows without claiming it can appear
   above secure desktops or exclusive fullscreen. Offer user-controlled placement
   and suppression in presentation/fullscreen scenarios as future design decisions.

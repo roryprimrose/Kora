@@ -56,19 +56,18 @@ Bind a reply to the exact current prompt ID, action, and expiry.
 Ambiguous "yes" or a reply after another prompt took focus requires clarification, not inferred approval.
 Wake detection is not authentication, and playback cannot approve its own prompt.
 
-Management acknowledgements, task approvals, and maintenance approvals use distinct scopes.
-An update acceptance cannot approve a tool write, and a tool approval cannot authorise an update.
+Management acknowledgements and task approvals use distinct scopes.
+Unsigned-phase update interaction is notify-only and creates no maintenance approval.
 Interrupting a prompt preserves truthful task state and follows existing prompt withdrawal/re-presentation rules.
 
 ## Update Example
 
 1. The configured release checker discovers an eligible release from the canonical repository whose identity and digest match protected maintenance configuration, and emits a host event.
-2. Kora says which version is available and proposes installation/restart at a safe boundary.
-3. "Kora, not now" defers; "Kora, install that update" accepts the exact trusted maintenance proposal.
-4. The host maintenance controller records approval tied to release identity, digest, origin, expiry, and activation/restart timing.
-5. A separate updater verifies origin, release identity, and final-byte digest and deploys only after task/worker quiescence; during the initial unsigned phase it does not claim Authenticode publisher verification.
-6. Changed release content, expired approval, changed activation conditions, or missing verification requires a fresh decision.
+2. Kora says which version is available, that it is unsigned, and that replacement is manual.
+3. "Kora, not now" defers; "Kora, show that release" opens an exact canonical release-page proposal.
+4. Native browser navigation may open that page after normal URL review; it is not download, staging, execution, or installation approval.
+5. Changed release identity/origin invalidates the proposal and requires a fresh request.
 
-No release is installed merely because Kora suggested it.
+No release is downloaded, staged, executed, or installed by Kora during the unsigned phase.
 The model and skill runtimes never receive an installer tool or authority to select executable payloads.
 See [Distribution and Updates](Distribution_And_Updates.md) for the maintenance boundary.

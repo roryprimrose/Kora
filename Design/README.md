@@ -27,7 +27,8 @@ Where the vision is broader or less specific, these documents define the propose
 17. [Information Display](Information_Display.md): optional speech text, browser/static HTML viewing, Markdown and Mermaid.
 18. [Mouse-Based Interaction and Voice Recovery](Interaction_Fallback.md): first-run microphone choice, visual questions, and device-loss recovery.
 19. [Custom Voice Activation Names](Activation_Name.md): local renaming with explicit custom-only or default-plus-custom choice.
-20. [Acceptance Criteria](Acceptance_Criteria.md): evidence required before release.
+20. [Single Active Instance and Version Handoff](Instance_Coordination.md): duplicate activation, approved release/debug takeover, and original-version return.
+21. [Acceptance Criteria](Acceptance_Criteria.md): evidence required before release.
 
 ## Visual Exploration
 
@@ -36,6 +37,8 @@ presence and three animated visual directions. The [interactive browser prototyp
 is an offline design mockup, not an implemented application or a change to release scope.
 
 ## Key Decisions
+
+- One assistant is active per Windows user across builds/checkouts; identical-build launches reveal it, while different-build takeover and return require explicit approval.
 
 - Windows is the only supported application platform for the foreseeable future; portable shared logic and trusted platform boundaries preserve extensibility without committing to Linux/macOS ports.
 - Kora owns task lifecycle, context selection, policy, approvals, and presentation.
@@ -54,7 +57,7 @@ is an offline design mockup, not an implemented application or a change to relea
 - Source-bootstrap and precompiled runtime-only binary deployment are both supported; package format is not yet selected.
 - The expected repository is public/open-source on GitHub; Linux Actions build/package/publish initially unsigned Windows releases, with explicit unsigned-artifact disclosure, final-byte hashes/provenance, and Windows validation outside the required build pipeline.
 - Delivery installs Kora; the running application sets up its stores and approved requirements for selected capabilities, reusing existing installations.
-- Kora initiates eligible conversations, including verbal update suggestions; releases are checked automatically but installation requires explicit per-release approval through protected maintenance.
+- Kora initiates eligible conversations, including unsigned/manual update notices; initial update handling is notify-only and cannot download, stage, execute, or install replacement code.
 - Automatic speech defaults to visual-only during calls or uncertain enabled-detector state; users configure this verbally and can request a single spoken response.
 - OOTB computer/app/queue controls have explicit scopes; shutdown/restart require a second named spoken confirmation plus native secure confirmation outside the speech/model path.
 - Every supported preference has verbal discovery/get/set/reset operations through the same host service as the UI; mandatory safety rules are not configurable bypasses.

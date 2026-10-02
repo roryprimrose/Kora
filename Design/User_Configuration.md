@@ -143,8 +143,8 @@ Fixed approval lifetimes, process cancellation grace, power confirmations, secre
 | Account/connector selection | Explicit supported signed-in identity | "Use my work account for Teams detection" |
 | Connector enablement | Only registered/validated connector | "Disable the GitHub connector" |
 
-Changes increasing remote exposure require an exact named voice confirmation such as "confirm remote-enabled processing".
-That confirms the setting only; each new outgoing payload still follows egress policy.
+Changes increasing remote exposure require owner presence and native confirmation; voice may open and explain the exact proposal but cannot complete the privacy downgrade.
+That confirms the setting only; each new outgoing payload still follows egress policy and its applicable owner-presence/native-confirmation requirement.
 Remote endpoints require a validated destination and setup/network decision, not guessing or silent fallback.
 Provider changes do not transplant active task context or continue a task under another account automatically.
 Credentials/tokens/passwords are not dictatable option values; voice starts supported sign-in/sign-out/configuration flows.
@@ -171,14 +171,35 @@ Reducing audit retention or removing source enablement explains any immediate de
 |---|---|---|
 | Start at logon | Explicit opt-in | "Enable start at logon" |
 | Startup presentation | Tray/minimal shell; details optional | "Open the details view when you start" |
-| Automatic update checking | Enabled only for configured/permitted maintenance networking | "Only check for updates when I ask" |
+| Automatic update checking | Notify-only; enabled only for configured/permitted maintenance networking | "Only check for updates when I ask" |
 | Update-check interval | 6 hours; 30 minutes-24 hours with backoff/jitter | "Check for updates twice a day" |
 | Release channel | Stable; only trusted published channels | "Use the preview release channel" |
 | Update reminder preference | Per-release reminder/suppression through proactive policy | "Don't remind me about this version" |
 
-Update installation always requires per-release approval; "automatic install" is not an available setting.
+During the unsigned phase, update installation is external to Kora; no install/stage/download approval or "automatic install" setting exists.
 Changing channels does not authorise a downgrade, skip verification, or rewrite the protected feed/trust configuration.
 Logon startup does not waive explicit microphone re-enabling or locked-session policy.
+
+## 8. Permissions and Approvals
+
+Permissions and approvals are host-owned security records, not ordinary preference values.
+The native Permissions & Approvals page lists active, recent, expired, and revoked grants with stable ID, capability/action, canonical resource, identity, destination, scope, creator channel, creation/expiry, last use/use count, policy revision, and revocation reason.
+It never needs to display raw sensitive payloads; show content/parameter hashes and safe labels.
+
+Deterministic voice commands may open or filter that page, explain why an action is currently allowed, and request revocation.
+Native confirmation completes revocation, scope narrowing, expiry shortening, or bulk revocation.
+Broadening scope, extending beyond the allowed maximum, changing identity/destination, making a grant persistent, or restoring a revoked/expired grant is a new security approval and cannot be performed by voice alone.
+Revocation blocks new calls immediately and reports in-flight work as cancelled, completed, or uncertain.
+
+Required operations:
+
+- List active/recent/expired/revoked grants.
+- Inspect one grant and its use history.
+- Revoke one grant.
+- Revoke all grants for a provider, account, resource, skill/revision, or capability.
+- Narrow resources/capabilities or shorten expiry.
+- Export content-minimising approval/audit metadata after preview.
+- Explain which new approval would be required to restore or broaden access.
 
 ## Applying, Resetting, and Undoing
 

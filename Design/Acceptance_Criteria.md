@@ -26,7 +26,7 @@ Critical policy/cancellation tests require 100% pass; averages must not hide ind
 
 - Shared domain/policy/task/skill/configuration code builds and runs portable tests on Linux without Windows-only API references.
 - Real native dependencies/handles/path conventions are confined to Windows integrations and platform composition, not scattered through shared logic.
-- Contract tests cover device identity/cancellation, locked/disconnected/unknown denial, credential opacity, protected execution, and maintenance approval semantics.
+- Contract tests cover device identity/cancellation, locked/disconnected/unknown denial, credential opacity, protected execution, unsigned-phase notify-only maintenance, and the absence of any install-capable path.
 - A fake or future adapter cannot weaken shared policy through capability claims, unknown state, or failed probes; affected capabilities fail closed.
 - Windows end-to-end tests verify the real adapters independently of portable fakes.
 - Unsupported-OS startup reports the unsupported platform without acquiring capture, executing controls, or implying partial support.
@@ -63,12 +63,13 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 
 ### Functional
 
-- A user completes the clipboard explanation workflow by saying "Kora, explain the clipboard", without typing, clicking, or pressing push-to-talk after setup consent.
+- A user completes the clipboard explanation workflow by saying "Kora, explain the clipboard", without typing, clicking, or pressing push-to-talk when a current `LikelyOwner` or short recent Windows Hello/unlock presence window exists.
+- With owner presence absent/uncertain, the same utterance captures nothing and opens exact native confirmation; denial leaves clipboard content untouched.
 - Both immediate commands ("Kora, explain...") and wake-then-command with a pause preserve the command's first words.
 - Optional push-to-talk uses the same command pipeline without requiring "Kora".
 - Empty activation returns to Wake Listening after 5 seconds without a model call, clipboard read, or other tool invocation.
 - Trailing-silence endpointing and the 60-second limit produce explicit, bounded capture transitions.
-- A snapshot is captured only after an explicit request.
+- A snapshot is captured only after an explicit request plus owner presence; absent/uncertain owner presence produces native confirmation before capture.
 - Changes to the OS clipboard after capture do not change task input.
 - Empty, locked, unsupported, and oversized clipboard cases are distinguished.
 - Visual answer streaming and a spoken summary use the same task/result identity.
@@ -98,6 +99,14 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Wake Listening, Capturing Command, Muted, Session Locked, and Unavailable are distinguishable, including background-app status.
 - Closing/clearing the conversation and the 30-minute idle expiry clear ephemeral context references.
 - Restart does not restore default ephemeral history.
+- Exercise every grant type: single-use, task, conversation, process-session, time-bound, persistent-device, and preconfigured.
+- Verify default single-use scope, explicit maximum expiry, no cross-task/follow-up/provider/account/skill/process/device inheritance, and revocation on the documented lock/sign-out/restart/policy/schema transitions.
+- The native Permissions & Approvals surface lists canonical scope, identity, destination, hashes, creator channel, expiry, last use/use count, policy revision, and revocation reason without raw sensitive content.
+- Narrowing/shortening edits in place; broadening, persistence conversion, identity/destination change, and restoring revoked/expired access require a new native-confirmed grant.
+- Revoke-versus-dispatch races block new calls immediately and report in-flight remote effects truthfully.
+- Clipboard/private-context capture, every egress operation, remote reads, privacy expansion, persistent preferences, and skill enablement fall back to native confirmation when owner presence is absent.
+- Denied canonical proposals are deduplicated/rate-limited and cannot be rephrased, split, or escalated repeatedly by models/tools/providers/skills; distinct resources/effects are never hidden in a broad bundled approval.
+- Newly displayed native approval controls ignore pre-existing key/mouse input and remain unarmed for at least 500 ms.
 
 ### Mouse-Based Questions and Device Recovery
 
@@ -170,6 +179,7 @@ Record models, thresholds, distances, volume levels, and playback-rejection conf
 - Require at least 95% activation recall in quiet and 90% in office noise and during TTS, reporting each condition separately.
 - Use at least 10 hours of negative audio per setup, including similar words, background conversation, and media; require no more than 1 false activation per hour.
 - Replay at least 100 Kora-generated outputs containing "Kora" and activation cues; require zero self-activations and zero playback-derived commands.
+- Where supported, replay wake/control phrases through each active Windows output/loopback device and require zero accepted commands attributable to local media or conference playback; unsupported system-output correlation is disclosed and headset/PTT guidance is verified.
 - Verify command-prefix preservation for immediate wake-and-command utterances, and no duplicate task from one activation.
 - False activations must never bypass context consent, remote egress review, or action approvals.
 - Measure wake-listening-only overhead for 30 minutes: mean CPU <= 5% of total reference-machine capacity and incremental working set <= 200 MiB over muted idle.
@@ -238,7 +248,9 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 - Read grants are resource- and identity-scoped and revoke immediately for new calls.
 - Tool output exceeding 64 KiB is bounded and visibly marked.
 - Tool results retain source, identity, retrieval time, and classification.
-- Tool output containing hostile instructions cannot grant permissions or trigger unapproved actions.
+- Tool/skill/MCP/rendered content containing hostile instructions cannot grant permissions, change host stages, or trigger actions merely because an existing/preconfigured grant could cover them.
+- Every proposed action cites the authenticated user request or native-approved host plan step; actions/resources/destinations introduced only by untrusted content are rejected or freshly reviewed.
+- Derived summaries retain source taint/restrictions, and every new content-bearing source or materially broader transformation triggers delta egress review.
 - New results require egress assessment before submission to a remote model.
 - A skill with missing tools or incompatible schemas is disabled with a dependency explanation.
 - User-approved profile roots are discovered read-only; no whole-profile scan or implicit enablement occurs.
@@ -251,10 +263,10 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 
 ## Gate 3: Voice-Driven Skill Authoring and Application Integrity
 
-- A user creates, refines, tests with mocks, saves, enables, and invokes a skill using voice, without editing code or typing.
+- A user creates, refines, and tests with mocks through voice; saving and enabling require separate native confirmations and no manual file editing.
 - Spoken capability summaries and the displayed diff identify the same proposed revision.
 - The proposal phase creates no installed-skill writes; staged proposals remain data only.
-- Save approval binds exact package files, base hashes, and new content; later refinement invalidates approval.
+- Native save approval binds exact package files, base hashes, and new content; later refinement invalidates approval and the saved revision remains disabled.
 - A changed base, traversal path, hard-link alias, or disallowed reparse-point target prevents application.
 - Denial, expiry, and cancellation prevent pending writes.
 - The skill validator rejects invalid manifests, executable directives, scripts, assemblies, hooks, arbitrary paths, and custom validators without launching code.
@@ -263,7 +275,7 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 - Missing tool dependencies are reported; Kora does not install or rewrite their implementation.
 - Validation failure does not save/enable the proposal.
 - Partial write and worker crash fixtures preserve evidence and never overwrite unrelated edits during recovery.
-- Changed skill content is not activated before policy/dependency checks and explicit enablement.
+- Changed skill content is not activated before policy/dependency checks and a separate native enablement confirmation covering tools, resources, destinations, and instruction-risk summary.
 - Active tasks retain their original digest-pinned skill revision while new invocations use the enabled revision.
 - A request to improve a bundled skill creates only a distinct declarative user adaptation; it never mutates embedded resources, copies executable scripts, or shadows reserved controls.
 - Editing a shared profile skill creates a reviewed copy under `%APPDATA%\Kora\Skills` with attribution and a distinct scoped ID; source bytes, names, and timestamps remain unchanged.
@@ -316,6 +328,9 @@ Verify:
 
 ## Distribution and Startup Gate
 
+- [Instance Coordination](Instance_Coordination.md) tests cover simultaneous duplicates, exact-build identity, approved/refused/expired takeover, worker quiescence, authenticated/stale IPC, and at-most-one capture/task owner.
+- Return-offer tests cover replacement exit/crash, explicit mouse acceptance/decline, changed original executable, supervisor loss, locked session and competing owner; no automatic restart/listening or shared production-store mutation.
+
 - The source bootstrap succeeds from a clean reference environment with declared build prerequisites and a pinned revision.
 - Missing prerequisites, authentication failure, restore/build failure, and interrupted installation yield explicit actionable errors; no unrelated checkout is changed.
 - Bootstrap rerun does not duplicate installation/startup registration or overwrite local edits.
@@ -328,17 +343,15 @@ Verify:
 - Logon/restart/locked-session tests preserve the existing explicit microphone re-enabling rules.
 - Uninstall removes startup entries and offers data retention without deleting shared profile skills.
 - Installation metadata, not `.git` presence, determines maintenance mode; developer checkouts are not automatically pulled/reset.
-- A staged failed update leaves the current deployment runnable; activation waits for quiescence and respects settings/schema compatibility.
 - Binary update checks use the configured hosted release feed without Git/SDK, respect channel/architecture/runtime, and exclude drafts/prereleases on stable.
 - Failed/offline checks are not reported as current; repeated checks respect cadence/backoff and maintenance network policy.
-- Eligible release metadata produces an unprompted verbal suggestion when voice delivery is permitted; rejection/deferral installs nothing.
-- Downloads/staging require explicit per-release acceptance; wrong origins, tampered artifacts, changed digests, or expired approval prevent activation.
-- Voice acceptance is bound to the exact foreground maintenance proposal; task/skill prompts and model-written text cannot authorise it.
-- Update activation waits for task/worker quiescence, does not cancel user work automatically, and cannot begin while locked/disconnected.
+- Eligible release metadata produces an unprompted unsigned/manual-update notice when voice delivery is permitted.
+- "Update/install Kora" never downloads, stages, executes, mutates source, or activates an artifact during the unsigned phase; it can only show details or propose the exact canonical release page.
+- Browser navigation to the release page is bound to the canonical URL and is not installation approval.
 - Agent tools cannot invoke maintenance, change update origins, choose executable payloads, or fabricate release-availability events.
-- Package-level auto-update settings cannot bypass per-release approval.
+- No package-level or source auto-update authority exists during the unsigned phase.
 
-Installer/package/updater technology selection requires additional integration evidence before activation is enabled.
+An install-capable updater remains unavailable until independent signed-metadata trust, rollback/freeze protection, key rotation, native secure approval, and separate acceptance evidence are added.
 
 ### Public GitHub and Linux Release Gate
 
@@ -415,12 +428,12 @@ A failed integration proof leaves that detector explicitly unavailable with manu
 - Confirmation prompts expire after 30 seconds; accepted power grants are single-use with a 2-minute expiry and no silent extension.
 - Power countdown is host-owned, visible, and cancellable; the final simulated OS call has no forced-close/remote-target flags.
 - A blocker/failure never triggers forced termination, an unrestricted shell fallback, or a false completion receipt.
-- Active work is explicitly resolved before power dispatch; queue holds, app restart, power actions, and update activation cannot race.
+- Active work is explicitly resolved before power dispatch; queue holds, app restart, and power actions cannot race. Unsigned-phase update checks have no activation path.
 - Cancelling an owned power proposal restores prior dispatch policy unless another blocker requires pause; an unrelated Windows operation is not cancelled.
 - Hide preserves work and listening visibility; exit/restart releases audio/owned workers, does not stop user-owned services, and requires affected-work confirmation.
 - App restart and computer restart never substitute for one another; restart does not replay queue entries or microphone consent.
-- Pause queue leaves active execution untouched; clear queue, cancel current, and stop all have distinct tested effects.
-- Check-for-updates installs nothing; update approval is exact-release maintenance and cannot become a Git/shell action.
+- Pause queue leaves active execution untouched; clear queue, cancel current, clear conversation, replacement, and stop-all pause first and require owner presence/native confirmation before destructive mutation.
+- Check-for-updates installs nothing; unsigned-phase update interaction remains notify-only and cannot become download, staging, Git/shell, or installer authority.
 - Call-gated confirmation uses visible presentation or an explicit permitted readback; suppression is not implicit approval.
 - Reserved control registration cannot be shadowed by a shared skill name, user copy, or manifest priority declaration.
 
@@ -439,7 +452,8 @@ Validate the production invocation's flags and actual restricted worker admissio
 - Simulated persistence failure and concurrent voice/UI changes retain a valid configuration and report failure/conflict without silent lost updates.
 - Lowering queue capacity does not evict entries; shortened request lifetime identifies affected entries before immediate expiry.
 - Default deadline changes do not silently alter active tasks; provider/account changes do not silently transfer their context.
-- Increased remote exposure receives exact named setting confirmation and still requires normal payload-specific egress approval.
+- Increased remote exposure requires owner presence and native confirmation for the setting, and every outgoing payload still requires its applicable egress approval.
+- Call-wide, one-hour, persistent, and Unknown-to-normal speech privacy downgrades require native confirmation; single-response tokens remain exact, single-use, and owner-presence gated.
 - Reset/undo follow the same sensitivity and validation rules as set; neither restores grants nor repeats external side effects.
 - Enabled extension option schemas cannot expose arbitrary code/config paths, protected trust roots, disabled lock policy, or security bypasses.
 - Missing devices/assets/providers explain unavailable effective settings and do not trigger silent download/cloud fallback.

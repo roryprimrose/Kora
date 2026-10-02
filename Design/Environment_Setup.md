@@ -1,0 +1,117 @@
+# First-Run Environment Setup and Readiness
+
+Status: proposed built-in capability. Delivery installs Kora; the running app owns setup of its environment.
+
+Related: [Distribution](Distribution_And_Updates.md), [Architecture](Architecture.md), [Security](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+## Boundary
+
+Source and binary delivery install/publish Kora and the code/assets required to launch its shell and setup controller.
+They do not provision an entire AI stack, populate user databases, configure providers, or install Ollama.
+Source delivery still requires build prerequisites; framework-dependent binary delivery still requires the declared .NET runtime before Kora can run.
+Kora cannot install a prerequisite for its own process before that process can launch.
+
+Once running, Kora identifies the requirements of selected capabilities, explains what is missing, and configures the environment through trusted setup operations.
+Do not install every possible connector, model, or tool "just in case".
+
+## Built-In Setup Controller
+
+Setup is deterministic host functionality, available without a configured model or skill.
+It owns a versioned dependency catalogue, probes, scoped setup actions, readiness records, cancellation, and recovery.
+The catalogue defines supported versions/platforms, trusted sources, verification, installation scope, health probes, resource estimates, and removal ownership.
+Models can explain a host plan but cannot invent package URLs, choose executables, change the catalogue, or run an arbitrary setup script.
+
+Readiness states:
+
+- Ready: required probes succeeded.
+- Missing: an identified requirement is absent.
+- Needs Configuration: installed but incomplete.
+- Incompatible: unsupported version/architecture/capability.
+- Blocked: consent, permissions, resources, or policy prevent setup.
+- Failed: an attempted step failed with evidence.
+
+Probe failure is not proof that software is absent.
+Use bounded probes; an unresponsive service is reported separately from an uninstalled one.
+Enable a capability only after its actual health/functional checks succeed.
+Recheck on startup and relevant configuration/environment changes without reinstalling automatically.
+
+## Responsibilities by Requirement
+
+| Requirement | Detection/configuration | Consent and scope |
+|---|---|---|
+| Kora local directories | Resolve Windows known folders; create expected local/roaming data directories with safe permissions | Normal internal initialisation; no separate prompt for each folder |
+| SQLite databases | Create local schema and apply versioned transactional migrations | Embedded application storage, not installation of a database server |
+| Skills | Initialise Kora-specific store, register immutable bundled skills, offer shared source selection | Discover/enable shared sources only under existing skill policy |
+| Speech/wake models | Inspect supported local assets; offer verified downloads if missing | Show source, size, storage, licence, and network use before obtaining assets |
+| Optional speaker verifier | Detect supported local verifier/anti-spoof assets and per-user enrollment state | Explicit opt-in; Windows Hello or equivalent native reauthentication before enrollment/replacement; no cloud biometric processing |
+| Microphone/device readiness | Enumerate capture endpoints without recording; ask for explicit mouse selection, validate permissions and actual capture readiness | Selection is not capture consent; offer testing/enablement and continue-without-voice via [Interaction Fallback](Interaction_Fallback.md) |
+| Ollama | Detect compatible existing runtime/endpoint; offer supported installation/configuration when a local-model adapter is available and selected | Reuse first; external installation/download/startup changes require consent |
+| Local language model | Match selected use case to supported model and hardware/storage budget; download only the chosen model | Explain size/licence/resources; verify model identity and test inference |
+| Remote provider | Detect/configure adapter and supported identity/session | Secure sign-in; no secret dictation or automatic account substitution |
+| MCP connector | Probe admitted transport, identity, server, tools, and schemas | Do not install arbitrary servers or grant permissions from discovery |
+| Call-aware speech | Offer manual mode and verified supported communication detectors; show coverage/freshness/Unknown handling | Optional Graph sign-in/network consent; no automatic broad Microsoft permissions |
+| Logon startup | Inspect Kora registration and offer enable/disable | User consent in Kora setup; no elevated/pre-logon microphone service |
+
+Internal initialisation must not touch shared skills, source repositories, or executable code.
+On storage/migration failure, report the affected capability and preserve recoverable data; never silently create a second database elsewhere.
+Schema changes need backup/recovery and downgrade compatibility appropriate to the migration.
+
+## Ollama and Existing User Installations
+
+Ollama is optional, not a requirement for a user selecting only a supported remote provider.
+Installing Ollama is useful only when the running Kora version has a compatible local-model adapter.
+Missing application adapters require a verified Kora release or out-of-band development, not generation of new executable code by setup.
+The initial Ollama adapter rollout remains governed by MVP/provider scope.
+
+- Probe the configured endpoint and validate runtime version/capabilities.
+- Prefer a healthy existing installation and model; do not replace them or assume ownership.
+- If missing, present a supported setup plan with installation destination, download, machine changes, and any elevation.
+- Keep the UI/runtime unprivileged; any required elevation is a narrow explicit helper operation.
+- Default to a local-only endpoint; network exposure, firewall changes, or remote binding are separate decisions.
+- Track any process/service started by Kora and stop only owned instances when requested.
+- Verify endpoint health and actual selected-model inference, not merely installer exit code.
+- Do not delete user models, kill unrelated processes, or alter existing Ollama startup/settings without approval.
+
+CPU-only support and hardware limits must be communicated; installing a large model does not prove that it will perform acceptably.
+
+Speaker-verification setup is optional and separate from wake listening and speech recognition.
+Declining or failing enrollment leaves speaker confidence `Unavailable`; it does not block general voice use, safety-preserving controls, or visual interaction.
+Enrollment cannot be completed by a voice-only prompt and never reuses ordinary command audio.
+Setup deletes transient enrollment audio after deriving the protected device-local template and verifies that the template is absent from roaming, logs, diagnostics, and model-accessible stores.
+
+## Setup Flow
+
+1. Launch Kora's setup shell and initialise its own local storage.
+2. Ask which interaction/provider capabilities the user wants.
+3. Probe those requirements and show Ready/Missing/Blocked items.
+4. Present a bounded plan for missing/configuration steps, including downloads and changes.
+5. Obtain required consent and execute registered host actions in dependency order.
+6. Validate each result, record ownership, and make partial progress visible.
+7. Enable ready capabilities and explain anything still unavailable.
+
+Once local speech/wake assets are ready and microphone consent is active, setup can continue by voice.
+Before then, the app provides an accessible visual setup path: it cannot use a missing recogniser to obtain consent to install that recogniser.
+Mouse-based questions are a required ongoing interaction channel, not just a temporary setup exception; see [Mouse-Based Interaction](Interaction_Fallback.md).
+Kora asks which detected microphone to use and accepts selections/consent entirely by mouse; unavailable devices/permissions do not strand onboarding.
+If assets are already present, voice setup can begin after validation and consent.
+
+Setup can be reopened later. Runtime readiness events may produce proactive offers, but suggestions do not approve installation.
+Once voice is ready, every supported setup preference uses [User Configuration](User_Configuration.md); installations and secure sign-in remain separately approved workflows, not dictated configuration values.
+User rejection keeps the selected capability unavailable with an explanation; no cloud fallback or unrelated package installation.
+
+## Security, Offline Operation, and Recovery
+
+Downloads/external installations are explicit setup network operations separate from task execution.
+Local-only tasks never silently fetch assets; fully offline setup can use already installed/verified assets.
+External setup actions are restricted to the protected catalogue and exact host proposal, not exposed as model/skill installer tools.
+Changes requiring arbitrary code/elevation retain deliberate visual confirmation; simple model-data downloads may use a scoped voice confirmation.
+
+Dependency locations are separate from Kora executable/source roots and skill data.
+No setup operation can update Kora code, security policy, bundled scripts, or its updater; application maintenance remains a different approved channel.
+Verify publisher/integrity, restrict redirects/arguments, and respect protected-resource isolation.
+An external installer capable of touching protected Kora resources must be constrained/mediated or rejected; trusting its name is insufficient.
+
+Use resumable, idempotent steps and verify after cancellation/restart instead of trusting old success markers.
+Keep temporary downloads separate and clean up only known owned staging content.
+Do not roll back or uninstall pre-existing user components.
+Record partial/unknown machine changes and require reconciliation before retrying an uncertain installation.

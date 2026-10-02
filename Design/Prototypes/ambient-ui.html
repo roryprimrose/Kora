@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kora / Ambient interface study</title>
+  <link rel="stylesheet" href="ambient-ui.css">
+  <script src="ambient-ui.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="#" aria-label="Kora design study"><span class="brand-mark" aria-hidden="true">k</span> kora <span class="brand-divider"></span> <span class="muted">interface studies</span></a>
+    <span class="edition">01 / AMBIENT PRESENCE</span>
+  </header>
+  <main>
+    <section class="intro">
+      <div class="eyebrow">A VOICE-FIRST COMPANION, NOT ANOTHER WINDOW</div>
+      <h1>There when you need it.<br><span>Gone when you don't.</span></h1>
+      <p>A little light at the edge of your workspace. No frame, no dashboard, no permanent distraction.</p>
+    </section>
+    <div class="studio">
+      <aside class="controls" aria-label="Prototype controls">
+        <section>
+          <div class="section-heading"><h2>01 <span>Choose a presence</span></h2><span class="small-label">3 STUDIES</span></div>
+          <div class="concepts" role="group" aria-label="Animation concept">
+            <button class="concept selected" data-concept="swarm" aria-pressed="true">
+              <span class="concept-icon swarm-icon" aria-hidden="true">&#10022;</span>
+              <span><strong>Constellation</strong><small>Individual flights, one collective</small></span><span class="recommended">PICK</span>
+            </button>
+            <button class="concept" data-concept="orbit" aria-pressed="false">
+              <span class="concept-icon orbit-icon" aria-hidden="true">&#9678;</span>
+              <span><strong>Ribbon orbit</strong><small>Fluid, quiet, continuous</small></span>
+            </button>
+            <button class="concept" data-concept="lattice" aria-pressed="false">
+              <span class="concept-icon lattice-icon" aria-hidden="true">&#11041;</span>
+              <span><strong>Signal lattice</strong><small>Structured, precise, geometric</small></span>
+            </button>
+          </div>
+          <p id="concept-note" class="control-note">Individual points wander, dart, and change course like insects in a loose collective. No shared orbit, no rigid sphere.</p>
+        </section>
+        <section>
+          <div class="section-heading"><h2>02 <span>Feel the states</span></h2><button id="tour" class="text-button">Play sequence <span aria-hidden="true">&#9654;</span></button></div>
+          <div class="states" role="group" aria-label="Simulated application state">
+            <button data-state="idle" aria-pressed="false"><i style="--swatch:#89939e"></i>Hidden</button>
+            <button data-state="listening" aria-pressed="false"><i style="--swatch:#6ae1da"></i>Listening</button>
+            <button data-state="calculating" class="selected" aria-pressed="true"><i style="--swatch:#af9bff"></i>Calculating</button>
+            <button data-state="waiting" aria-pressed="false"><i style="--swatch:#f0cc83"></i>Waiting</button>
+            <button data-state="executing" aria-pressed="false"><i style="--swatch:#80b7ff"></i>Executing</button>
+            <button data-state="success" aria-pressed="false"><i style="--swatch:#9bdfac"></i>Success</button>
+            <button data-state="failure" aria-pressed="false"><i style="--swatch:#f49c9c"></i>Failure</button>
+            <button data-state="information" aria-pressed="false"><i style="--swatch:#b8d9ec"></i>Information</button>
+          </div>
+          <p class="control-note">Colour and motion suggest state. Voice provides context; expandable details and accessible labels remain available.</p>
+        </section>
+        <section>
+          <div class="section-heading"><h2>03 <span>Change the context</span></h2></div>
+          <label class="toggle-row"><span>Light desktop</span><input id="light" type="checkbox" role="switch"></label>
+          <label class="toggle-row"><span>Reduced motion</span><input id="reduce" type="checkbox" role="switch"><span id="system-motion" class="visually-hidden"></span></label>
+          <label class="toggle-row"><span>Show response detail</span><input id="details" type="checkbox" role="switch"></label>
+          <div class="range-row"><label for="intensity">Visual intensity</label><output id="intensity-label" for="intensity">Balanced</output></div>
+          <input id="intensity" type="range" min="0" max="2" value="1" step="1">
+        </section>
+        <div class="prototype-note"><span class="tiny-dot"></span> Visual prototype only. No audio capture, voice playback, clipboard access, or real actions.</div>
+      </aside>
+      <section class="preview-column" aria-label="Desktop preview">
+        <div class="preview-heading"><span><span class="live-dot"></span> YOUR WORKSPACE, UNINTERRUPTED</span><span id="preview-mode">DARK DESKTOP</span></div>
+        <div class="desktop" id="desktop">
+          <div class="wallpaper-glow" aria-hidden="true"></div>
+          <div class="desktop-icons" aria-hidden="true"><span>&#9638;<small>Workspace</small></span><span>&#9776;<small>Notes</small></span></div>
+          <div class="workspace-window" aria-hidden="true">
+            <div class="window-bar"><span class="window-dots"><i></i><i></i><i></i></span><span>Fieldnotes</span><span>&#8943;</span></div>
+            <div class="workspace-content">
+              <div class="workspace-sidebar"><span class="workspace-logo">F /</span><span class="sidebar-active">Overview</span><span>Research</span><span>Ideas</span><span>Archive</span><div class="sidebar-bottom">PERSONAL WORKSPACE</div></div>
+              <div class="document">
+                <div class="document-meta">WORKING NOTES <span>/ OCTOBER 02</span></div>
+                <h3>Room to think.</h3>
+                <p>The best tools leave space for the work.</p>
+                <div class="document-rule"></div>
+                <h4>A quieter kind of assistance</h4>
+                <p>Stay in the flow. Make a little room for the unexpected. Let everything else fade into the background.</p>
+                <div class="note-block"><span>01 / PRINCIPLE</span><p>Useful when present.<br>Invisible when not.</p></div>
+                <div class="fake-lines"><i></i><i></i><i></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="anchor-guide" aria-hidden="true"><span>SAFE AREA / ABOVE TASKBAR</span></div>
+          <div id="presence" class="presence" data-state="calculating">
+            <section id="response" class="response" aria-label="Kora response">
+              <div class="response-header"><span>kora <span id="runtime">LOCAL ONLY / SIMULATED</span></span><button id="dismiss" aria-label="Dismiss response and hide Kora" title="Dismiss response">&times;</button></div>
+              <h3 id="response-title">Making sense of it.</h3>
+              <p id="response-body">Preparing an explanation of the selected text. Nothing is being changed.</p>
+              <div id="approval-scope" class="approval-scope" hidden><span>CONTENT <strong>Selected clipboard text</strong></span><span>DESTINATION <strong>Copilot runtime (remote)</strong></span><span>ACTION <strong>Send once for explanation</strong></span><small>Preview is illustrative. No clipboard was read.</small></div>
+              <div id="response-actions" class="response-actions"></div>
+            </section>
+            <button id="visual" class="visual" aria-label="Kora: calculating. Show or hide response details.">
+              <canvas id="particles" width="440" height="320" aria-hidden="true"></canvas>
+            </button>
+            <span id="state-label" class="visually-hidden">Thinking</span>
+          </div>
+          <div id="idle-hint" class="idle-hint" hidden>No idle icon. Your desktop is yours.</div>
+          <div class="taskbar" aria-hidden="true"><span class="taskbar-start">&#8862;</span><span class="taskbar-search">&#9906; <span>Search</span></span><span class="taskbar-app">&#9638;</span><span class="taskbar-app">&#9678;</span><span class="taskbar-app">&#9776;</span><span class="taskbar-tray">&#8963; &nbsp; &#9684; &nbsp; &#9834; <span>10:18 PM<br>02/10/2026</span></span></div>
+        </div>
+        <div class="interaction-bar"><div><kbd>Space</kbd><span>Optional PTT simulation</span><kbd>Esc</kbd><span>Cancel / dismiss</span></div><button id="wake">Simulate “Kora” <span aria-hidden="true">&#8599;</span></button></div>
+        <div class="design-caption"><span id="motion-name">CONSTELLATION / WANDER + DART</span><span>Borderless presence. Context only when needed.</span></div>
+      </section>
+    </div>
+    <section class="principles" aria-label="Interaction design principles">
+      <article><span>01 / APPEAR</span><h3>Invitation, not interruption.</h3><p>Saying “Kora” is primary; optional push-to-talk is the prototype shortcut. No permanent floating button and no invisible mouse trap.</p></article>
+      <article><span>02 / INFORM</span><h3>One glance, then depth.</h3><p>Colour and motion convey state; voice provides context. Select the light to unfold details, results, or controls.</p></article>
+      <article><span>03 / RECEDE</span><h3>A graceful exit.</h3><p>Success can settle and fade. Decisions and failures stay until addressed. Hidden should mean click-through, not just transparent.</p></article>
+    </section>
+    <footer>EXPLORING THE FEEL, NOT THE FINAL SHELL <span>Native target: Windows / Avalonia</span></footer>
+  </main>
+</body>
+</html>

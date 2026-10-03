@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title description">
+  <title id="title">Kora brand mark samples</title>
+  <desc id="description">Primary multicolour and monochrome vertical infinity marks on dark and light surfaces, followed by the constellation state palette.</desc>
+  <defs>
+    <linearGradient id="state-spectrum" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F49C9C" />
+      <stop offset="0.18" stop-color="#F0CC83" />
+      <stop offset="0.34" stop-color="#9BDFAC" />
+      <stop offset="0.49" stop-color="#6AE1DA" />
+      <stop offset="0.60" stop-color="#B8D9EC" />
+      <stop offset="0.77" stop-color="#80B7FF" />
+      <stop offset="1" stop-color="#AF9BFF" />
+    </linearGradient>
+    <path id="loop" d="M128 28 C78 28 52 49 52 88 C52 119 79 141 128 160 C177 179 204 201 204 232 C204 271 178 292 128 292 C78 292 52 271 52 232 C52 201 79 179 128 160 C177 141 204 119 204 88 C204 49 178 28 128 28" />
+  </defs>
+
+  <rect width="1200" height="720" rx="28" fill="#F4F5F8" />
+  <text x="56" y="68" fill="#24202F" font-family="Segoe UI, sans-serif" font-size="28" font-weight="600">Kora vertical loop</text>
+  <text x="56" y="98" fill="#5D6270" font-family="Segoe UI, sans-serif" font-size="16">Primary and single-colour applications</text>
+
+  <rect x="56" y="132" width="336" height="388" rx="20" fill="#101216" />
+  <text x="80" y="174" fill="#E8ECF2" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600">Primary / dark surface</text>
+  <g transform="translate(96 184) scale(0.98)">
+    <use href="#loop" fill="none" stroke="url(#state-spectrum)" stroke-linecap="round" stroke-linejoin="round" stroke-width="27" />
+    <use href="#loop" fill="none" opacity="0.16" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" />
+  </g>
+
+  <rect x="432" y="132" width="336" height="388" rx="20" fill="#FFFFFF" stroke="#D9DCE3" stroke-width="2" />
+  <text x="456" y="174" fill="#24202F" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600">Primary / light surface</text>
+  <g transform="translate(472 184) scale(0.98)">
+    <use href="#loop" fill="none" stroke="url(#state-spectrum)" stroke-linecap="round" stroke-linejoin="round" stroke-width="27" />
+    <use href="#loop" fill="none" opacity="0.12" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="5" />
+  </g>
+
+  <rect x="808" y="132" width="336" height="184" rx="20" fill="#101216" />
+  <text x="832" y="174" fill="#E8ECF2" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600">Monochrome / dark</text>
+  <g transform="translate(900 182) scale(0.30)">
+    <use href="#loop" fill="none" stroke="#F4F5F8" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+  </g>
+
+  <rect x="808" y="336" width="336" height="184" rx="20" fill="#FFFFFF" stroke="#D9DCE3" stroke-width="2" />
+  <text x="832" y="378" fill="#24202F" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600">Monochrome / light</text>
+  <g transform="translate(900 386) scale(0.30)">
+    <use href="#loop" fill="none" stroke="#24202F" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
+  </g>
+
+  <text x="56" y="574" fill="#24202F" font-family="Segoe UI, sans-serif" font-size="18" font-weight="600">Constellation state spectrum</text>
+  <g font-family="Segoe UI, sans-serif" font-size="13" fill="#454A57">
+    <rect x="56" y="602" width="136" height="20" rx="10" fill="#6AE1DA" />
+    <text x="56" y="648">Listening</text>
+    <rect x="212" y="602" width="136" height="20" rx="10" fill="#AF9BFF" />
+    <text x="212" y="648">Calculating</text>
+    <rect x="368" y="602" width="136" height="20" rx="10" fill="#F0CC83" />
+    <text x="368" y="648">Waiting</text>
+    <rect x="524" y="602" width="136" height="20" rx="10" fill="#80B7FF" />
+    <text x="524" y="648">Executing</text>
+    <rect x="680" y="602" width="136" height="20" rx="10" fill="#9BDFAC" />
+    <text x="680" y="648">Success</text>
+    <rect x="836" y="602" width="136" height="20" rx="10" fill="#F49C9C" />
+    <text x="836" y="648">Failure</text>
+    <rect x="992" y="602" width="136" height="20" rx="10" fill="#B8D9EC" />
+    <text x="992" y="648">Information</text>
+  </g>
+</svg>

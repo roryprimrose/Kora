@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="320" viewBox="0 0 256 320" role="img" aria-labelledby="title description">
+  <title id="title">Animated Kora vertical infinity loop</title>
+  <desc id="description">Kora's seven constellation state colours travel continuously around a softly squared vertical infinity ribbon.</desc>
+  <style>
+    .segment {
+      animation: travel 8s linear infinite;
+      animation-delay: var(--delay);
+      stroke-dasharray: 27 673;
+    }
+
+    @keyframes travel {
+      from {
+        stroke-dashoffset: 0;
+      }
+
+      to {
+        stroke-dashoffset: -700;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .segment {
+        animation: none;
+      }
+    }
+  </style>
+  <defs>
+    <path
+        id="loop"
+        pathLength="700"
+        d="M128 28 C78 28 52 49 52 88 C52 119 79 141 128 160 C177 179 204 201 204 232 C204 271 178 292 128 292 C78 292 52 271 52 232 C52 201 79 179 128 160 C177 141 204 119 204 88 C204 49 178 28 128 28" />
+  </defs>
+  <g fill="none" stroke-linecap="butt" stroke-linejoin="round" stroke-width="27">
+    <use class="segment" href="#loop" stroke="#6AE1DA" stroke-dashoffset="0" style="--delay: 0s" />
+    <use class="segment" href="#loop" stroke="#7BD0E3" stroke-dashoffset="-25" style="--delay: -0.285714s" />
+    <use class="segment" href="#loop" stroke="#8CBEEC" stroke-dashoffset="-50" style="--delay: -0.571429s" />
+    <use class="segment" href="#loop" stroke="#9EACF6" stroke-dashoffset="-75" style="--delay: -0.857143s" />
+    <use class="segment" href="#loop" stroke="#AF9BFF" stroke-dashoffset="-100" style="--delay: -1.142857s" />
+    <use class="segment" href="#loop" stroke="#BFA7E0" stroke-dashoffset="-125" style="--delay: -1.428571s" />
+    <use class="segment" href="#loop" stroke="#D0B4C1" stroke-dashoffset="-150" style="--delay: -1.714286s" />
+    <use class="segment" href="#loop" stroke="#E0C0A2" stroke-dashoffset="-175" style="--delay: -2s" />
+    <use class="segment" href="#loop" stroke="#F0CC83" stroke-dashoffset="-200" style="--delay: -2.285714s" />
+    <use class="segment" href="#loop" stroke="#D4C7A2" stroke-dashoffset="-225" style="--delay: -2.571429s" />
+    <use class="segment" href="#loop" stroke="#B8C2C1" stroke-dashoffset="-250" style="--delay: -2.857143s" />
+    <use class="segment" href="#loop" stroke="#9CBCE0" stroke-dashoffset="-275" style="--delay: -3.142857s" />
+    <use class="segment" href="#loop" stroke="#80B7FF" stroke-dashoffset="-300" style="--delay: -3.428571s" />
+    <use class="segment" href="#loop" stroke="#87C1EA" stroke-dashoffset="-325" style="--delay: -3.714286s" />
+    <use class="segment" href="#loop" stroke="#8ECBD6" stroke-dashoffset="-350" style="--delay: -4s" />
+    <use class="segment" href="#loop" stroke="#94D5C1" stroke-dashoffset="-375" style="--delay: -4.285714s" />
+    <use class="segment" href="#loop" stroke="#9BDFAC" stroke-dashoffset="-400" style="--delay: -4.571429s" />
+    <use class="segment" href="#loop" stroke="#B1CEA8" stroke-dashoffset="-425" style="--delay: -4.857143s" />
+    <use class="segment" href="#loop" stroke="#C8BEA4" stroke-dashoffset="-450" style="--delay: -5.142857s" />
+    <use class="segment" href="#loop" stroke="#DEADA0" stroke-dashoffset="-475" style="--delay: -5.428571s" />
+    <use class="segment" href="#loop" stroke="#F49C9C" stroke-dashoffset="-500" style="--delay: -5.714286s" />
+    <use class="segment" href="#loop" stroke="#E5ABB0" stroke-dashoffset="-525" style="--delay: -6s" />
+    <use class="segment" href="#loop" stroke="#D6BAC4" stroke-dashoffset="-550" style="--delay: -6.285714s" />
+    <use class="segment" href="#loop" stroke="#C7CAD8" stroke-dashoffset="-575" style="--delay: -6.571429s" />
+    <use class="segment" href="#loop" stroke="#B8D9EC" stroke-dashoffset="-600" style="--delay: -6.857143s" />
+    <use class="segment" href="#loop" stroke="#A4DBE8" stroke-dashoffset="-625" style="--delay: -7.142857s" />
+    <use class="segment" href="#loop" stroke="#91DDE3" stroke-dashoffset="-650" style="--delay: -7.428571s" />
+    <use class="segment" href="#loop" stroke="#7EDFDE" stroke-dashoffset="-675" style="--delay: -7.714286s" />
+  </g>
+  <use
+      href="#loop"
+      fill="none"
+      opacity="0.14"
+      stroke="#FFFFFF"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="5" />
+</svg>

@@ -44,26 +44,32 @@ jobs:
 
       - name: Test portable core with coverage
         run: >
-          dotnet test tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj
+          dotnet test
+          --project tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj
           --configuration Release
           --no-build
-          --collect "XPlat Code Coverage"
-          --logger "trx;LogFileName=core-tests.trx"
           --results-directory .net-test-artifacts/core
+          --report-trx
+          --coverlet
+          --coverlet-output-format cobertura
+          --coverlet-file-prefix core
 
       - name: Test application orchestration with coverage
         run: >
-          dotnet test tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj
+          dotnet test
+          --project tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj
           --configuration Release
           --no-build
-          --collect "XPlat Code Coverage"
-          --logger "trx;LogFileName=application-tests.trx"
           --results-directory .net-test-artifacts/application
+          --report-trx
+          --coverlet
+          --coverlet-output-format cobertura
+          --coverlet-file-prefix application
 
       - name: Generate and enforce coverage report
         run: >
           dotnet reportgenerator
-          "-reports:.net-test-artifacts/**/coverage.cobertura.xml"
+          "-reports:.net-test-artifacts/**/*.coverage.cobertura.*.xml"
           "-targetdir:.net-test-artifacts/coverage-report"
           "-reporttypes:Cobertura;MarkdownSummaryGithub;TextSummary"
           "-assemblyfilters:+Kora.Core;+Kora.Application"
@@ -78,7 +84,7 @@ jobs:
 
       - name: Publish Windows x64 application
         run: >
-          dotnet publish src/Kora.Desktop/Kora.Desktop.csproj
+          dotnet publish src/Kora/Kora.csproj
           --configuration Release
           --runtime win-x64
           --self-contained false
@@ -87,7 +93,7 @@ jobs:
 
       - name: Publish Windows x86 application
         run: >
-          dotnet publish src/Kora.Desktop/Kora.Desktop.csproj
+          dotnet publish src/Kora/Kora.csproj
           --configuration Release
           --runtime win-x86
           --self-contained false
@@ -151,11 +157,12 @@ jobs:
 
       - name: Run Windows integration tests
         run: >
-          dotnet test tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj
+          dotnet test
+          --project tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj
           --configuration Release
           --no-build
-          --logger "trx;LogFileName=windows-integration-tests.trx"
           --results-directory .net-test-artifacts/windows
+          --report-trx
 
       - name: Upload Windows test results
         if: always()

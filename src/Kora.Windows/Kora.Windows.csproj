@@ -5,8 +5,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference
+        Include="KokoroSharp"
+        ExcludeAssets="build;buildTransitive;contentFiles" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+    <PackageReference Include="MisakiSharp" />
     <PackageReference Include="NAudio" />
     <PackageReference Include="System.Speech" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kora.Windows.IntegrationTests" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -22,6 +22,7 @@ public sealed class BlockingAudioStreamTests
         firstRead.Should().Be(2);
         secondRead.Should().Be(3);
         completedRead.Should().Be(0);
+        stream.Position.Should().Be(5);
         output.Should().Equal(1, 2, 3, 4, 5);
     }
 
@@ -57,6 +58,9 @@ public sealed class BlockingAudioStreamTests
         stream.CanRead.Should().BeTrue();
         stream.CanWrite.Should().BeFalse();
         stream.CanSeek.Should().BeFalse();
+        stream.Length.Should().Be(long.MaxValue);
+        stream.Position.Should().Be(0);
+        ((Action)(() => stream.Position = 0)).Should().Throw<NotSupportedException>();
         ((Action)(() => stream.Seek(0, SeekOrigin.Begin))).Should().Throw<NotSupportedException>();
         ((Action)(() => stream.SetLength(0))).Should().Throw<NotSupportedException>();
         ((Action)(() => stream.Write([], 0, 0))).Should().Throw<NotSupportedException>();

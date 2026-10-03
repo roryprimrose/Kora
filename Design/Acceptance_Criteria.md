@@ -74,6 +74,9 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Empty, locked, unsupported, and oversized clipboard cases are distinguished.
 - Visual answer streaming and a spoken summary use the same task/result identity.
 - Spoken output is at most 3 sentences and 80 words.
+- Speech uses the selected active Windows render endpoint by stable endpoint ID; no endpoint, no selection, endpoint removal, open failure, and reported playback failure each force the response text/window visible without silently switching endpoints.
+- Windows software mute or zero endpoint volume suppresses playback and forces text/window visibility; Kora does not change global endpoint mute or volume, and speech recovers only after the user unmutes and readiness is refreshed.
+- Output preview identifies failures Windows can observe; physical audibility beyond the endpoint (powered-off speakers, disconnected analog paths, hardware mute/volume) is not claimed as detectable.
 - Correction, follow-up, "stop", "stop speaking", and "cancel task" match lifecycle semantics.
 - TTS audio is not ingested as a new user request.
 - "Kora, stop" and "Kora, stop speaking" work during TTS; playback mentioning "Kora" and activation cues never self-trigger.
@@ -110,17 +113,30 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 
 ### Mouse-Based Questions and Device Recovery
 
-- With no model/network/microphone/TTS and optional captions disabled, first launch asks which detected microphone to use and accepts a complete mouse-only response/consent path.
+- With no saved Kora device override, first launch selects System for microphone
+  and speaker without persisting endpoint snapshots, then automatically attempts
+  capture when readiness and authoritative session policy allow; a complete
+  mouse-only disable/change/recovery path remains available.
 - Zero/one/multiple devices, duplicate names, Windows privacy denial, disabled/missing endpoints, muted input, and missing recogniser each have distinct actionable states.
-- Enumerating/selecting devices records no audio; test/enable opens only the explicitly selected endpoint after consent and an authoritative unlocked-session check.
+- Enumerating/selecting devices records no audio; automatic startup, test, and
+  recovery opens only the effective endpoint after an authoritative
+  unlocked-session check.
 - A microphone test lasts at most 5 seconds, stores/transmits no audio, performs no transcription/model call, and cannot grant ongoing listening.
 - Input selection is endpoint-ID/topology-revision bound; stale choices never select another same-name/default endpoint.
+- Explicit microphone and speaker selections persist as device-local Kora overrides and win over later Windows default changes while those exact endpoints remain active.
+- System microphone and speaker selections follow live Windows multimedia-default changes, including automatic WASAPI stream routing during active capture or playback; selecting System clears the corresponding Kora endpoint override.
+- A missing saved/current endpoint becomes visibly unavailable and never silently switches to a newly-default, same-name, or first enumerated endpoint; replacement requires an explicit UI or validated verbal/model setting change.
 - Removal/capture failure invalidates audio generations, clears incomplete input, and offers mouse recovery without cancelling unrelated task/queue state.
-- Plug-in/reconnection/system-default changes do not switch/open capture automatically; explicit user enablement and playback-rejection revalidation are required.
+- Plug-in/reconnection changes do not reopen capture after manual disablement.
+  Windows default changes reroute active capture only while System is selected;
+  explicit endpoint overrides remain pinned.
 - Device-open timeout/cancel/lock does not block status/queue UI; late success is closed and cannot enable listening.
 - Generic open failure is not falsely diagnosed as busy; privacy help opens only the registered Windows settings destination with no self-elevation.
 - Hidden presence/voice-only mode exposes questions/recovery from tray controls without requiring voice or stealing focus.
-- Native tray context menu lists detected endpoints, saved selection and actual availability distinctly; selection changes do not start recording, and explicit Enable listening uses normal consent/readiness checks.
+- Native tray context menu lists detected endpoints, saved selection and actual
+  availability distinctly; selection changes do not restart recording after
+  manual disablement, and Enable listening recovery uses normal readiness and
+  session checks.
 - Left-click opens status/questions and right-click opens the context menu without implicitly toggling capture; mute/stop-speaking/exit/update retain their existing distinct host semantics.
 - Explorer restart re-registers the icon without reopening capture; notification-area overflow and tray API failure retain accessible recovery through the existing single-instance window/launcher.
 - Stale menu/device selections, lock races and delayed clicks cannot switch to another endpoint or acquire the microphone.
@@ -184,15 +200,15 @@ Record models, thresholds, distances, volume levels, and playback-rejection conf
 - False activations must never bypass context consent, remote egress review, or action approvals.
 - Measure wake-listening-only overhead for 30 minutes: mean CPU <= 5% of total reference-machine capacity and incremental working set <= 200 MiB over muted idle.
 
-Apply the same measurements to every advertised custom profile and combined active-name set, as defined in [Custom Activation Names](Activation_Name.md).
-Test custom-only rejects removed/default activation, dual-name accepts both without duplicate tasks, and another rename retires the prior custom alias.
-Rename always asks custom-only/both, validates spelling/pronunciation and readiness, and confirms the exact resulting active set.
+Apply the same measurements to every advertised custom profile, as defined in [Assistant and Activation Name](Activation_Name.md).
+Test that the configured custom name rejects the removed/default name and that another rename retires the prior custom name.
+Rename validates spelling/pronunciation and readiness and confirms the exact resulting name.
 Failed preparation/calibration/persistence or stale prompt/config revision leaves the old set active; late old-generation callbacks cannot start commands after cutover.
 Renaming while muted/locked never opens capture; restart retains the name preference without restoring listening consent.
 Missing/corrupt committed custom-only profile reports Unavailable with tray recovery, not silent default-name or cloud activation.
 Rename prompts/TTS mentioning every active or proposed name produce zero self-activations; names never enrol a speaker or authorise a tool/action.
 Custom profile preparation uses only protected data-only setup, with bounded local calibration and no Kora code/resource mutation.
-First-run mouse setup can select a validated custom-only profile before ongoing listening; dual-name mode is explicit and explains office cross-activation.
+First-run mouse setup can select a validated custom-only profile before ongoing listening.
 Test neighbouring instances with distinct names, similar-sounding names, background/default-name speech, and crosstalk; custom-only must not retain "Kora" as a hidden recovery alias.
 
 These are proposed release targets, not measured detector capabilities.
@@ -325,6 +341,15 @@ Verify:
 - Executable trust disclosures match actual OS rights.
 - Disabling an extension blocks new invocations.
 - Default audit metadata expires after 30 days.
+- Application diagnostics create one structured local file per day under `%LOCALAPPDATA%\Kora\Logs`; both the 30-file and 30-day retention limits are enforced.
+- Default application logs contain no recognized transcript text, response body, synthesized speech text, raw audio, credentials, or secrets.
+- Model-facing diagnostic access rejects arbitrary paths and malformed log names, and returns no more than the configured 1,000,000-character tail bound.
+- Every security-relevant write, application execution, script execution, protected operation, and approval transition emits a correlated request and terminal audit event at the policy/execution boundary.
+- Audit fixtures distinguish requested, succeeded, failed, denied, and cancelled outcomes and preserve initiator, canonical action/target identity, optional approval identity, and bounded reason codes.
+- Audit events contain no transcript/command text, raw parameters, paths, process arguments, script source, setting values, content, exception text, credentials, or secrets.
+- Kora restart, Windows session lock, device-local configuration writes, and protected power proposals produce the expected current audit sequences, including failed, cancelled, and superseded outcomes.
+- Before general write, application/script execution, or security approval is enabled, tests prove the authoritative audit store is host-owned, append-only or equivalently tamper-evident, and cannot be bypassed by a model, skill, tool, worker, or runtime adapter.
+- Removing, editing, or forging the daily diagnostic JSON cannot authorize an action, satisfy an approval, alter a receipt, or conceal an unknown effect in the authoritative ledger.
 
 ## Distribution and Startup Gate
 
@@ -340,7 +365,9 @@ Verify:
 - Missing/incompatible runtime and architecture cases identify the actual requirement; no SDK install or source-build fallback occurs.
 - Source and binary deployments preserve the same skill/data partitions and application-integrity guarantees.
 - Start-at-logon is opt-in, runs published binaries as the interactive user, starts only one instance, and never builds or elevates.
-- Logon/restart/locked-session tests preserve the existing explicit microphone re-enabling rules.
+- Ordinary unlocked logon/restart tests automatically begin listening when ready;
+  locked-session startup acquires nothing, and unlock recovery still requires
+  explicit re-enabling for that run.
 - Uninstall removes startup entries and offers data retention without deleting shared profile skills.
 - Installation metadata, not `.git` presence, determines maintenance mode; developer checkouts are not automatically pulled/reset.
 - Binary update checks use the configured hosted release feed without Git/SDK, respect channel/architecture/runtime, and exclude drafts/prereleases on stable.
@@ -401,6 +428,8 @@ An install-capable updater remains unavailable until independent signed-metadata
 
 - All requested/proactive/setup/maintenance speech and activation cues use the central gate; no alternate TTS path bypasses it.
 - Active/Suspected call and Unknown enabled-detector fixtures suppress automatic speech by default while preserving visual results and task progress.
+- Active/Suspected observations apply the persisted visual-text override by default, independently of the task/queue/device response mode; opting out restores that ordinary precedence.
+- Voice activation remains enabled during calls by default and is independently configurable; disabling it closes active capture, blocks activation while the call remains detected, and never silently reopens capture when the call clears.
 - A blocking observation received during playback stops output within 250 ms on the reference machine; report source detection/transport delay separately.
 - A stale sample, failed probe, auth expiry, or local-only network block never becomes a false Clear result.
 - Manual call mode works without Microsoft credentials or remote access.
@@ -442,13 +471,28 @@ Validate the production invocation's flags and actual restricted worker admissio
 
 ## Verbal Configuration Gate
 
+- The system tray exposes a Settings command that opens and activates one settings window; closing it permits a fresh instance without duplicating application settings state.
+- One tray-icon left-click shows/activates the configured assistant after the configured Windows double-click interval; two clicks within that interval cancel the pending show and open/activate Settings without creating a second settings window.
+- The settings window presents the assistant name and every currently implemented speech/audio, response-output, detected-call, and readiness setting through mouse-accessible controls.
+- Settings presents System, Light, and Dark appearance choices; System is the default, persists as a device-local preference, follows live Windows light/dark changes, and Light/Dark remain explicit overrides.
+- Changing the theme updates the constellation, main and Settings windows, chat/answer windows, speech text, trusted approvals/errors, Markdown/diagram results, browser chrome, and generated-HTML surfaces immediately without recreating content or losing focus, selection, scroll position, task identity, or approval identity.
+- Every native surface uses shared theme resources. Controlled HTML/Markdown renderers receive the resolved effective Light/Dark variant and accessible host CSS; internet author styling cannot restyle trusted Kora chrome, and no renderer keeps an independent hidden theme preference.
+- Light and Dark fixtures keep text, controls, status, focus, disabled states, constellation particles, links, code, tables, warnings, and approvals readable at the applicable accessibility contrast target; a renderer that cannot do so falls back to a readable native/source surface.
+- Mouse and simulated verbal mutations update the same typed state, and an already-open main/settings window receives the effective value immediately without polling or reopening.
+- The default assistant name is Kora. Applying a valid custom name immediately updates window titles and branding, Settings descriptions, tray labels and tooltip, command catalogue and prefix, visual responses, spoken responses, and voice preview.
+- A committed custom name is the only accepted assistant prefix; the previous name and Kora are not retained as hidden aliases. Invalid input or persistence failure leaves the prior name active and reports a visible failure.
+- Name changes are device-local and audited without the chosen name value. `Kora.exe`, assemblies/namespaces, `%LOCALAPPDATA%\Kora`, icon resources, diagnostic file names, and internal product/trust identifiers remain unchanged.
+- If listening is active during a successful rename, capture is stopped and restarted with the new exact grammar under the existing consent; a rename while capture is closed does not open the microphone.
 - Every available option, including extension options, registers a type, bounds/choices, default, scope, aliases, validation, dependency, application timing, and confirmation rule.
 - Enumerate the registry and exercise discovery/get/set/reset for every option through voice and UI against the same effective configuration; no UI-only or manual-file-only preferences.
 - Exact basic settings commands work without a model/network after local speech is ready.
 - Spoken absolute/relative values, units, source/device labels, and scopes resolve to concrete proposals; ambiguity or invalid values never mutate state.
 - Validate exact boundary and just-outside-boundary values for every numeric range; reject rather than silently clamp.
 - Changes disabling speech/call permission are acknowledged visually without speaking through the resulting policy.
-- Persisted preferences survive restart; listening consent, grants that expired, and temporary call/task overrides do not become active merely because settings were saved.
+- Persisted preferences survive restart; manual listening disablement does not,
+  and ordinary safe startup attempts listening again. Grants that expired and
+  temporary call/task overrides do not become active merely because settings
+  were saved.
 - Simulated persistence failure and concurrent voice/UI changes retain a valid configuration and report failure/conflict without silent lost updates.
 - Lowering queue capacity does not evict entries; shortened request lifetime identifies affected entries before immediate expiry.
 - Default deadline changes do not silently alter active tasks; provider/account changes do not silently transfer their context.
@@ -479,6 +523,7 @@ Validate the production invocation's flags and actual restricted worker admissio
 - External browser launch requires an explicit validated destination/target; no silent fallback or shell invocation, and no claim to manage its identity/network permissions.
 - Missing renderer/runtime, invalid source and resource-limit failure produce labelled source/plain-text fallback without hidden downloads.
 - Web/Markdown content cannot invoke a skill, approve an action, open the microphone, access credentials, or automatically become outbound model context.
+- Every top-level `/docs/*.md` page is embedded in the application, `/docs/readme.md` is the required start page, and the same single-instance themed Documentation window opens from the tray or the exact built-in voice/typed documentation phrases without filesystem or network dependency.
 
 ## Future Capability Gates
 

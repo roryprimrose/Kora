@@ -1,15 +1,18 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 
 using Kora.Application.Visuals;
 using Kora.Core;
 
-namespace Kora.Desktop.Controls;
+namespace Kora.Controls;
 
 public sealed class ConstellationControl : Control
 {
+    private const string ActualThemeVariantPropertyName = "ActualThemeVariant";
+
     public static readonly StyledProperty<AssistantState> StateProperty =
         AvaloniaProperty.Register<ConstellationControl, AssistantState>(nameof(State), AssistantState.Information);
 
@@ -19,13 +22,23 @@ public sealed class ConstellationControl : Control
     public static readonly StyledProperty<double> SpeechOutputLevelProperty =
         AvaloniaProperty.Register<ConstellationControl, double>(nameof(SpeechOutputLevel));
 
+    public static readonly StyledProperty<int> DotSizePercentProperty =
+        AvaloniaProperty.Register<ConstellationControl, int>(nameof(DotSizePercent), 100);
+
+    public static readonly StyledProperty<int> MovementSpeedPercentProperty =
+        AvaloniaProperty.Register<ConstellationControl, int>(nameof(MovementSpeedPercent), 100);
+
     private readonly ConstellationAnimation animation = new(AssistantState.Information);
     private readonly Particle[] particles;
     private readonly DispatcherTimer timer;
 
     static ConstellationControl()
     {
-        AffectsRender<ConstellationControl>(StateProperty, IsSpeakingProperty, SpeechOutputLevelProperty);
+        AffectsRender<ConstellationControl>(
+            StateProperty,
+            IsSpeakingProperty,
+            SpeechOutputLevelProperty,
+            DotSizePercentProperty);
     }
 
     public ConstellationControl()
@@ -62,6 +75,18 @@ public sealed class ConstellationControl : Control
         set => SetValue(SpeechOutputLevelProperty, value);
     }
 
+    public int DotSizePercent
+    {
+        get => GetValue(DotSizePercentProperty);
+        set => SetValue(DotSizePercentProperty, value);
+    }
+
+    public int MovementSpeedPercent
+    {
+        get => GetValue(MovementSpeedPercentProperty);
+        set => SetValue(MovementSpeedPercentProperty, value);
+    }
+
     public override void Render(DrawingContext context)
     {
         base.Render(context);
@@ -72,7 +97,7 @@ public sealed class ConstellationControl : Control
             return;
         }
 
-        var color = Color.FromRgb(frame.Color.Red, frame.Color.Green, frame.Color.Blue);
+        var color = ResolveParticleColor(frame.Color.Red, frame.Color.Green, frame.Color.Blue);
         var brushes = Enumerable.Range(0, 6)
             .Select(index => new SolidColorBrush(Color.FromArgb(
                 (byte)Math.Round((70 + (index * 28)) * frame.Opacity),
@@ -89,7 +114,9 @@ public sealed class ConstellationControl : Control
             var x = center.X + particle.X * scale * perspective;
             var y = center.Y + particle.Y * scale * perspective;
             var depth = Math.Clamp((int)((particle.Z + 1) * 2.75), 0, brushes.Length - 1);
-            var radius = particle.Size * (0.7 + ((particle.Z + 1) * 0.24));
+            var radius = particle.Size
+                         * (DotSizePercent / 100d)
+                         * (0.7 + ((particle.Z + 1) * 0.24));
             context.DrawEllipse(brushes[depth], null, new Point(x, y), radius, radius);
         }
     }
@@ -104,6 +131,18 @@ public sealed class ConstellationControl : Control
     {
         timer.Stop();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (string.Equals(
+            change.Property.Name,
+            ActualThemeVariantPropertyName,
+            StringComparison.Ordinal))
+        {
+            InvalidateVisual();
+        }
     }
 
     private void OnTick(object? sender, EventArgs eventArgs)
@@ -124,6 +163,7 @@ public sealed class ConstellationControl : Control
             AssistantState.Information => 0.28,
             _ => 0,
         };
+        activity *= MovementSpeedPercent / 100d;
 
         if (activity > 0)
         {
@@ -155,6 +195,18 @@ public sealed class ConstellationControl : Control
         {
             InvalidateVisual();
         }
+    }
+
+    private Color ResolveParticleColor(byte red, byte green, byte blue)
+    {
+        const double lightThemeFactor = 0.55;
+        var factor = ActualThemeVariant == ThemeVariant.Light
+            ? lightThemeFactor
+            : 1;
+        return Color.FromRgb(
+            (byte)Math.Round(red * factor),
+            (byte)Math.Round(green * factor),
+            (byte)Math.Round(blue * factor));
     }
 
     private sealed class Particle(

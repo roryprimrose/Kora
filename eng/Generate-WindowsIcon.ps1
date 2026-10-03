@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string] $OutputPath = (Join-Path $PSScriptRoot '..\src\Kora.Desktop\Assets\Kora.ico')
+    [string] $OutputPath = (Join-Path $PSScriptRoot '..\src\Kora\Assets\Kora.ico')
 )
 
 Set-StrictMode -Version Latest

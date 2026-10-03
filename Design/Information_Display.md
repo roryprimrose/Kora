@@ -1,6 +1,9 @@
 # Information Display and Rich Content
 
-Status: proposed. This defines presentation behaviour, not a selected browser/Markdown implementation.
+Status: proposed for general model/result rendering. The trusted embedded
+end-user guide now has a bounded native Markdig/Avalonia renderer; generated,
+remote, and skill-provided Markdown remain governed by the proposed contract
+below and are not accepted by that documentation surface.
 
 Related: [Ambient UI](Ambient_UI.md), [User Configuration](User_Configuration.md), [Security](Security_Data_Flows.md), [Extensibility](Extensibility.md).
 
@@ -17,6 +20,33 @@ Showing/hiding one surface does not cancel work, mute the microphone, or change 
 Approvals, safety warnings, and unresolved errors remain separate trusted host panels, not optional captions or content inside a webpage.
 Native question cards support mouse answers and microphone selection/recovery as defined in [Interaction Fallback](Interaction_Fallback.md), even when speech text is off or voice is unavailable.
 Content viewing is not browser automation or implicit permission to capture a webpage as model context.
+
+## Shared Appearance Theme
+
+Every Kora-owned visual surface uses the single persisted application theme:
+System (default), Light, or Dark. System follows the effective Windows
+light/dark preference while Kora is running. Light and Dark override it.
+The constellation, chat and answer windows, speech text, native questions,
+approvals, errors, Markdown, diagrams, task/result panels, Settings, browser
+chrome, and generated-HTML chrome update immediately from the same observable
+setting.
+
+Native Avalonia surfaces use the shared application theme resources rather than
+hard-coded local palettes. A new window or control cannot introduce an
+independent default. Theme changes preserve content, selection, scroll
+position, focus, approval identity, and task/result identity; they are
+presentation changes only.
+
+Embedded web content does not automatically inherit native resources. The host
+passes the resolved effective Light or Dark variant to each controlled viewer
+and updates its colour scheme and host-owned stylesheet when System changes.
+Internet pages may retain author styling, but browser chrome and trusted Kora
+overlays remain themed and readable. Generated/local HTML and Markdown use
+host-owned accessible theme CSS; untrusted content cannot override trusted
+chrome, infer a broader preference store, or create a separate persisted theme.
+If a renderer cannot apply the effective theme accessibly, show escaped/native
+content or mark that renderer unavailable rather than opening an unreadable
+surface.
 
 | Context | Default presentation |
 |---|---|
@@ -97,6 +127,14 @@ Dynamic model-generated JavaScript applications are outside initial scope; they 
 Saving/exporting HTML is an exact user-selected write outside protected roots; opening exported content outside Kora is separately requested with limitations disclosed.
 
 ## Markdown and Extensions
+
+The implemented Documentation window renders only build-time embedded
+`docs/*.md` resources. It parses them locally with Markdig and creates native
+Avalonia heading, paragraph, list, quote, code, and divider controls. Links are
+displayed as inert text and raw HTML is never executed. The renderer cannot
+load network content, invoke commands, open the microphone, or dispatch tools.
+Navigation is provided by the host-owned page list, and shared dynamic theme
+resources apply System, Light, or Dark immediately.
 
 Use a defined, versioned Markdown profile rather than "whatever the library supports".
 Recommended initial profile:

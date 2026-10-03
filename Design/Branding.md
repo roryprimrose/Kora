@@ -51,9 +51,10 @@ static icon must not be treated as a live state indicator.
 ![Animated Kora loop with travelling state colours](Branding/Kora.Mark.Animated.svg)
 
 The web variant moves the complete seven-colour suite around the ribbon itself,
-rather than rotating a page-level gradient across the mark. Interpolated colour
-steps blend each constellation state into the next instead of exposing hard band
-edges. One circuit takes eight seconds and repeats at a constant speed so the
+rather than rotating a page-level gradient across the mark. Overlapping colour
+samples follow the static mark's palette order and are blended inside a crisp
+ribbon mask, avoiding visible segment boundaries while preserving path-following
+motion. One circuit takes eight seconds and repeats at a constant speed so the
 logo feels ambient rather than like a progress indicator.
 
 - Animation is a progressive enhancement for websites and motion-capable digital
@@ -100,7 +101,7 @@ preview artwork should be derived from this source after small-size rendering
 has been reviewed on Windows light and dark taskbars.
 
 The Windows executable, window, and system tray use
-`src/Kora.Desktop/Assets/Kora.ico`. Regenerate its native-size PNG frames after
+`src/Kora/Assets/Kora.ico`. Regenerate its native-size PNG frames after
 an approved geometry or palette change:
 
 ```powershell

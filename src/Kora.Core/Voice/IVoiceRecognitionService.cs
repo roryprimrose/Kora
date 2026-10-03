@@ -10,6 +10,8 @@ public interface IVoiceRecognitionService : IAsyncDisposable
 
     IReadOnlyList<MicrophoneDevice> GetMicrophones();
 
+    MicrophoneDevice? GetDefaultMicrophone();
+
     Task StartAsync(
         MicrophoneDevice microphone,
         IEnumerable<string> phrases,

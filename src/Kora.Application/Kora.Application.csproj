@@ -5,6 +5,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource
+        Include="..\..\docs\*.md"
+        LogicalName="Kora.Docs.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kora" />
     <InternalsVisibleTo Include="Kora.Application.UnitTests" />
   </ItemGroup>
 

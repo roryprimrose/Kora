@@ -1,36 +1,126 @@
 <Application
-    x:Class="Kora.Desktop.App"
+    x:Class="Kora.App"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="KoraWindowBackgroundBrush" Color="#F4F5F8" />
+          <SolidColorBrush x:Key="KoraForegroundBrush" Color="#24202F" />
+          <SolidColorBrush x:Key="KoraMutedForegroundBrush" Color="#5E6470" />
+          <SolidColorBrush x:Key="KoraAccentBrush" Color="#6653B5" />
+          <SolidColorBrush x:Key="KoraPrimaryBrush" Color="#7663C7" />
+          <SolidColorBrush x:Key="KoraAccentForegroundBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="KoraStatusBrush" Color="#147D78" />
+          <SolidColorBrush x:Key="KoraSurfaceBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="KoraSurfaceAltBrush" Color="#EEF0F5" />
+          <SolidColorBrush x:Key="KoraPresencePanelBrush" Color="#F2FFFFFF" />
+          <SolidColorBrush x:Key="KoraBorderBrush" Color="#D7DAE2" />
+          <SolidColorBrush x:Key="KoraHeaderBorderBrush" Color="#DDE0E7" />
+          <SolidColorBrush x:Key="KoraDividerBrush" Color="#C3C7D0" />
+          <RadialGradientBrush
+              x:Key="KoraConstellationBackgroundBrush"
+              Center="50%,48%"
+              GradientOrigin="50%,48%">
+            <GradientStop Color="#E1D9FF" Offset="0" />
+            <GradientStop Color="#F1EFF8" Offset="1" />
+          </RadialGradientBrush>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="KoraWindowBackgroundBrush" Color="#101216" />
+          <SolidColorBrush x:Key="KoraForegroundBrush" Color="#E8ECF2" />
+          <SolidColorBrush x:Key="KoraMutedForegroundBrush" Color="#929BA9" />
+          <SolidColorBrush x:Key="KoraAccentBrush" Color="#B6A6F1" />
+          <SolidColorBrush x:Key="KoraPrimaryBrush" Color="#AF9BFF" />
+          <SolidColorBrush x:Key="KoraAccentForegroundBrush" Color="#191525" />
+          <SolidColorBrush x:Key="KoraStatusBrush" Color="#6AE1DA" />
+          <SolidColorBrush x:Key="KoraSurfaceBrush" Color="#181C23" />
+          <SolidColorBrush x:Key="KoraSurfaceAltBrush" Color="#171A24" />
+          <SolidColorBrush x:Key="KoraPresencePanelBrush" Color="#F2181C23" />
+          <SolidColorBrush x:Key="KoraBorderBrush" Color="#303640" />
+          <SolidColorBrush x:Key="KoraHeaderBorderBrush" Color="#292E37" />
+          <SolidColorBrush x:Key="KoraDividerBrush" Color="#41454E" />
+          <RadialGradientBrush
+              x:Key="KoraConstellationBackgroundBrush"
+              Center="50%,48%"
+              GradientOrigin="50%,48%">
+            <GradientStop Color="#2C2A3B" Offset="0" />
+            <GradientStop Color="#151922" Offset="1" />
+          </RadialGradientBrush>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
   <Application.Styles>
     <FluentTheme />
     <Style Selector="Window">
       <Setter Property="FontFamily" Value="avares://Avalonia.Fonts.Inter/Assets#Inter" />
+      <Setter Property="Background" Value="{DynamicResource KoraWindowBackgroundBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource KoraForegroundBrush}" />
     </Style>
     <Style Selector="Button">
       <Setter Property="CornerRadius" Value="8" />
       <Setter Property="Padding" Value="14,9" />
     </Style>
     <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#AF9BFF" />
-      <Setter Property="Foreground" Value="#16131F" />
+      <Setter Property="Background" Value="{DynamicResource KoraPrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="TextBlock.eyebrow">
       <Setter Property="FontSize" Value="10" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#B6A6F1" />
+      <Setter Property="Foreground" Value="{DynamicResource KoraAccentBrush}" />
       <Setter Property="LetterSpacing" Value="1.7" />
     </Style>
     <Style Selector="TextBlock.muted">
-      <Setter Property="Foreground" Value="#929BA9" />
+      <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
     </Style>
     <Style Selector="Border.card">
-      <Setter Property="Background" Value="#181C23" />
-      <Setter Property="BorderBrush" Value="#303640" />
+      <Setter Property="Background" Value="{DynamicResource KoraSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="12" />
       <Setter Property="Padding" Value="18" />
+    </Style>
+    <Style Selector="Border.settings-card">
+      <Setter Property="Background" Value="{DynamicResource KoraSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="18" />
+    </Style>
+    <Style Selector="TextBlock.settings-title">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.settings-description">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
+      <Setter Property="LineHeight" Value="16" />
+    </Style>
+    <Style Selector="Border.markdown-divider">
+      <Setter Property="Background" Value="{DynamicResource KoraDividerBrush}" />
+    </Style>
+    <Style Selector="Border.markdown-quote">
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraAccentBrush}" />
+    </Style>
+    <Style Selector="Border.markdown-code">
+      <Setter Property="Background" Value="{DynamicResource KoraSurfaceAltBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+    </Style>
+    <Style Selector="TextBlock.markdown-list-marker">
+      <Setter Property="Foreground" Value="{DynamicResource KoraAccentBrush}" />
+    </Style>
+    <Style Selector="TabControl">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="16,11" />
+      <Setter Property="MinWidth" Value="178" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
     </Style>
   </Application.Styles>
 </Application>

@@ -2,7 +2,7 @@ using Avalonia.Threading;
 
 using Kora.Application;
 
-namespace Kora.Desktop;
+namespace Kora;
 
 public sealed class AvaloniaUiDispatcher : IUiDispatcher
 {

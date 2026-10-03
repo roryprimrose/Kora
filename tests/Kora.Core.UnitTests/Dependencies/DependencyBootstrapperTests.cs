@@ -2,9 +2,12 @@ using AwesomeAssertions;
 
 using Kora.Core.Dependencies;
 
+using Neovolve.Logging.Xunit;
+
 namespace Kora.Core.UnitTests.Dependencies;
 
-public sealed class DependencyBootstrapperTests
+public sealed class DependencyBootstrapperTests(
+    ITestOutputHelper output) : LoggingTestsBase<DependencyBootstrapper>(output)
 {
     [Fact]
     public async Task ProbeAsync_returns_probe_results_in_registration_order()
@@ -14,9 +17,9 @@ public sealed class DependencyBootstrapperTests
             new StubProbe("storage", DependencyReadiness.Ready),
             new StubProbe("voice", DependencyReadiness.NeedsConfiguration),
         ];
-        var bootstrapper = new DependencyBootstrapper(probes);
+        var bootstrapper = new DependencyBootstrapper(probes, Logger);
 
-        var results = await bootstrapper.ProbeAsync();
+        var results = await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
 
         results.Select(result => result.Id).Should().ContainInOrder("storage", "voice");
         results.Select(result => result.Readiness)
@@ -29,7 +32,9 @@ public sealed class DependencyBootstrapperTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var bootstrapper = new DependencyBootstrapper([new StubProbe("storage", DependencyReadiness.Ready)]);
+        var bootstrapper = new DependencyBootstrapper(
+            [new StubProbe("storage", DependencyReadiness.Ready)],
+            Logger);
 
         var action = () => bootstrapper.ProbeAsync(cancellation.Token);
 
@@ -40,7 +45,7 @@ public sealed class DependencyBootstrapperTests
     public async Task ProbeAsync_does_not_hide_probe_failures_or_continue()
     {
         var laterProbe = new RecordingProbe();
-        var bootstrapper = new DependencyBootstrapper([new ThrowingProbe(), laterProbe]);
+        var bootstrapper = new DependencyBootstrapper([new ThrowingProbe(), laterProbe], Logger);
 
         var action = () => bootstrapper.ProbeAsync();
 
@@ -51,9 +56,9 @@ public sealed class DependencyBootstrapperTests
     [Fact]
     public async Task ProbeAsync_with_no_probes_returns_an_empty_result()
     {
-        var bootstrapper = new DependencyBootstrapper([]);
+        var bootstrapper = new DependencyBootstrapper([], Logger);
 
-        var results = await bootstrapper.ProbeAsync();
+        var results = await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
 
         results.Should().BeEmpty();
     }

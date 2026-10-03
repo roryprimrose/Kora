@@ -1,15 +1,19 @@
-using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Speech.AudioFormat;
 using System.Speech.Recognition;
 
 using Kora.Core.Voice;
+using Kora.Windows.Diagnostics;
 
-using NAudio;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
+
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Audio;
 
-public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
+public sealed class WindowsVoiceRecognitionService(
+    ILogger<WindowsVoiceRecognitionService> logger) : IVoiceRecognitionService
 {
     private const int SampleRate = 16000;
     private const int BitsPerSample = 16;
@@ -18,7 +22,8 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
 
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
     private SpeechRecognitionEngine? recognizer;
-    private WaveIn? waveIn;
+    private WasapiRecorder? recorder;
+    private MMDevice? activeInputDevice;
     private BlockingAudioStream? audioStream;
     private bool disposed;
 
@@ -30,15 +35,51 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
 
     public IReadOnlyList<MicrophoneDevice> GetMicrophones()
     {
-        var devices = new List<MicrophoneDevice>(WaveIn.DeviceCount);
+        ObjectDisposedException.ThrowIf(disposed, this);
 
-        for (var index = 0; index < WaveIn.DeviceCount; index++)
+        try
         {
-            var capabilities = WaveIn.GetCapabilities(index);
-            devices.Add(new MicrophoneDevice(index.ToString(CultureInfo.InvariantCulture), capabilities.ProductName));
-        }
+            using var enumerator = new MMDeviceEnumerator();
+            var endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
+            var devices = new List<MicrophoneDevice>(endpoints.Count);
+            foreach (var endpoint in endpoints)
+            {
+                devices.Add(new MicrophoneDevice(endpoint.ID, endpoint.FriendlyName));
+                endpoint.Dispose();
+            }
 
-        return devices;
+            var result = devices
+                .OrderBy(device => device.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+            WindowsLog.DevicesEnumerated(logger, result.Length, "microphone");
+            return result;
+        }
+        catch (COMException exception)
+        {
+            WindowsLog.Error(logger, exception, "Enumerating Windows microphone input");
+            throw new InvalidOperationException(
+                "Windows could not enumerate microphone input devices.",
+                exception);
+        }
+    }
+
+    public MicrophoneDevice? GetDefaultMicrophone()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            using var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
+            return endpoint.State == DeviceState.Active
+                ? new MicrophoneDevice(endpoint.ID, endpoint.FriendlyName)
+                : null;
+        }
+        catch (COMException)
+        {
+            WindowsLog.Warning(logger, "No active Windows multimedia input endpoint is available");
+            return null;
+        }
     }
 
     public async Task StartAsync(
@@ -51,19 +92,25 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
         ArgumentNullException.ThrowIfNull(phrases);
 
         await lifecycleLock.WaitAsync(cancellationToken);
+        var started = false;
         try
         {
             if (IsListening)
             {
+                WindowsLog.Debug(logger, "Ignoring a duplicate voice activation start request");
                 return;
             }
 
-            if (!int.TryParse(microphone.Id, CultureInfo.InvariantCulture, out var deviceNumber) ||
-                deviceNumber < 0 ||
-                deviceNumber >= WaveIn.DeviceCount)
+            if (microphone.IsSystemDefault && GetDefaultMicrophone() is null)
             {
-                throw new ArgumentOutOfRangeException(nameof(microphone), "The selected microphone is no longer available.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(microphone),
+                    "Windows has no active default microphone.");
             }
+
+            activeInputDevice = microphone.IsSystemDefault
+                ? null
+                : ResolveInputDevice(microphone);
 
             var recognizerInfo = SpeechRecognitionEngine.InstalledRecognizers()
                 .FirstOrDefault(info => string.Equals(
@@ -73,7 +120,6 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
                 ?? throw new InvalidOperationException("No English Windows speech recognizer is installed.");
 
             var grammarPhrases = phrases
-                .SelectMany(phrase => new[] { phrase, $"kora {phrase}" })
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
@@ -103,31 +149,40 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
                     Channels * (BitsPerSample / 8),
                     null));
 
-            waveIn = new WaveIn
+            var recorderBuilder = new WasapiRecorderBuilder()
+                .WithFormat(new WaveFormat(SampleRate, BitsPerSample, Channels))
+                .WithBufferLength(100);
+            if (microphone.IsSystemDefault)
             {
-                DeviceNumber = deviceNumber,
-                WaveFormat = new WaveFormat(SampleRate, BitsPerSample, Channels),
-                BufferMilliseconds = 100,
-            };
-            waveIn.DataAvailable += OnDataAvailable;
-            waveIn.RecordingStopped += OnRecordingStopped;
+                recorderBuilder.WithDefaultDeviceStreamRouting();
+            }
+            else
+            {
+                recorderBuilder.WithDevice(activeInputDevice!);
+            }
+
+            recorder = await recorderBuilder.BuildAsync();
+            recorder.DataAvailable += OnDataAvailable;
+            recorder.RecordingStopped += OnRecordingStopped;
 
             recognizer.RecognizeAsync(RecognizeMode.Multiple);
-            waveIn.StartRecording();
+            recorder.StartRecording();
             IsListening = true;
+            started = true;
+            WindowsLog.VoiceActivationStarted(logger, grammarPhrases.Length);
         }
-        catch (MmException exception)
+        catch (COMException exception)
         {
-            DisposeRecognitionResources();
+            WindowsLog.Error(logger, exception, "Opening the selected microphone");
             throw new InvalidOperationException("Windows could not open the selected microphone.", exception);
-        }
-        catch
-        {
-            DisposeRecognitionResources();
-            throw;
         }
         finally
         {
+            if (!started)
+            {
+                DisposeRecognitionResources();
+            }
+
             lifecycleLock.Release();
         }
     }
@@ -137,16 +192,18 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
         await lifecycleLock.WaitAsync(cancellationToken);
         try
         {
-            if (!IsListening && recognizer is null && waveIn is null)
+            if (!IsListening && recognizer is null && recorder is null)
             {
+                WindowsLog.Debug(logger, "Voice activation was already stopped");
                 return;
             }
 
             IsListening = false;
-            waveIn?.StopRecording();
+            recorder?.StopRecording();
             audioStream?.Complete();
             recognizer?.RecognizeAsyncCancel();
             DisposeRecognitionResources();
+            WindowsLog.Information(logger, "Voice activation stopped and capture resources were released");
         }
         finally
         {
@@ -158,19 +215,25 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
     {
         if (disposed)
         {
+            WindowsLog.Debug(logger, "Voice recognition was already disposed");
             return;
         }
 
         await StopAsync();
         disposed = true;
         lifecycleLock.Dispose();
+        WindowsLog.Debug(logger, "Voice recognition was disposed");
     }
 
-    private void OnDataAvailable(object? sender, WaveInEventArgs eventArgs)
+    private void OnDataAvailable(
+        ReadOnlySpan<byte> buffer,
+        AudioClientBufferFlags _,
+        long __,
+        long ___)
     {
         if (IsListening)
         {
-            audioStream?.Add(eventArgs.Buffer.AsSpan(0, eventArgs.BytesRecorded));
+            audioStream?.Add(buffer);
         }
     }
 
@@ -178,6 +241,7 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
     {
         if (eventArgs.Result.Confidence >= MinimumConfidence)
         {
+            WindowsLog.CommandRecognized(logger, eventArgs.Result.Confidence);
             TranscriptRecognized?.Invoke(
                 this,
                 new VoiceTranscriptEventArgs(eventArgs.Result.Text, eventArgs.Result.Confidence));
@@ -186,6 +250,7 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
 
     private void OnSpeechRecognitionRejected(object? sender, SpeechRecognitionRejectedEventArgs eventArgs)
     {
+        WindowsLog.Information(logger, "Speech recognition rejected audio that did not match the command grammar");
         RecognitionFailed?.Invoke(
             this,
             new VoiceRecognitionFailureEventArgs("I heard speech but could not match a supported command."));
@@ -195,6 +260,7 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
     {
         if (eventArgs.Exception is not null)
         {
+            WindowsLog.Error(logger, eventArgs.Exception, "Capturing microphone audio");
             RecognitionFailed?.Invoke(
                 this,
                 new VoiceRecognitionFailureEventArgs($"Microphone capture stopped: {eventArgs.Exception.Message}"));
@@ -203,13 +269,16 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
 
     private void DisposeRecognitionResources()
     {
-        if (waveIn is not null)
+        if (recorder is not null)
         {
-            waveIn.DataAvailable -= OnDataAvailable;
-            waveIn.RecordingStopped -= OnRecordingStopped;
-            waveIn.Dispose();
-            waveIn = null;
+            recorder.DataAvailable -= OnDataAvailable;
+            recorder.RecordingStopped -= OnRecordingStopped;
+            recorder.Dispose();
+            recorder = null;
         }
+
+        activeInputDevice?.Dispose();
+        activeInputDevice = null;
 
         if (recognizer is not null)
         {
@@ -221,5 +290,28 @@ public sealed class WindowsVoiceRecognitionService : IVoiceRecognitionService
 
         audioStream?.Dispose();
         audioStream = null;
+    }
+
+    private MMDevice ResolveInputDevice(MicrophoneDevice microphone)
+    {
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            var endpoint = enumerator.GetDevice(microphone.Id);
+            if (endpoint.State == DeviceState.Active)
+            {
+                return endpoint;
+            }
+
+            endpoint.Dispose();
+        }
+        catch (COMException exception)
+        {
+            WindowsLog.Error(logger, exception, "Resolving the selected microphone");
+        }
+
+        throw new ArgumentOutOfRangeException(
+            nameof(microphone),
+            "The selected microphone is no longer available.");
     }
 }

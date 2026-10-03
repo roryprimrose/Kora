@@ -52,7 +52,8 @@ Only activated command audio reaches local transcription; exclude the wake word 
 Empty activations expire locally without acquiring clipboard or other context.
 
 Mute, lock, sign-out, suspend, and app exit close microphone capture and clear buffered audio.
-Restart/unlock/resume require explicit re-enabling of listening.
+An ordinary unlocked restart applies the automatic listening policy after fresh
+readiness checks. Unlock/resume require explicit re-enabling for the current run.
 Microphone enumeration is not recording consent; first-run and failure recovery use native mouse-selectable questions under [Interaction Fallback](Interaction_Fallback.md).
 Device reconnection/default changes cannot reopen or switch capture silently, and stale pre-failure input cannot approve actions.
 Detection of "Kora" is neither authentication nor approval; all commands still pass existing policy and approval checks.
@@ -361,6 +362,7 @@ If containment cannot enforce a requested restriction, reject that profile rathe
 | Queue requests, labels, context references, and content-bearing work ledger | Memory only; clear on conversation close/clear or app exit; pending entries expire after 30 minutes by default, with bounded configurable lifetime |
 | Conversation idle lifetime | Clear ephemeral context after 30 minutes of inactivity, except while a task is active; user may shorten expiry |
 | Task/action/approval audit metadata | Local SQLite, at most 30-day expiry; stable IDs, canonical action/resource/destination identifiers, parameter/content hashes, scope, creator channel, presence/confirmation class, policy/schema revision, creation/expiry/use/revocation events, outcome, and error codes; no raw parameters/content |
+| Application diagnostic logs | Daily structured JSON under `%LOCALAPPDATA%\Kora\Logs`, at most 30 files and 30 days; lifecycle, readiness, state, counts, and failures only; no transcripts, response bodies, synthesized speech text, raw audio, credentials, or secrets |
 | Configuration and grants | Persist only for their declared grant type until revoked/expired; inventoried in Permissions & Approvals; no secrets in configuration |
 | Kora-specific skill definitions/revisions | Persist in `%APPDATA%\Kora\Skills` until explicitly removed; not cleared with conversation history |
 | Shared profile skill snapshots | Approved in-memory revision snapshots; re-read/revalidate on restart; source files remain untouched |
@@ -370,10 +372,46 @@ Persistent conversation history is deferred and opt-in when introduced.
 Bounded retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/content persistence or restore consumed grants.
 Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.
 Crash reports and diagnostics omit raw context, speech, tool arguments, credentials, and answer content by default.
+Future model-assisted diagnostics may access application logs only through a
+host-owned reader that validates Kora daily-log names, rejects arbitrary paths,
+and bounds each tail read to 1,000,000 characters.
 Content-bearing diagnostic export requires explicit preview/consent; OS or third-party crash dumps remain a deployment concern.
 In-memory disposal is best-effort, not a guarantee of forensic erasure from OS paging.
 
 Provider/server-side retention is disclosed separately and cannot be erased by clearing Kora's local history.
+
+## Security Audit Events
+
+Every security-relevant write, application execution, script execution,
+protected operation, and security-approval transition uses a host-owned typed
+audit contract. The execution boundary emits a `Requested` event before the
+effect and a terminal `Succeeded`, `Failed`, `Denied`, or `Cancelled` event
+when the outcome is known. Both events use the same correlation ID. Approval
+flows additionally carry an opaque approval ID across request, decision,
+execution, cancellation, and expiry events.
+
+Audit events contain only:
+
+- Category and stable canonical action ID.
+- Stable canonical target identity or content digest, never a raw path.
+- Initiator class such as local UI, typed command, voice command, or system.
+- Correlation ID, optional approval ID, outcome, and bounded reason code.
+
+They exclude command/transcript text, raw parameter values, process arguments,
+script source, setting values, file contents, exception text, credentials, and
+secrets. A target requiring content identity uses a host-computed digest and
+canonical resource identity; model- or skill-supplied labels are not audit
+identity.
+
+The initial implementation emits these structured events into the retained
+daily JSON `ILogger` stream for configuration writes, Kora restart, Windows
+session lock, and protected power proposals. This stream is useful operational
+evidence but is user-modifiable and is neither authorization evidence nor the
+tamper-evident approval/audit store required before general write,
+application/script execution, or security approval is enabled. A log entry,
+including a claimed success, never substitutes for policy enforcement,
+immediate pre-execution revalidation, an action receipt, or authoritative
+effect observation.
 
 ## Future Knowledge Indexing
 

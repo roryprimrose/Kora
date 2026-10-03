@@ -1,0 +1,77 @@
+<Window
+    x:Class="Kora.ResponseWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="{Binding AssistantName}"
+    Width="560"
+    Height="350"
+    MinWidth="480"
+    MinHeight="300"
+    Background="Transparent"
+    CanResize="False"
+    ShowActivated="False"
+    ShowInTaskbar="False"
+    WindowDecorations="None"
+    Topmost="{Binding IsResponseWindowTopmost}"
+    TransparencyLevelHint="Transparent"
+    WindowStartupLocation="Manual">
+  <Border
+      Margin="12"
+      Padding="22"
+      Background="{DynamicResource KoraPresencePanelBrush}"
+      BorderBrush="{DynamicResource KoraBorderBrush}"
+      BorderThickness="1"
+      CornerRadius="16">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel
+            Spacing="4"
+            Cursor="SizeAll"
+            PointerPressed="OnDragHandlePointerPressed">
+          <TextBlock Text="{Binding StateLabel}" Classes="eyebrow" />
+          <TextBlock
+              Text="{Binding ResponseTitle}"
+              FontSize="22"
+              FontWeight="SemiBold"
+              TextWrapping="Wrap" />
+        </StackPanel>
+        <Button
+            Grid.Column="1"
+            Content="Dismiss"
+            Click="OnDismissClicked"
+            VerticalAlignment="Top" />
+      </Grid>
+
+      <TextBlock
+          Grid.Row="1"
+          Text="{Binding ResponseBody}"
+          Classes="muted"
+          FontSize="12"
+          LineHeight="19"
+          TextWrapping="Wrap" />
+
+      <Border
+          Grid.Row="2"
+          Padding="12"
+          Background="{DynamicResource KoraSurfaceAltBrush}"
+          CornerRadius="9">
+        <StackPanel Spacing="5">
+          <TextBlock Text="LAST TRANSCRIPT" Classes="eyebrow" />
+          <TextBlock Text="{Binding Transcript}" FontSize="11" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="9">
+        <TextBox
+            Text="{Binding CommandText}"
+            PlaceholderText="Type a command"
+            VerticalContentAlignment="Center" />
+        <Button
+            Grid.Column="1"
+            Classes="primary"
+            Content="Run"
+            Command="{Binding RunTypedCommand}" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

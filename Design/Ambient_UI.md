@@ -1,6 +1,8 @@
 # Ambient UI study
 
-Status: exploratory visual/interaction proposal, not an implemented desktop capability.
+Status: native transparent constellation and separate response surface
+implemented; advanced approval, placement customization, and fullscreen
+suppression remain future work.
 
 Open [the interactive prototype](Prototypes/ambient-ui.html) in a modern browser. It is
 self-contained, works offline, and uses no external assets, dependencies, telemetry,
@@ -33,14 +35,15 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
   background behind the animation. Results/decisions may unfold into a readable
   translucent surface; purely transparent text over arbitrary content is unreliable.
 - Hidden means no animation, input region, focus capture, or invisible hot corner.
-  Summon primarily by saying an active name ("Kora" by default) after enabling local wake listening.
+  Summon primarily by saying an active name ("Kora" by default) while local wake listening is available.
   Optional push-to-talk, a keyboard shortcut, or a tray command provide alternatives.
   Hiding the presence is not microphone mute: a persistent tray/status indicator must
   distinguish Wake Listening, Muted, and Unavailable and expose an explicit mute control.
   It also opens native questions and microphone selection/recovery by mouse under
   [Interaction Fallback](Interaction_Fallback.md); voice must not be required to restore voice.
   The system tray icon/context menu is the primary non-voice recovery route, with
-  detected microphone selection, explicit Enable listening, and accessible state.
+  detected microphone selection, Disable listening while capture is active,
+  Enable listening after manual disablement or failure, and accessible state.
   Clicking the icon never implicitly starts capture; Windows controls overflow placement.
   The prototype uses page-local Space, a Wake button, and Escape; it does not
   register global shortcuts or position a real window.
@@ -87,6 +90,12 @@ playback dimension, not task progress or microphone input. The bootstrap exposes
 visual `IsSpeaking` and `SpeechOutputLevel` contract, but keeps both inactive until a
 real TTS service can provide playback timing and output levels.
 
+The native Settings surface provides device-local sliders for the overall
+constellation footprint (240-600 px, default 360), particle diameter (50-200%,
+default 100%), and particle movement speed (25-200%, default 100%). Changes apply
+live. Resizing preserves the bottom-right working-area anchor; movement speed
+scales state-driven velocity without changing lifecycle state or particle count.
+
 Keep the normal presence entirely abstract: no letters, symbols, or visible status
 caption in or beneath the constellation. Colour and motion convey state; voice
 output provides context without narrating every routine state transition. Keep
@@ -108,7 +117,8 @@ offline prototype does not implement captions, Markdown rendering, or browser is
 
 - Native activation uses the local "Kora" detector, including wake-triggered speech
   interruption, as defined in [Task Lifecycle](Task_Lifecycle.md#wake-listening-and-command-capture).
-  Custom-only/dual-name profiles follow [Custom Activation Names](Activation_Name.md); this prototype does not implement renaming or detector profiles.
+  Configured custom-name profiles follow [Assistant and Activation Name](Activation_Name.md);
+  the desktop bootstrap implements display/command renaming but not production detector profiles.
   The browser study has no microphone access and does not demonstrate real wake detection.
 - Native status/queue interaction remains available during execution as defined in
   [Work Management](Work_Management.md). A status response must not replace the active
@@ -142,8 +152,10 @@ offline prototype does not implement captions, Markdown rendering, or browser is
 - Play sequence is a visual tour, not a lifecycle implementation. It automatically
   cycles past Waiting solely to compare appearances, with no permission or action.
 - Reduced motion defaults to the system preference and freezes the visual. Quiet,
-  Balanced, and Expressive adjust density, size, and opacity. Light-desktop mode
-  uses darker particles rather than bright glow to maintain legibility.
+  Balanced, and Expressive adjust density, size, and opacity. The shared
+  System/Light/Dark application theme controls the visual background and
+  surrounding result surface; the constellation uses darker particles in the
+  effective light theme rather than bright glow to maintain legibility.
 - Stop animation work while hidden or the browser tab is inactive. Reduced motion
   redraws only on relevant changes.
 

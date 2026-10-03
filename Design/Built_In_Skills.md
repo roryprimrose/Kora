@@ -122,7 +122,9 @@ Kora must release microphone capture, not merely stop forwarding recognised comm
 - Stop wake detection, command capture, and microphone-consuming recognition; discard in-flight audio/transcripts and clear pre-roll.
 - Stop speech playback and hide sensitive interactive content while locked.
 - Reject attempts to enable listening from skills, runtime adapters, queued requests, shortcuts, or stale callbacks.
-- Unlock does not re-enable listening automatically; require explicit user re-enabling as in the existing lifecycle policy.
+- Unlock does not re-enable listening automatically; require explicit user
+  re-enabling for the current run. A later ordinary application restart uses the
+  default automatic startup policy.
 
 No model instruction, bundled script, user setting, or approval may override this policy.
 It does not independently disable Microsoft integrations or cancel all background tasks.

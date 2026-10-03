@@ -208,7 +208,9 @@ Future external repository build/test, commit, or push capabilities each require
 
 Restart does not resume actions or replay approval tokens.
 Pending queue bodies and content-bearing ledger records are memory-only and are not restored on restart.
-An app restart requires explicit re-enabling of wake listening; persisted device preferences do not silently reopen microphone capture.
+An app restart applies the ordinary automatic listening policy after fresh
+readiness checks; persisted device preferences select the route but do not bypass
+session, device, or call-policy gates.
 Persisted task metadata marks interrupted non-terminal tasks as interrupted, with unresolved side effects where applicable.
 No raw conversation or clipboard content is restored under the default retention policy.
 Offer read-only reconciliation for a persisted remote operation ID when the connector supports it.

@@ -133,8 +133,11 @@ Enforce a single desktop instance and avoid duplicate startup registrations.
 Use [Instance Coordination](Instance_Coordination.md) across installed/developer builds: same-build launch reveals the owner; different-build launch requires approved quiescent handoff and an explicit return offer after exit.
 No handoff installs code or bypasses the current maintenance restrictions.
 
-Startup opens the shell/tray with microphone acquisition gated by session policy and existing explicit listening consent rules.
-Under the current lifecycle, app restart/logon requires explicit re-enabling of listening; start-at-logon does not silently change that rule.
+Startup opens the shell/tray and automatically attempts listening when the
+interactive session, selected microphone, and voice activation policy permit it.
+Manual disablement lasts for the current process; a later app restart/logon again
+uses the automatic startup policy. Locked, disconnected, or unknown session
+states still block acquisition and require explicit recovery after unlock.
 Uninstallation removes startup/deployment registrations and offers to retain user skills/settings.
 It does not delete shared profile skills.
 

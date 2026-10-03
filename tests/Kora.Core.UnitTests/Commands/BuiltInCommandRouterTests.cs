@@ -12,6 +12,7 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("Kora, lock the machine.", BuiltInAction.LockMachine)]
     [InlineData("lock my computer", BuiltInAction.LockMachine)]
     [InlineData("KORA — WHAT CAN YOU DO?", BuiltInAction.ShowHelp)]
+    [InlineData("Kora, show the user guide", BuiltInAction.OpenDocumentation)]
     [InlineData("restart your application", BuiltInAction.RestartApplication)]
     [InlineData("Kora, reboot this machine", BuiltInAction.ProposeRestart)]
     public void Match_recognizes_exact_built_in_phrases(string transcript, BuiltInAction expectedAction)
@@ -79,6 +80,53 @@ public sealed class BuiltInCommandRouterTests
         result.NormalizedTranscript.Should().Be("show your window");
     }
 
+    [Fact]
+    public void Match_uses_the_configured_name_without_retaining_the_default_alias()
+    {
+        var router = new BuiltInCommandRouter(catalog);
+
+        var customMatch = router.Match("Nova, what can you do?", "Nova");
+        var oldNameMatch = router.Match("Kora, what can you do?", "Nova");
+
+        customMatch.Command?.Action.Should().Be(BuiltInAction.ShowHelp);
+        customMatch.NormalizedTranscript.Should().Be("what can you do");
+        oldNameMatch.IsMatch.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Catalog_renders_name_specific_phrases_and_descriptions()
+    {
+        var commands = catalog.GetCommands("Nova");
+
+        commands.Should().Contain(command =>
+            command.CanonicalPhrase == "show nova"
+            && command.Description == "Show the Nova window.");
+        commands.SelectMany(command => command.AllPhrases)
+            .Should().NotContain(phrase => phrase.Contains("kora", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("Supported Commands", "show supported commands")]
+    [InlineData("Your-Version", "show your version")]
+    public void Catalog_rejects_a_name_that_conflicts_with_a_normalized_builtin_phrase(
+        string name,
+        string conflictingPhrase)
+    {
+        var action = () => catalog.GetCommands(name);
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage($"*conflicts*{conflictingPhrase}*");
+    }
+
+    [Fact]
+    public void Match_rejects_a_bare_custom_activation_name()
+    {
+        var result = new BuiltInCommandRouter(catalog).Match("Nova", "Nova");
+
+        result.IsMatch.Should().BeFalse();
+        result.NormalizedTranscript.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -88,6 +136,66 @@ public sealed class BuiltInCommandRouterTests
         var router = new BuiltInCommandRouter(catalog);
 
         var action = () => router.Match(transcript!);
+
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData("Kora, stop speaking", "Kora", true)]
+    [InlineData("NOVA — open settings", "Nova", true)]
+    [InlineData("stop speaking", "Kora", false)]
+    [InlineData("Koral, stop speaking", "Kora", false)]
+    [InlineData("Kora", "Kora", false)]
+    public void IsActivationPrefixed_detects_a_complete_configured_name_prefix(
+        string transcript,
+        string assistantName,
+        bool expected)
+    {
+        var router = new BuiltInCommandRouter(catalog);
+
+        router.IsActivationPrefixed(transcript, assistantName).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Say Kora, open documentation for help.", "Kora open documentation", true)]
+    [InlineData("No matching command is being spoken.", "Kora stop", false)]
+    public void ContainsNormalizedPhrase_ignores_punctuation_and_casing(
+        string text,
+        string phrase,
+        bool expected)
+    {
+        var router = new BuiltInCommandRouter(catalog);
+
+        router.ContainsNormalizedPhrase(text, phrase).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(null, "Kora")]
+    [InlineData("", "Kora")]
+    [InlineData("  ", "Kora")]
+    public void IsActivationPrefixed_rejects_missing_transcripts(
+        string? transcript,
+        string assistantName)
+    {
+        var router = new BuiltInCommandRouter(catalog);
+
+        var action = () => router.IsActivationPrefixed(transcript!, assistantName);
+
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(null, "Kora stop")]
+    [InlineData("Kora is speaking", null)]
+    [InlineData("", "Kora stop")]
+    [InlineData("Kora is speaking", " ")]
+    public void ContainsNormalizedPhrase_rejects_missing_values(
+        string? text,
+        string? phrase)
+    {
+        var router = new BuiltInCommandRouter(catalog);
+
+        var action = () => router.ContainsNormalizedPhrase(text!, phrase!);
 
         action.Should().Throw<ArgumentException>();
     }

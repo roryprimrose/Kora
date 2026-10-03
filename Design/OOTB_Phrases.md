@@ -71,7 +71,8 @@ While a power preparation owns a dispatch hold, "resume the queue" requires canc
 Exit/restart is immediate only if there is no active/pending work or unresolved operation.
 Otherwise summarise affected work and require "confirm exit Kora" or "confirm restart Kora", or equivalent UI.
 Accepted exit/restart cancels local active work, clears the in-memory queue, revokes approvals, and reports uncertain remote effects.
-Restart does not resume work or silently re-enable the microphone.
+Restart does not resume work or approvals. The new process applies the ordinary
+automatic listening policy after its own readiness checks.
 Do not stop pre-existing Ollama/MCP processes owned by the user.
 Hide is not exit, microphone mute, queue pause, or permission to conceal listening status.
 

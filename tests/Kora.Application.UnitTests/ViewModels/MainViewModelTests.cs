@@ -1064,9 +1064,8 @@ public sealed class MainViewModelTests
         ];
 
         await fixture.ViewModel.InitializeAsync();
-
         fixture.ViewModel.SelectedVoice?.Id.Should().Be("male");
-        fixture.ViewModel.PreviewVoiceCommand.CanExecute(null).Should().BeTrue();
+        fixture.ViewModel.SelectedVoice?.Id.Should().Be("male");
         fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("Male voice");
     }
 

@@ -101,6 +101,7 @@ jobs:
           name: test-results
           path: .net-test-artifacts/**/*.trx
           if-no-files-found: error
+          include-hidden-files: true
 
       - name: Upload coverage report
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -108,6 +109,7 @@ jobs:
           name: coverage-report
           path: .net-test-artifacts/coverage-report
           if-no-files-found: error
+          include-hidden-files: true
 
       - name: Upload Windows x64 application
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -162,3 +164,4 @@ jobs:
           name: windows-test-results
           path: .net-test-artifacts/windows/*.trx
           if-no-files-found: error
+          include-hidden-files: true

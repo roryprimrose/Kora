@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using AwesomeAssertions;
 
 using Kora.Application;
@@ -413,7 +415,7 @@ public sealed class MainViewModelTests
 
         await fixture.Voice.RaiseTranscriptAsync("Kora, show Kora", 0.87f);
 
-        fixture.ViewModel.Transcript.Should().Contain("87%");
+        fixture.ViewModel.Transcript.Should().Contain(0.87f.ToString("P0", CultureInfo.CurrentCulture));
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
     }
 

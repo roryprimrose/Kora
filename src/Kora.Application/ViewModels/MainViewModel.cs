@@ -159,6 +159,16 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task DetectMicrophonesAsync() => await RefreshAsync();
 
+    public void ShowApplication()
+    {
+        if (State == AssistantState.Hidden)
+        {
+            State = AssistantState.Information;
+        }
+
+        WindowActionRequested?.Invoke(this, WindowAction.Show);
+    }
+
     public async Task ExitAsync()
     {
         await StopListeningAsync();
@@ -296,7 +306,7 @@ public sealed class MainViewModel : ObservableObject
         switch (command.Action)
         {
             case BuiltInAction.ShowApplication:
-                WindowActionRequested?.Invoke(this, WindowAction.Show);
+                ShowApplication();
                 ShowSuccess("Kora is visible.", "The existing application instance was shown.");
                 break;
             case BuiltInAction.HideApplication:

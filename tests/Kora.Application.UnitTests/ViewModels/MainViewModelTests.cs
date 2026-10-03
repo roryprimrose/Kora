@@ -285,6 +285,19 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public async Task ShowApplication_restores_a_hidden_constellation()
+    {
+        var fixture = new Fixture();
+        await fixture.RunAsync("Kora, hide Kora");
+        fixture.WindowActions.Clear();
+
+        fixture.ViewModel.ShowApplication();
+
+        fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
+        fixture.ViewModel.State.Should().Be(AssistantState.Information);
+    }
+
+    [Fact]
     public async Task Hide_command_uses_the_tray_recovery_path_without_requiring_listening()
     {
         var fixture = new Fixture();

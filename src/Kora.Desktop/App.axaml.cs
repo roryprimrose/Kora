@@ -24,7 +24,7 @@ public sealed partial class App : Avalonia.Application
             var viewModel = Services.GetRequiredService<MainViewModel>();
             var window = new MainWindow(viewModel);
             desktop.MainWindow = window;
-            systemTray = new SystemTrayController(desktop, viewModel);
+            systemTray = new SystemTrayController(viewModel);
             desktop.Exit += OnDesktopExit;
         }
 

@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 
 using Kora.Application.ViewModels;
+using Kora.Application.Visuals;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,6 +15,7 @@ namespace Kora.Desktop;
 public sealed partial class MainWindow : Window
 {
     private readonly MainViewModel viewModel;
+    private CancellationTokenSource? pendingHide;
     private bool initialized;
 
     public MainWindow()
@@ -41,26 +43,56 @@ public sealed partial class MainWindow : Window
         await viewModel.InitializeAsync();
     }
 
-    private void OnWindowActionRequested(object? sender, WindowAction action)
+    private async void OnWindowActionRequested(object? sender, WindowAction action)
     {
         switch (action)
         {
             case WindowAction.Show:
+                CancelPendingHide();
                 Show();
                 Activate();
                 break;
             case WindowAction.Hide:
-                Hide();
+                CancelPendingHide();
+                var hideRequest = new CancellationTokenSource();
+                pendingHide = hideRequest;
+                try
+                {
+                    await Task.Delay(
+                        ConstellationAnimation.VisibilityTransitionDuration + ConstellationAnimation.FrameInterval,
+                        hideRequest.Token);
+                    Hide();
+                }
+                catch (OperationCanceledException) when (hideRequest.IsCancellationRequested)
+                {
+                }
+                finally
+                {
+                    if (ReferenceEquals(pendingHide, hideRequest))
+                    {
+                        pendingHide = null;
+                    }
+
+                    hideRequest.Dispose();
+                }
                 break;
             case WindowAction.Close:
+                CancelPendingHide();
                 Close();
                 break;
             case WindowAction.Restart:
+                CancelPendingHide();
                 Restart();
                 break;
             default:
                 throw new InvalidOperationException($"Unknown window action: {action}.");
         }
+    }
+
+    private void CancelPendingHide()
+    {
+        pendingHide?.Cancel();
+        pendingHide = null;
     }
 
     private void Restart()

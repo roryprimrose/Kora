@@ -77,6 +77,16 @@ listening motion is synthetic; native amplitude response must reflect actual aud
 only during command capture. A hidden presence must not conceal enabled microphone
 listening; the separate tray/status indicator communicates local wake listening.
 
+Native state changes cross-fade between the current and target state colours rather
+than replacing the palette in one frame. Showing and hiding the constellation also
+fades over a short interval; a request to show it again cancels a pending hide.
+
+During Kora speech playback, the constellation may contract and expand between 90%
+and 112% of its resting size from a normalized output-level signal. This is a speech
+playback dimension, not task progress or microphone input. The bootstrap exposes the
+visual `IsSpeaking` and `SpeechOutputLevel` contract, but keeps both inactive until a
+real TTS service can provide playback timing and output levels.
+
 Keep the normal presence entirely abstract: no letters, symbols, or visible status
 caption in or beneath the constellation. Colour and motion convey state; voice
 output provides context without narrating every routine state transition. Keep

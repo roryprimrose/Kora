@@ -1,7 +1,6 @@
 using System.ComponentModel;
 
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
 
 using Kora.Application.ViewModels;
@@ -12,16 +11,12 @@ public sealed class SystemTrayController : IDisposable
 {
     private static readonly Uri IconUri = new("avares://Kora.Desktop/Assets/Kora.ico");
 
-    private readonly IClassicDesktopStyleApplicationLifetime desktop;
     private readonly MainViewModel viewModel;
     private readonly TrayIcon trayIcon;
     private bool disposed;
 
-    public SystemTrayController(
-        IClassicDesktopStyleApplicationLifetime desktop,
-        MainViewModel viewModel)
+    public SystemTrayController(MainViewModel viewModel)
     {
-        this.desktop = desktop;
         this.viewModel = viewModel;
 
         var showItem = new NativeMenuItem("Show Kora");
@@ -77,14 +72,5 @@ public sealed class SystemTrayController : IDisposable
 
     private void UpdateToolTip() => trayIcon.ToolTipText = $"Kora - {viewModel.ListeningStatus}";
 
-    private void ShowWindow()
-    {
-        if (desktop.MainWindow is not { } window)
-        {
-            return;
-        }
-
-        window.Show();
-        window.Activate();
-    }
+    private void ShowWindow() => viewModel.ShowApplication();
 }

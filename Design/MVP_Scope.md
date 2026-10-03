@@ -51,7 +51,7 @@ Included:
 - Always-available native questions with mouse answers, explicit first-run microphone selection, and device/permission-loss recovery without speech/model/network dependencies.
 - Persistent system tray icon/context menu as the primary non-voice recovery route, including detected microphone choice and explicit listening enablement.
 - Built-in first-run/re-enterable setup, automatic internal storage/database initialisation, and capability-based dependency detection/configuration.
-- Local wake-word activation as the primary interaction ("Kora" by default), with optional push-to-talk and opt-in validated custom activation names/alias mode.
+- Local wake-word activation as the primary interaction ("Kora" by default), with optional push-to-talk and one opt-in validated custom activation name.
 - Local command endpoint detection, transcription, and speech output.
 - Visible wake-listening/capture/mute states and verbal interruption during speech output.
 - Out-of-the-box lock/shutdown/restart skills with definitions/scripts embedded in the protected application binary and local routing; disruptive power actions require named voice confirmation plus native secure confirmation outside the speech/model path.
@@ -174,7 +174,7 @@ The authoritative owner, due checkpoint, evidence, and status for these items ar
 - Copilot SDK control-point proof and runtime version pinning.
 - Independently schedulable management inference/session support without sharing execution state or blocking local controls.
 - Speech engine packaging, model availability, supported hardware, and distribution licences.
-- A locally packaged detector for default "Kora" and advertised custom/dual-name profiles, command endpointing, and playback echo rejection that pass the Slice A activation gates.
+- A locally packaged detector for default "Kora" and advertised custom-name profiles, command endpointing, and playback echo rejection that pass the Slice A activation gates.
 - Verified bundled computer-script execution profiles and authoritative Windows session/microphone policy integration.
 - A local credential store appropriate for Windows.
 - MCP SDK transport/authentication support and cancellation behaviour.

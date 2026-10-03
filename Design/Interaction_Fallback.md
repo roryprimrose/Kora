@@ -15,23 +15,29 @@ Speech is an optional additional delivery channel when existing output consent/p
 Hidden speech text, visual detail preferences, or an unavailable rich renderer cannot hide these controls.
 Provide equivalent keyboard/screen-reader interaction; mouse use never requires a spoken acknowledgement.
 
-## First Launch: Select a Microphone
+## First Launch: Explain Automatic Listening
 
 1. Open accessible first-run onboarding, even when the normal configured startup presentation is tray/minimal.
-2. Enumerate audio capture endpoints without recording or probing audio before consent.
-3. Ask visibly: "Which microphone should I use to listen for instructions?"
+2. Enumerate audio capture endpoints before opening capture.
+3. Select System when no Kora override exists and explain visibly that Kora
+   starts listening automatically when startup readiness and session policy allow.
 4. Show each detected endpoint with friendly name, stable host identity, current availability, and a default-device badge where applicable.
-5. The user clicks a device. Selection alone saves/proposes the preference; it does not start capture.
+5. Provide an immediately accessible Disable listening action that releases the
+   microphone for the current run, plus microphone selection and test actions.
 6. Explain local configured-name detection ("Kora" initially), bounded ambient audio, command transcription, visible listening status, and mandatory locked-session denial.
-7. Offer "Use selected microphone and enable listening", an explicitly consented "Test selected microphone", and "Continue without voice".
-8. On explicit enable, revalidate session/endpoint/permissions/assets and attempt capture; confirm readiness only after the real checks succeed.
+7. Offer "Disable listening", an explicitly consented "Test selected microphone",
+   "Choose another microphone", and "Continue without voice".
+8. Before automatic startup or explicit recovery, revalidate session,
+   endpoint, permissions, and assets; confirm readiness only after the real checks succeed.
 9. If prerequisites are missing or opening fails, show the exact blocker and next actions; remain fully usable through mouse-based prompts.
 
-Even a single detected microphone needs explicit selection/enablement; do not silently open it.
-The system default may be suggested, not assumed or captured automatically.
+Normal safe startup attempts capture automatically because listening is Kora's
+primary purpose. Device selection by itself does not restart capture after the
+user manually disables listening during the current run.
 Offer [Activation Name](Activation_Name.md) selection before ongoing listening, including a custom-only recommendation for shared offices; this is available by mouse before voice is ready.
 Distinguish duplicate friendly names with device details; bind operations to an enumerated endpoint ID, never the displayed label alone.
-A system-default change cannot silently switch capture to another endpoint; using the new default requires explicit confirmation of the new endpoint.
+A system-default change may reroute active capture only while System is selected;
+specific endpoint overrides remain pinned.
 
 An optional microphone test opens only the chosen device after explicit consent, for at most 5 seconds.
 Show a live level indicator, not continuous transcription; do not save/transmit test audio or invoke a model.
@@ -102,6 +108,11 @@ Avoid repeated modal recovery prompts while the user has chosen non-voice operat
 The Windows notification-area icon is the primary non-voice entry point, present for the lifetime of the normal desktop instance, even when the presence/details are hidden.
 It is not optional while Kora is running; Windows may place it in the notification-area overflow and Kora must not claim it can force taskbar pinning.
 Voice remains the primary normal interaction; the tray is deterministic host functionality requiring no model or working audio device.
+A single left-click shows and activates the existing Kora window. A
+double-click opens or activates the single Settings window. Because Windows
+reports the first click before it knows whether a second will follow, the
+single-click action waits for the configured Windows double-click interval;
+the second click cancels that pending show action.
 
 Recommended context menu:
 

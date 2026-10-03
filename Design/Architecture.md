@@ -79,6 +79,7 @@ Avalonia Shell
   |-- Speaker Confidence Service -- Optional Local Verifier / Enrollment and Anti-Spoof Boundary
   |-- Environment Setup Controller -- Dependency Catalogue / Probes / Readiness / Scoped Helpers
   |-- Configuration Service -- Typed Option Registry / Verbal and UI Operations
+  |       `-- Security Audit Contract -- Correlated Write / Execution / Approval Events
   |-- Task Controller
   |     |-- Context Broker -- Clipboard / Explicit File Selection
   |     |-- Policy + Approval Service
@@ -111,6 +112,7 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Response presenter | Streamed display, optional speech text, typed rich detail, summary, citations, TTS | Treating partial answers as completed work or untrusted content as controls |
 | Content viewer/rendering service | Bounded Markdown/diagram/static HTML rendering, browser provenance/navigation/isolation | Browser automation, implicit context capture, arbitrary renderer plugins or host bridges |
 | Proactive interaction broker | Event eligibility, speech timing, deduplication, prompt identity, trusted maintenance dialogue routing | Autonomous tool execution or treating untrusted content as system events |
+| Security audit service | Correlated content-minimizing request/outcome events for writes, process/script execution, protected operations, and approvals | Authorizing an action, storing raw content/arguments, or treating diagnostics as tamper-evident evidence |
 | Speech policy service | Central playback eligibility, call-state freshness, voice-configurable preferences, one-shot overrides | Claiming universal call detection or allowing lock/mute bypass |
 | Speaker confidence service | Optional local per-SID enrollment, protected template storage, verification/anti-spoof observations, privacy-policy signal | Identifying arbitrary people, granting actions, satisfying approvals, exposing scores/templates, or silently enrolling |
 | Reserved intent/lifecycle controller | Exact local control routing, target disambiguation, named confirmations, serialised app/power/maintenance lifecycle | Arbitrary shell commands or user-skill shadowing of privileged controls |

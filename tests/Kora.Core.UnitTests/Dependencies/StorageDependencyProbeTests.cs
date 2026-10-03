@@ -2,9 +2,11 @@ using AwesomeAssertions;
 
 using Kora.Core.Dependencies;
 
+using Neovolve.Logging.Xunit;
+
 namespace Kora.Core.UnitTests.Dependencies;
 
-public sealed class StorageDependencyProbeTests : IDisposable
+public sealed class StorageDependencyProbeTests(ITestOutputHelper output) : IDisposable
 {
     private readonly string root = Path.Combine(
         Path.GetTempPath(),
@@ -28,7 +30,8 @@ public sealed class StorageDependencyProbeTests : IDisposable
         var paths = new TestPaths(
             Path.Combine(root, "Local"),
             Path.Combine(root, "Roaming"));
-        var probe = new StorageDependencyProbe(paths);
+        using var logger = output.BuildLoggerFor<StorageDependencyProbe>();
+        var probe = new StorageDependencyProbe(paths, logger);
 
         var result = await probe.ProbeAsync(CancellationToken.None);
 
@@ -45,7 +48,8 @@ public sealed class StorageDependencyProbeTests : IDisposable
         var paths = new TestPaths(
             Path.Combine(root, "Local"),
             Path.Combine(root, "Roaming"));
-        var probe = new StorageDependencyProbe(paths);
+        using var logger = output.BuildLoggerFor<StorageDependencyProbe>();
+        var probe = new StorageDependencyProbe(paths, logger);
 
         await probe.ProbeAsync(CancellationToken.None);
         var secondResult = await probe.ProbeAsync(CancellationToken.None);
@@ -59,7 +63,8 @@ public sealed class StorageDependencyProbeTests : IDisposable
         var paths = new TestPaths(
             Path.Combine(root, "Local"),
             Path.Combine(root, "Roaming"));
-        var probe = new StorageDependencyProbe(paths);
+        using var logger = output.BuildLoggerFor<StorageDependencyProbe>();
+        var probe = new StorageDependencyProbe(paths, logger);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 

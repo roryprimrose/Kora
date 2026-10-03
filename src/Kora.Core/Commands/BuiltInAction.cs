@@ -7,6 +7,7 @@ public enum BuiltInAction
     ExitApplication,
     RestartApplication,
     OpenSettings,
+    OpenDocumentation,
     OpenSetup,
     ShowHelp,
     ShowVersion,

@@ -49,7 +49,9 @@ After approval:
 3. Revoke pending grants, clear ephemeral queue/context, stop playback/capture, invalidate audio callbacks, release owned workers and mutable-store handles.
 4. Stop the original assistant host. A minimal lifecycle-only supervisor may remain for handoff/restart monitoring; it is not an active Kora assistant.
 5. Transfer exclusive ownership through the coordinator only after actual quiescence; the candidate acquires ownership and acknowledges startup readiness.
-6. Candidate starts normally with its own verified configuration/readiness. Listening requires explicit re-enabling; no grants, tasks, owner-confidence caches, or voice-session consent transfer.
+6. Candidate starts normally with its own verified configuration/readiness and
+   applies the ordinary automatic listening policy. No grants, tasks,
+   owner-confidence caches, or voice-session state transfer.
 
 One candidate/handoff may be pending; competing launches receive a truthful pending/busy response, not independent approvals.
 Ownership transfer, app/power restart, update activation (when available), and source/deployment maintenance share a lifecycle barrier.

@@ -1,0 +1,558 @@
+<Window
+    x:Class="Kora.SettingsWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="{Binding SettingsWindowTitle}"
+    Icon="/Assets/Kora.ico"
+    Width="1040"
+    Height="760"
+    MinWidth="860"
+    MinHeight="620"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}"
+    WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="72,*">
+    <Border BorderBrush="{DynamicResource KoraHeaderBorderBrush}" BorderThickness="0,0,0,1" Padding="30,0">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+        <Border Width="34" Height="34" Background="{DynamicResource KoraAccentBrush}" CornerRadius="9">
+          <TextBlock
+              Text="{Binding AssistantInitial}"
+              Foreground="{DynamicResource KoraAccentForegroundBrush}"
+              FontSize="23"
+              FontWeight="SemiBold"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="1" Margin="13,0,0,0" VerticalAlignment="Center">
+          <TextBlock Text="Settings" FontSize="20" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding SettingsSubtitle}" Classes="muted" FontSize="11" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Ellipse Width="7" Height="7" Fill="{DynamicResource KoraStatusBrush}" />
+          <TextBlock Text="{Binding ListeningStatus}" Classes="muted" FontSize="11" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <TabControl
+        Grid.Row="1"
+        TabStripPlacement="Left"
+        Margin="22"
+        Background="Transparent">
+      <TabItem Header="Appearance">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Appearance" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="{Binding AppearanceSettingsDescription}"
+                  Classes="muted"
+                  FontSize="13"
+                  TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Application theme" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding AppearanceThemeDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox
+                    Grid.Column="1"
+                    ItemsSource="{Binding ThemeModes}"
+                    SelectedItem="{Binding ThemeMode}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <StackPanel Spacing="5" Margin="0,8,0,0">
+              <TextBlock Text="Visual feedback" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Control how Kora's constellation and response window remain visible."
+                  Classes="muted"
+                  FontSize="12"
+                  TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Always show responses" Classes="settings-title" />
+                  <TextBlock
+                      Text="Keep the response window visible until you dismiss it."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Always show"
+                    IsChecked="{Binding IsResponseAlwaysVisible}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Keep responses on top" Classes="settings-title" />
+                  <TextBlock
+                      Text="Keep the response window above other application windows."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Stay on top"
+                    IsChecked="{Binding IsResponseWindowTopmost}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Visible timeout" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceTimeoutDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <NumericUpDown
+                    Grid.Column="1"
+                    Value="{Binding PresenceTimeoutSeconds}"
+                    Minimum="1"
+                    Maximum="60"
+                    Increment="1"
+                    FormatString="0"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Constellation size" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding ConstellationSizeDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <Slider
+                    Grid.Column="1"
+                    Value="{Binding ConstellationSizePixels}"
+                    Minimum="240"
+                    Maximum="600"
+                    TickFrequency="20"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Dot size" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding ConstellationDotSizeDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <Slider
+                    Grid.Column="1"
+                    Value="{Binding ConstellationDotSizePercent}"
+                    Minimum="50"
+                    Maximum="200"
+                    TickFrequency="10"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Dot movement speed" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding ConstellationMovementSpeedDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <Slider
+                    Grid.Column="1"
+                    Value="{Binding ConstellationMovementSpeedPercent}"
+                    Minimum="25"
+                    Maximum="200"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Speech &amp; audio">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Speech &amp; audio" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="{Binding SpeechAudioSettingsDescription}"
+                  Classes="muted"
+                  FontSize="13" />
+            </StackPanel>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Assistant name" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding AssistantNameSettingStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <TextBox
+                      Text="{Binding AssistantNameInput, Mode=TwoWay}"
+                      MaxLength="32"
+                      PlaceholderText="Assistant name" />
+                  <Button
+                      Classes="primary"
+                      Content="Apply name"
+                      Command="{Binding ApplyAssistantNameCommand}"
+                      HorizontalAlignment="Stretch" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Microphone" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding MicrophoneAccessMessage}"
+                      Classes="settings-description"
+                      FontWeight="SemiBold"
+                      TextWrapping="Wrap" />
+                  <TextBlock
+                      Text="{Binding MicrophoneAvailabilityMessage}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                  <ComboBox
+                      ItemsSource="{Binding Microphones}"
+                      SelectedItem="{Binding SelectedMicrophone}"
+                      DisplayMemberBinding="{Binding Name}"
+                      PlaceholderText="No microphone detected" />
+                  <Button
+                      Content="Open Windows microphone settings"
+                      Command="{Binding OpenMicrophonePrivacySettingsCommand}"
+                      HorizontalAlignment="Stretch" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Voice activation" Classes="settings-title" />
+                  <TextBlock Text="{Binding ListeningStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button
+                    Grid.Column="1"
+                    Classes="primary"
+                    Content="{Binding ListeningButtonText}"
+                    Command="{Binding ToggleListeningCommand}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Speech provider" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding SpeechProviderAvailabilityMessage}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox
+                      ItemsSource="{Binding SpeechProviders}"
+                      SelectedItem="{Binding SelectedSpeechProvider}"
+                      DisplayMemberBinding="{Binding Name}"
+                      IsEnabled="{Binding !IsSpeechProviderOperationActive}"
+                      PlaceholderText="No provider available" />
+                  <ProgressBar
+                      Minimum="0"
+                      Maximum="100"
+                      Value="{Binding SpeechProviderOperationProgress}"
+                      IsVisible="{Binding IsSpeechProviderOperationActive}" />
+                  <TextBlock
+                      Text="{Binding SpeechProviderOperationStatus}"
+                      Classes="muted"
+                      FontSize="11"
+                      TextWrapping="Wrap"
+                      IsVisible="{Binding IsSpeechProviderOperationActive}" />
+                  <Button
+                      Classes="primary"
+                      Content="{Binding SpeechProviderDownloadButtonText}"
+                      Command="{Binding DownloadSpeechProviderCommand}"
+                      IsVisible="{Binding CanDownloadSpeechProvider}" />
+                  <Button
+                      Content="Remove downloaded model"
+                      Command="{Binding RemoveSpeechProviderCommand}"
+                      IsVisible="{Binding CanRemoveSpeechProvider}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Speech voice" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding VoiceAvailabilityMessage}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox
+                      ItemsSource="{Binding Voices}"
+                      SelectedItem="{Binding SelectedVoice}"
+                      PlaceholderText="No voice selected">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <StackPanel>
+                          <TextBlock Text="{Binding Name}" />
+                          <TextBlock Text="{Binding Culture}" Classes="muted" FontSize="10" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Content="Preview" Command="{Binding PreviewVoiceCommand}" />
+                    <Button Grid.Column="1" Content="Stop" Command="{Binding StopSpeechCommand}" />
+                  </Grid>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Audio output" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding OutputDeviceAvailabilityMessage}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox
+                    Grid.Column="1"
+                    ItemsSource="{Binding OutputDevices}"
+                    SelectedItem="{Binding SelectedOutputDevice}"
+                    DisplayMemberBinding="{Binding Name}"
+                    PlaceholderText="No audio output selected"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Button
+                Content="Refresh devices and readiness"
+                Command="{Binding RefreshCommand}"
+                HorizontalAlignment="Left" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Responses">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Responses" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="{Binding ResponseSettingsDescription}"
+                  Classes="muted"
+                  FontSize="13" />
+            </StackPanel>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Device default" Classes="settings-title" />
+                  <TextBlock
+                      Text="The persisted response mode used when no narrower override is active."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox
+                    Grid.Column="1"
+                    ItemsSource="{Binding ResponseModeOptions}"
+                    SelectedItem="{Binding DefaultResponseModeOption}"
+                    DisplayMemberBinding="{Binding Label}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Current queue" Classes="settings-title" />
+                  <TextBlock
+                      Text="A temporary override for work in the current queue. Choose Inherit to use the device default."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox
+                    Grid.Column="1"
+                    ItemsSource="{Binding ResponseModeOverrideOptions}"
+                    SelectedItem="{Binding QueueResponseModeOption}"
+                    DisplayMemberBinding="{Binding Label}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Current task" Classes="settings-title" />
+                  <TextBlock
+                      Text="The highest-precedence temporary output override. Choose Inherit to use the queue override or device default."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox
+                    Grid.Column="1"
+                    ItemsSource="{Binding ResponseModeOverrideOptions}"
+                    SelectedItem="{Binding TaskResponseModeOption}"
+                    DisplayMemberBinding="{Binding Label}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Effective output" Classes="settings-title" />
+                <TextBlock
+                    Text="{Binding ResponseOutputStatus}"
+                    Classes="settings-description"
+                    TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Calls">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Calls" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Control responses and listening when a configured detector reports call activity."
+                  Classes="muted"
+                  FontSize="13"
+                  TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Call detection" Classes="settings-title" />
+                <TextBlock
+                    Text="{Binding CallStateStatus}"
+                    Classes="settings-description"
+                    TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Visual responses during calls" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding CallVisualOverrideStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <Button
+                    Grid.Column="1"
+                    Content="{Binding CallVisualOverrideButtonText}"
+                    Command="{Binding ToggleCallVisualOverrideCommand}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Voice activation during calls" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding CallVoiceActivationStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <Button
+                    Grid.Column="1"
+                    Content="{Binding CallVoiceActivationButtonText}"
+                    Command="{Binding ToggleCallVoiceActivationCommand}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Readiness">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Readiness" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="{Binding ReadinessSettingsDescription}"
+                  Classes="muted"
+                  FontSize="13" />
+            </StackPanel>
+
+            <ItemsControl ItemsSource="{Binding Dependencies}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="settings-card" Margin="0,0,0,10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding Name}" Classes="settings-title" />
+                        <TextBlock
+                            Text="{Binding Detail}"
+                            Classes="settings-description"
+                            TextWrapping="Wrap" />
+                      </StackPanel>
+                      <TextBlock
+                          Grid.Column="1"
+                          Text="{Binding DisplayReadiness}"
+                          Foreground="{DynamicResource KoraAccentBrush}"
+                          FontSize="11"
+                          FontWeight="SemiBold"
+                          VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button
+                  Content="Refresh readiness"
+                  Command="{Binding RefreshCommand}" />
+              <Button
+                  Content="Open Windows microphone settings"
+                  Command="{Binding OpenMicrophonePrivacySettingsCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</Window>

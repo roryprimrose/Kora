@@ -7,6 +7,7 @@ internal sealed class BlockingAudioStream : Stream
     private readonly BlockingCollection<byte[]> buffers = new();
     private byte[]? currentBuffer;
     private int currentOffset;
+    private long position;
     private bool disposed;
 
     public override bool CanRead => true;
@@ -15,11 +16,11 @@ internal sealed class BlockingAudioStream : Stream
 
     public override bool CanWrite => false;
 
-    public override long Length => throw new NotSupportedException();
+    public override long Length => long.MaxValue;
 
     public override long Position
     {
-        get => throw new NotSupportedException();
+        get => position;
         set => throw new NotSupportedException();
     }
 
@@ -52,6 +53,7 @@ internal sealed class BlockingAudioStream : Stream
         var bytesToCopy = Math.Min(count, currentBuffer.Length - currentOffset);
         Buffer.BlockCopy(currentBuffer, currentOffset, buffer, offset, bytesToCopy);
         currentOffset += bytesToCopy;
+        position += bytesToCopy;
         return bytesToCopy;
     }
 

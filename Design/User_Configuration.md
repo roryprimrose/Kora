@@ -10,6 +10,12 @@ Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.
 An extension cannot introduce a settings screen without registering equivalent verbal discovery/get/set/reset operations.
 
+The desktop system-tray menu exposes a single-instance Settings window with
+every setting currently implemented by the host. All open settings surfaces
+observe the same live state: mouse and validated verbal mutations publish the
+same change notifications, so neither surface requires reopening or polling to
+show the new effective value.
+
 Each registered option declares:
 
 - Stable ID/category, description, spoken names/aliases, type, units, allowed values/range, and default.
@@ -24,7 +30,7 @@ Changing a supported preference is not permission to alter policy implementation
 
 ## Voice Interaction
 
-Examples after "Kora":
+Examples after the currently configured assistant name (initially "Kora"):
 
 - "What settings can I change?"
 - "What are my speech settings?"
@@ -46,15 +52,15 @@ Relative changes such as "slower" resolve to a displayed concrete value within t
 Changes that disable speech are acknowledged visually under the resulting policy.
 Use device-local persistence by default; explicit task/conversation/temporary scope does not change the default.
 Do not roam preferences, grants, device IDs, or credentials with skill files.
-Persisted preferences do not persist listening consent, manual call state, or temporary overrides across lock/restart.
+Persisted preferences do not persist manual listening disablement, manual call state, or temporary overrides across restart.
 
 ## 1. Voice Input and Activation
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
-| Input device | No automatic first-run selection/capture; suggest system default and select an enumerated endpoint explicitly | "Use my headset microphone" |
-| Listening enabled | Explicit consent and re-enabling required under lifecycle policy | "Stop listening" |
-| Activation name and alias mode | "Kora" initially; validated custom name with explicit custom-only or Kora-and-custom choice | "Change your activation name to Nova" |
+| Input device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; changing selection after manual disablement does not restart capture | "Use my headset microphone" |
+| Listening enabled | Starts automatically on ordinary safe startup; manual disablement releases capture for the current run | "Stop listening" |
+| Assistant display and command name | "Kora" initially; one validated custom-only name of 1-3 words and at most 32 characters | "Change your name to Nova" |
 | Optional PTT shortcut | Unassigned until selected; validate conflicts | "Set push-to-talk to Control Shift Space" |
 | Activation feedback | Visual always; non-speech cue when output policy permits | "Turn off the activation sound" |
 | Command speech-start wait | 5 seconds; 2-10 seconds | "Wait seven seconds after I say Kora" |
@@ -63,10 +69,23 @@ Persisted preferences do not persist listening consent, manual call state, or te
 | Recognition language/model | Initial supported local English configuration; choose only delivered/ready assets | "Use the more accurate installed recognition model" |
 | Owner-aware private speech | On when an enrolled supported verifier is available; private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable` | "Only read private information when you recognise my voice" |
 
-The default activation name is "Kora"; [Custom Activation Names](Activation_Name.md) defines the rename flow, its explicit custom-only/both choice, local detector requirements, and atomic application.
-Device switching revalidates consent, capture, and playback-rejection safety.
-First-run and device-loss microphone selection always work by mouse through [Interaction Fallback](Interaction_Fallback.md); hot-plug/default changes do not silently switch or reopen capture.
-The persistent system tray context menu lists detected microphones and provides Choose/test microphone and explicit Enable listening; selecting a replacement alone does not start recording.
+The default assistant name is "Kora"; [Assistant and Activation Name](Activation_Name.md)
+defines the implemented display/command identity, its device-local persistence,
+and the stronger detector requirements that remain future work. The current
+name is custom-only: after commit, the previous name is not retained as a
+hidden alias. The executable, application-data roots, assemblies, log names,
+and trust identity remain Kora.
+Device switching revalidates session, capture, and playback-rejection safety.
+First run selects System and automatically attempts listening after readiness
+checks. System uses Windows default-device stream routing, so later
+multimedia-default changes are applied without creating a Kora endpoint override
+or reopening capture. Device-loss
+replacement always works by mouse through
+[Interaction Fallback](Interaction_Fallback.md); hot-plug/default changes do
+not silently replace a specifically selected endpoint. The persistent system tray
+context menu lists detected microphones and provides Disable listening while
+capture is active plus Enable listening for recovery after manual disablement or
+failure; selecting a replacement alone does not restart recording.
 "Start listening" can set the preference only through an already available explicit input channel; a closed microphone cannot receive the utterance.
 Do not keep a secret listening path merely to support voice unmute.
 Speaker enrollment, replacement, deletion, threshold policy, and any relaxation of owner-aware private speech are security-sensitive native workflows, not ordinary verbally settable preferences.
@@ -76,20 +95,34 @@ Voice may open the relevant settings page or report non-sensitive enrollment ava
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
-| Response mode | Hybrid; voice-only or visual-only supported | "Use visual responses only" |
-| Output device | Selected system-default device initially; enumerated outputs | "Speak through my headphones" |
+| Response mode | Hybrid device default; transient current-queue/current-task overrides; task > queue > device | "Use visual responses only for this task" |
+| Output device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; stale/missing/unselected/muted/zero-volume/open/playback failure forces visual fallback | "Speak through my headphones" |
 | Local voice | Supported installed voice; do not silently download on selection | "Use the second installed voice" |
 | Speech rate | Engine normal; advertised supported range | "Speak twenty percent slower" |
 | Kora playback volume | Normal configured level; 0-100%, affects only Kora | "Set your volume to thirty percent" |
 | Spoken summary length | At most 3 sentences/80 words; user may lower either limit | "Keep spoken summaries under forty words" |
 | Visual detail level | Concise by default; detailed on request | "Show detailed results by default" |
 | Speech text / rich display | Independent optional captions, source/rendered Markdown, diagram and viewer preferences | "Show the words you're saying" |
-| Theme | Follow system; light/dark/system | "Use the dark theme" |
+| Theme | System by default; System follows live Windows appearance, while Light/Dark override every Kora visual surface | "Use the dark theme" |
+| Listening presence timeout | 5 seconds; 1-60 seconds; reset by voice, typed, pointer, or keyboard interaction; hides only the constellation | "Hide your constellation after ten seconds" |
+| Constellation size | 360 px; 240-600 px; applies immediately and preserves bottom-right anchoring | "Make your constellation 400 pixels wide" |
+| Constellation dot size | 100%; 50-200%; changes particle diameter without changing particle count | "Make the constellation dots 120 percent" |
+| Constellation movement speed | 100%; 25-200%; scales state-driven particle movement | "Set constellation movement speed to 75 percent" |
 | Presence placement | Bottom-right working area; validated display/corner/margin | "Put your presence in the top-right of my second monitor" |
 | Reduced motion | Follow system; may enable explicitly | "Use reduced motion" |
 
 Visual-only does not close the microphone. Output-device changes never change global system/call volume.
 Voice-only still preserves required visual approval/error/fallback surfaces; it cannot suppress safety information.
+When speech output is missing, temporarily unavailable, or fails during playback, the response text and window are forced visible regardless of the effective response mode.
+Task and queue response-mode overrides are memory-only and expire with their scope; only an explicit device-default change is persisted.
+Specific microphone and output selections are device-local Kora overrides. A
+saved override wins on later starts while that stable endpoint exists. Missing
+saved or current explicit endpoints are not replaced silently; the user must
+select a replacement or System. Selecting System clears the relevant override
+immediately and follows the current and subsequent Windows multimedia defaults.
+Endpoint presence, active state, Windows software mute/zero volume, open errors, and playback errors are detectable.
+Software mute forces visual output; Kora never changes global mute or volume automatically.
+Physical audibility beyond Windows (powered-off speakers, disconnected analog paths, unreported hardware mute/volume) is not reliably detectable and is covered by explicit preview/recovery UX.
 Unsupported voices/languages/display IDs produce an explicit available-choice response.
 Exploratory animation styles and native visual features are configurable only once implemented and capability-tested.
 The exact caption, rich rendering, viewer, and text-scale options are defined in [Information Display](Information_Display.md#voice-settings-and-navigation); they use this same configuration contract.
@@ -99,6 +132,8 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Call speech mode | Suppress automatic requested/proactive speech; one-shot override allowed | "Only suppress unsolicited suggestions during calls" |
+| Detected-call visual override | On; Active/Suspected observations use visual-only responses instead of the normal task/queue/device response mode | "Use my normal response mode during calls" |
+| Voice activation during calls | On; independently configurable and does not reopen capture without explicit listening consent | "Disable voice activation during calls" |
 | Unknown enabled-detector behaviour | Suppress automatic speech | "Use normal speech when detection is unavailable" |
 | Detector enablement/account | Explicitly configured supported sources only | "Use Teams presence to decide when to stay quiet" |
 | Busy/DND/meeting quieting | Call/Suspected meeting handling as in call policy; additional Busy/DND preference off | "Stay quiet when Teams says do not disturb" |
@@ -110,6 +145,8 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Reminder deferral | 24 hours; 1 hour-7 days | "Remind me about updates tomorrow" |
 
 Detectors need explicit setup/account/network consent; setting a preference does not create Graph credentials.
+The visual override and voice-activation setting are device-local and independent: visual-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
+When no detector is configured, Kora reports automatic call detection as unavailable and preserves the ordinary response and listening configuration.
 Hard lock/mute rules always outrank call/proactive preferences.
 Notification settings cannot hide necessary action approval from the visual interface or turn silence into approval.
 

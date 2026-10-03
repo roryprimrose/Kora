@@ -2,7 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Kora.Application/Kora.Application.csproj" />
     <Project Path="src/Kora.Core/Kora.Core.csproj" />
-    <Project Path="src/Kora.Desktop/Kora.Desktop.csproj" />
+    <Project Path="src/Kora/Kora.csproj" />
     <Project Path="src/Kora.Windows/Kora.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -409,7 +409,7 @@ dotnet_diagnostic.MA0015.severity = none
 dotnet_diagnostic.VSTHRD003.severity = none
 dotnet_diagnostic.VSTHRD103.severity = none
 
-[src/Kora.Desktop/*.cs]
+[src/Kora/*.cs]
 
 # Avalonia exposes synchronous lifetime and menu-event hooks for these operations.
 dotnet_diagnostic.CA1001.severity = none

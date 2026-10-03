@@ -1,0 +1,25 @@
+<Window
+    x:Class="Kora.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    Title="{Binding AssistantName}"
+    Width="{Binding ConstellationSizePixels}"
+    Height="{Binding ConstellationSizePixels}"
+    Background="Transparent"
+    CanResize="False"
+    IsHitTestVisible="True"
+    ShowActivated="False"
+    ShowInTaskbar="False"
+    WindowDecorations="None"
+    Topmost="True"
+    TransparencyLevelHint="Transparent"
+    WindowStartupLocation="Manual">
+  <controls:ConstellationControl
+      State="{Binding State}"
+      IsSpeaking="{Binding IsSpeaking}"
+      DotSizePercent="{Binding ConstellationDotSizePercent}"
+      MovementSpeedPercent="{Binding ConstellationMovementSpeedPercent}"
+      Cursor="SizeAll"
+      IsHitTestVisible="True" />
+</Window>

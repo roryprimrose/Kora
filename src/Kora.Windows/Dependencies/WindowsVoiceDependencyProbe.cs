@@ -1,25 +1,79 @@
+using System.Runtime.InteropServices;
 using System.Speech.Recognition;
 
 using Kora.Core.Dependencies;
+using Kora.Core.Voice;
+using Kora.Windows.Diagnostics;
 
-using NAudio.Wave;
+using NAudio.CoreAudioApi;
+
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Dependencies;
 
-public sealed class WindowsVoiceDependencyProbe : IDependencyProbe
+public sealed class WindowsVoiceDependencyProbe(
+    IMicrophoneAccessService microphoneAccess,
+    ILogger<WindowsVoiceDependencyProbe> logger) : IDependencyProbe
 {
     public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        WindowsLog.Debug(logger, "Probing Windows microphone and recognition readiness");
 
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
         {
             return Result(
                 DependencyReadiness.Incompatible,
-                "Kora voice support requires Windows 10 build 19041 or later.");
+                "Voice support requires Windows 10 build 19041 or later.");
         }
 
-        if (WaveIn.DeviceCount == 0)
+        var access = microphoneAccess.GetStatus();
+        if (access.State == MicrophoneAccessState.Denied)
+        {
+            return Result(
+                DependencyReadiness.NeedsConfiguration,
+                access.Detail);
+        }
+
+        int microphoneCount;
+        bool hasDefaultMicrophone;
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            var microphones = enumerator.EnumerateAudioEndPoints(
+                DataFlow.Capture,
+                DeviceState.Active);
+            microphoneCount = microphones.Count;
+            foreach (var microphone in microphones)
+            {
+                microphone.Dispose();
+            }
+
+            hasDefaultMicrophone = false;
+            if (microphoneCount > 0)
+            {
+                try
+                {
+                    using var defaultMicrophone = enumerator.GetDefaultAudioEndpoint(
+                        DataFlow.Capture,
+                        Role.Multimedia);
+                    hasDefaultMicrophone = defaultMicrophone.State == DeviceState.Active;
+                }
+                catch (COMException)
+                {
+                    hasDefaultMicrophone = false;
+                }
+            }
+        }
+        catch (COMException exception)
+        {
+            WindowsLog.Error(logger, exception, "Probing Windows microphone readiness");
+            throw new InvalidOperationException(
+                "Windows could not inspect microphone input devices.",
+                exception);
+        }
+
+        if (microphoneCount == 0)
         {
             return Result(
                 DependencyReadiness.Missing,
@@ -37,9 +91,18 @@ public sealed class WindowsVoiceDependencyProbe : IDependencyProbe
                 "Install an English Windows speech recognition language before enabling listening.");
         }
 
+        if (!hasDefaultMicrophone)
+        {
+            return Result(
+                DependencyReadiness.NeedsConfiguration,
+                $"{microphoneCount} microphone(s) detected, but no active Windows multimedia default is selected. Select an application microphone.");
+        }
+
         return Result(
-            DependencyReadiness.NeedsConfiguration,
-            $"{WaveIn.DeviceCount} microphone(s) detected. Select one and explicitly enable listening.");
+            access.State == MicrophoneAccessState.Allowed
+                ? DependencyReadiness.Ready
+                : DependencyReadiness.NeedsConfiguration,
+            $"{microphoneCount} microphone(s) detected. {access.Detail}");
     }
 
     private static ValueTask<DependencyStatus> Result(

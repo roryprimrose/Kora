@@ -1,6 +1,12 @@
+using Kora.Core.Diagnostics;
+
+using Microsoft.Extensions.Logging;
+
 namespace Kora.Core.Dependencies;
 
-public sealed class StorageDependencyProbe(IApplicationDataPaths paths) : IDependencyProbe
+public sealed class StorageDependencyProbe(
+    IApplicationDataPaths paths,
+    ILogger<StorageDependencyProbe> logger) : IDependencyProbe
 {
     public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken)
     {
@@ -9,6 +15,7 @@ public sealed class StorageDependencyProbe(IApplicationDataPaths paths) : IDepen
         Directory.CreateDirectory(paths.LocalRoot);
         Directory.CreateDirectory(Path.Combine(paths.LocalRoot, "Logs"));
         Directory.CreateDirectory(Path.Combine(paths.RoamingRoot, "Skills"));
+        CoreLog.StorageReady(logger);
 
         return ValueTask.FromResult(new DependencyStatus(
             "kora.storage",

@@ -1,0 +1,287 @@
+using System.ComponentModel;
+
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
+
+using Kora.Application.ViewModels;
+using Kora.Application.Visuals;
+using Kora.Core.Configuration;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+namespace Kora;
+
+public sealed partial class MainWindow : Window
+{
+    private readonly MainViewModel viewModel;
+    private readonly ILogger<MainWindow> logger;
+    private readonly DispatcherTimer presenceTimeoutTimer;
+    private readonly DispatcherTimer positionSaveTimer;
+    private CancellationTokenSource? pendingHide;
+    private bool initialized;
+    private bool positionInitialized;
+    private bool shutdownRequested;
+
+    public MainWindow()
+        : this(
+            App.Services.GetRequiredService<MainViewModel>(),
+            App.Services.GetRequiredService<ILogger<MainWindow>>())
+    {
+    }
+
+    public MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger)
+    {
+        this.viewModel = viewModel;
+        this.logger = logger;
+        AvaloniaXamlLoader.Load(this);
+        DataContext = viewModel;
+        ShowInTaskbar = false;
+        Opacity = 0;
+        presenceTimeoutTimer = new DispatcherTimer();
+        presenceTimeoutTimer.Tick += OnPresenceTimeout;
+        positionSaveTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(300),
+        };
+        positionSaveTimer.Tick += OnPositionSaveTimer;
+        viewModel.WindowActionRequested += OnWindowActionRequested;
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        PointerPressed += OnPointerPressed;
+        PositionChanged += OnPositionChanged;
+        Loaded += OnLoaded;
+        Closing += OnClosing;
+    }
+
+    private async void OnLoaded(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (initialized)
+        {
+            return;
+        }
+
+        initialized = true;
+        DesktopLog.Information(logger, "Main window loaded");
+        await viewModel.InitializeAsync();
+        RestorePosition();
+        if (viewModel.IsListening)
+        {
+            DesktopLog.Debug(logger, "Hiding the main window after successful background startup");
+            viewModel.HidePresentation();
+            Hide();
+        }
+        else
+        {
+            Opacity = 1;
+            viewModel.ShowPresentation();
+        }
+
+        Opacity = 1;
+    }
+
+    private async void OnWindowActionRequested(object? sender, WindowAction action)
+    {
+        switch (action)
+        {
+            case WindowAction.ShowPresence:
+            case WindowAction.Show:
+                DesktopLog.Debug(logger, "Showing the constellation presence");
+                CancelPendingHide();
+                EnsurePositionOnConnectedScreen();
+                Show();
+                SchedulePresenceTimeout();
+                break;
+            case WindowAction.Hide:
+                DesktopLog.Debug(logger, "Hiding the main window after its transition");
+                CancelPendingHide();
+                presenceTimeoutTimer.Stop();
+                var hideRequest = new CancellationTokenSource();
+                pendingHide = hideRequest;
+                try
+                {
+                    await Task.Delay(
+                        ConstellationAnimation.VisibilityTransitionDuration + ConstellationAnimation.FrameInterval,
+                        hideRequest.Token);
+                    Hide();
+                }
+                catch (OperationCanceledException) when (hideRequest.IsCancellationRequested)
+                {
+                }
+                finally
+                {
+                    if (ReferenceEquals(pendingHide, hideRequest))
+                    {
+                        pendingHide = null;
+                    }
+
+                    hideRequest.Dispose();
+                }
+                break;
+            case WindowAction.Close:
+                DesktopLog.Information(logger, "Shutting down the desktop application");
+                CancelPendingHide();
+                presenceTimeoutTimer.Stop();
+                shutdownRequested = true;
+                if (Avalonia.Application.Current?.ApplicationLifetime
+                    is IClassicDesktopStyleApplicationLifetime desktop)
+                {
+                    desktop.Shutdown();
+                }
+                else
+                {
+                    Close();
+                }
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown window action: {action}.");
+        }
+    }
+
+    private void CancelPendingHide()
+    {
+        pendingHide?.Cancel();
+        pendingHide = null;
+    }
+
+    private void OnClosing(object? sender, WindowClosingEventArgs eventArgs)
+    {
+        positionSaveTimer.Stop();
+        if (positionInitialized)
+        {
+            _ = viewModel.SetConstellationPosition(
+                new ConstellationPosition(Position.X, Position.Y));
+        }
+
+        if (shutdownRequested
+            || eventArgs.CloseReason is WindowCloseReason.ApplicationShutdown
+                or WindowCloseReason.OSShutdown)
+        {
+            return;
+        }
+
+        DesktopLog.Debug(logger, "Hiding the main window instead of closing the background application");
+        eventArgs.Cancel = true;
+        CancelPendingHide();
+        viewModel.HideApplication();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
+    {
+        if (eventArgs.PropertyName is nameof(MainViewModel.IsListening)
+            or nameof(MainViewModel.PresenceTimeoutSeconds))
+        {
+            SchedulePresenceTimeout();
+        }
+        else if (eventArgs.PropertyName is nameof(MainViewModel.ConstellationSizePixels))
+        {
+            EnsurePositionOnConnectedScreen();
+        }
+    }
+
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
+    {
+        if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            viewModel.NotifyPresenceInteraction();
+            BeginMoveDrag(eventArgs);
+        }
+    }
+
+    private void OnPositionChanged(object? sender, PixelPointEventArgs eventArgs)
+    {
+        if (!positionInitialized)
+        {
+            return;
+        }
+
+        positionSaveTimer.Stop();
+        positionSaveTimer.Start();
+    }
+
+    private void OnPositionSaveTimer(object? sender, EventArgs eventArgs)
+    {
+        positionSaveTimer.Stop();
+        _ = viewModel.SetConstellationPosition(
+            new ConstellationPosition(Position.X, Position.Y));
+    }
+
+    private void OnPresenceTimeout(object? sender, EventArgs eventArgs)
+    {
+        presenceTimeoutTimer.Stop();
+        if (!viewModel.IsListening || !IsVisible)
+        {
+            return;
+        }
+
+        DesktopLog.Debug(logger, "Hiding the inactive constellation after its listening timeout");
+        Hide();
+    }
+
+    private void SchedulePresenceTimeout()
+    {
+        presenceTimeoutTimer.Stop();
+        if (!viewModel.IsListening || !IsVisible)
+        {
+            return;
+        }
+
+        presenceTimeoutTimer.Interval =
+            TimeSpan.FromSeconds(viewModel.PresenceTimeoutSeconds);
+        presenceTimeoutTimer.Start();
+    }
+
+    private void PositionAtWorkingArea()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null)
+        {
+            return;
+        }
+
+        const int margin = 24;
+        var scale = RenderScaling;
+        var width = (int)Math.Ceiling(Width * scale);
+        var height = (int)Math.Ceiling(Height * scale);
+        var scaledMargin = (int)Math.Ceiling(margin * scale);
+        Position = new PixelPoint(
+            screen.WorkingArea.Right - width - scaledMargin,
+            screen.WorkingArea.Bottom - height - scaledMargin);
+    }
+
+    private void RestorePosition()
+    {
+        positionInitialized = false;
+        var savedPosition = viewModel.ConstellationPosition;
+        if (savedPosition is not null
+            && IsPositionOnConnectedScreen(savedPosition))
+        {
+            Position = new PixelPoint(savedPosition.X, savedPosition.Y);
+        }
+        else
+        {
+            PositionAtWorkingArea();
+        }
+
+        positionInitialized = true;
+    }
+
+    private void EnsurePositionOnConnectedScreen()
+    {
+        var position = new ConstellationPosition(Position.X, Position.Y);
+        if (!IsPositionOnConnectedScreen(position))
+        {
+            PositionAtWorkingArea();
+        }
+    }
+
+    private bool IsPositionOnConnectedScreen(ConstellationPosition position)
+    {
+        var point = new PixelPoint(position.X, position.Y);
+        return Screens.All.Any(screen => screen.WorkingArea.Contains(point));
+    }
+}

@@ -28,7 +28,7 @@ No speculative Linux/macOS backends or automatic platform parity are included.
 | Speech recognition | Transcript lifecycle, local-only policy, engine selection | Bundled local engine adapter; other engines later | Slice A |
 | Text-to-speech | Playback queue, interruption, summary selection | Local speech engine/voice adapters | Slice A |
 | Call-aware speech | Central speech gate, voice preferences, source aggregation/freshness, visual fallback, one-shot override | Narrow communication detectors; Teams first, Graph optional and consented | Gate/manual mode in Slice A; automatic detection only after proof |
-| Wake word and endpointing | Default "Kora"/validated custom names, explicit alias mode, bounded pre-roll, command boundaries, playback-aware interruption | Local detector/profile and VAD adapters; no connector installation required | Slice A; custom profiles need quality proof |
+| Wake word and endpointing | Default "Kora"/one validated custom name, bounded pre-roll, command boundaries, playback-aware interruption | Local detector/profile and VAD adapters; no connector installation required | Slice A; custom profiles need quality proof |
 | Clipboard | Explicit OS snapshot, format/size checks, preview, provenance, permission | Parsers, OCR, explanations, and workflows | Text in Slice A |
 | File/selection context | Explicit source selection, canonical paths, access checks | IDE/app bridges and format extractors | User skill revision selection in Slice C; general workspaces later |
 | Screen capture | Capture consent, region/window scope, indicator, context lifecycle | OCR and visual analysis adapters | Later |

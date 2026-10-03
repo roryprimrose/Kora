@@ -68,7 +68,9 @@ public sealed class AsyncCommandTests
 
         command.Execute(null);
 
-        await invoked.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await invoked.Task.WaitAsync(
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
     }
 
     [Fact]

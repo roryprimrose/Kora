@@ -13,7 +13,16 @@ Only an explicit speak-once request can bypass this call rule under the default 
 
 Call gating does not itself disable wake listening.
 The user can still say "Kora, ..." to request work, change speech preferences, or ask for a spoken response.
+Voice activation during detected calls is an independent device-local setting
+and remains enabled by default. If the user disables it, an Active or Suspected
+observation closes active capture and blocks new activation until the call
+clears; it never grants listening consent or silently reopens capture.
 Locked-session microphone and speech restrictions remain mandatory and cannot be overridden.
+
+The default detected-call response override displays visual text instead of
+using the ordinary task, queue, or device response mode. This override is
+device-local and configurable independently of voice activation. Turning it
+off restores the ordinary response-mode precedence during detected calls.
 
 ## Built-In Gate, Extensible Detectors
 

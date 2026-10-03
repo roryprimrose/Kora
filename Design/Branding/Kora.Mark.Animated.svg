@@ -5,7 +5,7 @@
     .segment {
       animation: travel 8s linear infinite;
       animation-delay: var(--delay);
-      stroke-dasharray: 27 673;
+      stroke-dasharray: 16 684;
     }
 
     @keyframes travel {
@@ -29,36 +29,82 @@
         id="loop"
         pathLength="700"
         d="M128 28 C78 28 52 49 52 88 C52 119 79 141 128 160 C177 179 204 201 204 232 C204 271 178 292 128 292 C78 292 52 271 52 232 C52 201 79 179 128 160 C177 141 204 119 204 88 C204 49 178 28 128 28" />
+    <filter id="blend" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="3" />
+    </filter>
+    <mask id="ribbon-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="320">
+      <use
+          href="#loop"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="27" />
+    </mask>
   </defs>
-  <g fill="none" stroke-linecap="butt" stroke-linejoin="round" stroke-width="27">
-    <use class="segment" href="#loop" stroke="#6AE1DA" stroke-dashoffset="0" style="--delay: 0s" />
-    <use class="segment" href="#loop" stroke="#7BD0E3" stroke-dashoffset="-25" style="--delay: -0.285714s" />
-    <use class="segment" href="#loop" stroke="#8CBEEC" stroke-dashoffset="-50" style="--delay: -0.571429s" />
-    <use class="segment" href="#loop" stroke="#9EACF6" stroke-dashoffset="-75" style="--delay: -0.857143s" />
-    <use class="segment" href="#loop" stroke="#AF9BFF" stroke-dashoffset="-100" style="--delay: -1.142857s" />
-    <use class="segment" href="#loop" stroke="#BFA7E0" stroke-dashoffset="-125" style="--delay: -1.428571s" />
-    <use class="segment" href="#loop" stroke="#D0B4C1" stroke-dashoffset="-150" style="--delay: -1.714286s" />
-    <use class="segment" href="#loop" stroke="#E0C0A2" stroke-dashoffset="-175" style="--delay: -2s" />
-    <use class="segment" href="#loop" stroke="#F0CC83" stroke-dashoffset="-200" style="--delay: -2.285714s" />
-    <use class="segment" href="#loop" stroke="#D4C7A2" stroke-dashoffset="-225" style="--delay: -2.571429s" />
-    <use class="segment" href="#loop" stroke="#B8C2C1" stroke-dashoffset="-250" style="--delay: -2.857143s" />
-    <use class="segment" href="#loop" stroke="#9CBCE0" stroke-dashoffset="-275" style="--delay: -3.142857s" />
-    <use class="segment" href="#loop" stroke="#80B7FF" stroke-dashoffset="-300" style="--delay: -3.428571s" />
-    <use class="segment" href="#loop" stroke="#87C1EA" stroke-dashoffset="-325" style="--delay: -3.714286s" />
-    <use class="segment" href="#loop" stroke="#8ECBD6" stroke-dashoffset="-350" style="--delay: -4s" />
-    <use class="segment" href="#loop" stroke="#94D5C1" stroke-dashoffset="-375" style="--delay: -4.285714s" />
-    <use class="segment" href="#loop" stroke="#9BDFAC" stroke-dashoffset="-400" style="--delay: -4.571429s" />
-    <use class="segment" href="#loop" stroke="#B1CEA8" stroke-dashoffset="-425" style="--delay: -4.857143s" />
-    <use class="segment" href="#loop" stroke="#C8BEA4" stroke-dashoffset="-450" style="--delay: -5.142857s" />
-    <use class="segment" href="#loop" stroke="#DEADA0" stroke-dashoffset="-475" style="--delay: -5.428571s" />
-    <use class="segment" href="#loop" stroke="#F49C9C" stroke-dashoffset="-500" style="--delay: -5.714286s" />
-    <use class="segment" href="#loop" stroke="#E5ABB0" stroke-dashoffset="-525" style="--delay: -6s" />
-    <use class="segment" href="#loop" stroke="#D6BAC4" stroke-dashoffset="-550" style="--delay: -6.285714s" />
-    <use class="segment" href="#loop" stroke="#C7CAD8" stroke-dashoffset="-575" style="--delay: -6.571429s" />
-    <use class="segment" href="#loop" stroke="#B8D9EC" stroke-dashoffset="-600" style="--delay: -6.857143s" />
-    <use class="segment" href="#loop" stroke="#A4DBE8" stroke-dashoffset="-625" style="--delay: -7.142857s" />
-    <use class="segment" href="#loop" stroke="#91DDE3" stroke-dashoffset="-650" style="--delay: -7.428571s" />
-    <use class="segment" href="#loop" stroke="#7EDFDE" stroke-dashoffset="-675" style="--delay: -7.714286s" />
+  <g
+      fill="none"
+      filter="url(#blend)"
+      mask="url(#ribbon-mask)"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="33">
+    <use class="segment" href="#loop" stroke="#F49C9C" stroke-dashoffset="0" style="--delay: 0s" />
+    <use class="segment" href="#loop" stroke="#F4A299" stroke-dashoffset="-12.5" style="--delay: -0.142857s" />
+    <use class="segment" href="#loop" stroke="#F3A896" stroke-dashoffset="-25" style="--delay: -0.285714s" />
+    <use class="segment" href="#loop" stroke="#F2AE93" stroke-dashoffset="-37.5" style="--delay: -0.428571s" />
+    <use class="segment" href="#loop" stroke="#F2B490" stroke-dashoffset="-50" style="--delay: -0.571429s" />
+    <use class="segment" href="#loop" stroke="#F2BA8C" stroke-dashoffset="-62.5" style="--delay: -0.714286s" />
+    <use class="segment" href="#loop" stroke="#F1C089" stroke-dashoffset="-75" style="--delay: -0.857143s" />
+    <use class="segment" href="#loop" stroke="#F0C686" stroke-dashoffset="-87.5" style="--delay: -1s" />
+    <use class="segment" href="#loop" stroke="#F0CC83" stroke-dashoffset="-100" style="--delay: -1.142857s" />
+    <use class="segment" href="#loop" stroke="#E5CE88" stroke-dashoffset="-112.5" style="--delay: -1.285714s" />
+    <use class="segment" href="#loop" stroke="#DBD18D" stroke-dashoffset="-125" style="--delay: -1.428571s" />
+    <use class="segment" href="#loop" stroke="#D0D392" stroke-dashoffset="-137.5" style="--delay: -1.571429s" />
+    <use class="segment" href="#loop" stroke="#C6D698" stroke-dashoffset="-150" style="--delay: -1.714286s" />
+    <use class="segment" href="#loop" stroke="#BBD89D" stroke-dashoffset="-162.5" style="--delay: -1.857143s" />
+    <use class="segment" href="#loop" stroke="#B0DAA2" stroke-dashoffset="-175" style="--delay: -2s" />
+    <use class="segment" href="#loop" stroke="#A6DDA7" stroke-dashoffset="-187.5" style="--delay: -2.142857s" />
+    <use class="segment" href="#loop" stroke="#9BDFAC" stroke-dashoffset="-200" style="--delay: -2.285714s" />
+    <use class="segment" href="#loop" stroke="#95DFB2" stroke-dashoffset="-212.5" style="--delay: -2.428571s" />
+    <use class="segment" href="#loop" stroke="#8FE0B8" stroke-dashoffset="-225" style="--delay: -2.571429s" />
+    <use class="segment" href="#loop" stroke="#89E0BD" stroke-dashoffset="-237.5" style="--delay: -2.714286s" />
+    <use class="segment" href="#loop" stroke="#82E0C3" stroke-dashoffset="-250" style="--delay: -2.857143s" />
+    <use class="segment" href="#loop" stroke="#7CE0C9" stroke-dashoffset="-262.5" style="--delay: -3s" />
+    <use class="segment" href="#loop" stroke="#76E0CE" stroke-dashoffset="-275" style="--delay: -3.142857s" />
+    <use class="segment" href="#loop" stroke="#70E1D4" stroke-dashoffset="-287.5" style="--delay: -3.285714s" />
+    <use class="segment" href="#loop" stroke="#6AE1DA" stroke-dashoffset="-300" style="--delay: -3.428571s" />
+    <use class="segment" href="#loop" stroke="#74E0DC" stroke-dashoffset="-312.5" style="--delay: -3.571429s" />
+    <use class="segment" href="#loop" stroke="#7EDFDE" stroke-dashoffset="-325" style="--delay: -3.714286s" />
+    <use class="segment" href="#loop" stroke="#87DEE1" stroke-dashoffset="-337.5" style="--delay: -3.857143s" />
+    <use class="segment" href="#loop" stroke="#91DDE3" stroke-dashoffset="-350" style="--delay: -4s" />
+    <use class="segment" href="#loop" stroke="#9BDCE5" stroke-dashoffset="-362.5" style="--delay: -4.142857s" />
+    <use class="segment" href="#loop" stroke="#A4DBE8" stroke-dashoffset="-375" style="--delay: -4.285714s" />
+    <use class="segment" href="#loop" stroke="#AEDAEA" stroke-dashoffset="-387.5" style="--delay: -4.428571s" />
+    <use class="segment" href="#loop" stroke="#B8D9EC" stroke-dashoffset="-400" style="--delay: -4.571429s" />
+    <use class="segment" href="#loop" stroke="#B1D5EE" stroke-dashoffset="-412.5" style="--delay: -4.714286s" />
+    <use class="segment" href="#loop" stroke="#AAD0F1" stroke-dashoffset="-425" style="--delay: -4.857143s" />
+    <use class="segment" href="#loop" stroke="#A3CCF3" stroke-dashoffset="-437.5" style="--delay: -5s" />
+    <use class="segment" href="#loop" stroke="#9CC8F6" stroke-dashoffset="-450" style="--delay: -5.142857s" />
+    <use class="segment" href="#loop" stroke="#95C4F8" stroke-dashoffset="-462.5" style="--delay: -5.285714s" />
+    <use class="segment" href="#loop" stroke="#8EC0FA" stroke-dashoffset="-475" style="--delay: -5.428571s" />
+    <use class="segment" href="#loop" stroke="#87BBFD" stroke-dashoffset="-487.5" style="--delay: -5.571429s" />
+    <use class="segment" href="#loop" stroke="#80B7FF" stroke-dashoffset="-500" style="--delay: -5.714286s" />
+    <use class="segment" href="#loop" stroke="#86B4FF" stroke-dashoffset="-512.5" style="--delay: -5.857143s" />
+    <use class="segment" href="#loop" stroke="#8CB0FF" stroke-dashoffset="-525" style="--delay: -6s" />
+    <use class="segment" href="#loop" stroke="#92ACFF" stroke-dashoffset="-537.5" style="--delay: -6.142857s" />
+    <use class="segment" href="#loop" stroke="#98A9FF" stroke-dashoffset="-550" style="--delay: -6.285714s" />
+    <use class="segment" href="#loop" stroke="#9DA6FF" stroke-dashoffset="-562.5" style="--delay: -6.428571s" />
+    <use class="segment" href="#loop" stroke="#A3A2FF" stroke-dashoffset="-575" style="--delay: -6.571429s" />
+    <use class="segment" href="#loop" stroke="#A99EFF" stroke-dashoffset="-587.5" style="--delay: -6.714286s" />
+    <use class="segment" href="#loop" stroke="#AF9BFF" stroke-dashoffset="-600" style="--delay: -6.857143s" />
+    <use class="segment" href="#loop" stroke="#B89BF3" stroke-dashoffset="-612.5" style="--delay: -7s" />
+    <use class="segment" href="#loop" stroke="#C09BE6" stroke-dashoffset="-625" style="--delay: -7.142857s" />
+    <use class="segment" href="#loop" stroke="#C99BDA" stroke-dashoffset="-637.5" style="--delay: -7.285714s" />
+    <use class="segment" href="#loop" stroke="#D29CCE" stroke-dashoffset="-650" style="--delay: -7.428571s" />
+    <use class="segment" href="#loop" stroke="#DA9CC1" stroke-dashoffset="-662.5" style="--delay: -7.571429s" />
+    <use class="segment" href="#loop" stroke="#E39CB5" stroke-dashoffset="-675" style="--delay: -7.714286s" />
+    <use class="segment" href="#loop" stroke="#EB9CA8" stroke-dashoffset="-687.5" style="--delay: -7.857143s" />
   </g>
   <use
       href="#loop"

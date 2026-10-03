@@ -1,0 +1,138 @@
+<Window
+    x:Class="Kora.Desktop.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Desktop.Controls"
+    Title="Kora"
+    Icon="/Assets/Kora.ico"
+    Width="1180"
+    Height="760"
+    MinWidth="980"
+    MinHeight="640"
+    Background="#101216"
+    Foreground="#E8ECF2"
+    WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="74,*">
+    <Border Grid.Row="0" BorderBrush="#292E37" BorderThickness="0,0,0,1" Margin="34,0">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+        <Border Width="31" Height="31" Background="#B6A6F1" CornerRadius="9">
+          <TextBlock Text="k" Foreground="#191525" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="11" VerticalAlignment="Center" Margin="12,0,0,0">
+          <TextBlock Text="kora" FontSize="19" FontWeight="SemiBold" />
+          <Border Width="1" Height="18" Background="#41454E" />
+          <TextBlock Text="voice command proof" Classes="muted" FontSize="12" VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Ellipse Width="7" Height="7" Fill="#6AE1DA" />
+          <TextBlock Text="{Binding ListeningStatus}" Classes="muted" FontSize="11" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="292,*,330" Margin="34,25,34,30" ColumnSpacing="24">
+      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16">
+          <TextBlock Text="01 / VOICE SETUP" Classes="eyebrow" />
+          <TextBlock Text="Choose your microphone." FontSize="24" FontWeight="SemiBold" />
+          <TextBlock Text="Kora enumerates devices without recording. Capture starts only after you enable listening." Classes="muted" FontSize="12" TextWrapping="Wrap" LineHeight="19" />
+
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Text="MICROPHONE" Classes="eyebrow" Foreground="#929BA9" />
+              <ComboBox
+                  ItemsSource="{Binding Microphones}"
+                  SelectedItem="{Binding SelectedMicrophone}"
+                  DisplayMemberBinding="{Binding Name}"
+                  PlaceholderText="No microphone detected" />
+              <Button
+                  Classes="primary"
+                  Content="{Binding ListeningButtonText}"
+                  Command="{Binding ToggleListeningCommand}"
+                  HorizontalAlignment="Stretch" />
+              <Button Content="Refresh environment" Command="{Binding RefreshCommand}" HorizontalAlignment="Stretch" />
+            </StackPanel>
+          </Border>
+
+          <TextBlock Text="READINESS" Classes="eyebrow" Foreground="#929BA9" Margin="0,5,0,0" />
+          <ItemsControl ItemsSource="{Binding Dependencies}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Classes="card" Padding="13" Margin="0,0,0,8">
+                  <StackPanel Spacing="5">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Grid.Column="1" Text="{Binding Readiness}" Foreground="#B6A6F1" FontSize="9" />
+                    </Grid>
+                    <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="10" TextWrapping="Wrap" LineHeight="15" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Grid Grid.Column="1" RowDefinitions="*,Auto" RowSpacing="14">
+        <Border Grid.Row="0" Classes="card" Padding="0" ClipToBounds="True">
+          <Grid RowDefinitions="*,Auto">
+            <Border Grid.Row="0">
+              <Grid>
+                <Border Background="#151922">
+                  <Border.Background>
+                    <RadialGradientBrush Center="50%,48%" GradientOrigin="50%,48%">
+                      <GradientStop Color="#2C2A3B" Offset="0" />
+                      <GradientStop Color="#151922" Offset="1" />
+                    </RadialGradientBrush>
+                  </Border.Background>
+                </Border>
+                <controls:ConstellationControl State="{Binding State}" Margin="35" />
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="34,34,34,30" Spacing="9">
+                  <TextBlock Text="{Binding StateLabel}" Classes="eyebrow" HorizontalAlignment="Center" />
+                  <TextBlock Text="{Binding ResponseTitle}" FontSize="22" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding ResponseBody}" Classes="muted" FontSize="12" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="440" LineHeight="19" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Border Grid.Row="1" BorderBrush="#303640" BorderThickness="0,1,0,0" Padding="16">
+              <StackPanel Spacing="7">
+                <TextBlock Text="LAST TRANSCRIPT" Classes="eyebrow" Foreground="#929BA9" />
+                <TextBlock Text="{Binding Transcript}" FontSize="11" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Classes="card" Padding="13">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="9">
+            <TextBox
+                Text="{Binding CommandText}"
+                PlaceholderText="Type a command to prove routing without a microphone"
+                VerticalContentAlignment="Center" />
+            <Button Grid.Column="1" Classes="primary" Content="Run proof" Command="{Binding RunTypedCommand}" />
+          </Grid>
+        </Border>
+      </Grid>
+
+      <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="14">
+          <TextBlock Text="02 / BUILT-IN ACTIONS" Classes="eyebrow" />
+          <TextBlock Text="Say it. See it route." FontSize="24" FontWeight="SemiBold" />
+          <TextBlock Text="These phrases are matched locally against a host-owned registry. Power requests are intentionally non-destructive in this bootstrap." Classes="muted" FontSize="12" TextWrapping="Wrap" LineHeight="19" />
+          <ItemsControl ItemsSource="{Binding Commands}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Classes="card" Padding="13" Margin="0,0,0,8">
+                  <StackPanel Spacing="5">
+                    <TextBlock Text="{Binding CanonicalPhrase}" FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Description}" Classes="muted" FontSize="10" TextWrapping="Wrap" LineHeight="15" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</Window>

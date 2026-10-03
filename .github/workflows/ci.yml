@@ -1,0 +1,167 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  # Allows maintainers to run the same CI checks manually from the Actions page.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  portable:
+    name: Portable build, tests, coverage, and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # Pin third-party actions to immutable commits to prevent a moved tag from changing trusted CI code.
+      # Dependabot still tracks the version comments and proposes reviewed commit updates.
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore Kora.slnx --locked-mode
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Build
+        run: dotnet build Kora.slnx --configuration Release --no-restore
+
+      - name: Test portable core with coverage
+        run: >
+          dotnet test tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=core-tests.trx"
+          --results-directory .net-test-artifacts/core
+
+      - name: Test application orchestration with coverage
+        run: >
+          dotnet test tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=application-tests.trx"
+          --results-directory .net-test-artifacts/application
+
+      - name: Generate and enforce coverage report
+        run: >
+          dotnet reportgenerator
+          "-reports:.net-test-artifacts/**/coverage.cobertura.xml"
+          "-targetdir:.net-test-artifacts/coverage-report"
+          "-reporttypes:Cobertura;MarkdownSummaryGithub;TextSummary"
+          "-assemblyfilters:+Kora.Core;+Kora.Application"
+
+      - name: Enforce coverage thresholds
+        shell: pwsh
+        run: >
+          ./eng/Assert-CodeCoverage.ps1
+          -ReportPath .net-test-artifacts/coverage-report/Cobertura.xml
+          -MinimumLine 100
+          -MinimumBranch 100
+
+      - name: Publish Windows x64 application
+        run: >
+          dotnet publish src/Kora.Desktop/Kora.Desktop.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained false
+          --property:RestoreLockedMode=true
+          --output artifacts/Kora-win-x64
+
+      - name: Publish Windows x86 application
+        run: >
+          dotnet publish src/Kora.Desktop/Kora.Desktop.csproj
+          --configuration Release
+          --runtime win-x86
+          --self-contained false
+          --property:RestoreLockedMode=true
+          --output artifacts/Kora-win-x86
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: test-results
+          path: .net-test-artifacts/**/*.trx
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: coverage-report
+          path: .net-test-artifacts/coverage-report
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload Windows x64 application
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Kora-win-x64
+          path: artifacts/Kora-win-x64
+          if-no-files-found: error
+
+      - name: Upload Windows x86 application
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Kora-win-x86
+          path: artifacts/Kora-win-x86
+          if-no-files-found: error
+
+  windows-integration:
+    name: Windows integration tests
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      # Keep the Windows job on the same reviewed action revisions as the portable job.
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode
+
+      - name: Build Windows integration tests
+        run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --no-restore
+
+      - name: Run Windows integration tests
+        run: >
+          dotnet test tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=windows-integration-tests.trx"
+          --results-directory .net-test-artifacts/windows
+
+      - name: Upload Windows test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-test-results
+          path: .net-test-artifacts/windows/*.trx
+          if-no-files-found: error
+          include-hidden-files: true

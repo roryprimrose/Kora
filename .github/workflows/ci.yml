@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   # Allows maintainers to run the same CI checks manually from the Actions page.
   workflow_dispatch:

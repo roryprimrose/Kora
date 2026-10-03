@@ -25,6 +25,7 @@ public sealed class WindowsVoiceRecognitionService(
     private WasapiRecorder? recorder;
     private MMDevice? activeInputDevice;
     private BlockingAudioStream? audioStream;
+    private TaskCompletionSource? recognitionCompletion;
     private bool disposed;
 
     public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
@@ -93,6 +94,7 @@ public sealed class WindowsVoiceRecognitionService(
 
         await lifecycleLock.WaitAsync(cancellationToken);
         var started = false;
+        var recognitionStarted = false;
         try
         {
             if (IsListening)
@@ -138,6 +140,7 @@ public sealed class WindowsVoiceRecognitionService(
             recognizer.LoadGrammar(new Grammar(grammarBuilder));
             recognizer.SpeechRecognized += OnSpeechRecognized;
             recognizer.SpeechRecognitionRejected += OnSpeechRecognitionRejected;
+            recognizer.RecognizeCompleted += OnRecognitionCompleted;
             recognizer.SetInputToAudioStream(
                 audioStream,
                 new SpeechAudioFormatInfo(
@@ -165,7 +168,10 @@ public sealed class WindowsVoiceRecognitionService(
             recorder.DataAvailable += OnDataAvailable;
             recorder.RecordingStopped += OnRecordingStopped;
 
+            recognitionCompletion = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             recognizer.RecognizeAsync(RecognizeMode.Multiple);
+            recognitionStarted = true;
             recorder.StartRecording();
             IsListening = true;
             started = true;
@@ -178,12 +184,17 @@ public sealed class WindowsVoiceRecognitionService(
         }
         finally
         {
-            if (!started)
+            try
             {
-                DisposeRecognitionResources();
+                if (!started)
+                {
+                    await DisposeRecognitionResourcesAsync(recognitionStarted);
+                }
             }
-
-            lifecycleLock.Release();
+            finally
+            {
+                lifecycleLock.Release();
+            }
         }
     }
 
@@ -199,10 +210,7 @@ public sealed class WindowsVoiceRecognitionService(
             }
 
             IsListening = false;
-            recorder?.StopRecording();
-            audioStream?.Complete();
-            recognizer?.RecognizeAsyncCancel();
-            DisposeRecognitionResources();
+            await DisposeRecognitionResourcesAsync(recognitionStarted: true);
             WindowsLog.Information(logger, "Voice activation stopped and capture resources were released");
         }
         finally
@@ -256,6 +264,9 @@ public sealed class WindowsVoiceRecognitionService(
             new VoiceRecognitionFailureEventArgs("I heard speech but could not match a supported command."));
     }
 
+    private void OnRecognitionCompleted(object? sender, RecognizeCompletedEventArgs eventArgs) =>
+        recognitionCompletion?.TrySetResult();
+
     private void OnRecordingStopped(object? sender, StoppedEventArgs eventArgs)
     {
         if (eventArgs.Exception is not null)
@@ -267,29 +278,69 @@ public sealed class WindowsVoiceRecognitionService(
         }
     }
 
-    private void DisposeRecognitionResources()
+    private async Task DisposeRecognitionResourcesAsync(bool recognitionStarted)
     {
-        if (recorder is not null)
+        var currentRecorder = recorder;
+        var currentRecognizer = recognizer;
+        var currentAudioStream = audioStream;
+        var currentRecognitionCompletion = recognitionCompletion;
+
+        try
         {
-            recorder.DataAvailable -= OnDataAvailable;
-            recorder.RecordingStopped -= OnRecordingStopped;
-            recorder.Dispose();
+            if (currentRecorder is not null)
+            {
+                currentRecorder.DataAvailable -= OnDataAvailable;
+            }
+
+            currentAudioStream?.Complete();
+
+            if (recognitionStarted && currentRecognizer is not null)
+            {
+                currentRecognizer.RecognizeAsyncCancel();
+            }
+
+            currentRecorder?.StopRecording();
+
+            var recorderDisposal = currentRecorder is null
+                ? ValueTask.CompletedTask
+                : currentRecorder.DisposeAsync();
+            var recognizerCompletion =
+                recognitionStarted && currentRecognitionCompletion is not null
+                    ? currentRecognitionCompletion.Task
+                    : Task.CompletedTask;
+
+            await VoiceRecognitionShutdown.WaitForCompletionAsync(
+                recorderDisposal,
+                recognizerCompletion);
+        }
+        finally
+        {
+            if (currentRecorder is not null)
+            {
+                currentRecorder.RecordingStopped -= OnRecordingStopped;
+            }
+
+            if (currentRecognizer is not null)
+            {
+                currentRecognizer.SpeechRecognized -= OnSpeechRecognized;
+                currentRecognizer.SpeechRecognitionRejected -= OnSpeechRecognitionRejected;
+                currentRecognizer.RecognizeCompleted -= OnRecognitionCompleted;
+                currentRecognizer.Dispose();
+            }
+
+            if (currentAudioStream is not null)
+            {
+                await currentAudioStream.DisposeAsync();
+            }
+
+            activeInputDevice?.Dispose();
+
             recorder = null;
-        }
-
-        activeInputDevice?.Dispose();
-        activeInputDevice = null;
-
-        if (recognizer is not null)
-        {
-            recognizer.SpeechRecognized -= OnSpeechRecognized;
-            recognizer.SpeechRecognitionRejected -= OnSpeechRecognitionRejected;
-            recognizer.Dispose();
             recognizer = null;
+            audioStream = null;
+            activeInputDevice = null;
+            recognitionCompletion = null;
         }
-
-        audioStream?.Dispose();
-        audioStream = null;
     }
 
     private MMDevice ResolveInputDevice(MicrophoneDevice microphone)

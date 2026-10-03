@@ -1060,12 +1060,16 @@ public sealed class MainViewModelTests
         var fixture = new Fixture();
         fixture.TextToSpeech.Voices =
         [
-            new SpeechVoice("male", "Male voice", "en-US", SpeechVoiceGender.Male),
+            new SpeechVoice(
+                "male",
+                "Male voice",
+                CultureInfo.CurrentUICulture.Name,
+                SpeechVoiceGender.Male),
         ];
 
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.SelectedVoice?.Id.Should().Be("male");
-        fixture.ViewModel.SelectedVoice?.Id.Should().Be("male");
+        fixture.ViewModel.SelectedVoice.Should().NotBeNull();
+        fixture.ViewModel.SelectedVoice!.Id.Should().Be("male");
         fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("Male voice");
     }
 

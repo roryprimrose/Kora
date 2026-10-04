@@ -51,7 +51,8 @@ After approval:
 4. Stop the original assistant host. A minimal lifecycle-only supervisor may remain for handoff/restart monitoring; it is not an active Kora assistant.
 5. Transfer exclusive ownership through the coordinator only after actual quiescence; the candidate acquires ownership and acknowledges startup readiness.
 6. Candidate starts normally with its own verified configuration/readiness and
-   applies the ordinary automatic listening policy. No grants, tasks,
+   applies the [saved-consent microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
+   Handoff approval does not supply missing ongoing consent. No grants, tasks,
    owner-confidence caches, or voice-session state transfer.
 
 One candidate/handoff may be pending; competing launches receive a truthful pending/busy response, not independent approvals.
@@ -110,4 +111,7 @@ Resume the original only when its store remains compatible; keep original data o
 - Return prompt appears after replacement normal exit/crash, works entirely by mouse, and cannot restart under lock or without explicit acceptance.
 - PID reuse, original binary replacement, supervisor failure, lost IPC, startup failure and another-owner acquisition produce truthful recovery without arbitrary launches.
 - Debug data is isolated; no production migration/grant/task/microphone-consent reuse across handoff.
-- Restarted original acquires ownership normally and never resumes ephemeral work or listening automatically.
+- Restarted original acquires ownership normally and never resumes ephemeral
+  work or transferred capture. After explicit return acceptance, its own saved
+  ongoing consent may permit ordinary fresh-gated startup listening under the
+  microphone matrix; the supervisor never listens or transfers consent.

@@ -77,12 +77,46 @@ Only activated command audio reaches local transcription; exclude the wake word 
 Empty activations expire locally without acquiring clipboard or other context.
 
 Mute, lock, sign-out, suspend, and app exit close microphone capture and clear buffered audio.
-An ordinary unlocked restart applies the automatic listening policy after fresh
-readiness checks. Unlock/resume require explicit re-enabling for the current run.
 Microphone enumeration is not recording consent; first-run and failure recovery use native mouse-selectable questions under [Interaction Fallback](Interaction_Fallback.md).
-Device reconnection/default changes cannot reopen or switch capture silently, and stale pre-failure input cannot approve actions.
+Device reconnection cannot reopen capture, and stale pre-failure input cannot approve actions.
 Detection of "Kora" is neither authentication nor approval; all commands still pass existing policy and approval checks.
 Playback echo rejection must prevent spoken answers and activation cues from becoming user input.
+
+### Microphone Consent and Enablement Matrix
+
+Ongoing voice consent is a saved, explicit Windows-profile/device-local choice,
+separate from transient capture enablement, endpoint selection, OS permission,
+microphone testing, learning consent, and verification enrollment.
+First launch must explain local wake processing and activated transcription,
+then obtain consent before ongoing capture. Declining or withdrawing that
+consent keeps capture closed across restart until renewed explicitly.
+The bootstrap currently auto-starts its grammar recognizer without this full
+consent/lifecycle contract; this matrix is the required design, not shipped proof.
+
+Every ongoing capture open requires exclusive assistant ownership, authoritative unlocked and
+connected Windows state, ongoing consent, a usable selected endpoint, OS
+permission, ready local assets, and current voice/call-policy eligibility.
+Revalidate these gates and the audio generation immediately before acquisition.
+
+| Event / state | Capture and consent behavior | How listening can start again |
+|---|---|---|
+| First launch; no ongoing consent | Enumerate/select System without recording; remain closed and show native consent/continue-without-voice choices | Explicit Enable voice consent can also enable capture after all gates pass; selection or a test is not ongoing consent |
+| Ordinary launch, logon, or application restart with saved consent | Fresh gates may automatically enable listening; no task, approval, audio, or dispatch-token replay | If a gate fails, show its blocker and use explicit recovery; startup is not a permission override |
+| Manual Disable listening / mute | Close capture, invalidate callbacks/transcripts and clear buffers; retain consent but hold enablement for this run | Explicit native Enable listening after fresh gates; selecting devices, PTT, or settings reset cannot unmute |
+| Lock, disconnect, or unknown Windows state; later unlock/reconnect | Close/deny capture and clear audio; retain consent but hold enablement for this run | Unlock/reconnect alone cannot reopen; explicit native Enable listening in an eligible session is required |
+| Suspend; later resume | Close capture and clear audio; retain consent but hold enablement for this run | Resume alone cannot reopen; explicit native Enable listening after fresh gates |
+| Permission loss, endpoint loss, capture failure, or unavailable voice assets | Close capture, clear audio and invalidate its generation; retain the requested endpoint and consent, not recording authority | Restored permission, hot-plug, repaired assets or replacement selection alone cannot reopen; explicit native Enable listening is required |
+| Live Windows default change while System capture is already enabled | Revalidate the live route; permit supported default routing without choosing a Kora endpoint override | This is not recovery or new consent; if routing fails, use the loss row; a pinned endpoint never switches silently |
+| Consent withdrawal | Close capture, clear audio and persist the withdrawn choice | Renew ongoing consent explicitly; restart, logon, reset/undo, or handoff cannot renew it |
+
+Manual disablement and recovery holds are run-scoped: a later ordinary restart
+uses saved consent and fresh gates, even after lock/resume/loss in the previous
+run. Persistent consent withdrawal is different. Restart while still locked,
+disconnected, unknown, denied, or otherwise blocked never acquires capture.
+An explicitly consented bounded microphone test does not enable ongoing voice
+and still obeys ownership/session/permission/device gates.
+Cross-build takeover/return uses the incoming host's own consent and readiness;
+handoff approval never transfers microphone consent or live enablement.
 
 ## Shared-Space Privacy and Optional Speaker Verification
 
@@ -136,13 +170,22 @@ A randomized spoken challenge may raise confidence but is not strong authenticat
 
 Apply speaker confidence primarily to output privacy:
 
+Owner-aware private speech is optional. With no selected owner-aware protection,
+baseline voice follows normal content,
+output, call, and playback policy in the active unlocked Windows profile;
+missing owner confidence alone does not force visual-only private responses.
+When that protection is enabled, missing or unhealthy verification must keep
+the protection selected and use neutral visual fallback even without a usable
+enrollment, not silently revert
+to baseline speech. Frequent-speaker learning never enables this policy.
+
 | Situation | Required behavior |
 |---|---|
 | Safety-preserving stop speech, mute, or pause new dispatch | Accept from any speaker under normal intent checks |
 | Current-session lock | Apply the future exact version-bound action grant gate through either channel; optional owner matching does not replace it |
 | Cancel task, clear queue/session, or stop all work | Pause affected dispatch immediately, then require exact affected-work voice or UI confirmation before destructive cancellation/deletion |
 | General non-sensitive request | Process under normal context and egress policy; do not infer owner identity |
-| Private clipboard, task, account, message, or queue content with `LikelyOwner` | Speech is permitted only when the content's normal output policy also permits it |
+| Private clipboard, task, account, message, or queue content with `LikelyOwner` when owner-aware privacy is enabled | Speech is permitted only when the content's normal output policy also permits it |
 | Private content with `Uncertain`, `NotOwner`, or `Unavailable` when owner-aware privacy is enabled | Use a neutral visual notice; do not speak sensitive resource details or silently disable the selected protection |
 | Remote transmission, security/privacy changes, permitted setup activation, or power action | Exact scoped voice or UI approval under host risk policy; preserve mandatory OS/provider checks and capability limits |
 | Credential/account workflow | Initiate/navigate through either channel; secrets and required sign-in remain in the supported secure flow |
@@ -162,6 +205,7 @@ Use authoritative Windows session state at startup and session-change notificati
 On lock, immediately block new capture, invalidate in-flight audio callbacks/transcripts, clear buffers, and release microphone devices/workers.
 No PTT key, user skill, bundled script, runtime, or approval can override the denial.
 Unlock requires explicit re-enabling; late pre-lock results cannot reopen listening or initiate actions.
+Restart and recovery use the [microphone matrix](#microphone-consent-and-enablement-matrix); unlock is not an ordinary startup.
 See [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md#mandatory-locked-session-microphone-policy).
 
 ## Call-Aware Output Privacy
@@ -246,6 +290,10 @@ The user chooses one of three grant scopes for an exact operation:
 | Perpetual (`Always`) | Reusable for the approved operation until explicitly removed/edited or revoked for changed approved skill/script content; its record has no expiry, retention, inactivity cleanup, eviction, or archive/delete/restart removal |
 
 A Kora work session is not an application process: restarting Kora does not itself end an Active persisted work session or its session grant, but never replays consumed authorizations or interrupted work.
+Standalone lock requests use the [durable control-session binding](Built_In_Skills.md#standalone-lock-work-session-binding).
+Offer Session only after an Active Kora work-session ID and request/proposal
+lineage are durably committed and shown; Windows session, provider session,
+process lifetime, or selected-window identity cannot substitute.
 Current bootstrap Session preferences are process-local; mapping them to durable work-session identity remains implementation work, not a change to the three chosen scopes.
 Perpetual records retain minimal scope/provenance separately from session history and audit events. Storage pressure must report failure/options, never evict them.
 Scope/applicability is distinct from stored record lifetime: operation/account/content constraints still gate every dispatch.
@@ -410,10 +458,37 @@ Queue labels, planned steps, and status summaries can disclose private content; 
 Do not copy the executor's full context or tool results into the manager automatically.
 Local cancellation and basic factual ledger status need no remote request.
 
-The manager proposes scheduling operations, not tools or action approvals.
+The manager proposes scheduling operations and the explicitly admitted typed
+host lifecycle proposals, not task execution or action approval.
 Kora validates task targets and ledger revisions, and revalidates policy/context when dispatching.
 Queued tasks do not inherit another task's approval token.
 Queue confirmations and clarification prompts have distinct IDs from action approvals.
+
+### Management Power Proposal Authority
+
+`computer.propose_shutdown` and `computer.propose_restart` admit M/E only to
+submit a fixed graceful local-machine proposal tied to deliberate user intent.
+The proposal is pending, not authorization, execution, or OS acceptance.
+Management cannot call `execution.prepare`, `execution.invoke`, `skills.invoke`,
+or acquire script bytes/task context to perform the action.
+
+The deterministic host lifecycle controller owns all-session impact review,
+dispatch holds, safe-work/quiescence decisions, the exact native approval
+proposal, the fresh action-specific voice/UI confirmation, and countdown.
+The host authorization gateway verifies the content-bound execution grant and
+per-request power approval; neither model lane can mint or consume authority
+on its own. After final revalidation, the host controller dispatches the fixed
+registered bundled action through the admitted execution gateway/worker, not
+through management inference or a model-owned execution loop.
+
+E may submit the same proposal but gains no different authority. An M call to
+`approvals.request` may propose an admitted management decision; it cannot
+create a task execution grant or replace the host-created power approval.
+Direct deterministic controls reach the same host path without either model.
+Owned power status/cancellation remain available while inference is blocked.
+The [power safety contract](OOTB_Phrases.md#shutdown-and-restart-safety) retains
+its 30-second confirmation prompt, two-minute single-use approval, 30-second
+countdown, mandatory OS/provider checks and no forced close or blind replay.
 
 ## Tool Flow
 

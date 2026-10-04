@@ -64,6 +64,12 @@ exact phrase does not bypass approval. See
 
 ### Shutdown and Restart Safety
 
+M/E power tools submit proposals only. The deterministic host lifecycle
+controller owns this flow, the approval and countdown, and dispatch through the
+admitted execution gateway/worker under
+[Management Power Proposal Authority](Security_Data_Flows.md#management-power-proposal-authority).
+Neither model lane can approve itself or execute the fixed script on its own.
+
 1. Show/read back the exact local-machine action, unsaved-work warning, and active-work impact.
 2. Resolve active Kora work first: offer to wait for a safe completion boundary or explicitly cancel it. Never silently kill a task.
 3. Pause queue dispatch, reach local worker quiescence, and disclose any uncertain remote effects.
@@ -99,7 +105,8 @@ Exit/restart is immediate only if there is no active/pending work or unresolved 
 Otherwise summarise affected work and require "confirm exit Kora" or "confirm restart Kora", or equivalent UI.
 Accepted exit/restart cancels local active work across sessions, withdraws queue dispatch eligibility, revokes approvals, and records interrupted/uncertain outcomes in durable history.
 Restart does not resume work or approvals. The new process applies the ordinary
-automatic listening policy after its own readiness checks.
+saved-consent listening policy after its own readiness checks under the
+[microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
 Do not stop pre-existing Ollama/MCP processes owned by the user.
 Hide is not exit, microphone mute, queue pause, or permission to conceal listening status.
 

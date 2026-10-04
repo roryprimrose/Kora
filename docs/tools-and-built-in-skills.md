@@ -384,6 +384,12 @@ registered script-backed task. Exact phrases and other wording use the same
 precise execution grant. You can review the exact script and approve the
 permitted once/session/always duration. Choosing the skill or opening review
 does not approve it.
+For a standalone unaddressed request, Kora will create and show a new durable
+Active control work session before approval. Session approval is available
+only after that binding; it is not the selected chat or Kora's process lifetime.
+Later unaddressed locks create new sessions and do not reuse that Session grant;
+explicitly addressing its still-Active session can use only the same approved
+operation. Failure to save the binding prevents dispatch.
 Review includes the entry point and every required/shared helper, their
 individual hashes, the combined script-set hash and the definition digest.
 Execution uses those exact embedded bytes, not a writable extracted copy.
@@ -405,6 +411,9 @@ listening; re-enable explicitly.
 **Planned skill:** prepare graceful shutdown of this local computer, warn about
 unsaved work, and ask whether active work across all sessions should finish
 safely or be cancelled.
+Management or execution models may propose it, but Kora's deterministic host
+lifecycle controller owns approval, countdown and gated fixed-action dispatch.
+Neither model can authorize itself or run the power script independently.
 The exact task/script needs its own applicable grant. A fresh **"confirm
 shutdown"** or equivalent deliberate UI confirmation is also required for the
 specific power proposal, together with any mandatory Windows/provider check;

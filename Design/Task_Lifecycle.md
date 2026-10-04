@@ -61,6 +61,10 @@ inference; effect-specific approval still applies.
 
 Voice states are Muted, Wake Listening, Capturing Command, Transcribing, Session Locked, and Unavailable.
 Wake Listening is the primary ready state after explicit setup consent; push-to-talk is optional.
+The [microphone consent and enablement matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix)
+governs first launch, ordinary restart, unlock/resume and failure recovery.
+Saved ongoing consent is not transient enablement: consent withdrawal persists,
+while manual disablement and recovery holds last for the run.
 If speech/wake dependencies are missing, the host reports Unavailable and opens [Environment Setup](Environment_Setup.md), rather than claiming listening readiness or falling back to cloud capture.
 No configured/usable microphone opens a native device-choice question with mouse answers under [Interaction Fallback](Interaction_Fallback.md).
 Endpoint loss invalidates capture/transcript generations and offers recovery without cancelling unrelated task work; reconnection never silently restores capture.
@@ -87,7 +91,11 @@ Optional learning uses only separately consented new activated-command samples u
 Rename/alias-mode changes follow [Custom Activation Names](Activation_Name.md): validate the whole active set, commit a new audio generation atomically, and invalidate removed-name callbacks without changing consent.
 Optional local speaker verification is only a profile-owner confidence signal for privacy decisions; it never supplies an approval or action grant.
 False activations with no valid command end locally; recognised commands still pass normal context and action controls.
-When the speaker is not `LikelyOwner` or verification is unavailable, sensitive status and context default to a neutral visual notice rather than spoken disclosure.
+When owner-aware private speech is enabled, sensitive status and context use a
+neutral visual notice for `Uncertain`, `NotOwner`, or `Unavailable` confidence,
+rather than spoken disclosure. Absent/disabled protection leaves
+baseline voice under normal content/output/call policy; missing verification
+alone never adds a mandatory speaker check.
 Safety-preserving stop-speech, mute, pause-dispatch, and lock controls remain available without owner matching.
 Lock intentionally prioritises confidentiality over availability and remains
 callable without speaker authentication, but under the proposed common
@@ -129,6 +137,12 @@ Push-to-talk during TTS stops playback before capturing a new utterance.
 Wake-triggered interruption during TTS is included from Slice A; general wake-word-free barge-in is not.
 Windows session lock is a narrowly host-admitted lifecycle control, not another general task executor.
 See [Bundled Skills](Built_In_Skills.md) for script identity, error handling, and locked-session behaviour.
+Its [standalone binding rule](Built_In_Skills.md#standalone-lock-work-session-binding)
+creates and commits a new control work session without routing inference;
+Session approval needs that Active identity, never a selected-window shortcut.
+For [power proposals](Security_Data_Flows.md#management-power-proposal-authority),
+M/E submit intent only; the host owns all-session review, approval, countdown
+and fixed-action dispatch through the admitted gateway/worker.
 Kora may also initiate eligible speech without a user utterance; see [Proactive Interaction](Proactive_Interaction.md).
 Responses still require a current active name or optional PTT and are routed to the current trusted prompt, not an unbounded listening window.
 Every speech path applies [Call-Aware Speech](Call_Aware_Speech.md), including requested answers and audible activation cues.
@@ -242,8 +256,10 @@ Future external repository build/test, commit, or push capabilities each require
 Restart does not resume actions or replay approval tokens.
 Session history, artifacts, requests, and content-bearing ledger evidence are restored for reading on restart, not automatically dispatched.
 An app restart applies the ordinary automatic listening policy after fresh
-readiness checks; persisted device preferences select the route but do not bypass
-session, device, or call-policy gates.
+readiness checks and saved ongoing consent under the
+[microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix);
+persisted device preferences select the route but do not bypass ownership,
+session, permission, device, asset, or call-policy gates.
 Persisted task metadata marks interrupted non-terminal tasks as interrupted, with unresolved side effects where applicable.
 Permitted retained conversation/context snapshots remain available under session retention and current source access, but reuse requires freshness, policy, and egress review.
 Offer read-only reconciliation for a persisted remote operation ID when the connector supports it.

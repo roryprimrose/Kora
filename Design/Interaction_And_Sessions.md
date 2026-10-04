@@ -160,6 +160,12 @@ The host validates lifecycle, identity, permissions, and revision before admissi
 - Archived match: offer discovery/history; only an explicit resume decision reactivates it.
 
 The selected UI session does not silently redirect an untargeted voice request or authorize a background action.
+The priority standalone lock exception uses deterministic
+[control-session binding](Built_In_Skills.md#standalone-lock-work-session-binding):
+an unaddressed request creates a new durable Active control session without
+relatedness inference. Commit/present its identity before approval/dispatch;
+Session requires that binding. This neither guesses another Active target nor
+automatically marks the control session Done after its lock task.
 Exact session list/switch/new/Done/delete controls and basic factual status work without a model or network.
 A status/history question reads the addressed records and does not resume the subject sessions.
 Relatedness never transfers grants, provider state, sources, or permissions between sessions.

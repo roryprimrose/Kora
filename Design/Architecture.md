@@ -164,6 +164,11 @@ Native questions and first-run/device-loss recovery follow [Interaction Fallback
 The work manager stays responsive independently of the task runtime's event loop, tool calls, and approval waits.
 Management uses a separate session and cancellation/deadline scope; it does not inherit executable tools or ambient task context.
 It proposes typed ledger operations that the host validates and commits atomically.
+The admitted M/E power tools submit host lifecycle proposals only.
+The deterministic host lifecycle controller owns all-session review,
+approval/countdown and fixed-action dispatch through the admitted gateway/worker
+under [Management Power Proposal Authority](Security_Data_Flows.md#management-power-proposal-authority);
+neither model lane owns approval or gains task execution from a proposal.
 Local stop and basic status paths bypass management inference.
 Independent Kora sessions execute concurrently within a configured, verified budget, initially proposed as two slots with one task per session.
 Per-session context/runtime/grant/event isolation, shared/exclusive canonical resource leases, dependency checks, and fair scheduling are mandatory.
@@ -183,6 +188,9 @@ See [Work Management](Work_Management.md).
 
 Wake-word activation is a built-in Slice A capability, independent of the agent runtime.
 The voice controller owns microphone consent, device lifetime, and a bounded in-memory pre-roll buffer.
+First-launch consent, ordinary restart, unlock/resume and loss recovery use the
+[canonical microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix);
+saved consent and live capture enablement are separate.
 A local detector recognises the configured active names ("Kora" initially) without sending ambient audio to transcription or a model.
 The host-owned profile/alias registry and atomic detector switching follow [Custom Activation Names](Activation_Name.md); names are data-only settings, not replacement executable code.
 

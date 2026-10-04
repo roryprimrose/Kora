@@ -22,6 +22,9 @@ implementation and acceptance work. Roadmap inventory IDs are not tool IDs.
 
 **M** is management/routing inference; **E** is a session's execution runtime.
 Each table states the allowed lane. M can retrieve minimal permitted status and propose management changes, but cannot execute task tools, acquire task source content, or grant authority.
+M/E power entries are proposal-only: the
+[host lifecycle controller](Security_Data_Flows.md#management-power-proposal-authority)
+owns approval, countdown and gated fixed-action dispatch, not either model lane.
 Host-owned deterministic voice/UI controls remain available when either model lane is unavailable.
 The same registry serves local inference and approved remote/agent adapters, but each receives only its admitted subset.
 
@@ -215,13 +218,16 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
-| `computer.lock` | Fixed current Windows session action/version; exact approval/invocation receipt and authoritative lock observation | E | Proposed A; future common grant gate for direct/model routes; no other-user or unlock capability |
-| `computer.propose_shutdown`, `computer.propose_restart` | Fixed local graceful action; all-session work impact and action-specific proposal | M/E | Proposed A; actual execution remains gated; never forced-close or remote target |
+| `computer.lock` | Fixed current Windows session action/version, host-bound Kora work-session/request lineage; exact approval/invocation receipt and authoritative lock observation | E | Proposed A; common gate and durable standalone control-session binding for direct/model/UI/skill routes; Session offered only after committed Active binding; no other-user or unlock capability |
+| `computer.propose_shutdown`, `computer.propose_restart` | Fixed local graceful action and direct-request lineage; pending host proposal with all-session work impact | M/E | Proposed A; proposal-only in both lanes; host lifecycle controller owns approval/countdown and dispatch through the admitted gateway/worker; no M task tools, forced-close or remote target |
 | `computer.cancel_power_action`, `computer.power_status` | Exact owned proposal or current factual status; cancellation/stage receipt | M/E | Proposed A; cannot cancel unrelated OS actions |
 | `maintenance.get_status`, `maintenance.get_release` | Host-published check/selected release ID; observed availability/state and permitted untrusted notes | M/E | Proposed A; read-only snapshots of trusted maintenance; no triggering checks, changing feeds or invoking updater |
 
 Update checking and canonical release-page opening remain deterministic trusted maintenance commands, outside the model-tool/work-queue channel.
 The model may summarize an admitted snapshot, not manufacture a release or authorize browser navigation.
+The deterministic priority lock route needs no model lane; its identity and
+scope rules are [canonical in Bundled Skills](Built_In_Skills.md#standalone-lock-work-session-binding).
+An E designation does not require inference to execute an exact local control.
 
 ### Diagnostics, Viewers, and Admitted Integrations
 

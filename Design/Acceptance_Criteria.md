@@ -164,7 +164,9 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Raw audio/secrets are absent from all history/log stores. Clipboard/tool/answer content is absent from diagnostics and content-minimising audit, while permitted session content is intentionally retained encrypted.
 - Before activation, synthetic ambient audio reaches neither transcription nor any model, tool, persisted store, or network destination.
 - Wake pre-roll never exceeds 2 seconds and is overwritten; unrelated pre-activation audio is excluded from command transcription.
-- Mute/lock/sign-out/suspend close capture and clear buffers; restart/unlock/resume do not silently reopen capture.
+- Mute/lock/sign-out/suspend close capture and clear buffers; unlock/resume
+  require explicit current-run re-enabling. Ordinary restart may auto-enable
+  only with saved ongoing consent and fresh gates under the microphone matrix.
 - Wake Listening, Capturing Command, Muted, Session Locked, and Unavailable are distinguishable, including background-app status.
 - Closing/dismissing UI preserves session history and work. Done archives; explicit confirmed deletion and configured inactivity purge remove retained session content under the dedicated lifecycle gate.
 - Restart restores readable Active/Done history and interrupted/unknown evidence, never tools, queued dispatch, provider memory, or consumed approval tokens. Explicit always grants remain subject to exact identity/digest/invocation and fresh policy validation.
@@ -181,9 +183,19 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 ### Mouse-Based Questions and Device Recovery
 
 - With no saved Kora device override, first launch selects System for microphone
-  and speaker without persisting endpoint snapshots, then automatically attempts
-  capture when readiness and authoritative session policy allow; a complete
-  mouse-only disable/change/recovery path remains available.
+  and speaker without recording or persisting endpoint snapshots; ongoing
+  capture requires explicit voice consent under the
+  [microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
+  A complete mouse-only consent/disable/change/recovery path remains available.
+- Exercise every matrix row with actual Windows/device events and deterministic
+  race fixtures: first-launch decline/consent, ordinary restart/logon,
+  lock/disconnect/unknown/unlock, suspend/resume, manual disablement,
+  permission loss/restoration, endpoint loss/reconnection and asset failure.
+  Fresh-gated ordinary startup may use saved consent; consent withdrawal
+  persists across restart, while run-scoped holds do not.
+- Unlock/resume/restored permission/device or asset repair cannot reopen
+  capture in the same run without explicit Enable listening; tests, device
+  selection, PTT, reset/undo and stale callbacks cannot release that hold.
 - Zero/one/multiple devices, duplicate names, Windows privacy denial, disabled/missing endpoints, muted input, and missing recogniser each have distinct actionable states.
 - Enumerating/selecting devices records no audio; automatic startup, test, and
   recovery opens only the effective endpoint after an authoritative
@@ -222,6 +234,15 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Missing containment or session-control support is an explicit failed gate, not permission to run an unrestricted fallback.
 - Denied, failed, and unconfirmed lock attempts have truthful receipts and no automatic uncertain retry.
 - Future script-backed lock and other side-effecting built-ins require an exact, version-bound approval on both direct and suggested routes; PowerShell installation alone grants no execution permission. Verify once/session/always hash-bound execution grants, invalidation on changed implementation/invocation/dependencies, and that read-only commands remain available without the runner. See [skill and task execution design](../docs/skill-and-task-execution-design.md).
+- An unaddressed standalone lock creates/commits a new Active control work
+  session and request/task/proposal lineage without routing inference or a
+  general task slot. Show the binding before approval/dispatch; offer Session
+  only after durable binding. Persistence failure dispatches nothing.
+- Test explicit Active-session addressing, ambiguous/Done targets,
+  selected-window changes, concurrent locks, and all-slots-busy priority
+  dispatch. New standalone sessions cannot reuse another Session grant;
+  receipts/grant use stay bound to the original request. Done/deletion ends
+  authority, resume does not restore it, and restart never replays the lock.
 - Ordinary background-task permissions are not confused with microphone policy; no interactive approval is accepted while locked.
 
 Use real Windows session events and device handles on the reference setups, with synthetic audio and disposable protected-resource fixtures.
@@ -272,7 +293,8 @@ Apply the same measurements to every advertised custom profile, as defined in [A
 Test that the configured custom name rejects the removed/default name and that another rename retires the prior custom name.
 Rename validates spelling/pronunciation and readiness and confirms the exact resulting name.
 Failed preparation/calibration/persistence or stale prompt/config revision leaves the old set active; late old-generation callbacks cannot start commands after cutover.
-Renaming while muted/locked never opens capture; restart retains the name preference without restoring listening consent.
+Renaming while muted/locked never opens capture; restart retains the name
+preference without creating consent or bypassing the microphone matrix.
 Missing/corrupt committed custom-only profile reports Unavailable with tray recovery, not silent default-name or cloud activation.
 Rename prompts/TTS mentioning every active or proposed name produce zero self-activations; names never enrol a speaker or authorise a tool/action.
 Custom profile preparation uses only protected data-only setup, with bounded local calibration and no Kora code/resource mutation.
@@ -287,7 +309,10 @@ If the detector fails, change/tune the local implementation or explicitly revisi
 
 - With verification absent/disabled, baseline deliberate voice/UI interaction remains available under normal output/privacy policy. With owner-aware privacy enabled but unhealthy/stale/uncertain, private content uses a neutral visual notice rather than silently disabling protection.
 - `LikelyOwner` permits private speech only when normal content/output policy also permits it; it never satisfies remote-egress, tool, update, setup, power, account, credential, or security-setting approval.
-- `NotOwner`, `Uncertain`, and `Unavailable` never disclose whether a sensitive resource exists through spoken wording.
+- With owner-aware protection enabled, `NotOwner`, `Uncertain`, and
+  `Unavailable` never disclose whether a sensitive resource exists through
+  spoken wording. With it absent/disabled, missing confidence alone does not
+  force visual-only output; normal content/output/call policy still applies.
 - Shutdown/restart, reduced privacy policy, and other permitted high-risk operations accept exact action-specific voice or UI confirmation subject to the protected-call origin gate; preserve actual required OS/provider verification. Explicit verification enrollment changes retain protected OS reauthentication.
 - Explicit verifier enrollment/replacement requires Windows Hello or equivalent native reauthentication, multiple randomized prompted phrases, explicit consent, and a native non-voice completion path; ordinary command/learned-profile data never silently enrolls or updates that verification identity.
 - Verify that raw enrollment audio is discarded after derivation and that templates, scores, phrases, and biometric diagnostics are absent from roaming storage, model/tool/skill context, logs, telemetry, crash reports, and default backups.
@@ -420,7 +445,9 @@ Verify:
 - At most one eligible read-only transient retry.
 - Late answer events cannot overwrite cancelled/failed terminal states.
 - Unknown remote side effects remain labelled unknown until reconciled.
-- Restart does not resume tools or reuse approvals.
+- Restart does not resume tools or replay consumed approvals/dispatch tokens;
+  still-applicable Active-session and Perpetual grants require fresh host
+  revalidation under their existing scope rules.
 - Executable trust disclosures match actual OS rights.
 - Disabling an extension blocks new invocations.
 - Default audit metadata expires after 30 days.
@@ -544,9 +571,19 @@ A failed integration proof leaves that detector explicitly unavailable with manu
 - Power countdown is host-owned, visible, and cancellable; the final simulated OS call has no forced-close/remote-target flags.
 - A blocker/failure never triggers forced termination, an unrestricted shell fallback, or a false completion receipt.
 - Active work is explicitly resolved before power dispatch; queue holds, app restart, and power actions cannot race. Unsigned-phase update checks have no activation path.
+- M/E shutdown/restart calls produce pending host proposals only. The
+  deterministic host lifecycle controller owns all-session review, native
+  approval, countdown and gated fixed-worker dispatch; exercise the same path
+  with direct voice/UI and unavailable management/execution inference.
+- M cannot call task execution/skill tools, obtain script/task context,
+  self-approve, consume authority or turn `approvals.request` into power
+  dispatch. E proposals confer no different approval authority. Test denied,
+  expired, stale, cancelled and call-policy-racing proposals with zero effects.
 - Cancelling an owned power proposal restores prior dispatch policy unless another blocker requires pause; an unrelated Windows operation is not cancelled.
 - Hide preserves work and listening visibility; exit/restart releases audio/owned workers, does not stop user-owned services, and requires affected-work confirmation.
-- App restart and computer restart never substitute for one another; restart does not replay queue entries or microphone consent.
+- App restart and computer restart never substitute for one another; restart
+  never replays queue entries, approvals or audio. Saved ongoing voice consent
+  permits only fresh-gated ordinary startup under the microphone matrix.
 - Pause queue leaves active execution untouched; clear queue, cancel identified work, delete session, replacement, and stop-all pause affected dispatch first and require exact voice/UI confirmation before destructive mutation.
 - Check-for-updates installs nothing; unsigned-phase update interaction remains notify-only and cannot become download, staging, Git/shell, or installer authority.
 - Call-gated confirmation uses visible presentation or an explicit permitted readback; suppression is not implicit approval.
@@ -695,7 +732,7 @@ Before adding capabilities outside the initial release:
 | Capability | Additional required evidence |
 |---|---|
 | Knowledge indexing | Access revocation, deletion, freshness, identity partitioning, citation correctness, reindex behaviour |
-| General applications/user-provided executable skills | Complete dependency discovery/immutable snapshots, content-bound applicability/revocation, and adversarial filesystem, network, child-process, credential, and protected Kora-resource access tests against actual OS containment |
+| General applications/user-provided executable skills | Deferred R27: resolve standalone application rollback/applicability before admission; complete dependency discovery/immutable snapshots, content-bound applicability/revocation, and adversarial filesystem, network, child-process, credential, and protected Kora-resource access tests against actual OS containment |
 | Screen/image context | Explicit capture, region/source provenance, secret handling, no ambient collection |
 | Kora MCP server | Authenticated clients, per-client scopes, no unattended reuse of interactive grants |
 | Extension updates | Digest/version changes invalidate affected grants and policy mappings |

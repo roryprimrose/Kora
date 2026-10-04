@@ -8,7 +8,7 @@ commands, plus local-model answers, questions, and validated registered
 action/grant proposals when inference is ready. This catalogue does not imply
 the rest of Slice A is implemented.
 
-Related: [Bundled Skills](Built_In_Skills.md), [Task Lifecycle](Task_Lifecycle.md), [Work Management](Work_Management.md), [Call-Aware Speech](Call_Aware_Speech.md).
+Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Bundled Skills](Built_In_Skills.md), [Task Lifecycle](Task_Lifecycle.md), [Work Management](Work_Management.md), [Call-Aware Speech](Call_Aware_Speech.md).
 
 ## Invocation and Routing
 
@@ -23,14 +23,15 @@ Use a host-owned intent/action registry, not arbitrary command lines generated b
 Skills can supply additional user workflows but cannot shadow reserved application/power controls or claim priority.
 Model-assisted queue/skill requests may ask for clarification; exact stop/cancel and basic status bypass inference.
 Every response, including confirmation readback, obeys call-aware speech policy and has a visual equivalent.
+Every intent has an accessible UI/keyboard equivalent; confirmation phrases describe the spoken path, not a requirement to speak when using UI.
 
 ## Computer Management
 
 | Canonical phrase | Initial aliases | Behaviour | Confirmation |
 |---|---|---|---|
 | "Lock the machine" | "Lock my computer", "Lock Windows" | Proposed: invoke protected bundled current-session lock skill and release microphone on Windows lock; currently exact direct lock uses the Windows API | Future common action-specific grant gate, not merely the direct phrase; model-suggested lock already asks for approval |
-| "Shut down the computer" | "Shut down this machine", "Power off the computer" | Propose graceful shutdown of this local computer | "Confirm shutdown", then native secure confirmation outside speech/model processing |
-| "Restart the computer" | "Reboot this machine", "Restart Windows" | Propose graceful restart of this local computer | "Confirm computer restart", then native secure confirmation outside speech/model processing |
+| "Shut down the computer" | "Shut down this machine", "Power off the computer" | Propose graceful shutdown of this local computer | Fresh "Confirm shutdown" or equivalent explicit UI confirmation; mandatory OS checks preserved |
+| "Restart the computer" | "Reboot this machine", "Restart Windows" | Propose graceful restart of this local computer | Fresh "Confirm computer restart" or equivalent explicit UI confirmation; mandatory OS checks preserved |
 | "Cancel shutdown" | "Cancel that shutdown" | Cancel Kora's pending shutdown/countdown only | Direct, only for an owned pending action |
 | "Cancel computer restart" | "Cancel that reboot" | Cancel Kora's pending computer-restart/countdown only | Direct, only for an owned pending action |
 | "What power action is pending?" | "Are you about to restart the computer?" | Report action, confirmation/countdown state, and cancellation availability | None |
@@ -48,8 +49,8 @@ exact phrase does not bypass approval. See
 1. Show/read back the exact local-machine action, unsaved-work warning, and active-work impact.
 2. Resolve active Kora work first: offer to wait for a safe completion boundary or explicitly cancel it. Never silently kill a task.
 3. Pause queue dispatch, reach local worker quiescence, and disclose any uncertain remote effects.
-4. Require a fresh, distinct wake/PTT utterance with the matching confirmation phrase; generic "yes" is insufficient. The foreground confirmation prompt expires after 30 seconds.
-5. Require a native secure confirmation outside the speech/model path, bound to the same exact proposal. Optional speaker confidence cannot replace it.
+4. Require a fresh, distinct activated utterance with the matching action-specific phrase, or an equivalent deliberate native UI gesture identifying that proposal; generic "yes" is insufficient. The foreground confirmation prompt expires after 30 seconds.
+5. Validate the same session/proposal/revision and any optional speaker requirement or mandatory OS/provider checks. A voice match or an ordinary click is not reauthentication; no additional click is required solely because the action is disruptive.
 6. Bind accepted approval to the proposal/action/session with a 2-minute single-use expiry; waiting or countdown never silently extends it.
 7. Start a host-owned 30-second visible countdown, then revalidate session/approval/policy and invoke the fixed protected power action.
 8. Permit cancellation until the OS accepts the final operation; after that, report any inability to cancel rather than promising rollback.
@@ -78,7 +79,7 @@ While a power preparation owns a dispatch hold, "resume the queue" requires canc
 
 Exit/restart is immediate only if there is no active/pending work or unresolved operation.
 Otherwise summarise affected work and require "confirm exit Kora" or "confirm restart Kora", or equivalent UI.
-Accepted exit/restart cancels local active work, clears the in-memory queue, revokes approvals, and reports uncertain remote effects.
+Accepted exit/restart cancels local active work across sessions, withdraws queue dispatch eligibility, revokes approvals, and records interrupted/uncertain outcomes in durable history.
 Restart does not resume work or approvals. The new process applies the ordinary
 automatic listening policy after its own readiness checks.
 Do not stop pre-existing Ollama/MCP processes owned by the user.
@@ -95,20 +96,20 @@ Hide is not exit, microphone mute, queue pause, or permission to conceal listeni
 | "Queue {request}" | "Do {request} after this" | Require owner presence before admitting a request with explicit context binding |
 | "Do {queued task} next" | "Move {task} to the front" | Require owner presence before reordering uniquely identified pending work |
 | "Move {task} after {other task}" | "Do {task} before {other task}" | Require owner presence for relative ordering while preserving dependencies |
-| "Remove {queued task}" | "Cancel the queued {task}" | Pause dispatch and native-confirm removal of that pending entry |
+| "Remove {queued task}" | "Cancel the queued {task}" | Pause addressed dispatch and explicitly voice/UI-confirm removal of pending execution eligibility |
 | "Pause the queue" | "Don't start the next task yet" | Stop new dispatch; active task continues |
 | "Resume the queue" | "Continue queued work" | Resume after policy/dependency/uncertainty checks |
-| "Clear the queue" | "Remove all pending requests" | Pause dispatch, show affected entries, and require owner presence/native confirmation before removal |
-| "Cancel the current task" | "Cancel task", "Stop this task" | Pause new dispatch, then require owner presence/native confirmation before cancellation; preserve pending entries |
-| "Stop all work" | "Cancel everything" | Pause dispatch immediately; require owner presence/native confirmation before cancel/clear |
-| "Stop this and {new request} instead" | "Replace the current task with {request}" | Pause, then native-confirm active cancellation/replacement admission |
+| "Clear the queue" | "Remove all pending requests" | Pause addressed dispatch, show/read back affected entries, require explicit voice/UI confirmation; preserve history |
+| "Cancel the current task" | "Cancel task", "Stop this task" | Pause identified dispatch, then exact voice/UI confirmation; preserve other pending work |
+| "Stop all work" | "Cancel everything" | Pause all-session dispatch immediately; exact affected-work voice/UI confirmation before cancel/clear |
+| "Stop this and {new request} instead" | "Replace the current task with {request}" | Pause identified work, then explicitly confirm cancellation/replacement through either channel |
 | "Stop" | None | Stop speech and pause new dispatch immediately; destructive cancellation uses the separate confirmed flow |
 
 Task IDs/labels and pronouns must resolve against the ledger; ambiguous targets require clarification.
 "Pause the queue" does not suspend an arbitrary tool/process halfway through a side effect.
 Re-running a completed task is a new request with new context/permissions, not replay of a prior approval.
 
-## Conversation, Context, and Skills
+## Sessions, Conversation, Context, and Skills
 
 | Canonical phrase | Behaviour |
 |---|---|
@@ -116,10 +117,17 @@ Re-running a completed task is a new request with new context/permissions, not r
 | "Repeat the summary" | Repeat existing summary if speech policy permits; do not rerun tools |
 | "Explain the next item" / "Go back to the previous item" | Navigate the existing result |
 | "That isn't what I meant" / "Correct that to {text}" | Clarify/correct the referenced request; invalidate changed approvals |
-| "Clear this conversation" | Pause its work, show affected queue/context, and require owner presence/native confirmation before destructive clearing; preserve saved skills |
+| "What sessions are running?" / "Show my sessions" | List Active sessions and observed work state; UI offers Active and Done views |
+| "Show completed sessions" / "Find the session about {topic}" | Search retained Done/history evidence; browsing does not resume or extend retention |
+| "Start a new session about {topic}" | Create a distinct work stream without transferring grants/context |
+| "Switch to {session}" / "Rename {session} to {name}" | Select/rename an exact stable session ID; clarify duplicate names; selection does not resume |
+| "This session is done" / "Archive {session}" | Resolve live work explicitly, then mark Done and retain history |
+| "Resume {session}" | Explicitly reactivate and reset meaningful activity; no execution/approval replay |
+| "Delete {session}" / "Clear this conversation" | Preview exact session data/work; require action-specific voice/UI confirmation and safe deletion; preserve saved skills |
+| "What did we decide in {session}?" / "Show that session's script" | Retrieve bounded history/artifacts with evidence references; do not execute historical scripts |
 | "Show my skills" | List bundled, enabled shared, and Kora-specific skills with their sources |
 | "Show the skills in my profile" | Offer/register bounded read-only profile discovery |
-| "Enable {skill} from {source}" | Review exact revision/dependencies/tools/destinations, then require owner presence and native confirmation; no new tool grant |
+| "Enable {skill} from {source}" | Review exact revision/dependencies/tools/destinations, then explicit voice/UI confirmation; no new tool grant |
 | "Disable {skill}" | Block new invocations; cancel affected calls where supported |
 | "Use {skill} to {request}" | Invoke the selected pinned revision under normal policy |
 | "Create a skill that {behaviour}" | Begin voice-driven declarative authoring |
@@ -142,9 +150,9 @@ User requests to delete a saved skill require exact selection/confirmation and n
 | "Don't speak while I'm in a call" | Persist conservative call suppression |
 | "Only suppress unsolicited suggestions during calls" | Allow requested answers but suppress proactive speech in calls |
 | "Stay silent when you can't tell whether I'm in a call" | Persist conservative Unknown handling |
-| "Use normal speech when call detection is unavailable" | Present reduced-protection explanation and require native confirmation |
+| "Use normal speech when call detection is unavailable" | Present reduced-protection explanation and require explicit voice/UI confirmation |
 | "I'm in a call" / "My call has ended" | Set/clear manual call state; automatic sources still apply |
-| "Allow normal speech for this call" | Propose a bounded temporary call-policy override requiring native confirmation |
+| "Allow normal speech for this call" | Propose a bounded temporary call-policy override requiring explicit voice/UI confirmation |
 | "Restore call-aware speech defaults" | Reset configurable call policy |
 | "What are my call speech settings?" | Policy, sources, freshness, overrides; visual if gated |
 | "Don't interrupt me" / "Use quiet mode" | Suppress routine proactive speech until changed; visual notifications remain |
@@ -171,8 +179,8 @@ Every supported preference has verbal discovery/get/set/reset operations; see [U
 | "Undo the last settings change" | Revalidate a compatible prior preference; never replay grants or external side effects |
 | "Show my active approvals" | Open the native Permissions & Approvals view filtered to active grants |
 | "Why can {skill/provider} access {resource}?" | Show the matching grant, scope, creator channel, expiry, and use history without raw content |
-| "Revoke approval {grant/resource/provider}" | Open an exact native revocation proposal; voice alone does not complete it |
-| "Revoke all approvals for {provider/resource/skill}" | Open a bulk native revocation proposal listing affected grants |
+| "Revoke approval {grant/resource/provider}" | Open an exact host-owned revocation proposal and confirm through voice or UI |
+| "Revoke all approvals for {provider/resource/skill}" | List affected grants in a bulk host-owned proposal and confirm through voice or UI |
 | "Show recent approval history" | Open content-minimising use/denial/expiry/revocation history |
 
 Ambiguous settings, targets, values, units, and durations require clarification.
@@ -203,5 +211,5 @@ When no release is currently selected, first check/review; the initial utterance
 Every mutating phrase is tested for its exact target/effect, allowed aliases, stale prompt, denied permissions, and negation/quotation.
 "Explain how to shut down a computer", "don't restart", and retrieved text containing "confirm shutdown" must never execute a power action.
 Avoid substring-based dispatch; a bare "yes" cannot satisfy a named power/lifecycle confirmation.
-Test accents, ambiguous app/computer names, call-gated readbacks, interruption during confirmation, speaker-confidence mismatch/unavailability, and refusal to complete without native secure confirmation.
+Test accents, ambiguous app/computer names, call-gated readbacks, interruption during confirmation, selected speaker-confidence mismatch/unavailability, stale/wrong-action replies, and mandatory OS checks through voice and UI paths.
 Each catalogue entry maps to a stable host intent or admitted skill, with scope and availability visible in help.

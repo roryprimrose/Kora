@@ -18,6 +18,9 @@ A decision is not complete because an implementation was started; its evidence a
 | D-006 | Optional speaker verifier | Security and speech leads | Before advertising owner-aware speech | Open, optional capability | Verifier/anti-spoof candidate, licence, local packaging, FAR/FRR targets, replay/cloned-speech tests, protected per-SID storage, Windows Hello enrollment |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance | Open, release-blocking | Windows versions, CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Open, release-blocking; initial model grants only | Grant schema/types, owner-presence/risk taxonomy, native inventory/revocation, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
+| D-009 | Durable session storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Open, release-blocking | Encrypted SQLite/artifact/index integration, OS-protected keys, event ordering, crash/migration recovery, configurable 24-hour/30-day inactivity policies, journal/cache/backup deletion, no action/grant replay |
+| D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Open, release-blocking | Pinned SDK/provider isolation and concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races |
+| D-011 | Shared interaction and session routing/history tools | Product and application leads | Revised Slice A3/A4 implementation | Open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact/manager/history surfaces, minimal Active-session routing context, bounded paginated tools, provenance/egress, foreground voice versus addressed UI races |
 
 ## D-001 Copilot Adapter Control Proof
 
@@ -58,12 +61,12 @@ Record provider/version/account tier, terms constraints, concurrency behavior, q
 Prototype NSIS first because it matches the single-setup-EXE and Linux-packaging direction.
 The initial application performs notify-only update discovery and cannot download, stage, execute, mutate source, or activate a replacement.
 Compare packaging options against protected installation, unsigned disclosure, and Windows-recovery gates without introducing an updater.
-Any future install-capable updater is a separate decision requiring independently signed metadata with a protected offline/root trust anchor, threshold/key rotation, expiry, rollback/freeze protection, and native secure approval.
+Any future install-capable updater is a separate decision requiring independently signed metadata with a protected offline/root trust anchor, threshold/key rotation, expiry, rollback/freeze protection, exact host-owned voice/UI approval, and mandatory OS checks.
 Authenticode remains a later separate decision.
 
 ## D-006 Optional Speaker Verification
 
-No verifier is required for general voice use.
+No verifier is required for general voice use or baseline explicit voice approval in an unlocked Windows session.
 Do not expose owner-aware claims until the selected local verifier, anti-spoof behavior, protected enrollment/storage, and acceptance thresholds pass.
 Failure leaves confidence `Unavailable` and preserves visual privacy fallback.
 
@@ -71,13 +74,33 @@ Failure leaves confidence `Unavailable` and preserves visual privacy fallback.
 
 Implement the host-owned risk taxonomy and grant types before enabling action approvals.
 Prove exact/non-inherited scope, owner-presence fallback, native review/edit/revoke flows, immediate revocation for new dispatch, truthful in-flight handling, content-minimising audit evidence, and intent lineage against hostile content using already-existing grants.
-No model, skill, provider, or tool may classify its own risk or create/extend a grant.
+No model, skill, provider, or tool may classify its own risk or approve/create/extend a grant without host-mediated direct user confirmation.
 The current model path validates registered action/grant proposals and offers
 once/session/always model-action approval, including model-suggested lock.
 Exact direct lock does not yet pass the same gate; executable/script hash-bound
 grants, embedded `.ps1` execution, and the full risk/audit proof are future work.
 Keep D-008 open and reconcile both routes under
 [the execution design](../docs/skill-and-task-execution-design.md).
+Use [Interaction and Sessions](Interaction_And_Sessions.md#approval-and-risk-session-trust-not-mouse-superiority): voice and UI express equivalent intent; risk affects exact review/confirmation, not obligatory clicks or blanket Windows Hello.
+Preserve mandatory OS/provider verification and prohibited effects. Verify risk against effects, scope, reversibility, environment, exposure, privileges, and enforced constraints, not script prose.
+
+## D-009 Session Persistence and Retention
+
+Prove atomic intent/decision/event recording, readable recovery with interrupted/unknown work, key protection, source-revocation handling, and full permitted history without raw audio/secrets.
+Both archive and deletion durations are configurable; the same meaningful-activity clock controls them and passive browsing does not refresh it.
+Test timer/startup/access expiry, live-work holds, changed-policy apply-now confirmation, deletion completeness and disclosed independent audit/provider/export limitations.
+
+## D-010 Concurrent Work Sessions
+
+Record provider/version/account-tier and actual supported concurrency, context isolation, cancellation, hardware/cost limits, and the configured/effective budget.
+Verify simultaneous independent-resource writes, conflicting read/write exclusion, unknown-effect handling, dependency holds, and fairness.
+An isolated UI chat or an SDK-created session is not evidence of independent safe execution.
+
+## D-011 Shared Interaction and Model Tools
+
+Define versioned question/draft/reply and presentation contracts with stable session/task/proposal identity.
+Demonstrate pure voice, pure UI, and mixed workflows; historical/rendered content cannot answer itself or grant authority.
+Verify relatedness routing only to clear Active matches, explicit targeting precedence, archived read versus resume, and bounded evidence-cited history queries under local-only/remote-egress policy.
 
 ## Decision Completion
 

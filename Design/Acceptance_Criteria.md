@@ -55,21 +55,21 @@ Report Gate 1 by Slice A checkpoint:
 - A0 proves the deterministic PTT/clipboard/remote path without claiming wake-word or local-first completion.
 - A1 adds and proves wake activation, playback rejection, interruption, and session policy.
 - A2 adds and proves the supported Ollama-backed local answer path with no remote network access.
-- A3 adds bounded work management, configuration, and protected lifecycle/computer controls.
-- A4 adds proactive, call-aware, owner-aware privacy, maintenance dialogue, and bounded presentation.
+- A3 adds persistent sessions/retention, isolated concurrent scheduling/resource coordination, structured questions/grants, bounded routing/history tools, configuration, and protected lifecycle/computer controls.
+- A4 adds compact/manager/history interaction surfaces, proactive, call-aware, optional owner-aware privacy, maintenance dialogue, and bounded presentation.
 
 Later-checkpoint testing repeats applicable earlier gates.
 No A0/A1 demonstration or release note may claim the completed voice-first/local-first Slice A outcome.
 
 ### Functional
 
-- A user completes the clipboard explanation workflow by saying "Kora, explain the clipboard", without typing, clicking, or pressing push-to-talk when a current `LikelyOwner` or short recent Windows Hello/unlock presence window exists.
-- With owner presence absent/uncertain, the same utterance captures nothing and opens exact native confirmation; denial leaves clipboard content untouched.
+- A user completes clipboard explanation by activated voice without compulsory typing/clicking under the unlocked-session baseline, and repeats it using only mouse/keyboard and mixed-channel input.
+- Ambiguous intent or an unsatisfied explicitly selected speaker preference captures nothing pending clarification/alternate-channel confirmation; denial leaves clipboard untouched.
 - Both immediate commands ("Kora, explain...") and wake-then-command with a pause preserve the command's first words.
 - Optional push-to-talk uses the same command pipeline without requiring "Kora".
 - Empty activation returns to Wake Listening after 5 seconds without a model call, clipboard read, or other tool invocation.
 - Trailing-silence endpointing and the 60-second limit produce explicit, bounded capture transitions.
-- A snapshot is captured only after an explicit request plus owner presence; absent/uncertain owner presence produces native confirmation before capture.
+- A snapshot is captured only after a deliberate explicit request in the unlocked session and any selected speaker/privacy protection; wake activation alone is not a capture request.
 - Changes to the OS clipboard after capture do not change task input.
 - Empty, locked, unsupported, and oversized clipboard cases are distinguished.
 - Visual answer streaming and a spoken summary use the same task/result identity.
@@ -80,7 +80,7 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Correction, follow-up, "stop", "stop speaking", and "cancel task" match lifecycle semantics.
 - TTS audio is not ingested as a new user request.
 - "Kora, stop" and "Kora, stop speaking" work during TTS; playback mentioning "Kora" and activation cues never self-trigger.
-- A second task request does not start concurrent execution.
+- A second independent-session task can execute within the admitted budget/resource policy; a second task in the same session remains ordered, and UI selection does not change execution ownership.
 - Unsupported playback echo rejection disables TTS explicitly, not wake activation; the reference setup must support spoken responses and verbal interruption.
 - A new snapshot/destination triggers a new policy assessment.
 - The A2 local-only workflow produces the clipboard answer through the pinned Ollama adapter/model with remote network access blocked; missing/unhealthy local inference reports unavailable and never falls back to Copilot.
@@ -95,19 +95,19 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Remote-enabled mode shows the actual destination and context before transmission.
 - Rejecting transmission sends none of the rejected context.
 - Secret-risk fixtures block transmission pending reviewed redaction.
-- Raw audio, clipboard text, tool content, and answers are absent from default logs and SQLite.
+- Raw audio/secrets are absent from all history/log stores. Clipboard/tool/answer content is absent from diagnostics and content-minimising audit, while permitted session content is intentionally retained encrypted.
 - Before activation, synthetic ambient audio reaches neither transcription nor any model, tool, persisted store, or network destination.
 - Wake pre-roll never exceeds 2 seconds and is overwritten; unrelated pre-activation audio is excluded from command transcription.
 - Mute/lock/sign-out/suspend close capture and clear buffers; restart/unlock/resume do not silently reopen capture.
 - Wake Listening, Capturing Command, Muted, Session Locked, and Unavailable are distinguishable, including background-app status.
-- Closing/clearing the conversation and the 30-minute idle expiry clear ephemeral context references.
-- Restart does not restore default ephemeral history.
+- Closing/dismissing UI preserves session history and work. Done archives; explicit confirmed deletion and configured inactivity purge remove retained session content under the dedicated lifecycle gate.
+- Restart restores readable Active/Done history and interrupted/unknown evidence, never tools, queued dispatch, provider memory, or consumed approval tokens. Explicit always grants remain subject to exact identity/digest/invocation and fresh policy validation.
 - Exercise every proposed grant type: single-use, task, conversation, process-session, time-bound, persistent-device, and preconfigured. Test future `always` executable grants separately against exact version/digest/invocation identity; current named model-action `Always` is not such a grant.
 - Verify default single-use scope, explicit maximum expiry, no cross-task/follow-up/provider/account/skill/process/device inheritance, and revocation on the documented lock/sign-out/restart/policy/schema transitions.
 - The native Permissions & Approvals surface lists canonical scope, identity, destination, hashes, creator channel, expiry, last use/use count, policy revision, and revocation reason without raw sensitive content.
-- Narrowing/shortening edits in place; broadening, persistence conversion, identity/destination change, and restoring revoked/expired access require a new native-confirmed grant.
+- Narrowing/shortening edits in place; permitted broadening, persistence conversion, identity/destination change, and restoring revoked/expired access require a newly reviewed exact voice/UI-confirmed grant.
 - Revoke-versus-dispatch races block new calls immediately and report in-flight remote effects truthfully.
-- Clipboard/private-context capture, every egress operation, remote reads, privacy expansion, persistent preferences, and skill enablement fall back to native confirmation when owner presence is absent.
+- Clipboard/private-context capture, egress, remote reads, privacy expansion, persistent preferences, and skill enablement use equivalent exact voice/UI approval rules; ambiguous intent/unsatisfied optional speaker policy pauses rather than inventing approval.
 - Denied canonical proposals are deduplicated/rate-limited and cannot be rephrased, split, or escalated repeatedly by models/tools/providers/skills; distinct resources/effects are never hidden in a broad bundled approval.
 - Newly displayed native approval controls ignore pre-existing key/mouse input and remain unarmed for at least 500 ms.
 - Verify that model answers, clarifying questions, and action/grant proposals cannot execute an unregistered action, invent a grant scope, or bypass host validation; model-suggested lock must require approval. For the future shared execution gate, an exact direct lock request must require the same action-specific grant; the current direct Windows-API lock remains ungated and does not pass this future test.
@@ -219,10 +219,10 @@ If the detector fails, change/tune the local implementation or explicitly revisi
 
 ### Shared-Space and Optional Speaker-Verification Gate
 
-- With speaker verification absent, disabled, unhealthy, stale, or uncertain, general voice interaction and safety-preserving stop/mute/cancel/lock controls remain available, while private clipboard/task/account/message/queue content defaults to a neutral visual notice rather than spoken disclosure.
+- With verification absent/disabled, baseline deliberate voice/UI interaction remains available under normal output/privacy policy. With owner-aware privacy enabled but unhealthy/stale/uncertain, private content uses a neutral visual notice rather than silently disabling protection.
 - `LikelyOwner` permits private speech only when normal content/output policy also permits it; it never satisfies remote-egress, tool, update, setup, power, account, credential, or security-setting approval.
 - `NotOwner`, `Uncertain`, and `Unavailable` never disclose whether a sensitive resource exists through spoken wording.
-- Shutdown/restart, speaker enrollment changes, reduced privacy policy, and other designated high-risk operations require their native secure confirmation outside the speech/model path regardless of match result.
+- Shutdown/restart, reduced privacy policy, and other permitted high-risk operations accept exact action-specific voice or UI confirmation; preserve actual required OS/provider verification. Speaker enrollment changes retain protected OS reauthentication.
 - Enrollment/replacement requires Windows Hello or equivalent native reauthentication, multiple randomized prompted phrases, explicit consent, and a native non-voice completion path; ordinary command audio never enrolls or updates a template.
 - Verify that raw enrollment audio is discarded after derivation and that templates, scores, phrases, and biometric diagnostics are absent from roaming storage, model/tool/skill context, logs, telemetry, crash reports, and default backups.
 - Bind the protected template to the Windows SID and device; changed SID/device binding, stale enrollment, unsupported microphone transition, missing assets, verifier error, and policy denial yield `Unavailable`, never owner.
@@ -230,7 +230,7 @@ If the detector fails, change/tune the local implementation or explicitly revisi
 - Test false acceptance using at least unrelated speakers, similar voices, household/nearby-speaker fixtures, recordings, Kora TTS, speaker playback, virtual/loopback devices, and representative synthetic/cloned speech.
 - Record false-accept and false-reject rates, thresholds, verifier/anti-spoof model versions, supported hardware, and residual limitations; failing the approved risk target leaves verification unavailable rather than weakening policy.
 - Repeated mismatches and suspected replay/synthesis are rate-limited and auditable without retaining biometric audio.
-- Delete/re-enroll removes the prior protected template and invalidates cached confidence; no voice-only workflow can enroll, replace, delete, or relax the privacy policy.
+- Delete/re-enroll removes the prior protected template and invalidates cached confidence; chat history never silently enrolls/adapts identity. Privacy settings use explicit voice/UI confirmation; protected biometric changes cannot bypass OS verification.
 
 ### Work-Management Gate
 
@@ -240,18 +240,18 @@ If the detector fails, change/tune the local implementation or explicitly revisi
 - Enforce one in-flight management request, 32 KiB input, 4 KiB output, 15-second deadline without automatic retry, and 30 remote calls per rolling hour per profile.
 - Timeout, sign-out, offline, throttle, quota/cost cap, malformed proposal, and hourly-cap fixtures enter deterministic degraded mode without blocking cancellation, factual status, direct queue controls, or task execution.
 - Local cancellation and basic status still work when management inference is blocked, offline, or timed out.
-- At most one task owns the execution slot across admission, dispatch, cancellation, and completion races.
+- Enforce the admitted configurable execution limit and one task per session across admission, dispatch, cancellation, and completion races, with isolated context/runtime/grants.
 - The fixed priority session-lock control can run without waiting for the task queue; it does not admit another general executor or grant script access to management inference.
 - A scripted dialogue adds two tasks, reorders one, removes one, and replaces the active task; acknowledge every change with the correct task identity.
 - Status questions report the observed stage, blocker, known remaining steps, and queue. Missing step/ETA evidence is stated as unknown.
 - A planned step cannot be reported complete without supporting events/receipts.
-- Full queues do not silently drop work; 30-minute expiry releases pending content and notifies the user.
+- Full queues do not silently drop work; 30-minute expiry withdraws pending execution eligibility and notifies the user without deleting retained request/ledger history.
 - Cancellation preserves pending entries and pauses dispatch; "stop all work" clears them.
 - Failed/unknown prerequisites and unresolved remote effects prevent automatic dependent/replacement dispatch.
 - Approval replies cannot apply to queue clarification or another task, including when status questions interrupt an approval.
 - Clipboard references remain bound to the admission snapshot; expired/missing context requires a fresh selection.
 - Remote management receives only reviewed context; local-only mode makes no remote management call.
-- Conversation clearing/restart does not restore pending request bodies or content-bearing ledger records.
+- Session deletion removes its pending/history content; restart restores readable request/ledger evidence as interrupted/unknown, never automatic pending dispatch.
 
 Measure local ledger-status rendering at p95 <= 250 ms from final transcript/control recognition, excluding speech recognition and TTS synthesis.
 Measure management acknowledgement independently of the blocked executor; model inference has a 15-second deadline and an explicit clarification/error path.
@@ -281,7 +281,7 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 
 ## Gate 3: Voice-Driven Skill Authoring and Application Integrity
 
-- A user creates, refines, and tests with mocks through voice; saving and enabling require separate native confirmations and no manual file editing.
+- A user creates, refines, tests with mocks, and separately confirms exact save/enable through voice, UI, or mixed input with no manual file editing.
 - Spoken capability summaries and the displayed diff identify the same proposed revision.
 - The proposal phase creates no installed-skill writes; staged proposals remain data only.
 - Native save approval binds exact package files, base hashes, and new content; later refinement invalidates approval and the saved revision remains disabled.
@@ -293,7 +293,7 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 - Missing tool dependencies are reported; Kora does not install or rewrite their implementation.
 - Validation failure does not save/enable the proposal.
 - Partial write and worker crash fixtures preserve evidence and never overwrite unrelated edits during recovery.
-- Changed skill content is not activated before policy/dependency checks and a separate native enablement confirmation covering tools, resources, destinations, and instruction-risk summary.
+- Changed skill content is not activated before policy/dependency checks and separate exact voice/UI enablement confirmation covering tools, resources, destinations, and instruction-risk summary.
 - Active tasks retain their original digest-pinned skill revision while new invocations use the enabled revision.
 - A request to improve a bundled skill creates only a distinct declarative user adaptation; it never mutates embedded resources, copies executable scripts, or shadows reserved controls.
 - Editing a shared profile skill creates a reviewed copy under `%APPDATA%\Kora\Skills` with attribution and a distinct scoped ID; source bytes, names, and timestamps remain unchanged.
@@ -380,7 +380,7 @@ Verify:
 - Agent tools cannot invoke maintenance, change update origins, choose executable payloads, or fabricate release-availability events.
 - No package-level or source auto-update authority exists during the unsigned phase.
 
-An install-capable updater remains unavailable until independent signed-metadata trust, rollback/freeze protection, key rotation, native secure approval, and separate acceptance evidence are added.
+An install-capable updater remains unavailable until independent signed-metadata trust, rollback/freeze protection, key rotation, exact host-owned approval/mandatory OS checks, and separate acceptance evidence are added.
 
 ### Public GitHub and Linux Release Gate
 
@@ -433,7 +433,7 @@ An install-capable updater remains unavailable until independent signed-metadata
 
 - All requested/proactive/setup/maintenance speech and activation cues use the central gate; no alternate TTS path bypasses it.
 - Active/Suspected call and Unknown enabled-detector fixtures suppress automatic speech by default while preserving visual results and task progress.
-- Active/Suspected observations apply the persisted visual-text override by default, independently of the task/queue/device response mode; opting out restores that ordinary precedence.
+- Active/Suspected observations apply the persisted visual-text override by default, independently of task/queue/session/device response mode; opting out restores that ordinary precedence.
 - Voice activation remains enabled during calls by default and is independently configurable; disabling it closes active capture, blocks activation while the call remains detected, and never silently reopens capture when the call clears.
 - A blocking observation received during playback stops output within 250 ms on the reference machine; report source detection/transport delay separately.
 - A stale sample, failed probe, auth expiry, or local-only network block never becomes a false Clear result.
@@ -458,7 +458,7 @@ A failed integration proof leaves that detector explicitly unavailable with manu
 - Every catalogue entry maps to a host intent or pinned admitted skill with explicit availability and help text; aliases preserve the same target/effect.
 - Exact local lifecycle/power/status/cancel controls work with the model/network unavailable after local speech setup.
 - Negation, quotation, explanation requests, hostile tool content, and ambiguous "restart" do not execute a disruptive action.
-- Computer shutdown/restart requires a second distinct named confirmation bound to the current foreground proposal plus native secure confirmation outside the speech/model path; generic "yes", speaker matching alone, stale/wrong-action confirmation, and TTS playback cannot satisfy it.
+- Computer shutdown/restart requires a second distinct action-specific spoken confirmation or equivalent deliberate UI confirmation bound to the exact proposal; generic "yes", speaker matching alone, stale/wrong-action input, and TTS playback cannot satisfy it. Mandatory OS checks are preserved.
 - Confirmation prompts expire after 30 seconds; accepted power grants are single-use with a 2-minute expiry and no silent extension.
 - Power countdown is host-owned, visible, and cancellable; the final simulated OS call has no forced-close/remote-target flags.
 - A blocker/failure never triggers forced termination, an unrestricted shell fallback, or a false completion receipt.
@@ -466,7 +466,7 @@ A failed integration proof leaves that detector explicitly unavailable with manu
 - Cancelling an owned power proposal restores prior dispatch policy unless another blocker requires pause; an unrelated Windows operation is not cancelled.
 - Hide preserves work and listening visibility; exit/restart releases audio/owned workers, does not stop user-owned services, and requires affected-work confirmation.
 - App restart and computer restart never substitute for one another; restart does not replay queue entries or microphone consent.
-- Pause queue leaves active execution untouched; clear queue, cancel current, clear conversation, replacement, and stop-all pause first and require owner presence/native confirmation before destructive mutation.
+- Pause queue leaves active execution untouched; clear queue, cancel identified work, delete session, replacement, and stop-all pause affected dispatch first and require exact voice/UI confirmation before destructive mutation.
 - Check-for-updates installs nothing; unsigned-phase update interaction remains notify-only and cannot become download, staging, Git/shell, or installer authority.
 - Call-gated confirmation uses visible presentation or an explicit permitted readback; suppression is not implicit approval.
 - Reserved control registration cannot be shadowed by a shared skill name, user copy, or manifest priority declaration.
@@ -501,8 +501,8 @@ Validate the production invocation's flags and actual restricted worker admissio
 - Simulated persistence failure and concurrent voice/UI changes retain a valid configuration and report failure/conflict without silent lost updates.
 - Lowering queue capacity does not evict entries; shortened request lifetime identifies affected entries before immediate expiry.
 - Default deadline changes do not silently alter active tasks; provider/account changes do not silently transfer their context.
-- Increased remote exposure requires owner presence and native confirmation for the setting, and every outgoing payload still requires its applicable egress approval.
-- Call-wide, one-hour, persistent, and Unknown-to-normal speech privacy downgrades require native confirmation; single-response tokens remain exact, single-use, and owner-presence gated.
+- Increased remote exposure requires exact voice/UI confirmation for the setting, and every outgoing payload still requires its applicable egress approval.
+- Call-wide, one-hour, persistent, and Unknown-to-normal speech privacy downgrades require exact voice/UI confirmation; single-response tokens remain exact, single-use, and subject to selected speaker/privacy protection.
 - Reset/undo follow the same sensitivity and validation rules as set; neither restores grants nor repeats external side effects.
 - Enabled extension option schemas cannot expose arbitrary code/config paths, protected trust roots, disabled lock policy, or security bypasses.
 - Missing devices/assets/providers explain unavailable effective settings and do not trigger silent download/cloud fallback.
@@ -514,7 +514,7 @@ Validate the production invocation's flags and actual restricted worker admissio
 
 - Speech-text off/sentence/utterance preferences work verbally and through UI; hiding captions leaves required approvals/errors available.
 - Captions match final TTS segments and playback generation, not full answers or queued/suppressed text; test interruption, failure, replacement, and call gating.
-- Missing word alignment never claims word-accurate highlighting; pinning labels previous speech and does not extend conversation retention.
+- Missing word alignment never claims word-accurate highlighting; pinning labels previous speech and does not extend session retention.
 - Passive captions/details do not steal focus or intercept desktop input; verify contrast, keyboard/screen-reader access, reduced motion, multiple displays, DPI and working-area changes.
 - Lock/disconnect clears sensitive host surfaces and closes/suspends owned browsing; external browser behaviour is explicitly outside host control.
 - Typed content updates preserve task/provenance/revision identity; late renders and content styling cannot overwrite native approval panels.
@@ -529,6 +529,49 @@ Validate the production invocation's flags and actual restricted worker admissio
 - Missing renderer/runtime, invalid source and resource-limit failure produce labelled source/plain-text fallback without hidden downloads.
 - Web/Markdown content cannot invoke a skill, approve an action, open the microphone, access credentials, or automatically become outbound model context.
 - Every top-level `/docs/*.md` page is embedded in the application, `/docs/readme.md` is the required start page, and the same single-instance themed Documentation window opens from the tray or the exact built-in voice/typed documentation phrases without filesystem or network dependency.
+
+## Human Interaction and Persistent Session Gate
+
+Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contract and disposable encrypted-store/resource fixtures.
+
+### Channel Parity and Evidence
+
+- Complete new/select/question/detail/approval/Done/resume/delete/settings workflows entirely by voice, entirely by mouse/keyboard, and with input channels changed mid-workflow; UI never requires spoken acknowledgment.
+- Single-choice, checkbox multi-choice, custom text, and constrained form cases preserve one shared draft; spoken select/deselect/list/review and UI edits submit the same typed answer.
+- Validate required fields, min/max selection, custom-answer permission, cancelled/expired questions, duplicate submissions, stale revisions, and simultaneous voice/UI input; exactly one accepted decision/event.
+- Two sessions can await answers with identical option labels. Background output, switching, generic "yes", and delayed callbacks cannot answer/approve the wrong question; explicit valid UI cards remain usable while only one voice prompt is foreground.
+- The compact selected-session view shows its latest interaction and truthful state, retains Details/History links, and never loses a pending question to feedback auto-hide or a passive completion.
+- Concise/full Markdown, static HTML, and `.ps1` source views retain immutable artifact/digest/provenance; expanding/copying/history navigation never executes scripts or reruns tools.
+- Every finalized message, correction, question/answer, decision, reviewed artifact, action/receipt, grant transition, error, and cancellation/unknown outcome is retrievable in order, subject to explicitly reported redaction/source restrictions.
+- A click is not represented as reauthentication, a voice match is not represented as guaranteed authentication, and either channel can deliberately approve a permitted high-risk proposal.
+- Risk fixtures vary effects, targets, reversibility, environment, exposure, privileges, and actual constraints for identical script text. Unknown arbitrary code cannot be downgraded by model prose; prohibited actions remain prohibited.
+- Changed script/dependency digest, parameters, resources, identity, destination, policy, or expiry invalidates approval. Mandatory OS/provider checks cannot be bypassed through either channel.
+
+### Routing, Concurrency, and History Access
+
+- Explicit composer/named-session targeting wins. One clear Active match is acknowledged; multiple plausible matches ask; unrelated or unavailable-inference general requests start a new session.
+- Archived sessions are searchable/readable without resume or timer refresh; explicit resume updates activity but restores no executable grants/tasks.
+- Run at least two independent session tasks simultaneously, including writes to different disposable resources. Verify isolation, budget limits, per-session ordering/cancellation, and fair progress with the foreground session idle.
+- Race conflicting reads/writes and competing session mutations; leases prevent conflicting effects, base changes invalidate reviewed writes, and unknown resource effects serialize within an enforced domain or fail admission.
+- Unresolved remote outcomes block dependent/conflicting dispatch, not unrelated work. App/power lifecycle preparation coordinates every session and shared TTS never interleaves spoken prompts.
+- Session tools paginate/filter to exact IDs/revisions and bound output; full history remains traversable rather than silently truncated/replaced by summaries.
+- Questions about decisions/scripts/actions across Active/Done sessions cite event/artifact evidence and distinguish observed receipts from plans/inference.
+- Historical prompts, scripts, grants, and malicious tool text never become current instructions or authority. Revoked source/account access is filtered/removed before retrieval.
+- Local-only routing/search/history makes no remote call; remote-enabled queries review the actual selected history/summary payload, not a blanket "all sessions" upload.
+
+### Persistence, Configurable Lifecycle, and Deletion
+
+- Accepted intent/approval is durable before consequential dispatch; crash at each commit/dispatch/receipt boundary preserves truthful interrupted/unknown evidence without replay.
+- Restart restores Active/Done history/artifacts and selection; queued requests require explicit fresh dispatch/revalidation, and old grant records never become tokens.
+- Simulated defaults stay Active just before 24 inactive hours, archive at 24 hours when safe, retain content just before 30 inactive days, and purge at 30 days when safe.
+- The clock starts at last meaningful activity, not creation/Done; automatic archive, browsing/search, history questions, polling, and reminders do not reset it. Accepted substantive input/decisions, actual work progress, and explicit resume do.
+- Configure both durations by voice and UI, including values different from defaults; reject non-positive/non-finite/reversed durations. Shortening previews affected due dates and never immediately purges without separate apply-now confirmation, including on the next timer tick; absent it, existing due dates remain until meaningful activity.
+- Normal eligible automatic purge uses the disclosed retention policy without recurring per-session approval; explicit deletion still requires exact action-specific confirmation.
+- Test offline startup/access after deadlines, clock rollback, time-zone/DST changes, concurrent resume-versus-expiry, blocked live work, and unresolved effects; no early deletion or silent abandonment.
+- Exact session deletion removes messages/artifacts/snapshots/summaries/indexes/caches and recoverable journal/backup content under the proven store contract, invalidates session grants, and rejects late appends.
+- Deletion preserves unrelated sessions/saved skills and discloses independent content-minimising audit, user exports, provider copies, and lack of forensic-erasure guarantees.
+- Inspect history/artifact/index storage for encryption and OS-protected key handling; verify raw audio/credentials/biometrics are absent, known secret fixtures are redacted, and retained content never leaks into ordinary diagnostics.
+- Disk-full, encryption-key loss, corrupted storage, migration failure, and artifact-size admission failures are explicit; no success-shaped persistence fallback, silent history eviction, or consequential dispatch without required durable evidence.
 
 ## Future Capability Gates
 

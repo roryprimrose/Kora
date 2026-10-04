@@ -6,8 +6,9 @@ Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_D
 
 ## Runtime Ownership Decision
 
-Kora owns task lifecycle, context selection, permission evaluation, approvals, and presentation.
+Kora owns persistent work sessions, task lifecycle, context selection, permission evaluation, approvals, and presentation.
 A runtime adapter may own model/tool iteration, but must not bypass those responsibilities.
+The canonical channel, routing, lifecycle, and history contract is [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
 
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.
@@ -70,10 +71,12 @@ Ownership is acquired before assistant/audio/provider/store-migration startup; a
 Avalonia Shell
   |-- Voice Session Controller -- Local Wake Detector / Endpointing / Speech Adapters
   |       `-- Session Privacy Contract -- Windows Adapter / Microphone Lifetime Gate
-  |-- Native Prompt/Recovery UI -- Mouse Answers / Microphone Selection / Readiness
+  |-- Compact Session UI / Session Manager / History and Detail Viewer
+  |-- Structured Interaction Service -- Shared Voice/UI Questions / Recovery / Approval Input
+  |-- Session Registry / Event and Artifact Store / Retention Controller
   |-- Reserved Intent Registry -- App Lifecycle / Fixed Computer Controls / Exact Local Management
   |-- Work Manager -- Management Model Adapter
-  |       `-- Work Ledger / Queue Scheduler -- Single Execution Slot
+  |       `-- Per-Session Ledger / Bounded Scheduler / Shared-Resource Leases
   |-- Proactive Interaction Broker -- Trusted Task Events / Release-Availability Events
   |-- Speech Policy Service -- Call-State Aggregator / Local and Opt-In Communication Detectors
   |-- Speaker Confidence Service -- Optional Local Verifier / Enrollment and Anti-Spoof Boundary
@@ -88,10 +91,10 @@ Avalonia Shell
   |     |       `-- Tool Gateway -- Built-In Tools / MCP / Script Worker
   |     `-- Response Presenter -- Speech Text / Rich Details / Local TTS
   |           `-- Content Viewer -- Isolated HTML / Approved Browser Navigation
-  `-- Configuration, Credential References, Audit, and Task Metadata
+  `-- Configuration, Credential References, Audit, and Encrypted Session History
 ```
 
-Knowledge retrieval is a later context source, not a mandatory path for every request.
+External knowledge retrieval is a later context source, not a mandatory path for every request; bounded Kora session-history retrieval is a required host capability.
 Deterministic cancellation and basic ledger status stay local.
 Contextual work-management decisions use a separate model session, independently schedulable from the execution runtime.
 Detailed task interpretation and model/tool iteration remain in the task runtime.
@@ -101,10 +104,11 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Component | Owns | Must not own |
 |---|---|---|
 | Shell | Rendering, input, accessible controls, approval interaction | Direct tool execution or provider credentials |
-| Native prompt/recovery service | Mouse/keyboard accessible questions, typed replies, endpoint selection/recovery, shared prompt identity | Capture before consent, silent device replacement, or relaxing approvals when speech fails |
+| Structured interaction/recovery service | Voice/UI question drafts and typed replies, independent addressed cards, one foreground voice target, endpoint recovery | Model self-answer/self-approval, capture before consent, silent device replacement |
+| Session registry/history service | Stable session identity, ordered durable events/artifacts, routing proposals, Active/Done lifecycle, retention/deletion | Replaying execution/grants or exposing all history to a provider |
 | Voice controller | Wake-listening consent, local configured-name detection ("Kora" by default), bounded audio buffer, endpointing, transcript, playback-aware interruption | Ambient transcription or authorising actions based on wake detection/speaker verification |
 | Task controller | Task IDs, state transitions, deadlines, cancellation | Provider-specific model iteration |
-| Work manager/scheduler | Contextual request routing, versioned ledger, queue, grounded status, exclusive execution slot | Running task tools or bypassing task approvals |
+| Work manager/scheduler | Contextual session/request routing, per-session versioned ledger/queue, bounded fair dispatch and resource leases | Running task tools in management inference or bypassing task approvals |
 | Context broker | Snapshots, provenance, classification, context selection | Implicit background collection |
 | Policy/approval service | Resource-scoped grants, outbound decisions, approval tokens | Trusting model-produced permission claims |
 | Runtime adapter | Provider session and event translation | Unreviewed tools, undisclosed egress, global policy |
@@ -116,7 +120,7 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Speech policy service | Central playback eligibility, call-state freshness, voice-configurable preferences, one-shot overrides | Claiming universal call detection or allowing lock/mute bypass |
 | Speaker confidence service | Optional local per-SID enrollment, protected template storage, verification/anti-spoof observations, privacy-policy signal | Identifying arbitrary people, granting actions, satisfying approvals, exposing scores/templates, or silently enrolling |
 | Reserved intent/lifecycle controller | Exact local control routing, target disambiguation, named confirmations, serialised app/power/maintenance lifecycle | Arbitrary shell commands or user-skill shadowing of privileged controls |
-| Storage services | Configuration, metadata, optional approved history | Storing plaintext credentials or clipboard history by default |
+| Storage services | Configuration, metadata, encrypted permitted session history/artifacts/indexes, migration/deletion | Raw audio, plaintext credentials, unrestricted clipboard collection, or silent eviction |
 | Environment setup controller | Internal storage/schema initialisation, capability probes, approved dependency setup, ownership and readiness | Arbitrary model-supplied installers or changing Kora code |
 | Configuration service | Option schema, validation/scope, revision-safe persistence, voice/UI parity, effective settings | Arbitrary config-file patches or weakening mandatory policy |
 
@@ -127,12 +131,16 @@ Every user preference, including admitted extension settings, uses [User Configu
 Rich presentation follows [Information Display](Information_Display.md); native approvals and trust indicators remain outside rendered content.
 Native questions and first-run/device-loss recovery follow [Interaction Fallback](Interaction_Fallback.md) and require no working microphone, model, or rich renderer.
 
-## Parallel Management, Serial Execution
+## Independent Management and Concurrent Sessions
 
 The work manager stays responsive independently of the task runtime's event loop, tool calls, and approval waits.
 Management uses a separate session and cancellation/deadline scope; it does not inherit executable tools or ambient task context.
 It proposes typed ledger operations that the host validates and commits atomically.
 Local stop and basic status paths bypass management inference.
+Independent Kora sessions execute concurrently within a configured, verified budget, initially proposed as two slots with one task per session.
+Per-session context/runtime/grant/event isolation, shared/exclusive canonical resource leases, dependency checks, and fair scheduling are mandatory.
+Unknown resource effects cannot claim safe concurrency; require an enforced exclusive domain or reject unsupported execution.
+UI selection, foreground voice prompt, TTS playback, and execution-slot ownership are independent.
 
 An adapter must prove that execution and management requests can make progress independently, using separate sessions or runtime instances where needed.
 Do not share mutable SDK conversation state between lanes.
@@ -171,14 +179,16 @@ The implementation must define versioned, strongly typed equivalents of these me
 | Contract | Required fields and semantics |
 |---|---|
 | Runtime capabilities | Runtime/version, local or remote destinations, streaming, tool mediation, cancellation, context filtering, supported input types |
-| Task request | Task ID, user request, approved context IDs, effective policy, deadline, selected runtime |
-| Management request/proposal | Management request ID, minimal approved context, ledger revision, typed operation, target task IDs, reason or clarification |
+| Task request | Session/task IDs, user request, approved context IDs, effective policy, deadline, selected runtime |
+| Management request/proposal | Management request ID, minimal approved session descriptors/context, registry/ledger revision, typed route/operation, target session/task IDs, evidence or clarification |
+| Session record/event | Session ID, lifecycle/work state, sequence/revision, channel/provenance, durable timestamps, history/artifact references, retention due times |
+| Structured question/reply | Session/task/question IDs, revision, typed option/field schema, constraints, draft/accepted answer, expiry and submit/cancel meaning |
 | Work status | Task/step states, observation timestamps, provenance of progress, queue position, blocker; distinguish plans from confirmed outcomes |
 | Context item | ID, immutable content reference, content hash, source, media type, trust/classification, identity scope, capture time, expiry |
-| Runtime event | Task ID, sequence, event type, typed payload; no state-changing work hidden in display text |
+| Runtime event | Session/task IDs, sequence, event type, typed payload; no state-changing work hidden in display text |
 | Tool invocation | Invocation ID, tool/version, schema-valid parameters, target resources, effect class, deadline |
 | Tool result | Invocation ID, success/failure/unknown status, bounded content, provenance, classification, side-effect receipt |
-| Approval request | Exact action/destination, resources, relevant content/parameter hashes, expiry, host-assigned risk, required channel/owner-presence class, creator/lineage, user-readable summary |
+| Approval request | Session/task/proposal IDs, exact action/destination, resources and script/dependency/parameter hashes, expiry, host-assigned risk/review, optional speaker policy, mandatory OS checks, creator/lineage, user-readable summary |
 | Completion | Completed/cancelled/failed/unknown-side-effects, final answer references, action receipts, error detail |
 
 Runtime events include answer deltas, tool proposals, context transmission proposals, progress, and terminal events.
@@ -187,7 +197,7 @@ The host must await decisions on proposals before execution or transmission. App
 A provider's built-in filesystem, shell, browsing, memory, telemetry, or connector features must be disabled unless they satisfy the same controls.
 Passing approved initial context to an SDK is insufficient if the SDK can later collect or transmit additional data independently.
 Untrusted content is structurally separated from system/developer policy and workflow-stage controls.
-Every proposed operation carries intent lineage to the authenticated user request or native-approved host plan step; capability/grant scope alone is not sufficient justification.
+Every proposed operation carries intent lineage to deliberate user input or an explicitly approved host plan step; capability/grant scope alone is not sufficient justification.
 
 ## Capability Negotiation
 
@@ -220,12 +230,15 @@ Tool names and descriptions are untrusted metadata. Policy bindings are maintain
 
 ## Storage and Processes
 
-The MVP uses SQLite for configuration and task/action metadata; ephemeral content remains in memory by default.
+The proposed store uses SQLite for configuration, session/events, and task/action metadata, with encrypted permitted content/artifacts/indexes and OS-protected keys.
+Encryption integration, transactional persistence, migration, journal/backup deletion, and failure behavior are release gates; no particular encryption package is selected here.
 Machine-local configuration/enablement/audit storage is under `%LOCALAPPDATA%\Kora`.
 Kora-specific declarative skill packages are under the Windows Roaming AppData folder at `%APPDATA%\Kora\Skills`.
 Shared profile skill roots are registered read-only sources, not writable storage.
 Credentials are represented by opaque references to an OS-protected credential store.
-Large approved persistent content, if later introduced, uses a separately managed encrypted store.
+Large retained artifacts use a managed encrypted store linked by immutable digest, session ID, and deletion ownership.
+Default inactivity archiving/deletion is 24 hours/30 days, both configurable; passive history access never extends retention.
+Restart restores readable history, not active dispatch, provider memory, or executable approval tokens.
 The running app creates its stores and migrates embedded SQLite schemas; installers do not provision a database server.
 Setup is usable before any model is configured and can offer missing speech/Ollama/model requirements for selected capabilities.
 The current bootstrap checks/initialises storage and SQLite and tracks
@@ -256,7 +269,7 @@ All write-capable tools, connectors, and future process workers enforce [Applica
 Application updating is outside the runtime/tool graph entirely.
 Automatic release checks publish bounded availability events for proactive speech.
 During the unsigned phase the host-owned dialogue is notify-only and cannot reach download, staging, execution, source mutation, or activation.
-Any future per-release installation approval reaches a separately gated maintenance controller through native secure confirmation, never a model-callable tool.
+Any future per-release installation approval reaches a separately gated maintenance controller through exact host-owned voice/UI confirmation and required OS checks, never a model-callable installer tool.
 Installation metadata distinguishes managed source and binary deployments from developer checkouts.
 Source builds and binary publication converge on versioned deployment outputs; logon launches published code, not the build toolchain.
 See [Distribution and Updates](Distribution_And_Updates.md).

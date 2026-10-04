@@ -36,10 +36,10 @@ No speculative Linux/macOS backends or automatic platform parity are included.
 | Clipboard | Explicit OS snapshot, format/size checks, preview, provenance, permission | Parsers, OCR, explanations, and workflows | Text in Slice A |
 | File/selection context | Explicit source selection, canonical paths, access checks | IDE/app bridges and format extractors | User skill revision selection in Slice C; general workspaces later |
 | Screen capture | Capture consent, region/window scope, indicator, context lifecycle | OCR and visual analysis adapters | Later |
-| Conversation/task state | History selection, context budget, cancellation, persistence choices | Skills may guide a task, not replace lifecycle | Slice A |
-| Work management/queue | Ledger, atomic scheduling, single execution slot, status grounding, prompt routing | Replaceable model adapter proposes contextual decisions; cannot execute tasks | Slice A |
+| Session/task state | Encrypted history/artifacts, Active/Done/retention, context budget, cancellation, structured questions and model history tools | Skills may guide a task, not replace lifecycle or self-submit answers | Slice A3/A4 |
+| Work management/queue | Per-session ledger, bounded concurrent scheduling, resource leases, status grounding, session/prompt routing | Replaceable model adapter proposes contextual decisions; cannot execute tasks | Slice A3 |
 | Proactive interaction | Event eligibility, consent/quiet preferences, speech scheduling, prompt binding | Admitted task integrations can supply scoped events, not maintenance authority | Slice A |
-| Application maintenance | Notify-only release discovery during unsigned phase; future independent signed-metadata trust and native-secure staging/activation boundary | Initial external manual replacement; future verified updater never exposed as an agent tool | Notify-only initially; install-capable updater deferred |
+| Application maintenance | Notify-only release discovery during unsigned phase; future signed-metadata trust, exact host-owned approval and OS-gated staging/activation | Initial external manual replacement; future verified updater never exposed as an agent tool | Notify-only initially; install-capable updater deferred |
 | Environment setup | Storage/schema initialisation, dependency catalogue, probes, consent, readiness, ownership | Registered first-party setup handlers; external engines installed only when selected/supported | Internal setup in Slice A; provider-specific setup with its adapter |
 | Model execution | Capability negotiation, policy, task protocol | Copilot/Ollama/Foundry/OpenAI adapters | Copilot proof in Slice A |
 | Tool execution | Schemas, policy mapping, approvals, results, audit | Registered bundled session/power actions; MCP tools later | Computer controls in Slice A; MCP in Slice B |
@@ -50,7 +50,7 @@ No speculative Linux/macOS backends or automatic platform parity are included.
 | Skills | Schema, embedded built-in resource catalogue, discovery, version pinning, dependency checks | Built-ins embedded in the protected app binary; user-authored declarative packages | Lock skill in Slice A; integration skills in Slice B; authoring in Slice C |
 | Scripts/processes | Trust checks, containment, approval, worker supervision, protected-resource enforcement | Fixed protected lock/shutdown/restart scripts; broader workers only after integrity gates | Computer scripts in Slice A; general scripts later |
 | Session/microphone policy | Observe Windows session state; prohibit/release microphone use while locked | OS notification/device libraries beneath host-owned enforcement | Slice A; non-overridable |
-| Builder | Voice refinement and data-only proposal/diff/test; separate native-confirmed save/enable with stale-content checks | Model generates skills; built-in validator checks them | Slice C |
+| Builder | Voice/UI refinement and data-only proposal/diff/test; separate exact-confirmed save/enable with stale-content checks | Model generates skills; built-in validator checks them | Slice C |
 | Git operations | Generic resource/action controls and protected-repository enforcement | Explicit Git tool adapter or MCP server | Later; cannot mutate Kora repositories |
 | Browser/desktop automation | Policy and consent if ever supported | Dedicated external tool services | Later |
 | Credentials/policy/audit | Protected storage, decisions, grant revocation, content-minimising records | Integrate supported OS/enterprise facilities | Slice A |

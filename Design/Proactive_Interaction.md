@@ -22,7 +22,7 @@ It does not authorise background collection, new model calls, tools, or applicat
 ## Host-Owned Interaction Broker
 
 The broker accepts typed events from authorised components, such as a verified update checker or the current task ledger.
-Each event has an ID, source, deduplication key, creation/expiry time, relevance, sensitivity, and permitted response actions.
+Each event has an ID, originating session/task where applicable, source, deduplication key, creation/expiry time, relevance, sensitivity, and permitted response actions.
 Events derived from task content retain the task's provenance and restrictions.
 Untrusted tool output cannot manufacture a trusted maintenance prompt or bypass an approval.
 
@@ -51,6 +51,7 @@ Local-only mode can deliver local task events; remote update checks require an e
 ## Reply Routing
 
 Only one spoken foreground prompt is eligible for a response.
+Several sessions can have explicitly addressed native question/approval cards; background events do not change session selection or that voice target.
 The user responds with "Kora, ..." or optional push-to-talk; unsolicited speech does not leave command transcription continuously open.
 Bind a reply to the exact current prompt ID, action, and expiry.
 Ambiguous "yes" or a reply after another prompt took focus requires clarification, not inferred approval.

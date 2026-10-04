@@ -1,0 +1,260 @@
+# Human Interaction and Persistent Sessions
+
+Status: agreed product direction; proposed contracts, not implemented capabilities.
+
+Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
+Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
+
+## Current Implementation and Design Gap
+
+The runnable bootstrap has one response title/body and latest transcript in `MainViewModel`, displayed by `ResponseWindow`.
+Typed and recognized spoken commands converge on the deterministic built-in command router.
+The updated bootstrap also handles unmatched requests with a verified local model, including clarifying questions and host-validated registered action/grant proposals with once/session/always choices.
+These named model-action preferences are not the future executable/script digest-bound grants; direct exact lock is still ungated while model-suggested lock asks for approval.
+The compact surface has a text field, Run, and Dismiss, with positioning and auto-hide preferences.
+The separate Documentation window renders trusted embedded documentation, not arbitrary session artifacts.
+
+There is no implemented durable multi-work-session store, session selection/history, general typed multi-choice/form question service, concurrent task scheduler, or model-facing session tool API.
+Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
+
+## Interaction Principle
+
+Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
+Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.
+Voice-first means convenient hands-free operation, not reduced UI capability or compulsory speech.
+Input and output choices are independent: typing does not require speech output; visual-only output does not mute input.
+
+Questions, answers, summaries, detail navigation, approvals, session management, and settings all use the same host services and validation.
+No UI action requires a spoken acknowledgment, and no ordinary Kora approval requires a click merely because it is high risk.
+The physical limits of a closed/unavailable microphone and mandatory OS/provider authentication, credential entry, and secure-desktop prompts remain explicit exceptions.
+Kora neither bypasses these requirements nor dictates credentials into a model.
+
+## Three Connected UI Surfaces
+
+1. **Compact session interaction:** evolve the response window into the latest interaction for the selected session, with its name, actual work state, concise answer/progress, structured question or approval, Details/History, and typed composer.
+2. **Session manager:** reachable from tray, keyboard, compact UI, and verbal commands; lists Active and Done sessions, selected-session marker, observed running/waiting/queued/failed/interrupted states, unread updates, last activity, and scheduled archive/deletion times. Supports search, selection, rename, explicit resume, Done, and delete.
+3. **History and detail viewer:** displays the selected session's ordered conversation and evidence, with expandable entries and immutable Markdown, static HTML, plain text, diffs, or `.ps1` source artifacts. Script viewing is not execution.
+
+The compact view is a projection of durable session events, not the only copy of the conversation.
+A concise answer retains a link to its fuller content; expanding it never reruns work.
+Streaming output is provisional until finalized, and summaries cannot claim observed success without receipts.
+All surfaces share theme, accessibility, safe rendering, and provenance rules in [Information Display](Information_Display.md).
+
+Closing/dismissing a window changes presentation only, not session lifecycle, work, microphone consent, or approval.
+Passive updates do not steal focus. Pending questions, grants, errors, and unknown outcomes remain reachable even when a compact surface auto-hides.
+Only ordinary non-interactive feedback uses the response timeout; an actively edited question or presented approval does not disappear under that timer.
+Prompt expiry still applies independently and is shown honestly.
+Switching sessions does not cancel background work. Content and delayed callbacks remain attached to their originating session.
+
+## Structured Questions and Mixed-Channel Replies
+
+Support single-choice options, multi-choice checkbox lists, yes/no decisions, bounded text, and typed forms where appropriate.
+Include free-form clarification when predefined options cannot express the user's answer; do not force every question into a yes/no approval.
+Each question declares:
+
+- Session, task, question, and revision IDs; purpose and source.
+- Question text, stable option/field IDs, labels, types, constraints, and minimum/maximum selections.
+- Whether a custom answer is allowed; required fields; submit/cancel meaning.
+- Creation/expiry, consequences, and any changed context/proposal digest.
+
+Voice can list/explain options, select or deselect by unambiguous name/number, supply text, review the draft, and submit/cancel.
+Mouse and keyboard edit the same draft; a user can speak one selection, click another, and submit either way.
+For multi-select/forms, changing a selection is not submission. No consequential affirmative option is preselected.
+Submission validates the complete typed answer and commits once against the question revision.
+Corrections and stale answers report their conflict; cancel/dismiss/expiry never means approval.
+Sensitive credentials use supported secure flows, not ordinary forms, history, or clipboard-answer shortcuts.
+
+Several sessions may await answers. Explicitly addressed visible UI cards can be answered independently.
+Only one spoken prompt is the foreground voice-reply target; it is distinct from the selected chat and executing tasks.
+A generic spoken reply needs a unique current target. Naming another session requires presenting/revalidating that question before accepting an answer.
+Changing voice focus withdraws the old generic voice-reply eligibility, not the old card's explicitly addressed UI eligibility.
+Presentation and answer receipts record the channel and exact IDs; model-generated prose or rendered buttons cannot submit answers.
+
+## Approval and Risk: Session Trust, Not Mouse Superiority
+
+The baseline is the active unlocked Windows user session, not protection against someone controlling that already-unlocked account.
+Deliberate activated speech and deliberate native UI interaction are both supported expressions of user intent.
+Kora is responsible for its additional acoustic/automation risks: playback, ambiguous targets, prompt injection, stale proposals, expanded scope, and unintended dispatch.
+It is not endpoint security and cannot secure a compromised Windows account.
+
+Optional locally enrolled speaker verification adds confidence and can enforce an explicitly selected owner-voice preference.
+It is not guaranteed authentication, and an ordinary click is not reauthentication either.
+Do not enroll or silently adapt a voice identity from chat history; protected enrollment and biometric handling follow [Security](Security_Data_Flows.md).
+Uncertain verification explains the limitation and offers an explicit alternate channel; it cannot manufacture consent.
+Required Windows/UAC/provider authentication remains mandatory regardless of channel or voice match.
+
+Risk is assigned by host policy to an execution proposal, not by a model describing a script as safe.
+Evaluate effects, canonical targets/blast radius, reversibility, environment, data exposure/destination, privileges, and confidence in enforced execution constraints.
+Use categorical thresholds rather than claiming a numerical probability from script text:
+
+| Class | Typical proposal | Required treatment |
+|---|---|---|
+| Informational/safety | Help, factual non-sensitive status, stop speech, pause dispatch | Direct deterministic operation under its fixed policy |
+| Low | Registered bounded non-sensitive local read without egress | Explicit request/confirmation as defined for the action |
+| Medium | Private capture/egress, exact reversible user-file change, skill save/enable, privacy-affecting preference | Exact scope/destination/change review and deliberate voice or UI confirmation |
+| High | Irreversible or broad deletion, production/shared-resource change, security/credential change, software installation, arbitrary code with unverified effects | Explicit consequences, targets, source/diff and recovery limitations; action-specific confirmation through either channel; mandatory OS/provider checks |
+| Prohibited | Protected Kora mutation, bypassing lock/containment, exposing credential-store secrets, unsupported execution | Reject; approval cannot override policy |
+
+Unknown or mixed effects receive the highest applicable permitted review class.
+Administrator elevation is neither necessary nor sufficient for high risk.
+Registered constrained actions may have lower risk only when their effects are actually enforced.
+Static analysis/model review is advisory; arbitrary PowerShell may import code or construct effects dynamically.
+General script execution remains separately gated, not newly enabled by adding a `.ps1` viewer.
+
+A high-risk spoken confirmation names the action and target, not just "yes".
+The equivalent UI explicitly identifies the same proposal and requires a fresh deliberate gesture.
+Bind each decision to session/task/invocation, reviewed script/dependency digests, parameters, resolved resources, identity, destination, policy revision, expiry, and allowed use.
+Material changes invalidate approval. No implicit inheritance across sessions or tasks.
+Once/session/always are duration choices available for approvable actions, not blanket trust of future implementations.
+Future reusable execution grants bind the exact task/invocation and complete host-computed script/executable/dependency digest set; mismatch revokes affected grants and reverting bytes does not resurrect them.
+Protected lock uses the same future version-bound action approval gate for direct and suggested requests; priority routing does not waive it.
+See [Skill and task execution design](../docs/skill-and-task-execution-design.md) for these execution gates; arbitrary or prohibited effects cannot become a reusable grant.
+The host owns trusted question/approval controls and readback; Markdown/HTML/script comments and model/tool statements are not grants.
+An archived grant record is historical evidence, never a live token.
+
+## Session Identity, State, and Contents
+
+A Kora session is a durable user work stream containing conversation, tasks, and evidence, not an execution slot or provider memory.
+Its immutable ID survives renaming, selection, archive, and explicit resume.
+Lifecycle is **Active** or **Done**; work state is separate: idle, queued, running, waiting for user/approval, blocked, failed, cancelled, interrupted, or outcome unknown.
+Done means archived, not "every action succeeded". Deleted is irreversible removal, not another browsable status.
+A terminal task result does not automatically mark the whole session Done.
+
+Host-owned records include:
+
+- Session ID/title, lifecycle, selected state, creation/last meaningful activity, archive time/reason, retention-policy revision, and deletion due time.
+- Ordered user/assistant messages with voice transcripts or typed content, channel, timestamps, revisions/corrections, provenance, and incomplete/final status.
+- Questions, options, drafts/accepted answers, decisions, denied/cancelled/expired proposals, and routing decisions.
+- Tasks, planned versus observed progress, dependencies, action requests/results/receipts, errors, cancellation certainty, and late reconciliation.
+- Reviewed script/diff/artifact snapshots, digests, citations, relevant tool exchanges and context snapshots allowed by source/security policy.
+- Approval/grant scope and creation/use/denial/expiry/revocation evidence, linked to the separate security service without persisting reusable approval tokens.
+
+Full retained history is the evidence source. Derived summaries/indexes aid discovery, never replace it or silently evict old entries.
+Never store raw ambient/command audio, credentials, tokens, enrollment material, or hidden model reasoning in session history.
+Secret screening is best-effort: redact detected secrets before durable storage and identify omitted/redacted/restricted content.
+Source/account restrictions can require removal or prevent retention; record an explicit content-unavailable reason rather than promising an unrestricted copy.
+Diagnostics remain content-minimising and separate from intentional session history.
+
+## New Requests and Routing
+
+Explicit targeting wins: input in a session composer continues that session; "new session" starts one; naming a session targets it.
+An untargeted general voice/global-composer request starts a new session unless clearly related to an Active session.
+Model-assisted matching uses bounded, permitted session descriptors/summaries and the current request, not every transcript or tool result.
+Return a typed route proposal with candidate IDs, evidence references, and expected registry revision.
+The host validates lifecycle, identity, permissions, and revision before admission.
+
+- One clear active match: continue it and acknowledge the session name, with an immediate correction route.
+- Several plausible matches: ask a targeted session-choice question, including New session.
+- No clear match or unavailable routing inference: create a new session; offer deterministic session selection rather than guess a relationship.
+- Archived match: offer discovery/history; only an explicit resume decision reactivates it.
+
+The selected UI session does not silently redirect an untargeted voice request or authorize a background action.
+Exact session list/switch/new/Done/delete controls and basic factual status work without a model or network.
+A status/history question reads the addressed records and does not resume the subject sessions.
+Relatedness never transfers grants, provider state, sources, or permissions between sessions.
+
+## Concurrent Work and Focus
+
+Independent Active sessions can execute concurrently, including writes to different resources.
+Initial proposed default: two executing session tasks, with a configurable limit admitted only within verified provider/hardware capabilities.
+One execution slot per session preserves its ordering unless a later explicit design enables intra-session parallel tasks.
+Resource holds, dependency readiness, provider budgets, and fair scheduling govern admission; selected session gets no implicit execution priority.
+Management and exact local controls remain responsive while all slots are occupied.
+
+Canonical resource declarations and host-owned shared/exclusive leases prevent conflicting writes and read/write races.
+The relevant resource may be a repository/worktree, file tree, remote environment, account-scoped object, or OS lifecycle.
+Unknown effects or incomplete resource sets cannot claim safe parallelism; serialize in an enforced exclusive execution domain or reject unsupported execution.
+Coordinate with external version changes by revalidating the reviewed base immediately before effects; Kora leases cannot lock out unrelated external applications.
+A dependency or unresolved remote outcome blocks conflicting/dependent dispatch, not unrelated sessions.
+
+Each session has isolated context, runtime conversation, cancellations, queues, grants, and event sequence.
+Provider session IDs are adapter-owned subordinate references, never the canonical history.
+TTS is shared and serialized, with session-labelled readback and one foreground voice question.
+Background progress remains in its session; eligible notifications follow proactive/call/privacy policy and never replace an approval.
+App exit/restart/power preparation coordinates all sessions, not just the selected one.
+
+## Inactivity, Done, Resume, and Delete
+
+Defaults: **archive after 24 hours of inactivity; delete after 30 days of inactivity**.
+Both are device-local configurable settings, not hard-coded safety constants.
+Use the same last-meaningful-activity clock for both; deletion is not 30 days after creation or archive.
+Validate finite positive durations with deletion later than automatic archive; invalid combinations are rejected, never silently clamped.
+
+Accepted substantive user input, an accepted answer/decision, explicit resume, and actual task progress/completion update meaningful activity.
+Selection, browsing, search, history questions, polling/heartbeats, and synthetic reminder events do not.
+Record durable UTC timestamps and due times; clock rollback cannot trigger premature expiry.
+Automatic lifecycle changes do not themselves reset meaningful activity.
+
+Live queued/executing work or an action awaiting resolution is never silently abandoned by archiving/deletion.
+Expired questions and queued-task execution lifetimes follow task policy; expiry releases execution eligibility, not retained history.
+Unknown side effects remain visibly flagged and block automatic removal pending reconciliation or an explicit informed disposition.
+Evaluate lifecycle on a timer and at startup/access, so overdue records are not exposed merely because Kora was closed.
+Record archive reason and outcomes; an automatic Done transition is not success.
+
+"This session is done" archives the identified session after resolving live work: wait, explicitly cancel, or decline.
+Archive preserves all permitted history and revokes session-scoped executable eligibility/grants; it does not delete artifacts or saved skills.
+"Resume that session" explicitly reactivates it and resets activity, but does not rerun tasks, restore approvals, or transmit old context.
+Previously Done sessions remain readable without resume.
+
+Explicit deletion previews the exact session/data and work impact and requires action-specific voice or UI confirmation.
+Automatic purge uses the disclosed configured retention policy without asking again for every eligible expired session; live/uncertain-work checks still apply.
+Cancel/reconcile live work first; prevent further appends, invalidate session grants, and remove messages, artifacts, source snapshots, summaries, search indexes, caches, and recoverable database/journal copies according to the store's deletion contract.
+Content-minimising independent security/diagnostic records follow their own disclosed retention and cannot reconstruct deleted conversation.
+User exports and provider-side copies are outside local deletion; disclose that limitation.
+Do not promise forensic secure erasure or remote cancellation.
+
+Changing either retention setting shows affected due dates; shortening it previews records that would immediately archive/delete and requires a separate explicit apply-now decision.
+Without that decision, retain existing sessions' due dates and apply the new policy to new sessions or subsequent meaningful activity; do not defer an unconfirmed immediate purge to the next timer tick.
+No setting change silently purges sessions. Storage pressure reports failure/options, never undocumented eviction.
+
+## Persistence and Restart
+
+Persist accepted input/decisions and finalized artifacts as ordered host events; write intent before dispatch and link observed receipts afterward.
+Use transactional revision/sequence updates, encrypted device-local history/artifacts/indexes, OS-protected keys, and schema migration/backup/deletion proofs.
+Do not select an encryption/database library without its Windows deployment and recovery evidence.
+Storage failure is visible and blocks consequential dispatch whose required intent/decision cannot be recorded.
+
+Restart restores Active/Done history and UI selection, not action execution, queue dispatch, or consumed/expired approval tokens.
+Separately authorized always grants may survive only under their exact implementation/invocation identity and fresh host revalidation; retained chat/grant evidence alone never restores authority.
+Recovered non-terminal work becomes Interrupted or Outcome unknown with an explicit resume/replan/reconciliation route.
+Every future dispatch revalidates current policy, source access, context freshness, identities, dependencies, and resources.
+Preserved readable content is not permanent authorization to use or transmit it.
+
+## Model-Facing Host Tools
+
+Names below are conceptual contracts, not existing SDK APIs.
+All results carry stable IDs, revisions, observation time, provenance, pagination/continuation, and explicit unavailable/redacted/truncated markers.
+Proposed history pages contain at most 50 events and fit the existing 64 KiB model-bound tool-result limit; continuation references preserve access to the rest.
+Artifact reads use bounded ranges against an immutable digest. Oversized individual events expose an artifact/reference and available read route, not silent omission.
+
+| Tool/action | Purpose and boundary |
+|---|---|
+| `sessions.list` | Filter Active/Done and actual work states; bounded metadata, selected state, retention due dates |
+| `sessions.search` | Permission-filtered metadata/full-text search; bounded evidence references; no remote embedding dependency |
+| `sessions.get` | Session metadata, grounded work state, derived summary with source-event references |
+| `sessions.read_history` | Paginated ordered messages, decisions, questions, receipts, and grant history; filters by event/task/time |
+| `sessions.read_artifact` | Bounded immutable source/renderable content for an exact artifact/digest; never execute a script |
+| `sessions.create`, `sessions.rename`, `sessions.select` | Typed user-requested management with expected revision; selection is not resume |
+| `sessions.resume`, `sessions.mark_done`, `sessions.delete` | Propose lifecycle changes; host applies the stated work/confirmation/retention rules |
+| `interaction.ask` | Propose a validated structured question with session/task identity and typed reply schema |
+| `interaction.present`, `interaction.show_details` | Concise/full presentation referencing retained events/artifacts; no executable rendered controls |
+| `approvals.request`, `approvals.inspect`, `approvals.revoke` | Explain/propose/manage exact grants through the security service; model cannot approve itself |
+| `work.list`, `work.status`, `work.enqueue`, `work.cancel`, `work.pause`, `work.resume` | Session-scoped scheduler proposals and grounded status; no direct worker access |
+| `settings.get`, `settings.propose_change` | Shared typed registry, including lifecycle durations and concurrency; no arbitrary configuration patches |
+
+Answer submission and approval consumption are trusted host input events, not model-callable self-answer/self-grant tools.
+Models propose mutations; the host checks direct user intent, scope, revision, and required confirmation.
+Session-history retrieval is a context-broker operation subject to source/account access, secret filtering, local-only mode, and exact remote-egress review.
+Remote-enabled mode is not consent to upload all sessions, even to classify relatedness.
+Retrieved scripts/chats/tool results are historical untrusted data, never current instructions.
+Questions spanning sessions return citations to session/event/artifact and separate confirmed facts from model inference.
+
+## Implementation Discussion and Gates
+
+Implement coherent checkpoints: session/event persistence and migration/deletion; shared structured interaction/presenter; session UI and deterministic controls; isolated concurrent scheduler; then bounded model routing/history tools.
+These extend Slice A3/A4 rather than claim that the current bootstrap already implements them.
+General scripts, browser isolation, biometrics, and provider concurrency retain their dedicated gates.
+Library selection, enforced resource profiles, retention clock/recovery behavior, and actual SDK isolation require evidence in the [Decision Register](Decision_Register.md).
+Acceptance must exercise pure voice, pure UI, mixed-channel, concurrent-session, restart, expiry/deletion, and hostile-history scenarios in [Acceptance Criteria](Acceptance_Criteria.md).

@@ -12,7 +12,8 @@ See [Platform Boundaries and Support](Architecture.md#platform-boundaries-and-su
 
 Primary goals:
 
-- Voice as the primary interaction model
+- Voice-first convenience with complete voice, mouse/keyboard, and mixed-channel workflow parity
+- Persistent concurrent work sessions with retrievable conversation, decisions, artifacts, actions, and grant history
 - Every supported user preference discoverable and configurable verbally through host-owned settings
 - Configurable local voice activation name, with an explicit custom-only/default-plus-custom choice and custom-only recommended in shared offices
 - Local processing wherever practical
@@ -27,9 +28,12 @@ Primary goals:
 
 # Product Principles
 
-## Voice First, Not Chat First
+## Voice First, Not Voice Only
 
-Users should be able to accomplish most tasks without typing.
+Users should be able to accomplish every supported Kora workflow without compulsory typing, or entirely through accessible UI without compulsory speech.
+Mandatory OS/provider authentication and unavailable microphone constraints remain explicit, not Kora-imposed channel restrictions.
+The compact latest-interaction UI, session manager, and full history/detail viewer share host-owned questions and approvals.
+See [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
 Kora can also initiate conversation, for example to offer an available update or ask for clarification on current work.
 Suggestions are not authority to execute actions; see [Proactive Voice Interaction](Proactive_Interaction.md).
 Speech respects a voice-configurable call policy, with Teams detection where supported and visual fallback during calls.
@@ -167,7 +171,8 @@ Responsibilities:
 - Voice-friendly interactions
 
 Work management remains responsive alongside task execution, interpreting queue changes in context and asking when intent is ambiguous.
-The initial design has one task executor, not multiple concurrent task workflows.
+The design supports bounded concurrent work sessions, with isolated context/approvals and coordinated shared-resource access.
+Session selection is presentation focus, not cancellation or permission to merge work.
 Status answers distinguish observed progress from planned or unknown work.
 See [Work Management and Request Queue](Work_Management.md).
 
@@ -267,7 +272,7 @@ Skills describe repeatable behavior.
 Users can develop and refine skills through voice without changing the application.
 See [Voice-Driven Skill Authoring](Skill_Authoring.md).
 Kora also ships out-of-the-box skills, including "Kora, lock the machine", backed by a protected bundled script.
-Graceful shutdown/restart controls use distinct named confirmation plus native secure confirmation outside the speech/model path; application and queue controls have separate reserved intents.
+Graceful shutdown/restart controls use distinct action-specific voice or UI confirmation and retain any mandatory OS checks; application and queue controls have separate reserved intents.
 See [OOTB Phrase Catalogue](OOTB_Phrases.md).
 User-authored declarative skills and immutable first-party scripted skills have distinct installation/trust boundaries.
 See [Out-of-the-Box Skills](Built_In_Skills.md).

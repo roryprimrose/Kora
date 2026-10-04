@@ -4,22 +4,24 @@ Status: proposed full Slice A capability. The current implementation tracks boot
 tasks/progress and answers deterministic status commands; this is not proof
 that the contextual work-management lane and executor below are shipped.
 
-Related: [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
+Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Two Independent Lanes
 
 Kora has a work-management lane and a task-execution lane.
 Management remains available while the executor is planning, waiting for approval, running a tool, or cancelling.
-Only one task occupies the execution slot; management inference is not a second task executor.
+A bounded scheduler admits one task per Kora session and multiple independent sessions concurrently; management inference is not a task executor.
+The execution limit is configurable within verified capability, initially proposed as two, with resource leases and per-session isolation.
 
 The management lane:
 
-- Interprets new requests against the current task and queue.
+- Routes general requests to a new session unless clearly related to an Active session; explicit session targeting wins.
+- Interprets requests against the addressed session's task and queue.
 - Proposes queue additions, edits, ordering, removal, replacement, or clarification.
 - Answers current-work and remaining-work questions from an authoritative ledger.
 - Routes approval replies to the correct task and request.
 
-The execution lane performs the admitted task's model/tool workflow.
+Execution lanes perform admitted session tasks' isolated model/tool workflows.
 Management cannot run task tools, acquire arbitrary context, or approve task actions.
 Host-owned, explicitly requested context capture still uses the context broker.
 
@@ -28,7 +30,7 @@ Host-owned, explicitly requested context capture still uses the context broker.
 Use the model to decide what a new utterance means when context makes that decision clear.
 Do not ask "queue or replace?" on every request.
 
-| User request while busy | Expected interpretation |
+| User request explicitly addressing a busy session | Expected interpretation |
 |---|---|
 | "Also explain this other exception" | Queue a separate task if its source is clear |
 | "Do that before the documentation update" | Reorder the identified pending tasks |
@@ -58,7 +60,7 @@ Local-only mode does not call a remote management model.
 ## Management Operating Envelope and Degraded Mode
 
 The management lane is optional inference around a mandatory deterministic host core.
-Exact cancel/stop/pause/clear commands, direct task-ID operations, queue listing, and factual ledger status never require management inference.
+Exact session list/select/new/Done/delete and cancel/stop/pause/clear commands, direct session/task-ID operations, queue listing, and factual ledger status never require management inference.
 When inference is unavailable or budget-limited, an ambiguous request receives native choices such as Queue, Replace current, or Cancel; it is never guessed, dropped, or treated as task approval.
 
 Initial per-profile limits:
@@ -78,7 +80,7 @@ Users can disable model-assisted management, in which case deterministic choices
 
 The host owns records containing:
 
-- Task ID, user-visible label, request reference, creation time, and queue position.
+- Session/task IDs, user-visible label, request reference, creation time, and per-session queue position.
 - State: Needs Clarification, Queued, Active, terminal outcome, or Expired.
 - Context references and capture times, selected identity/runtime, and declared dependencies.
 - Observed current stage, last event time, blocker, and approval reference.
@@ -98,25 +100,26 @@ Task labels, requests, and step descriptions are potentially sensitive content, 
 - Default order is arrival order. Contextual reordering requires a clear user instruction and acknowledgement.
 - A task needing clarification keeps its position and blocks dispatch at that position until clarified, removed, or explicitly deferred.
 - Explicit dependencies must succeed before dependent work starts. Failed, cancelled, expired, or unknown prerequisites block dependent dispatch.
-- A queue entry expires after 30 minutes waiting by default; notify the user and release its content references. Extending/requeuing requires a new decision. User-configured lifetimes follow [User Configuration](User_Configuration.md), including confirmation of affected entries.
+- A queue entry's execution eligibility expires after 30 minutes waiting by default; notify the user and release active context references, retaining its request/expiry as session history. Extending/requeuing requires a new decision and context revalidation. User-configured lifetimes follow [User Configuration](User_Configuration.md).
 - The active-task deadline begins when dispatched, not while queued.
 - Normal successful completion dispatches the next ready entry automatically by default, after policy/context revalidation; user-selected manual dispatch adds a start decision. Queuing or approving dispatch is not action approval.
 - Failure, cancellation, or unknown side effects pause automatic dispatch and explain why. The user can resume or explicitly choose a replacement.
-- A voice cancellation request immediately pauses new dispatch; destructive cancellation requires owner presence and native confirmation, then preserves unrelated pending entries.
-- "Clear the queue" pauses dispatch and requires owner presence/native confirmation before removing the displayed pending entries.
-- "Stop all work" pauses dispatch immediately and requires owner presence/native confirmation before cancelling active execution and clearing pending entries.
+- A cancellation request immediately pauses the addressed dispatch; deliberate exact voice or UI confirmation completes cancellation while preserving unrelated pending entries.
+- "Clear the queue" pauses the addressed queue and requires explicit voice or UI confirmation before removing its displayed pending entries from dispatch, not history.
+- "Stop all work" explicitly targets all sessions, pauses dispatch immediately, and requires exact affected-work voice or UI confirmation before cancel/clear.
 - "Pause the queue" blocks new dispatch without suspending/cancelling the active task; resume still revalidates dependencies/policy.
 - A replacement waits for host-side execution quiescence. If remote work may still be running, report the uncertainty and require an explicit decision before dispatching more work.
-- Scheduling mutations and slot acquisition are atomic host operations. Concurrent model proposals with stale revisions are re-evaluated, not blindly replayed.
+- Scheduling mutations, execution-slot acquisition, and canonical shared/exclusive resource leases are atomic host operations. Concurrent proposals with stale revisions are re-evaluated, not blindly replayed.
+- Writes to different declared resources can proceed concurrently; conflicting reads/writes, OS lifecycle, and unknown effects require enforced exclusive coordination or rejection.
 
 ## Context and Approval Timing
 
 Bind explicit "this clipboard" requests to the requested immutable snapshot at admission; do not read a later clipboard value silently.
 If source selection is ambiguous, clarify before capturing it.
-Queue interpretation receives only the context required to identify the work, not all snapshots or tool outputs.
+Session/queue interpretation receives only permitted bounded descriptors and the context required to identify the work, not all snapshots or tool outputs.
 Raw clipboard, retrieved documents, tool results, rendered content, and skill instruction bodies are never sent to management inference.
 Host-derived task IDs, safe labels, state, dependencies, and the authenticated user management utterance are structurally separated; untrusted task labels cannot become management instructions.
-Any inferred cancellation, replacement, removal, or reordering proposal pauses at native confirmation rather than mutating the ledger directly.
+Any inferred cancellation, replacement, removal, or reordering proposal pauses at explicit voice or UI confirmation rather than mutating the ledger directly.
 
 At dispatch, revalidate context existence/expiry, identities, dependencies, tool capabilities, policy, and any changed write base.
 Missing/expired context requires a fresh selection or recapture decision.
@@ -129,23 +132,23 @@ Management status uses the same visual/TTS presenter but has its own response id
 An explicit status question takes speech priority; task execution continues and its visual progress remains visible.
 Call-aware policy still gates that speech; priority does not bypass suppression or a separate prompt's approval identity.
 Do not overwrite an approval card with a queue acknowledgement, or interpret a queue clarification reply as action approval.
-Only one voice prompt is foreground at a time, with an explicit prompt ID and expiry.
-Showing another prompt withdraws the previous prompt's response eligibility; a paused action must be re-presented before accepting approval.
+Only one voice prompt is foreground at a time, with session/task/prompt IDs, revision, and expiry.
+Changing voice focus withdraws generic spoken eligibility; explicitly addressed valid UI cards remain usable in other sessions.
+A verbally targeted background approval is re-presented/revalidated before accepting its action-specific confirmation.
 Do not silently extend an action approval's expiry while managing the queue.
 
-Clearing a conversation first pauses its work, then requires owner presence/native confirmation for the displayed active/pending/context deletion set.
-Confirmed deletion releases ephemeral ledger content; interrupted work remains visible until that decision so a bystander cannot erase it by voice.
-Restart never restores/replays queued requests under the default memory-only retention policy.
-Persist only content-minimising interruption/outcome metadata, not queue labels, plans, or request bodies.
+Deleting a session first pauses its work, then requires exact affected-work/data voice or UI confirmation and the lifecycle checks in [Interaction and Sessions](Interaction_And_Sessions.md).
+Done archives, dismissal hides, and deleting removes retained content; these are different operations.
+Restart restores readable request/ledger history with interrupted/unknown work, never automatically replays queues or approval tokens.
+Pending-request/context execution expiry does not erase durable history or extend session retention.
 
-## Future Parallel Task Execution
+## Required Concurrent Session Execution
 
-Concurrent management is required now; concurrent task execution is a separate potential extension of the scheduler.
-The proposed first step would be a bounded number of independent read-only tasks, not unrestricted parallel agents.
-This is not enabled in the MVP.
+Bounded independent session execution, including writes to different resources, is required in the revised Slice A3 design.
+Unrestricted parallel agents or multiple concurrent tasks within one session are not implied.
 
-Before enabling it, require task-context isolation, per-task cancellation, resource conflict declarations, dependency checks, provider concurrency budgets, and fair scheduling.
+Before enabling it, prove session/task-context isolation, per-task cancellation, enforced resource conflict coordination, dependency checks, provider concurrency budgets, and fair scheduling.
 Read-only tasks can still disclose data or contend for model/hardware resources; each retains its own egress controls.
-Writes to a shared repository/resource must remain exclusive until a tested coordination strategy exists.
-Approval prompts must remain task-scoped and serialised for the user, even when execution is concurrent.
-The ledger/scheduler contracts keep task identity independent of queue position so a future execution-slot limit can change without redesigning status or cancellation.
+Writes to a shared repository/resource remain exclusive, with base revalidation against outside changes.
+Approval prompts remain session/task-scoped; only speech targeting is serialized, not explicitly addressed UI responses.
+The ledger keeps identity independent of queue position and records observed resource-wait/provider-limit blockers without inventing progress.

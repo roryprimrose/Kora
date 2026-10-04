@@ -1,12 +1,14 @@
-# Mouse-Based Questions and Voice Readiness Recovery
+# Shared Questions and Voice Readiness Recovery
 
 Status: required host capability from Slice A. Voice-first must not mean voice-only.
 
-Related: [Environment Setup](Environment_Setup.md), [Task Lifecycle](Task_Lifecycle.md), [User Configuration](User_Configuration.md), [Information Display](Information_Display.md).
+Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Environment Setup](Environment_Setup.md), [Task Lifecycle](Task_Lifecycle.md), [User Configuration](User_Configuration.md), [Information Display](Information_Display.md).
 
 ## Product Requirement
 
 Kora can ask questions and receive mouse input when no microphone is configured, permitted, connected, or usable.
+Voice, UI-only, and mixed-channel questions are equal supported paths, not merely microphone-failure fallbacks.
+Single-choice, multi-choice checkbox, bounded text/form, draft, submit/cancel, and session ownership semantics are defined in [Interaction and Sessions](Interaction_And_Sessions.md#structured-questions-and-mixed-channel-replies).
 This also applies when speech recognition/wake assets are unavailable or the user intentionally closes the microphone.
 The fallback is always present in the native shell; it needs no model, skill, network, working microphone, or TTS engine.
 
@@ -83,12 +85,12 @@ Neither typing nor clipboard use is mandatory for the microphone-selection workf
 Clipboard input is an explicitly requested bounded snapshot with provenance and normal context/egress review, not silent polling or automatic submission.
 Passwords/tokens remain in secure authentication flows, never model-visible prompt fields or clipboard-answer shortcuts.
 
-Only one foreground response-eligible prompt exists, as in task lifecycle.
+Only one foreground voice-reply target exists, distinct from session selection and task execution; explicitly addressed valid UI cards in other sessions remain usable.
 Device recovery is a separate host card; it cannot replace an action approval and let an old Confirm click apply to a new question.
-Changing prompt focus withdraws prior reply eligibility; show/revalidate it again before accepting a response.
+Changing voice focus withdraws generic spoken eligibility; present/revalidate a background proposal before accepting its verbally targeted response.
 Double clicks, delayed events, stale devices/configuration revisions, expired grants, and lock races produce no duplicate action.
 An expired prompt shows Expired and a request to re-present/revalidate, never a silent lifetime extension.
-Changing input channel does not extend deadlines or relax high-risk visual confirmation.
+Changing input channel does not extend deadlines, weaken action-specific review, or bypass mandatory OS/provider checks. High risk alone does not require mouse input.
 
 Model-generated option text remains untrusted: the host binds each selection to a validated typed proposal.
 A webpage, Markdown button, or skill instruction cannot impersonate a native prompt/control.
@@ -107,7 +109,7 @@ Avoid repeated modal recovery prompts while the user has chosen non-voice operat
 
 The Windows notification-area icon is the primary non-voice entry point, present for the lifetime of the normal desktop instance, even when the presence/details are hidden.
 It is not optional while Kora is running; Windows may place it in the notification-area overflow and Kora must not claim it can force taskbar pinning.
-Voice remains the primary normal interaction; the tray is deterministic host functionality requiring no model or working audio device.
+Voice is a convenient primary path, not compulsory; the tray is deterministic host functionality requiring no model or working audio device.
 A single left-click shows and activates the existing Kora window. A
 double-click opens or activates the single Settings window. Because Windows
 reports the first click before it knows whether a second will follow, the
@@ -130,6 +132,7 @@ Enable listening
 Mute Kora
 Stop speaking
 Work and queue...
+Sessions and history...
 Settings...
 Check for updates
 Exit Kora
@@ -159,7 +162,8 @@ Retain an accessible standard window/launcher route that reveals the existing si
 Report tray failure visibly where possible; a missing tray icon must not strand a hidden application behind a voice-only recovery requirement.
 If neither tray nor native window can expose trustworthy microphone state, close capture and require explicit re-enabling after the visible recovery route is restored.
 
-Closing a prompt is distinct from exiting Kora, cancelling a task, or denying a pending action; label those choices explicitly.
+Closing a prompt is distinct from exiting Kora, cancelling a task, denying an action, marking a session Done, or deleting it; label those choices explicitly.
+Session list/switch/new/Done/delete and pending question controls are reachable without voice, with the same lifecycle validation and exact confirmation rules.
 Failures include actionable information and truthful state, not a success indicator or a silent device fallback.
 Voice readiness must not prevent local settings, task management, basic output, or setup; model-dependent answering remains unavailable when its provider is not ready.
 

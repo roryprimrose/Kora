@@ -119,7 +119,7 @@ Shipping fixed scripts does not enable arbitrary user scripts.
 Ship protected shutdown and restart skills alongside lock, mapped to fixed `computer.shutdown` and `computer.restart` actions.
 The same script identity, containment, non-self-modification, and local routing requirements apply.
 No generic shell, remote target, forced-close parameter, or user-defined privileged command is exposed.
-Their named voice proposal/confirmation, required native secure confirmation, active-work handling, host countdown, and cancellation are defined in [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).
+Their action-specific voice or UI confirmation, mandatory OS checks, all-session active-work handling, host countdown, and cancellation are defined in [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).
 App exit/hide/settings and queue controls are built-in lifecycle intents, not scripts required to control the host.
 
 ## Mandatory Locked-Session Microphone Policy

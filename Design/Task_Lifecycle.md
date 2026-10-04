@@ -10,7 +10,8 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 
 Assistant startup and release/debug takeover obey [Instance Coordination](Instance_Coordination.md): one exclusive active owner, explicit quiescent transfer, and no task/grant/listening replay on return.
 
-The MVP permits one task in the execution slot, plus pending work and a concurrently responsive management lane.
+The revised MVP permits bounded concurrent Kora sessions, one executing task per session, plus per-session pending work and an independently responsive management lane.
+Session Active/Done lifecycle and persistence are separate from task outcomes; see [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
 Requests enter a ledger as Queued or Needs Clarification before dispatch to Preparing.
 Voice capture/transcription feeds management independently of the active task's state.
 Voice capture and playback have their own states; stopping playback does not necessarily stop task execution.
@@ -52,7 +53,7 @@ Endpoint loss invalidates capture/transcript generations and offers recovery wit
 - Wait up to 5 seconds for command speech, then abandon an empty activation without calling the runtime or reading context.
 - End a spoken command after 1 second of trailing silence, or at the 60-second capture limit.
 - Each follow-up, correction, or low-risk voice approval starts with a current active name or optional push-to-talk; there is no unbounded open conversation microphone.
-- During a running task, local control commands are handled immediately. The independent manager interprets other requests in context, updates the queue when intent is clear, and asks when ambiguous; it never starts a second task executor.
+- During running tasks, local controls are handled immediately. The independent manager routes other requests to the explicitly addressed/clearly related Active session or a new session, while the host scheduler enforces concurrent-slot and resource limits.
 - During TTS, keep local wake detection active with playback echo rejection. User activation stops TTS and captures the command; it does not by itself cancel the task.
 - When Windows exposes a supported system-output/loopback reference, correlate all device playback, not only Kora TTS, and reject commands attributable to local media or conference output. If that proof is unavailable, disclose the limitation and prefer headset/PTT for disruptive controls.
 - If playback rejection cannot be established, suspend TTS and explain why; wake activation remains available with visual output.
@@ -79,24 +80,25 @@ disclosure, and false-activation tests also matter.
 | Intent | Behaviour |
 |---|---|
 | "Stop speaking" | Stop TTS and clear its playback queue; task continues |
-| "Cancel task" | Pause new task/tool dispatch immediately; require owner presence and native confirmation before destructive cancellation/revocation |
+| "Cancel task" | Pause the identified task/tool dispatch immediately; exact affected-work voice or UI confirmation completes cancellation/revocation |
 | "Lock the machine" | Proposed: invoke the fixed bundled lock skill through the common action-specific gate as a priority session control; enforce microphone shutdown on the actual Windows lock event. Today exact direct lock calls the Windows API without that gate |
-| "Shut down the computer" / "Restart the computer" | Open a fixed local power proposal; require matching named confirmation, safe work handling, a native secure confirmation outside the speech/model path, and a cancellable host countdown |
+| "Shut down the computer" / "Restart the computer" | Open a fixed local power proposal; require matching action-specific voice or UI confirmation, safe handling of all sessions, mandatory OS checks, and a cancellable host countdown |
 | "Hide Kora" / "Show Kora" | Change presentation only; do not mute, exit, or alter active work |
 | "Exit Kora" / "Restart Kora" | Graceful app lifecycle action; explicitly confirm affected pending/active work, never substitute computer restart |
 | "What are you currently working on?" | Report the active task, observed stage, and blocker without interrupting execution |
 | "What do you have left to do?" | Report known remaining active steps and queued work; explicitly identify unknowns |
 | "Do that next" | Contextually move the uniquely identified pending task next; clarify ambiguous targets |
 | "Cancel the queued documentation update" | Remove the identified pending entry; do not cancel unrelated work |
-| "Clear the queue" | Pause dispatch and present the affected entries; require owner presence and native confirmation before removal |
+| "Clear the queue" | Pause the addressed dispatch and present affected entries; require exact voice or UI confirmation before removing dispatch eligibility, not history |
 | "Resume the queue" | Resume paused dispatch after revalidation and any required uncertainty decision |
 | "Pause the queue" | Stop new dispatch while the current task continues |
-| "Stop all work" | Immediately pause new dispatch, then require owner presence and native confirmation before cancelling active execution and clearing pending entries |
+| "Stop all work" | Immediately pause dispatch across sessions, then require exact voice or UI confirmation before cancellation and clearing dispatch entries |
 | "Stop" | Stop TTS immediately and pause new dispatch; destructive task cancellation requires the separate confirmed cancel flow |
 | "Repeat the summary" | Replay the current safe summary without rerunning tools |
 | "Use the clipboard" | Capture a new snapshot; do not reuse an old snapshot silently |
 | "Explain the next item" | Navigate the existing result without rerunning the original task |
-| "Clear this conversation" | Pause its work and show affected state; require owner presence and native confirmation before cancellation, queue removal, and context deletion |
+| "This session is done" | Resolve live work explicitly, then archive with history retained and session grants revoked |
+| "Delete this session" / "Clear this conversation" | Pause its work, preview the exact retained data, and confirm by voice or UI before lifecycle-safe deletion |
 
 Equivalent visual controls are always available.
 Questions/clarifications accept mouse-based typed choices under the same prompt identity, expiry, validation, and approval rules, including when voice input is unavailable.
@@ -104,7 +106,7 @@ The intents above are spoken after a current active name ("Kora" by default, for
 See [OOTB Phrase Catalogue](OOTB_Phrases.md) for aliases, confirmation phrases, application lifecycle, and maintenance commands.
 Push-to-talk during TTS stops playback before capturing a new utterance.
 Wake-triggered interruption during TTS is included from Slice A; general wake-word-free barge-in is not.
-Session lock is a narrowly host-admitted lifecycle control, not permission for a parallel general task executor.
+Windows session lock is a narrowly host-admitted lifecycle control, not another general task executor.
 See [Bundled Skills](Built_In_Skills.md) for script identity, error handling, and locked-session behaviour.
 Kora may also initiate eligible speech without a user utterance; see [Proactive Interaction](Proactive_Interaction.md).
 Responses still require a current active name or optional PTT and are routed to the current trusted prompt, not an unbounded listening window.
@@ -118,8 +120,8 @@ The user can configure the call policy verbally or request one identified respon
 - If an action target, quantity, destination, or approval is ambiguous, ask for clarification.
 - Read back the resolved high-impact action and show its exact parameters.
 - Background audio or uncertain "yes" must not satisfy an unrelated approval.
-- Speaker confidence may suppress private speech or trigger native confirmation, but cannot make an otherwise insufficient voice approval sufficient.
-- Approval responses are accepted only for the currently displayed, unexpired request.
+- Optional speaker confidence can enforce an explicitly selected spoken-approval/private-output preference, but matching alone is not approval or strong authentication.
+- Voice approvals address the presented foreground proposal; explicit UI responses address their visible valid card. Both bind the same session/task/proposal revision and expiry.
 
 Routine non-action answers need not add a confirmation prompt after every utterance.
 The primary clipboard flow already contains a context/destination review when remote processing is required.
@@ -143,7 +145,10 @@ Supported user-adjustable ranges and verbal operations are defined in [User Conf
 | Local worker cancellation grace | 5 seconds | Terminate its tracked process tree if still running |
 | Spoken summary | At most 3 sentences and 80 words | Offer voice navigation for details |
 | Pending request queue | 10 entries, configurable | Explain capacity and ask which work to defer/remove; no silent eviction |
-| Pending request lifetime | 30 minutes | Expire entry, notify user, release content references |
+| Pending request lifetime | 30 minutes | Expire execution eligibility, notify user, release active context references; retain history |
+| Session automatic archive | 24 inactive hours; configurable | Mark Done only after live/uncertain work is safely resolved; preserve history |
+| Session automatic deletion | 30 inactive days; configurable | Lifecycle-safe removal of session content/artifacts/indexes; passive browsing does not reset activity |
+| Concurrent session tasks | Proposed 2; configurable within verified limits | Queue fairly and expose provider/resource blockers; do not exceed the admitted budget |
 | Management inference | 15 seconds | Report timeout and offer explicit queue/replace clarification; local controls remain available |
 
 Context packing respects the selected runtime's actual limits.
@@ -156,10 +161,10 @@ Cancellation:
 
 1. Marks the task cancelling and blocks new invocations.
 2. Revokes unused approval tokens.
-3. Stops audio capture/playback and requests runtime/tool cancellation.
+3. Clears the task's command audio, stops its own playback where active, and requests its runtime/tool cancellation without stopping another session's work.
 4. Stops tracked local workers after their grace period.
 5. Suppresses late output from changing the visible final state.
-6. Records action receipts and any uncertain side effects.
+6. Records action receipts and any uncertain side effects in the originating session; other sessions' speech/work are not implicitly cancelled.
 
 Task cancellation clears command audio but does not revoke wake-listening consent; return to Wake Listening unless muted, locked, or unavailable.
 Stopping all microphone listening is a separate explicit mute operation.
@@ -214,12 +219,12 @@ Future external repository build/test, commit, or push capabilities each require
 ## Restart and Recovery
 
 Restart does not resume actions or replay approval tokens.
-Pending queue bodies and content-bearing ledger records are memory-only and are not restored on restart.
+Session history, artifacts, requests, and content-bearing ledger evidence are restored for reading on restart, not automatically dispatched.
 An app restart applies the ordinary automatic listening policy after fresh
 readiness checks; persisted device preferences select the route but do not bypass
 session, device, or call-policy gates.
 Persisted task metadata marks interrupted non-terminal tasks as interrupted, with unresolved side effects where applicable.
-No raw conversation or clipboard content is restored under the default retention policy.
+Permitted retained conversation/context snapshots remain available under session retention and current source access, but reuse requires freshness, policy, and egress review.
 Offer read-only reconciliation for a persisted remote operation ID when the connector supports it.
 
 Recovery must never manufacture a successful result from missing evidence.

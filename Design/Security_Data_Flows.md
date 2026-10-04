@@ -20,6 +20,9 @@ No second assistant may capture/dispatch during transfer; takeover approval does
 
 The policy protects against accidental overreach and untrusted content influencing tool use.
 It does not claim to protect against a compromised Windows account, malicious trusted host code, or administrator-level malware.
+The active unlocked Windows session is the baseline trust boundary for deliberate voice and UI input; a click is not stronger authentication.
+Optional owner-voice verification adds confidence, not a guarantee. Kora addresses acoustic playback, stale/misdirected approvals, prompt injection, and scope expansion without claiming to secure an unattended unlocked account.
+Channel parity, execution-risk classification, and persistent session semantics are canonical in [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
 
 ## Data Modes
 
@@ -64,7 +67,7 @@ Playback echo rejection must prevent spoken answers and activation cues from bec
 
 ## Shared-Space Privacy and Optional Speaker Verification
 
-Treat an unlocked Windows profile as a necessary session condition, not proof that the person speaking is its owner.
+Trust an unlocked Windows profile as the baseline session condition, not proof of the physical identity of a speaker or person clicking.
 Nearby people may activate Kora, overhear output, replay recorded speech, or use synthetic speech.
 Wake detection, transcription confidence, a named phrase, and optional speaker matching are not independent authorisation factors.
 
@@ -72,7 +75,8 @@ Kora may offer local speaker verification as an optional privacy signal after a 
 It answers only whether the current utterance resembles the voice voluntarily enrolled for the current Windows user SID; it is not general speaker identification.
 The host exposes only `LikelyOwner`, `Uncertain`, `NotOwner`, or `Unavailable` to policy.
 Models, skills, tools, and remote providers never receive embeddings, match scores, enrollment phrases, or raw enrollment audio.
-No result grants permission, satisfies an approval, reveals a credential, weakens an egress decision, or bypasses Windows Hello/UAC/native confirmation.
+No match by itself grants permission, satisfies an approval, reveals a credential, weakens an egress decision, or bypasses mandatory Windows/UAC/provider authentication.
+An explicit owner-voice preference may require a current match for designated spoken approvals; default channel parity does not require enrollment.
 
 Enrollment and replacement require an unlocked interactive session plus Windows Hello or an equivalent native OS reauthentication.
 Use multiple randomized prompted phrases; never enroll automatically from ordinary conversations.
@@ -83,25 +87,27 @@ Provide native view-status, test, delete, and re-enroll controls that work witho
 
 Speaker verification must fail closed to `Unavailable` on missing assets, stale enrollment, changed user/device binding, microphone changes requiring revalidation, verifier failure, uncertain audio, suspected replay/synthesis, or policy denial.
 Use playback echo rejection, local replay/synthetic-speech detection where supported, virtual/loopback-device awareness, bounded attempts, and rate limiting.
-A randomized spoken challenge may raise confidence but is still not a secure approval channel.
+A randomized spoken challenge may raise confidence but is not strong authentication. Explicit action-specific spoken approval is a supported intent channel under the Windows-session trust baseline.
 
 Apply speaker confidence primarily to output privacy:
 
 | Situation | Required behavior |
 |---|---|
-| Safety-preserving stop speech, mute, pause new dispatch, or lock | Accept from any speaker under normal intent checks |
-| Cancel task, clear queue/conversation, or stop all work | Pause affected dispatch immediately, then require owner presence and native confirmation before destructive cancellation/deletion |
+| Safety-preserving stop speech, mute, or pause new dispatch | Accept from any speaker under normal intent checks |
+| Current-session lock | Apply the future exact version-bound action grant gate through either channel; optional owner matching does not replace it |
+| Cancel task, clear queue/session, or stop all work | Pause affected dispatch immediately, then require exact affected-work voice or UI confirmation before destructive cancellation/deletion |
 | General non-sensitive request | Process under normal context and egress policy; do not infer owner identity |
 | Private clipboard, task, account, message, or queue content with `LikelyOwner` | Speech is permitted only when the content's normal output policy also permits it |
-| Private content with `Uncertain`, `NotOwner`, or `Unavailable` | Default to a neutral visual notice; do not speak the content or confirm sensitive resource details |
-| Remote transmission, security/privacy changes, update/setup activation, power action, or credential/account workflow | Voice may initiate or navigate, but the existing exact approval plus any required native secure confirmation remains mandatory |
+| Private content with `Uncertain`, `NotOwner`, or `Unavailable` when owner-aware privacy is enabled | Use a neutral visual notice; do not speak sensitive resource details or silently disable the selected protection |
+| Remote transmission, security/privacy changes, permitted setup activation, or power action | Exact scoped voice or UI approval under host risk policy; preserve mandatory OS/provider checks and capability limits |
+| Credential/account workflow | Initiate/navigate through either channel; secrets and required sign-in remain in the supported secure flow |
 | Credential, token, secret, or biometric material | Never reveal through speech or model context regardless of speaker result |
 
 Headset/private-output mode and a short recent Windows Hello/unlock presence window may reduce unnecessary visual fallback, but neither creates a reusable grant.
-Changing output privacy policy or enrolling/replacing/deleting a template requires native visual interaction; voice can open the page but cannot complete the change.
-For access decisions, `owner presence` means one of: a current `LikelyOwner` observation, a deliberate configured PTT/physical gesture, native confirmation, or a short host-recorded presence window following Windows Hello/unlock.
-It is a risk-reduction condition, not an identity credential.
-Without owner presence, voice can request a private operation but cannot capture private context, approve egress, create/reuse a grant, enable a skill, or weaken privacy; present the exact native confirmation instead.
+Changing output privacy policy requires explicit scoped confirmation through either channel; biometric enrollment/replacement/deletion retains protected native OS verification.
+For access decisions, `owner presence` is baseline deliberate activated voice or UI input in the active unlocked session, strengthened by any explicitly enabled speaker policy.
+It is an intent/presence condition, not an identity credential. Passive audio, wake detection alone, PTT activation alone, and historical voice matches do not approve an action.
+Absent/uncertain intent or an unsatisfied optional speaker requirement pauses the proposal and explains the explicit confirmation/alternate-channel route.
 
 ## Locked-Session Microphone Policy
 
@@ -174,12 +180,12 @@ Executable extensions need real containment or explicit trust; a path-scoped gat
 
 | Action | Default treatment |
 |---|---|
-| Requested local clipboard capture | Owner presence is required before capture; the request then authorises one snapshot, not monitoring |
-| Explicit current-session lock request | Under the future common gate, approve the exact version-bound lock action (once/session/always); the phrase identifies intent but is not a grant. Today exact direct lock is ungated, while model-suggested lock asks for approval |
+| Requested local clipboard capture | Deliberate request in the unlocked session, subject to selected speaker/privacy policy; authorises one snapshot, not monitoring |
+| Explicit current-session lock request | Under the future common gate, approve the exact version-bound lock action (once/session/always) through voice or UI; the phrase identifies intent but is not a grant. Today exact direct lock is ungated, while model-suggested lock asks for approval |
 | Local shutdown/restart | Named second confirmation of exact graceful action, warning, and bounded host countdown |
 | Local read within a user-selected scope | Default single-use; a bounded process-session grant requires native review and visible source selection |
-| New remote context transmission | Review destination and payload; native-confirm immutable context and transformation class for this task |
-| Remote read tool | Single-use exact parameters/destination, or a separately native-confirmed preconfigured read grant |
+| New remote context transmission | Review destination and payload; explicitly confirm immutable context and transformation class for this task through voice or UI |
+| Remote read tool | Single-use exact parameters/destination, or a separately explicitly confirmed preconfigured read grant |
 | Local write | Approve exact target and change |
 | External write | Approve exact account, destination, parameters, and effect |
 | Executable code or destructive operation | Separate high-risk review; no generic "allow everything" |
@@ -188,11 +194,11 @@ Executable extensions need real containment or explicit trust; a path-scoped gat
 
 `Single-use` is the default action approval and is consumed by one exact invocation.
 A `task` grant may cover repeated use of named immutable source items, a declared transformation class, and one destination for one task.
-A `conversation` grant is memory-only and may retain selected context but does not approve new tools, egress sources, writes, or queued tasks.
+A `conversation` grant is non-persistent execution eligibility scoped to one Kora session; retained history survives its expiry but does not approve new tools, egress sources, writes, or queued tasks.
 A `process-session` grant expires on process exit/restart and, unless explicitly documented otherwise, on lock, sign-out, or account/provider change.
 A `time-bound` grant has an explicit expiry no longer than one hour for interactive read access.
 A `persistent-device` or `preconfigured` grant requires an explicit exact
-approval; no category of approvable actions is categorically denied a session
+voice or UI approval with mandatory OS/provider checks; no category of approvable actions is categorically denied a session
 or always duration. A broad, unspecified effect cannot become a reusable
 grant: identify its task, resources, invocation, and relevant dependencies
 first. A future `always` execution grant may persist only for an exact
@@ -203,16 +209,17 @@ the current model-action `Always` preference, which authorises named
 registered actions rather than executable content.
 See [skill and task execution design](../docs/skill-and-task-execution-design.md).
 
-No grant implicitly inherits across a new task, queued task, follow-up with new sources, conversation, provider, account, destination, skill/revision, process, Windows user SID, or device.
+No grant implicitly inherits across a new task, queued task, follow-up with new sources, conversation, provider, account, destination, skill/revision, Windows user SID, or device.
+A process restart preserves only explicitly persistent exact grants whose declared identity/invocation/resources remain valid under fresh policy checks; single-use and process-session tokens are never replayed.
 Child/follow-up operations must cite the exact parent user request and remain within its sources, transformation class, effects, and destination.
 Changing any of those dimensions requires reassessment and, where applicable, a new approval.
 
-Every reusable grant records a stable grant ID, capability/action, canonical resources, authenticated identity, destination, source/content hashes, allowed transformation class, creator channel, owner-presence/native-confirmation evidence class, creation/expiry, last use, use count, policy/schema revision, parent task/request, and non-inheritance flags.
+Every reusable grant records a stable grant ID, capability/action, canonical resources, authenticated resource/account identity, destination, source/content hashes, allowed transformation class, creator channel, deliberate-input/optional-speaker/required-OS evidence class, creation/expiry, last use, use count, policy/schema revision, parent session/task/request, and non-inheritance flags.
 Store hashes and canonical identifiers rather than raw sensitive content.
 
 Provide a native Permissions & Approvals surface and deterministic host commands to list active/recent/expired grants, explain why an action is allowed, inspect exact scope and use, revoke one grant, revoke all grants for a provider/resource/skill/account, and export content-minimising audit evidence.
 Narrowing scope or shortening expiry can edit a grant in place.
-Broadening scope, changing identity/destination, converting to persistence, or re-enabling a revoked grant always creates a new exact approval through the host-owned prompt.
+Broadening scope, changing identity/destination, converting to persistence, or re-enabling a revoked grant always creates a newly reviewed exact approval through the host-owned prompt, confirmed through either channel.
 Revocation blocks new dispatch immediately; in-flight remote work is reported as cancellable, cancelled, or uncertain rather than silently claimed revoked.
 
 An immutable-context task grant may cover repeated use of the same approved items, declared transformation class, and destination.
@@ -229,21 +236,18 @@ Approval risk is host-classified:
 |---|---|---|
 | Informational | Show help, inspect non-sensitive status | No action approval |
 | Safety interruption | Stop speech, mute, pause new dispatch | Immediate deterministic control; no reusable grant |
-| Low | One non-sensitive local read with no egress | Voice only with owner presence and exact repeated summary; otherwise native confirmation |
-| Medium | Private-context capture, any egress, remote read, privacy expansion, persistent preference, skill save/enable | Visible host-owned confirmation bound to the exact proposal; accept a mouse selection or an exact spoken reply |
-| High | Write, executable/destructive action, credentials/security, grant persistence/broadening, software installation/update | Visible host-owned confirmation with exact mouse or spoken reply; require additional OS/UAC/Windows Hello presence checks where specified by the particular effect |
+| Low | Registered bounded non-sensitive local read with no egress | Explicit scoped request/confirmation through voice or UI |
+| Medium | Private-context capture, egress/remote read, exact reversible local write, privacy preference, skill save/enable | Exact proposal/source/destination/change review and deliberate voice or UI confirmation |
+| High | Broad/irreversible deletion, production/shared-system effects, unverified arbitrary code, credentials/security, grant persistence/broadening, software installation | Consequence/source/target/recovery review and action-specific voice or UI confirmation; mandatory OS/UAC/provider checks where applicable |
 
 The host taxonomy, not a model/skill/tool declaration, assigns risk.
 Unknown or mixed effects use the highest applicable class.
-Executable code, destructive actions, credential/security changes, and software installation require deliberate visible confirmation; a spoken reply to that specific prompt may complete it unless an additional OS presence check is required.
-An assistant-name prefix is not speaker authentication. Make the action and
-chosen duration visible, and do not claim a spoken approval establishes who
-spoke it.
-Lock is a side-effecting action with its own exact version-bound grant gate in
-the proposed runner; neither direct phrasing nor the priority queue path
-waives that gate. The current direct Windows-API lock path does not yet enforce
-it, unlike model-suggested lock.
-Fixed local-machine shutdown/restart additionally uses distinct named spoken confirmation as specified; speech alone is insufficient.
+Assess execution effects, blast radius, reversibility, environment, exposure, privileges, and enforced constraint confidence; model/static script review cannot prove arbitrary code safe.
+Registered constrained execution can be classified by its enforced effects; unknown code is high risk or rejected when containment is unsupported.
+High-risk action confirmation names the action/target verbally or identifies that exact proposal in a deliberate UI gesture; a click is not reauthentication and speech need not be followed by a click.
+Fixed local-machine shutdown/restart uses distinct action-specific voice or UI confirmation as specified, safe-work handling, and a cancellable countdown.
+An assistant-name prefix is not speaker authentication. Make the action and chosen duration visible/readable; neither a match nor a click establishes physical identity.
+Lock is side-effecting and retains the future exact version-bound grant gate for both direct and model-suggested requests; priority routing does not waive it. Today's direct Windows-API lock path does not yet enforce that gate, unlike model-suggested lock.
 During the initial unsigned phase, application update checks are notify-only and cannot create an installation approval.
 These rules do not permit arbitrary script/code installation or generic destructive commands; power actions warn about unsaved work and never force application termination.
 See [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).
@@ -260,8 +264,8 @@ Newly shown native approval controls are unarmed for at least 500 ms and ignore 
 
 ### Intent Lineage and Prompt-Injection Controls
 
-Untrusted skill instructions, MCP/tool results, retrieved content, rendered content, and derived summaries occupy structurally separated data fields with provenance and non-instruction semantics; they never occupy host policy, approval, system/developer, or workflow-stage control fields.
-Every model-proposed tool, context, queue, or egress operation cites the authenticated user request or previously native-approved host plan step that requires it.
+Untrusted skill instructions, MCP/tool results, retrieved session history, rendered content, and derived summaries occupy structurally separated data fields with provenance and non-instruction semantics; they never occupy host policy, approval, system/developer, or workflow-stage control fields.
+Every model-proposed tool, context, queue, or egress operation cites deliberate user input or a previously explicitly approved host plan step that requires it.
 An existing grant cannot authorise a new resource, destination, tool, workflow stage, or effect introduced only by untrusted content.
 Derived content preserves the restrictions and taint of every source unless a separately approved transformation explicitly changes them.
 The host compares each outbound envelope to approved source IDs and transformation classes; protocol framing need not be byte-identical, but every new content-bearing source or materially broader derivation requires delta review.
@@ -377,10 +381,10 @@ If containment cannot enforce a requested restriction, reject that profile rathe
 |---|---|
 | Ambient wake audio | Memory-only rolling buffer of at most 2 seconds; overwritten continuously and cleared when listening stops |
 | Activated command audio | Memory only; released after transcription/cancellation |
-| Clipboard snapshots and transcripts | Memory only for active conversation; cleared on conversation close, app exit, or explicit clear |
-| Conversation answers/tool content | Memory only; no automatic restart restoration |
-| Queue requests, labels, context references, and content-bearing work ledger | Memory only; clear on conversation close/clear or app exit; pending entries expire after 30 minutes by default, with bounded configurable lifetime |
-| Conversation idle lifetime | Clear ephemeral context after 30 minutes of inactivity, except while a task is active; user may shorten expiry |
+| Selected context snapshots and command transcripts | Encrypted session history when source/security policy permits; no background clipboard history; raw command audio remains ephemeral |
+| Session messages, answers, questions, decisions, scripts/artifacts, and permitted tool content | Durable encrypted session-linked history; restored for reading, never automatic execution or unreviewed egress |
+| Queue requests, labels, context references, and content-bearing work ledger | Persist as session evidence; pending execution eligibility expires after 30 minutes by default; readable evidence is not fresh context/approval |
+| Session inactivity lifecycle | Archive after 24 hours and delete after 30 days from last meaningful activity; both configurable; browsing/search do not reset the clock; live/uncertain work is protected |
 | Task/action/approval audit metadata | Local SQLite, at most 30-day expiry; stable IDs, canonical action/resource/destination identifiers, parameter/content hashes, scope, creator channel, presence/confirmation class, policy/schema revision, creation/expiry/use/revocation events, outcome, and error codes; no raw parameters/content |
 | Application diagnostic logs | Daily structured JSON under `%LOCALAPPDATA%\Kora\Logs`, at most 30 files and 30 days; lifecycle, readiness, state, counts, and failures only; no transcripts, response bodies, synthesized speech text, raw audio, credentials, or secrets |
 | Configuration and grants | Persist only for their declared grant type until revoked/expired; inventoried in Permissions & Approvals; no secrets in configuration |
@@ -388,8 +392,11 @@ If containment cannot enforce a requested restriction, reject that profile rathe
 | Shared profile skill snapshots | Approved in-memory revision snapshots; re-read/revalidate on restart; source files remain untouched |
 | Approved export | User-selected location with an explicit content preview |
 
-Persistent conversation history is deferred and opt-in when introduced.
-Bounded retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/content persistence or restore consumed grants.
+Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
+Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, restore consumed grants, or silently delete affected sessions when changed.
+Encrypt history, artifacts, and indexes with OS-protected keys; deletion must cover caches, indexes, blobs, journals/recoverable copies, and invalidate session-scoped authority.
+Source revocation may remove restricted content before normal session expiry. Mark omissions/redactions explicitly.
+Independent content-minimising security/diagnostic records retain their disclosed lifetimes and do not reconstruct deleted chats; local deletion cannot erase user exports or provider copies.
 Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.
 Crash reports and diagnostics omit raw context, speech, tool arguments, credentials, and answer content by default.
 Future model-assisted diagnostics may access application logs only through a

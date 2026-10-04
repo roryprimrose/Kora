@@ -5,7 +5,7 @@ using Kora.Core;
 
 namespace Kora.Application.UnitTests.Visuals;
 
-public sealed class ConstellationAnimationTests
+public sealed class PresenceAnimationTests
 {
     [Theory]
     [InlineData(AssistantState.Hidden, 0xB8, 0xD9, 0xEC, 0)]
@@ -24,85 +24,85 @@ public sealed class ConstellationAnimationTests
         byte blue,
         double opacity)
     {
-        var animation = new ConstellationAnimation(state);
+        var animation = new PresenceAnimation(state);
 
         animation.Current.Should().Be(
-            new ConstellationVisualFrame(new ConstellationColor(red, green, blue), opacity, 1));
+            new PresenceVisualFrame(new PresenceColor(red, green, blue), opacity, 1));
     }
 
     [Fact]
     public void Advance_fades_between_hidden_and_visible_states()
     {
-        var animation = new ConstellationAnimation(AssistantState.Hidden);
+        var animation = new PresenceAnimation(AssistantState.Hidden);
 
         animation.Advance(
             AssistantState.Information,
             isSpeaking: false,
             speechOutputLevel: 0,
-            ConstellationAnimation.VisibilityTransitionDuration / 2).Should().BeTrue();
+            PresenceAnimation.VisibilityTransitionDuration / 2).Should().BeTrue();
         animation.Current.Opacity.Should().Be(0.5);
 
         animation.Advance(
             AssistantState.Information,
             isSpeaking: false,
             speechOutputLevel: 0,
-            ConstellationAnimation.VisibilityTransitionDuration / 2).Should().BeTrue();
+            PresenceAnimation.VisibilityTransitionDuration / 2).Should().BeTrue();
         animation.Current.Opacity.Should().Be(1);
 
         animation.Advance(
             AssistantState.Hidden,
             isSpeaking: false,
             speechOutputLevel: 0,
-            ConstellationAnimation.VisibilityTransitionDuration).Should().BeTrue();
+            PresenceAnimation.VisibilityTransitionDuration).Should().BeTrue();
         animation.Current.Opacity.Should().Be(0);
-        animation.Current.Color.Should().Be(new ConstellationColor(0xB8, 0xD9, 0xEC));
+        animation.Current.Color.Should().Be(new PresenceColor(0xB8, 0xD9, 0xEC));
     }
 
     [Fact]
     public void Advance_blends_to_the_new_state_color()
     {
-        var animation = new ConstellationAnimation(AssistantState.Failure);
+        var animation = new PresenceAnimation(AssistantState.Failure);
 
         animation.Advance(
             AssistantState.Success,
             isSpeaking: false,
             speechOutputLevel: 0,
-            ConstellationAnimation.ColorTransitionDuration).Should().BeTrue();
+            PresenceAnimation.ColorTransitionDuration).Should().BeTrue();
 
-        animation.Current.Color.Should().Be(new ConstellationColor(0x9B, 0xDF, 0xAC));
+        animation.Current.Color.Should().Be(new PresenceColor(0x9B, 0xDF, 0xAC));
     }
 
     [Fact]
     public void Advance_maps_speech_level_to_shrink_and_growth()
     {
-        var animation = new ConstellationAnimation(AssistantState.Information);
+        var animation = new PresenceAnimation(AssistantState.Information);
 
         animation.Advance(
             AssistantState.Information,
             isSpeaking: true,
             speechOutputLevel: -1,
-            ConstellationAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
+            PresenceAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
         animation.Current.Scale.Should().Be(0.9);
 
         animation.Advance(
             AssistantState.Information,
             isSpeaking: true,
             speechOutputLevel: 2,
-            ConstellationAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
+            PresenceAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
         animation.Current.Scale.Should().Be(1.12);
 
         animation.Advance(
             AssistantState.Information,
             isSpeaking: false,
             speechOutputLevel: double.NaN,
-            ConstellationAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
+            PresenceAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
         animation.Current.Scale.Should().Be(1);
     }
 
     [Fact]
     public void Advance_with_no_elapsed_time_reports_no_change()
     {
-        var animation = new ConstellationAnimation(AssistantState.Information);
+        var animation = new PresenceAnimation(AssistantState.Information);
 
         animation.Advance(
             AssistantState.Information,
@@ -114,7 +114,7 @@ public sealed class ConstellationAnimationTests
     [Fact]
     public void Advance_rejects_negative_elapsed_time()
     {
-        var animation = new ConstellationAnimation(AssistantState.Information);
+        var animation = new PresenceAnimation(AssistantState.Information);
 
         var action = () => animation.Advance(
             AssistantState.Information,
@@ -132,7 +132,7 @@ public sealed class ConstellationAnimationTests
     [InlineData(double.NegativeInfinity)]
     public void Advance_rejects_non_finite_active_speech_levels(double speechOutputLevel)
     {
-        var animation = new ConstellationAnimation(AssistantState.Information);
+        var animation = new PresenceAnimation(AssistantState.Information);
 
         var action = () => animation.Advance(
             AssistantState.Information,

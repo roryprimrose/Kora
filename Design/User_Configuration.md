@@ -104,10 +104,10 @@ Voice may open the relevant settings page or report non-sensitive enrollment ava
 | Visual detail level | Concise by default; detailed on request | "Show detailed results by default" |
 | Speech text / rich display | Independent optional captions, source/rendered Markdown, diagram and viewer preferences | "Show the words you're saying" |
 | Theme | System by default; System follows live Windows appearance, while Light/Dark override every Kora visual surface | "Use the dark theme" |
-| Listening presence timeout | 5 seconds; 1-60 seconds; reset by voice, typed, pointer, or keyboard interaction; hides only the constellation | "Hide your constellation after ten seconds" |
-| Constellation size | 360 px; 240-600 px; applies immediately and preserves bottom-right anchoring | "Make your constellation 400 pixels wide" |
-| Constellation dot size | 100%; 50-200%; changes particle diameter without changing particle count | "Make the constellation dots 120 percent" |
-| Constellation movement speed | 100%; 25-200%; scales state-driven particle movement | "Set constellation movement speed to 75 percent" |
+| Visible timeout | 5 seconds; 1-60 seconds; reset by voice, typed, pointer, or keyboard interaction; hides the presence and unpinned response window | "Hide your presence after ten seconds without interaction" |
+| Presence size | 360 px; 240-600 px; applies immediately and preserves bottom-right anchoring | "Make your presence 400 pixels wide" |
+| Presence dot size | 100%; 50-200%; changes particle diameter without changing particle count | "Make the presence dots 120 percent" |
+| Presence movement speed | 100%; 25-200%; scales state-driven particle movement | "Set presence movement speed to 75 percent" |
 | Presence placement | Bottom-right working area; validated display/corner/margin | "Put your presence in the top-right of my second monitor" |
 | Reduced motion | Follow system; may enable explicitly | "Use reduced motion" |
 

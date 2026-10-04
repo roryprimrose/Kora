@@ -11,7 +11,7 @@ const states = {
   information: { color: "#b8d9ec", label: "Information", title: "Here's the short version.", body: "Kora can explain text you explicitly select. The clipboard is never monitored. You choose what to share and where it is processed.", actions: [["Dismiss", "dismiss"]] }
 };
 const conceptNotes = {
-  swarm: ["Individual points wander, dart, and change course like insects in a loose collective. No shared orbit, no rigid sphere.", "CONSTELLATION / WANDER + DART"],
+  swarm: ["Individual points wander, dart, and change course like insects in a loose collective. No shared orbit, no rigid sphere.", "PARTICLE CLOUD / WANDER + DART"],
   orbit: ["A few fine ribbons describe an open sphere. Calmer and more minimal, with less particle shimmer.", "RIBBON ORBIT / FLOW + SETTLE"],
   lattice: ["A sparse three-dimensional lattice. Deliberate and architectural, without the visual noise of a busy wireframe.", "SIGNAL LATTICE / ROTATE + ALIGN"]
 };

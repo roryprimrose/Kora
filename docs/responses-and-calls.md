@@ -33,7 +33,7 @@ Configure these controls under **Settings > Appearance > Visual feedback**:
 - **Stay on top** - keep the response above other windows; on by default;
 - **Visible timeout** - set the shared 1-60 second inactivity interval.
 
-The constellation always hides after the visible timeout. **Always show**
+The presence always hides after the visible timeout. **Always show**
 applies only to the response window.
 
 ## Forced visual output

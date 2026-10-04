@@ -91,7 +91,7 @@ The typed command box uses the same deterministic command router as speech:
 
 1. Enter a supported command without the assistant name, such as **help**.
 2. Select **Run command**.
-3. Review the visible response and constellation state.
+3. Review the visible response and presence state.
 
 Typed commands are useful when the microphone, speech recognizer, or listening
 permission is unavailable.
@@ -132,8 +132,8 @@ preview or response playback cannot be delivered.
 
 ## Keep Kora available
 
-Kora starts with its transparent constellation hidden after successful voice
-readiness and keeps listening in the background. The constellation and compact
+Kora starts with its transparent presence hidden after successful voice
+readiness and keeps listening in the background. The presence and compact
 response surface appear only during interaction or when Kora has information to
 provide. Closing Settings, Documentation, or the response surface leaves Kora
 running. Use the tray icon to show Kora again. Choose **Exit Kora** from the
@@ -143,5 +143,5 @@ Drag the response title area to place it where you want it. Its pinned controls
 can keep the current response visible until dismissed, change the shared visible
 timeout, or disable the default stay-on-top behavior.
 
-You can also drag the visible constellation itself. Its position is retained
+You can also drag the visible presence itself. Its position is retained
 across restarts while the selected display remains connected.

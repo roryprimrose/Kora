@@ -14,31 +14,31 @@ public sealed class LocalAppearancePreferences(
 {
     private const string FileName = "appearance-theme.txt";
     private const string PresenceTimeoutFileName = "presence-timeout-seconds.txt";
-    private const string ConstellationSizeFileName = "constellation-size-pixels.txt";
-    private const string ConstellationDotSizeFileName = "constellation-dot-size-percent.txt";
-    private const string ConstellationMovementSpeedFileName = "constellation-movement-speed-percent.txt";
-    private const string ConstellationPositionFileName = "constellation-position.txt";
+    private const string PresenceSizeFileName = "presence-size-pixels.txt";
+    private const string PresenceDotSizeFileName = "presence-dot-size-percent.txt";
+    private const string PresenceMovementSpeedFileName = "presence-movement-speed-percent.txt";
+    private const string PresencePositionFileName = "presence-position.txt";
     private const string ResponseWindowFileName = "response-window.txt";
     private const string TemporaryFileName = "appearance-theme.tmp";
     private const string PresenceTimeoutTemporaryFileName = "presence-timeout-seconds.tmp";
-    private const string ConstellationSizeTemporaryFileName = "constellation-size-pixels.tmp";
-    private const string ConstellationDotSizeTemporaryFileName = "constellation-dot-size-percent.tmp";
-    private const string ConstellationMovementSpeedTemporaryFileName = "constellation-movement-speed-percent.tmp";
-    private const string ConstellationPositionTemporaryFileName = "constellation-position.tmp";
+    private const string PresenceSizeTemporaryFileName = "presence-size-pixels.tmp";
+    private const string PresenceDotSizeTemporaryFileName = "presence-dot-size-percent.tmp";
+    private const string PresenceMovementSpeedTemporaryFileName = "presence-movement-speed-percent.tmp";
+    private const string PresencePositionTemporaryFileName = "presence-position.tmp";
     private const string ResponseWindowTemporaryFileName = "response-window.tmp";
 
     private readonly string preferenceDirectory = Path.Combine(paths.LocalRoot, "Preferences");
     private readonly string preferencePath = Path.Combine(paths.LocalRoot, "Preferences", FileName);
     private readonly string presenceTimeoutPreferencePath =
         Path.Combine(paths.LocalRoot, "Preferences", PresenceTimeoutFileName);
-    private readonly string constellationSizePreferencePath =
-        Path.Combine(paths.LocalRoot, "Preferences", ConstellationSizeFileName);
-    private readonly string constellationDotSizePreferencePath =
-        Path.Combine(paths.LocalRoot, "Preferences", ConstellationDotSizeFileName);
-    private readonly string constellationMovementSpeedPreferencePath =
-        Path.Combine(paths.LocalRoot, "Preferences", ConstellationMovementSpeedFileName);
-    private readonly string constellationPositionPreferencePath =
-        Path.Combine(paths.LocalRoot, "Preferences", ConstellationPositionFileName);
+    private readonly string presenceSizePreferencePath =
+        Path.Combine(paths.LocalRoot, "Preferences", PresenceSizeFileName);
+    private readonly string presenceDotSizePreferencePath =
+        Path.Combine(paths.LocalRoot, "Preferences", PresenceDotSizeFileName);
+    private readonly string presenceMovementSpeedPreferencePath =
+        Path.Combine(paths.LocalRoot, "Preferences", PresenceMovementSpeedFileName);
+    private readonly string presencePositionPreferencePath =
+        Path.Combine(paths.LocalRoot, "Preferences", PresencePositionFileName);
     private readonly string responseWindowPreferencePath =
         Path.Combine(paths.LocalRoot, "Preferences", ResponseWindowFileName);
 
@@ -113,32 +113,32 @@ public sealed class LocalAppearancePreferences(
         ApplicationLog.Information(logger, "Saved the presence timeout preference");
     }
 
-    public int? LoadConstellationSizePixels() =>
+    public int? LoadPresenceSizePixels() =>
         LoadIntegerPreference(
-            constellationSizePreferencePath,
-            ConstellationSettings.ValidateSizePixels,
-            "constellation size");
+            presenceSizePreferencePath,
+            PresenceSettings.ValidateSizePixels,
+            "presence size");
 
-    public int? LoadConstellationDotSizePercent() =>
+    public int? LoadPresenceDotSizePercent() =>
         LoadIntegerPreference(
-            constellationDotSizePreferencePath,
-            ConstellationSettings.ValidateDotSizePercent,
-            "constellation dot size");
+            presenceDotSizePreferencePath,
+            PresenceSettings.ValidateDotSizePercent,
+            "presence dot size");
 
-    public int? LoadConstellationMovementSpeedPercent() =>
+    public int? LoadPresenceMovementSpeedPercent() =>
         LoadIntegerPreference(
-            constellationMovementSpeedPreferencePath,
-            ConstellationSettings.ValidateMovementSpeedPercent,
-            "constellation movement speed");
+            presenceMovementSpeedPreferencePath,
+            PresenceSettings.ValidateMovementSpeedPercent,
+            "presence movement speed");
 
-    public ConstellationPosition? LoadConstellationPosition()
+    public PresencePosition? LoadPresencePosition()
     {
-        if (!File.Exists(constellationPositionPreferencePath))
+        if (!File.Exists(presencePositionPreferencePath))
         {
             return null;
         }
 
-        var coordinates = File.ReadAllText(constellationPositionPreferencePath)
+        var coordinates = File.ReadAllText(presencePositionPreferencePath)
             .Split(',', StringSplitOptions.TrimEntries);
         if (coordinates.Length != 2
             || !int.TryParse(
@@ -152,11 +152,11 @@ public sealed class LocalAppearancePreferences(
                 CultureInfo.InvariantCulture,
                 out var y))
         {
-            throw new InvalidDataException("The saved constellation position is invalid.");
+            throw new InvalidDataException("The saved presence position is invalid.");
         }
 
-        ApplicationLog.Debug(logger, "Loaded the constellation position preference");
-        return new ConstellationPosition(x, y);
+        ApplicationLog.Debug(logger, "Loaded the presence position preference");
+        return new PresencePosition(x, y);
     }
 
     public ResponseWindowSettings? LoadResponseWindowSettings()
@@ -200,43 +200,43 @@ public sealed class LocalAppearancePreferences(
         return new ResponseWindowSettings(alwaysShow, topmost, position);
     }
 
-    public void SaveConstellationSizePixels(int value)
+    public void SavePresenceSizePixels(int value)
     {
-        ConstellationSettings.ValidateSizePixels(value);
+        PresenceSettings.ValidateSizePixels(value);
         SaveIntegerPreference(
             value,
-            constellationSizePreferencePath,
-            ConstellationSizeTemporaryFileName);
-        ApplicationLog.Information(logger, "Saved the constellation size preference");
+            presenceSizePreferencePath,
+            PresenceSizeTemporaryFileName);
+        ApplicationLog.Information(logger, "Saved the presence size preference");
     }
 
-    public void SaveConstellationDotSizePercent(int value)
+    public void SavePresenceDotSizePercent(int value)
     {
-        ConstellationSettings.ValidateDotSizePercent(value);
+        PresenceSettings.ValidateDotSizePercent(value);
         SaveIntegerPreference(
             value,
-            constellationDotSizePreferencePath,
-            ConstellationDotSizeTemporaryFileName);
-        ApplicationLog.Information(logger, "Saved the constellation dot size preference");
+            presenceDotSizePreferencePath,
+            PresenceDotSizeTemporaryFileName);
+        ApplicationLog.Information(logger, "Saved the presence dot size preference");
     }
 
-    public void SaveConstellationMovementSpeedPercent(int value)
+    public void SavePresenceMovementSpeedPercent(int value)
     {
-        ConstellationSettings.ValidateMovementSpeedPercent(value);
+        PresenceSettings.ValidateMovementSpeedPercent(value);
         SaveIntegerPreference(
             value,
-            constellationMovementSpeedPreferencePath,
-            ConstellationMovementSpeedTemporaryFileName);
-        ApplicationLog.Information(logger, "Saved the constellation movement speed preference");
+            presenceMovementSpeedPreferencePath,
+            PresenceMovementSpeedTemporaryFileName);
+        ApplicationLog.Information(logger, "Saved the presence movement speed preference");
     }
 
-    public void SaveConstellationPosition(ConstellationPosition position)
+    public void SavePresencePosition(PresencePosition position)
     {
         ArgumentNullException.ThrowIfNull(position);
         Directory.CreateDirectory(preferenceDirectory);
         var temporaryPath = Path.Combine(
             preferenceDirectory,
-            ConstellationPositionTemporaryFileName);
+            PresencePositionTemporaryFileName);
         File.WriteAllText(
             temporaryPath,
             string.Create(
@@ -244,9 +244,9 @@ public sealed class LocalAppearancePreferences(
                 $"{position.X},{position.Y}"));
         File.Move(
             temporaryPath,
-            constellationPositionPreferencePath,
+            presencePositionPreferencePath,
             overwrite: true);
-        ApplicationLog.Information(logger, "Saved the constellation position preference");
+        ApplicationLog.Information(logger, "Saved the presence position preference");
     }
 
     public void SaveResponseWindowSettings(ResponseWindowSettings settings)

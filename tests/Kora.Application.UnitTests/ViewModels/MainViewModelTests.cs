@@ -318,25 +318,25 @@ public sealed class MainViewModelTests
             ApplicationThemeMode.Light,
             ApplicationThemeMode.Dark);
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
-        fixture.ViewModel.PresenceTimeoutDescription.Should().Contain("Hide the constellation");
+        fixture.ViewModel.PresenceTimeoutDescription.Should().Contain("Hide the presence");
         fixture.ViewModel.PresenceTimeoutDescription.Should().Contain("unpinned response window");
         fixture.ViewModel.IsResponseAlwaysVisible.Should().BeFalse();
         fixture.ViewModel.IsResponseWindowTopmost.Should().BeTrue();
         fixture.ViewModel.ResponseWindowPosition.Should().BeNull();
-        fixture.ViewModel.ConstellationSizePixels.Should().Be(ConstellationSettings.DefaultSizePixels);
-        fixture.ViewModel.ConstellationDotSizePercent.Should().Be(ConstellationSettings.DefaultDotSizePercent);
-        fixture.ViewModel.ConstellationMovementSpeedPercent.Should()
-            .Be(ConstellationSettings.DefaultMovementSpeedPercent);
-        fixture.ViewModel.ConstellationPosition.Should().BeNull();
-        fixture.ViewModel.ConstellationSizeDescription.Should().Contain("360 pixels");
-        fixture.ViewModel.ConstellationDotSizeDescription.Should().Contain("100%");
-        fixture.ViewModel.ConstellationMovementSpeedDescription.Should().Contain("100%");
+        fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);
+        fixture.ViewModel.PresenceDotSizePercent.Should().Be(PresenceSettings.DefaultDotSizePercent);
+        fixture.ViewModel.PresenceMovementSpeedPercent.Should()
+            .Be(PresenceSettings.DefaultMovementSpeedPercent);
+        fixture.ViewModel.PresencePosition.Should().BeNull();
+        fixture.ViewModel.PresenceSizeDescription.Should().Contain("360 pixels");
+        fixture.ViewModel.PresenceDotSizeDescription.Should().Contain("100%");
+        fixture.ViewModel.PresenceMovementSpeedDescription.Should().Contain("100%");
         fixture.AppearancePreferences.SavedMode.Should().BeNull();
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
-        fixture.AppearancePreferences.SavedConstellationSizePixels.Should().BeNull();
-        fixture.AppearancePreferences.SavedConstellationDotSizePercent.Should().BeNull();
-        fixture.AppearancePreferences.SavedConstellationMovementSpeedPercent.Should().BeNull();
-        fixture.AppearancePreferences.SavedConstellationPosition.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceSizePixels.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceDotSizePercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceMovementSpeedPercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresencePosition.Should().BeNull();
         fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
     }
 
@@ -365,64 +365,64 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task InitializeAsync_loads_saved_constellation_settings_without_resaving_them()
+    public async Task InitializeAsync_loads_saved_presence_settings_without_resaving_them()
     {
         var fixture = new Fixture();
-        fixture.AppearancePreferences.ConstellationSizePixels = 400;
-        fixture.AppearancePreferences.ConstellationDotSizePercent = 120;
-        fixture.AppearancePreferences.ConstellationMovementSpeedPercent = 125;
-        fixture.AppearancePreferences.ConstellationPosition =
-            new ConstellationPosition(320, -120);
+        fixture.AppearancePreferences.PresenceSizePixels = 400;
+        fixture.AppearancePreferences.PresenceDotSizePercent = 120;
+        fixture.AppearancePreferences.PresenceMovementSpeedPercent = 125;
+        fixture.AppearancePreferences.PresencePosition =
+            new PresencePosition(320, -120);
 
         await fixture.ViewModel.InitializeAsync();
 
-        fixture.ViewModel.ConstellationSizePixels.Should().Be(400);
-        fixture.ViewModel.ConstellationDotSizePercent.Should().Be(120);
-        fixture.ViewModel.ConstellationMovementSpeedPercent.Should().Be(125);
-        fixture.ViewModel.ConstellationPosition.Should().Be(
-            new ConstellationPosition(320, -120));
-        fixture.AppearancePreferences.SavedConstellationSizePixels.Should().BeNull();
-        fixture.AppearancePreferences.SavedConstellationDotSizePercent.Should().BeNull();
-        fixture.AppearancePreferences.SavedConstellationMovementSpeedPercent.Should().BeNull();
-        fixture.AppearancePreferences.SavedConstellationPosition.Should().BeNull();
+        fixture.ViewModel.PresenceSizePixels.Should().Be(400);
+        fixture.ViewModel.PresenceDotSizePercent.Should().Be(120);
+        fixture.ViewModel.PresenceMovementSpeedPercent.Should().Be(125);
+        fixture.ViewModel.PresencePosition.Should().Be(
+            new PresencePosition(320, -120));
+        fixture.AppearancePreferences.SavedPresenceSizePixels.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceDotSizePercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceMovementSpeedPercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresencePosition.Should().BeNull();
     }
 
     [Fact]
-    public async Task Constellation_position_changes_persist_notify_and_are_audited()
+    public async Task Presence_position_changes_persist_notify_and_are_audited()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var changedProperties = new List<string?>();
         fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
             changedProperties.Add(eventArgs.PropertyName);
-        var position = new ConstellationPosition(-640, 240);
+        var position = new PresencePosition(-640, 240);
 
-        var changed = fixture.ViewModel.SetConstellationPosition(
+        var changed = fixture.ViewModel.SetPresencePosition(
             position,
             SecurityAuditInitiator.VoiceCommand);
-        var unchanged = fixture.ViewModel.SetConstellationPosition(
+        var unchanged = fixture.ViewModel.SetPresencePosition(
             position,
             SecurityAuditInitiator.VoiceCommand);
 
         changed.Should().BeTrue();
         unchanged.Should().BeTrue();
-        fixture.ViewModel.ConstellationPosition.Should().Be(position);
-        fixture.AppearancePreferences.SavedConstellationPosition.Should().Be(position);
+        fixture.ViewModel.PresencePosition.Should().Be(position);
+        fixture.AppearancePreferences.SavedPresencePosition.Should().Be(position);
         changedProperties.Should().ContainSingle()
-            .Which.Should().Be(nameof(MainViewModel.ConstellationPosition));
+            .Which.Should().Be(nameof(MainViewModel.PresencePosition));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
-            "configuration.constellation-position",
+            "configuration.presence-position",
             SecurityAuditInitiator.VoiceCommand,
             SecurityAuditOutcome.Succeeded);
     }
 
     [Fact]
-    public async Task Constellation_position_rejects_null()
+    public async Task Presence_position_rejects_null()
     {
         var fixture = await Fixture.CreateInitializedAsync();
 
-        var action = () => fixture.ViewModel.SetConstellationPosition(null!);
+        var action = () => fixture.ViewModel.SetPresencePosition(null!);
 
         action.Should().Throw<ArgumentNullException>();
     }
@@ -430,7 +430,7 @@ public sealed class MainViewModelTests
     [Theory]
     [InlineData(true, "access-denied")]
     [InlineData(false, "io-error")]
-    public async Task Constellation_position_save_failure_retains_previous_position(
+    public async Task Presence_position_save_failure_retains_previous_position(
         bool accessDenied,
         string reasonCode)
     {
@@ -439,17 +439,17 @@ public sealed class MainViewModelTests
             ? new UnauthorizedAccessException("denied")
             : new IOException("disk");
 
-        var changed = fixture.ViewModel.SetConstellationPosition(
-            new ConstellationPosition(100, 200));
+        var changed = fixture.ViewModel.SetPresencePosition(
+            new PresencePosition(100, 200));
 
         changed.Should().BeFalse();
-        fixture.ViewModel.ConstellationPosition.Should().BeNull();
+        fixture.ViewModel.PresencePosition.Should().BeNull();
         fixture.ViewModel.ResponseTitle.Should().Be(
-            "The constellation position could not be saved.");
+            "The presence position could not be saved.");
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
-            "configuration.constellation-position",
+            "configuration.presence-position",
             SecurityAuditInitiator.LocalUser,
             SecurityAuditOutcome.Failed,
             reasonCode);
@@ -629,25 +629,25 @@ public sealed class MainViewModelTests
 
     [Theory]
     [InlineData(
-        ConstellationSetting.Size,
+        PresenceSetting.Size,
         400,
-        nameof(MainViewModel.ConstellationSizePixels),
-        nameof(MainViewModel.ConstellationSizeDescription),
-        "configuration.constellation-size")]
+        nameof(MainViewModel.PresenceSizePixels),
+        nameof(MainViewModel.PresenceSizeDescription),
+        "configuration.presence-size")]
     [InlineData(
-        ConstellationSetting.DotSize,
+        PresenceSetting.DotSize,
         120,
-        nameof(MainViewModel.ConstellationDotSizePercent),
-        nameof(MainViewModel.ConstellationDotSizeDescription),
-        "configuration.constellation-dot-size")]
+        nameof(MainViewModel.PresenceDotSizePercent),
+        nameof(MainViewModel.PresenceDotSizeDescription),
+        "configuration.presence-dot-size")]
     [InlineData(
-        ConstellationSetting.MovementSpeed,
+        PresenceSetting.MovementSpeed,
         125,
-        nameof(MainViewModel.ConstellationMovementSpeedPercent),
-        nameof(MainViewModel.ConstellationMovementSpeedDescription),
-        "configuration.constellation-movement-speed")]
-    public async Task Constellation_changes_persist_notify_and_use_the_supplied_audit_initiator(
-        ConstellationSetting setting,
+        nameof(MainViewModel.PresenceMovementSpeedPercent),
+        nameof(MainViewModel.PresenceMovementSpeedDescription),
+        "configuration.presence-movement-speed")]
+    public async Task Presence_changes_persist_notify_and_use_the_supplied_audit_initiator(
+        PresenceSetting setting,
         int value,
         string propertyName,
         string descriptionPropertyName,
@@ -658,12 +658,12 @@ public sealed class MainViewModelTests
         fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
             changedProperties.Add(eventArgs.PropertyName);
 
-        var changed = SetConstellationSetting(
+        var changed = SetPresenceSetting(
             fixture.ViewModel,
             setting,
             value,
             SecurityAuditInitiator.VoiceCommand);
-        var unchanged = SetConstellationSetting(
+        var unchanged = SetPresenceSetting(
             fixture.ViewModel,
             setting,
             value,
@@ -671,8 +671,8 @@ public sealed class MainViewModelTests
 
         changed.Should().BeTrue();
         unchanged.Should().BeTrue();
-        GetConstellationSetting(fixture.ViewModel, setting).Should().Be(value);
-        GetSavedConstellationSetting(fixture.AppearancePreferences, setting).Should().Be(value);
+        GetPresenceSetting(fixture.ViewModel, setting).Should().Be(value);
+        GetSavedPresenceSetting(fixture.AppearancePreferences, setting).Should().Be(value);
         changedProperties.Should().Equal(propertyName, descriptionPropertyName);
         AssertAuditPair(
             fixture,
@@ -683,19 +683,19 @@ public sealed class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(ConstellationSetting.Size, ConstellationSettings.MinimumSizePixels - 1)]
-    [InlineData(ConstellationSetting.Size, ConstellationSettings.MaximumSizePixels + 1)]
-    [InlineData(ConstellationSetting.DotSize, ConstellationSettings.MinimumDotSizePercent - 1)]
-    [InlineData(ConstellationSetting.DotSize, ConstellationSettings.MaximumDotSizePercent + 1)]
-    [InlineData(ConstellationSetting.MovementSpeed, ConstellationSettings.MinimumMovementSpeedPercent - 1)]
-    [InlineData(ConstellationSetting.MovementSpeed, ConstellationSettings.MaximumMovementSpeedPercent + 1)]
-    public async Task Constellation_change_rejects_an_invalid_value(
-        ConstellationSetting setting,
+    [InlineData(PresenceSetting.Size, PresenceSettings.MinimumSizePixels - 1)]
+    [InlineData(PresenceSetting.Size, PresenceSettings.MaximumSizePixels + 1)]
+    [InlineData(PresenceSetting.DotSize, PresenceSettings.MinimumDotSizePercent - 1)]
+    [InlineData(PresenceSetting.DotSize, PresenceSettings.MaximumDotSizePercent + 1)]
+    [InlineData(PresenceSetting.MovementSpeed, PresenceSettings.MinimumMovementSpeedPercent - 1)]
+    [InlineData(PresenceSetting.MovementSpeed, PresenceSettings.MaximumMovementSpeedPercent + 1)]
+    public async Task Presence_change_rejects_an_invalid_value(
+        PresenceSetting setting,
         int value)
     {
         var fixture = await Fixture.CreateInitializedAsync();
 
-        var action = () => SetConstellationSetting(
+        var action = () => SetPresenceSetting(
             fixture.ViewModel,
             setting,
             value,
@@ -787,43 +787,43 @@ public sealed class MainViewModelTests
 
     [Theory]
     [InlineData(
-        ConstellationSetting.Size,
+        PresenceSetting.Size,
         true,
         "access-denied",
-        "configuration.constellation-size",
-        "The constellation size could not be saved.")]
+        "configuration.presence-size",
+        "The presence size could not be saved.")]
     [InlineData(
-        ConstellationSetting.Size,
+        PresenceSetting.Size,
         false,
         "io-error",
-        "configuration.constellation-size",
-        "The constellation size could not be saved.")]
+        "configuration.presence-size",
+        "The presence size could not be saved.")]
     [InlineData(
-        ConstellationSetting.DotSize,
+        PresenceSetting.DotSize,
         true,
         "access-denied",
-        "configuration.constellation-dot-size",
-        "The constellation dot size could not be saved.")]
+        "configuration.presence-dot-size",
+        "The presence dot size could not be saved.")]
     [InlineData(
-        ConstellationSetting.DotSize,
+        PresenceSetting.DotSize,
         false,
         "io-error",
-        "configuration.constellation-dot-size",
-        "The constellation dot size could not be saved.")]
+        "configuration.presence-dot-size",
+        "The presence dot size could not be saved.")]
     [InlineData(
-        ConstellationSetting.MovementSpeed,
+        PresenceSetting.MovementSpeed,
         true,
         "access-denied",
-        "configuration.constellation-movement-speed",
-        "The constellation movement speed could not be saved.")]
+        "configuration.presence-movement-speed",
+        "The presence movement speed could not be saved.")]
     [InlineData(
-        ConstellationSetting.MovementSpeed,
+        PresenceSetting.MovementSpeed,
         false,
         "io-error",
-        "configuration.constellation-movement-speed",
-        "The constellation movement speed could not be saved.")]
-    public async Task Constellation_save_failure_retains_the_previous_value_and_is_audited(
-        ConstellationSetting setting,
+        "configuration.presence-movement-speed",
+        "The presence movement speed could not be saved.")]
+    public async Task Presence_save_failure_retains_the_previous_value_and_is_audited(
+        PresenceSetting setting,
         bool accessDenied,
         string reasonCode,
         string actionId,
@@ -833,16 +833,16 @@ public sealed class MainViewModelTests
         fixture.AppearancePreferences.SaveException = accessDenied
             ? new UnauthorizedAccessException("denied")
             : new IOException("disk");
-        var previousValue = GetConstellationSetting(fixture.ViewModel, setting);
+        var previousValue = GetPresenceSetting(fixture.ViewModel, setting);
 
-        var changed = SetConstellationSetting(
+        var changed = SetPresenceSetting(
             fixture.ViewModel,
             setting,
             previousValue + 20,
             SecurityAuditInitiator.LocalUser);
 
         changed.Should().BeFalse();
-        GetConstellationSetting(fixture.ViewModel, setting).Should().Be(previousValue);
+        GetPresenceSetting(fixture.ViewModel, setting).Should().Be(previousValue);
         fixture.ViewModel.ResponseTitle.Should().Be(expectedTitle);
         AssertAuditPair(
             fixture,
@@ -5516,7 +5516,7 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task ShowApplication_restores_a_hidden_constellation()
+    public async Task ShowApplication_restores_a_hidden_presence()
     {
         var fixture = new Fixture();
         await fixture.RunAsync("Kora, hide Kora");
@@ -5529,7 +5529,7 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public void Presence_interaction_requests_the_constellation_and_is_safe_without_a_subscriber()
+    public void Presence_interaction_requests_the_presence_and_is_safe_without_a_subscriber()
     {
         var fixture = new Fixture();
         var unsubscribedFixture = new Fixture(subscribeToWindowActions: false);
@@ -5928,42 +5928,42 @@ public sealed class MainViewModelTests
         completed.ReasonCode.Should().Be(reasonCode);
     }
 
-    private static bool SetConstellationSetting(
+    private static bool SetPresenceSetting(
         MainViewModel viewModel,
-        ConstellationSetting setting,
+        PresenceSetting setting,
         int value,
         SecurityAuditInitiator initiator) =>
         setting switch
         {
-            ConstellationSetting.Size =>
-                viewModel.SetConstellationSizePixels(value, initiator),
-            ConstellationSetting.DotSize =>
-                viewModel.SetConstellationDotSizePercent(value, initiator),
-            ConstellationSetting.MovementSpeed =>
-                viewModel.SetConstellationMovementSpeedPercent(value, initiator),
+            PresenceSetting.Size =>
+                viewModel.SetPresenceSizePixels(value, initiator),
+            PresenceSetting.DotSize =>
+                viewModel.SetPresenceDotSizePercent(value, initiator),
+            PresenceSetting.MovementSpeed =>
+                viewModel.SetPresenceMovementSpeedPercent(value, initiator),
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
 
-    private static int GetConstellationSetting(
+    private static int GetPresenceSetting(
         MainViewModel viewModel,
-        ConstellationSetting setting) =>
+        PresenceSetting setting) =>
         setting switch
         {
-            ConstellationSetting.Size => viewModel.ConstellationSizePixels,
-            ConstellationSetting.DotSize => viewModel.ConstellationDotSizePercent,
-            ConstellationSetting.MovementSpeed => viewModel.ConstellationMovementSpeedPercent,
+            PresenceSetting.Size => viewModel.PresenceSizePixels,
+            PresenceSetting.DotSize => viewModel.PresenceDotSizePercent,
+            PresenceSetting.MovementSpeed => viewModel.PresenceMovementSpeedPercent,
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
 
-    private static int? GetSavedConstellationSetting(
+    private static int? GetSavedPresenceSetting(
         FakeAppearancePreferences preferences,
-        ConstellationSetting setting) =>
+        PresenceSetting setting) =>
         setting switch
         {
-            ConstellationSetting.Size => preferences.SavedConstellationSizePixels,
-            ConstellationSetting.DotSize => preferences.SavedConstellationDotSizePercent,
-            ConstellationSetting.MovementSpeed =>
-                preferences.SavedConstellationMovementSpeedPercent,
+            PresenceSetting.Size => preferences.SavedPresenceSizePixels,
+            PresenceSetting.DotSize => preferences.SavedPresenceDotSizePercent,
+            PresenceSetting.MovementSpeed =>
+                preferences.SavedPresenceMovementSpeedPercent,
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
 
@@ -5993,7 +5993,7 @@ public sealed class MainViewModelTests
             ProviderId = SpeechProviderIds.Kokoro,
         };
 
-    public enum ConstellationSetting
+    public enum PresenceSetting
     {
         Size,
         DotSize,
@@ -6673,13 +6673,13 @@ public sealed class MainViewModelTests
 
         public int? PresenceTimeoutSeconds { get; set; }
 
-        public int? ConstellationSizePixels { get; set; }
+        public int? PresenceSizePixels { get; set; }
 
-        public int? ConstellationDotSizePercent { get; set; }
+        public int? PresenceDotSizePercent { get; set; }
 
-        public int? ConstellationMovementSpeedPercent { get; set; }
+        public int? PresenceMovementSpeedPercent { get; set; }
 
-        public ConstellationPosition? ConstellationPosition { get; set; }
+        public PresencePosition? PresencePosition { get; set; }
 
         public ResponseWindowSettings? ResponseWindowSettings { get; set; }
 
@@ -6687,13 +6687,13 @@ public sealed class MainViewModelTests
 
         public int? SavedPresenceTimeoutSeconds { get; private set; }
 
-        public int? SavedConstellationSizePixels { get; private set; }
+        public int? SavedPresenceSizePixels { get; private set; }
 
-        public int? SavedConstellationDotSizePercent { get; private set; }
+        public int? SavedPresenceDotSizePercent { get; private set; }
 
-        public int? SavedConstellationMovementSpeedPercent { get; private set; }
+        public int? SavedPresenceMovementSpeedPercent { get; private set; }
 
-        public ConstellationPosition? SavedConstellationPosition { get; private set; }
+        public PresencePosition? SavedPresencePosition { get; private set; }
 
         public ResponseWindowSettings? SavedResponseWindowSettings { get; private set; }
 
@@ -6743,44 +6743,44 @@ public sealed class MainViewModelTests
             PresenceTimeoutSeconds = seconds;
         }
 
-        public int? LoadConstellationSizePixels()
+        public int? LoadPresenceSizePixels()
         {
             if (LoadException is not null)
             {
                 throw LoadException;
             }
 
-            return ConstellationSizePixels;
+            return PresenceSizePixels;
         }
 
-        public int? LoadConstellationDotSizePercent()
+        public int? LoadPresenceDotSizePercent()
         {
             if (LoadException is not null)
             {
                 throw LoadException;
             }
 
-            return ConstellationDotSizePercent;
+            return PresenceDotSizePercent;
         }
 
-        public int? LoadConstellationMovementSpeedPercent()
+        public int? LoadPresenceMovementSpeedPercent()
         {
             if (LoadException is not null)
             {
                 throw LoadException;
             }
 
-            return ConstellationMovementSpeedPercent;
+            return PresenceMovementSpeedPercent;
         }
 
-        public ConstellationPosition? LoadConstellationPosition()
+        public PresencePosition? LoadPresencePosition()
         {
             if (LoadException is not null)
             {
                 throw LoadException;
             }
 
-            return ConstellationPosition;
+            return PresencePosition;
         }
 
         public ResponseWindowSettings? LoadResponseWindowSettings()
@@ -6793,32 +6793,32 @@ public sealed class MainViewModelTests
             return ResponseWindowSettings;
         }
 
-        public void SaveConstellationSizePixels(int value)
+        public void SavePresenceSizePixels(int value)
         {
             ThrowIfSaveFails();
-            SavedConstellationSizePixels = value;
-            ConstellationSizePixels = value;
+            SavedPresenceSizePixels = value;
+            PresenceSizePixels = value;
         }
 
-        public void SaveConstellationDotSizePercent(int value)
+        public void SavePresenceDotSizePercent(int value)
         {
             ThrowIfSaveFails();
-            SavedConstellationDotSizePercent = value;
-            ConstellationDotSizePercent = value;
+            SavedPresenceDotSizePercent = value;
+            PresenceDotSizePercent = value;
         }
 
-        public void SaveConstellationMovementSpeedPercent(int value)
+        public void SavePresenceMovementSpeedPercent(int value)
         {
             ThrowIfSaveFails();
-            SavedConstellationMovementSpeedPercent = value;
-            ConstellationMovementSpeedPercent = value;
+            SavedPresenceMovementSpeedPercent = value;
+            PresenceMovementSpeedPercent = value;
         }
 
-        public void SaveConstellationPosition(ConstellationPosition position)
+        public void SavePresencePosition(PresencePosition position)
         {
             ThrowIfSaveFails();
-            SavedConstellationPosition = position;
-            ConstellationPosition = position;
+            SavedPresencePosition = position;
+            PresencePosition = position;
         }
 
         public void SaveResponseWindowSettings(ResponseWindowSettings settings)

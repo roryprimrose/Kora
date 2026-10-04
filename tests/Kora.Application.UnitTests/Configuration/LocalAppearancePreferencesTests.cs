@@ -21,10 +21,10 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
 
         preferences.LoadThemeMode().Should().BeNull();
         preferences.LoadPresenceTimeoutSeconds().Should().BeNull();
-        preferences.LoadConstellationSizePixels().Should().BeNull();
-        preferences.LoadConstellationDotSizePercent().Should().BeNull();
-        preferences.LoadConstellationMovementSpeedPercent().Should().BeNull();
-        preferences.LoadConstellationPosition().Should().BeNull();
+        preferences.LoadPresenceSizePixels().Should().BeNull();
+        preferences.LoadPresenceDotSizePercent().Should().BeNull();
+        preferences.LoadPresenceMovementSpeedPercent().Should().BeNull();
+        preferences.LoadPresencePosition().Should().BeNull();
         preferences.LoadResponseWindowSettings().Should().BeNull();
     }
 
@@ -102,36 +102,63 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
     }
 
     [Fact]
-    public void SaveConstellationSettings_atomically_replace_and_load_the_preferences()
+    public void Presence_preferences_use_presence_storage_names()
     {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "presence-size-pixels.txt"), "400");
+        File.WriteAllText(Path.Combine(directory, "presence-dot-size-percent.txt"), "120");
+        File.WriteAllText(Path.Combine(directory, "presence-movement-speed-percent.txt"), "125");
+        File.WriteAllText(Path.Combine(directory, "presence-position.txt"), "-400,200");
         var preferences = CreatePreferences();
 
-        preferences.SaveConstellationSizePixels(400);
-        preferences.SaveConstellationSizePixels(360);
-        preferences.SaveConstellationDotSizePercent(120);
-        preferences.SaveConstellationDotSizePercent(100);
-        preferences.SaveConstellationMovementSpeedPercent(125);
-        preferences.SaveConstellationMovementSpeedPercent(100);
+        preferences.LoadPresenceSizePixels().Should().Be(400);
+        preferences.LoadPresenceDotSizePercent().Should().Be(120);
+        preferences.LoadPresenceMovementSpeedPercent().Should().Be(125);
+        preferences.LoadPresencePosition().Should().Be(new PresencePosition(-400, 200));
 
-        preferences.LoadConstellationSizePixels().Should().Be(360);
-        preferences.LoadConstellationDotSizePercent().Should().Be(100);
-        preferences.LoadConstellationMovementSpeedPercent().Should().Be(100);
-        File.Exists(Path.Combine(root, "Preferences", "constellation-size-pixels.tmp")).Should().BeFalse();
-        File.Exists(Path.Combine(root, "Preferences", "constellation-dot-size-percent.tmp")).Should().BeFalse();
-        File.Exists(Path.Combine(root, "Preferences", "constellation-movement-speed-percent.tmp")).Should().BeFalse();
+        preferences.SavePresenceSizePixels(360);
+        preferences.SavePresenceDotSizePercent(100);
+        preferences.SavePresenceMovementSpeedPercent(100);
+        preferences.SavePresencePosition(new PresencePosition(120, -80));
+
+        File.ReadAllText(Path.Combine(directory, "presence-size-pixels.txt")).Should().Be("360");
+        File.ReadAllText(Path.Combine(directory, "presence-dot-size-percent.txt")).Should().Be("100");
+        File.ReadAllText(Path.Combine(directory, "presence-movement-speed-percent.txt")).Should().Be("100");
+        File.ReadAllText(Path.Combine(directory, "presence-position.txt")).Should().Be("120,-80");
     }
 
     [Fact]
-    public void SaveConstellationPosition_atomically_replaces_and_loads_the_preference()
+    public void SavePresenceSettings_atomically_replace_and_load_the_preferences()
     {
         var preferences = CreatePreferences();
 
-        preferences.SaveConstellationPosition(new ConstellationPosition(-400, 200));
-        preferences.SaveConstellationPosition(new ConstellationPosition(120, -80));
+        preferences.SavePresenceSizePixels(400);
+        preferences.SavePresenceSizePixels(360);
+        preferences.SavePresenceDotSizePercent(120);
+        preferences.SavePresenceDotSizePercent(100);
+        preferences.SavePresenceMovementSpeedPercent(125);
+        preferences.SavePresenceMovementSpeedPercent(100);
 
-        preferences.LoadConstellationPosition().Should().Be(
-            new ConstellationPosition(120, -80));
-        File.Exists(Path.Combine(root, "Preferences", "constellation-position.tmp"))
+        preferences.LoadPresenceSizePixels().Should().Be(360);
+        preferences.LoadPresenceDotSizePercent().Should().Be(100);
+        preferences.LoadPresenceMovementSpeedPercent().Should().Be(100);
+        File.Exists(Path.Combine(root, "Preferences", "presence-size-pixels.tmp")).Should().BeFalse();
+        File.Exists(Path.Combine(root, "Preferences", "presence-dot-size-percent.tmp")).Should().BeFalse();
+        File.Exists(Path.Combine(root, "Preferences", "presence-movement-speed-percent.tmp")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void SavePresencePosition_atomically_replaces_and_loads_the_preference()
+    {
+        var preferences = CreatePreferences();
+
+        preferences.SavePresencePosition(new PresencePosition(-400, 200));
+        preferences.SavePresencePosition(new PresencePosition(120, -80));
+
+        preferences.LoadPresencePosition().Should().Be(
+            new PresencePosition(120, -80));
+        File.Exists(Path.Combine(root, "Preferences", "presence-position.tmp"))
             .Should()
             .BeFalse();
     }
@@ -142,21 +169,21 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
     [InlineData("1,2,3")]
     [InlineData("one,2")]
     [InlineData("1,two")]
-    public void LoadConstellationPosition_rejects_invalid_content(string content)
+    public void LoadPresencePosition_rejects_invalid_content(string content)
     {
         var directory = Path.Combine(root, "Preferences");
         Directory.CreateDirectory(directory);
-        File.WriteAllText(Path.Combine(directory, "constellation-position.txt"), content);
+        File.WriteAllText(Path.Combine(directory, "presence-position.txt"), content);
 
-        var action = CreatePreferences().LoadConstellationPosition;
+        var action = CreatePreferences().LoadPresencePosition;
 
         action.Should().Throw<InvalidDataException>();
     }
 
     [Fact]
-    public void SaveConstellationPosition_rejects_null()
+    public void SavePresencePosition_rejects_null()
     {
-        var action = () => CreatePreferences().SaveConstellationPosition(null!);
+        var action = () => CreatePreferences().SavePresencePosition(null!);
 
         action.Should().Throw<ArgumentNullException>();
     }
@@ -221,22 +248,22 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
     }
 
     [Theory]
-    [InlineData("constellation-size-pixels.txt", "", ConstellationSetting.Size)]
-    [InlineData("constellation-size-pixels.txt", "invalid", ConstellationSetting.Size)]
-    [InlineData("constellation-size-pixels.txt", "239", ConstellationSetting.Size)]
-    [InlineData("constellation-size-pixels.txt", "601", ConstellationSetting.Size)]
-    [InlineData("constellation-dot-size-percent.txt", "", ConstellationSetting.DotSize)]
-    [InlineData("constellation-dot-size-percent.txt", "invalid", ConstellationSetting.DotSize)]
-    [InlineData("constellation-dot-size-percent.txt", "49", ConstellationSetting.DotSize)]
-    [InlineData("constellation-dot-size-percent.txt", "201", ConstellationSetting.DotSize)]
-    [InlineData("constellation-movement-speed-percent.txt", "", ConstellationSetting.MovementSpeed)]
-    [InlineData("constellation-movement-speed-percent.txt", "invalid", ConstellationSetting.MovementSpeed)]
-    [InlineData("constellation-movement-speed-percent.txt", "24", ConstellationSetting.MovementSpeed)]
-    [InlineData("constellation-movement-speed-percent.txt", "201", ConstellationSetting.MovementSpeed)]
-    public void LoadConstellationSetting_rejects_invalid_content(
+    [InlineData("presence-size-pixels.txt", "", PresenceSetting.Size)]
+    [InlineData("presence-size-pixels.txt", "invalid", PresenceSetting.Size)]
+    [InlineData("presence-size-pixels.txt", "239", PresenceSetting.Size)]
+    [InlineData("presence-size-pixels.txt", "601", PresenceSetting.Size)]
+    [InlineData("presence-dot-size-percent.txt", "", PresenceSetting.DotSize)]
+    [InlineData("presence-dot-size-percent.txt", "invalid", PresenceSetting.DotSize)]
+    [InlineData("presence-dot-size-percent.txt", "49", PresenceSetting.DotSize)]
+    [InlineData("presence-dot-size-percent.txt", "201", PresenceSetting.DotSize)]
+    [InlineData("presence-movement-speed-percent.txt", "", PresenceSetting.MovementSpeed)]
+    [InlineData("presence-movement-speed-percent.txt", "invalid", PresenceSetting.MovementSpeed)]
+    [InlineData("presence-movement-speed-percent.txt", "24", PresenceSetting.MovementSpeed)]
+    [InlineData("presence-movement-speed-percent.txt", "201", PresenceSetting.MovementSpeed)]
+    public void LoadPresenceSetting_rejects_invalid_content(
         string fileName,
         string content,
-        ConstellationSetting setting)
+        PresenceSetting setting)
     {
         var directory = Path.Combine(root, "Preferences");
         Directory.CreateDirectory(directory);
@@ -245,9 +272,9 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
 
         Func<int?> action = setting switch
         {
-            ConstellationSetting.Size => preferences.LoadConstellationSizePixels,
-            ConstellationSetting.DotSize => preferences.LoadConstellationDotSizePercent,
-            ConstellationSetting.MovementSpeed => preferences.LoadConstellationMovementSpeedPercent,
+            PresenceSetting.Size => preferences.LoadPresenceSizePixels,
+            PresenceSetting.DotSize => preferences.LoadPresenceDotSizePercent,
+            PresenceSetting.MovementSpeed => preferences.LoadPresenceMovementSpeedPercent,
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
 
@@ -255,14 +282,14 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
     }
 
     [Theory]
-    [InlineData(ConstellationSetting.Size, ConstellationSettings.MinimumSizePixels - 1)]
-    [InlineData(ConstellationSetting.Size, ConstellationSettings.MaximumSizePixels + 1)]
-    [InlineData(ConstellationSetting.DotSize, ConstellationSettings.MinimumDotSizePercent - 1)]
-    [InlineData(ConstellationSetting.DotSize, ConstellationSettings.MaximumDotSizePercent + 1)]
-    [InlineData(ConstellationSetting.MovementSpeed, ConstellationSettings.MinimumMovementSpeedPercent - 1)]
-    [InlineData(ConstellationSetting.MovementSpeed, ConstellationSettings.MaximumMovementSpeedPercent + 1)]
-    public void SaveConstellationSetting_rejects_an_invalid_value(
-        ConstellationSetting setting,
+    [InlineData(PresenceSetting.Size, PresenceSettings.MinimumSizePixels - 1)]
+    [InlineData(PresenceSetting.Size, PresenceSettings.MaximumSizePixels + 1)]
+    [InlineData(PresenceSetting.DotSize, PresenceSettings.MinimumDotSizePercent - 1)]
+    [InlineData(PresenceSetting.DotSize, PresenceSettings.MaximumDotSizePercent + 1)]
+    [InlineData(PresenceSetting.MovementSpeed, PresenceSettings.MinimumMovementSpeedPercent - 1)]
+    [InlineData(PresenceSetting.MovementSpeed, PresenceSettings.MaximumMovementSpeedPercent + 1)]
+    public void SavePresenceSetting_rejects_an_invalid_value(
+        PresenceSetting setting,
         int value)
     {
         var preferences = CreatePreferences();
@@ -271,14 +298,14 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
         {
             switch (setting)
             {
-                case ConstellationSetting.Size:
-                    preferences.SaveConstellationSizePixels(value);
+                case PresenceSetting.Size:
+                    preferences.SavePresenceSizePixels(value);
                     break;
-                case ConstellationSetting.DotSize:
-                    preferences.SaveConstellationDotSizePercent(value);
+                case PresenceSetting.DotSize:
+                    preferences.SavePresenceDotSizePercent(value);
                     break;
-                case ConstellationSetting.MovementSpeed:
-                    preferences.SaveConstellationMovementSpeedPercent(value);
+                case PresenceSetting.MovementSpeed:
+                    preferences.SavePresenceMovementSpeedPercent(value);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(setting));
@@ -303,7 +330,7 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
 
     private sealed record TestPaths(string LocalRoot, string RoamingRoot) : IApplicationDataPaths;
 
-    public enum ConstellationSetting
+    public enum PresenceSetting
     {
         Size,
         DotSize,

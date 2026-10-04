@@ -6,13 +6,13 @@ public interface IAppearancePreferences
 
     int? LoadPresenceTimeoutSeconds();
 
-    int? LoadConstellationSizePixels();
+    int? LoadPresenceSizePixels();
 
-    int? LoadConstellationDotSizePercent();
+    int? LoadPresenceDotSizePercent();
 
-    int? LoadConstellationMovementSpeedPercent();
+    int? LoadPresenceMovementSpeedPercent();
 
-    ConstellationPosition? LoadConstellationPosition();
+    PresencePosition? LoadPresencePosition();
 
     ResponseWindowSettings? LoadResponseWindowSettings();
 
@@ -20,13 +20,13 @@ public interface IAppearancePreferences
 
     void SavePresenceTimeoutSeconds(int seconds);
 
-    void SaveConstellationSizePixels(int value);
+    void SavePresenceSizePixels(int value);
 
-    void SaveConstellationDotSizePercent(int value);
+    void SavePresenceDotSizePercent(int value);
 
-    void SaveConstellationMovementSpeedPercent(int value);
+    void SavePresenceMovementSpeedPercent(int value);
 
-    void SaveConstellationPosition(ConstellationPosition position);
+    void SavePresencePosition(PresencePosition position);
 
     void SaveResponseWindowSettings(ResponseWindowSettings settings);
 }

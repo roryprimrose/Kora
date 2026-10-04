@@ -8,7 +8,7 @@ Open Settings by:
 - entering **open settings** as a typed command.
 
 The Settings window is single-instance. Changes use the same live application
-state as the constellation and response surfaces.
+state as the presence and response surfaces.
 
 ## Approvals
 
@@ -58,7 +58,7 @@ required queued setup task.
 - **Light** - always use Kora's light palette.
 - **Dark** - always use Kora's dark palette.
 
-The theme applies immediately to Settings, the constellation, response surface,
+The theme applies immediately to Settings, the presence, response surface,
 documentation, and other Kora-owned visual surfaces.
 
 ### Visible timeout
@@ -68,21 +68,23 @@ documentation, and other Kora-owned visual surfaces.
 
 The shared timer restarts whenever voice, typed, pointer, or keyboard
 interaction occurs. If no further interaction occurs before the timeout, Kora
-hides the constellation and any response window that is not set to **Always
-show**. **Always show** affects only the response window; the constellation
+hides the presence and any response window that is not set to **Always
+show**. **Always show** affects only the response window; the presence
 continues to use this timeout.
 
-### Constellation appearance
+### Presence appearance
 
-The three sliders apply immediately and are stored on this device:
+The presence is the animated group of dots that communicates Kora's current
+state. Under **Settings > Appearance > Presence appearance**, the three sliders
+apply immediately and are stored on this device:
 
-- **Constellation size** - default **360 px**; range **240-600 px**.
+- **Presence size** - default **360 px**; range **240-600 px**.
 - **Dot size** - default **100%**; range **50-200%**.
-- **Dot movement speed** - default **100%**; range **25-200%**.
+- **Movement speed** - default **100%**; range **25-200%**.
 
-Changing the overall size keeps the constellation anchored to the bottom-right
+Changing the overall size keeps the presence anchored to the bottom-right
 of the active display's working area until you move it. Drag the visible
-constellation to reposition it. Kora restores its last position when that
+presence to reposition it. Kora restores its last position when that
 position remains on a connected display and otherwise falls back to the
 bottom-right working area. Dot size changes particle diameter without changing
 the number of particles. Movement speed scales the motion associated with each
@@ -100,7 +102,7 @@ feedback**:
 - **Stay on top** controls whether the response remains above other windows.
   Default: on.
 - **Visible timeout** changes the shared 1-60 second timeout used by both the
-  response window and constellation.
+  response window and presence.
 
 These choices and the window position are stored on this device.
 

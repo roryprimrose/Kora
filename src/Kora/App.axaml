@@ -20,7 +20,7 @@
           <SolidColorBrush x:Key="KoraHeaderBorderBrush" Color="#DDE0E7" />
           <SolidColorBrush x:Key="KoraDividerBrush" Color="#C3C7D0" />
           <RadialGradientBrush
-              x:Key="KoraConstellationBackgroundBrush"
+              x:Key="KoraPresenceBackgroundBrush"
               Center="50%,48%"
               GradientOrigin="50%,48%">
             <GradientStop Color="#E1D9FF" Offset="0" />
@@ -42,7 +42,7 @@
           <SolidColorBrush x:Key="KoraHeaderBorderBrush" Color="#292E37" />
           <SolidColorBrush x:Key="KoraDividerBrush" Color="#41454E" />
           <RadialGradientBrush
-              x:Key="KoraConstellationBackgroundBrush"
+              x:Key="KoraPresenceBackgroundBrush"
               Center="50%,48%"
               GradientOrigin="50%,48%">
             <GradientStop Color="#2C2A3B" Offset="0" />

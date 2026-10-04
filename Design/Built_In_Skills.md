@@ -7,13 +7,40 @@ See [future execution design](../docs/skill-and-task-execution-design.md).
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Skill Storage](Skill_Storage.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+## Skills Versus Internal Kora Tools
+
+Per-skill selection, inputs, dependencies, effects and current/planned
+availability are catalogued in the
+[technical reference](Tool_And_Skill_Reference.md#12-built-in-skill-contracts)
+and [user guide](../docs/tools-and-built-in-skills.md#13-built-in-skills).
+
+Use [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+for the common terminology and app -> model -> app flow.
+Internal functionality such as querying session state is a host action exposed
+as a typed tool; it does not need a skill package or `.ps1`.
+A bundled computer-control skill describes an outcome, selection guidance,
+inputs, and a workflow/task reference. Its registered script implements the
+effect and participates in content-bound execution grants.
+The task may also have a tool interface; skill, tool, and script are distinct,
+complementary layers.
+
+The host advertises the skill's source-qualified ID/revision, purpose,
+selection guidance, inputs, and dependencies to the model. It resolves selected
+instructions and tasks itself, rather than sending script source by default or
+accepting an executable path from the model.
+Exact phrases can select the original registration without inference; ordinary
+language can select it through a validated model proposal. Both routes use the
+same implementation and grant gate, and neither selection nor enablement is
+approval. Execution produces a structured result/receipt; model-mediated work
+can return that result to the runtime under egress and session-privacy policy.
+
 ## Package Classes and Sources
 
 Kora ships useful skills without requiring users to author or download them.
 
 | Package class | May contain | Installation and modification |
 |---|---|---|
-| Bundled first-party skill | Explicit manifest, Markdown instructions, optional fixtures, and one or more registered PowerShell scripts, all embedded resources in a protected Kora application binary; scripts may be shared between skills | No user/agent editing or file replacement; updated only with the application through verified out-of-band maintenance |
+| Bundled first-party skill | Explicit manifest, selection guidance, Markdown instructions/workflow, optional fixtures, and any registered PowerShell script set, all embedded resources in a protected Kora application binary; scripts may be shared between skills | No user/agent editing or file replacement; updated only with the application through verified out-of-band maintenance |
 | User-authored skill | Declarative manifest/instructions/workflows referencing admitted tools | Created/refined by voice in the dedicated user skill store; cannot create or modify executable scripts |
 | Shared profile skill | Supported declarative/instruction content; executable requirements are not admitted in the MVP | Read-only source reference with explicit revision enablement; edited copies go to Kora's roaming store |
 
@@ -112,8 +139,8 @@ grant key.
 
 ## Embedded Resource Storage and Integrity
 
-Build every built-in skill's manifest, Markdown instructions, fixtures, and all required scripts into the Kora application assembly as embedded resources.
-Use stable host-owned resource IDs and a build-generated catalogue binding skill ID, manifest/instruction resource IDs, complete script set, per-file digests, script-set hash, definition digest, and permitted action.
+Build every built-in skill's manifest, selection guidance, Markdown instructions, fixtures, and all required scripts into the Kora application assembly as embedded resources.
+Use stable host-owned resource IDs and a build-generated catalogue binding skill ID/version, manifest/instruction resource IDs, complete script set, per-file digests, script-set hash, definition digest, and permitted tool/task references.
 Resolve resources from the explicitly identified application assembly, never by scanning arbitrary assemblies, folders, PATH, profile roots, or plugins.
 The assembly is part of the protected application binary deployment; this does not require choosing single-file publishing or a self-contained runtime.
 
@@ -309,15 +336,18 @@ Use the manifest contract above: the host resolves the Markdown, entry point,
 and shared helper through immutable resource registrations and verifies both
 the individual digests and combined script-set hash. The manifest cannot
 provide an arbitrary path, executable, or command line.
+Canonical phrases and reserved aliases live in the host intent catalogue.
+Selection guidance assists model interpretation but cannot establish permission
+or change host policy.
 
 Behaviour:
 
-1. Recognise the direct request locally after wake activation/transcription; no cloud model or connector is required.
-2. Resolve the original bundled skill and registered `session.lock` action.
+1. Recognise an exact direct request locally after voice activation/transcription or typed input; no model or connector is required. For other wording, a model may propose this skill/task using its advertised description, clarifying an uncertain intent or target.
+2. Resolve the original pinned bundled skill and registered `session.lock` task; validate the proposal's lineage to the explicit user request.
 3. Verify the interactive user/session, complete script-set and definition identities, and permission for this request.
 4. Invoke the entry point from the verified embedded script-set snapshot with fixed validated parameters to lock the current Windows session.
 5. Observe the Windows session-lock notification; an accepted API request alone does not prove the session locked.
-6. Enforce microphone policy immediately on lock, regardless of how the lock occurred.
+6. Enforce microphone policy immediately on lock, regardless of how the lock occurred. Produce a correlated structured result/receipt for host presentation or permitted runtime continuation; do not expose private results on the lock screen.
 
 An unambiguous direct request identifies the intended lock, but is not
 itself an execution grant. Under the future common gate, direct and
@@ -341,7 +371,7 @@ The script must not be able to clear policy, reopen the microphone, or modify Ko
 
 - Embed and verify the manifest, Markdown, complete script inventory, resource identities, individual digests, combined hash, expected parameters, effect, and runtime.
 - Load skill/script bytes only from the identified protected application assembly; never substitute a similarly named user skill, loose extracted script, or PATH-resolved script.
-- Expose the registered action, not a generic shell or script runner, to agent workflows.
+- Expose a typed tool/task contract and structured result for the registered effect, not a generic shell or script runner, to agent workflows.
 - Use a narrowly scoped worker/profile with tested denial of writes to Kora resources and no unnecessary filesystem/network/credential access.
 - Verify Windows session-control API access under that actual profile before selecting the script engine.
 - Containment and protected-resource tests are Slice A release gates for this script, not deferred general plugin work.

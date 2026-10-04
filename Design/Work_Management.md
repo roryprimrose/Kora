@@ -25,6 +25,17 @@ Execution lanes perform admitted session tasks' isolated model/tool workflows.
 Management cannot run task tools, acquire arbitrary context, or approve task actions.
 Host-owned, explicitly requested context capture still uses the context broker.
 
+The app -> model -> app contract in
+[Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+does not expand management authority. Management receives the minimal
+authoritative ledger/status snapshot and proposes typed management operations;
+it does not load skill instruction bodies or inherit executable-tool definitions.
+The task runtime performs admitted skill/tool iteration and receives approved
+structured results. Direct status presentation and runtime state queries reuse
+host-owned query services while enforcing each caller's data scope.
+Approval replies are correlated to the existing host prompt, not interpreted
+by management inference as permission to create a grant.
+
 ## Contextual Decisions, Not a Fixed Queue Prompt
 
 Use the model to decide what a new utterance means when context makes that decision clear.

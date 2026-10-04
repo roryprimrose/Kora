@@ -9,6 +9,10 @@ Internal means implemented/mediated by Kora, not every method or UI command in t
 External MCP tools, provider-native tools, and skill-defined workflows are separately admitted capabilities, not automatically internal tools.
 Being listed here does not enable a capability before its delivery, adapter, containment, and authorization gates pass.
 
+The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
+maps the current bootstrap and every catalogue family to dependency-ordered
+implementation and acceptance work. Roadmap inventory IDs are not tool IDs.
+
 ## Availability and Caller Lanes
 
 - **Current:** verified local Ollama bootstrap accepts a bounded JSON proposal, not an SDK tool-call loop.

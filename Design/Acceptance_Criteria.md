@@ -4,6 +4,11 @@ Status: proposed release gates. Targets are not claims of measured performance.
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
 
+The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
+maps these gates to current source/test evidence and outstanding work packages.
+Delivered bootstrap behavior does not mean these release gates have passed;
+actual provider, hardware, containment and installation evidence remains required.
+
 ## Test Environment and Evidence
 
 Before implementation is accepted, record an exact reference machine:
@@ -47,6 +52,64 @@ The Copilot proof in [Architecture](Architecture.md#copilot-integration-proof) m
 Test the actual pinned SDK, not only a fake adapter.
 Mocks are supplementary for deterministic negative-path coverage.
 An unobservable or uncontrollable outbound path is a failed gate, not an assumption of safety.
+
+## Command, Tool, and Skill Interaction Gate
+
+Apply [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+to each enabled capability in its delivery slice. Use deterministic host/runtime
+fixtures plus actual pinned-provider evidence for advertised model-mediated
+selection and iteration; a bootstrap action-selector test alone is not proof
+of the proposed tool loop.
+
+- Equivalent typed and activated/transcribed voice requests resolve the same
+  capability and inputs while retaining their channel-specific privacy/approval
+  checks. Users need not supply a tool ID, manifest, or script filename.
+- The model receives the relevant admitted tool schemas and enabled,
+  source-qualified skill summaries before interpretation. Unknown IDs,
+  unavailable dependencies, disabled revisions, stale catalogue entries, and
+  invalid parameters cannot dispatch an implementation.
+- Skill selection loads only the resolved pinned instructions/workflow and
+  admitted references. Remote summary/instruction transmission obeys context
+  policy; local discovery does not imply egress permission or execute a script.
+- A session-state query returns authoritative structured data, invocation ID,
+  observation time, and provenance without opening a window, speaking, changing
+  state, or approving a pending action. A deterministic status presenter uses
+  the same query service without a model.
+- Non-exact status questions such as "Am I waiting on anything?" use approved
+  context or request fresh state through a tool. Answers reflect observed
+  blockers/unknowns and cannot claim stale snapshots are current.
+- The runtime receives an approved bounded tool result and can answer or
+  propose another checked step. Test success, failure, denied, cancelled, and
+  unknown results; display text and action names never become execution.
+- Tool-result egress denial sends zero rejected markers to the model and leaves
+  the observed action receipt truthful. Locked-session/output policy still
+  prevents private spoken or visible completion.
+- Exact lock phrases and natural-language lock requests resolve the original
+  bundled skill/task, its fixed parameters, and the same verified embedded
+  script/dependency snapshot. Skill selection followed by tool dispatch never
+  executes twice; arbitrary script text/paths cannot replace registration.
+- Quoted lock instructions, questions about locking, hostile tool/skill content,
+  and ambiguous computer/application targets do not establish execution intent.
+  Ambiguous intent or source-qualified skill selection asks for clarification.
+- Selecting/enabling a skill, choosing a clarification answer, opening script
+  review, or separately approved PowerShell setup does not execute the selected
+  task or create an implicit execution grant. Setup retains its own consent
+  and observed installation effects.
+- Direct commands, UI task invocations, model proposals, and skill workflows
+  reach the same applicable action gate. A denied or dismissed proposal runs
+  nothing; once/session/always grants cover only the resolved task/implementation,
+  permitted invocation, and exact resources.
+- Changed script, invocation, manifest, or executable dependency invalidates
+  affected grants; unaffected tasks keep theirs. Model-supplied hashes, risk
+  classifications, or permission claims cannot authorise a run.
+- A tool invocation cannot broaden an approval or attach a clarification reply
+  to another proposal. Cancellation rejects late proposals/results, and
+  uncertain or denied effects never trigger an automatic write retry.
+- Model offline/busy/timeout fixtures preserve exact help, basic status,
+  stop-speech, cancellation/pause, and essential lifecycle routes without
+  weakening active-work or side-effect approval.
+- Management inference retains its minimal ledger/proposal contract; it cannot
+  inherit execution tools, skill instruction bodies, or script access.
 
 ## Gate 1: Voice and Clipboard Vertical Slice
 
@@ -619,16 +682,23 @@ Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contra
 
 ### Additional Capability Evidence
 
-Before adding capabilities outside the MVP:
+Required initial-release evidence, not optional post-MVP enhancements:
+
+| Capability | Required checkpoint evidence |
+|---|---|
+| Ollama/inference adapter | A2: shared-loop conformance, network-blocked offline clipboard answering, tool/result mediation, context/egress limits, quality/cancellation and reference-hardware/licence/performance proof |
+| Fixed bundled execution | A3: complete embedded multi-script identity/review, common direct/model/UI/skill grant gate, truthful cancellation/lock receipts, and actual OS filesystem/network/child-process/credential/protected-Kora-resource containment |
+| Concurrent independent session tasks | A3: two-slot baseline on reference hardware, one task per session, resource conflict scheduling, isolated task/approval/provider contexts, per-task cancellation, fair budgets and truthful grounded/aggregated status |
+
+Before adding capabilities outside the initial release:
 
 | Capability | Additional required evidence |
 |---|---|
-| Ollama/inference adapter | Shared-loop conformance, offline answering, tool mediation, context limits |
 | Knowledge indexing | Access revocation, deletion, freshness, identity partitioning, citation correctness, reindex behaviour |
-| Restricted execution | Adversarial filesystem, network, child-process, credential, and protected Kora-resource access tests against actual OS containment |
+| General applications/user-provided executable skills | Complete dependency discovery/immutable snapshots, content-bound applicability/revocation, and adversarial filesystem, network, child-process, credential, and protected Kora-resource access tests against actual OS containment |
 | Screen/image context | Explicit capture, region/source provenance, secret handling, no ambient collection |
 | Kora MCP server | Authenticated clients, per-client scopes, no unattended reuse of interactive grants |
 | Extension updates | Digest/version changes invalidate affected grants and policy mappings |
-| Multiple task executors | Resource conflict scheduling, isolated task/approval contexts, per-task cancellation, dependency gates, fair provider budgets, and truthful aggregated status |
+| Intra-session parallel or multi-agent execution | Separate scope approval, isolated subtask/approval/provider contexts, resource conflict scheduling, cancellation/dependency gates, fair budgets and truthful aggregated status beyond the initial one-task-per-session rule |
 
 No roadmap feature inherits release approval solely because it uses an existing extension interface.

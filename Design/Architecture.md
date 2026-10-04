@@ -21,6 +21,31 @@ There are two adapter families:
 Both expose the same task-facing protocol. Inference adapters share one loop implementation rather than duplicating it per provider.
 That loop is built when an inference provider is introduced, not speculatively for Slice A.
 
+## Commands, Tools, and Skill Interaction
+
+[Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+defines the app -> model -> app contract and the distinction between an input
+command, an internal host action exposed as a tool, a skill, and its registered
+executable tasks. "Built in" describes ownership, not a requirement that every
+capability be a skill or script.
+
+The host advertises relevant admitted tool definitions and enabled, pinned
+skill summaries to the runtime. Natural-language interpretation produces typed
+proposals, not execution authority. The host resolves a selected skill's
+pinned workflow and supplies approved instructions/references to the task
+runtime, or interprets declarative steps in its bounded engine. It resolves
+registered tasks, applies policy/grants, executes, and returns
+bounded structured results to the same runtime after any required egress
+review. The runtime may then answer or propose a further checked step.
+Internal state-query tools return facts without UI side effects; host
+presentation consumes those facts separately.
+
+Exact local commands and essential controls can bypass inference, but not
+their applicable action gate. All routes share the underlying host services;
+the management session retains only its minimal ledger/proposal contract,
+not the execution runtime's tool catalogue or skill instruction bodies.
+The current one-response action selector is not this complete tool loop.
+
 ## Platform Boundaries and Support
 
 Windows is the only supported application platform for the foreseeable future.
@@ -184,19 +209,25 @@ The implementation must define versioned, strongly typed equivalents of these me
 | Runtime capabilities | Runtime/version, local or remote destinations, streaming, tool mediation, cancellation, context filtering, supported input types |
 | Trusted input/intent lineage | Host input-event ID, initiating channel, current Windows-user scope, original request and approved-plan references; immutable across interpretation/management/task/tool hops, never model-authored or relabeled by a later confirmation |
 | Task request | Session/task IDs, user request, trusted intent-lineage reference, approved context IDs, effective policy/revision, deadline, selected runtime |
+| Capability catalogue | Snapshot/revision, admitted tool IDs/schema versions/descriptions, enabled source-qualified skill revisions/selection summaries, dependency availability; no implied grants |
+| Skill selection | Session/task IDs, source-qualified skill ID and pinned revision, schema-valid inputs, trusted intent lineage; resolves a workflow, not an execution approval |
 | Management request/proposal | Management request ID, trusted intent-lineage reference, minimal approved session descriptors/context, registry/ledger revision, typed route/operation, target session/task IDs, evidence or clarification |
 | Session record/event | Session ID, lifecycle/work state, sequence/revision, channel/provenance, durable timestamps, history/artifact references, retention due times |
 | Structured question/reply | Session/task/question IDs, revision, typed option/field schema, constraints, draft/accepted answer, expiry and submit/cancel meaning |
 | Work status | Task/step states, observation timestamps, provenance of progress, queue position, blocker; distinguish plans from confirmed outcomes |
 | Context item | ID, immutable content reference, content hash, source, media type, trust/classification, identity scope, capture time, expiry |
 | Runtime event | Session/task IDs, sequence, event type, typed payload; no state-changing work hidden in display text |
-| Tool invocation | Invocation ID, session/task IDs, tool/version, schema-valid parameters, target resources, effect class, trusted intent-lineage reference, host-validated authorization reference, current policy/call generation and setting revision at dispatch, deadline |
-| Tool result | Invocation ID, success/failure/unknown status, bounded content, provenance, classification, side-effect receipt |
+| Tool invocation | Invocation ID, session/task IDs, tool/version, selected skill revision/registered task where applicable, schema-valid parameters, target resources, host-assigned effect class, trusted intent-lineage reference, host-validated authorization reference, current policy/call generation and setting revision at dispatch, deadline |
+| Tool result | Invocation ID, success/pending/blocked/unavailable/conflict/failure/unknown/denied/cancelled status, bounded structured data, observation time, provenance, classification, side-effect receipt |
 | Approval request | Session/task/proposal IDs and revision, exact action/destination, resources and script/dependency/parameter hashes, requested `grantScope: Once/Session/Perpetual`, bound session ID for Session, host-eligible scope/required Once reason during protected calls, proposal deadline (not perpetual grant expiry), host-assigned risk/review, optional speaker policy, mandatory OS checks, trusted intent lineage, call-policy generation and setting revision, user-readable summary |
 | Grant record/dispatch authorization | Stable grant ID/revision, exact approved operation/resources/identity/digests, scope and bound session where required, creation/edit/provenance; Once consumption and session-end applicability; independently retained Perpetual without expiry/retention/eviction; per-invocation dispatch authorization is distinct from the stored record |
 | Completion | Completed/cancelled/failed/unknown-side-effects, final answer references, action receipts, error detail |
 
 Runtime events include answer deltas, tool proposals, context transmission proposals, progress, and terminal events.
+Skill selections resolve through the host catalogue before supplying approved
+instruction data/tool references for admitted tool/task proposals; selecting
+a skill never independently dispatches its script. Skill-summary/instruction
+egress obeys the same context controls as other selected sources.
 The host must await decisions on proposals before execution or transmission. Approval is not a retrospective notification.
 
 A provider's built-in filesystem, shell, browsing, memory, telemetry, or connector features must be disabled unless they satisfy the same controls.
@@ -228,7 +259,8 @@ The [Internal Model Tool Catalogue](Internal_Model_Tools.md) owns the complete c
 The current bootstrap exposes registered action/question/grant-change JSON proposals, not this future tool-call API.
 Capability negotiation advertises only verified implemented subsets, never every proposed catalogue entry.
 
-All built-in and external tools use the same authorisation path:
+All internal host tools, skill-backed task invocations, and external tools use
+the same applicable authorisation path, including direct command/UI routes:
 
 1. Resolve the tool/version and validate parameters.
 2. Resolve canonical target resources and identity.
@@ -239,6 +271,10 @@ All built-in and external tools use the same authorisation path:
 7. Execute with deadline and output limits.
 8. Produce an action receipt and provenance-bearing result.
 
+Query results are separate from window/speech presentation. Return approved,
+bounded result data to the task runtime for continued reasoning; direct local
+commands can present the same result without inference. A skill/script cannot
+open approval controls, classify its own effect, or invent a successful receipt.
 Tool names and descriptions are untrusted metadata. Policy bindings are maintained by Kora and reviewed when tools change.
 
 ## Storage and Processes

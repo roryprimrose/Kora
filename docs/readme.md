@@ -43,6 +43,7 @@ for the current run; use **Enable listening** to resume it.
 - [Responses and detected calls](responses-and-calls.md)
 - [All settings](settings.md)
 - [All built-in tasks and command variants](commands.md)
+- [Tools and built-in skills: current and planned](tools-and-built-in-skills.md)
 - [Windows, tray, and appearance](windows-and-tray.md)
 - [Privacy, safety, and logs](privacy-safety-and-logs.md)
 - [Skill and task execution design (planned)](skill-and-task-execution-design.md)

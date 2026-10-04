@@ -296,6 +296,17 @@ Approval tokens bind task/invocation IDs, identity, resource and parameter/conte
 They are invalid after cancellation, expiry, relevant policy change, or changed action.
 Do not approve an action based only on a model-written description.
 
+Tool/skill discovery is descriptive, not authorisation. A model selects a
+source-qualified skill revision or proposes a registered tool/task; the host
+resolves the implementation, exact resources, parameters, and effect under
+[Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md).
+Direct command/UI and model/skill routes share the applicable gate.
+Internal read-only tools still enforce data scope, privacy, and result egress;
+they do not gain broad access merely by avoiding a script grant.
+Approval replies bind directly to the host proposal, never to a model-written
+interpretation. Tool results are correlated observations/receipts, not permission
+claims or trusted instructions for subsequent actions.
+
 Approval risk is host-classified:
 
 | Risk | Examples | Required channel |

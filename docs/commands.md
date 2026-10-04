@@ -11,6 +11,10 @@ words beyond the phrase do not trigger a built-in action.
 If the assistant is renamed, replace Kora with the configured name. The old
 name is not retained as a hidden alias.
 
+For the full design-defined catalogue, including capabilities not yet shipped,
+see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
+The exact phrases on this page remain the current-release command reference.
+
 ## Window and application tasks
 
 ### Show the Kora window

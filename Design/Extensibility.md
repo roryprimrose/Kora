@@ -97,9 +97,21 @@ Neither extension needs direct clipboard access.
 
 ## Extension Forms
 
+### Internal Host Actions and Tools
+
+Internal Kora functionality is implemented by host-owned services, not
+necessarily a skill or script. Model-facing tools expose registered operations
+with typed inputs and structured results. Queries such as session status return
+authoritative data without opening windows or speaking; presentation is separate.
+Model-proposed mutations still require host validation and applicable approval.
+Exact commands, UI controls, and model tools use the same underlying services.
+See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+for discovery, app -> model -> app iteration, and local-control exceptions.
+
 ### Skills: Behaviour, Not Authority
 
-Skills contain versioned instructions, tool references, parameter schemas, and validation rules.
+Skills contain versioned descriptions/selection guidance, instructions/workflows,
+tool/task references, parameter schemas, and validation rules.
 They cannot add permissions, suppress approvals, or turn source content into trusted instructions.
 MVP user-authored skills are explicit user-selected declarative workflows, not executable code.
 Bundled first-party skills contain an explicit embedded manifest and Markdown
@@ -107,15 +119,18 @@ instructions and may include multiple fixed protected scripts, such as
 "lock the machine". Scripts can be shared between manifests; grants bind
 their deterministic combined content as well as the skill definition and
 invocation. See [Out-of-the-Box Skills](Built_In_Skills.md).
-Users can create and improve them by voice through [Skill Authoring](Skill_Authoring.md).
+The model sees an available skill summary and proposes selection; the host
+resolves its pinned workflow and registered tasks. Script source is not required
+for model discovery. Selection and execution permission are separate.
+Users can create declarative skills and distinct declarative adaptations by voice through [Skill Authoring](Skill_Authoring.md); they cannot edit a bundled script.
 The dedicated skill store is writable data; bundled skills and executable components remain protected.
 Shared profile skills can be referenced read-only after compatibility review and explicit enablement.
 Kora-specific skills and edited copies live under `%APPDATA%\Kora\Skills`; see [Skill Sources and Roaming Storage](Skill_Storage.md).
 
 Suggested manifest fields:
 
-- Stable ID, version, description, and entry point.
-- Required tool IDs and compatible schema versions.
+- Stable source-qualified ID, version, description, selection guidance, and workflow entry point.
+- Required tool/task IDs and compatible schema versions.
 - Required capabilities, requested resource scopes, and input/output schemas.
 - Package origin and content digest.
 
@@ -147,6 +162,9 @@ Do not build a general in-process plugin loader for the MVP.
 Scripts provide deterministic execution when a dedicated tool or MCP integration is insufficient.
 They require approved code/version, resources, arguments, and execution trust.
 Use narrowly scoped registered commands rather than an unrestricted shell exposed to the model.
+The script is an implementation of a registered task, not the skill's matching
+engine. The task's tool interface returns observed data/outcome and an action
+receipt for host presentation or approved model continuation.
 The proposed lock skill uses an immutable bundled script through a fixed
 registration, not arbitrary script execution. The current direct lock instead
 uses a Windows API call without the model-suggestion approval gate; both

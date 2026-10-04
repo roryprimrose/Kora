@@ -48,6 +48,64 @@ Test the actual pinned SDK, not only a fake adapter.
 Mocks are supplementary for deterministic negative-path coverage.
 An unobservable or uncontrollable outbound path is a failed gate, not an assumption of safety.
 
+## Command, Tool, and Skill Interaction Gate
+
+Apply [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+to each enabled capability in its delivery slice. Use deterministic host/runtime
+fixtures plus actual pinned-provider evidence for advertised model-mediated
+selection and iteration; a bootstrap action-selector test alone is not proof
+of the proposed tool loop.
+
+- Equivalent typed and activated/transcribed voice requests resolve the same
+  capability and inputs while retaining their channel-specific privacy/approval
+  checks. Users need not supply a tool ID, manifest, or script filename.
+- The model receives the relevant admitted tool schemas and enabled,
+  source-qualified skill summaries before interpretation. Unknown IDs,
+  unavailable dependencies, disabled revisions, stale catalogue entries, and
+  invalid parameters cannot dispatch an implementation.
+- Skill selection loads only the resolved pinned instructions/workflow and
+  admitted references. Remote summary/instruction transmission obeys context
+  policy; local discovery does not imply egress permission or execute a script.
+- A session-state query returns authoritative structured data, invocation ID,
+  observation time, and provenance without opening a window, speaking, changing
+  state, or approving a pending action. A deterministic status presenter uses
+  the same query service without a model.
+- Non-exact status questions such as "Am I waiting on anything?" use approved
+  context or request fresh state through a tool. Answers reflect observed
+  blockers/unknowns and cannot claim stale snapshots are current.
+- The runtime receives an approved bounded tool result and can answer or
+  propose another checked step. Test success, failure, denied, cancelled, and
+  unknown results; display text and action names never become execution.
+- Tool-result egress denial sends zero rejected markers to the model and leaves
+  the observed action receipt truthful. Locked-session/output policy still
+  prevents private spoken or visible completion.
+- Exact lock phrases and natural-language lock requests resolve the original
+  bundled skill/task, its fixed parameters, and the same verified embedded
+  script/dependency snapshot. Skill selection followed by tool dispatch never
+  executes twice; arbitrary script text/paths cannot replace registration.
+- Quoted lock instructions, questions about locking, hostile tool/skill content,
+  and ambiguous computer/application targets do not establish execution intent.
+  Ambiguous intent or source-qualified skill selection asks for clarification.
+- Selecting/enabling a skill, choosing a clarification answer, opening script
+  review, or separately approved PowerShell setup does not execute the selected
+  task or create an implicit execution grant. Setup retains its own consent
+  and observed installation effects.
+- Direct commands, UI task invocations, model proposals, and skill workflows
+  reach the same applicable action gate. A denied or dismissed proposal runs
+  nothing; once/session/always grants cover only the resolved task/implementation,
+  permitted invocation, and exact resources.
+- Changed script, invocation, manifest, or executable dependency invalidates
+  affected grants; unaffected tasks keep theirs. Model-supplied hashes, risk
+  classifications, or permission claims cannot authorise a run.
+- A tool invocation cannot broaden an approval or attach a clarification reply
+  to another proposal. Cancellation rejects late proposals/results, and
+  uncertain or denied effects never trigger an automatic write retry.
+- Model offline/busy/timeout fixtures preserve exact help, basic status,
+  stop-speech, cancellation/pause, and essential lifecycle routes without
+  weakening active-work or side-effect approval.
+- Management inference retains its minimal ledger/proposal contract; it cannot
+  inherit execution tools, skill instruction bodies, or script access.
+
 ## Gate 1: Voice and Clipboard Vertical Slice
 
 Report Gate 1 by Slice A checkpoint:

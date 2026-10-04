@@ -7,7 +7,28 @@ actions; they do not authorize a file, program, script, or skill to run.
 The same content-bound rule applies to a standalone application the user asks
 Kora to launch, even when no skill is involved.
 
+The [tools and built-in skills guide](tools-and-built-in-skills.md) lists the
+design-defined capabilities and clearly labels current versus planned behavior.
+
 ## Built-in commands and the trusted host
+
+Commands, internal tools, skills, and executable tasks are distinct:
+
+- A **command** is a voice/typed entry point identifying what the user wants.
+- An **internal tool** exposes a registered Kora operation, such as querying
+  session state, with typed inputs and structured results. It need not be a
+  skill or script.
+- A **skill** describes an outcome, when to select it, required inputs, and
+  instructions/workflow referencing admitted tools and tasks.
+- An **executable task** implements an effect through exact registered scripts
+  or native adapters and a permitted invocation. This is what an execution
+  grant authorises; selecting or enabling its skill does not.
+
+"Built in" describes ownership/source, not a requirement to implement every
+capability as PowerShell. Internal state queries remain in host services and
+return data independently of window/speech presentation. The bundled lock
+skill instead describes an explicit current-session lock request and
+references its registered script-backed task.
 
 **Proposed architecture, not current behavior:** implement suitable
 user-visible, side-effecting tasks as versioned embedded `.ps1` resources.
@@ -18,7 +39,9 @@ runner and script-bound grants described below are still planned.
 Package each built-in skill's manifest, Markdown instructions, and complete
 script set with Kora as embedded resources. A skill can require multiple
 `.ps1` files, and several skills can reference the same embedded helper.
-Store future user-provided skills and their scripts as local files. A
+Slice C user authoring remains declarative; local user-created
+scripts belong only to a separately admitted future execution capability,
+not the current release or MVP authoring permission. A
 built-in command can select a registered task, but does not bypass the same
 grant gate used for a model suggestion or a user-created skill. Read-only
 commands (such as help, version, status, and viewing grants) do not require
@@ -59,6 +82,60 @@ paths; a built-in phrase must not become an approval bypass. An explicit
 first-time approval may be granted once, for the session, or always for the
 exact task version. Rejecting or dismissing it performs no effect. Safety
 controls (cancel, stop, exit) remain available without a script dependency.
+
+## App -> model -> app interaction
+
+**Proposed, not current behavior:** voice is transcribed locally and typed input
+supplies text directly; both enter the same request-routing contract.
+For semantic interpretation, Kora provides the model with the relevant
+available tool definitions and enabled skill summaries, including purpose,
+selection guidance, inputs, source/revision, and dependency availability.
+The model proposes a typed tool invocation or skill selection. Kora resolves
+the selected pinned workflow and registered tasks; it does not execute script
+text produced by the model.
+Approved selected instructions/tool references return to the task runtime for
+next-step reasoning, or declarative steps run through the bounded host workflow
+engine and the same invocation gate. Sending skill summaries/instructions to a
+remote model obeys context-egress policy; discovery alone does not permit it.
+
+```text
+User request -> Kora request/context and capability definitions -> Model
+Model tool/task proposal -> Kora validation and exact grant/approval gate
+Kora execution -> Observed structured result -> Model continuation
+Model answer -> Kora visual/speech presentation under privacy policy
+```
+
+For example, a session-status tool returns observed listening/activity/work
+state for the model to explain; querying does not approve a pending action.
+A lock skill identifies the intended outcome and references its exact
+registered task/script. Kora, not the model, determines the executable bytes,
+targets, parameters, effect classification, and applicable grant.
+Script source is available for user review but is not required in model
+context to select the skill.
+
+Approval is a separate host-owned interaction bound to the proposal.
+Clarification is not approval, and approval replies are not passed to the
+model as permission to invent or broaden grants. Rejection or dismissal
+performs no effect. Selection, dependency setup, and opening script review
+never implicitly approve execution.
+
+Tool/task results distinguish success, failure, denied, cancelled, and unknown
+outcomes and include invocation identity, observation time, and any receipt.
+Return only policy-approved bounded data to the task runtime; remote result
+transmission requires its own egress assessment. The model may then answer or
+propose another checked step. A returned action name or successful script exit
+is not proof that Windows performed the requested effect.
+
+Exact registered phrases and essential host controls retain a local route
+without model inference. A direct phrase or UI task invocation still reaches
+the same applicable task/grant gate and can present the result deterministically.
+An unavailable model disables semantic interpretation, not exact local status,
+stop-speech, cancellation, or essential lifecycle controls.
+
+Today Kora instead uses a one-response JSON action selector with a limited
+status snapshot and C# handlers; it does not feed structured tool results back
+into a continuing model/tool loop. This interaction contract does not advertise
+that loop, skill discovery, or script execution as available today.
 
 ## Script review and versioning
 
@@ -270,9 +347,17 @@ invoked through an exact built-in command, not just through the model.
   invocation; a grant cannot be restored by silently changing its stored hash.
 - The confirmation UI names the exact task and changed resource; rejection and
   dismissal leave execution blocked, including for voice-only interactions.
-- Exact built-in voice/typed phrases and model suggestions reach the same
-  approval gate for side-effecting tasks; read-only commands still work without
-  PowerShell or an approval.
+- Exact built-in voice/typed phrases, UI task invocations, skill workflows,
+  and model suggestions reach the same approval gate for side-effecting tasks;
+  read-only commands still work without
+  PowerShell or an execution grant, subject to data-access/privacy policy.
+- Model discovery describes tools and enabled skill revisions without granting
+  them; missing or unknown task/tool identities never become arbitrary script
+  or process execution.
+- Status queries return authoritative structured data without UI side effects;
+  model-mediated results are returned only after the applicable egress checks.
+- Skill selection and tool/task dispatch cannot execute an effect twice;
+  cancellation, denial, and unknown outcomes never trigger an automatic write retry.
 - The review window shows the exact script to be run with syntax highlighting,
   does not modify it, and never confirms an approval simply by opening.
 - Updating an embedded script revokes authorization for every grant bound

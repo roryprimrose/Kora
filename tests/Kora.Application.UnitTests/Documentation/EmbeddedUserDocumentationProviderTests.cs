@@ -26,6 +26,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "responses-and-calls",
             "settings",
             "commands",
+            "tools-and-built-in-skills",
             "windows-and-tray",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
@@ -34,6 +35,25 @@ public sealed class EmbeddedUserDocumentationProviderTests
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));
         provider.GetStartPage().Should().Be(first[0]);
+    }
+
+    [Fact]
+    public void Embedded_capability_guide_distinguishes_current_behavior_from_planned_skills()
+    {
+        var page = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal));
+
+        page.Title.Should().Be("Tools and built-in skills: current and planned");
+        page.Markdown.Should().Contain("No script-backed built-in skills ship in the current release.");
+        page.Markdown.Should().Contain("### Lock the machine");
+        page.Markdown.Should().Contain("### Shut down the computer");
+        page.Markdown.Should().Contain("### Restart the computer");
+        page.Markdown.Should().Contain("### Read-only integration skill");
+        page.Markdown.Should().Contain("## 14. Persistent sessions, history, and shared questions");
+        page.Markdown.Should().Contain("## 15. Deferred context, knowledge, and general execution");
+        page.Markdown.Should().Contain("two independently executing sessions");
+        page.Markdown.Should().Contain("combined script-set hash");
+        page.Markdown.Should().Contain("Ignore reusable grants during calls");
     }
 
     [Fact]

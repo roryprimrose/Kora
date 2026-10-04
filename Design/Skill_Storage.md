@@ -47,6 +47,12 @@ Users can select another bounded profile skill root.
 Registration authorises bounded local discovery/read, not execution, editing, or remote transmission.
 Show origin, format, declared tools/capabilities, compatibility, and revision digest.
 Do not automatically enable everything discovered.
+The runtime discovery catalogue contains source-qualified summaries of enabled
+compatible revisions, with purpose/selection guidance, inputs, tool/task
+references, and availability. A model selection resolves the host-held pinned
+snapshot; it cannot select live files, arbitrary script paths, or an unenabled
+revision. Advertising a skill never advertises a grant.
+See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md).
 Shared roots and their resolved contents are protected from Kora-originated writes, including generic tools, scripts, and MCP pathways.
 Reparse/link targets outside approved source scope require explicit source selection; do not follow arbitrary package links.
 

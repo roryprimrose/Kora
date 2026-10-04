@@ -31,7 +31,7 @@ broader approval-policy evidence in D-008.
 1. [MVP Scope and Non-Goals](MVP_Scope.md): what ships first and what does not.
 2. [Architecture and Delivery Decision Register](Decision_Register.md): owners, due checkpoints, evidence, and status for unresolved blocking choices.
 3. [Architecture and Contracts](Architecture.md): ownership, components, and runtime integration.
-4. [Built-In Features and Extensibility](Extensibility.md): feature placement and extension boundaries.
+4. [Built-In Features and Extensibility](Extensibility.md): feature placement and extension boundaries; [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md) defines capability discovery, app -> model -> app execution/result flow, and local command routing.
 5. [Security and Data Flows](Security_Data_Flows.md): consent, identities, execution, and retention.
 6. [Task Lifecycle and Recovery](Task_Lifecycle.md): voice interaction, cancellation, and failure behaviour.
 7. [Work Management and Request Queue](Work_Management.md): contextual scheduling, concurrent management, and grounded status.
@@ -65,6 +65,14 @@ Read [Session Workspace and Coordinated Window Design](UI_Workspace_And_Windows.
 Optional [frequent-speaker learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning) is separately consented local personalization, not authentication or authorization.
 Design-level concerns are resolved within that boundary; implementation evidence remains required before capabilities are advertised or released.
 
+## Capability References
+
+- [Tool and Built-In Skill Technical Reference](Tool_And_Skill_Reference.md):
+  complete design-defined logical operations, inputs/results, policy lanes,
+  dependencies, bundled skill contracts, and current implementation labels.
+- [Tools and built-in skills user guide](../docs/tools-and-built-in-skills.md):
+  request examples, expected behavior, approvals and current/planned limitations.
+
 ## Visual Exploration
 
 [Branding](Branding.md) defines the proposed vertical infinity-loop identity,
@@ -80,6 +88,8 @@ is an offline design mockup, not an implemented application or a change to relea
 
 - Windows is the only supported application platform for the foreseeable future; portable shared logic and trusted platform boundaries preserve extensibility without committing to Linux/macOS ports.
 - Kora owns task lifecycle, context selection, policy, approvals, and presentation.
+- Commands identify user intent; internal host tools expose Kora functionality; skills describe outcomes and compose admitted tools/tasks. Registered executable tasks, not skill names, are the unit of content-bound execution permission.
+- Kora advertises relevant tool definitions and enabled skill summaries; the model proposes, the host validates/authorises/executes, and approved structured results return for model continuation. Exact local controls use the same services and applicable gates without inference.
 - A replaceable agent-runtime adapter may own its model/tool loop only when Kora can enforce the required controls.
 - Copilot SDK support requires an integration proof; SDK capabilities are not assumed.
 - Local wake activation is primary from Slice A, defaulting to "Kora"; renaming asks custom-only or default-plus-custom, with custom-only recommended for shared offices. Push-to-talk is optional.

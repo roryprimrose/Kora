@@ -31,6 +31,10 @@ Registry/schema/lane coverage, unavailable-tool exclusion, and host-only boundar
 
 Stop if the adapter can transmit unreviewed context, invoke unmediated tools, retain undisclosed memory, or cannot cancel truthfully.
 An alternative runtime needs a new recorded decision and the same gates.
+The proof includes admitted-tool/enabled-skill discovery, typed proposals,
+host-bound approvals, correlated result feedback, and continued reasoning
+under [the interaction contract](Commands_Tools_And_Skills.md). Advertising a
+catalogue or returning an action name alone does not prove a mediated tool loop.
 
 ## D-002 Wake and Endpointing Engine
 
@@ -90,6 +94,9 @@ Keep D-008 open and reconcile both routes under
 [the execution design](../docs/skill-and-task-execution-design.md).
 Use [Interaction and Sessions](Interaction_And_Sessions.md#approval-and-risk-session-trust-not-mouse-superiority): voice and UI express equivalent intent; risk affects exact review/confirmation, not obligatory clicks or blanket Windows Hello.
 Preserve mandatory OS/provider verification and prohibited effects. Verify risk against effects, scope, reversibility, environment, exposure, privileges, and enforced constraints, not script prose.
+The same evidence must cover UI task invocations and skill workflows, not just
+exact phrases and model proposals. Skill enablement/selection, clarification,
+and script review remain separate from the exact task execution grant.
 
 ## D-009 Session Persistence and Retention
 

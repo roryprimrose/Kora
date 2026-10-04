@@ -14,6 +14,7 @@ public sealed class EmbeddedUserDocumentationProvider : IUserDocumentationProvid
         "responses-and-calls",
         "settings",
         "commands",
+        "tools-and-built-in-skills",
         "windows-and-tray",
         "privacy-safety-and-logs",
         "skill-and-task-execution-design",

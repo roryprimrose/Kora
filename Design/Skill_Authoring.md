@@ -35,6 +35,9 @@ Every changed proposal invalidates any prior approval of that proposal.
 The MVP authoring writer accepts only a validated package:
 
 - A schema-validated manifest with stable ID, version, inputs/outputs, and registered tool references.
+- A purpose and selection guidance describing requests it handles and cases
+  requiring clarification or another capability; these are data, not permission
+  or reserved command registrations.
 - Plain-text instructions and prompts.
 - Declarative workflow steps interpreted by Kora's bounded workflow engine.
 - Data-only example inputs, expected assertions, and mocked tool responses.
@@ -49,6 +52,13 @@ the current bootstrap. A future execution model for stored user-approved
 scripts and content-bound grants is specified separately in
 [skill and task execution design](../docs/skill-and-task-execution-design.md);
 this Slice C declarative authoring policy does not itself authorise scripts.
+
+The enabled revision's source-qualified summary can be advertised to the
+model; a selected skill loads its pinned instructions/workflow and proposes
+only admitted tool/task calls through the host. Required tool/task references
+do not carry execution grants. Internal Kora tools remain available without a
+skill wrapper, and a bundled script remains its own registered implementation.
+See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md).
 
 ## Storage and Versioning
 

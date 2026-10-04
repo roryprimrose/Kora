@@ -87,6 +87,10 @@ On an installation where that runtime/model is absent or unhealthy, answering is
 
 See [Work Management and Request Queue](Work_Management.md) for scheduling, context, and status semantics.
 See [Out-of-the-Box Skills](Built_In_Skills.md) for bundled executable skills and session policy.
+See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+for internal host tools, skill discovery/selection, app -> model -> app result
+iteration, and exact local routes. These contracts apply within each delivered
+capability; they do not bring general script authoring/import into the MVP.
 
 The Ollama-backed adapter is a Slice A2 requirement, not a post-Slice-A aspiration.
 Its exact supported model and hardware floor are resolved through [Decision Register D-003](Decision_Register.md#d-003-local-inference-baseline).

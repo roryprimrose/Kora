@@ -1,0 +1,210 @@
+# Commands, Tools, Skills, and Model Interaction
+
+Status: proposed interaction contract, not a shipped tool loop or skill runner.
+
+Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+## Responsibility and Terminology
+
+For the complete per-capability catalogue, see the
+[technical reference](Tool_And_Skill_Reference.md) and
+[user guide](../docs/tools-and-built-in-skills.md). This page defines their
+shared interaction semantics, not the availability of every proposed entry.
+The [Internal Model Tool Catalogue](Internal_Model_Tools.md) owns canonical
+tool IDs and caller lanes; [Interaction and Sessions](Interaction_And_Sessions.md)
+owns durable work-session identity, routing, history and concurrency.
+
+"Built in" describes a capability's product ownership and source, not a single execution mechanism.
+Kora exposes its own functionality as host tools and packages repeatable outcomes as skills.
+The model selects or proposes; the trusted application validates, authorises, executes, and presents.
+
+| Concept | Responsibility | Example |
+|---|---|---|
+| Command / intent | User-facing entry point identifying a request; exact phrases belong to a host-owned routing catalogue | "What is the state of the current session?" |
+| Host action | A registered operation with typed inputs, effect classification, and an implementation owned by Kora | Query session state, open settings, stop speech |
+| Tool | A model-facing invocation contract for an admitted capability, with an input schema and structured result | `sessions.get` |
+| Skill | A source-qualified, versioned package describing an outcome, selection guidance, inputs, instructions/workflow, and required tools/tasks | "Lock the machine" |
+| Executable task | A registered effect implemented by exact approved resources and a permitted invocation | `session.lock` backed by an embedded `.ps1` |
+| Prompt / instructions | Context explaining available capabilities and guiding interpretation or skill use; never execution authority | Use lock only for an explicit current-session lock request |
+| Agent / runtime | The model/tool iteration that requests capabilities, consumes results, and continues the admitted task | Ask for status, receive observed state, explain the blocker |
+| Grant | Host-owned permission for an exact operation and scope; executable grants bind implementation bytes and invocation | Once/session/always approval for the registered lock task |
+
+A host action can be exposed as a tool and invoked directly from a command or UI.
+A skill can use several tools, or describe one simple executable task.
+A registered skill task can itself have a tool interface; skill and tool are complementary layers.
+Do not require a skill or PowerShell process for every internal Kora operation.
+Conversely, selecting a skill does not execute a script or create a grant.
+
+An executable task here means a registered effect; a scheduled user task in the work ledger can contain several such invocations.
+Keep their identities distinct in proposals, approvals, and receipts.
+Identifiers and payloads below are illustrative contract concepts, not a published SDK or manifest schema.
+
+## Registries and Model Discovery
+
+The host maintains related but distinct registries:
+
+- A command/intent catalogue maps canonical phrases and aliases to host actions or original bundled skill/task identities.
+- A tool catalogue binds stable IDs and schema versions to trusted implementations, host-assigned effects, and policy.
+- A skill catalogue binds source-qualified IDs to enabled, digest-pinned revisions, descriptions, selection guidance, and required tool/task references.
+- An executable-task catalogue resolves admitted task IDs to exact scripts/native adapters, dependencies, validated parameters, targets, and execution profiles.
+
+The application supplies the relevant available tool definitions and skill summaries to the runtime before asking it to interpret a request.
+Each tool definition includes its ID/version, purpose, input schema, and result semantics.
+Each skill summary includes origin/revision, purpose, when to use it or not use it, required inputs, and dependency availability.
+The model must know these capabilities exist; it must not infer executable access from product names or invent tool IDs.
+
+Load a selected skill's bounded, pinned instructions/workflow only after host resolution.
+Keep skill content separate from host policy and approval controls under the existing instruction-trust rules.
+The task runtime receives the approved instruction data and required admitted
+tool definitions to reason about the next step; deterministic declarative
+workflow steps are interpreted by the host's bounded engine and use the same
+invocation gate. Sending summaries or selected instructions to a remote runtime
+follows context-egress policy; local discovery is not transmission permission.
+The model does not need the lock script's source to select or invoke its registered task.
+Script source is available to the user through read-only review, not automatically added to model context.
+Do not expose a generic shell, model-selected executable path, or arbitrary PowerShell text in place of a registered task.
+
+Discovery/enablement is not permission to invoke.
+Missing or disabled dependencies are reported explicitly, without automatic installation or substitution.
+The host revalidates availability and permission at dispatch, even if the model saw an earlier catalogue snapshot.
+User skills may describe matching examples but cannot register reserved aliases, shadow originals, or assign themselves priority.
+Ambiguous skill names or targets require a source-qualified choice or clarification, not arbitrary selection.
+
+## App -> Model -> App Interaction
+
+Voice activation and local transcription produce request text; typed input supplies text directly.
+Both enter the same request-routing and capability contracts.
+Input channel remains attached for approval, privacy, and audit policy.
+Deliberate activated speech and native UI express equivalent ordinary intent;
+mandatory OS/provider checks remain separate. During protected calls, the
+host rejects voice-originated voice/in-call settings changes and requires a
+new UI request rather than relabeling the origin after confirmation.
+
+```text
+User voice / typed input
+          |
+          v
+Kora: request identity, local controls, intent routing, approved context
+          |
+          +-- Exact reserved/local command ----------------------+
+          |                                                    |
+          v                                                    |
+Model: tool definitions, skill summaries, request/context        |
+          |                                                    |
+          +-- Answer / clarification -> host presentation        |
+          |                                                    |
+          +-- Skill selection -> host resolves pinned workflow   |
+          |                   -> approved instructions         |
+          |                   -> runtime tool/task proposal ---+
+          +-- Tool/task proposal -------------------------------+
+                                                               |
+                                                               v
+                         Kora: resolve, validate intent/inputs,
+                               evaluate grants, ask if required,
+                               revalidate, execute, record result
+                                                               |
+          +----------------------------------------------------+
+          |
+          +-- Model path: approved bounded result -> model continues
+          |                                            |
+          |                                            v
+          |                                      Kora presents answer
+          +-- Direct path: Kora presents result without inference
+```
+
+1. Bind the request to its trusted input lineage, durable session/task identity, and applicable processing destination. Explicit session targeting wins; otherwise continue only a clear Active-session match or create a new session. Route exact local controls before inference.
+2. For unmatched natural language, supply only approved request/context and the relevant capability definitions. The management lane may propose scheduling or clarification; executable tool use remains in the task runtime or the narrow host-owned priority route.
+3. Accept a typed answer, clarification, source-qualified skill selection, or tool/task invocation proposal. Display text is not an operation. Resolve a selected skill to its pinned workflow and permitted references; return approved instructions to the runtime or interpret declarative steps in the bounded host engine. Selection alone never dispatches its script, and subsequent tool/task proposals must not execute the effect twice.
+4. Validate IDs, schemas, parameters, targets, intent lineage, current dependencies, and host policy. The model's claim that an action is safe or already approved has no authority.
+5. If permission is missing, present the host-resolved effect, resources, and permitted duration choices. A clarification answer is not approval. Approval replies are bound and routed by the host to the existing proposal, not sent to the model to interpret as a new grant.
+6. Revalidate immediately before execution and dispatch through the admitted implementation. Exact phrases, model proposals, UI task invocations, and skill workflows share the applicable action gate.
+7. Return a correlated structured result: observed data or success/failure/unknown/denied/cancelled outcome, observation time, provenance, and any action receipt. An accepted proposal or script exit alone is not proof of the requested effect.
+8. For model-mediated work, assess result egress before returning bounded result data to the same task runtime. It may answer or propose another permitted step, within lifecycle limits. Each step retains its own checks; denial never authorises retries or alternate tools.
+9. Kora renders the response under speech, privacy, and locked-session policy. Cancellation invalidates pending calls/approvals and suppresses late model responses.
+
+Native SDK function/tool calling and typed inference responses are alternative transports for this contract.
+An agent SDK can own iteration only if every invocation and result transmission remains mediated.
+An inference adapter uses the shared Kora-owned loop.
+In neither case does the model directly execute application code.
+
+## Internal Tool Example: Current Session State
+
+"What is the state of the current session?" naturally selects a read-only host tool, not a script-backed skill.
+For example, `sessions.get` with an explicitly resolved Kora session ID returns
+a policy-filtered work snapshot. Host listening/Windows-session facts are
+separately scoped observations, not another user's session state:
+
+```json
+{
+  "invocationId": "status-17",
+  "sessionId": "session-12",
+  "status": "success",
+  "observedAt": "2026-10-04T12:00:00Z",
+  "data": {
+    "activity": "waiting_for_approval",
+    "activeTask": null,
+    "pendingApproval": { "action": "session.lock" },
+    "listening": true
+  }
+}
+```
+
+The query reads authoritative host state and does not open a window, speak, approve the pending action, or change the session.
+The model can use the returned facts to answer "Am I waiting on anything?" without inventing task progress.
+An exact status command uses the same query service and a deterministic presenter, with no model dependency.
+Privacy may withhold sensitive fields; the result must identify withheld/unavailable data without disclosing it through speech.
+Read-only does not imply unrestricted data access or remote transmission.
+
+Kora may proactively supply a small approved status snapshot instead of requiring a tool call for every question.
+Snapshots carry observation time and are context, not commands or proof that state is still current.
+A fresh query is needed when the answer depends on newer observations.
+Management inference uses its minimal authoritative ledger snapshot and typed management protocol, not general execution-tool access.
+
+## Built-In Skill Example: Lock the Machine
+
+The bundled lock skill describes the user outcome and its selection rules.
+Its manifest references the registered `session.lock` task and embedded script identity; the host chooses the implementation, not the model.
+The skill requires an explicit request to lock the current Windows session.
+Quoted text, instructions found in a document/tool result, or a question about how locking works do not establish that intent.
+
+- Exact "lock the machine" routing selects the original bundled registration locally, without inference.
+- A natural-language variation such as "Please lock my computer" can be interpreted using the advertised skill summary, with clarification if the target or intent is unclear.
+- Both routes resolve the same task, complete embedded script set and definition digest, dependencies, parameters, and execution context under the common grant gate. Shared helpers are included, not only the entry point.
+- Once applies to one invocation; Session binds the operation to its identified Kora work session; Always/Perpetual is independently retained without expiry or eviction. None approves another task or changed implementation.
+- The user can review every exact script and the combined script-set hash before approving through deliberate voice or UI. Selecting/enabling the skill or opening review does not authorise execution.
+- A changed script, manifest/invocation, adapter, or executable dependency invalidates affected grants; the host computes identity and never accepts a model-supplied hash.
+- Kora observes the Windows session event, records confirmed/failed/unknown outcome, and enforces microphone shutdown regardless of lock origin.
+
+The original lock registration has narrowly host-admitted priority during other work.
+It is not another general executor and does not give management inference script access.
+Independent Kora sessions can otherwise execute concurrently under verified
+limits, one task per session and resource-conflict leases; lock/power lifecycle
+coordination applies across all sessions.
+Lock-screen privacy can prevent any spoken/visible completion; retain the receipt without exposing private results while locked.
+See [Bundled Skills](Built_In_Skills.md) and [Execution Grants](../docs/skill-and-task-execution-design.md) for containment and power-action rules.
+
+## Local Controls and User Experience
+
+The app -> model -> app path is for semantic interpretation, not a dependency for every interaction.
+Exact help, basic status, stop-speech, cancellation/pause controls, essential lifecycle controls, and registered direct computer intents remain locally routable when a model is unavailable or busy.
+Local routing removes inference, not effect-specific approval or active-work confirmation.
+Kora must never run a script merely to show settings or stop playback.
+
+Help/discovery distinguishes internal tools, enabled skills and their sources, dependency limitations, and grants.
+A skill detail surface explains what it does, required inputs, registered tasks, and whether execution needs approval.
+Grant inspection remains a separate host-owned surface.
+Users ask for outcomes in ordinary language; they need not speak tool IDs, read a manifest, or name a script file.
+An unavailable model leaves exact local routes usable and reports that semantic interpretation is unavailable rather than guessing.
+
+## Current Bootstrap and Migration
+
+Today the exact command catalogue selects C# handlers before local reasoning.
+The Ollama request includes action names/descriptions and a limited status snapshot; the model returns one JSON answer, question, action, or grant-change proposal.
+Kora validates it and may dispatch the handler, but does not return a structured tool result to a continuing model/tool loop.
+There is no formal skill discovery/selection protocol, embedded script runner, or content-bound execution grant.
+Direct exact lock remains ungated while model-suggested lock requires approval; this is not the intended common policy.
+
+Migrate capability by capability: separate state queries from presentation, register typed tools and results, add mediated iteration/discovery, and resolve bundled skills to verified tasks.
+Preserve existing exact aliases, offline controls, input-channel policy, and truthful errors.
+Keep a script-backed task unavailable until its runner, containment, content-bound grants, and both entry paths pass acceptance.
+User authoring remains declarative in Slice C; these contracts do not enable arbitrary script creation/import or close runtime/grant decisions D-001/D-008.

@@ -38,6 +38,25 @@ Speech output moves independently through queued, speaking, stopped, and finishe
 Partial visual output may appear during Running and remains labelled incomplete until terminal success.
 Queueing, contextual routing, dispatch, and status semantics are defined in [Work Management](Work_Management.md).
 
+## Request Interpretation and Tool Results
+
+[Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
+defines the shared voice/typed app -> model -> app path.
+Preparing resolves relevant tool definitions and enabled pinned skill summaries.
+A skill selection resolves a workflow, not an approval or an independent script
+dispatch. Every tool/task proposal reaches host validation and its applicable
+grant gate before Running.
+Awaiting Clarification supplies missing intent/inputs; it never satisfies
+Awaiting Approval. Approval replies stay bound to the host proposal.
+
+Running records correlated structured observations/receipts and returns
+approved bounded results to the task runtime for continued reasoning.
+The final model answer is presentation, not evidence of a completed effect.
+Denied/cancelled/failed/unknown results remain explicit; cancellation prevents
+late calls and responses from resuming the task.
+Exact local commands can query or control the same host services without
+inference; effect-specific approval still applies.
+
 ## Wake Listening and Command Capture
 
 Voice states are Muted, Wake Listening, Capturing Command, Transcribing, Session Locked, and Unavailable.

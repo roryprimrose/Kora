@@ -3,6 +3,10 @@
 Status: proposed product contract, not a list of implemented commands.
 Core lifecycle, computer controls, speech settings, and status ship in Slice A; integration/skill discovery and authoring follow Slices B/C.
 Maintenance phrases require the deployment's verified updater; capability unavailability must be explained, never silently substituted.
+The current bootstrap supplies deterministic exact status/help and other registered
+commands, plus local-model answers, questions, and validated registered
+action/grant proposals when inference is ready. This catalogue does not imply
+the rest of Slice A is implemented.
 
 Related: [Bundled Skills](Built_In_Skills.md), [Task Lifecycle](Task_Lifecycle.md), [Work Management](Work_Management.md), [Call-Aware Speech](Call_Aware_Speech.md).
 
@@ -24,7 +28,7 @@ Every response, including confirmation readback, obeys call-aware speech policy 
 
 | Canonical phrase | Initial aliases | Behaviour | Confirmation |
 |---|---|---|---|
-| "Lock the machine" | "Lock my computer", "Lock Windows" | Invoke protected bundled current-session lock skill; release microphone on Windows lock | Direct explicit request |
+| "Lock the machine" | "Lock my computer", "Lock Windows" | Proposed: invoke protected bundled current-session lock skill and release microphone on Windows lock; currently exact direct lock uses the Windows API | Future common action-specific grant gate, not merely the direct phrase; model-suggested lock already asks for approval |
 | "Shut down the computer" | "Shut down this machine", "Power off the computer" | Propose graceful shutdown of this local computer | "Confirm shutdown", then native secure confirmation outside speech/model processing |
 | "Restart the computer" | "Reboot this machine", "Restart Windows" | Propose graceful restart of this local computer | "Confirm computer restart", then native secure confirmation outside speech/model processing |
 | "Cancel shutdown" | "Cancel that shutdown" | Cancel Kora's pending shutdown/countdown only | Direct, only for an owned pending action |
@@ -34,6 +38,10 @@ Every response, including confirmation readback, obeys call-aware speech policy 
 Do not interpret "restart", "shutdown", or "close it" without a clear computer/application target.
 Ask whether the user means Kora or Windows when context does not resolve it.
 Sleep, hibernate, sign-out, remote machine control, and forced shutdown are not required initial commands; they need separate capability/safety decisions.
+Future side-effecting built-ins, including the direct lock path, must use the
+same version-bound execution gate as model proposals and user skills; an
+exact phrase does not bypass approval. See
+[skill and task execution design](../docs/skill-and-task-execution-design.md).
 
 ### Shutdown and Restart Safety
 

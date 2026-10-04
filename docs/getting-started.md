@@ -42,8 +42,9 @@ Kora reuses a healthy existing runtime and model, verifies the model's digest,
 and tests local inference before marking it ready. Exact built-in commands
 always take precedence. Once the model is ready, other typed requests and
 voice requests prefixed with the active assistant name receive a local model
-answer or a suggestion to use an existing built-in action. Kora validates
-suggested actions; disruptive actions require an explicit on-screen approval.
+answer or a suggestion to use an existing built-in action. Kora validates suggested actions; disruptive model suggestions require an
+on-screen approval unless already granted. Direct exact commands, including
+locking Windows, currently use their C# handlers without that confirmation.
 
 PowerShell 7 is a separate required setup task for future script-backed
 actions. Kora checks it on startup and refresh, including after a previously
@@ -52,7 +53,8 @@ working installation disappears or fails. If missing or unhealthy, open
 per-user `Microsoft.PowerShell` installation through winget. Kora reuses a
 healthy PowerShell 7.4-or-newer runtime without installing anything, and
 verifies the executable after setup. This never approves or runs a skill
-script. Built-in commands still use their current implementation; the
+script. PowerShell readiness does not block local-model reasoning or exact
+built-in commands. Built-in commands still use C# handlers; the
 [skill and task execution design](skill-and-task-execution-design.md)
 describes the planned script runner and content-bound grants.
 
@@ -60,7 +62,8 @@ The initial microphone and speaker setting is **System**. System is not a saved
 endpoint snapshot. It follows later Windows default-device changes, including
 changes during active capture or playback.
 
-When readiness succeeds, Kora starts listening automatically. If no usable
+When voice readiness succeeds, Kora starts listening automatically even if
+local inference or PowerShell setup still needs attention. If no usable
 microphone or recognizer is available, Kora remains visual and reports what
 needs attention.
 
@@ -108,8 +111,9 @@ speaking to avoid hearing itself. Choose **Once**, **This session**,
 **"Kora, reject"** after Kora resumes listening. The name is required by
 default; the **Approvals** settings tab can allow unprefixed replies.
 Session approval lasts until Kora exits, restarts, or locks Windows through
-Kora. Always approval is stored on this device for that specific action until
-you revoke it in Settings. Dismissing the request rejects it.
+Kora. Always approval is stored on this device for that named action until
+you revoke it in Settings; grants are not tied to script or executable
+hashes. Dismissing the request rejects it.
 Say **"cancel task"** to interrupt a running answer. If local inference fails,
 Kora reports it and requires a readiness refresh before accepting more
 model requests. There is no cloud fallback.

@@ -6,6 +6,26 @@ Status: proposed design, not an implemented capability statement.
 The documents below turn that direction into an initial delivery scope and architectural decisions.
 Where the vision is broader or less specific, these documents define the proposed implementation constraints.
 
+## Current Bootstrap Boundary
+
+The current Windows bootstrap independently checks/initialises Kora storage and SQLite,
+checks PowerShell 7 readiness, and offers consented PowerShell setup without requiring
+local inference. For local reasoning it offers a separately consented per-user
+Ollama 0.35.1 installation and `qwen3:1.7b` download, verifies the pinned model
+digest and a completed inference response on the loopback endpoint, and reports
+readiness and setup progress. Exact built-in commands remain deterministic;
+unmatched requests can use the verified local model for answers, clarifying
+questions, and validated proposals for registered actions and grant changes.
+Model-suggested side effects, including lock, require host approval; the
+current model-action duration choices are once, session, and always.
+The exact direct lock phrase still calls the Windows API without that common
+approval gate. A PowerShell readiness check is not a script runner: embedded
+`.ps1` skills, script review, and content/hash-bound execution grants are not
+implemented. [Skill and task execution design](../docs/skill-and-task-execution-design.md)
+specifies that future gate for both direct and suggested side-effecting tasks.
+None of this closes the hardware/performance/offline proof in D-003 or the
+broader approval-policy evidence in D-008.
+
 ## Reading Order
 
 1. [MVP Scope and Non-Goals](MVP_Scope.md): what ships first and what does not.

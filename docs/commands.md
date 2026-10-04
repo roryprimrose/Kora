@@ -153,7 +153,9 @@ the speech-playback phrases to stop the voice instead.
 - **lock this workstation**
 
 Locking is a real local action. Kora closes microphone capture before asking
-Windows to lock.
+Windows to lock. This exact built-in command currently calls a C# handler
+without a confirmation prompt. A model-suggested lock requires approval
+unless that named action already has a session or always grant.
 
 ## Protected power-proposal tasks
 
@@ -244,7 +246,9 @@ remains visible even when voice-only responses are selected. The configured
 assistant name is required for spoken approval by default, but can be made
 optional in Settings. Session grants end on exit, restart, or locking Windows through Kora.
 Always grants persist until revoked under **Settings > Approvals**. Reject
-or dismiss the suggestion to discard it. The model cannot
+or dismiss the suggestion to discard it. These grants are keyed to action
+names, not executable or script hashes, and do not change how direct exact
+commands are dispatched. The model cannot
 directly access arbitrary files, services, or tools. Without a ready local
 model, Kora explains that other requests are unavailable. Use **what can you
 do** or open this Documentation window to review exact built-in phrases.

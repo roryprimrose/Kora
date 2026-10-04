@@ -1,18 +1,25 @@
 # Kora
 
-A Windows voice-first, local-first extensible assistant.
+A Windows voice-first, local-first assistant.
 
-This repository currently contains the first runnable bootstrap: an Avalonia desktop shell using the constellation design, deterministic built-in command routing, Windows microphone discovery, local Windows speech recognition and text-to-speech, dependency readiness probes, and unit tests.
+The runnable bootstrap includes an Avalonia constellation shell, deterministic
+C# built-in handlers, Windows speech and optional local Kokoro speech output,
+local storage and SQLite, and a consented, verified Ollama model for unmatched
+requests. Script-backed skills and general application launching are not yet
+available.
 
 ## Requirements
 
 - Windows 10 build 19041 or later; Windows 11 is recommended.
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) matching `global.json`.
 - An English Windows speech-recognition language.
-- An installed Windows text-to-speech voice. Kora prefers a female voice matching the Windows profile culture.
-- A microphone capture device.
+- An installed Windows text-to-speech voice for Windows spoken output, or the
+  optional downloaded Kokoro provider.
+- A microphone capture device for voice input.
 
-No model, cloud account, or network connection is used to recognize built-in commands.
+Typed built-in commands and visual responses work without speech hardware. No
+model, cloud account, or network connection is required for exact built-in
+commands. Unmatched requests require a verified local Ollama model.
 
 ## Run
 
@@ -23,7 +30,10 @@ dotnet run --project .\src\Kora\Kora.csproj
 
 On first launch:
 
-1. Review the readiness results.
+1. Review the readiness results. Kora initializes local storage and SQLite
+   automatically. If local inference is missing, Settings opens on Readiness.
+   PowerShell 7 is tracked as a separate setup task, not a prerequisite for
+   built-in commands or local reasoning.
 2. Review the microphone and speaker selected from the current Windows defaults,
    or choose Kora-specific overrides in Settings.
 3. Kora starts listening automatically when the selected microphone and voice
@@ -31,10 +41,18 @@ On first launch:
 4. Say **“Kora, what can you do?”** or another phrase in the built-in catalogue.
 5. Observe the transcript, matched action, and constellation state.
 6. Choose **Disable listening** whenever you want to release the microphone for
-   the rest of the current run. With listening disabled, choose **Preview voice**
-   to test the selected local voice.
+   the rest of the current run. **Preview** can test the selected local voice
+   even while listening is enabled.
 
 The typed command field drives the same router and can prove command behavior when microphone or speech-language support is unavailable.
+Exact built-in phrases take precedence over the model. To enable unmatched
+questions, choose **Review local model setup** on Readiness and explicitly
+consent to the per-user Ollama 0.35.1 installation (if needed) and the
+qwen3:1.7b download. Kora checks the pinned model digest and an actual
+inference response before using it on loopback. **Review PowerShell 7 setup**
+separately requests consent to install or reuse PowerShell 7.4 or later; it
+does not authorize a script or gate local inference. Optional Kokoro speech is
+offered separately, never added to the required setup queue.
 
 Kora also keeps a system tray icon available while the process is running. Its
 context menu uses the configured assistant name for **Show**, **Settings**, and
@@ -56,9 +74,9 @@ the default stay-on-top behavior. The visible constellation can also be dragged
 to a device-local position that is restored across restarts.
 Documentation opens the embedded end-user guide from [`docs/readme.md`](docs/readme.md)
 in a single themed Markdown window. Settings opens a single
-Windows-style settings window covering the assistant name, speech
+settings window covering the assistant name, speech
 and audio devices, listening, local voice, response output defaults and
-overrides, detected-call behavior, and dependency readiness. Detecting
+overrides, detected-call behavior, model-action approvals, and dependency readiness. Detecting
 microphones refreshes readiness without enabling capture; Exit releases
 listening before closing the application.
 
@@ -76,8 +94,8 @@ phrases **open documentation**, **show documentation**, and
 The Settings, constellation, and response surfaces bind to the same application
 state. Changes are reflected immediately across any open surface. Typed setting
 mutations also raise the same property notifications, providing the update path
-that future validated verbal/model setting commands will use while Settings is
-open.
+for future validated verbal/model setting commands; those setting commands are
+not currently available.
 
 ### Appearance
 
@@ -92,13 +110,9 @@ size (240-600 px), dot size (50-200%), and dot movement speed (25-200%).
 The defaults are 360 px, 100%, and 100%. These device-local settings are stored
 under `%LOCALAPPDATA%\Kora\Preferences`.
 
-The selected effective theme applies immediately to the constellation,
-Settings, cards, status and response surfaces, and all shared
-native controls. New chat, Markdown, diagram, browser, generated-HTML, approval,
-and other visible result surfaces must consume the same application theme.
-Embedded web content must receive the effective light/dark variant explicitly;
-it must not choose an unrelated browser default or expose a separate hidden
-theme setting.
+The selected effective theme applies immediately to Kora's existing
+constellation, Settings, response, documentation, and approval surfaces.
+Browser, generated-HTML, and diagram result surfaces are not implemented.
 
 ## Assistant name
 
@@ -124,10 +138,18 @@ name.
 
 - Application actions: show, hide, exit, restart, settings, setup, help, version, and status.
 - Task controls: cancel task and stop speaking.
-- Bundled session skill: lock the current Windows session.
+- Windows session action: lock the current Windows session through a C# handler.
 - Protected power requests: recognize, display, inspect, and cancel shutdown/restart proposals.
 
 Shutdown and computer restart execution is intentionally disabled in this bootstrap. Recognition produces a visible non-destructive proposal and never sends an operating-system power request. Locking is a real local action and disables microphone capture before calling Windows.
+Direct exact built-in lock commands do not currently request a model-action
+approval; model-suggested lock and other disruptive actions do, unless an
+action-name session or persistent grant exists. These grants do not bind to a
+script or executable hash. The proposed common execution gate, embedded
+`.ps1` tasks, content-bound grants, and script-review UI are future work; see
+the [skill and task execution design](docs/skill-and-task-execution-design.md).
+The verified model can answer, ask bounded questions, propose grant changes,
+or suggest a registered built-in action, never an arbitrary command.
 
 The initial recognizer uses the installed English Windows speech engine and a fixed host-owned grammar. It is a command proof, not the final wake-word, endpointing, playback-rejection, or transcription implementation described by the design documents.
 
@@ -143,8 +165,9 @@ another installed voice. If no speech pack is available, Kora keeps typed and
 visual commands working, reports speech output as unavailable, directs the user
 to install a Windows voice, and forces the response panel visible even when
 voice-only output was configured.
-Voice preview remains disabled while listening until playback rejection is
-implemented.
+Wake listening stays active during previews and ordinary spoken responses.
+Assistant-name-prefixed built-in commands can interrupt playback; unprefixed
+recognition is ignored during playback.
 
 Response output can be configured as hybrid, voice-only, or visual-only. The
 device default is persisted locally; current-queue and current-task overrides
@@ -153,10 +176,9 @@ default. Voice-only is a preference, not permission to hide failures: Kora
 forces the visual response panel visible whenever speech is unavailable,
 temporarily blocked, or playback fails.
 
-Typed/local responses are spoken when the effective mode includes voice.
-Responses received while microphone capture is active remain visual because
-playback rejection is not yet implemented; Kora must not risk recognizing its
-own speech.
+Typed and local-model responses use the effective output mode. When microphone
+capture is active, Kora uses visual output to avoid recognizing its own speech;
+preview and spoken approval prompts temporarily manage capture separately.
 
 Call-aware response policy is detector-neutral. A detected Active or Suspected
 call uses a persisted visual-text override by default, which suppresses

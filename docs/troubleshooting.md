@@ -8,15 +8,17 @@ and initializes its SQLite schema on startup or refresh. If SQLite fails its
 integrity check, the existing database is retained; restore a known-good
 backup rather than deleting it. The local Ollama probe checks only
 `127.0.0.1:11434`. A responding runtime or installed model does not mean
-Kora can use it for reasoning until a compatible adapter and model health
-check pass. Select **Review local model setup** and approve the pinned
+Kora can use it for reasoning until the pinned digest and actual model
+inference check pass. Select **Review local model setup** and approve the pinned
 Ollama 0.35.1 / qwen3:1.7b plan to install and verify them. Setup can be
 cancelled with **cancel task**. A model with the selected name but a
 different digest is not replaced automatically; inspect it before taking
 further action. Built-in commands remain deterministic after inference passes;
 other requests are answered by the verified local model. If a running request
 fails, Kora marks inference unavailable until you refresh readiness. There is
-no cloud fallback.
+no cloud fallback. Missing inference opens the Readiness tab on startup.
+PowerShell has its own setup task, but an unhealthy PowerShell installation
+does not block local reasoning or the C# built-in commands.
 
 ## PowerShell 7 is missing or failed its check
 

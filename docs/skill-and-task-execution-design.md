@@ -9,10 +9,11 @@ Kora to launch, even when no skill is involved.
 
 ## Built-in commands and the trusted host
 
-**Proposed architecture, not current behavior:** implement user-visible,
-side-effecting tasks as versioned `.ps1` resources wherever practical.
+**Proposed architecture, not current behavior:** implement suitable
+user-visible, side-effecting tasks as versioned embedded `.ps1` resources.
 PowerShell 7 is already tracked as a required, separately consented setup
-dependency; installing it does not approve any script or task. The execution
+task, independent of local inference and the current C# built-in handlers;
+installing it does not approve any script or task. The execution
 runner and script-bound grants described below are still planned.
 Package built-in task scripts and skill/tool scripts with Kora as embedded
 resources; store user-created skills and their scripts as local files. A
@@ -45,7 +46,10 @@ cannot silently authorize changed C# behavior solely because the action enum
 name stayed the same. Avoid binding all native grants to Kora's entire binary
 when an unrelated application update would needlessly revoke them.
 
-Before migrating a current side-effecting built-in, identify whether it is
+The current built-in actions use C# handlers, not embedded `.ps1` skill
+definitions. Model-suggested disruptive actions have only action-name grants;
+there is no script or executable hash binding and no script-review window
+today. Before migrating a current side-effecting built-in, identify whether it is
 currently direct and unconfirmed. For example, the existing exact lock
 command calls the Windows API directly, whereas model-suggested locking
 requires approval. The future common execution gate must apply to **both**
@@ -136,24 +140,26 @@ persisted, continue to deny execution and report the storage failure rather
 than allowing a stale grant to authorize a later run.
 
 The execution mechanism must prevent a file being swapped between hashing and
-launch: hold stable file handles or run a verified immutable copy in a
-Kora-controlled staging area, and launch **those verified bytes**. For
-interpreted scripts, stage and verify both the script and any included or
-invoked executable files; no unchecked relative imports, child scripts, or
-process launches may bypass the gate. If a task can dynamically select an
-unlisted executable resource, stop and require a new review rather than
-assuming its old grant covers it. An executable's digest alone does not
-authorize arbitrary arguments, working directories, privileges, or network
-access.
+launch. For filesystem-sourced programs or user-created scripts, hold stable
+file handles or launch an immutable, verified snapshot under host control.
+Bundled scripts must instead run from their verified embedded-resource
+snapshot through a controlled interpreter input mechanism: do not extract
+editable copies for execution. If the selected interpreter requires a loose
+script file, leave that task unavailable until a safe execution mechanism is
+demonstrated. For interpreted scripts, verify included and invoked resources
+as well; no unchecked relative imports, child scripts, or process launches
+may bypass the gate. If a task can dynamically select an unlisted executable
+resource, stop and require a new review rather than assuming its old grant
+covers it. An executable's digest alone does not authorize arbitrary
+arguments, working directories, privileges, or network access.
 
 PowerShell is **not a security sandbox**: hashing a top-level `.ps1` does not
 prove what arbitrary commands, modules, network calls, or child processes it
 may run. The runner must restrict what task scripts can invoke and verify all
 permitted dependencies; if that cannot be enforced, present the broader
 execution capability to the user instead of claiming a narrow hash grant
-covers it. Do not trust a writable extracted copy of an embedded script:
-extract into a controlled staging location, verify against the embedded bytes,
-and execute only that verified copy.
+covers it. Do not trust a writable extracted copy of an embedded script; the
+verified embedded snapshot must be the source of execution.
 
 The local model may propose a registered task and explain it, but it cannot
 declare a hash, choose its own grant scope, modify a stored grant, or invoke an

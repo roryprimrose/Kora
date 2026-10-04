@@ -28,8 +28,12 @@ Approvals are specific to the named built-in action. The **Approvals** tab
 lists active session and always grants separately and lets you revoke either
 kind per action. Session grants end when Kora exits, restarts, or locks
 Windows through Kora. Always grants are stored in Kora's device-local
-Preferences folder and remain until revoked. Any action that requires approval can use any of
-the three scopes; the model cannot choose the scope for you.
+Preferences folder and remain until revoked. These grants are action-name-only:
+they do not authorize a script, executable, or particular implementation
+version. They govern model-suggested disruptive actions, not direct exact
+built-in phrases (including lock). Any model-suggested action that requires
+approval can use any of the three scopes; the model cannot choose the scope
+for you.
 
 ## Readiness and required tools
 
@@ -39,7 +43,10 @@ runtime shows a PowerShell setup task. **Review PowerShell 7 setup** explains
 the per-user winget installation and asks for explicit consent; installation
 and a no-profile health check run only after approval. **Review local model
 setup** separately asks permission to install Ollama and download the pinned
-model. Neither setup button grants permission to run an arbitrary script.
+qwen3:1.7b model; Kora checks its digest and actual inference before using
+it. Missing local inference opens this tab on startup. PowerShell readiness
+does not gate local reasoning or the current C# built-ins. Neither setup button
+grants permission to run an arbitrary script.
 The optional Kokoro speech provider is offered separately and is not a
 required queued setup task.
 
@@ -228,4 +235,5 @@ Device-local settings are written under:
 
 `%LOCALAPPDATA%\Kora\Preferences`
 
-They do not roam with documentation, skills, or user content.
+They do not roam with documentation or user content. Stored skills are not yet
+available.

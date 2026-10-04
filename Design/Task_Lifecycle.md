@@ -63,6 +63,8 @@ Endpoint loss invalidates capture/transcript generations and offers recovery wit
 - Windows Locked/Disconnected/Unknown state overrides all activation requests; locked-session microphone policy is independent of the skill that requested a lock.
 
 Wake detection is not identity verification or permission to execute an action.
+The [accepted trust boundary](Security_Data_Flows.md#trust-boundaries) does not require authenticating every speaker or disabling consequential voice merely because system-output correlation is unavailable.
+Optional learning uses only separately consented new activated-command samples under [its local profile contract](Security_Data_Flows.md#optional-local-frequent-speaker-learning), never ambient wake audio or archived conversations.
 Rename/alias-mode changes follow [Custom Activation Names](Activation_Name.md): validate the whole active set, commit a new audio generation atomically, and invalidate removed-name callbacks without changing consent.
 Optional local speaker verification is only a profile-owner confidence signal for privacy decisions; it never supplies an approval or action grant.
 False activations with no valid command end locally; recognised commands still pass normal context and action controls.

@@ -151,7 +151,8 @@ If blocked, explain the reason and open recovery/help rather than leaving a disa
 "Mute Kora" follows the existing host intent: close input, stop speech, and clear audio; it does not cancel task execution.
 "Stop speaking" affects only playback. Device selection, mute, enable, and refresh never silently approve queued work.
 
-Left-clicking the icon opens the native status/questions panel; right-click opens this menu.
+The delayed single-click Show Kora action activates the compact status/questions surface; Sessions and history opens the list-plus-conversation workspace, and right-click opens this menu.
+These routes follow [Coordinated Window Design](UI_Workspace_And_Windows.md); they do not open a new window per running session.
 Tray activation never toggles recording as an implicit side effect.
 All actions share existing host services and lifecycle/approval rules; Exit Kora still confirms affected work, and Check for updates installs nothing.
 Expose accessible icon/menu names and textual state, not colour alone; omit sensitive task/account/content details from the tooltip.

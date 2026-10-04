@@ -78,6 +78,10 @@ Users can disable model-assisted management, in which case deterministic choices
 
 ## Authoritative Work Ledger
 
+The [Sessions workspace](UI_Workspace_And_Windows.md#sessions-workspace) presents the session list beside full conversation/history, per-session task/queue, and All work.
+The compact latest-interaction view shares selected session identity, not an execution slot; background progress/attention never replaces another session's conversation or question.
+Window visibility, selection, and detail viewing do not cancel, prioritize, or merge work.
+
 The host owns records containing:
 
 - Session/task IDs, user-visible label, request reference, creation time, and per-session queue position.
@@ -134,6 +138,7 @@ Call-aware policy still gates that speech; priority does not bypass suppression 
 Do not overwrite an approval card with a queue acknowledgement, or interpret a queue clarification reply as action approval.
 Only one voice prompt is foreground at a time, with session/task/prompt IDs, revision, and expiry.
 Changing voice focus withdraws generic spoken eligibility; explicitly addressed valid UI cards remain usable in other sessions.
+The [cross-window focus contract](UI_Workspace_And_Windows.md#selection-voice-focus-notifications-and-concurrency) specifies target presentation, clearing/expiry, late updates and no automatic handoff to another session's pending question.
 A verbally targeted background approval is re-presented/revalidated before accepting its action-specific confirmation.
 Do not silently extend an action approval's expiry while managing the queue.
 

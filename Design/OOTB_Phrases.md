@@ -151,8 +151,8 @@ User requests to delete a saved skill require exact selection/confirmation and n
 | "Only suppress unsolicited suggestions during calls" | Allow requested answers but suppress proactive speech in calls |
 | "Stay silent when you can't tell whether I'm in a call" | Persist conservative Unknown handling |
 | "Use normal speech when call detection is unavailable" | Present reduced-protection explanation and require explicit voice/UI confirmation |
-| "I'm in a call" / "My call has ended" | Set/clear manual call state; automatic sources still apply |
-| "Allow normal speech for this call" | Propose a bounded temporary call-policy override requiring explicit voice/UI confirmation |
+| "I'm in a call" / "My call has ended" | Set/clear manual state outside protected calls; voice mutation while protected is rejected and requires new UI initiation; automatic sources still apply |
+| "Allow normal speech for this call" | Propose a bounded temporary call-policy override; while protected, require a new UI request and exact confirmation |
 | "Restore call-aware speech defaults" | Reset configurable call policy |
 | "What are my call speech settings?" | Policy, sources, freshness, overrides; visual if gated |
 | "Don't interrupt me" / "Use quiet mode" | Suppress routine proactive speech until changed; visual notifications remain |
@@ -161,11 +161,13 @@ User requests to delete a saved skill require exact selection/confirmation and n
 
 There is no voice-only unmute while the microphone is closed and no override of locked-session policy.
 Speech-setting acknowledgements obey the new policy rather than speaking through it.
+All voice-setting/in-call-option mutations, including reset/undo and speak-once exceptions, obey the [in-call origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate); rejected requests are not queued or relabeled by a later approval click.
 
 ## Verbal Settings
 
 Rich display commands are defined in [Information Display](Information_Display.md): "show the words you're saying", "hide speech text", "show the full answer", "preview that HTML", "show the source", and "close the content viewer".
 Renderer/browser availability and consent remain explicit; viewing content is not browser automation.
+Optional "learn my voice", "show my voice-learning status", "test my learned voice", and "forget my learned voice" use the [local profile contract](Security_Data_Flows.md#optional-local-frequent-speaker-learning), not ambient collection or authenticated-owner claims.
 
 Every supported preference has verbal discovery/get/set/reset operations; see [User Configuration](User_Configuration.md) for the catalogue, bounds, scopes, and examples.
 
@@ -178,7 +180,7 @@ Every supported preference has verbal discovery/get/set/reset operations; see [U
 | "Reset {category} settings to defaults" | Preview affected preferences; reset without erasing skills or credentials |
 | "Undo the last settings change" | Revalidate a compatible prior preference; never replay grants or external side effects |
 | "Show my active approvals" | Open the native Permissions & Approvals view filtered to active grants |
-| "Why can {skill/provider} access {resource}?" | Show the matching grant, scope, creator channel, expiry, and use history without raw content |
+| "Why can {skill/provider} access {resource}?" | Show the matching grant, single-use/session/perpetual scope, creator channel, applicability, and use history without raw content; perpetual grants have no expiry |
 | "Revoke approval {grant/resource/provider}" | Open an exact host-owned revocation proposal and confirm through voice or UI |
 | "Revoke all approvals for {provider/resource/skill}" | List affected grants in a bulk host-owned proposal and confirm through voice or UI |
 | "Show recent approval history" | Open content-minimising use/denial/expiry/revocation history |

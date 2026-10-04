@@ -29,13 +29,16 @@ Input and output choices are independent: typing does not require speech output;
 Questions, answers, summaries, detail navigation, approvals, session management, and settings all use the same host services and validation.
 No UI action requires a spoken acknowledgment, and no ordinary Kora approval requires a click merely because it is high risk.
 The physical limits of a closed/unavailable microphone and mandatory OS/provider authentication, credential entry, and secure-desktop prompts remain explicit exceptions.
+The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) is also explicit: during protected calls, voice-initiated voice-setting and in-call-option changes are rejected and require a new UI request; operation approvals, read-only inspection, and deterministic safety controls follow their independent policy.
 Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Three Connected UI Surfaces
 
 1. **Compact session interaction:** evolve the response window into the latest interaction for the selected session, with its name, actual work state, concise answer/progress, structured question or approval, Details/History, and typed composer.
-2. **Session manager:** reachable from tray, keyboard, compact UI, and verbal commands; lists Active and Done sessions, selected-session marker, observed running/waiting/queued/failed/interrupted states, unread updates, last activity, and scheduled archive/deletion times. Supports search, selection, rename, explicit resume, Done, and delete.
-3. **History and detail viewer:** displays the selected session's ordered conversation and evidence, with expandable entries and immutable Markdown, static HTML, plain text, diffs, or `.ps1` source artifacts. Script viewing is not execution.
+2. **Sessions workspace:** reachable from tray, keyboard, compact UI, and verbal commands; Active/Done list and search beside the selected session's full conversation/history, pending cards, and work/queue. Shows unread/attention, meaningful activity/due dates, and actual work state, with rename/Done/resume/delete and an All work view.
+3. **Detail/artifact viewer:** expands immutable Markdown, static HTML, plain text, diffs, `.ps1` source and task evidence without losing the workspace conversation/current question. Explicitly opened items retain their own session/artifact identity when selection changes; viewing is not execution.
+
+[Session Workspace and Coordinated Window Design](UI_Workspace_And_Windows.md) owns concrete layouts, window roles/navigation, structured cards, focus/drafts, concurrent-session UX, supporting settings/grant/setup surfaces, and original-requirement coverage.
 
 The compact view is a projection of durable session events, not the only copy of the conversation.
 A concise answer retains a link to its fuller content; expanding it never reruns work.
@@ -74,16 +77,19 @@ Presentation and answer receipts record the channel and exact IDs; model-generat
 
 ## Approval and Risk: Session Trust, Not Mouse Superiority
 
-The baseline is the active unlocked Windows user session, not protection against someone controlling that already-unlocked account.
+The baseline is the active unlocked Windows user session and the user's choice to enable verbal instructions, not protection against someone controlling that already-unlocked account.
 Deliberate activated speech and deliberate native UI interaction are both supported expressions of user intent.
-Kora is responsible for its additional acoustic/automation risks: playback, ambiguous targets, prompt injection, stale proposals, expanded scope, and unintended dispatch.
+Who speaks an activated command is not itself a baseline authorization condition; residual indistinguishable external speech/playback is accepted without compulsory speaker authentication or blanket voice blocking.
+Kora remains responsible for self-playback rejection, supported playback discrimination, ambiguous targets, prompt injection, stale proposals, expanded scope, and unintended dispatch.
 It is not endpoint security and cannot secure a compromised Windows account.
 
 Optional locally enrolled speaker verification adds confidence and can enforce an explicitly selected owner-voice preference.
 It is not guaranteed authentication, and an ordinary click is not reauthentication either.
-Do not enroll or silently adapt a voice identity from chat history; protected enrollment and biometric handling follow [Security](Security_Data_Flows.md).
+Optional separately consented [frequent-speaker learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning) may adapt recognition/personalization from new activated commands only, never chat history or ambient audio.
+It is not authenticated-owner identity, cannot grant authority, and cannot silently replace a protected verification enrollment.
 Uncertain verification explains the limitation and offers an explicit alternate channel; it cannot manufacture consent.
 Required Windows/UAC/provider authentication remains mandatory regardless of channel or voice match.
+These are accepted design controls, not claims of completed enforcement; [Security](Security_Data_Flows.md#accepted-controls-and-verification-boundary) defines the implementation/acceptance boundary.
 
 Risk is assigned by host policy to an execution proposal, not by a model describing a script as safe.
 Evaluate effects, canonical targets/blast radius, reversibility, environment, data exposure/destination, privileges, and confidence in enforced execution constraints.
@@ -105,14 +111,17 @@ General script execution remains separately gated, not newly enabled by adding a
 
 A high-risk spoken confirmation names the action and target, not just "yes".
 The equivalent UI explicitly identifies the same proposal and requires a fresh deliberate gesture.
-Bind each decision to session/task/invocation, reviewed script/dependency digests, parameters, resolved resources, identity, destination, policy revision, expiry, and allowed use.
-Material changes invalidate approval. No implicit inheritance across sessions or tasks.
-Once/session/always are duration choices available for approvable actions, not blanket trust of future implementations.
-Future reusable execution grants bind the exact task/invocation and complete host-computed script/executable/dependency digest set; mismatch revokes affected grants and reverting bytes does not resurrect them.
+Bind each decision to session/task/invocation, reviewed script/dependency digests, parameters, resolved resources, identity, destination, policy revision, and allowed use.
+Approval scope is single-use, that operation for the identified Kora work session, or perpetual, as defined in [Grant Types and Inheritance](Security_Data_Flows.md#grant-types-and-inheritance).
+Single-use grants are consumed; session grants end with that session. Perpetual grants have no expiry, retention, or eviction and remain until explicitly removed or edited; archive/deletion/restart do not remove them.
+Material changes make a grant inapplicable to the changed operation, without deleting its record. No implicit inheritance across sessions or tasks.
+Current once/session/always preferences are not blanket trust of future implementations; the future schema binds session grants to durable work-session identity and retains perpetual grants independently.
+Future reusable execution grants bind the exact task/invocation and complete host-computed script/executable/dependency digest set; each dispatch revalidates applicability under current policy.
 Protected lock uses the same future version-bound action approval gate for direct and suggested requests; priority routing does not waive it.
 See [Skill and task execution design](../docs/skill-and-task-execution-design.md) for these execution gates; arbitrary or prohibited effects cannot become a reusable grant.
 The host owns trusted question/approval controls and readback; Markdown/HTML/script comments and model/tool statements are not grants.
-An archived grant record is historical evidence, never a live token.
+A historical grant reference is not a live dispatch token; inspect the independent grant store and fresh host policy.
+See [Internal Model Tools](Internal_Model_Tools.md#grant-and-feedback-rules) for the shared grant and in-call feedback boundaries.
 
 ## Session Identity, State, and Contents
 
@@ -129,7 +138,7 @@ Host-owned records include:
 - Questions, options, drafts/accepted answers, decisions, denied/cancelled/expired proposals, and routing decisions.
 - Tasks, planned versus observed progress, dependencies, action requests/results/receipts, errors, cancellation certainty, and late reconciliation.
 - Reviewed script/diff/artifact snapshots, digests, citations, relevant tool exchanges and context snapshots allowed by source/security policy.
-- Approval/grant scope and creation/use/denial/expiry/revocation evidence, linked to the separate security service without persisting reusable approval tokens.
+- Approval/grant scope and creation/use/denial/edit/removal evidence, plus expired unanswered proposals, linked to the separate security service without persisting reusable dispatch tokens.
 
 Full retained history is the evidence source. Derived summaries/indexes aid discovery, never replace it or silently evict old entries.
 Never store raw ambient/command audio, credentials, tokens, enrollment material, or hidden model reasoning in session history.
@@ -194,13 +203,14 @@ Evaluate lifecycle on a timer and at startup/access, so overdue records are not 
 Record archive reason and outcomes; an automatic Done transition is not success.
 
 "This session is done" archives the identified session after resolving live work: wait, explicitly cancel, or decline.
-Archive preserves all permitted history and revokes session-scoped executable eligibility/grants; it does not delete artifacts or saved skills.
+Archive preserves all permitted history and ends active session work and session-grant eligibility; it does not remove perpetual grants, artifacts, or saved skills.
 "Resume that session" explicitly reactivates it and resets activity, but does not rerun tasks, restore approvals, or transmit old context.
 Previously Done sessions remain readable without resume.
 
 Explicit deletion previews the exact session/data and work impact and requires action-specific voice or UI confirmation.
 Automatic purge uses the disclosed configured retention policy without asking again for every eligible expired session; live/uncertain-work checks still apply.
-Cancel/reconcile live work first; prevent further appends, invalidate session grants, and remove messages, artifacts, source snapshots, summaries, search indexes, caches, and recoverable database/journal copies according to the store's deletion contract.
+Cancel/reconcile live work first; prevent further appends and remove messages, artifacts, source snapshots, summaries, search indexes, caches, and recoverable database/journal copies according to the store's deletion contract.
+Independent perpetual grants survive session deletion, with minimal scope/provenance retained outside chat history; a missing source can make them inapplicable without removing them. Session grants end with the deleted session.
 Content-minimising independent security/diagnostic records follow their own disclosed retention and cannot reconstruct deleted conversation.
 User exports and provider-side copies are outside local deletion; disclose that limitation.
 Do not promise forensic secure erasure or remote cancellation.
@@ -217,32 +227,16 @@ Do not select an encryption/database library without its Windows deployment and 
 Storage failure is visible and blocks consequential dispatch whose required intent/decision cannot be recorded.
 
 Restart restores Active/Done history and UI selection, not action execution, queue dispatch, or consumed/expired approval tokens.
-Separately authorized always grants may survive only under their exact implementation/invocation identity and fresh host revalidation; retained chat/grant evidence alone never restores authority.
+Independent perpetual records and applicable Active work-session grants survive restart; exact implementation/invocation identity and fresh host revalidation determine applicability, while retained chat alone never restores consumed or ended authority.
 Recovered non-terminal work becomes Interrupted or Outcome unknown with an explicit resume/replan/reconciliation route.
 Every future dispatch revalidates current policy, source access, context freshness, identities, dependencies, and resources.
 Preserved readable content is not permanent authorization to use or transmit it.
 
 ## Model-Facing Host Tools
 
-Names below are conceptual contracts, not existing SDK APIs.
-All results carry stable IDs, revisions, observation time, provenance, pagination/continuation, and explicit unavailable/redacted/truncated markers.
-Proposed history pages contain at most 50 events and fit the existing 64 KiB model-bound tool-result limit; continuation references preserve access to the rest.
-Artifact reads use bounded ranges against an immutable digest. Oversized individual events expose an artifact/reference and available read route, not silent omission.
-
-| Tool/action | Purpose and boundary |
-|---|---|
-| `sessions.list` | Filter Active/Done and actual work states; bounded metadata, selected state, retention due dates |
-| `sessions.search` | Permission-filtered metadata/full-text search; bounded evidence references; no remote embedding dependency |
-| `sessions.get` | Session metadata, grounded work state, derived summary with source-event references |
-| `sessions.read_history` | Paginated ordered messages, decisions, questions, receipts, and grant history; filters by event/task/time |
-| `sessions.read_artifact` | Bounded immutable source/renderable content for an exact artifact/digest; never execute a script |
-| `sessions.create`, `sessions.rename`, `sessions.select` | Typed user-requested management with expected revision; selection is not resume |
-| `sessions.resume`, `sessions.mark_done`, `sessions.delete` | Propose lifecycle changes; host applies the stated work/confirmation/retention rules |
-| `interaction.ask` | Propose a validated structured question with session/task identity and typed reply schema |
-| `interaction.present`, `interaction.show_details` | Concise/full presentation referencing retained events/artifacts; no executable rendered controls |
-| `approvals.request`, `approvals.inspect`, `approvals.revoke` | Explain/propose/manage exact grants through the security service; model cannot approve itself |
-| `work.list`, `work.status`, `work.enqueue`, `work.cancel`, `work.pause`, `work.resume` | Session-scoped scheduler proposals and grounded status; no direct worker access |
-| `settings.get`, `settings.propose_change` | Shared typed registry, including lifecycle durations and concurrency; no arbitrary configuration patches |
+The [Internal Model Tool Catalogue](Internal_Model_Tools.md) owns the complete inventory, including current bootstrap actions versus proposed/deferred tools, typed inputs/results, caller lanes, bounds, and host-only exclusions.
+Session/history/artifact, structured interaction/presentation, grant, work, and configuration tools use those canonical IDs; this document owns their session behavior, not a second partial tool list.
+History pages contain at most 50 events within the 64 KiB model-bound limit, with continuation/range references and explicit omissions.
 
 Answer submission and approval consumption are trusted host input events, not model-callable self-answer/self-grant tools.
 Models propose mutations; the host checks direct user intent, scope, revision, and required confirmation.

@@ -22,6 +22,9 @@ No speculative Linux/macOS backends or automatic platform parity are included.
 
 ## Feature Placement
 
+Model exposure is explicitly inventoried in [Internal Model Tools](Internal_Model_Tools.md).
+Feature placement alone does not expose every host method, extension, or worker as a model-callable tool.
+
 | Feature | Built-in responsibility | Replaceable or external implementation | Initial scope |
 |---|---|---|---|
 | Desktop UI | Task state, previews, approvals, accessible controls | No arbitrary third-party UI code initially | Slice A |
@@ -30,6 +33,7 @@ No speculative Linux/macOS backends or automatic platform parity are included.
 | Non-voice questions/recovery | Native typed mouse replies, microphone enumeration/consent/recovery, tray access, prompt identity | Audio device API beneath host-owned selection; no model/skill dependency | Slice A; always available |
 | Microphone/activation | Device selection, wake-listening consent, capture, mute, visible status, optional push-to-talk | Audio library beneath host-owned capture | Slice A |
 | Speech recognition | Transcript lifecycle, local-only policy, engine selection | Bundled local engine adapter; other engines later | Slice A |
+| Frequent-speaker learning / optional verification | Separate consent, per-SID protected profiles, activated-command-only learning, quality/privacy policy, reset/delete | Local data/engine adapters; never model-visible embeddings or ambient collection | Optional capability after evidence; not required for baseline voice |
 | Text-to-speech | Playback queue, interruption, summary selection | Local speech engine/voice adapters | Slice A |
 | Call-aware speech | Central speech gate, voice preferences, source aggregation/freshness, visual fallback, one-shot override | Narrow communication detectors; Teams first, Graph optional and consented | Gate/manual mode in Slice A; automatic detection only after proof |
 | Wake word and endpointing | Default "Kora"/one validated custom name, bounded pre-roll, command boundaries, playback-aware interruption | Local detector/profile and VAD adapters; no connector installation required | Slice A; custom profiles need quality proof |
@@ -149,7 +153,7 @@ Approval alone is insufficient when a command could modify Kora: require enforce
 - Pin installed content by version and digest.
 - Material changes to code, tool schemas, endpoints, or requested permissions invalidate affected grants.
 - Disabling an extension blocks new calls and cancels active calls where supported.
-- Removing an extension removes its registration and grants, not user-owned source repositories.
+- Removing an extension removes its registration, not user-owned source repositories. Perpetual grants remain as inapplicable records until explicitly removed/edited; do not silently delete them with the registration.
 - Signatures and digests establish identity/integrity, not harmlessness.
 - Agent-facing capabilities cannot install/update executable adapters, modify Kora, or invoke its maintenance/updater channel.
 

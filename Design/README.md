@@ -49,12 +49,21 @@ broader approval-policy evidence in D-008.
 19. [Custom Voice Activation Names](Activation_Name.md): local renaming with explicit custom-only or default-plus-custom choice.
 20. [Single Active Instance and Version Handoff](Instance_Coordination.md): duplicate activation, approved release/debug takeover, and original-version return.
 21. [Acceptance Criteria](Acceptance_Criteria.md): evidence required before release.
+22. [Internal Model Tool Catalogue](Internal_Model_Tools.md): complete current action/proposal inventory, proposed internal tools, caller lanes, capability gates, and host-only exclusions.
+23. [Session Workspace and Coordinated Windows](UI_Workspace_And_Windows.md): compact interaction, session list plus full conversation workspace, detail/script review, native cards, concurrent work UX, and supporting windows.
 
 ## Human Interaction and Sessions
 
 [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md) is the canonical contract for voice/UI parity, structured questions, concise/full responses, risk-based grants, concurrent work streams, routing, durable history, and configurable inactivity policies.
 It replaces the earlier single-executor, memory-only-conversation direction and distinguishes Kora work sessions from Windows and provider sessions.
 Read it before the task/work-management and presentation documents.
+Read [Session Workspace and Coordinated Window Design](UI_Workspace_And_Windows.md) alongside it for the primary UI design: the session list sits beside full conversation/history, with a lightweight compact view and separate details.
+
+## Accepted Security Direction
+
+[Security and Data Flows](Security_Data_Flows.md#accepted-controls-and-verification-boundary) records the accepted active-Windows-profile trust boundary, scoped grants and call restrictions, and host control requirements.
+Optional [frequent-speaker learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning) is separately consented local personalization, not authentication or authorization.
+Design-level concerns are resolved within that boundary; implementation evidence remains required before capabilities are advertised or released.
 
 ## Visual Exploration
 

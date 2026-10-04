@@ -36,9 +36,11 @@ Do not begin a later checkpoint while an earlier checkpoint has unresolved safet
 2. **A1 — Voice-first activation:** packaged local "Kora" detector, immediate wake-and-command preservation, playback rejection, interruption, locked-session policy, and the required wake quality/resource evidence.
 3. **A2 — Local-first answering:** one supported Ollama-backed inference adapter and selected model pass local-only clipboard-answering, cancellation, setup, hardware, licence, and performance gates. Cloud is not a fallback.
 4. **A3 — Sessions, managed work and controls:** encrypted session/event/artifact persistence and retention, deterministic session controls, bounded independent routing/management, isolated concurrent scheduler/resource leases, authoritative per-session ledger/queue, structured questions/grants, configuration registry, and protected computer/application controls.
-5. **A4 — Ambient interaction surfaces:** compact session interaction, session manager/history/detail UI, proactive task/update conversations, call-aware speech, optional owner-aware private speech, and bounded presentation details.
+5. **A4 — Session workspace and interaction surfaces:** compact latest interaction, Sessions workspace with session list beside full conversation/history and per-session work/queue, separate immutable detail/script viewing, shared native questions/approvals, supporting tray/settings/grant/setup surfaces, proactive conversations, call-aware output/authorization/origin gates, and bounded presentation details.
 
 Each checkpoint preserves all earlier controls and has a separately reported acceptance result.
+The [coordinated window design](UI_Workspace_And_Windows.md) owns A4 layouts and behavior; opening multiple windows is not evidence of A3 task concurrency.
+Optional frequent-speaker learning and owner-aware verification remain separately capability-gated under [D-006](Decision_Register.md#d-006-optional-speaker-verification), not mandatory first-release checkpoints. Missing either never blocks baseline voice; advertise them only after their own quality/privacy evidence passes.
 
 1. The user configures a microphone and a supported runtime and consents to local wake-word listening.
 2. The user says "Kora, explain the clipboard"; local detection activates command capture without requiring a pause after "Kora".
@@ -61,7 +63,7 @@ Included:
 - Visible wake-listening/capture/mute states and verbal interruption during speech output.
 - Out-of-the-box lock/shutdown/restart skills with definitions/scripts embedded in the protected application binary and local routing; disruptive power actions require action-specific voice or UI confirmation, safe handling of all sessions, mandatory OS checks, and a cancellable countdown.
 - Built-in application lifecycle, queue, speech, readiness, and maintenance phrase support as defined in [OOTB Phrases](OOTB_Phrases.md).
-- Verbal discovery/get/set/reset of all supported user preferences through a typed host registry, as defined in [User Configuration](User_Configuration.md).
+- Verbal discovery/get/set/reset through the typed host registry, subject to mandatory secure workflows and the protected-call voice-origin restriction; a new UI request is required for affected changes during calls. See [User Configuration](User_Configuration.md).
 - Mandatory microphone shutdown/release while the Windows session is locked, regardless of lock origin.
 - Built-in plain-text clipboard capture and preview.
 - Bounded concurrent independent sessions, including writes to different resources, with one task per session, shared-resource coordination, and an independently responsive work-management lane.
@@ -71,7 +73,7 @@ Included:
 - Local-only and remote-enabled modes with capability-aware routing.
 - Explicit error, approval, and cancellation experiences.
 - Host-owned proactive voice suggestions, grounded task notifications, and unprompted release-availability conversations.
-- Call-aware speech gating with voice-configurable preferences, manual call mode, and explicit speak-once override; Teams automatic detection is the first best-effort integration subject to capability proof.
+- Call-aware gating with UI-only feedback and ignored reusable grants by default, manual call state, and exact single-use operation approval; voice-originated voice/in-call changes, including temporary/speak-once exceptions, require new UI initiation while protected. Teams automatic detection remains the first best-effort integration subject to capability proof.
 - Encrypted permitted full session history/artifacts and local configuration storage; Active/Done retrieval survives restart without action/approval replay.
 - Configurable inactivity policies defaulting to automatic Done after 24 hours and deletion after 30 days from last meaningful activity.
 - Structured single-/multi-choice and text questions, concise/full answers, exact grants, and interchangeable voice/UI replies.
@@ -164,6 +166,9 @@ An alternative runtime requires an explicit scope decision and must pass the sam
 - A complete accessible UI is an equal alternative for every supported workflow; no required spoken acknowledgment.
 - Large results have a spoken summary and voice commands to navigate or explain them.
 - High-risk confirmations require exact consequence/source/target review and deliberate action-specific voice or UI input; required OS/provider checks remain mandatory. Wake detection and optional speaker matching are not authentication or approval.
+- Baseline enabled voice trusts the active unlocked Windows profile, not the speaker's identity; no compulsory biometric/PTT/UI-only authorization is introduced because the user cannot be identified.
+- Optional separately consented local frequent-speaker learning may improve recognition/personalization after its quality/privacy gate; unavailable learning never blocks general voice or grants new authority.
+- During protected calls, voice-originated voice-setting and in-call-option changes require new UI initiation, while ordinary operation approvals and safety/status controls retain their independent policy. This is the explicit channel-parity exception, not generic mouse superiority.
 - With owner-aware private speech enabled, uncertain verifier output uses a neutral visual notice; baseline output otherwise follows configured privacy/call policy, and a match never bypasses that policy.
 - Credentials and account sign-in use the provider's supported secure flow, not dictated secrets.
 

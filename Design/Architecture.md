@@ -103,7 +103,7 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 
 | Component | Owns | Must not own |
 |---|---|---|
-| Shell | Rendering, input, accessible controls, approval interaction | Direct tool execution or provider credentials |
+| Shell | Coordinated compact/workspace/detail/settings surfaces, shared selected session, accessible native cards, per-session drafts and input | Direct tool execution, provider credentials, or using window focus as execution authority |
 | Structured interaction/recovery service | Voice/UI question drafts and typed replies, independent addressed cards, one foreground voice target, endpoint recovery | Model self-answer/self-approval, capture before consent, silent device replacement |
 | Session registry/history service | Stable session identity, ordered durable events/artifacts, routing proposals, Active/Done lifecycle, retention/deletion | Replaying execution/grants or exposing all history to a provider |
 | Voice controller | Wake-listening consent, local configured-name detection ("Kora" by default), bounded audio buffer, endpointing, transcript, playback-aware interruption | Ambient transcription or authorising actions based on wake detection/speaker verification |
@@ -118,7 +118,7 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Proactive interaction broker | Event eligibility, speech timing, deduplication, prompt identity, trusted maintenance dialogue routing | Autonomous tool execution or treating untrusted content as system events |
 | Security audit service | Correlated content-minimizing request/outcome events for writes, process/script execution, protected operations, and approvals | Authorizing an action, storing raw content/arguments, or treating diagnostics as tamper-evident evidence |
 | Speech policy service | Central playback eligibility, call-state freshness, voice-configurable preferences, one-shot overrides | Claiming universal call detection or allowing lock/mute bypass |
-| Speaker confidence service | Optional local per-SID enrollment, protected template storage, verification/anti-spoof observations, privacy-policy signal | Identifying arbitrary people, granting actions, satisfying approvals, exposing scores/templates, or silently enrolling |
+| Speaker confidence service | Separately consented local per-SID frequent-speaker adaptation, protected learned/enrolled profiles, quality/verification observations, optional privacy-policy signal | Authenticating a learned frequent speaker, granting actions, satisfying approvals, ambient/history training, exposing scores/templates, or silently replacing enrollment |
 | Reserved intent/lifecycle controller | Exact local control routing, target disambiguation, named confirmations, serialised app/power/maintenance lifecycle | Arbitrary shell commands or user-skill shadowing of privileged controls |
 | Storage services | Configuration, metadata, encrypted permitted session history/artifacts/indexes, migration/deletion | Raw audio, plaintext credentials, unrestricted clipboard collection, or silent eviction |
 | Environment setup controller | Internal storage/schema initialisation, capability probes, approved dependency setup, ownership and readiness | Arbitrary model-supplied installers or changing Kora code |
@@ -126,8 +126,11 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 
 Speech decisions are revalidated at playback start and when policy/detector state changes.
 Private speech decisions also revalidate current speaker-confidence availability and result; missing or uncertain verification never defaults to owner.
+Learned frequent-speaker attribution is personalization, not owner authentication; [Security](Security_Data_Flows.md#optional-local-frequent-speaker-learning) owns consent, adaptation, isolation, deletion, and optional verification boundaries.
 Communication detector adapters expose observations, not authority; see [Call-Aware Speech](Call_Aware_Speech.md).
 Every user preference, including admitted extension settings, uses [User Configuration](User_Configuration.md); voice and UI share validation and persistence.
+The [window design](UI_Workspace_And_Windows.md) defines shell roles and shared view state: workspace/compact share UI selection, independently opened detail references stay immutable, and response/draft updates route by stable session/task/item IDs.
+This is not shared provider conversation state or permission to dispatch; the registry/interaction/scheduler remain authoritative.
 Rich presentation follows [Information Display](Information_Display.md); native approvals and trust indicators remain outside rendered content.
 Native questions and first-run/device-loss recovery follow [Interaction Fallback](Interaction_Fallback.md) and require no working microphone, model, or rich renderer.
 
@@ -179,16 +182,18 @@ The implementation must define versioned, strongly typed equivalents of these me
 | Contract | Required fields and semantics |
 |---|---|
 | Runtime capabilities | Runtime/version, local or remote destinations, streaming, tool mediation, cancellation, context filtering, supported input types |
-| Task request | Session/task IDs, user request, approved context IDs, effective policy, deadline, selected runtime |
-| Management request/proposal | Management request ID, minimal approved session descriptors/context, registry/ledger revision, typed route/operation, target session/task IDs, evidence or clarification |
+| Trusted input/intent lineage | Host input-event ID, initiating channel, current Windows-user scope, original request and approved-plan references; immutable across interpretation/management/task/tool hops, never model-authored or relabeled by a later confirmation |
+| Task request | Session/task IDs, user request, trusted intent-lineage reference, approved context IDs, effective policy/revision, deadline, selected runtime |
+| Management request/proposal | Management request ID, trusted intent-lineage reference, minimal approved session descriptors/context, registry/ledger revision, typed route/operation, target session/task IDs, evidence or clarification |
 | Session record/event | Session ID, lifecycle/work state, sequence/revision, channel/provenance, durable timestamps, history/artifact references, retention due times |
 | Structured question/reply | Session/task/question IDs, revision, typed option/field schema, constraints, draft/accepted answer, expiry and submit/cancel meaning |
 | Work status | Task/step states, observation timestamps, provenance of progress, queue position, blocker; distinguish plans from confirmed outcomes |
 | Context item | ID, immutable content reference, content hash, source, media type, trust/classification, identity scope, capture time, expiry |
 | Runtime event | Session/task IDs, sequence, event type, typed payload; no state-changing work hidden in display text |
-| Tool invocation | Invocation ID, tool/version, schema-valid parameters, target resources, effect class, deadline |
+| Tool invocation | Invocation ID, session/task IDs, tool/version, schema-valid parameters, target resources, effect class, trusted intent-lineage reference, host-validated authorization reference, current policy/call generation and setting revision at dispatch, deadline |
 | Tool result | Invocation ID, success/failure/unknown status, bounded content, provenance, classification, side-effect receipt |
-| Approval request | Session/task/proposal IDs, exact action/destination, resources and script/dependency/parameter hashes, expiry, host-assigned risk/review, optional speaker policy, mandatory OS checks, creator/lineage, user-readable summary |
+| Approval request | Session/task/proposal IDs and revision, exact action/destination, resources and script/dependency/parameter hashes, requested `grantScope: Once/Session/Perpetual`, bound session ID for Session, host-eligible scope/required Once reason during protected calls, proposal deadline (not perpetual grant expiry), host-assigned risk/review, optional speaker policy, mandatory OS checks, trusted intent lineage, call-policy generation and setting revision, user-readable summary |
+| Grant record/dispatch authorization | Stable grant ID/revision, exact approved operation/resources/identity/digests, scope and bound session where required, creation/edit/provenance; Once consumption and session-end applicability; independently retained Perpetual without expiry/retention/eviction; per-invocation dispatch authorization is distinct from the stored record |
 | Completion | Completed/cancelled/failed/unknown-side-effects, final answer references, action receipts, error detail |
 
 Runtime events include answer deltas, tool proposals, context transmission proposals, progress, and terminal events.
@@ -198,6 +203,10 @@ A provider's built-in filesystem, shell, browsing, memory, telemetry, or connect
 Passing approved initial context to an SDK is insufficient if the SDK can later collect or transmit additional data independently.
 Untrusted content is structurally separated from system/developer policy and workflow-stage controls.
 Every proposed operation carries intent lineage to deliberate user input or an explicitly approved host plan step; capability/grant scope alone is not sufficient justification.
+Initiating channel comes from the trusted input event, not the adapter/model or the channel used for later confirmation; absent provenance cannot be treated as UI authorization for protected-call settings.
+The host stamps/rechecks live call evidence, protection generation, and setting/policy revisions at approval/apply/dispatch boundaries under [Call-Aware Speech](Call_Aware_Speech.md).
+A changed protection generation revalidates affected pending authorization rather than trusting the generation captured at planning time; no origin or scope field can bypass the current host gate.
+Grant scope/lifetime follows [Security](Security_Data_Flows.md#grant-types-and-inheritance); proposal/dispatch deadlines never become retention or expiry on a Perpetual record.
 
 ## Capability Negotiation
 
@@ -214,6 +223,10 @@ They are not accepted solely from a self-declared extension manifest.
 Automatic provider switching is excluded from the MVP. Changing runtime starts a new task with a new destination/approval assessment.
 
 ## Tool Gateway
+
+The [Internal Model Tool Catalogue](Internal_Model_Tools.md) owns the complete current/proposed tool inventory, stable names, caller lanes, schema/effect boundaries, and host-only exclusions.
+The current bootstrap exposes registered action/question/grant-change JSON proposals, not this future tool-call API.
+Capability negotiation advertises only verified implemented subsets, never every proposed catalogue entry.
 
 All built-in and external tools use the same authorisation path:
 

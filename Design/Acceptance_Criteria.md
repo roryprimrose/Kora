@@ -90,6 +90,9 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 
 ### Privacy and Policy
 
+- With verbal input enabled in the active unlocked Windows profile, otherwise valid requests/approvals from different speakers follow the same intent/grant policy when no optional speaker restriction is selected; no compulsory verifier, push-to-talk, or UI-only consequential authorization is introduced.
+- Absent system-output correlation discloses the residual enabled-voice limitation without blanket voice blocking; self-TTS rejection and supported playback discrimination still meet their advertised quality gates.
+- Lock/disconnect/suspend, prohibited effects, OS/provider checks, untrusted-content separation, and the explicit protected-call origin gate remain enforced regardless of speaker or learned confidence.
 - Local-only mode performs no task-time network calls under network-blocked testing.
 - With no local model, answering is unavailable with an explicit explanation.
 - Remote-enabled mode shows the actual destination and context before transmission.
@@ -102,10 +105,10 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Wake Listening, Capturing Command, Muted, Session Locked, and Unavailable are distinguishable, including background-app status.
 - Closing/dismissing UI preserves session history and work. Done archives; explicit confirmed deletion and configured inactivity purge remove retained session content under the dedicated lifecycle gate.
 - Restart restores readable Active/Done history and interrupted/unknown evidence, never tools, queued dispatch, provider memory, or consumed approval tokens. Explicit always grants remain subject to exact identity/digest/invocation and fresh policy validation.
-- Exercise every proposed grant type: single-use, task, conversation, process-session, time-bound, persistent-device, and preconfigured. Test future `always` executable grants separately against exact version/digest/invocation identity; current named model-action `Always` is not such a grant.
-- Verify default single-use scope, explicit maximum expiry, no cross-task/follow-up/provider/account/skill/process/device inheritance, and revocation on the documented lock/sign-out/restart/policy/schema transitions.
-- The native Permissions & Approvals surface lists canonical scope, identity, destination, hashes, creator channel, expiry, last use/use count, policy revision, and revocation reason without raw sensitive content.
-- Narrowing/shortening edits in place; permitted broadening, persistence conversion, identity/destination change, and restoring revoked/expired access require a newly reviewed exact voice/UI-confirmed grant.
+- Exercise all three grant scopes: single-use, the approved operation for an identified Kora work session, and perpetual. Test future executable grants separately against exact version/digest/invocation identity; current named model-action `Always` is not such a grant.
+- Verify default single-use consumption, session isolation/end, and explicitly approved perpetual reuse without broadening operation/resource/provider/account/skill/device scope; lock/sign-out/policy changes enforce applicability without deleting perpetual records.
+- The native Permissions & Approvals surface lists canonical scope/bound session, identity, destination, hashes, creator channel, creation/edit history, last use/use count, policy revision, and consumed/session-ended/inapplicable/removal reason without raw sensitive content or a perpetual expiry.
+- Narrowing edits in place; permitted broadening, scope conversion, identity/destination change, and replacing consumed/ended/removed access require a newly reviewed exact voice/UI-confirmed grant.
 - Revoke-versus-dispatch races block new calls immediately and report in-flight remote effects truthfully.
 - Clipboard/private-context capture, egress, remote reads, privacy expansion, persistent preferences, and skill enablement use equivalent exact voice/UI approval rules; ambiguous intent/unsatisfied optional speaker policy pauses rather than inventing approval.
 - Denied canonical proposals are deduplicated/rate-limited and cannot be rephrased, split, or escalated repeatedly by models/tools/providers/skills; distinct resources/effects are never hidden in a broad bundled approval.
@@ -222,15 +225,26 @@ If the detector fails, change/tune the local implementation or explicitly revisi
 - With verification absent/disabled, baseline deliberate voice/UI interaction remains available under normal output/privacy policy. With owner-aware privacy enabled but unhealthy/stale/uncertain, private content uses a neutral visual notice rather than silently disabling protection.
 - `LikelyOwner` permits private speech only when normal content/output policy also permits it; it never satisfies remote-egress, tool, update, setup, power, account, credential, or security-setting approval.
 - `NotOwner`, `Uncertain`, and `Unavailable` never disclose whether a sensitive resource exists through spoken wording.
-- Shutdown/restart, reduced privacy policy, and other permitted high-risk operations accept exact action-specific voice or UI confirmation; preserve actual required OS/provider verification. Speaker enrollment changes retain protected OS reauthentication.
-- Enrollment/replacement requires Windows Hello or equivalent native reauthentication, multiple randomized prompted phrases, explicit consent, and a native non-voice completion path; ordinary command audio never enrolls or updates a template.
+- Shutdown/restart, reduced privacy policy, and other permitted high-risk operations accept exact action-specific voice or UI confirmation subject to the protected-call origin gate; preserve actual required OS/provider verification. Explicit verification enrollment changes retain protected OS reauthentication.
+- Explicit verifier enrollment/replacement requires Windows Hello or equivalent native reauthentication, multiple randomized prompted phrases, explicit consent, and a native non-voice completion path; ordinary command/learned-profile data never silently enrolls or updates that verification identity.
 - Verify that raw enrollment audio is discarded after derivation and that templates, scores, phrases, and biometric diagnostics are absent from roaming storage, model/tool/skill context, logs, telemetry, crash reports, and default backups.
 - Bind the protected template to the Windows SID and device; changed SID/device binding, stale enrollment, unsupported microphone transition, missing assets, verifier error, and policy denial yield `Unavailable`, never owner.
 - Test genuine-owner false rejection across time, quiet/office noise, supported microphones, illness/voice variation fixtures, and playback conditions.
 - Test false acceptance using at least unrelated speakers, similar voices, household/nearby-speaker fixtures, recordings, Kora TTS, speaker playback, virtual/loopback devices, and representative synthetic/cloned speech.
 - Record false-accept and false-reject rates, thresholds, verifier/anti-spoof model versions, supported hardware, and residual limitations; failing the approved risk target leaves verification unavailable rather than weakening policy.
 - Repeated mismatches and suspected replay/synthesis are rate-limited and auditable without retaining biometric audio.
-- Delete/re-enroll removes the prior protected template and invalidates cached confidence; chat history never silently enrolls/adapts identity. Privacy settings use explicit voice/UI confirmation; protected biometric changes cannot bypass OS verification.
+- Delete/re-enroll removes the prior protected verification template and invalidates cached confidence; chat history never silently enrolls/adapts identity. Privacy settings use explicit voice/UI confirmation subject to the protected-call origin gate; explicit verification changes cannot bypass OS verification.
+
+### Optional Frequent-Speaker Learning Gate
+
+- Learning defaults Off and requires separate explained consent; wake/microphone consent, model text, prior history, or first use does not enable it. Decline/unavailable assets/failure preserves baseline voice and safety controls.
+- Enable through equivalent trusted voice/UI workflows outside protected calls, without mandatory verifier enrollment; during protected calls, reject voice-originated learning/profile mutations and require new UI initiation.
+- Use only newly activated bounded command audio after consent. Ambient audio, archived/session recordings, Kora output, known playback, and mixed/uncertain sample fixtures never update the profile; disabling stops learning immediately.
+- Derived features are local, OS-protected, SID/device-scoped and isolated from history/grants; raw samples are discarded and samples/features/templates/match scores/inferred identity never enter model results, roaming, logs, telemetry, or remote processing.
+- Establish quality targets before advertising under D-006; test predominant-speaker attribution, genuine recognition improvement, uncertainty, multi-speaker/drift/voice-variation/microphone changes, and correction without claiming authenticated ownership.
+- A few different-speaker samples cannot silently replace an established primary profile; replacement requires explicit confirmation. Learning cannot update a separately enrolled verifier, satisfy an approval, create grants, or relax call/egress/privacy policy.
+- Status/test/correct/reset/delete disclose actual readiness. Off does not falsely claim deletion; reset/delete removes derived profile/cached confidence, stops adaptation until renewed consent, and preserves unrelated history/grants/verification enrollment.
+- Profile management/model tools accept no sample/embedding/identity payloads, carry trusted user-request origin, and return only coarse capability/progress and trusted workflow references.
 
 ### Work-Management Gate
 
@@ -489,7 +503,7 @@ Validate the production invocation's flags and actual restricted worker admissio
 - Name changes are device-local and audited without the chosen name value. `Kora.exe`, assemblies/namespaces, `%LOCALAPPDATA%\Kora`, icon resources, diagnostic file names, and internal product/trust identifiers remain unchanged.
 - If listening is active during a successful rename, capture is stopped and restarted with the new exact grammar under the existing consent; a rename while capture is closed does not open the microphone.
 - Every available option, including extension options, registers a type, bounds/choices, default, scope, aliases, validation, dependency, application timing, and confirmation rule.
-- Enumerate the registry and exercise discovery/get/set/reset for every option through voice and UI against the same effective configuration; no UI-only or manual-file-only preferences.
+- Enumerate the registry and exercise discovery/get/set/reset through equivalent voice/UI configuration outside protected calls; during protected calls enforce the explicit voice/in-call origin restriction and fresh UI-initiation path. No unexplained UI-only or manual-file-only preferences.
 - Exact basic settings commands work without a model/network after local speech is ready.
 - Spoken absolute/relative values, units, source/device labels, and scopes resolve to concrete proposals; ambiguity or invalid values never mutate state.
 - Validate exact boundary and just-outside-boundary values for every numeric range; reject rather than silently clamp.
@@ -502,7 +516,7 @@ Validate the production invocation's flags and actual restricted worker admissio
 - Lowering queue capacity does not evict entries; shortened request lifetime identifies affected entries before immediate expiry.
 - Default deadline changes do not silently alter active tasks; provider/account changes do not silently transfer their context.
 - Increased remote exposure requires exact voice/UI confirmation for the setting, and every outgoing payload still requires its applicable egress approval.
-- Call-wide, one-hour, persistent, and Unknown-to-normal speech privacy downgrades require exact voice/UI confirmation; single-response tokens remain exact, single-use, and subject to selected speaker/privacy protection.
+- Call-wide, one-hour, persistent, and Unknown-to-normal speech privacy downgrades require exact confirmation, with new UI initiation while protected; single-response exceptions remain exact, single-use, and subject to the same origin and selected privacy policy.
 - Reset/undo follow the same sensitivity and validation rules as set; neither restores grants nor repeats external side effects.
 - Enabled extension option schemas cannot expose arbitrary code/config paths, protected trust roots, disabled lock policy, or security bypasses.
 - Missing devices/assets/providers explain unavailable effective settings and do not trigger silent download/cloud fallback.
@@ -549,6 +563,12 @@ Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contra
 
 ### Routing, Concurrency, and History Access
 
+- Verify the [coordinated window design](UI_Workspace_And_Windows.md): compact latest interaction, Sessions workspace with list beside full conversation/history, separately bound detail/script review, and reachable settings/grant/setup/help surfaces.
+- With two independent sessions progressing and another queued/waiting, switch/read history/edit an answer without stopping unrelated work or changing scheduling priority. Per-session drafts, streaming, questions, grants, queue and unread status never cross session identity.
+- Compact/workspace share explicit UI selection; an open detail viewer stays bound to its original artifact. Back to conversation selects the exact event; expansion/closing never executes or approves a script.
+- Exercise native single/multi-choice, custom replies and typed forms through voice-only, UI-only and mixed input; duplicate visible card hosts share one draft and exactly-once submission, and ordinary progress cannot replace a pending card.
+- Search/filters, tail-follow versus historical scroll, meaningful-activity/due-date display, All work/resource blockers, Done/resume/delete and draft/restart recovery match original-requirement coverage; basic controls remain usable without model/network/audio.
+- Background updates do not steal keyboard/voice focus. Explicit question presentation revalidates a unique voice target; resolution/expiry/ineligible presentation clears it rather than automatically targeting another session's card.
 - Explicit composer/named-session targeting wins. One clear Active match is acknowledged; multiple plausible matches ask; unrelated or unavailable-inference general requests start a new session.
 - Archived sessions are searchable/readable without resume or timer refresh; explicit resume updates activity but restores no executable grants/tasks.
 - Run at least two independent session tasks simultaneously, including writes to different disposable resources. Verify isolation, budget limits, per-session ordering/cancellation, and fair progress with the foreground session idle.
@@ -568,12 +588,32 @@ Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contra
 - Configure both durations by voice and UI, including values different from defaults; reject non-positive/non-finite/reversed durations. Shortening previews affected due dates and never immediately purges without separate apply-now confirmation, including on the next timer tick; absent it, existing due dates remain until meaningful activity.
 - Normal eligible automatic purge uses the disclosed retention policy without recurring per-session approval; explicit deletion still requires exact action-specific confirmation.
 - Test offline startup/access after deadlines, clock rollback, time-zone/DST changes, concurrent resume-versus-expiry, blocked live work, and unresolved effects; no early deletion or silent abandonment.
-- Exact session deletion removes messages/artifacts/snapshots/summaries/indexes/caches and recoverable journal/backup content under the proven store contract, invalidates session grants, and rejects late appends.
+- Exact session deletion removes messages/artifacts/snapshots/summaries/indexes/caches and recoverable journal/backup content under the proven store contract and rejects late appends; independent perpetual grant records survive, with applicability revalidated and minimal provenance retained separately.
 - Deletion preserves unrelated sessions/saved skills and discloses independent content-minimising audit, user exports, provider copies, and lack of forensic-erasure guarantees.
 - Inspect history/artifact/index storage for encryption and OS-protected key handling; verify raw audio/credentials/biometrics are absent, known secret fixtures are redacted, and retained content never leaks into ordinary diagnostics.
 - Disk-full, encryption-key loss, corrupted storage, migration failure, and artifact-size admission failures are explicit; no success-shaped persistence fallback, silent history eviction, or consequential dispatch without required durable evidence.
 
 ## Future Capability Gates
+
+### Internal Model Tool Exposure
+
+- Verify every current advertised action/proposal against [Internal Model Tools](Internal_Model_Tools.md), including all 20 registered actions, the four mutually exclusive response kinds, current approval rules, and disabled OS power execution.
+- Each future registered tool has a stable ID/schema, supported caller lane, bounds, canonical effect/resources, lineage, authorization, cancellation, and truthful pending/unknown/unavailable behavior; unavailable or deferred tools are not advertised.
+- Exercise voice/UI equivalence, stale revisions, session targeting, secret filtering, bounded pagination, local-only egress, and hostile retrieved/tool/rendered instructions.
+- Models cannot submit user answers, confirm/grant themselves authority, forge receipts, access credentials/raw audio, or invoke the maintenance/updater channel.
+- Consume a single-use grant exactly once; allow only the approved operation in the bound Active session under a session grant, end eligibility on Done/deletion, and never restore it by resume.
+- Advance clocks beyond session/audit retention, archive/delete sessions, simulate grant-store pressure, and restart; perpetual grants remain without expiry/retention/eviction until explicit user edit/removal, while changed identity/content/invocation/policy blocks inapplicable use.
+- Restart an Active persisted session; revalidate its session grant without replaying consumed authorizations or interrupted work.
+- Verify the separate in-call feedback override defaults to UI-only, precedes ordinary task/queue/session/device output, remains configurable through voice/UI, and does not disable input or bypass mandatory speech/privacy rules.
+- Verify `calls.ignoreReusableGrants` defaults On and is voice/UI configurable: manual Active, enabled Active/Suspected, and conservative enabled Unknown require fresh single-use approval for every grant-dependent operation, including background steps; no configured detector discloses unavailable protection.
+- Session/Perpetual records remain unchanged while ignored; explicit voice/UI single-use approval authorizes only its exact invocation once. Call clearance restores only still-applicable reuse, never answers a pending prompt or replays work; grant-free safety/status controls remain available.
+- Race call entry, new call-policy generations, setting changes, approval, and dispatch; pre-call/obsolete approvals cannot authorize a protected-call dispatch. Already dispatched effects retain truthful observed outcomes.
+- Feedback/speak-once/speech overrides do not disable grant-ignore. Turning it Off requires exact trusted confirmation and preserves all other authorization gates; models/tool text cannot perform the downgrade.
+- During manual Active or enabled Active/Suspected/Unknown call evidence, reject voice-originated voice-setting and all in-call-related mutations, including detector/Unknown policy changes, manual clearance, grant-ignore, scoped feedback, reset/undo, and temporary/speak-once exceptions.
+- Carry trusted origin through direct commands, model interpretation, management/task hops, and tool proposals; absent origin cannot act as UI. A later UI confirmation cannot authorize a rejected voice request; require new UI initiation.
+- Race call entry with request/apply; pending voice mutations are invalidated and never queued for application after call clearance. Verify fresh UI changes remain ordinarily validated/confirmed, unrelated settings/read-only inspection stay available, and stop/mute/cancel remain immediate safety controls without implicit unmute or protection downgrade.
+
+### Additional Capability Evidence
 
 Before adding capabilities outside the MVP:
 

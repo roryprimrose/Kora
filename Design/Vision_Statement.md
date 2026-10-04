@@ -31,12 +31,13 @@ Primary goals:
 ## Voice First, Not Voice Only
 
 Users should be able to accomplish every supported Kora workflow without compulsory typing, or entirely through accessible UI without compulsory speech.
-Mandatory OS/provider authentication and unavailable microphone constraints remain explicit, not Kora-imposed channel restrictions.
-The compact latest-interaction UI, session manager, and full history/detail viewer share host-owned questions and approvals.
-See [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
+Mandatory OS/provider authentication and unavailable microphone constraints remain explicit.
+During protected calls, voice-initiated voice-setting and in-call-option changes are rejected and require a new UI request; this is the explicit privacy/security exception, not a general restriction on voice operation.
+The compact latest-interaction UI, Sessions workspace with a session list beside full conversation/history, and separate immutable detail/script viewer share host-owned questions and approvals.
+See [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md) and [Coordinated Window Design](UI_Workspace_And_Windows.md).
 Kora can also initiate conversation, for example to offer an available update or ask for clarification on current work.
 Suggestions are not authority to execute actions; see [Proactive Voice Interaction](Proactive_Interaction.md).
-Speech respects a voice-configurable call policy, with Teams detection where supported and visual fallback during calls.
+Speech respects the shared configurable call policy, with Teams detection where supported and UI-only feedback by default during calls; call-time configuration follows the initiating-channel restriction.
 See [Call-Aware Speech](Call_Aware_Speech.md).
 
 Examples:

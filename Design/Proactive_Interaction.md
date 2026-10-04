@@ -34,7 +34,7 @@ Update suggestions use host-verified release metadata and need no model.
 
 - Explain and obtain consent for proactive speech during setup, with mute, quiet hours, and visual-only preferences.
 - Speak only while the session is unlocked, speech is permitted, and the user has explicitly enabled the voice interaction session.
-- Apply [Call-Aware Speech](Call_Aware_Speech.md): the default suppresses proactive and requested speech during calls or Unknown enabled-detector state; voice settings may change this configurable rule.
+- Apply [Call-Aware Speech](Call_Aware_Speech.md): the default suppresses proactive and requested speech during calls or Unknown enabled-detector state; configurable changes use the shared registry, but while protected voice-originated voice/in-call changes are rejected and require new UI initiation.
 - Never speak over user capture or another spoken prompt.
 - Routine suggestions wait for a conversational gap; ongoing task execution alone need not prevent a status/clarification message.
 - Update suggestions wait until the user is not capturing/responding and do not displace an action approval.

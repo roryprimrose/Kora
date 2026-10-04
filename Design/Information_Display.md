@@ -10,12 +10,13 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Ambient UI](A
 ## Recommended Surfaces
 
 Keep the ambient presence small; do not turn every answer into a browser window.
-The compact response surface evolves into a session-labelled latest-interaction view, paired with a session manager and full history/detail viewer under [Interaction and Sessions](Interaction_And_Sessions.md).
+The compact response surface evolves into a session-labelled latest-interaction view, paired with the Sessions workspace (session list plus full conversation/history) and a separately bound detail/artifact viewer.
+The [coordinated window design](UI_Workspace_And_Windows.md) owns layouts/navigation and native card placement; [Interaction and Sessions](Interaction_And_Sessions.md) owns their data/lifecycle contracts.
 Concise output links to retained full content; expansion never reruns a task. Structured questions and exact grants use host-owned cards, not generated markup.
-Use three independently controlled surfaces:
+Rich-content presentation adds these independently controlled roles within that wider window design:
 
 1. Optional speech-text overlay for the words Kora is currently speaking.
-2. Expandable answer/detail and history panel for text, Markdown, diagrams, citations, immutable `.ps1` source/diffs, and session/task evidence.
+2. Workspace history/inline expansion and separate detail/artifact viewing for text, Markdown, diagrams, citations, immutable `.ps1` source/diffs, and session/task evidence.
 3. Dedicated content viewer for explicitly requested websites or generated HTML, with native trusted navigation/provenance controls.
 
 Showing/hiding one surface does not cancel work, mute the microphone, or change another surface's visibility.

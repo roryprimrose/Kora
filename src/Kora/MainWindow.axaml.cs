@@ -5,12 +5,14 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 
 using Kora.Application.ViewModels;
 using Kora.Application.Visuals;
 using Kora.Core.Configuration;
+using Kora.Core.Voice;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -69,6 +71,21 @@ public sealed partial class MainWindow : Window
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
         RestorePosition();
+        if (viewModel.GetOptionalSpeechProviderOffer() is { } offer)
+        {
+            Opacity = 1;
+            Show();
+            var review = await ShowOptionalSpeechOfferAsync(offer);
+            viewModel.AcknowledgeOptionalSpeechProviderOffer(offer, review);
+        }
+
+        if (viewModel.Dependencies.Any(status =>
+            string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
+            && status.Readiness != Kora.Core.Dependencies.DependencyReadiness.Ready))
+        {
+            viewModel.ShowReadiness();
+        }
+
         if (viewModel.IsListening)
         {
             DesktopLog.Debug(logger, "Hiding the main window after successful background startup");
@@ -82,6 +99,41 @@ public sealed partial class MainWindow : Window
         }
 
         Opacity = 1;
+    }
+
+    private async Task<bool> ShowOptionalSpeechOfferAsync(OptionalSpeechProviderOffer offer)
+    {
+        var review = new Button { Content = "Review in Settings" };
+        var decline = new Button { Content = "Not now" };
+        var dialog = new Window
+        {
+            Title = offer.Title,
+            Width = 490,
+            Height = 220,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(20),
+                Spacing = 18,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = offer.Detail,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 12,
+                        Children = { review, decline },
+                    },
+                },
+            },
+        };
+        review.Click += (_, _) => dialog.Close(true);
+        decline.Click += (_, _) => dialog.Close(false);
+        return await dialog.ShowDialog<bool>(this);
     }
 
     private async void OnWindowActionRequested(object? sender, WindowAction action)

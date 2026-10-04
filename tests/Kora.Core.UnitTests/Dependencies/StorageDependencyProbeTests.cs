@@ -33,6 +33,8 @@ public sealed class StorageDependencyProbeTests(ITestOutputHelper output) : IDis
         using var logger = output.BuildLoggerFor<StorageDependencyProbe>();
         var probe = new StorageDependencyProbe(paths, logger);
 
+        probe.TaskId.Should().Be("kora.storage");
+        probe.TaskName.Should().Be("Application storage");
         var result = await probe.ProbeAsync(CancellationToken.None);
 
         result.Readiness.Should().Be(DependencyReadiness.Ready);

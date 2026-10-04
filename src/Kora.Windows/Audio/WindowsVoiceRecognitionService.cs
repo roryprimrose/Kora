@@ -86,6 +86,7 @@ public sealed class WindowsVoiceRecognitionService(
     public async Task StartAsync(
         MicrophoneDevice microphone,
         IEnumerable<string> phrases,
+        string? assistantName = null,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -138,6 +139,16 @@ public sealed class WindowsVoiceRecognitionService(
             };
             grammarBuilder.Append(new Choices(grammarPhrases));
             recognizer.LoadGrammar(new Grammar(grammarBuilder));
+            if (!string.IsNullOrWhiteSpace(assistantName))
+            {
+                var freeform = new GrammarBuilder
+                {
+                    Culture = recognizerInfo.Culture,
+                };
+                freeform.Append(assistantName);
+                freeform.AppendDictation();
+                recognizer.LoadGrammar(new Grammar(freeform));
+            }
             recognizer.SpeechRecognized += OnSpeechRecognized;
             recognizer.SpeechRecognitionRejected += OnSpeechRecognitionRejected;
             recognizer.RecognizeCompleted += OnRecognitionCompleted;

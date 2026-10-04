@@ -1,6 +1,10 @@
 # Built-In Features and Extensibility
 
-Status: proposed.
+Status: proposed feature placement. The current PowerShell readiness probe is
+not an executable skill runner; the current exact lock is a native API call,
+and model-suggested lock uses a separate approval path. Future side-effecting
+built-ins share the gate in
+[skill and task execution design](../docs/skill-and-task-execution-design.md).
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md), [MVP Scope](MVP_Scope.md).
 
@@ -131,7 +135,11 @@ Do not build a general in-process plugin loader for the MVP.
 Scripts provide deterministic execution when a dedicated tool or MCP integration is insufficient.
 They require approved code/version, resources, arguments, and execution trust.
 Use narrowly scoped registered commands rather than an unrestricted shell exposed to the model.
-The initial lock skill uses an immutable bundled script through a fixed registration, not arbitrary script execution.
+The proposed lock skill uses an immutable bundled script through a fixed
+registration, not arbitrary script execution. The current direct lock instead
+uses a Windows API call without the model-suggestion approval gate; both
+routes must share a version-bound action gate before the scripted capability
+is advertised.
 Approval alone is insufficient when a command could modify Kora: require enforceable protected-resource isolation or disable it.
 
 ## Installation and Updates

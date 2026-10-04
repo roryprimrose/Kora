@@ -12,12 +12,12 @@ A decision is not complete because an implementation was started; its evidence a
 |---|---|---|---|---|---|
 | D-001 | Copilot adapter/control-point viability | Runtime engineering lead | Slice A0 implementation | Open, release-blocking | Pinned SDK/version; context/tool/egress interception; streaming; cancellation; independent session behavior; unsupported built-ins disabled |
 | D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
-| D-003 | Local inference baseline | Runtime engineering lead | Slice A2 implementation | Open, release-blocking | Pinned Ollama/runtime versions, selected model, licence, download size, reference hardware floor, answer/cancellation quality, offline proof |
+| D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; bootstrap candidate pinned | Pinned Ollama/runtime versions, selected model, licence, download size, reference hardware floor, answer/cancellation quality, offline proof |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management | Independent-session permission, SDK/account tier, terms, quota/rate limit, cost estimate, 32 KiB/4 KiB bounds, 15-second deadline, deterministic fallback |
 | D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | Open, release-blocking | NSIS proof, Linux build, final-byte hash/provenance, Unknown Publisher/SmartScreen UX, no install-capable updater, external Windows evidence; future signed-metadata root design separately gated |
 | D-006 | Optional speaker verifier | Security and speech leads | Before advertising owner-aware speech | Open, optional capability | Verifier/anti-spoof candidate, licence, local packaging, FAR/FRR targets, replay/cloned-speech tests, protected per-SID storage, Windows Hello enrollment |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance | Open, release-blocking | Windows versions, CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment |
-| D-008 | Approval/grant implementation and audit model | Security engineering lead | Slice A0 implementation | Open, release-blocking | Grant schema/types, owner-presence/risk taxonomy, native inventory/revocation, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
+| D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Open, release-blocking; initial model grants only | Grant schema/types, owner-presence/risk taxonomy, native inventory/revocation, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
 
 ## D-001 Copilot Adapter Control Proof
 
@@ -42,6 +42,10 @@ Record the selected engine/model/version, rejected alternatives, threshold ratio
 Select one Ollama-backed model that can complete the Slice A clipboard explanation on the reference CPU-only floor.
 Record model identity/digest, licence, download/storage requirements, context limit, measured first-token/completion latency, cancellation behavior, and answer-quality fixtures.
 If no candidate meets the floor, change the documented hardware floor or local-first product claim before implementation continues.
+PR #13 pins consented per-user Ollama 0.35.1 and `qwen3:1.7b` by digest and
+tests a completed inference response on loopback. This is a bootstrap/readiness
+candidate, not reference-hardware performance, answer-quality, cancellation,
+licence, or network-blocked offline acceptance evidence. Keep D-003 open.
 
 ## D-004 Management Inference Envelope
 
@@ -68,6 +72,12 @@ Failure leaves confidence `Unavailable` and preserves visual privacy fallback.
 Implement the host-owned risk taxonomy and grant types before enabling action approvals.
 Prove exact/non-inherited scope, owner-presence fallback, native review/edit/revoke flows, immediate revocation for new dispatch, truthful in-flight handling, content-minimising audit evidence, and intent lineage against hostile content using already-existing grants.
 No model, skill, provider, or tool may classify its own risk or create/extend a grant.
+The current model path validates registered action/grant proposals and offers
+once/session/always model-action approval, including model-suggested lock.
+Exact direct lock does not yet pass the same gate; executable/script hash-bound
+grants, embedded `.ps1` execution, and the full risk/audit proof are future work.
+Keep D-008 open and reconcile both routes under
+[the execution design](../docs/skill-and-task-execution-design.md).
 
 ## Decision Completion
 

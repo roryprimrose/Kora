@@ -15,6 +15,7 @@ public interface IVoiceRecognitionService : IAsyncDisposable
     Task StartAsync(
         MicrophoneDevice microphone,
         IEnumerable<string> phrases,
+        string? assistantName = null,
         CancellationToken cancellationToken = default);
 
     Task StopAsync(CancellationToken cancellationToken = default);

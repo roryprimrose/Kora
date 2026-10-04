@@ -1,6 +1,9 @@
 # Security and Data Flows
 
-Status: proposed. Controls must be demonstrated before the associated capability is enabled.
+Status: proposed full security contract. The current bootstrap implements host-validated
+model proposals and once/session/always model-action approvals, not the
+complete grant taxonomy or script/executable execution gate below. Controls
+must be demonstrated before the associated capability is enabled.
 
 Related: [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -172,7 +175,7 @@ Executable extensions need real containment or explicit trust; a path-scoped gat
 | Action | Default treatment |
 |---|---|
 | Requested local clipboard capture | Owner presence is required before capture; the request then authorises one snapshot, not monitoring |
-| Explicit current-session lock request | Consent for the fixed bundled lock action; no generic script grant |
+| Explicit current-session lock request | Under the future common gate, approve the exact version-bound lock action (once/session/always); the phrase identifies intent but is not a grant. Today exact direct lock is ungated, while model-suggested lock asks for approval |
 | Local shutdown/restart | Named second confirmation of exact graceful action, warning, and bounded host countdown |
 | Local read within a user-selected scope | Default single-use; a bounded process-session grant requires native review and visible source selection |
 | New remote context transmission | Review destination and payload; native-confirm immutable context and transformation class for this task |
@@ -188,7 +191,17 @@ A `task` grant may cover repeated use of named immutable source items, a declare
 A `conversation` grant is memory-only and may retain selected context but does not approve new tools, egress sources, writes, or queued tasks.
 A `process-session` grant expires on process exit/restart and, unless explicitly documented otherwise, on lock, sign-out, or account/provider change.
 A `time-bound` grant has an explicit expiry no longer than one hour for interactive read access.
-A `persistent-device` or `preconfigured` grant is exceptional, requires native secure confirmation, and is limited to supported read capabilities; write, executable, destructive, credential, security-policy, update, and unrestricted-egress grants cannot be persistent.
+A `persistent-device` or `preconfigured` grant requires an explicit exact
+approval; no category of approvable actions is categorically denied a session
+or always duration. A broad, unspecified effect cannot become a reusable
+grant: identify its task, resources, invocation, and relevant dependencies
+first. A future `always` execution grant may persist only for an exact
+task/implementation identity, invocation and complete digest-bound
+executable/script resource set; any changed or unverifiable bytes,
+dependencies, or invocation invalidate it. This is a future capability, not
+the current model-action `Always` preference, which authorises named
+registered actions rather than executable content.
+See [skill and task execution design](../docs/skill-and-task-execution-design.md).
 
 No grant implicitly inherits across a new task, queued task, follow-up with new sources, conversation, provider, account, destination, skill/revision, process, Windows user SID, or device.
 Child/follow-up operations must cite the exact parent user request and remain within its sources, transformation class, effects, and destination.
@@ -199,7 +212,7 @@ Store hashes and canonical identifiers rather than raw sensitive content.
 
 Provide a native Permissions & Approvals surface and deterministic host commands to list active/recent/expired grants, explain why an action is allowed, inspect exact scope and use, revoke one grant, revoke all grants for a provider/resource/skill/account, and export content-minimising audit evidence.
 Narrowing scope or shortening expiry can edit a grant in place.
-Broadening scope, changing identity/destination, converting to persistence, or re-enabling a revoked grant always creates a new native-confirmed grant.
+Broadening scope, changing identity/destination, converting to persistence, or re-enabling a revoked grant always creates a new exact approval through the host-owned prompt.
 Revocation blocks new dispatch immediately; in-flight remote work is reported as cancellable, cancelled, or uncertain rather than silently claimed revoked.
 
 An immutable-context task grant may cover repeated use of the same approved items, declared transformation class, and destination.
@@ -215,14 +228,21 @@ Approval risk is host-classified:
 | Risk | Examples | Required channel |
 |---|---|---|
 | Informational | Show help, inspect non-sensitive status | No action approval |
-| Safety interruption | Stop speech, mute, pause new dispatch, request lock | Immediate deterministic control; no reusable grant |
+| Safety interruption | Stop speech, mute, pause new dispatch | Immediate deterministic control; no reusable grant |
 | Low | One non-sensitive local read with no egress | Voice only with owner presence and exact repeated summary; otherwise native confirmation |
-| Medium | Private-context capture, any egress, remote read, privacy expansion, persistent preference, skill save/enable | Native confirmation bound to exact proposal; voice may initiate/navigate |
-| High | Write, executable/destructive action, credentials/security, grant persistence/broadening, software installation/update | Native secure confirmation; additional OS/UAC/Windows Hello where specified |
+| Medium | Private-context capture, any egress, remote read, privacy expansion, persistent preference, skill save/enable | Visible host-owned confirmation bound to the exact proposal; accept a mouse selection or an exact spoken reply |
+| High | Write, executable/destructive action, credentials/security, grant persistence/broadening, software installation/update | Visible host-owned confirmation with exact mouse or spoken reply; require additional OS/UAC/Windows Hello presence checks where specified by the particular effect |
 
 The host taxonomy, not a model/skill/tool declaration, assigns risk.
 Unknown or mixed effects use the highest applicable class.
-Executable code, destructive actions, credential/security changes, and software installation require deliberate native confirmation.
+Executable code, destructive actions, credential/security changes, and software installation require deliberate visible confirmation; a spoken reply to that specific prompt may complete it unless an additional OS presence check is required.
+An assistant-name prefix is not speaker authentication. Make the action and
+chosen duration visible, and do not claim a spoken approval establishes who
+spoke it.
+Lock is a side-effecting action with its own exact version-bound grant gate in
+the proposed runner; neither direct phrasing nor the priority queue path
+waives that gate. The current direct Windows-API lock path does not yet enforce
+it, unlike model-suggested lock.
 Fixed local-machine shutdown/restart additionally uses distinct named spoken confirmation as specified; speech alone is insufficient.
 During the initial unsigned phase, application update checks are notify-only and cannot create an installation approval.
 These rules do not permit arbitrary script/code installation or generic destructive commands; power actions warn about unsaved work and never force application termination.

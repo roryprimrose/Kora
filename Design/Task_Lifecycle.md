@@ -1,6 +1,8 @@
 # Task Lifecycle and Recovery
 
-Status: proposed.
+Status: proposed full task lifecycle. The current bootstrap implements setup task progress
+and registered command/model routing, not this complete execution queue or
+script-backed skill lifecycle.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -65,7 +67,12 @@ Optional local speaker verification is only a profile-owner confidence signal fo
 False activations with no valid command end locally; recognised commands still pass normal context and action controls.
 When the speaker is not `LikelyOwner` or verification is unavailable, sensitive status and context default to a neutral visual notice rather than spoken disclosure.
 Safety-preserving stop-speech, mute, pause-dispatch, and lock controls remain available without owner matching.
-Lock intentionally prioritises confidentiality over availability and therefore remains callable without owner authentication; media-loopback rejection, explicit availability disclosure, and false-activation tests mitigate but cannot eliminate acoustic nuisance locking.
+Lock intentionally prioritises confidentiality over availability and remains
+callable without speaker authentication, but under the proposed common
+execution gate it still needs action-specific approval. Priority dispatch
+does not bypass the gate. Today exact direct lock is ungated and
+model-suggested lock requests approval; media-loopback rejection, availability
+disclosure, and false-activation tests also matter.
 
 ## Voice Controls
 
@@ -73,7 +80,7 @@ Lock intentionally prioritises confidentiality over availability and therefore r
 |---|---|
 | "Stop speaking" | Stop TTS and clear its playback queue; task continues |
 | "Cancel task" | Pause new task/tool dispatch immediately; require owner presence and native confirmation before destructive cancellation/revocation |
-| "Lock the machine" | Invoke the fixed bundled lock skill as a priority session control; enforce microphone shutdown on the actual Windows lock event |
+| "Lock the machine" | Proposed: invoke the fixed bundled lock skill through the common action-specific gate as a priority session control; enforce microphone shutdown on the actual Windows lock event. Today exact direct lock calls the Windows API without that gate |
 | "Shut down the computer" / "Restart the computer" | Open a fixed local power proposal; require matching named confirmation, safe work handling, a native secure confirmation outside the speech/model path, and a cancellable host countdown |
 | "Hide Kora" / "Show Kora" | Change presentation only; do not mute, exit, or alter active work |
 | "Exit Kora" / "Restart Kora" | Graceful app lifecycle action; explicitly confirm affected pending/active work, never substitute computer restart |

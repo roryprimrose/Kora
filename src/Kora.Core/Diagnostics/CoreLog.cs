@@ -20,4 +20,7 @@ internal static partial class CoreLog
 
     [LoggerMessage(4, LogLevel.Information, "Application storage directories are ready.")]
     public static partial void StorageReady(ILogger logger);
+
+    [LoggerMessage(5, LogLevel.Error, "Local SQLite storage is unavailable at {DatabasePath}.")]
+    public static partial void SqliteStorageUnavailable(ILogger logger, Exception exception, string databasePath);
 }

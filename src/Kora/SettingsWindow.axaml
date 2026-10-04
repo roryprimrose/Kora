@@ -35,6 +35,7 @@
     </Border>
 
     <TabControl
+        x:Name="SettingsTabs"
         Grid.Row="1"
         TabStripPlacement="Left"
         Margin="22"
@@ -506,7 +507,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Readiness">
+      <TabItem x:Name="ReadinessTab" Header="Readiness">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
@@ -516,6 +517,35 @@
                   Classes="muted"
                   FontSize="13" />
             </StackPanel>
+
+            <TextBlock Text="Setup tasks" Classes="settings-title" />
+            <Button Content="Review local model setup"
+                    IsEnabled="{Binding CanInstallLocalModel}"
+                    Click="OnInstallLocalModelClicked"
+                    HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding LocalModelSetupStatus}" Classes="muted" TextWrapping="Wrap" />
+            <Button Content="Review PowerShell 7 setup"
+                    IsEnabled="{Binding CanInstallPowerShell}"
+                    Click="OnInstallPowerShellClicked"
+                    HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding PowerShellSetupStatus}" Classes="muted" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding SetupTasks}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="settings-card" Margin="0,0,0,10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding Name}" Classes="settings-title" />
+                        <TextBlock Text="{Binding Detail}" Classes="settings-description" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding State}"
+                                 Foreground="{DynamicResource KoraAccentBrush}"
+                                 FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
             <ItemsControl ItemsSource="{Binding Dependencies}">
               <ItemsControl.ItemTemplate>
@@ -550,6 +580,51 @@
                   Content="Open Windows microphone settings"
                   Command="{Binding OpenMicrophonePrivacySettingsCommand}" />
             </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Approvals">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <TextBlock Text="Model action approvals" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock
+                Text="A model can suggest one named Kora action. Once applies only to that request; session lasts until Kora exits, restarts, or locks Windows through Kora; always persists until revoked. Every approval card is visible, including in VoiceOnly mode."
+                TextWrapping="Wrap" Classes="muted" />
+            <Border Classes="settings-card">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Spoken approval" Classes="settings-title" />
+                <CheckBox
+                    Content="Require the assistant name before a verbal approval"
+                    IsChecked="{Binding RequireAssistantNameForVoiceApproval}" />
+                <TextBlock
+                    Text="Enabled by default. Turn off only if you want to answer an approval prompt without saying the assistant name."
+                    Classes="settings-description" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <TextBlock Text="Approved for this session" Classes="settings-title" />
+            <ItemsControl ItemsSource="{Binding SessionAllowedModelActions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                    <Button Grid.Column="1" Content="Revoke" Tag="{Binding Action}"
+                            Click="OnRevokeSessionApprovalClicked" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Always approved on this device" Classes="settings-title" />
+            <ItemsControl ItemsSource="{Binding AlwaysAllowedModelActions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                    <Button Grid.Column="1" Content="Revoke" Tag="{Binding Action}"
+                            Click="OnRevokeAlwaysApprovalClicked" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

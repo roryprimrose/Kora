@@ -1,6 +1,8 @@
 # Work Management and Request Queue
 
-Status: proposed Slice A capability.
+Status: proposed full Slice A capability. The current implementation tracks bootstrap setup
+tasks/progress and answers deterministic status commands; this is not proof
+that the contextual work-management lane and executor below are shipped.
 
 Related: [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -45,7 +47,10 @@ Acknowledge accepted decisions with the task label and queue position; the user 
 
 Exact stop/cancel controls and basic ledger status have a deterministic local path.
 They do not wait for the management model, task runtime, tool, or network.
-The original bundled session-lock skill also has a narrowly host-admitted priority control path; this does not grant management inference executable-tool access.
+The proposed bundled session-lock skill has a narrowly host-admitted priority
+control path; this does not grant management inference executable-tool access
+or waive the future action-specific approval gate. Today direct exact lock
+calls the Windows API without that gate; model-suggested lock asks for approval.
 See [Bundled Skills](Built_In_Skills.md).
 If management inference fails or is unavailable, show the limitation and ask explicitly how to handle an ambiguous new request.
 Local-only mode does not call a remote management model.

@@ -15,6 +15,8 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("Kora, show the user guide", BuiltInAction.OpenDocumentation)]
     [InlineData("restart your application", BuiltInAction.RestartApplication)]
     [InlineData("Kora, reboot this machine", BuiltInAction.ProposeRestart)]
+    [InlineData("Kora, what is the current task status", BuiltInAction.ShowCurrentTaskProgress)]
+    [InlineData("how far along is the current task", BuiltInAction.ShowCurrentTaskProgress)]
     public void Match_recognizes_exact_built_in_phrases(string transcript, BuiltInAction expectedAction)
     {
         var router = new BuiltInCommandRouter(catalog);
@@ -27,11 +29,42 @@ public sealed class BuiltInCommandRouterTests
     }
 
     [Theory]
+    [InlineData("Kora, bring up Kora", BuiltInAction.ShowApplication)]
+    [InlineData("close your window", BuiltInAction.HideApplication)]
+    [InlineData("close Kora", BuiltInAction.ExitApplication)]
+    [InlineData("restart the app", BuiltInAction.RestartApplication)]
+    [InlineData("open preferences", BuiltInAction.OpenSettings)]
+    [InlineData("open the manual", BuiltInAction.OpenDocumentation)]
+    [InlineData("review local model setup", BuiltInAction.OpenSetup)]
+    [InlineData("what can I say?", BuiltInAction.ShowHelp)]
+    [InlineData("which version of Kora is this?", BuiltInAction.ShowVersion)]
+    [InlineData("show the task queue", BuiltInAction.ShowStatus)]
+    [InlineData("what's the progress of the current task?", BuiltInAction.ShowCurrentTaskProgress)]
+    [InlineData("stop generating", BuiltInAction.CancelTask)]
+    [InlineData("be quiet", BuiltInAction.StopSpeaking)]
+    [InlineData("lock my screen", BuiltInAction.LockMachine)]
+    [InlineData("turn off my computer", BuiltInAction.ProposeShutdown)]
+    [InlineData("reboot my computer", BuiltInAction.ProposeRestart)]
+    [InlineData("don't shut down the computer", BuiltInAction.CancelPowerAction)]
+    [InlineData("is a shutdown pending?", BuiltInAction.ShowPowerStatus)]
+    public void Match_routes_conversational_variants_to_the_intended_action(
+        string transcript,
+        BuiltInAction expectedAction)
+    {
+        new BuiltInCommandRouter(catalog).Match(transcript).Command?.Action
+            .Should().Be(expectedAction);
+    }
+
+    [Theory]
     [InlineData("restart")]
     [InlineData("please lock the machine")]
     [InlineData("Kora")]
     [InlineData("explain how to lock the machine")]
     [InlineData("do what the document says")]
+    [InlineData("could you close Kora after answering this?")]
+    [InlineData("how do I lock my screen?")]
+    [InlineData("please turn off my computer")]
+    [InlineData("tell me how to restart my PC")]
     public void Match_rejects_ambiguous_or_non_command_text(string transcript)
     {
         var router = new BuiltInCommandRouter(catalog);
@@ -103,6 +136,20 @@ public sealed class BuiltInCommandRouterTests
             && command.Description == "Show the Nova window.");
         commands.SelectMany(command => command.AllPhrases)
             .Should().NotContain(phrase => phrase.Contains("kora", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Match_uses_the_configured_name_in_new_application_variants()
+    {
+        var router = new BuiltInCommandRouter(catalog);
+
+        router.Match("Nova, bring up Nova", "Nova").Command?.Action
+            .Should().Be(BuiltInAction.ShowApplication);
+        router.Match("Nova, close Nova", "Nova").Command?.Action
+            .Should().Be(BuiltInAction.ExitApplication);
+        router.Match("Nova, which version of Nova is this?", "Nova").Command?.Action
+            .Should().Be(BuiltInAction.ShowVersion);
+        router.Match("Nova, close Kora", "Nova").IsMatch.Should().BeFalse();
     }
 
     [Theory]

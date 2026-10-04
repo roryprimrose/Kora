@@ -220,12 +220,23 @@ Logon startup does not waive explicit microphone re-enabling or locked-session p
 ## 8. Permissions and Approvals
 
 Permissions and approvals are host-owned security records, not ordinary preference values.
+The current bootstrap provides once/session/always preferences for named
+model-suggested built-in actions and host-validated grant-change proposals.
+This is not an executable/script grant, and exact direct lock does not yet
+use the same gate. The inventory and finer-grained grants below are proposed;
+future side-effecting built-ins and skills share the content/version-bound
+execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
 The native Permissions & Approvals page lists active, recent, expired, and revoked grants with stable ID, capability/action, canonical resource, identity, destination, scope, creator channel, creation/expiry, last use/use count, policy revision, and revocation reason.
 It never needs to display raw sensitive payloads; show content/parameter hashes and safe labels.
 
 Deterministic voice commands may open or filter that page, explain why an action is currently allowed, and request revocation.
-Native confirmation completes revocation, scope narrowing, expiry shortening, or bulk revocation.
-Broadening scope, extending beyond the allowed maximum, changing identity/destination, making a grant persistent, or restoring a revoked/expired grant is a new security approval and cannot be performed by voice alone.
+The visible host-owned confirmation accepts an exact spoken reply or a mouse
+selection for revocation, scope narrowing, expiry shortening, or bulk revocation.
+Broadening scope, changing identity/destination, making a grant persistent, or
+restoring a revoked/expired grant requires a new exact approval; a verbal scope
+choice may be accepted on the visible prompt but cannot silently alter a grant.
+Any additional OS presence verification remains specific to the action, not a
+blanket denial of session or always duration.
 Revocation blocks new calls immediately and reports in-flight work as cancelled, completed, or uncertain.
 
 Required operations:

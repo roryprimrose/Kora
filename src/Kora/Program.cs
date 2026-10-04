@@ -79,12 +79,45 @@ internal static class Program
         services.AddSingleton<IUserDocumentationProvider, EmbeddedUserDocumentationProvider>();
         services.AddSingleton<ISecurityAuditLog, LoggerSecurityAuditLog>();
         services.AddSingleton<IDependencyProbe, StorageDependencyProbe>();
+        services.AddSingleton<IDependencyProbe, SqliteDependencyProbe>();
+        services.AddSingleton<WindowsPowerShellSetupService>();
+        services.AddSingleton<IPowerShellSetup>(provider =>
+            provider.GetRequiredService<WindowsPowerShellSetupService>());
+        services.AddSingleton<IDependencyProbe>(provider =>
+            provider.GetRequiredService<WindowsPowerShellSetupService>());
+        services.AddKeyedSingleton(
+            "ollama-probe",
+            (_, _) => new HttpClient(new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseProxy = false,
+            }));
+        services.AddSingleton<IDependencyProbe>(provider =>
+            new LocalInferenceDependencyProbe(
+                provider.GetRequiredKeyedService<HttpClient>("ollama-probe")));
         services.AddSingleton<IDependencyProbe, WindowsVoiceDependencyProbe>();
         services.AddSingleton<IDependencyProbe, WindowsTextToSpeechDependencyProbe>();
         services.AddSingleton<DependencyBootstrapper>();
+        services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
+        services.AddKeyedSingleton(
+            "ollama-reasoner",
+            (_, _) => new HttpClient(new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseProxy = false,
+            })
+            {
+                Timeout = TimeSpan.FromMinutes(3),
+            });
+        services.AddSingleton<ILocalModelReasoner>(provider =>
+            new WindowsOllamaReasoner(
+                provider.GetRequiredKeyedService<HttpClient>("ollama-reasoner"),
+                provider.GetRequiredService<BuiltInCommandCatalog>()));
+        services.AddSingleton<IModelApprovalPreferences, LocalModelApprovalPreferences>();
         services.AddSingleton<IAssistantNamePreferences, LocalAssistantNamePreferences>();
         services.AddSingleton<IAppearancePreferences, LocalAppearancePreferences>();
         services.AddSingleton<ITextToSpeechPreferences, LocalTextToSpeechPreferences>();
+        services.AddSingleton<IOptionalSpeechOfferPreferences, LocalOptionalSpeechOfferPreferences>();
         services.AddSingleton<IAudioDevicePreferences, LocalAudioDevicePreferences>();
         services.AddSingleton<IResponseOutputPreferences, LocalResponseOutputPreferences>();
         services.AddSingleton<ICallAwarePreferences, LocalCallAwarePreferences>();

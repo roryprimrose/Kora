@@ -21,6 +21,7 @@ public sealed partial class App : Avalonia.Application
     private SettingsWindowController? settingsWindow;
     private DocumentationWindowController? documentationWindow;
     private ResponseWindowController? responseWindow;
+    private GrantListWindowController? grantListWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
@@ -52,6 +53,7 @@ public sealed partial class App : Avalonia.Application
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>());
+            grantListWindow = new GrantListWindowController(viewModel);
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>());
@@ -80,6 +82,8 @@ public sealed partial class App : Avalonia.Application
         documentationWindow = null;
         responseWindow?.Dispose();
         responseWindow = null;
+        grantListWindow?.Dispose();
+        grantListWindow = null;
         Services.DisposeAsync()
             .AsTask()
             .GetAwaiter()

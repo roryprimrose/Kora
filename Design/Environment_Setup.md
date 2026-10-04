@@ -1,6 +1,9 @@
 # First-Run Environment Setup and Readiness
 
-Status: proposed built-in capability. Delivery installs Kora; the running app owns setup of its environment.
+Status: proposed full setup capability. The current bootstrap implements
+independent storage/SQLite, PowerShell, and local-model readiness tasks;
+remaining catalogue and acceptance requirements below are not claimed as
+shipped. Delivery installs Kora; the running app owns setup of its environment.
 
 Related: [Distribution](Distribution_And_Updates.md), [Architecture](Architecture.md), [Security](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -41,6 +44,7 @@ Recheck on startup and relevant configuration/environment changes without reinst
 |---|---|---|
 | Kora local directories | Resolve Windows known folders; create expected local/roaming data directories with safe permissions | Normal internal initialisation; no separate prompt for each folder |
 | SQLite databases | Create local schema and apply versioned transactional migrations | Embedded application storage, not installation of a database server |
+| PowerShell 7 | Probe a supported `pwsh.exe` (7.4 or later); offer separate verified setup | Consent to installation; readiness is independent of local inference and does not authorise a script |
 | Skills | Initialise Kora-specific store, register immutable bundled skills, offer shared source selection | Discover/enable shared sources only under existing skill policy |
 | Speech/wake models | Inspect supported local assets; offer verified downloads if missing | Show source, size, storage, licence, and network use before obtaining assets |
 | Optional speaker verifier | Detect supported local verifier/anti-spoof assets and per-user enrollment state | Explicit opt-in; Windows Hello or equivalent native reauthentication before enrollment/replacement; no cloud biometric processing |
@@ -62,6 +66,18 @@ Ollama is optional, not a requirement for a user selecting only a supported remo
 Installing Ollama is useful only when the running Kora version has a compatible local-model adapter.
 Missing application adapters require a verified Kora release or out-of-band development, not generation of new executable code by setup.
 The initial Ollama adapter rollout remains governed by MVP/provider scope.
+
+The current local-model setup offers per-user winget installation of
+`Ollama.Ollama` 0.35.1 and the chosen `qwen3:1.7b` model (approximately
+1.36 GB), each behind explicit setup consent. It uses
+`127.0.0.1:11434`, compares the installed model's pinned digest
+`sha256:8F68893C685C3DDFF2AA3FFFCE2AA60A30BB2DA65CA488B61FFF134A4D1730E7`,
+and requires a nonempty completed inference response before reporting ready.
+An unexpected digest is incompatible rather than silently replaced; malformed
+metadata is reported as incompatible, not a startup crash. Storage/SQLite and
+PowerShell setup tasks remain independently visible when inference is missing.
+Readiness records and progress do not prove acceptable latency or offline use;
+see [D-003](Decision_Register.md#d-003-local-inference-baseline).
 
 - Probe the configured endpoint and validate runtime version/capabilities.
 - Prefer a healthy existing installation and model; do not replace them or assume ownership.

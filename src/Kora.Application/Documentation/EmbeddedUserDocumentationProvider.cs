@@ -16,6 +16,7 @@ public sealed class EmbeddedUserDocumentationProvider : IUserDocumentationProvid
         "commands",
         "windows-and-tray",
         "privacy-safety-and-logs",
+        "skill-and-task-execution-design",
         "troubleshooting",
     ];
 

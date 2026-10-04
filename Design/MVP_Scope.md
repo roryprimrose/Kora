@@ -1,6 +1,9 @@
 # MVP Scope and Non-Goals
 
-Status: proposed.
+Status: proposed release scope, not the set of features in the current bootstrap.
+That bootstrap implements consented local-model readiness and verified
+inference for unmatched requests, deterministic commands, and initial
+model-proposed actions/grants; it does not complete Slice A or close D-003/D-008.
 
 Related: [Vision](Vision_Statement.md), [Architecture](Architecture.md), [Decision Register](Decision_Register.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -80,6 +83,13 @@ See [Out-of-the-Box Skills](Built_In_Skills.md) for bundled executable skills an
 
 The Ollama-backed adapter is a Slice A2 requirement, not a post-Slice-A aspiration.
 Its exact supported model and hardware floor are resolved through [Decision Register D-003](Decision_Register.md#d-003-local-inference-baseline).
+The bootstrap currently pins Ollama 0.35.1 and `qwen3:1.7b` by digest and
+checks actual inference; hardware, performance, cancellation, quality, and
+offline acceptance evidence is still required. PowerShell 7 setup and
+storage/SQLite readiness are independent of this answer path. Script-backed
+built-ins and their content-bound grants remain future work under
+[skill and task execution design](../docs/skill-and-task-execution-design.md);
+the exact direct lock still bypasses the gate that model-suggested lock uses.
 
 ### Slice B: Read-Only MCP and Skills
 

@@ -228,6 +228,16 @@ Credentials are represented by opaque references to an OS-protected credential s
 Large approved persistent content, if later introduced, uses a separately managed encrypted store.
 The running app creates its stores and migrates embedded SQLite schemas; installers do not provision a database server.
 Setup is usable before any model is configured and can offer missing speech/Ollama/model requirements for selected capabilities.
+The current bootstrap checks/initialises storage and SQLite and tracks
+PowerShell 7 readiness/setup independently of Ollama inference. PowerShell
+installation is not execution admission. The current local path requires
+consented per-user Ollama 0.35.1 and digest-pinned `qwen3:1.7b`, with a real
+completed loopback inference check before unmatched requests use it.
+Model-produced answers/questions and registered action/grant proposals are
+host-validated; they are not free-form tool execution. The future common
+version/hash-bound task gate, including direct lock, is specified in
+[skill and task execution design](../docs/skill-and-task-execution-design.md),
+not implemented by this bootstrap.
 See [Environment Setup](Environment_Setup.md).
 
 Kora-owned native speech workers may run out of process for crash containment.

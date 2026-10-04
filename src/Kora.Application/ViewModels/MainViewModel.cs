@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
+using System.Text;
+using System.Text.Json;
 
 using Kora.Application.Infrastructure;
 using Kora.Application.Diagnostics;
@@ -36,6 +39,10 @@ public sealed class MainViewModel : ObservableObject
     private const string OutputDeviceConfigurationAction = "configuration.audio-output";
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
     private const string SpeechProviderInstallAction = "speech-provider.install";
+    private const string LocalModelInstallAction = "local-model.install";
+    private const string PowerShellInstallAction = "powershell.install";
+    private const string ModelActionApprovalPrefix = "model.action.";
+    private const string ModelApprovalPreferenceAction = "configuration.model-approval";
     private const string SpeechProviderRemoveAction = "speech-provider.remove";
     private const string SpeechProviderSelectionConfigurationAction = "configuration.speech-provider";
     private const string SessionLockAction = "session.lock";
@@ -46,12 +53,17 @@ public sealed class MainViewModel : ObservableObject
     private readonly BuiltInCommandCatalog commandCatalog;
     private readonly BuiltInCommandRouter commandRouter;
     private readonly DependencyBootstrapper dependencyBootstrapper;
+    private readonly ILocalModelSetup localModelSetup;
+    private readonly IPowerShellSetup powerShellSetup;
+    private readonly ILocalModelReasoner localModelReasoner;
+    private readonly IModelApprovalPreferences modelApprovalPreferences;
     private readonly IMicrophoneAccessService microphoneAccessService;
     private readonly IVoiceRecognitionService voiceRecognition;
     private readonly ITextToSpeechService textToSpeech;
     private readonly IAssistantNamePreferences assistantNamePreferences;
     private readonly IAppearancePreferences appearancePreferences;
     private readonly ITextToSpeechPreferences textToSpeechPreferences;
+    private readonly IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences;
     private readonly IAudioDevicePreferences audioDevicePreferences;
     private readonly IResponseOutputPreferences responseOutputPreferences;
     private readonly ICallAwarePreferences callAwarePreferences;
@@ -82,6 +94,33 @@ public sealed class MainViewModel : ObservableObject
     private bool isSpeaking;
     private bool isBusy;
     private bool isSpeechProviderOperationActive;
+    private bool isLocalModelSetupActive;
+    private bool isPowerShellSetupActive;
+    private CancellationTokenSource? localModelCancellation;
+    private CancellationTokenSource? powerShellSetupCancellation;
+    private CancellationTokenSource? activeReasoningCancellation;
+    private Task? activeReasoningTask;
+    private bool isModelActionDispatchActive;
+    private bool isModelApprovalPromptActive;
+    private int stoppingAudioOperations;
+    private BuiltInAction? pendingModelAction;
+    private SecurityAuditEvent? pendingModelActionAudit;
+    private GrantChange? pendingGrantChange;
+    private SecurityAuditEvent? pendingGrantChangeAudit;
+    private LocalModelQuestion? pendingModelQuestion;
+    private string? pendingQuestionRequest;
+    private int pendingQuestionDepth;
+    private bool isGrantEditorVisible;
+    private CommandDefinition? selectedGrantAction;
+    private GrantChangeOperation selectedGrantOperation;
+    private ModelApprovalScope selectedGrantScope = ModelApprovalScope.Session;
+    private ModelApprovalScope selectedGrantTargetScope = ModelApprovalScope.Always;
+    private readonly HashSet<BuiltInAction> sessionAllowedModelActions = [];
+    private readonly HashSet<BuiltInAction> alwaysAllowedModelActions = [];
+    private bool requireAssistantNameForVoiceApproval = true;
+    private string localModelSetupStatus = "Local model setup has not started.";
+    private string powerShellSetupStatus = "PowerShell installation has not started.";
+    private string? savedSpeechProviderIdForOffer;
     private bool suppressVoicePreferenceSave;
     private bool suppressSpeechProviderPreferenceSave;
     private bool suppressAudioDevicePreferenceSave;
@@ -125,12 +164,17 @@ public sealed class MainViewModel : ObservableObject
         BuiltInCommandCatalog commandCatalog,
         BuiltInCommandRouter commandRouter,
         DependencyBootstrapper dependencyBootstrapper,
+        ILocalModelSetup localModelSetup,
+        IPowerShellSetup powerShellSetup,
+        ILocalModelReasoner localModelReasoner,
+        IModelApprovalPreferences modelApprovalPreferences,
         IMicrophoneAccessService microphoneAccessService,
         IVoiceRecognitionService voiceRecognition,
         ITextToSpeechService textToSpeech,
         IAssistantNamePreferences assistantNamePreferences,
         IAppearancePreferences appearancePreferences,
         ITextToSpeechPreferences textToSpeechPreferences,
+        IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences,
         IAudioDevicePreferences audioDevicePreferences,
         IResponseOutputPreferences responseOutputPreferences,
         ICallAwarePreferences callAwarePreferences,
@@ -145,12 +189,17 @@ public sealed class MainViewModel : ObservableObject
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
+        this.localModelSetup = localModelSetup;
+        this.powerShellSetup = powerShellSetup;
+        this.localModelReasoner = localModelReasoner;
+        this.modelApprovalPreferences = modelApprovalPreferences;
         this.microphoneAccessService = microphoneAccessService;
         this.voiceRecognition = voiceRecognition;
         this.textToSpeech = textToSpeech;
         this.assistantNamePreferences = assistantNamePreferences;
         this.appearancePreferences = appearancePreferences;
         this.textToSpeechPreferences = textToSpeechPreferences;
+        this.optionalSpeechOfferPreferences = optionalSpeechOfferPreferences;
         this.audioDevicePreferences = audioDevicePreferences;
         this.responseOutputPreferences = responseOutputPreferences;
         this.callAwarePreferences = callAwarePreferences;
@@ -169,8 +218,14 @@ public sealed class MainViewModel : ObservableObject
                   && !IsBusy
                   && (IsListening
                       || (IsVoiceActivationAvailable && !IsMicrophoneAccessDenied)));
-        RefreshCommand = new AsyncCommand(RefreshAsync, () => !IsBusy);
-        RunTypedCommand = new AsyncCommand(RunTypedCommandAsync, () => !string.IsNullOrWhiteSpace(CommandText) && !IsBusy);
+        RefreshCommand = new AsyncCommand(
+            RefreshAsync,
+            () => !IsBusy && !IsLocalModelSetupActive && !IsPowerShellSetupActive
+                && activeReasoningCancellation is null);
+        RunTypedCommand = new AsyncCommand(
+            RunTypedCommandAsync,
+            () => !string.IsNullOrWhiteSpace(CommandText)
+                  && (!IsBusy || IsSetupStatusCommand()));
         PreviewVoiceCommand = new AsyncCommand(
             PreviewVoiceAsync,
             () => IsSpeechOutputAvailable && !IsBusy);
@@ -187,10 +242,69 @@ public sealed class MainViewModel : ObservableObject
         ApplyAssistantNameCommand = new AsyncCommand(
             () => SetAssistantNameAsync(AssistantNameInput),
             CanApplyAssistantName);
+        ApproveModelActionCommand = new AsyncCommand(
+            () => ApproveModelActionAsync(ModelApprovalScope.Once),
+            () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
+                && !IsPowerShellSetupActive);
+        ApproveModelActionForSessionCommand = new AsyncCommand(
+            () => ApproveModelActionAsync(ModelApprovalScope.Session),
+            () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
+                && !IsPowerShellSetupActive);
+        ApproveModelActionAlwaysCommand = new AsyncCommand(
+            () => ApproveModelActionAsync(ModelApprovalScope.Always),
+            () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
+                && !IsPowerShellSetupActive);
+        RejectModelActionCommand = new AsyncCommand(
+            RejectPendingModelActionAsync,
+            () => IsModelActionApprovalPending);
+        PrepareGrantChangeCommand = new AsyncCommand(
+            async () =>
+            {
+                if (SelectedGrantAction is { } command)
+                {
+                    PrepareGrantChange(new GrantChange(
+                        SelectedGrantOperation,
+                        command.Action,
+                        SelectedGrantScope,
+                        SelectedGrantOperation == GrantChangeOperation.Move
+                            ? SelectedGrantTargetScope : null));
+                }
+                if (IsGrantChangePending)
+                {
+                    isModelApprovalPromptActive = true;
+                    try
+                    {
+                        await SpeakModelApprovalPromptAsync();
+                    }
+                    catch (Exception exception) when (exception is InvalidOperationException
+                        or UnauthorizedAccessException or IOException)
+                    {
+                        ApplicationLog.Error(logger, exception, "Speaking a grant-change confirmation prompt");
+                        ShowFailure("The spoken grant question could not complete.",
+                            (pendingGrantChange is { } pending
+                                ? $"{DescribeGrantChange(pending)} The grant change is still awaiting your decision. "
+                                : "The grant change is no longer pending. ")
+                            + exception.Message);
+                    }
+                    finally
+                    {
+                        isModelApprovalPromptActive = false;
+                    }
+                }
+            },
+            () => IsGrantEditorVisible && SelectedGrantAction is not null);
+        ConfirmGrantChangeCommand = new AsyncCommand(
+            () => ConfirmGrantChangeAsync(SecurityAuditInitiator.LocalUser),
+            () => IsGrantChangePending);
+        RejectGrantChangeCommand = new AsyncCommand(
+            RejectPendingGrantChangeAsync,
+            () => IsGrantChangePending);
 
         voiceRecognition.TranscriptRecognized += OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed += OnRecognitionFailed;
         callStateService.StateChanged += OnCallStateChanged;
+        dependencyBootstrapper.Tasks.Changed += (_, _) =>
+            uiDispatcher.Post(() => OnPropertyChanged(nameof(SetupTasks)));
     }
 
     public MicrophoneAccessStatus MicrophoneAccessStatus
@@ -263,8 +377,12 @@ public sealed class MainViewModel : ObservableObject
     public event EventHandler<WindowAction>? WindowActionRequested;
 
     public event EventHandler? SettingsRequested;
+    public event EventHandler? ReadinessRequested;
 
     public event EventHandler? DocumentationRequested;
+
+    public event EventHandler<string>? GrantDocumentRequested;
+    public event EventHandler<string>? GrantDocumentChanged;
 
     public ObservableCollection<MicrophoneDevice> Microphones { get; } = [];
 
@@ -275,6 +393,214 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = [];
 
     public ObservableCollection<DependencyStatus> Dependencies { get; } = [];
+
+    public IReadOnlyList<SetupTask> SetupTasks => dependencyBootstrapper.Tasks.Tasks;
+
+    public bool IsModelActionApprovalPending => pendingModelAction is not null;
+    public bool IsModelQuestionPending => pendingModelQuestion is not null;
+    public bool IsResponseInteractionPending => IsApprovalPending || IsModelQuestionPending;
+    public IReadOnlyList<ModelQuestionChoice> ModelQuestionChoices { get; private set; } = [];
+    public bool IsGrantChangePending => pendingGrantChange is not null;
+    public bool IsApprovalPending => IsModelActionApprovalPending || IsGrantChangePending;
+    public bool IsGrantEditorVisible
+    {
+        get => isGrantEditorVisible;
+        private set
+        {
+            if (SetProperty(ref isGrantEditorVisible, value))
+            {
+                PrepareGrantChangeCommand.NotifyCanExecuteChanged();
+                forceVisualResponse = ShouldForceVisualResponse(
+                    value, IsResponseInteractionPending, State, IsSpeechOutputAvailable);
+                NotifyOutputPolicyChanged();
+                if (ShouldShowGrantEditor(value, isInitializing))
+                {
+                    WindowActionRequested?.Invoke(this, WindowAction.Show);
+                }
+            }
+        }
+    }
+    internal static bool ShouldForceVisualResponse(
+        bool editorVisible, bool interactionPending, AssistantState state, bool speechOutputAvailable) =>
+        editorVisible || interactionPending || state == AssistantState.Failure || !speechOutputAvailable;
+
+    internal static bool ShouldShowGrantEditor(bool editorVisible, bool initializing) =>
+        editorVisible && !initializing;
+
+    public IReadOnlyList<CommandDefinition> GrantActions => commandCatalog.GetCommands(AssistantName);
+    public IReadOnlyList<GrantChangeOperation> GrantOperations { get; } =
+        Enum.GetValues<GrantChangeOperation>();
+    public IReadOnlyList<ModelApprovalScope> GrantScopes { get; } =
+        [ModelApprovalScope.Session, ModelApprovalScope.Always];
+    public CommandDefinition? SelectedGrantAction
+    {
+        get => selectedGrantAction;
+        set
+        {
+            if (SetProperty(ref selectedGrantAction, value))
+            {
+                PrepareGrantChangeCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+    public GrantChangeOperation SelectedGrantOperation
+    {
+        get => selectedGrantOperation;
+        set => SetProperty(ref selectedGrantOperation, value);
+    }
+    public ModelApprovalScope SelectedGrantScope
+    {
+        get => selectedGrantScope;
+        set => SetProperty(ref selectedGrantScope, value);
+    }
+    public ModelApprovalScope SelectedGrantTargetScope
+    {
+        get => selectedGrantTargetScope;
+        set => SetProperty(ref selectedGrantTargetScope, value);
+    }
+
+    public bool RequireAssistantNameForVoiceApproval
+    {
+        get => requireAssistantNameForVoiceApproval;
+        set
+        {
+            if (value == requireAssistantNameForVoiceApproval)
+            {
+                return;
+            }
+
+            if (!SaveModelApprovalPreferences(value, alwaysAllowedModelActions))
+            {
+                OnPropertyChanged(nameof(RequireAssistantNameForVoiceApproval));
+                return;
+            }
+
+            SetProperty(ref requireAssistantNameForVoiceApproval, value);
+        }
+    }
+
+    public IReadOnlyList<CommandDefinition> AlwaysAllowedModelActions =>
+        commandCatalog.GetCommands(AssistantName)
+            .Where(command => alwaysAllowedModelActions.Contains(command.Action))
+            .ToArray();
+
+    public IReadOnlyList<CommandDefinition> SessionAllowedModelActions =>
+        commandCatalog.GetCommands(AssistantName)
+            .Where(command => sessionAllowedModelActions.Contains(command.Action))
+            .ToArray();
+
+    public void RevokeModelActionApproval(BuiltInAction action, ModelApprovalScope scope)
+    {
+        if (!Enum.IsDefined(action) || !Enum.IsDefined(scope))
+        {
+            throw new ArgumentOutOfRangeException(nameof(action), "The model approval is invalid.");
+        }
+
+        if (scope == ModelApprovalScope.Session)
+        {
+            if (sessionAllowedModelActions.Remove(action))
+            {
+                OnPropertyChanged(nameof(SessionAllowedModelActions));
+                GrantDocumentChanged?.Invoke(this, GetGrantDocument());
+                ShowInformation("Session approval revoked.", $"{action} now requires approval again.");
+            }
+            return;
+        }
+
+        if (!alwaysAllowedModelActions.Contains(action))
+        {
+            return;
+        }
+
+        var remaining = alwaysAllowedModelActions.Where(item => item != action).ToArray();
+        if (SaveModelApprovalPreferences(requireAssistantNameForVoiceApproval, remaining))
+        {
+            alwaysAllowedModelActions.Remove(action);
+            OnPropertyChanged(nameof(AlwaysAllowedModelActions));
+            GrantDocumentChanged?.Invoke(this, GetGrantDocument());
+            ShowInformation("Always approval revoked.", $"{action} now requires approval again.");
+        }
+    }
+
+    private bool SaveModelApprovalPreferences(
+        bool requireName,
+        IEnumerable<BuiltInAction> allowedActions,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        var audit = StartAudit(
+            SecurityAuditCategory.ConfigurationWrite,
+            ModelApprovalPreferenceAction,
+            initiator,
+            DeviceLocalPreferencesTarget);
+        try
+        {
+            modelApprovalPreferences.Save(
+                new ModelApprovalPreferences(requireName, allowedActions.Order().ToArray()));
+            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "preference-write-failed");
+            ApplicationLog.Error(logger, exception, "Saving model approval preferences");
+            ShowFailure("Model approval settings could not be saved.", exception.Message);
+            return false;
+        }
+    }
+
+    internal Task? ActiveReasoningTask => activeReasoningTask;
+
+    public bool IsLocalModelSetupActive
+    {
+        get => isLocalModelSetupActive;
+        private set
+        {
+            if (SetProperty(ref isLocalModelSetupActive, value))
+            {
+                OnPropertyChanged(nameof(CanInstallLocalModel));
+                OnPropertyChanged(nameof(CanInstallPowerShell));
+                RefreshCommand.NotifyCanExecuteChanged();
+                ApproveModelActionCommand.NotifyCanExecuteChanged();
+                ApproveModelActionForSessionCommand.NotifyCanExecuteChanged();
+                ApproveModelActionAlwaysCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool CanInstallLocalModel => !IsBusy && !IsLocalModelSetupActive
+        && !IsPowerShellSetupActive && activeReasoningCancellation is null;
+
+    public bool IsPowerShellSetupActive
+    {
+        get => isPowerShellSetupActive;
+        private set
+        {
+            if (SetProperty(ref isPowerShellSetupActive, value))
+            {
+                OnPropertyChanged(nameof(CanInstallPowerShell));
+                OnPropertyChanged(nameof(CanInstallLocalModel));
+                RefreshCommand.NotifyCanExecuteChanged();
+                ApproveModelActionCommand.NotifyCanExecuteChanged();
+                ApproveModelActionForSessionCommand.NotifyCanExecuteChanged();
+                ApproveModelActionAlwaysCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool CanInstallPowerShell => !IsBusy && !IsPowerShellSetupActive
+        && !IsLocalModelSetupActive && activeReasoningCancellation is null;
+
+    public string PowerShellSetupStatus
+    {
+        get => powerShellSetupStatus;
+        private set => SetProperty(ref powerShellSetupStatus, value);
+    }
+
+    public string LocalModelSetupStatus
+    {
+        get => localModelSetupStatus;
+        private set => SetProperty(ref localModelSetupStatus, value);
+    }
 
     public IReadOnlyList<CommandDefinition> Commands => commandCatalog.GetCommands(AssistantName);
 
@@ -320,6 +646,17 @@ public sealed class MainViewModel : ObservableObject
     public AsyncCommand OpenMicrophonePrivacySettingsCommand { get; }
 
     public AsyncCommand ApplyAssistantNameCommand { get; }
+
+    public AsyncCommand ApproveModelActionCommand { get; }
+
+    public AsyncCommand ApproveModelActionForSessionCommand { get; }
+
+    public AsyncCommand ApproveModelActionAlwaysCommand { get; }
+
+    public AsyncCommand RejectModelActionCommand { get; }
+    public AsyncCommand PrepareGrantChangeCommand { get; }
+    public AsyncCommand ConfirmGrantChangeCommand { get; }
+    public AsyncCommand RejectGrantChangeCommand { get; }
 
     public string AssistantName
     {
@@ -1065,6 +1402,10 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private bool IsSetupStatusCommand() =>
+        commandRouter.Match(CommandText, AssistantName).Command?.Action
+            is BuiltInAction.ShowStatus or BuiltInAction.ShowCurrentTaskProgress;
+
     public bool IsListening
     {
         get => isListening;
@@ -1105,8 +1446,13 @@ public sealed class MainViewModel : ObservableObject
                 ToggleListeningCommand.NotifyCanExecuteChanged();
                 RefreshCommand.NotifyCanExecuteChanged();
                 RunTypedCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(CanInstallLocalModel));
+                OnPropertyChanged(nameof(CanInstallPowerShell));
                 PreviewVoiceCommand.NotifyCanExecuteChanged();
                 ApplyAssistantNameCommand.NotifyCanExecuteChanged();
+                ApproveModelActionCommand.NotifyCanExecuteChanged();
+                ApproveModelActionForSessionCommand.NotifyCanExecuteChanged();
+                ApproveModelActionAlwaysCommand.NotifyCanExecuteChanged();
             }
         }
     }
@@ -1168,6 +1514,260 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task DetectMicrophonesAsync() => await RefreshAsync();
 
+    public OptionalSpeechProviderOffer? GetOptionalSpeechProviderOffer()
+    {
+        try
+        {
+            var offerState = optionalSpeechOfferPreferences.Load();
+            var missingSelected = savedSpeechProviderIdForOffer is { } savedId
+                && !string.Equals(savedId, SpeechProviderIds.Windows, StringComparison.Ordinal)
+                ? SpeechProviders.FirstOrDefault(provider =>
+                    string.Equals(provider.Id, savedId, StringComparison.Ordinal))
+                : null;
+            if (savedSpeechProviderIdForOffer is { } previousId
+                && !string.Equals(previousId, SpeechProviderIds.Windows, StringComparison.Ordinal)
+                && (missingSelected is null || !missingSelected.IsBuiltIn && !missingSelected.IsInstalled)
+                && !string.Equals(
+                    offerState.MissingProviderNotified,
+                    previousId,
+                    StringComparison.Ordinal))
+            {
+                var providerName = missingSelected?.Name ?? "selected speech provider";
+                return new OptionalSpeechProviderOffer(
+                    $"{providerName} needs attention.",
+                    $"Your previously selected {providerName} is no longer available or its assets are incomplete. Would you like to review Speech and audio settings? Kora will not download or replace it automatically.",
+                    previousId,
+                    IsRecovery: true);
+            }
+
+            if (missingSelected is { IsInstalled: true }
+                && offerState.MissingProviderNotified is not null)
+            {
+                offerState = offerState with { MissingProviderNotified = null };
+                optionalSpeechOfferPreferences.Save(offerState);
+            }
+
+            if (offerState.InitialOfferHandled)
+            {
+                return null;
+            }
+
+            var optional = SpeechProviders.FirstOrDefault(provider =>
+                !provider.IsBuiltIn && !provider.IsInstalled);
+            if (optional is not null)
+            {
+                return new OptionalSpeechProviderOffer(
+                    $"Optional {optional.Name} speech is available.",
+                    $"{optional.Name} offers another local voice option. Would you like to review its download in Speech and audio settings? This is optional and will not be added to the setup queue or downloaded unless you choose it.",
+                    optional.Id,
+                    IsRecovery: false);
+            }
+
+            if (SpeechProviders.Any(provider => !provider.IsBuiltIn))
+            {
+                optionalSpeechOfferPreferences.Save(offerState with { InitialOfferHandled = true });
+            }
+
+            return null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            ApplicationLog.Error(logger, exception, "Loading optional speech offer state");
+            ShowFailure("Speech offer settings could not be loaded.", exception.Message);
+            return null;
+        }
+    }
+
+    public void AcknowledgeOptionalSpeechProviderOffer(OptionalSpeechProviderOffer offer, bool openSettings)
+    {
+        ArgumentNullException.ThrowIfNull(offer);
+        try
+        {
+            var offerState = optionalSpeechOfferPreferences.Load();
+            optionalSpeechOfferPreferences.Save(new OptionalSpeechOfferState(
+                InitialOfferHandled: true,
+                MissingProviderNotified: offer.IsRecovery ? offer.ProviderId : offerState.MissingProviderNotified));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            ApplicationLog.Error(logger, exception, "Saving optional speech offer response");
+            ShowFailure("Speech offer response could not be saved.", exception.Message);
+            return;
+        }
+
+        if (openSettings)
+        {
+            var provider = SpeechProviders.FirstOrDefault(item =>
+                string.Equals(item.Id, offer.ProviderId, StringComparison.Ordinal));
+            if (provider is not null)
+            {
+                SelectedSpeechProvider = provider;
+            }
+            ShowSettings();
+        }
+    }
+
+    public async Task InstallLocalModelAsync()
+    {
+        if (!CanInstallLocalModel)
+        {
+            throw new InvalidOperationException("Local model setup cannot run while another setup check is active.");
+        }
+
+        if (IsResponseInteractionPending)
+        {
+            ClearPendingModelAction("superseded");
+            ClearPendingGrantChange("superseded");
+            ClearPendingModelQuestion();
+        }
+
+        var tasks = dependencyBootstrapper.Tasks;
+        tasks.Start("local.inference", "Local model inference (Ollama)", "Preparing approved Ollama and model installation.");
+        using var cancellation = new CancellationTokenSource();
+        localModelCancellation = cancellation;
+        IsLocalModelSetupActive = true;
+        var audit = StartAudit(
+            SecurityAuditCategory.ResourceWrite,
+            LocalModelInstallAction,
+            SecurityAuditInitiator.LocalUser,
+            "local.inference");
+        try
+        {
+            var progress = new DispatcherProgress<LocalModelSetupProgress>(uiDispatcher, update =>
+            {
+                if (!string.Equals(
+                    tasks.ActiveTask?.Id,
+                    "local.inference",
+                    StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                LocalModelSetupStatus = update.Detail;
+                tasks.Update(
+                    "local.inference",
+                    SetupTaskState.Running,
+                    update.Detail,
+                    update.Percentage);
+            });
+            await localModelSetup.InstallAsync(progress, cancellation.Token);
+            tasks.Update("local.inference", SetupTaskState.Completed, "Validating local inference readiness.");
+            var statuses = await dependencyBootstrapper.ProbeAsync(cancellation.Token);
+            Dependencies.Clear();
+            foreach (var status in statuses)
+            {
+                Dependencies.Add(status);
+            }
+
+            var inference = statuses.Single(status =>
+                string.Equals(status.Id, "local.inference", StringComparison.Ordinal));
+            if (inference.Readiness != DependencyReadiness.Ready)
+            {
+                throw new InvalidOperationException($"Local inference did not pass the readiness check: {inference.Detail}");
+            }
+
+            tasks.Update("local.inference", SetupTaskState.Completed, inference.Detail);
+            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+            ShowInformation("Local model is ready.", inference.Detail);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            tasks.Update("local.inference", SetupTaskState.Cancelled, "Local model setup was cancelled.");
+            CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "user-cancelled");
+            ShowInformation("Setup cancelled.", "Local model installation was stopped; refresh readiness to check partial progress.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException or HttpRequestException or JsonException or Win32Exception)
+        {
+            tasks.Update("local.inference", SetupTaskState.Failed, exception.Message);
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "setup-failed");
+            ApplicationLog.Error(logger, exception, "Installing local model dependencies");
+            ShowFailure("Local model setup failed.", exception.Message);
+        }
+        finally
+        {
+            localModelCancellation = null;
+            IsLocalModelSetupActive = false;
+        }
+    }
+
+    public async Task InstallPowerShellAsync()
+    {
+        if (!CanInstallPowerShell)
+        {
+            throw new InvalidOperationException("PowerShell setup cannot run while another task is active.");
+        }
+
+        if (IsResponseInteractionPending)
+        {
+            ClearPendingModelAction("superseded");
+            ClearPendingGrantChange("superseded");
+            ClearPendingModelQuestion();
+        }
+
+        var tasks = dependencyBootstrapper.Tasks;
+        tasks.Start(powerShellSetup.TaskId, powerShellSetup.TaskName,
+            "Checking the approved PowerShell 7 installation.");
+        using var cancellation = new CancellationTokenSource();
+        powerShellSetupCancellation = cancellation;
+        IsPowerShellSetupActive = true;
+        var audit = StartAudit(
+            SecurityAuditCategory.ResourceWrite,
+            PowerShellInstallAction,
+            SecurityAuditInitiator.LocalUser,
+            powerShellSetup.TaskId);
+        try
+        {
+            PowerShellSetupStatus = "Installing or reusing PowerShell 7 for this Windows user.";
+            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Running, PowerShellSetupStatus);
+            await powerShellSetup.InstallAsync(cancellation.Token);
+            PowerShellSetupStatus = "Verifying PowerShell 7 without a user profile.";
+            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Running, PowerShellSetupStatus);
+            var status = await powerShellSetup.ProbeAsync(cancellation.Token);
+            if (status.Readiness != DependencyReadiness.Ready)
+            {
+                throw new InvalidOperationException(
+                    $"PowerShell setup did not pass readiness verification: {status.Detail}");
+            }
+
+            var previous = Dependencies.FirstOrDefault(item =>
+                string.Equals(item.Id, status.Id, StringComparison.Ordinal));
+            if (previous is null)
+            {
+                Dependencies.Add(status);
+            }
+            else
+            {
+                Dependencies[Dependencies.IndexOf(previous)] = status;
+            }
+            PowerShellSetupStatus = status.Detail;
+            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Completed, status.Detail);
+            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+            ShowInformation("PowerShell 7 is ready.", status.Detail);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            PowerShellSetupStatus = "PowerShell installation was cancelled.";
+            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Cancelled, PowerShellSetupStatus);
+            CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "user-cancelled");
+            ShowInformation("PowerShell setup cancelled.", "Refresh readiness to check partial installation.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException or TimeoutException or System.ComponentModel.Win32Exception)
+        {
+            PowerShellSetupStatus = exception.Message;
+            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Failed, exception.Message);
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "setup-failed");
+            ApplicationLog.Error(logger, exception, "Installing PowerShell 7");
+            ShowFailure("PowerShell setup failed.", exception.Message);
+        }
+        finally
+        {
+            powerShellSetupCancellation = null;
+            IsPowerShellSetupActive = false;
+        }
+    }
+
     public void ShowApplication()
     {
         if (State == AssistantState.Hidden)
@@ -1180,6 +1780,14 @@ public sealed class MainViewModel : ObservableObject
 
     public void HideApplication()
     {
+        if (IsResponseInteractionPending)
+        {
+            ClearPendingModelAction("dismissed");
+            ClearPendingGrantChange("dismissed");
+            ClearPendingModelQuestion();
+        }
+
+        IsGrantEditorVisible = false;
         State = AssistantState.Hidden;
         HidePresentation();
     }
@@ -1195,22 +1803,427 @@ public sealed class MainViewModel : ObservableObject
 
     public void ShowSettings() => SettingsRequested?.Invoke(this, EventArgs.Empty);
 
+    public void ShowReadiness() => ReadinessRequested?.Invoke(this, EventArgs.Empty);
+
     public void ShowDocumentation() =>
         DocumentationRequested?.Invoke(this, EventArgs.Empty);
 
-    public async Task ExitAsync()
+    public string GetGrantDocument()
+    {
+        var builder = new StringBuilder()
+            .Append("# ").Append(AssistantName).AppendLine(" model-action grants")
+            .AppendLine()
+            .AppendLine("These grants apply only to the named built-in action. No file, script, or arbitrary API access is granted.")
+            .AppendLine();
+        AppendGrantSection(builder, "This session", sessionAllowedModelActions);
+        AppendGrantSection(builder, "Always on this device", alwaysAllowedModelActions);
+        builder.AppendLine("## Change a grant")
+            .AppendLine()
+            .AppendLine("Say \"manage grants\" to prepare an add, edit, or removal. Every proposed change must be confirmed in the response window.");
+        return builder.ToString();
+    }
+
+    public void PrepareGrantChange(
+        GrantChange proposal,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        ArgumentNullException.ThrowIfNull(proposal);
+        if (!Enum.IsDefined(proposal.Action) || !Enum.IsDefined(proposal.Operation)
+            || proposal.Scope is not (ModelApprovalScope.Once or ModelApprovalScope.Session or ModelApprovalScope.Always)
+            || proposal.TargetScope is { } target
+                && target is not (ModelApprovalScope.Session or ModelApprovalScope.Always))
+        {
+            throw new ArgumentException("The proposed grant change is invalid.", nameof(proposal));
+        }
+
+        if (IsApprovalPending)
+        {
+            ClearPendingModelAction("superseded");
+            ClearPendingGrantChange("superseded");
+        }
+        ClearPendingModelQuestion();
+
+        var inSession = sessionAllowedModelActions.Contains(proposal.Action);
+        var inAlways = alwaysAllowedModelActions.Contains(proposal.Action);
+        var scope = proposal.Scope;
+        if (scope == ModelApprovalScope.Once)
+        {
+            if (proposal.Operation == GrantChangeOperation.Add)
+            {
+                ShowInformation("Choose a grant scope.", "Select This session or Always before adding a grant.");
+                return;
+            }
+            if (inSession == inAlways)
+            {
+                ShowInformation("Select the exact existing grant.",
+                    inSession
+                        ? $"{proposal.Action} has both a session and an always grant. Choose which one to change."
+                        : $"{proposal.Action} has no existing grant to change.");
+                IsGrantEditorVisible = true;
+                return;
+            }
+            scope = inSession ? ModelApprovalScope.Session : ModelApprovalScope.Always;
+        }
+
+        if (IsGrantChangeInapplicable(proposal, scope, inSession, inAlways))
+        {
+            ShowInformation("Grant change cannot be prepared.",
+                $"Check the existing {proposal.Action} grants and select an applicable operation and scope.");
+            IsGrantEditorVisible = true;
+            return;
+        }
+
+        pendingGrantChange = proposal with { Scope = scope };
+        pendingGrantChangeAudit = StartAudit(
+            SecurityAuditCategory.SecurityApproval,
+            $"grant.{proposal.Operation.ToString().ToLowerInvariant()}.{proposal.Action.ToString().ToLowerInvariant()}",
+            initiator,
+            DeviceLocalPreferencesTarget,
+            Guid.NewGuid());
+        IsGrantEditorVisible = false;
+        OnPropertyChanged(nameof(IsGrantChangePending));
+        OnPropertyChanged(nameof(IsApprovalPending));
+        OnPropertyChanged(nameof(IsResponseInteractionPending));
+        ConfirmGrantChangeCommand.NotifyCanExecuteChanged();
+        RejectGrantChangeCommand.NotifyCanExecuteChanged();
+        ShowInformation(
+            "Confirm exact grant change?",
+            DescribeGrantChange(pendingGrantChange)
+                + $" This changes only permission for model suggestions; it will not execute {proposal.Action}. "
+                + (RequireAssistantNameForVoiceApproval
+                    ? $"Say “{AssistantName}, approve once” or “{AssistantName}, reject”, or use the buttons below."
+                    : "Say “approve once” or “reject”, or use the buttons below."));
+        WindowActionRequested?.Invoke(this, WindowAction.Show);
+    }
+
+    internal static bool IsGrantChangeInapplicable(
+        GrantChange proposal, ModelApprovalScope scope, bool inSession, bool inAlways)
+    {
+        var exists = scope == ModelApprovalScope.Session ? inSession : inAlways;
+        return proposal.Operation == GrantChangeOperation.Add && (exists || proposal.TargetScope is not null)
+            || proposal.Operation == GrantChangeOperation.Remove && (!exists || proposal.TargetScope is not null)
+            || proposal.Operation == GrantChangeOperation.Move
+                && (!exists || proposal.TargetScope is null || proposal.TargetScope == scope
+                    || (proposal.TargetScope == ModelApprovalScope.Session ? inSession : inAlways));
+    }
+
+    internal static string DescribeGrantChange(GrantChange change) =>
+        change.Operation switch
+        {
+            GrantChangeOperation.Add => $"Add {change.Scope} grant for {change.Action}.",
+            GrantChangeOperation.Remove => $"Remove {change.Scope} grant for {change.Action}.",
+            GrantChangeOperation.Move =>
+                $"Move {change.Action} grant from {change.Scope} to {change.TargetScope}.",
+            _ => throw new ArgumentOutOfRangeException(nameof(change)),
+        };
+
+    public async Task ConfirmGrantChangeAsync(
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        if (pendingGrantChange is not { } change)
+        {
+            throw new InvalidOperationException("No grant change is awaiting confirmation.");
+        }
+
+        var approval = pendingGrantChangeAudit;
+        try
+        {
+            await StopModelApprovalPromptAsync();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            ApplicationLog.Error(logger, exception, "Stopping grant confirmation speech");
+            ShowFailure("Could not stop the spoken grant question.",
+                $"The grant change is still pending. {exception.Message}");
+            return;
+        }
+        if (!ReferenceEquals(pendingGrantChangeAudit, approval))
+        {
+            return;
+        }
+
+        var inScope = change.Scope == ModelApprovalScope.Session
+            ? sessionAllowedModelActions.Contains(change.Action)
+            : alwaysAllowedModelActions.Contains(change.Action);
+        var targetExists = change.TargetScope == ModelApprovalScope.Session
+            ? sessionAllowedModelActions.Contains(change.Action)
+            : alwaysAllowedModelActions.Contains(change.Action);
+        if (change.Operation == GrantChangeOperation.Add && inScope
+            || change.Operation != GrantChangeOperation.Add && !inScope
+            || change.Operation == GrantChangeOperation.Move && targetExists)
+        {
+            ClearPendingGrantChange("stale-grant");
+            ShowFailure("The grant changed before confirmation.", "Review the current grants and prepare a new change.");
+            return;
+        }
+
+        if (change.Scope == ModelApprovalScope.Always
+            || change.TargetScope == ModelApprovalScope.Always)
+        {
+            var next = alwaysAllowedModelActions.ToHashSet();
+            if (change.Scope == ModelApprovalScope.Always)
+            {
+                if (change.Operation == GrantChangeOperation.Add)
+                {
+                    next.Add(change.Action);
+                }
+                else
+                {
+                    next.Remove(change.Action);
+                }
+            }
+            else if (change.TargetScope == ModelApprovalScope.Always)
+            {
+                next.Add(change.Action);
+            }
+            if (!SaveModelApprovalPreferences(requireAssistantNameForVoiceApproval, next, initiator))
+            {
+                return;
+            }
+            alwaysAllowedModelActions.Clear();
+            alwaysAllowedModelActions.UnionWith(next);
+            OnPropertyChanged(nameof(AlwaysAllowedModelActions));
+        }
+
+        if (change.Scope == ModelApprovalScope.Session)
+        {
+            if (change.Operation == GrantChangeOperation.Add)
+            {
+                sessionAllowedModelActions.Add(change.Action);
+            }
+            else
+            {
+                sessionAllowedModelActions.Remove(change.Action);
+            }
+        }
+        else if (change.TargetScope == ModelApprovalScope.Session)
+        {
+            sessionAllowedModelActions.Add(change.Action);
+        }
+        OnPropertyChanged(nameof(SessionAllowedModelActions));
+        GrantDocumentChanged?.Invoke(this, GetGrantDocument());
+        ClearPendingGrantChange("approved-once");
+        ShowSuccess("Grant changed.", DescribeGrantChange(change));
+    }
+
+    public async Task RejectPendingGrantChangeAsync()
+    {
+        if (!IsGrantChangePending)
+        {
+            return;
+        }
+        var approval = pendingGrantChangeAudit;
+        try
+        {
+            await StopModelApprovalPromptAsync();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            ApplicationLog.Error(logger, exception, "Stopping declined grant confirmation speech");
+            ShowFailure("Could not stop the spoken grant question.",
+                $"The grant change is still pending. {exception.Message}");
+            return;
+        }
+        if (ReferenceEquals(pendingGrantChangeAudit, approval))
+        {
+            ClearPendingGrantChange("user-declined");
+            ShowInformation("Grant change declined.", "No grant was changed.");
+        }
+    }
+
+    private void ClearPendingGrantChange(string reason)
+    {
+        if (pendingGrantChangeAudit is { } audit)
+        {
+            CompleteAudit(audit,
+                string.Equals(reason, "approved-once", StringComparison.Ordinal)
+                    ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Cancelled,
+                reason);
+        }
+        pendingGrantChangeAudit = null;
+        pendingGrantChange = null;
+        OnPropertyChanged(nameof(IsGrantChangePending));
+        OnPropertyChanged(nameof(IsApprovalPending));
+        OnPropertyChanged(nameof(IsResponseInteractionPending));
+        ConfirmGrantChangeCommand.NotifyCanExecuteChanged();
+        RejectGrantChangeCommand.NotifyCanExecuteChanged();
+        NotifyOutputPolicyChanged();
+    }
+
+    private void PresentModelQuestion(LocalModelQuestion question, string request, int depth)
+    {
+        pendingModelQuestion = question;
+        pendingQuestionRequest = request;
+        pendingQuestionDepth = depth;
+        ModelQuestionChoices = question.Options.Select((text, index) =>
+            new ModelQuestionChoice(index + 1, text)).ToArray();
+        OnPropertyChanged(nameof(ModelQuestionChoices));
+        OnPropertyChanged(nameof(IsModelQuestionPending));
+        OnPropertyChanged(nameof(IsResponseInteractionPending));
+        var options = string.Join("; ", ModelQuestionChoices.Select(choice => choice.DisplayText));
+        ShowInformation(
+            "Kora needs your direction.",
+            $"{question.Prompt}\n{options}\nChoose an option by number or label, by voice or mouse. This is not an action approval. Say “cancel question” to dismiss.");
+        WindowActionRequested?.Invoke(this, WindowAction.Show);
+    }
+
+    private void ClearPendingModelQuestion()
+    {
+        pendingModelQuestion = null;
+        pendingQuestionRequest = null;
+        ModelQuestionChoices = [];
+        OnPropertyChanged(nameof(ModelQuestionChoices));
+        OnPropertyChanged(nameof(IsModelQuestionPending));
+        OnPropertyChanged(nameof(IsResponseInteractionPending));
+        NotifyOutputPolicyChanged();
+    }
+
+    public async Task SelectModelQuestionChoiceAsync(ModelQuestionChoice choice)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        if (pendingModelQuestion is not { } question
+            || !ModelQuestionChoices.Any(item => ReferenceEquals(item, choice))
+            || pendingQuestionRequest is not { } original)
+        {
+            return;
+        }
+
+        var answer = choice.Text;
+        var followup = JsonSerializer.Serialize(new
+        {
+            OriginalRequest = original,
+            ClarificationQuestion = question.Prompt,
+            SelectedOption = answer,
+            Instruction = "Use the user's selected option to continue the original request. This selection is not permission to execute an action.",
+        });
+        var depth = pendingQuestionDepth;
+        if (!await TryStopQuestionPromptAsync())
+        {
+            return;
+        }
+        if (!ReferenceEquals(pendingModelQuestion, question))
+        {
+            return;
+        }
+        ClearPendingModelQuestion();
+        if (followup.Length > 4096)
+        {
+            ShowFailure("The clarification could not continue.",
+                "The combined request exceeds the local model limit. Please rephrase your request more briefly.");
+            return;
+        }
+
+        await HandleUnmatchedRequestAsync(followup, SecurityAuditInitiator.TypedCommand, depth);
+    }
+
+    public async Task CancelModelQuestionAsync()
+    {
+        if (pendingModelQuestion is not { } question)
+        {
+            return;
+        }
+        if (!await TryStopQuestionPromptAsync())
+        {
+            return;
+        }
+        if (!ReferenceEquals(pendingModelQuestion, question))
+        {
+            return;
+        }
+        ClearPendingModelQuestion();
+        ShowInformation("Question dismissed.", "No answer or action was selected.");
+    }
+
+    private async Task<bool> TryStopQuestionPromptAsync()
+    {
+        try
+        {
+            await StopModelApprovalPromptAsync();
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            ApplicationLog.Error(logger, exception, "Stopping the spoken model question");
+            ShowFailure("Could not stop the spoken question.",
+                $"The question remains pending. {exception.Message}");
+            return false;
+        }
+    }
+
+    private void AppendGrantSection(
+        StringBuilder builder,
+        string heading,
+        HashSet<BuiltInAction> actions)
+    {
+        builder.Append("## ").AppendLine(heading).AppendLine();
+        foreach (var command in commandCatalog.GetCommands(AssistantName))
+        {
+            if (!actions.Contains(command.Action))
+            {
+                continue;
+            }
+            builder.Append("- **")
+                .Append(command.Action)
+                .Append("** — ")
+                .AppendLine(command.Description);
+        }
+
+        if (actions.Count == 0)
+        {
+            builder.AppendLine("No grants.");
+        }
+
+        builder.AppendLine();
+    }
+
+    public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
         ApplicationLog.Information(logger, "Kora exit was requested");
-        await StopAudioAsync();
+        await StopAudioAsync(fromModelActionDispatch);
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
     private async Task RefreshAsync()
     {
+        if (IsBusy)
+        {
+            ShowInformation("Readiness check is busy.", "Wait for the current operation to finish before refreshing readiness.");
+            return;
+        }
+
+        if (IsPowerShellSetupActive)
+        {
+            ShowInformation("PowerShell setup is running.", "Wait for setup to finish before refreshing readiness.");
+            return;
+        }
+        if (IsLocalModelSetupActive)
+        {
+            ShowInformation("Local model setup is running.", "Wait for setup to finish before refreshing readiness.");
+            return;
+        }
+
+        if (activeReasoningCancellation is not null)
+        {
+            ShowInformation("Local reasoning is running.", "Wait for the answer or cancel the task before refreshing readiness.");
+            return;
+        }
+
         ApplicationLog.Debug(logger, "Refreshing devices, preferences, and dependency readiness");
         IsBusy = true;
         try
         {
+            var statuses = await dependencyBootstrapper.ProbeAsync();
+            Dependencies.Clear();
+            foreach (var status in statuses)
+            {
+                Dependencies.Add(status);
+            }
+            dependencyBootstrapper.Tasks.Remove("environment.check");
+            OnPropertyChanged(nameof(SetupTasks));
+
             MicrophoneAccessStatus = microphoneAccessService.GetStatus();
             var savedAssistantName = assistantNamePreferences.LoadName();
             try
@@ -1223,6 +2236,15 @@ public sealed class MainViewModel : ObservableObject
                     "The saved assistant name conflicts with a built-in command.",
                     exception);
             }
+
+            alwaysAllowedModelActions.Clear();
+            var approvals = modelApprovalPreferences.Load();
+            alwaysAllowedModelActions.UnionWith(approvals.AlwaysAllowedActions);
+            SetProperty(
+                ref requireAssistantNameForVoiceApproval,
+                approvals.RequireAssistantNameForVoiceApproval,
+                nameof(RequireAssistantNameForVoiceApproval));
+            OnPropertyChanged(nameof(AlwaysAllowedModelActions));
 
             var savedThemeMode = appearancePreferences.LoadThemeMode();
             var savedPresenceTimeoutSeconds = appearancePreferences.LoadPresenceTimeoutSeconds();
@@ -1326,6 +2348,7 @@ public sealed class MainViewModel : ObservableObject
             NotifyOutputPolicyChanged();
 
             var savedSpeechProviderId = textToSpeechPreferences.LoadProviderId();
+            savedSpeechProviderIdForOffer = savedSpeechProviderId;
             var savedVoiceId = textToSpeechPreferences.LoadVoiceId();
             var savedResponseMode = responseOutputPreferences.LoadDefaultMode();
             var savedCallAwareSettings = callAwarePreferences.Load() ?? CallAwareSettings.Default;
@@ -1381,13 +2404,6 @@ public sealed class MainViewModel : ObservableObject
                 suppressSpeechProviderPreferenceSave = false;
             }
 
-            var statuses = await dependencyBootstrapper.ProbeAsync();
-            Dependencies.Clear();
-            foreach (var status in statuses)
-            {
-                Dependencies.Add(status);
-            }
-
             var selectedOutputMuted = EffectiveOutputDevice?.IsMuted == true;
             var setupTitle = selectedOutputMuted
                 ? "Audio output is muted."
@@ -1419,26 +2435,31 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (InvalidDataException exception)
         {
+            RecordSetupCheckFailure(exception);
             ApplicationLog.Error(logger, exception, "Loading a saved preference");
             ShowFailure("A saved setting is invalid.", exception.Message);
         }
         catch (UnauthorizedAccessException exception)
         {
+            RecordSetupCheckFailure(exception);
             ApplicationLog.Error(logger, exception, "Refreshing the environment because access was denied");
             ShowFailure("Storage or microphone access was denied.", exception.Message);
         }
         catch (IOException exception)
         {
+            RecordSetupCheckFailure(exception);
             ApplicationLog.Error(logger, exception, "Refreshing the environment due to an I/O error");
             ShowFailure("Dependency probing failed.", exception.Message);
         }
         catch (AudioOutputDeviceUnavailableException exception)
         {
+            RecordSetupCheckFailure(exception);
             ApplicationLog.Error(logger, exception, "Inspecting audio output");
             HandleAudioOutputFailure(exception, "Windows audio output is unavailable.");
         }
         catch (InvalidOperationException exception)
         {
+            RecordSetupCheckFailure(exception);
             ApplicationLog.Error(logger, exception, "Refreshing speech services");
             SelectedVoice = null;
             ShowFailure("Speech services are unavailable.", exception.Message);
@@ -1503,7 +2524,7 @@ public sealed class MainViewModel : ObservableObject
     {
         var microphone = SelectedMicrophone!;
         var phrases = GetRecognitionPhrases();
-        await voiceRecognition.StartAsync(microphone, phrases);
+        await voiceRecognition.StartAsync(microphone, phrases, AssistantName);
         IsListening = true;
         SetListeningPauseReason(null);
         ApplicationLog.Information(logger, "Voice activation started on the selected microphone");
@@ -1644,6 +2665,16 @@ public sealed class MainViewModel : ObservableObject
                 "Preparing the local neural speech engine.",
             _ => throw new ArgumentOutOfRangeException(nameof(progress)),
         };
+    }
+
+    private void RecordSetupCheckFailure(Exception exception)
+    {
+        dependencyBootstrapper.Tasks.Reconcile(new DependencyStatus(
+            "environment.check",
+            "Check environment",
+            DependencyReadiness.Failed,
+            exception.Message));
+        OnPropertyChanged(nameof(SetupTasks));
     }
 
     private void RefreshSpeechProviderCatalog(string providerId)
@@ -1792,15 +2823,62 @@ public sealed class MainViewModel : ObservableObject
         await textToSpeech.StopAsync();
         activeSpokenText = null;
         IsSpeaking = false;
+        if (powerShellSetupCancellation is { } installation)
+        {
+            await installation.CancelAsync();
+        }
         ShowInformation("Speech is stopped.", "No speech playback is active.");
     }
 
-    private async Task StopAudioAsync()
+    private async Task StopAudioAsync(bool skipCurrentModelDispatchWait = false)
     {
-        await textToSpeech.StopAsync();
-        activeSpokenText = null;
-        IsSpeaking = false;
-        await StopListeningAsync();
+        Interlocked.Increment(ref stoppingAudioOperations);
+        try
+        {
+            if (sessionAllowedModelActions.Count > 0)
+            {
+                sessionAllowedModelActions.Clear();
+                OnPropertyChanged(nameof(SessionAllowedModelActions));
+                GrantDocumentChanged?.Invoke(this, GetGrantDocument());
+            }
+
+            if (IsModelActionApprovalPending)
+            {
+                ClearPendingModelAction("session-stopped");
+            }
+            if (IsGrantChangePending)
+            {
+                ClearPendingGrantChange("session-stopped");
+            }
+            if (IsModelQuestionPending)
+            {
+                ClearPendingModelQuestion();
+            }
+
+            await textToSpeech.StopAsync();
+            activeSpokenText = null;
+            IsSpeaking = false;
+            if (activeReasoningCancellation is { } cancellation)
+            {
+                await cancellation.CancelAsync();
+                if (activeReasoningTask is { } reasoningTask)
+                {
+                    await reasoningTask;
+                }
+            }
+            else if ((isModelActionDispatchActive || isModelApprovalPromptActive)
+                && !skipCurrentModelDispatchWait
+                && activeReasoningTask is { } dispatchTask)
+            {
+                await dispatchTask;
+            }
+
+            await StopListeningAsync();
+        }
+        finally
+        {
+            Interlocked.Decrement(ref stoppingAudioOperations);
+        }
     }
 
     private async Task ToggleCallVisualOverrideAsync()
@@ -2363,6 +3441,13 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
+            if (pendingModelQuestion is { } question)
+            {
+                ShowInformation("I didn't catch an option.",
+                    $"{eventArgs.Message} {question.Prompt} Say “{AssistantName}, option one” or choose a button.");
+                return;
+            }
+
             ShowInformation("Command not recognized.", eventArgs.Message);
         });
     }
@@ -2409,6 +3494,110 @@ public sealed class MainViewModel : ObservableObject
         float confidence,
         SecurityAuditInitiator initiator)
     {
+        if (pendingModelQuestion is { } question)
+        {
+            if (initiator != SecurityAuditInitiator.VoiceCommand
+                || !RequireAssistantNameForVoiceApproval
+                || commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                var index = LocalModelQuestionSpeech.Match(spokenText, question, AssistantName);
+                if (index >= 0)
+                {
+                    Transcript = $"“{spokenText}” · {confidence:P0} confidence";
+                    await SelectModelQuestionChoiceAsync(ModelQuestionChoices[index]);
+                    return;
+                }
+                if (commandRouter.Match(spokenText, AssistantName).Command?.Action == BuiltInAction.CancelTask
+                    || LocalModelQuestionSpeech.IsCancellation(spokenText, AssistantName))
+                {
+                    await CancelModelQuestionAsync();
+                    return;
+                }
+            }
+            else if (LocalModelQuestionSpeech.Match(spokenText, question, AssistantName) >= 0)
+            {
+                ShowInformation("Say the assistant name to answer.",
+                    $"{question.Prompt} Say “{AssistantName}, option one” or choose an option in the response window.");
+                return;
+            }
+
+            if (commandRouter.Match(spokenText, AssistantName).IsMatch)
+            {
+                await CancelModelQuestionAsync();
+            }
+            else
+            {
+                ShowInformation("Choose an option or cancel the question.",
+                    $"{question.Prompt} Say “{AssistantName}, option one”, choose a button, or say “{AssistantName}, cancel question”.");
+                return;
+            }
+        }
+
+        if (IsGrantChangePending)
+        {
+            if (ModelApprovalSpeech.TryMatch(spokenText, AssistantName, false, out var grantReply))
+            {
+                if (initiator == SecurityAuditInitiator.VoiceCommand
+                    && RequireAssistantNameForVoiceApproval
+                    && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                {
+                    ShowInformation("Say the assistant name to confirm.", DescribeGrantChange(pendingGrantChange!)
+                        + $" Say “{AssistantName}, approve once” or “{AssistantName}, reject”.");
+                    return;
+                }
+                if (grantReply == ModelApprovalReply.Reject)
+                {
+                    await RejectPendingGrantChangeAsync();
+                }
+                else if (grantReply == ModelApprovalReply.Once)
+                {
+                    await ConfirmGrantChangeAsync(initiator);
+                }
+                else
+                {
+                    ShowInformation("Confirm the exact change once.",
+                        DescribeGrantChange(pendingGrantChange!)
+                        + " Say “approve once” or “reject”; the proposed scope is already fixed.");
+                }
+                return;
+            }
+            ClearPendingGrantChange("superseded");
+        }
+
+        if (IsModelActionApprovalPending)
+        {
+            if (ModelApprovalSpeech.TryMatch(
+                    spokenText, AssistantName, false, out var approvalReply))
+            {
+                if (initiator == SecurityAuditInitiator.VoiceCommand
+                    && RequireAssistantNameForVoiceApproval
+                    && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                {
+                    var action = pendingModelAction!.Value;
+                    var description = commandCatalog.GetCommands(AssistantName)
+                        .Single(command => command.Action == action).Description;
+                    ShowInformation(
+                        "Say the assistant name to approve.",
+                        $"{description} Say “{AssistantName}, approve once”, “{AssistantName}, approve for this session”, or “{AssistantName}, always allow this”.");
+                    return;
+                }
+
+                Transcript = $"“{spokenText}” · {confidence:P0} confidence";
+                if (approvalReply == ModelApprovalReply.Reject)
+                {
+                    await RejectPendingModelActionAsync();
+                }
+                else
+                {
+                    await ApproveModelActionAsync(ScopeForApprovalReply(approvalReply), initiator);
+                }
+                return;
+            }
+
+            ClearPendingModelAction("superseded");
+        }
+
+        IsGrantEditorVisible = false;
         Transcript = $"“{spokenText}” · {confidence:P0} confidence";
         State = AssistantState.Calculating;
         if (initiator == SecurityAuditInitiator.VoiceCommand)
@@ -2419,10 +3608,7 @@ public sealed class MainViewModel : ObservableObject
         var match = commandRouter.Match(spokenText, AssistantName);
         if (!match.IsMatch || match.Command is null)
         {
-            ShowInformation(
-                "That isn't a supported built-in command.",
-                $"Say “{AssistantName}, what can you do?” to see the deterministic local command catalogue.");
-            await SpeakCurrentResponseAsync();
+            await HandleUnmatchedRequestAsync(spokenText, initiator);
             return;
         }
 
@@ -2433,14 +3619,533 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private async Task SpeakCurrentResponseAsync()
+    internal static ModelApprovalScope ScopeForApprovalReply(ModelApprovalReply reply) => reply switch
+    {
+        ModelApprovalReply.Once => ModelApprovalScope.Once,
+        ModelApprovalReply.Session => ModelApprovalScope.Session,
+        ModelApprovalReply.Always => ModelApprovalScope.Always,
+        _ => throw new InvalidOperationException("Unsupported approval reply."),
+    };
+
+    private Task HandleUnmatchedRequestAsync(
+        string spokenText,
+        SecurityAuditInitiator initiator,
+        int questionDepth = 0)
+    {
+        if (initiator == SecurityAuditInitiator.VoiceCommand
+            && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+        {
+            ShowInformation(
+                "Activate me before asking a question.",
+                $"Say “{AssistantName}” before a free-form request. Built-in voice commands remain available.");
+            return Task.CompletedTask;
+        }
+
+        var request = spokenText.Trim();
+        if (string.Equals(
+            request.TrimEnd(',', ':', '-', '—').TrimEnd(),
+            AssistantName,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            request = string.Empty;
+        }
+        else if (commandRouter.IsActivationPrefixed(request, AssistantName))
+        {
+            request = request[AssistantName.Length..].TrimStart(' ', ',', ':', '-', '—');
+        }
+
+        if (string.IsNullOrWhiteSpace(request))
+        {
+            ShowInformation("No question was heard.", $"Say “{AssistantName}” followed by a request.");
+            return Task.CompletedTask;
+        }
+
+        if (request.Length > 4096)
+        {
+            ShowInformation("The request is too long.", "Local model requests are limited to 4,096 characters.");
+            return Task.CompletedTask;
+        }
+
+        if (IsLocalReasoningBusy(activeReasoningCancellation is not null,
+            isModelActionDispatchActive, isModelApprovalPromptActive,
+            IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive))
+        {
+            ShowInformation(
+                "Local reasoning is busy.",
+                "Wait for the current task or say “cancel task” before asking another question.");
+            return Task.CompletedTask;
+        }
+
+        if (Dependencies.FirstOrDefault(status =>
+            string.Equals(status.Id, "local.inference", StringComparison.Ordinal)) is not
+            { Readiness: DependencyReadiness.Ready })
+        {
+            ShowInformation(
+                "That isn't a supported built-in command.",
+                $"Say “{AssistantName}, what can you do?” to see deterministic commands. A verified local model is required for other requests; open setup to check readiness. No cloud fallback is used.");
+            return SpeakCurrentResponseAsync();
+        }
+
+        var cancellation = new CancellationTokenSource();
+        activeReasoningCancellation = cancellation;
+        dependencyBootstrapper.Tasks.Start("local.reasoning", "Local model response", "Generating an answer locally.");
+        RefreshCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanInstallPowerShell));
+        OnPropertyChanged(nameof(CanInstallLocalModel));
+        ShowInformation(
+            "Thinking locally.",
+            "Only your current request text is sent to the selected local model.");
+        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth);
+        _ = activeReasoningTask.ContinueWith(completed =>
+        {
+            if (completed.Exception is { } exception)
+            {
+                uiDispatcher.Post(() =>
+                {
+                    ApplicationLog.Error(logger, exception, "Completing local reasoning");
+                    ShowFailure("Local reasoning failed.", exception.GetBaseException().Message);
+                });
+            }
+        }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+        return Task.CompletedTask;
+    }
+
+    internal static bool IsLocalReasoningBusy(
+        bool reasoning, bool actionDispatch, bool approvalPrompt,
+        bool busy, bool modelSetup, bool powerShellSetup) =>
+        reasoning || actionDispatch || approvalPrompt || busy || modelSetup || powerShellSetup;
+
+    private async Task RunReasoningAsync(string request, CancellationTokenSource cancellation, int questionDepth)
+    {
+        BuiltInAction? automaticAction = null;
+        var announceApproval = false;
+        try
+        {
+            var context = new LocalModelContext(
+                AssistantName,
+                IsListening,
+                pendingPowerAction?.ToString(),
+                Dependencies.Select(status => new LocalModelDependency(
+                    status.Name, status.Readiness)).ToArray(),
+                SetupTasks.Where(task => !string.Equals(
+                        task.Id, "local.reasoning", StringComparison.Ordinal))
+                    .Select(task => new LocalModelTask(
+                        task.Name, task.State, task.ProgressPercentage)).ToArray());
+            var decision = await localModelReasoner.ReasonAsync(request, context, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (new object?[] { decision.Answer, decision.Action, decision.GrantChange, decision.Question }
+                    .Count(value => value is not null) != 1
+                || decision.Answer is not null && string.IsNullOrWhiteSpace(decision.Answer)
+                || decision.Action is { } unknown && !Enum.IsDefined(unknown)
+                || decision.GrantChange is { } grant
+                    && (!Enum.IsDefined(grant.Action) || !Enum.IsDefined(grant.Operation))
+                || decision.Question is { } question && (
+                    string.IsNullOrWhiteSpace(question.Prompt) || question.Prompt.Length > 500
+                    || question.Options is null || question.Options.Count is < 2 or > 4
+                    || question.Options.Any(option => string.IsNullOrWhiteSpace(option) || option.Length > 80)
+                    || !LocalModelQuestionSpeech.AreOptionsUnambiguous(question.Options)))
+            {
+                throw new InvalidDataException("The local model returned an invalid answer or action.");
+            }
+
+            dependencyBootstrapper.Tasks.Update(
+                "local.reasoning", SetupTaskState.Completed, "The local model returned a response.");
+            if (decision.Question is { } clarification)
+            {
+                if (questionDepth >= 3)
+                {
+                    ShowInformation("Too many clarification questions.",
+                        "Please start a new request with the details you have already provided.");
+                }
+                else
+                {
+                    PresentModelQuestion(clarification, request, questionDepth + 1);
+                    announceApproval = true;
+                }
+            }
+            else if (decision.GrantChange is { } change)
+            {
+                PrepareGrantChange(change, SecurityAuditInitiator.ModelSuggestion);
+                announceApproval = IsGrantChangePending;
+            }
+            else if (decision.Action is { } action)
+            {
+                if (ModelActionRequiresApproval(action)
+                    && !sessionAllowedModelActions.Contains(action)
+                    && !alwaysAllowedModelActions.Contains(action))
+                {
+                    pendingModelAction = action;
+                    pendingModelActionAudit = StartAudit(
+                        SecurityAuditCategory.SecurityApproval,
+                        $"{ModelActionApprovalPrefix}{action.ToString().ToLowerInvariant()}",
+                        SecurityAuditInitiator.ModelSuggestion,
+                        action switch
+                        {
+                            BuiltInAction.LockMachine => CurrentWindowsSessionTarget,
+                            BuiltInAction.ProposeShutdown or BuiltInAction.ProposeRestart
+                                => CurrentMachineTarget,
+                            _ => CurrentApplicationTarget,
+                        },
+                        Guid.NewGuid());
+                    OnPropertyChanged(nameof(IsModelActionApprovalPending));
+                    OnPropertyChanged(nameof(IsApprovalPending));
+                    OnPropertyChanged(nameof(IsResponseInteractionPending));
+                    ApproveModelActionCommand.NotifyCanExecuteChanged();
+                    ApproveModelActionForSessionCommand.NotifyCanExecuteChanged();
+                    ApproveModelActionAlwaysCommand.NotifyCanExecuteChanged();
+                    RejectModelActionCommand.NotifyCanExecuteChanged();
+                    var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == action);
+                    var voicePrefix = RequireAssistantNameForVoiceApproval
+                        ? $"{AssistantName}, "
+                        : string.Empty;
+                    ShowInformation(
+                        "Approve a model-suggested action?",
+                        $"{command.Description} Say “{voicePrefix}approve once”, “{voicePrefix}approve for this session”, “{voicePrefix}always allow this”, or “{voicePrefix}reject”. You can also use the buttons below.");
+                    WindowActionRequested?.Invoke(this, WindowAction.Show);
+                    announceApproval = true;
+                }
+                else
+                {
+                    automaticAction = action;
+                }
+            }
+            else
+            {
+                ShowInformation("Local model response", $"Generated locally; verify important details.\n\n{decision.Answer}");
+                await SpeakCurrentResponseAsync();
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            dependencyBootstrapper.Tasks.Update(
+                "local.reasoning", SetupTaskState.Cancelled, "The local request was cancelled.");
+            ShowInformation("Local request cancelled.", "No local model answer will continue.");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TimeoutException
+            or JsonException or InvalidDataException or InvalidOperationException)
+        {
+            ApplicationLog.Error(logger, exception, "Calling the verified local model");
+            dependencyBootstrapper.Tasks.Update(
+                "local.reasoning", SetupTaskState.Failed, exception.Message);
+            var status = new DependencyStatus(
+                "local.inference",
+                "Local model inference (Ollama)",
+                DependencyReadiness.Failed,
+                $"Local inference failed: {exception.Message}. Refresh readiness to retry.");
+            var previous = Dependencies.FirstOrDefault(item =>
+                string.Equals(item.Id, status.Id, StringComparison.Ordinal));
+            if (previous is not null)
+            {
+                Dependencies[Dependencies.IndexOf(previous)] = status;
+            }
+            dependencyBootstrapper.Tasks.Reconcile(status);
+            ShowFailure("Local reasoning failed.", exception.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(activeReasoningCancellation, cancellation))
+            {
+                activeReasoningCancellation = null;
+                RefreshCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(CanInstallPowerShell));
+                OnPropertyChanged(nameof(CanInstallLocalModel));
+            }
+
+            cancellation.Dispose();
+        }
+
+        if (announceApproval && IsResponseInteractionPending)
+        {
+            isModelApprovalPromptActive = true;
+            try
+            {
+                await SpeakModelApprovalPromptAsync();
+            }
+            catch (Exception exception) when (exception is InvalidOperationException
+                or UnauthorizedAccessException or IOException)
+            {
+                ApplicationLog.Error(logger, exception, "Speaking a model action approval prompt");
+                var description = pendingModelQuestion is { } question
+                    ? question.Prompt
+                    : pendingGrantChange is { } grantChange
+                    ? DescribeGrantChange(grantChange)
+                    : pendingModelAction is { } pendingAction
+                    ? commandCatalog.GetCommands(AssistantName)
+                        .Single(command => command.Action == pendingAction).Description
+                    : "No model action remains pending.";
+                ShowFailure(
+                    "The spoken approval prompt could not complete.",
+                    $"{description} The action is still awaiting your decision. {exception.Message}");
+            }
+            finally
+            {
+                isModelApprovalPromptActive = false;
+            }
+        }
+
+        if (automaticAction is { } safeAction)
+        {
+            isModelActionDispatchActive = true;
+            try
+            {
+                var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == safeAction);
+                await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion);
+                if (ShouldSpeakResponse(safeAction))
+                {
+                    await SpeakCurrentResponseAsync();
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or InvalidOperationException or HttpRequestException or JsonException or InvalidDataException)
+            {
+                ApplicationLog.Error(logger, exception, "Executing a model-suggested built-in action");
+                ShowFailure("The model-suggested action failed.", exception.Message);
+            }
+            finally
+            {
+                isModelActionDispatchActive = false;
+            }
+        }
+    }
+
+    private async Task SpeakModelApprovalPromptAsync()
+    {
+        if (!IsSpeechResponseEnabled)
+        {
+            if (IsModelQuestionPending && IsListening)
+            {
+                await StopListeningAsync();
+                await StartVoiceRecognitionAsync();
+            }
+            return;
+        }
+
+        var wasListening = IsListening;
+        if (wasListening)
+        {
+            await StopListeningAsync();
+        }
+
+        try
+        {
+            if (pendingModelQuestion is { } question)
+            {
+                var options = string.Join(". ", ModelQuestionChoices.Select(choice => choice.DisplayText));
+                await SpeakCurrentResponseAsync(
+                    $"{question.Prompt} {options}. Choose an option by number or say cancel question. "
+                    + (RequireAssistantNameForVoiceApproval
+                        ? "Begin your answer by addressing me by name."
+                        : "You may answer without addressing me by name."));
+            }
+            else if (pendingGrantChange is { } change)
+            {
+                var spoken = DescribeGrantChange(change)
+                    + " This only changes permission and does not execute the action. "
+                    + (RequireAssistantNameForVoiceApproval
+                        ? "Begin your answer by addressing me by name."
+                        : "You may answer without addressing me by name.");
+                await SpeakCurrentResponseAsync(spoken);
+            }
+            else if (pendingModelAction is { } action)
+            {
+                var description = commandCatalog.GetCommands(AssistantName)
+                    .Single(command => command.Action == action).Description;
+                var spoken = $"{description} You can grant permission once, for this session, or always; or decline. "
+                    + (RequireAssistantNameForVoiceApproval
+                        ? "Begin your answer by addressing me by name."
+                        : "You may answer without addressing me by name.");
+                await SpeakCurrentResponseAsync(spoken);
+                if (State == AssistantState.Failure && IsModelActionApprovalPending)
+                {
+                    ShowFailure(
+                        "The spoken approval prompt failed.",
+                        $"{description} The action is still awaiting your decision. {ResponseBody}");
+                }
+            }
+        }
+        finally
+        {
+            if (wasListening)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(250));
+            }
+
+            if (wasListening
+                && !IsListening
+                && Volatile.Read(ref stoppingAudioOperations) == 0
+                && sessionController.IsCurrentSessionUnlocked())
+            {
+                await StartVoiceRecognitionAsync();
+            }
+        }
+    }
+
+    internal static bool ModelActionRequiresApproval(BuiltInAction action) => action switch
+    {
+        BuiltInAction.HideApplication or BuiltInAction.ExitApplication
+            or BuiltInAction.RestartApplication or BuiltInAction.CancelTask
+            or BuiltInAction.LockMachine or BuiltInAction.ProposeShutdown
+            or BuiltInAction.ProposeRestart => true,
+        BuiltInAction.ShowApplication or BuiltInAction.OpenSettings
+            or BuiltInAction.OpenDocumentation or BuiltInAction.OpenSetup
+            or BuiltInAction.ShowHelp or BuiltInAction.ShowVersion
+            or BuiltInAction.ShowStatus or BuiltInAction.ShowCurrentTaskProgress
+            or BuiltInAction.StopSpeaking or BuiltInAction.CancelPowerAction
+            or BuiltInAction.ShowPowerStatus or BuiltInAction.ListGrants
+            or BuiltInAction.ManageGrants => false,
+        _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unsupported model action."),
+    };
+
+    private async Task ApproveModelActionAsync(
+        ModelApprovalScope scope,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        var action = ValidateModelActionApproval(
+            scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
+
+        var approval = pendingModelActionAudit;
+        try
+        {
+            var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == action);
+            await StopModelApprovalPromptAsync();
+            if (!ReferenceEquals(pendingModelActionAudit, approval))
+            {
+                return;
+            }
+
+            if (scope == ModelApprovalScope.Always
+                && !SaveModelApprovalPreferences(
+                    requireAssistantNameForVoiceApproval,
+                    alwaysAllowedModelActions.Append(action).Distinct(),
+                    initiator))
+            {
+                return;
+            }
+
+            if (scope == ModelApprovalScope.Session)
+            {
+                sessionAllowedModelActions.Add(action);
+                OnPropertyChanged(nameof(SessionAllowedModelActions));
+            }
+            else if (scope == ModelApprovalScope.Always)
+            {
+                alwaysAllowedModelActions.Add(action);
+                OnPropertyChanged(nameof(AlwaysAllowedModelActions));
+            }
+
+            if (scope != ModelApprovalScope.Once)
+            {
+                GrantDocumentChanged?.Invoke(this, GetGrantDocument());
+            }
+            ClearPendingModelAction($"approved-{scope.ToString().ToLowerInvariant()}");
+            await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion);
+            if (ShouldSpeakResponse(action))
+            {
+                await SpeakCurrentResponseAsync();
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException or HttpRequestException or JsonException or InvalidDataException)
+        {
+            ApplicationLog.Error(logger, exception, "Executing an approved model-suggested action");
+            ShowFailure("The approved action failed.", exception.Message);
+        }
+    }
+
+    internal static BuiltInAction ValidateModelActionApproval(
+        ModelApprovalScope scope, BuiltInAction? pendingAction,
+        bool busy, bool modelSetup, bool powerShellSetup)
+    {
+        if (!Enum.IsDefined(scope))
+        {
+            throw new ArgumentOutOfRangeException(nameof(scope));
+        }
+
+        if (pendingAction is not { } action)
+        {
+            throw new InvalidOperationException("No model-suggested action is awaiting approval.");
+        }
+
+        if (busy || modelSetup || powerShellSetup)
+        {
+            throw new InvalidOperationException("A model-suggested action cannot run while setup is active.");
+        }
+
+        return action;
+    }
+
+    public void RejectPendingModelAction()
+    {
+        if (pendingModelAction is null)
+        {
+            return;
+        }
+
+        ClearPendingModelAction("user-declined");
+        ShowInformation("Model action declined.", "No action was performed.");
+    }
+
+    public async Task RejectPendingModelActionAsync()
+    {
+        if (IsModelActionApprovalPending)
+        {
+            var approval = pendingModelActionAudit;
+            await StopModelApprovalPromptAsync();
+            if (ReferenceEquals(pendingModelActionAudit, approval))
+            {
+                RejectPendingModelAction();
+            }
+        }
+    }
+
+    private async Task StopModelApprovalPromptAsync()
+    {
+        if (!isModelApprovalPromptActive)
+        {
+            return;
+        }
+
+        await textToSpeech.StopAsync();
+        activeSpokenText = null;
+        IsSpeaking = false;
+        if (activeReasoningTask is { } promptTask)
+        {
+            await promptTask;
+        }
+    }
+
+    private void ClearPendingModelAction(string reason)
+    {
+        if (pendingModelActionAudit is { } audit)
+        {
+            CompleteAudit(
+                audit,
+                reason.StartsWith("approved-", StringComparison.Ordinal)
+                    ? SecurityAuditOutcome.Succeeded
+                    : SecurityAuditOutcome.Cancelled,
+                reason);
+        }
+
+        pendingModelActionAudit = null;
+        pendingModelAction = null;
+        OnPropertyChanged(nameof(IsModelActionApprovalPending));
+        OnPropertyChanged(nameof(IsApprovalPending));
+        OnPropertyChanged(nameof(IsResponseInteractionPending));
+        ApproveModelActionCommand.NotifyCanExecuteChanged();
+        ApproveModelActionForSessionCommand.NotifyCanExecuteChanged();
+        ApproveModelActionAlwaysCommand.NotifyCanExecuteChanged();
+        RejectModelActionCommand.NotifyCanExecuteChanged();
+        NotifyOutputPolicyChanged();
+    }
+
+    private async Task SpeakCurrentResponseAsync(string? spokenText = null)
     {
         if (!IsSpeechResponseEnabled)
         {
             return;
         }
 
-        var spokenText = $"{ResponseTitle}. {ResponseBody}";
+        spokenText ??= $"{ResponseTitle}. {ResponseBody}";
         IsSpeaking = true;
         activeSpokenText = spokenText;
         ApplicationLog.Debug(logger, "Starting spoken response output");
@@ -2596,7 +4301,8 @@ public sealed class MainViewModel : ObservableObject
                 HideApplication();
                 break;
             case BuiltInAction.ExitApplication:
-                await ExitAsync();
+                await ExitAsync(initiator == SecurityAuditInitiator.ModelSuggestion
+                    && isModelActionDispatchActive);
                 break;
             case BuiltInAction.RestartApplication:
                 await RestartApplicationAsync(initiator);
@@ -2617,25 +4323,105 @@ public sealed class MainViewModel : ObservableObject
                 break;
             case BuiltInAction.OpenSetup:
                 await DetectMicrophonesAsync();
+                ShowSettings();
                 break;
             case BuiltInAction.ShowHelp:
                 ShowInformation(
                     "Built-in commands are ready.",
-                    $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list, or try lock, lifecycle, status, and protected power proposals.");
+                    $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
+                    + (Dependencies.Any(status =>
+                        string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
+                        && status.Readiness == DependencyReadiness.Ready)
+                        ? "You can also ask other questions; answers use the verified local model."
+                        : "Other questions require a verified local model; open setup to check readiness."));
                 break;
             case BuiltInAction.ShowVersion:
                 ShowInformation(
                     $"{AssistantName} version",
-                    $"{applicationInfo.Version} · local Windows speech · no model configured");
+                    $"{applicationInfo.Version} · local Windows speech · "
+                    + (Dependencies.Any(status =>
+                        string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
+                        && status.Readiness == DependencyReadiness.Ready)
+                        ? "local model ready"
+                        : "local reasoning unavailable"));
                 break;
             case BuiltInAction.ShowStatus:
+                var outstanding = SetupTasks
+                    .Where(task => task.State is SetupTaskState.Running
+                        or SetupTaskState.NeedsAction or SetupTaskState.Failed)
+                    .ToArray();
                 ShowInformation(
-                    IsListening ? "Waiting for your command." : "Voice is not active.",
-                    IsListening ? ListeningStatus : "Enable listening or use the typed proof field.");
+                    outstanding.FirstOrDefault(task => task.State == SetupTaskState.Running) is { } active
+                        ? $"Setting up {active.Name}."
+                        : outstanding.Length > 0
+                            ? "Setup needs attention."
+                            : IsListening ? "Waiting for your command." : "Voice is not active.",
+                    outstanding.Length > 0
+                        ? string.Join(" ", outstanding.Select(task =>
+                            $"{task.Name}: {task.State} — {task.Detail}"))
+                        : IsListening ? ListeningStatus : "Enable listening or use the typed proof field.");
+                break;
+            case BuiltInAction.ShowCurrentTaskProgress:
+                var currentTask = dependencyBootstrapper.Tasks.ActiveTask;
+                if (currentTask is not null)
+                {
+                    ShowInformation(
+                        $"{currentTask.Name}: running.",
+                        currentTask.ProgressPercentage is { } percentage
+                            ? $"Current stage: {currentTask.Detail} Completion: {percentage}%."
+                            : $"Current stage: {currentTask.Detail} No completion percentage is available for this task.");
+                    break;
+                }
+
+                var nextTask = SetupTasks.FirstOrDefault(task =>
+                    task.State is SetupTaskState.Queued or SetupTaskState.NeedsAction or SetupTaskState.Failed);
+                ShowInformation(
+                    "No task is running.",
+                    nextTask is null
+                        ? "There is no active or pending setup task."
+                        : $"{nextTask.Name}: {nextTask.State}. {nextTask.Detail}");
                 break;
             case BuiltInAction.CancelTask:
                 CancelPendingPowerAudit("task-cancelled");
-                ShowInformation("Cancelled.", $"No pending {AssistantName} task or power proposal will continue.");
+                if (powerShellSetupCancellation is not null)
+                {
+                    await powerShellSetupCancellation.CancelAsync();
+                    ShowInformation("Cancelling PowerShell setup.", "The approved installation is stopping.");
+                }
+                else if (localModelCancellation is not null)
+                {
+                    await localModelCancellation.CancelAsync();
+                    ShowInformation("Cancelling local model setup.", "The running setup step is stopping.");
+                }
+                else if (activeReasoningCancellation is not null)
+                {
+                    var running = activeReasoningTask;
+                    await activeReasoningCancellation.CancelAsync();
+                    if (IsSpeaking)
+                    {
+                        await textToSpeech.StopAsync();
+                        activeSpokenText = null;
+                        IsSpeaking = false;
+                    }
+
+                    if (running is not null)
+                    {
+                        await running;
+                    }
+
+                    var cancelled = SetupTasks.Any(task =>
+                        string.Equals(task.Id, "local.reasoning", StringComparison.Ordinal)
+                        && task.State == SetupTaskState.Cancelled);
+                    ShowInformation(
+                        cancelled ? "Local request cancelled." : "Local answer already completed.",
+                        cancelled
+                            ? "The local model request was stopped."
+                            : "No further model work is running. Speech playback was stopped.");
+                }
+                else
+                {
+                    ShowInformation("Cancelled.", $"No running {AssistantName} task or power proposal will continue. Setup items needing your action remain available.");
+                }
                 break;
             case BuiltInAction.StopSpeaking:
                 await StopSpeakingAsync();
@@ -2669,6 +4455,20 @@ public sealed class MainViewModel : ObservableObject
                     },
                     "Power execution is intentionally disabled in this bootstrap proof.");
                 break;
+            case BuiltInAction.ListGrants:
+                var markdown = GetGrantDocument();
+                GrantDocumentRequested?.Invoke(this, markdown);
+                ShowInformation(
+                    "Model-action grants",
+                    "The current session and always grants are shown in the grant document window.");
+                break;
+            case BuiltInAction.ManageGrants:
+                ShowInformation(
+                    "Manage grants",
+                    "Select an action, Add, Remove, or Move, and the grant scope. For Move, select the destination after 'to'. Prepare the exact change before confirming it.");
+                IsGrantEditorVisible = true;
+                WindowActionRequested?.Invoke(this, WindowAction.Show);
+                break;
             default:
                 throw new InvalidOperationException($"Unsupported built-in action: {command.Action}.");
         }
@@ -2683,7 +4483,8 @@ public sealed class MainViewModel : ObservableObject
             CurrentApplicationTarget);
         try
         {
-            await StopAudioAsync();
+            await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
+                && isModelActionDispatchActive);
             applicationProcessController.RestartCurrentApplication();
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             WindowActionRequested?.Invoke(this, WindowAction.Close);
@@ -2720,7 +4521,8 @@ public sealed class MainViewModel : ObservableObject
             CurrentWindowsSessionTarget);
         try
         {
-            await StopAudioAsync();
+            await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
+                && isModelActionDispatchActive);
             if (sessionController.LockCurrentSession())
             {
                 CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
@@ -2816,7 +4618,9 @@ public sealed class MainViewModel : ObservableObject
         State = responseState;
         ResponseTitle = title;
         ResponseBody = body;
-        forceVisualResponse = responseState == AssistantState.Failure || !IsSpeechOutputAvailable;
+        forceVisualResponse = responseState == AssistantState.Failure
+            || IsResponseInteractionPending || IsGrantEditorVisible
+            || !IsSpeechOutputAvailable;
         NotifyOutputPolicyChanged();
         if (!isInitializing
             && requestWindow
@@ -2841,6 +4645,10 @@ public sealed class MainViewModel : ObservableObject
             .SelectMany(command => command.AllPhrases);
         return commands
             .SelectMany(phrase => new[] { phrase, $"{AssistantName} {phrase}" })
+            .Concat(ModelApprovalSpeech.GetPhrases(AssistantName))
+            .Concat(pendingModelQuestion is { } question
+                ? LocalModelQuestionSpeech.GetPhrases(question, AssistantName)
+                : [])
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }

@@ -1,8 +1,10 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 using AwesomeAssertions;
 
 using Kora.Application.Documentation;
+using Kora.Core.Commands;
 
 namespace Kora.Application.UnitTests.Documentation;
 
@@ -26,11 +28,42 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "commands",
             "windows-and-tray",
             "privacy-safety-and-logs",
+            "skill-and-task-execution-design",
             "troubleshooting");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));
         provider.GetStartPage().Should().Be(first[0]);
+    }
+
+    [Fact]
+    public void Embedded_command_guide_lists_every_task_and_its_exact_variants()
+    {
+        var page = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal));
+        var commands = new BuiltInCommandCatalog().GetCommands();
+        var sections = Regex.Split(
+                page.Markdown,
+                "^### ",
+                RegexOptions.Multiline,
+                TimeSpan.FromSeconds(1))
+            .Skip(1)
+            .ToArray();
+
+        sections.Should().HaveCount(commands.Count);
+        for (var index = 0; index < commands.Count; index++)
+        {
+            var phrases = Regex.Matches(
+                    sections[index],
+                    @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+                    RegexOptions.Multiline,
+                    TimeSpan.FromSeconds(1))
+                .Select(match => match.Groups["phrase"].Value.ToLowerInvariant());
+
+            phrases.Should().Equal(
+                commands[index].AllPhrases.Select(phrase => phrase.ToLowerInvariant()),
+                because: $"the {commands[index].Action} task must document all of its variants in catalog order");
+        }
     }
 
     [Fact]

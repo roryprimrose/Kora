@@ -84,7 +84,7 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Unsupported playback echo rejection disables TTS explicitly, not wake activation; the reference setup must support spoken responses and verbal interruption.
 - A new snapshot/destination triggers a new policy assessment.
 - The A2 local-only workflow produces the clipboard answer through the pinned Ollama adapter/model with remote network access blocked; missing/unhealthy local inference reports unavailable and never falls back to Copilot.
-- "Kora, lock the machine" invokes the original bundled skill/script without a model/network call, including while another task is busy.
+- The future "Kora, lock the machine" route invokes the original bundled skill/script without a model/network call, including while another task is busy, after the same action-specific gate as model-suggested lock. The current direct Windows-API route is not that skill.
 - The script's application-assembly/resource identity, version, digest, and fixed parameters are verified; tampering or a same-name user package cannot substitute its implementation.
 - Confirm lock by the actual Windows session event; API acceptance/script exit without that event is not reported as confirmed success.
 
@@ -102,7 +102,7 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Wake Listening, Capturing Command, Muted, Session Locked, and Unavailable are distinguishable, including background-app status.
 - Closing/clearing the conversation and the 30-minute idle expiry clear ephemeral context references.
 - Restart does not restore default ephemeral history.
-- Exercise every grant type: single-use, task, conversation, process-session, time-bound, persistent-device, and preconfigured.
+- Exercise every proposed grant type: single-use, task, conversation, process-session, time-bound, persistent-device, and preconfigured. Test future `always` executable grants separately against exact version/digest/invocation identity; current named model-action `Always` is not such a grant.
 - Verify default single-use scope, explicit maximum expiry, no cross-task/follow-up/provider/account/skill/process/device inheritance, and revocation on the documented lock/sign-out/restart/policy/schema transitions.
 - The native Permissions & Approvals surface lists canonical scope, identity, destination, hashes, creator channel, expiry, last use/use count, policy revision, and revocation reason without raw sensitive content.
 - Narrowing/shortening edits in place; broadening, persistence conversion, identity/destination change, and restoring revoked/expired access require a new native-confirmed grant.
@@ -110,6 +110,7 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Clipboard/private-context capture, every egress operation, remote reads, privacy expansion, persistent preferences, and skill enablement fall back to native confirmation when owner presence is absent.
 - Denied canonical proposals are deduplicated/rate-limited and cannot be rephrased, split, or escalated repeatedly by models/tools/providers/skills; distinct resources/effects are never hidden in a broad bundled approval.
 - Newly displayed native approval controls ignore pre-existing key/mouse input and remain unarmed for at least 500 ms.
+- Verify that model answers, clarifying questions, and action/grant proposals cannot execute an unregistered action, invent a grant scope, or bypass host validation; model-suggested lock must require approval. For the future shared execution gate, an exact direct lock request must require the same action-specific grant; the current direct Windows-API lock remains ungated and does not pass this future test.
 
 ### Mouse-Based Questions and Device Recovery
 
@@ -154,6 +155,7 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - The lock script cannot access protected Kora resources, arbitrary commands, remote endpoints, credentials, or elevation under its actual execution profile.
 - Missing containment or session-control support is an explicit failed gate, not permission to run an unrestricted fallback.
 - Denied, failed, and unconfirmed lock attempts have truthful receipts and no automatic uncertain retry.
+- Future script-backed lock and other side-effecting built-ins require an exact, version-bound approval on both direct and suggested routes; PowerShell installation alone grants no execution permission. Verify once/session/always hash-bound execution grants, invalidation on changed implementation/invocation/dependencies, and that read-only commands remain available without the runner. See [skill and task execution design](../docs/skill-and-task-execution-design.md).
 - Ordinary background-task permissions are not confused with microphone policy; no interactive approval is accepted while locked.
 
 Use real Windows session events and device handles on the reference setups, with synthetic audio and disposable protected-resource fixtures.
@@ -401,10 +403,13 @@ An install-capable updater remains unavailable until independent signed-metadata
 - First launch resolves known folders, creates its expected stores, and initialises SQLite without an external database installer.
 - Rerun reuses valid data/schema; migration failure does not delete user data or silently create an alternative database.
 - The setup UI works with no model/provider/speech recogniser configured and explains the initial visual setup exception.
+- Storage and SQLite initialisation plus the independently queued PowerShell 7 readiness/setup task remain available when Ollama is absent or inference fails; none is marked blocked solely by unavailable inference.
+- The currently supported local plan offers separately consented per-user Ollama 0.35.1 and `qwen3:1.7b`; verify the pinned digest and a completed nonempty response from loopback inference, not only endpoint/model metadata. Malformed metadata yields an incompatible readiness state without aborting startup.
 - Capability probes distinguish absence, incompatibility, failed health checks, and blocked setup; installer exit code alone cannot mark Ready.
 - Selecting a remote-only provider does not install Ollama; selecting a delivered local adapter offers only its required runtime/model steps.
 - A pre-existing healthy Ollama installation/model is reused without changed ownership, settings, startup, deletion, or unrelated process termination.
 - Approved Ollama setup verifies endpoint/version and real model inference; insufficient disk/hardware, network failure, or rejection leaves an explicit readiness state.
+- Keep D-003 open until reference CPU-only latency, answer/cancellation quality, licence/storage evidence, and network-blocked offline proof are recorded; a successful bootstrap inference check is insufficient.
 - Downloads/machine changes display exact sources, sizes, destinations, ownership, and any elevation before consent.
 - No task/skill/model-supplied URL, command, or executable can enter the protected setup catalogue or modify Kora code.
 - Lock/mute/unknown-session policy still gates microphone setup tests; no setup helper reopens capture against policy.

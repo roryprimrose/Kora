@@ -1,6 +1,9 @@
 # Out-of-the-Box Skills and Session Policy
 
-Status: proposed. Initial bundled computer-management skills are included in Slice A.
+Status: proposed bundled-script design, not a shipped skill runner. The current
+bootstrap implements exact direct Windows-API lock and model-suggested lock approval,
+but not embedded `.ps1` skills, script review, or hash-bound execution grants.
+See [future execution design](../docs/skill-and-task-execution-design.md).
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -75,7 +78,13 @@ Behaviour:
 5. Observe the Windows session-lock notification; an accepted API request alone does not prove the session locked.
 6. Enforce microphone policy immediately on lock, regardless of how the lock occurred.
 
-An unambiguous direct user request is consent to lock this session; no second confirmation is required.
+An unambiguous direct request identifies the intended lock, but is not
+itself an execution grant. Under the future common gate, direct and
+model-suggested lock both require action-specific approval for the exact
+version-bound implementation, with once/session/always duration choices;
+no separate named spoken confirmation is required as for shutdown/restart.
+Today direct exact lock is still ungated, while model-suggested lock is
+approval-gated. Do not present the current discrepancy as the intended policy.
 Ambiguous or quoted/retrieved mentions of locking are not an invocation.
 The skill cannot select another user/session, unlock Windows, obtain credentials, elevate, or lock repeatedly on a timer.
 
@@ -96,6 +105,11 @@ The script must not be able to clear policy, reopen the microphone, or modify Ko
 - Verify Windows session-control API access under that actual profile before selecting the script engine.
 - Containment and protected-resource tests are Slice A release gates for this script, not deferred general plugin work.
 - Reject tampered scripts or unavailable containment explicitly; do not fall back to unrestricted PowerShell or other ambient-rights execution.
+
+These are release conditions for enabling scripts, not effects of installing
+PowerShell 7. Future side-effecting native built-ins also require the common
+version-bound gate; read-only commands and safety interruptions remain usable
+without PowerShell or a script grant.
 
 General script import, generation, installation, and execution remain outside the MVP.
 Shipping fixed scripts does not enable arbitrary user scripts.

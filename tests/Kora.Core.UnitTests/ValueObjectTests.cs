@@ -4,6 +4,7 @@ using AwesomeAssertions;
 
 using Kora.Core.Commands;
 using Kora.Core.Communication;
+using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Voice;
@@ -130,6 +131,63 @@ public sealed class ValueObjectTests
         voice.ProviderId.Should().Be(SpeechProviderIds.Windows);
         transcript.Transcript.Should().Be("help");
         transcript.Confidence.Should().Be(0.8f);
+    }
+
+    [Fact]
+    public void Setup_and_model_value_objects_preserve_their_context()
+    {
+        var dependencies = new[] { new LocalModelDependency("SQLite", DependencyReadiness.Missing) };
+        var tasks = new[] { new LocalModelTask("Install SQLite", SetupTaskState.Running, 42) };
+        var context = new LocalModelContext("Nova", true, "Shutdown", dependencies, tasks);
+        var question = new LocalModelQuestion("Continue?", ["Yes", "No"]);
+        var change = new GrantChange(GrantChangeOperation.Add, BuiltInAction.ShowHelp,
+            ModelApprovalScope.Session, ModelApprovalScope.Always);
+        var response = new LocalModelResponse("Done", BuiltInAction.ShowHelp, change, question);
+        var approval = new ModelApprovalPreferences(true, [BuiltInAction.ShowHelp]);
+
+        context.AssistantName.Should().Be("Nova");
+        context.IsListening.Should().BeTrue();
+        context.PendingPowerAction.Should().Be("Shutdown");
+        context.Dependencies.Should().BeSameAs(dependencies);
+        context.Tasks.Should().BeSameAs(tasks);
+        response.Answer.Should().Be("Done");
+        response.Action.Should().Be(BuiltInAction.ShowHelp);
+        response.GrantChange.Should().BeSameAs(change);
+        response.Question.Should().BeSameAs(question);
+        change.Operation.Should().Be(GrantChangeOperation.Add);
+        change.Action.Should().Be(BuiltInAction.ShowHelp);
+        change.Scope.Should().Be(ModelApprovalScope.Session);
+        change.TargetScope.Should().Be(ModelApprovalScope.Always);
+        approval.RequireAssistantNameForVoiceApproval.Should().BeTrue();
+        approval.AlwaysAllowedActions.Should().ContainSingle().Which.Should().Be(BuiltInAction.ShowHelp);
+        tasks[0].Name.Should().Be("Install SQLite");
+        tasks[0].State.Should().Be(SetupTaskState.Running);
+        tasks[0].ProgressPercentage.Should().Be(42);
+    }
+
+    [Fact]
+    public void Optional_voice_and_window_settings_preserve_their_values()
+    {
+        var microphone = new MicrophoneAccessStatus(MicrophoneAccessState.Allowed, "Available");
+        var offer = new OptionalSpeechProviderOffer("Install speech", "Local voice",
+            SpeechProviderIds.Kokoro, IsRecovery: true);
+        var offerState = new OptionalSpeechOfferState(true, SpeechProviderIds.Kokoro);
+        var failure = new VoiceRecognitionFailureEventArgs("Microphone unavailable");
+        var window = new ResponseWindowSettings(true, false, null);
+
+        microphone.State.Should().Be(MicrophoneAccessState.Allowed);
+        microphone.Detail.Should().Be("Available");
+        offer.Title.Should().Be("Install speech");
+        offer.Detail.Should().Be("Local voice");
+        offer.ProviderId.Should().Be(SpeechProviderIds.Kokoro);
+        offer.IsRecovery.Should().BeTrue();
+        offerState.InitialOfferHandled.Should().BeTrue();
+        offerState.MissingProviderNotified.Should().Be(SpeechProviderIds.Kokoro);
+        failure.Message.Should().Be("Microphone unavailable");
+        window.AlwaysShow.Should().BeTrue();
+        window.Topmost.Should().BeFalse();
+        window.Position.Should().BeNull();
+        ResponseWindowSettings.Default.AlwaysShow.Should().BeFalse();
     }
 
     [Fact]

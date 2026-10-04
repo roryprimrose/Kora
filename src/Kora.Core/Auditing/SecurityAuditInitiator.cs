@@ -6,4 +6,5 @@ public enum SecurityAuditInitiator
     LocalUser,
     TypedCommand,
     VoiceCommand,
+    ModelSuggestion,
 }

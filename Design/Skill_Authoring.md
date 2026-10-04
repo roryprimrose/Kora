@@ -44,6 +44,11 @@ No inline evaluation, shell commands, scripts, assemblies, native libraries, arb
 Registered tool references do not allow a skill to install or redefine the tool implementation.
 A skill needing a new executable capability can describe the missing dependency, but installing that implementation is an out-of-band developer/operator action.
 This restriction applies to user authoring. [Bundled skills](Built_In_Skills.md) may ship protected first-party scripts installed with the application.
+Neither bundled script execution nor user-authored executable skills ship in
+the current bootstrap. A future execution model for stored user-approved
+scripts and content-bound grants is specified separately in
+[skill and task execution design](../docs/skill-and-task-execution-design.md);
+this Slice C declarative authoring policy does not itself authorise scripts.
 
 ## Storage and Versioning
 

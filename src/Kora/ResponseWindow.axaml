@@ -4,9 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="{Binding AssistantName}"
     Width="560"
-    Height="350"
+    Height="650"
     MinWidth="480"
-    MinHeight="300"
+    MinHeight="570"
     Background="Transparent"
     CanResize="False"
     ShowActivated="False"
@@ -22,7 +22,7 @@
       BorderBrush="{DynamicResource KoraBorderBrush}"
       BorderThickness="1"
       CornerRadius="16">
-    <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel
             Spacing="4"
@@ -42,13 +42,14 @@
             VerticalAlignment="Top" />
       </Grid>
 
-      <TextBlock
-          Grid.Row="1"
-          Text="{Binding ResponseBody}"
-          Classes="muted"
-          FontSize="12"
-          LineHeight="19"
-          TextWrapping="Wrap" />
+      <ScrollViewer Grid.Row="1" MaxHeight="150" VerticalScrollBarVisibility="Auto">
+        <TextBlock
+            Text="{Binding ResponseBody}"
+            Classes="muted"
+            FontSize="12"
+            LineHeight="19"
+            TextWrapping="Wrap" />
+      </ScrollViewer>
 
       <Border
           Grid.Row="2"
@@ -61,7 +62,61 @@
         </StackPanel>
       </Border>
 
-      <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="9">
+      <StackPanel
+          Grid.Row="3"
+          Orientation="Horizontal"
+          Spacing="10"
+          IsVisible="{Binding IsModelActionApprovalPending}">
+        <Button
+            Classes="primary"
+            Content="Once"
+            Command="{Binding ApproveModelActionCommand}" />
+        <Button
+            Content="This session"
+            Command="{Binding ApproveModelActionForSessionCommand}" />
+        <Button
+            Content="Always"
+            Command="{Binding ApproveModelActionAlwaysCommand}" />
+        <Button
+            Content="Reject"
+            Command="{Binding RejectModelActionCommand}" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="4" Spacing="6" IsVisible="{Binding IsGrantEditorVisible}">
+        <TextBlock Text="Choose exact grant change" Classes="eyebrow" />
+        <ComboBox ItemsSource="{Binding GrantActions}" SelectedItem="{Binding SelectedGrantAction}" DisplayMemberBinding="{Binding Action}" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ComboBox ItemsSource="{Binding GrantOperations}" SelectedItem="{Binding SelectedGrantOperation}" />
+          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantScope}" />
+          <TextBlock Text="to" VerticalAlignment="Center" />
+          <ComboBox ItemsSource="{Binding GrantScopes}" SelectedItem="{Binding SelectedGrantTargetScope}" />
+          <Button Content="Prepare" Command="{Binding PrepareGrantChangeCommand}" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsGrantChangePending}">
+        <Button Classes="primary" Content="Confirm grant change" Command="{Binding ConfirmGrantChangeCommand}" />
+        <Button Content="Reject" Command="{Binding RejectGrantChangeCommand}" />
+      </StackPanel>
+
+      <StackPanel Grid.Row="6" Spacing="6" IsVisible="{Binding IsModelQuestionPending}">
+        <TextBlock Text="CHOOSE AN OPTION (NOT AN APPROVAL)" Classes="eyebrow" />
+        <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding ModelQuestionChoices}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Tag="{Binding}" Click="OnQuestionChoiceClicked"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,2">
+                  <TextBlock Text="{Binding DisplayText}" TextWrapping="Wrap" MaxWidth="390" />
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+        <Button Content="Cancel question" Click="OnCancelQuestionClicked" HorizontalAlignment="Left" />
+      </StackPanel>
+
+      <Grid Grid.Row="7" ColumnDefinitions="*,Auto" ColumnSpacing="9">
         <TextBox
             Text="{Binding CommandText}"
             PlaceholderText="Type a command"

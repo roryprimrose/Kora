@@ -26,6 +26,11 @@ Proposed Kora-owned data layout:
 ```
 
 The layout and package schema are versioned; they are not executable search paths.
+This describes the proposed declarative Slice C store, not a shipped
+script runner. Future stored-script execution requires explicit review and
+hash-bound grants under
+[skill and task execution design](../docs/skill-and-task-execution-design.md);
+merely finding or enabling a skill never grants execution.
 Revision metadata can describe source attribution, but cannot carry authoritative grants or choose arbitrary executable implementations.
 Permission/enablement records, source registrations, machine-specific tool configuration, and audit SQLite remain local under `%LOCALAPPDATA%\Kora`.
 Credentials remain in the protected credential facility, never either skill partition.

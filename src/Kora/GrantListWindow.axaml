@@ -1,0 +1,17 @@
+<Window
+    x:Class="Kora.GrantListWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Kora grants"
+    Width="800"
+    Height="640"
+    MinWidth="560"
+    MinHeight="420"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}"
+    WindowStartupLocation="CenterScreen">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel x:Name="GrantDocumentPanel" Margin="40,32,48,50" MaxWidth="700"
+                HorizontalAlignment="Left" Spacing="4" />
+  </ScrollViewer>
+</Window>

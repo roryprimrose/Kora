@@ -10,6 +10,39 @@ Open Settings by:
 The Settings window is single-instance. Changes use the same live application
 state as the constellation and response surfaces.
 
+## Approvals
+
+Model-suggested actions that need approval offer **Once**, **This session**,
+**Always**, and **Reject** on a visible response card. Kora also accepts spoken
+replies after it finishes speaking the approval question. By default, say the
+assistant name first: **"Kora, approve once"**, **"Kora, approve for this
+session"**, **"Kora, always allow this"**, or **"Kora, reject"**. The
+**Require the assistant name before a verbal approval** setting is on by
+default; turn it off to accept those replies without the name while an
+approval is pending.
+The same name-prefix setting applies to verbal answers to a model's
+clarification question. A clarification choice is not an approval; the
+response card shows numbered options separately from grant/action controls.
+
+Approvals are specific to the named built-in action. The **Approvals** tab
+lists active session and always grants separately and lets you revoke either
+kind per action. Session grants end when Kora exits, restarts, or locks
+Windows through Kora. Always grants are stored in Kora's device-local
+Preferences folder and remain until revoked. Any action that requires approval can use any of
+the three scopes; the model cannot choose the scope for you.
+
+## Readiness and required tools
+
+The setup queue checks local storage, SQLite, PowerShell 7 (`pwsh.exe`), and
+Ollama/model inference on startup and refresh. A missing or unhealthy PowerShell
+runtime shows a PowerShell setup task. **Review PowerShell 7 setup** explains
+the per-user winget installation and asks for explicit consent; installation
+and a no-profile health check run only after approval. **Review local model
+setup** separately asks permission to install Ollama and download the pinned
+model. Neither setup button grants permission to run an arbitrary script.
+The optional Kokoro speech provider is offered separately and is not a
+required queued setup task.
+
 ## Appearance
 
 ### Application theme

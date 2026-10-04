@@ -7,7 +7,12 @@ commands, manage its audio and response settings, lock Windows, and prepare
 non-destructive shutdown or restart proposals.
 
 No model, cloud account, or network connection is required for the built-in
-commands documented here.
+tasks and their exact command variants in the
+[voice and typed commands](commands.md) guide. A separately approved local
+model can answer unmatched requests, ask a bounded clarification question with
+spoken or clickable choices, or suggest a named built-in action. Kora validates
+the action and asks for approval before disruptive ones. Choosing an answer to
+a question never grants permission to execute an action.
 
 ## Start here
 
@@ -31,9 +36,10 @@ for the current run; use **Enable listening** to resume it.
 - [Voice, microphone, and speakers](voice-and-audio.md)
 - [Responses and detected calls](responses-and-calls.md)
 - [All settings](settings.md)
-- [Voice and typed commands](commands.md)
+- [All built-in tasks and command variants](commands.md)
 - [Windows, tray, and appearance](windows-and-tray.md)
 - [Privacy, safety, and logs](privacy-safety-and-logs.md)
+- [Skill and task execution design (planned)](skill-and-task-execution-design.md)
 - [Troubleshooting](troubleshooting.md)
 
 ## Open this guide
@@ -46,8 +52,10 @@ If you renamed the assistant, use the configured name instead of Kora.
 
 ## Current limitations
 
-- Kora currently uses a fixed built-in command grammar rather than a language
-  model or open-ended dictation.
+- Built-in actions use an exact phrase grammar, not fuzzy matching. Unmatched
+  typed requests and assistant-name-prefixed voice requests can use the
+  verified local model for answers or suggestions from the built-in action
+  list. Disruptive suggestions require an on-screen approval.
 - Automatic call detection is not currently available. The call-aware settings
   take effect when a supported detector reports an Active or Suspected call.
 - Kora does not speak while its microphone is actively capturing because

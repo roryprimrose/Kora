@@ -12,6 +12,7 @@ public enum BuiltInAction
     ShowHelp,
     ShowVersion,
     ShowStatus,
+    ShowCurrentTaskProgress,
     CancelTask,
     StopSpeaking,
     LockMachine,
@@ -19,4 +20,6 @@ public enum BuiltInAction
     ProposeRestart,
     CancelPowerAction,
     ShowPowerStatus,
+    ListGrants,
+    ManageGrants,
 }

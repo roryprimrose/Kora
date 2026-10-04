@@ -1,5 +1,35 @@
 # Troubleshooting
 
+## Local storage or model setup needs attention
+
+Open Settings > Readiness or use **what do you have left to do** to see the
+current setup task and blocker. Kora recreates missing Kora-owned directories
+and initializes its SQLite schema on startup or refresh. If SQLite fails its
+integrity check, the existing database is retained; restore a known-good
+backup rather than deleting it. The local Ollama probe checks only
+`127.0.0.1:11434`. A responding runtime or installed model does not mean
+Kora can use it for reasoning until a compatible adapter and model health
+check pass. Select **Review local model setup** and approve the pinned
+Ollama 0.35.1 / qwen3:1.7b plan to install and verify them. Setup can be
+cancelled with **cancel task**. A model with the selected name but a
+different digest is not replaced automatically; inspect it before taking
+further action. Built-in commands remain deterministic after inference passes;
+other requests are answered by the verified local model. If a running request
+fails, Kora marks inference unavailable until you refresh readiness. There is
+no cloud fallback.
+
+## PowerShell 7 is missing or failed its check
+
+Open **Settings > Readiness** or ask **what are you currently working on**.
+The PowerShell 7 setup task reports whether `pwsh.exe` is missing, too old,
+or failed its no-profile version check. Select **Review PowerShell 7 setup**
+to approve a per-user winget installation, or **cancel task** to stop a
+running install. Refresh readiness afterward. A package-manager success is
+not sufficient: Kora must verify PowerShell 7.4 or later before reporting
+the task complete. If a corrupt installation or package-manager failure
+persists, review the reported error and repair the installation manually.
+Kora does not run user-created scripts during this check.
+
 ## Kora cannot hear commands
 
 1. Confirm an English Windows speech recognizer is installed.
@@ -57,6 +87,11 @@ For the Windows provider, install a Windows text-to-speech voice or language
 speech pack, then refresh readiness. For Kokoro, select the provider and choose
 **Download**. It becomes available after validation and preparation without a
 restart. Typed commands and visual responses remain available.
+
+Kokoro is optional and is not queued automatically. The first-run offer opens
+Settings only if you choose to review it; downloading still requires selecting
+**Download**. If a previously selected provider disappears, Kora offers a
+recovery prompt once per loss episode rather than downloading it silently.
 
 If a Kokoro download fails, Kora leaves it unavailable and removes temporary
 asset files. Check network access and free space, then try Download again.

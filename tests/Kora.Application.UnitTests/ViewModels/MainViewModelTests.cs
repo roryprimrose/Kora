@@ -1348,6 +1348,99 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public async Task First_run_offers_missing_optional_speech_once_without_queueing_or_downloading_it()
+    {
+        var fixture = new Fixture();
+        fixture.TextToSpeech.Providers =
+        [
+            CreateWindowsProvider(),
+            CreateKokoroProvider(isInstalled: false),
+        ];
+        await fixture.ViewModel.InitializeAsync();
+
+        var offer = fixture.ViewModel.GetOptionalSpeechProviderOffer();
+
+        offer.Should().NotBeNull();
+        offer!.IsRecovery.Should().BeFalse();
+        offer.ProviderId.Should().Be(SpeechProviderIds.Kokoro);
+        fixture.ViewModel.SetupTasks.Should().NotContain(task =>
+            string.Equals(task.Id, SpeechProviderIds.Kokoro, StringComparison.Ordinal));
+        fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
+
+        fixture.ViewModel.AcknowledgeOptionalSpeechProviderOffer(offer, openSettings: false);
+        fixture.ViewModel.GetOptionalSpeechProviderOffer().Should().BeNull();
+        fixture.ViewModel.SelectedSpeechProvider?.Id.Should().Be(SpeechProviderIds.Windows);
+        fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Missing_previously_selected_speech_provider_is_offered_once_per_loss_episode()
+    {
+        var fixture = new Fixture();
+        fixture.Preferences.ProviderId = SpeechProviderIds.Kokoro;
+        fixture.TextToSpeech.Providers =
+        [
+            CreateWindowsProvider(),
+            CreateKokoroProvider(isInstalled: true),
+        ];
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.GetOptionalSpeechProviderOffer().Should().BeNull();
+
+        fixture.TextToSpeech.Providers =
+        [
+            CreateWindowsProvider(),
+            CreateKokoroProvider(isInstalled: false),
+        ];
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        var offer = fixture.ViewModel.GetOptionalSpeechProviderOffer();
+        offer.Should().NotBeNull();
+        offer!.IsRecovery.Should().BeTrue();
+        fixture.ViewModel.AcknowledgeOptionalSpeechProviderOffer(offer, openSettings: false);
+        fixture.ViewModel.GetOptionalSpeechProviderOffer().Should().BeNull();
+
+        fixture.TextToSpeech.Providers =
+        [
+            CreateWindowsProvider(),
+            CreateKokoroProvider(isInstalled: true),
+        ];
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        fixture.ViewModel.GetOptionalSpeechProviderOffer().Should().BeNull();
+
+        fixture.TextToSpeech.Providers =
+        [
+            CreateWindowsProvider(),
+            CreateKokoroProvider(isInstalled: false),
+        ];
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        fixture.ViewModel.GetOptionalSpeechProviderOffer().Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Reviewing_optional_speech_selects_it_in_settings_without_starting_a_download()
+    {
+        var fixture = new Fixture();
+        fixture.TextToSpeech.Providers =
+        [
+            CreateWindowsProvider(),
+            CreateKokoroProvider(isInstalled: false),
+        ];
+        await fixture.ViewModel.InitializeAsync();
+        var settingsRequests = 0;
+        fixture.ViewModel.SettingsRequested += (_, _) => settingsRequests++;
+        var offer = fixture.ViewModel.GetOptionalSpeechProviderOffer();
+
+        fixture.ViewModel.AcknowledgeOptionalSpeechProviderOffer(offer!, openSettings: true);
+
+        settingsRequests.Should().Be(1);
+        fixture.ViewModel.SelectedSpeechProvider?.Id.Should().Be(SpeechProviderIds.Kokoro);
+        fixture.ViewModel.CanDownloadSpeechProvider.Should().BeTrue();
+        fixture.TextToSpeech.InstallProviderCalls.Should().Be(0);
+        fixture.ViewModel.SetupTasks.Should().NotContain(task =>
+            string.Equals(task.Id, SpeechProviderIds.Kokoro, StringComparison.Ordinal)
+            || string.Equals(task.Id, "windows.tts", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Downloading_a_provider_without_voices_keeps_the_working_provider_active()
     {
         var fixture = new Fixture();
@@ -2701,7 +2794,9 @@ public sealed class MainViewModelTests
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
-            commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" }));
+            commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
+                .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
         fixture.ViewModel.IsListening.Should().BeTrue();
         fixture.ViewModel.State.Should().Be(AssistantState.Listening);
         fixture.ViewModel.ListeningButtonText.Should().Be("Disable listening");
@@ -2937,6 +3032,882 @@ public sealed class MainViewModelTests
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
     }
 
+    [Fact]
+    public async Task Unmatched_typed_request_uses_verified_local_model_without_executing_actions()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("Kora, why is the sky blue?");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which.Should().Be("why is the sky blue?");
+        fixture.ViewModel.ResponseTitle.Should().Be("Local model response");
+        fixture.ViewModel.ResponseBody.Should().Contain("A local answer.");
+        fixture.ViewModel.SetupTasks.Should().Contain(task =>
+            task.Id == "local.reasoning" && task.State == SetupTaskState.Completed);
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Built_in_commands_take_precedence_over_a_ready_model()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("Kora, open preferences");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Settings");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Model_can_request_a_read_only_built_in_action_through_the_host()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.ShowVersion;
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("tell me your running version");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle();
+        fixture.Reasoner.LastContext!.Dependencies.Should().Contain(status =>
+            status.Name == "Local model inference (Ollama)"
+            && status.Readiness == DependencyReadiness.Ready);
+        fixture.Reasoner.LastContext.Tasks.Should().NotContain(task =>
+            task.Name == "Local model response");
+        fixture.ViewModel.ResponseTitle.Should().Be("Kora version");
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Model_requested_session_lock_waits_for_explicit_approval()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
+
+        await fixture.RunAsync("please lock this workstation");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Contain("Lock the current Windows session.");
+        await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync();
+
+        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.Audit.Events.Should().Contain(entry =>
+            entry.ActionId == "model.action.lockmachine"
+            && entry.Initiator == SecurityAuditInitiator.ModelSuggestion
+            && entry.Outcome == SecurityAuditOutcome.Succeeded);
+
+        await fixture.RunAsync("please lock this workstation again");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.Session.LockCalls.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(BuiltInAction.HideApplication)]
+    [InlineData(BuiltInAction.ExitApplication)]
+    [InlineData(BuiltInAction.RestartApplication)]
+    [InlineData(BuiltInAction.CancelTask)]
+    [InlineData(BuiltInAction.ProposeShutdown)]
+    [InlineData(BuiltInAction.ProposeRestart)]
+    public async Task Other_disruptive_model_actions_wait_for_user_approval(
+        BuiltInAction action)
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = action;
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("please do something with the application");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Approve a model-suggested action?");
+        fixture.WindowActions.Should().NotContain(WindowAction.Close);
+        fixture.Events.Should().NotContain("process.restart");
+        fixture.ViewModel.RejectPendingModelAction();
+    }
+
+    [Fact]
+    public async Task Approved_model_exit_finishes_after_reasoning_without_waiting_on_itself()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.ExitApplication;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("please close the application");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync()
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.WindowActions.Should().Contain(WindowAction.Close);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Session_approval_reuses_the_exact_action_without_a_second_prompt()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.ProposeShutdown;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("prepare shutting this computer down");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.ViewModel.ApproveModelActionForSessionCommand.ExecuteAsync();
+        fixture.ViewModel.SessionAllowedModelActions.Should().Contain(command =>
+            command.Action == BuiltInAction.ProposeShutdown);
+        await fixture.RunAsync("prepare shutting this computer down again");
+        await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Shutdown request recognized.");
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+
+        fixture.Reasoner.Action = BuiltInAction.ProposeRestart;
+        await fixture.RunAsync("prepare a computer reboot sometime");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Locking_windows_through_kora_clears_session_grants()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.ProposeShutdown;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("prepare the shutdown");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        await fixture.ViewModel.ApproveModelActionForSessionCommand.ExecuteAsync();
+        fixture.ViewModel.SessionAllowedModelActions.Should().ContainSingle();
+
+        await fixture.RunAsync("lock the machine");
+        fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+        await fixture.RunAsync("prepare a different shutdown");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Always_approval_for_lock_is_persisted_and_survives_the_lock()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("please lock the workstation");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
+            .Contain(BuiltInAction.LockMachine);
+        fixture.Session.LockCalls.Should().Be(1);
+
+        await fixture.RunAsync("please lock the workstation again");
+        await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.Session.LockCalls.Should().Be(2);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.RevokeModelActionApproval(
+            BuiltInAction.LockMachine, ModelApprovalScope.Always);
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_saved_always_grant_is_reloaded_before_model_actions_are_handled()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(
+            true, [BuiltInAction.LockMachine]));
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("lock the workstation please");
+        await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Granted_model_exit_does_not_wait_on_its_own_reasoning_task()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(
+            true, [BuiltInAction.ExitApplication]));
+        fixture.Reasoner.Action = BuiltInAction.ExitApplication;
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("close the app please");
+        await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.WindowActions.Should().Contain(WindowAction.Close);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task List_and_manage_grants_work_without_a_model()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        string? document = null;
+        fixture.ViewModel.GrantDocumentRequested += (_, markdown) => document = markdown;
+
+        await fixture.RunAsync("list grants");
+        document.Should().Contain("## This session").And.Contain("## Always on this device");
+        document.Should().Contain("No grants.");
+
+        await fixture.RunAsync("manage grants");
+        fixture.ViewModel.IsGrantEditorVisible.Should().BeTrue();
+        fixture.ViewModel.SelectedGrantAction = fixture.ViewModel.GrantActions.Single(item =>
+            item.Action == BuiltInAction.LockMachine);
+        fixture.ViewModel.SelectedGrantScope = ModelApprovalScope.Always;
+        await fixture.ViewModel.PrepareGrantChangeCommand.ExecuteAsync();
+        fixture.ViewModel.ResponseBody.Should().Contain("Add Always grant for LockMachine.");
+        fixture.Session.LockCalls.Should().Be(0);
+
+        await fixture.ViewModel.ConfirmGrantChangeCommand.ExecuteAsync();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
+            .Contain(BuiltInAction.LockMachine);
+        fixture.Session.LockCalls.Should().Be(0);
+
+        await fixture.RunAsync("view grants");
+        document.Should().Contain("**LockMachine**");
+    }
+
+    [Fact]
+    public async Task Removing_an_inferred_single_grant_requires_confirmation_and_never_executes_it()
+    {
+        var fixture = new Fixture();
+        fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.PrepareGrantChange(
+            new GrantChange(GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Once));
+
+        fixture.ViewModel.ResponseBody.Should().Contain("Remove Always grant for LockMachine.");
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().Contain(BuiltInAction.LockMachine);
+        await fixture.RunAsync("approve once");
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Ambiguous_removal_requires_scope_and_a_superseded_change_cannot_apply()
+    {
+        var fixture = new Fixture();
+        fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.PrepareGrantChange(
+            new GrantChange(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
+        await fixture.ViewModel.ConfirmGrantChangeAsync();
+
+        fixture.ViewModel.PrepareGrantChange(
+            new GrantChange(GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Once));
+        fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Select the exact existing grant.");
+
+        fixture.ViewModel.PrepareGrantChange(
+            new GrantChange(GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+        await fixture.RunAsync("show task progress");
+        fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().Contain(BuiltInAction.LockMachine);
+    }
+
+    [Fact]
+    public async Task Persistent_grant_write_failure_retains_the_pending_change_and_existing_grants()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ApprovalPreferences.SaveFailure = new IOException("disk unavailable");
+        fixture.ViewModel.PrepareGrantChange(
+            new GrantChange(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+
+        await fixture.ViewModel.ConfirmGrantChangeAsync();
+
+        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
+        fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
+        fixture.ViewModel.ResponseTitle.Should().Be("Model approval settings could not be saved.");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Moving_a_grant_changes_scope_atomically_without_running_the_action()
+    {
+        var fixture = new Fixture();
+        fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+            GrantChangeOperation.Move, BuiltInAction.LockMachine,
+            ModelApprovalScope.Always, ModelApprovalScope.Session));
+
+        await fixture.ViewModel.ConfirmGrantChangeAsync();
+
+        fixture.ViewModel.SessionAllowedModelActions.Should()
+            .ContainSingle(command => command.Action == BuiltInAction.LockMachine);
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_grant_revoked_before_confirmation_is_not_changed_again()
+    {
+        var fixture = new Fixture();
+        fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+            GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+        fixture.ViewModel.RevokeModelActionApproval(BuiltInAction.LockMachine, ModelApprovalScope.Always);
+
+        await fixture.ViewModel.ConfirmGrantChangeAsync();
+
+        fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("The grant changed before confirmation.");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Model_grant_proposal_requires_visible_spoken_or_mouse_confirmation()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(true, [BuiltInAction.LockMachine]));
+        fixture.Reasoner.GrantChange = new GrantChange(
+            GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Always);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        await fixture.RunAsync("remove my always grant for locking Windows");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Contain("Remove Always grant for LockMachine.");
+        await fixture.RunAsync("always allow this");
+        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().Contain(BuiltInAction.LockMachine);
+
+        await fixture.RunAsync("approve once");
+        fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Voice_grant_confirmation_requires_the_assistant_name_by_default()
+    {
+        var fixture = new Fixture();
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.PrepareGrantChange(new GrantChange(
+            GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+
+        await fixture.Voice.RaiseTranscriptAsync("approve once", 0.9f);
+        fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
+        await fixture.Voice.RaiseTranscriptAsync("Kora, approve once", 0.9f);
+
+        fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
+            .Contain(BuiltInAction.LockMachine);
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Model_question_is_visible_and_mouse_choice_continues_without_approving_an_action()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which action?", ["Lock it", "Explain"]);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+
+        await fixture.RunAsync("help me with this computer");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.ModelQuestionChoices.Select(choice => choice.DisplayText)
+            .Should().Equal("1. Lock it", "2. Explain");
+        var selected = fixture.ViewModel.ModelQuestionChoices[0];
+        fixture.Reasoner.Question = null;
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+
+        await fixture.ViewModel.SelectModelQuestionChoiceAsync(selected);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().HaveCount(2);
+        fixture.Reasoner.Requests[1].Should().Contain("help me with this computer")
+            .And.Contain("Lock it").And.Contain("not permission");
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Question_speech_requires_name_and_stale_choice_is_ignored()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which color?", ["Blue", "Green"]);
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("pick a color");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        var oldChoice = fixture.ViewModel.ModelQuestionChoices[0];
+        fixture.Voice.StartedPhrases.Should().Contain("Kora option one");
+
+        await fixture.Voice.RaiseTranscriptAsync("option one", 0.9f);
+        fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
+        fixture.Reasoner.Requests.Should().ContainSingle();
+        await fixture.ViewModel.CancelModelQuestionAsync();
+        await fixture.ViewModel.SelectModelQuestionChoiceAsync(oldChoice);
+        fixture.Reasoner.Requests.Should().ContainSingle();
+
+        await fixture.RunAsync("pick another color");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Reasoner.Question = null;
+        await fixture.Voice.RaiseTranscriptAsync("Kora, option two", 0.9f);
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Reasoner.Requests.Should().HaveCount(3);
+        fixture.Reasoner.Requests[2].Should().Contain("Green");
+    }
+
+    [Fact]
+    public async Task Question_can_be_answered_unprefixed_when_configured_without_speech_output()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Continue?", ["Yes", "No"]);
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VisualOnly;
+        fixture.ViewModel.RequireAssistantNameForVoiceApproval = false;
+        await fixture.RunAsync("should I proceed");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Voice.StartedPhrases.Should().Contain("yes");
+        fixture.Reasoner.Question = null;
+
+        await fixture.Voice.RaiseTranscriptAsync("yes", 0.9f);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().HaveCount(2);
+        fixture.Reasoner.Requests[1].Should().Contain("\"SelectedOption\":\"Yes\"");
+        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Question_rejection_does_not_send_a_followup_request()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which one?", ["A", "B"]);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("choose");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.RunAsync("reject");
+
+        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Question dismissed.");
+        fixture.Reasoner.Requests.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Repeated_model_questions_stop_after_three_clarifications()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which choice?", ["A", "B"]);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("choose for me");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        for (var index = 0; index < 3; index++)
+        {
+            await fixture.ViewModel.SelectModelQuestionChoiceAsync(
+                fixture.ViewModel.ModelQuestionChoices[0]);
+            await fixture.ViewModel.ActiveReasoningTask!;
+        }
+
+        fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Too many clarification questions.");
+        fixture.Reasoner.Requests.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public async Task Spoken_approval_requires_the_name_by_default_and_resumes_listening_after_the_question()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("please lock this workstation");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Voice.StopCalls.Should().BeGreaterThan(0);
+        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.Voice.StartedPhrases.Should().Contain("Kora always allow this");
+        await fixture.Voice.RaiseTranscriptAsync("always allow this", 0.9f);
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+
+        await fixture.Voice.RaiseTranscriptAsync("Kora, always allow this", 0.9f);
+
+        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
+            .Contain(BuiltInAction.LockMachine);
+    }
+
+    [Fact]
+    public async Task Spoken_approval_can_allow_unprefixed_replies_when_configured()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.ProposeRestart;
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.RequireAssistantNameForVoiceApproval = false;
+        await fixture.RunAsync("please propose a reboot");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.Voice.RaiseTranscriptAsync("yes for this session", 0.9f);
+
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.SessionAllowedModelActions.Should().Contain(command =>
+            command.Action == BuiltInAction.ProposeRestart);
+        fixture.ApprovalPreferences.Preferences.RequireAssistantNameForVoiceApproval.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Approving_while_the_question_is_spoken_stops_it_before_the_action()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.ProposeRestart;
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("please propose a restart");
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.TextToSpeech.SpokenText.Should().NotContain("Kora, approve");
+        await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync()
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.TextToSpeech.StopCalls.Should().BeGreaterThan(0);
+        fixture.ViewModel.ResponseTitle.Should().Be("Restart request recognized.");
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Failed_persistent_approval_write_does_not_execute_the_action()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ApprovalPreferences.SaveFailure = new IOException("disk unavailable");
+        await fixture.RunAsync("lock this session please");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
+
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        fixture.ViewModel.ResponseTitle.Should().Be("Model approval settings could not be saved.");
+    }
+
+    [Fact]
+    public async Task Superseding_a_pending_request_while_approval_audio_stops_prevents_the_old_grant()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("lock this workstation please");
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        var approving = fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
+        await fixture.RunAsync("show task progress");
+        await approving.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Locking_while_a_model_routed_response_is_speaking_stops_playback_first()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.ShowVersion;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("tell me which release this is");
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        await fixture.RunAsync("lock the machine")
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.Session.LockCalls.Should().Be(1);
+        fixture.TextToSpeech.StopCalls.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Rejecting_or_superseding_a_model_action_never_runs_it()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("lock the workstation please");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        await fixture.ViewModel.RejectModelActionCommand.ExecuteAsync();
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.Audit.Events.Should().Contain(entry =>
+            entry.ActionId == "model.action.lockmachine"
+            && entry.Outcome == SecurityAuditOutcome.Cancelled);
+
+        await fixture.RunAsync("lock the workstation please");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        await fixture.RunAsync("show task progress");
+
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Spoken_command_variant_uses_built_in_route_before_a_ready_model()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.Voice.StartedPhrases.Should().Contain("Kora show the task queue");
+        await fixture.Voice.RaiseTranscriptAsync("Kora, show the task queue", 0.9f);
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Waiting for your command.");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Freeform_voice_requires_the_active_name_before_local_inference()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.Voice.RaiseTranscriptAsync("why is the sky blue", 0.9f);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        await fixture.Voice.RaiseTranscriptAsync("Kora, why is the sky blue", 0.9f);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which.Should().Be("why is the sky blue");
+        fixture.ViewModel.ResponseTitle.Should().Be("Local model response");
+    }
+
+    [Fact]
+    public async Task Cancel_task_interrupts_local_reasoning_without_reporting_an_answer()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Reasoner.Gate = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("explain this concept");
+        var running = fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.RunAsync("cancel task");
+        await running;
+
+        fixture.ViewModel.SetupTasks.Should().Contain(task =>
+            task.Id == "local.reasoning" && task.State == SetupTaskState.Cancelled);
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Local model response");
+        fixture.Reasoner.Requests.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Built_in_status_stays_available_and_a_second_model_request_is_not_started()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Reasoner.Gate = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("first question");
+        var running = fixture.ViewModel.ActiveReasoningTask!;
+
+        await fixture.RunAsync("show task progress");
+        fixture.ViewModel.ResponseTitle.Should().Be("Local model response: running.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Generating an answer locally.");
+        await fixture.RunAsync("second question");
+        fixture.ViewModel.ResponseTitle.Should().Be("Local reasoning is busy.");
+        fixture.Reasoner.Requests.Should().ContainSingle().Which.Should().Be("first question");
+
+        fixture.Reasoner.Gate.SetResult("Finished.");
+        await running;
+        fixture.ViewModel.ResponseBody.Should().Contain("Finished.");
+    }
+
+    [Fact]
+    public async Task Locking_while_model_speech_is_playing_stops_playback_before_waiting_for_the_task()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("explain this");
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        await fixture.RunAsync("lock the machine")
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.Session.LockCalls.Should().Be(1);
+        fixture.TextToSpeech.StopCalls.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Cancelling_while_model_speech_is_playing_stops_playback()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("explain this");
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        await fixture.RunAsync("cancel task")
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        fixture.TextToSpeech.StopCalls.Should().BeGreaterThan(0);
+        fixture.ViewModel.IsSpeaking.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Local answer already completed.");
+    }
+
+    [Fact]
+    public async Task Failed_local_inference_disables_future_model_requests_until_refresh()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Reasoner.Failure = new HttpRequestException("Local runtime disconnected.");
+        await fixture.RunAsync("ask something");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.ViewModel.Dependencies.Should().ContainSingle()
+            .Which.Readiness.Should().Be(DependencyReadiness.Failed);
+        fixture.ViewModel.ResponseTitle.Should().Be("Local reasoning failed.");
+        await fixture.RunAsync("another question");
+        fixture.Reasoner.Requests.Should().ContainSingle();
+        fixture.ViewModel.ResponseTitle.Should().Be("That isn't a supported built-in command.");
+    }
+
     [Theory]
     [InlineData("Kora, open settings", "Settings")]
     [InlineData("Kora, what can you do", "Built-in commands are ready.")]
@@ -2966,6 +3937,238 @@ public sealed class MainViewModelTests
 
         fixture.ViewModel.ResponseTitle.Should().Be("Waiting for your command.");
         fixture.ViewModel.ResponseBody.Should().Contain("System");
+    }
+
+    [Fact]
+    public async Task Status_command_reports_setup_blockers_without_a_model()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference",
+            "Local model inference (Ollama)",
+            DependencyReadiness.Missing,
+            "An approved Ollama installation is required.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("Kora, what do you have left to do");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Setup needs attention.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Ollama");
+        fixture.ViewModel.ResponseBody.Should().Contain("approved Ollama installation");
+
+        fixture.Probe.Status = fixture.Probe.Status with { Readiness = DependencyReadiness.Ready };
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        await fixture.RunAsync("Kora, what do you have left to do");
+        fixture.ViewModel.ResponseTitle.Should().Be("Voice is not active.");
+    }
+
+    [Fact]
+    public async Task Status_command_remains_available_while_a_setup_task_is_running()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refresh = fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        fixture.ViewModel.SetupTasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.Running);
+
+        fixture.ViewModel.CommandText = "what are you currently working on";
+        fixture.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
+        await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
+        fixture.ViewModel.ResponseTitle.Should().Be("Setting up Storage.");
+
+        fixture.Probe.Gate.SetResult();
+        await refresh;
+        fixture.ViewModel.SetupTasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.Completed);
+    }
+
+    [Fact]
+    public async Task Current_task_progress_command_reports_the_running_stage_during_a_busy_probe()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refresh = fixture.ViewModel.RefreshCommand.ExecuteAsync();
+
+        fixture.ViewModel.CommandText = "Kora, what is the current task progress";
+        fixture.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
+        await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Storage: running.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Checking Storage.");
+        fixture.ViewModel.ResponseBody.Should().Contain("No completion percentage");
+        fixture.Probe.Gate.SetResult();
+        await refresh;
+    }
+
+    [Fact]
+    public async Task Current_task_progress_command_reports_blockers_when_nothing_is_running()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Missing, "Approval is required.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("show task progress");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("No task is running.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Local model inference (Ollama): NeedsAction.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Approval is required.");
+    }
+
+    [Fact]
+    public async Task Current_task_progress_command_does_not_claim_work_when_queue_is_empty()
+    {
+        var fixture = new Fixture();
+
+        await fixture.RunAsync("what is the current task status");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("No task is running.");
+        fixture.ViewModel.ResponseBody.Should().Be("There is no active or pending setup task.");
+    }
+
+    [Fact]
+    public async Task Approved_local_model_setup_is_tracked_and_verified_before_reporting_success()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Missing, "Model missing.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.LocalModel.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var install = fixture.ViewModel.InstallLocalModelAsync();
+        await fixture.LocalModel.Started.Task;
+        fixture.ViewModel.SetupTasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.Running);
+        await fixture.RunAsync("what are you currently working on");
+        fixture.ViewModel.ResponseTitle.Should().Contain("Local model inference");
+        await fixture.RunAsync("how far along is the current task");
+        fixture.ViewModel.ResponseTitle.Should().Be("Local model inference (Ollama): running.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Downloading the selected local model.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Completion: 42%.");
+
+        fixture.Probe.Status = fixture.Probe.Status with
+        {
+            Readiness = DependencyReadiness.Ready,
+            Detail = "Pinned model passed inference.",
+        };
+        fixture.LocalModel.Gate.SetResult();
+        await install;
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Local model is ready.");
+        fixture.ViewModel.SetupTasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.Completed);
+        fixture.LocalModel.Calls.Should().Be(1);
+        await fixture.RunAsync("What can the local model explain?");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Reasoner.Requests.Should().ContainSingle()
+            .Which.Should().Be("What can the local model explain?");
+        AssertAuditPair(
+            fixture,
+            SecurityAuditCategory.ResourceWrite,
+            "local-model.install",
+            SecurityAuditInitiator.LocalUser,
+            SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task Cancel_task_stops_running_model_setup_without_claiming_success()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Missing, "Model missing.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.LocalModel.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var install = fixture.ViewModel.InstallLocalModelAsync();
+        await fixture.LocalModel.Started.Task;
+
+        await fixture.RunAsync("cancel task");
+        await install;
+
+        fixture.ViewModel.SetupTasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.Cancelled);
+        fixture.ViewModel.IsLocalModelSetupActive.Should().BeFalse();
+        AssertAuditPair(
+            fixture,
+            SecurityAuditCategory.ResourceWrite,
+            "local-model.install",
+            SecurityAuditInitiator.LocalUser,
+            SecurityAuditOutcome.Cancelled,
+            "user-cancelled");
+    }
+
+    [Fact]
+    public async Task Approved_PowerShell_setup_is_queued_and_verified_before_success()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.PowerShell.Gate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var install = fixture.ViewModel.InstallPowerShellAsync();
+        await fixture.PowerShell.Started.Task;
+        fixture.ViewModel.SetupTasks.Single(task =>
+                string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
+            .State.Should().Be(SetupTaskState.Running);
+        fixture.ViewModel.CanInstallLocalModel.Should().BeFalse();
+        await fixture.RunAsync("what is the current task status");
+        fixture.ViewModel.ResponseTitle.Should().Contain("PowerShell 7");
+
+        fixture.PowerShell.Gate.SetResult();
+        await install;
+
+        fixture.ViewModel.ResponseTitle.Should().Be("PowerShell 7 is ready.");
+        fixture.ViewModel.SetupTasks.Single(task =>
+                string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
+            .State.Should().Be(SetupTaskState.Completed);
+        fixture.ViewModel.Dependencies.Should().Contain(status =>
+            string.Equals(status.Id, "powershell.runtime", StringComparison.Ordinal)
+            && status.Readiness == DependencyReadiness.Ready);
+        AssertAuditPair(
+            fixture, SecurityAuditCategory.ResourceWrite, "powershell.install",
+            SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task Cancelling_PowerShell_setup_leaves_a_cancelled_task()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.PowerShell.Gate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var install = fixture.ViewModel.InstallPowerShellAsync();
+        await fixture.PowerShell.Started.Task;
+
+        await fixture.RunAsync("cancel task");
+        await install;
+
+        fixture.ViewModel.SetupTasks.Single(task =>
+                string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
+            .State.Should().Be(SetupTaskState.Cancelled);
+        fixture.ViewModel.IsPowerShellSetupActive.Should().BeFalse();
+        AssertAuditPair(
+            fixture, SecurityAuditCategory.ResourceWrite, "powershell.install",
+            SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Cancelled, "user-cancelled");
+    }
+
+    [Fact]
+    public async Task Failed_PowerShell_verification_never_claims_readiness()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.PowerShell.Readiness = DependencyReadiness.Failed;
+
+        await fixture.ViewModel.InstallPowerShellAsync();
+
+        fixture.ViewModel.ResponseTitle.Should().Be("PowerShell setup failed.");
+        fixture.ViewModel.SetupTasks.Single(task =>
+                string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
+            .State.Should().Be(SetupTaskState.Failed);
+        fixture.ViewModel.Dependencies.Should().NotContain(status =>
+            string.Equals(status.Id, "powershell.runtime", StringComparison.Ordinal)
+            && status.Readiness == DependencyReadiness.Ready);
+        AssertAuditPair(
+            fixture, SecurityAuditCategory.ResourceWrite, "powershell.install",
+            SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Failed, "setup-failed");
     }
 
     [Fact]
@@ -3531,6 +4734,7 @@ public sealed class MainViewModelTests
             AppearancePreferences = new FakeAppearancePreferences();
             MicrophoneAccess = new FakeMicrophoneAccessService();
             Preferences = new FakeTextToSpeechPreferences();
+            SpeechOffers = new FakeSpeechOfferPreferences();
             AudioPreferences = new FakeAudioDevicePreferences();
             OutputPreferences = new FakeResponseOutputPreferences();
             CallPreferences = new FakeCallAwarePreferences();
@@ -3546,16 +4750,25 @@ public sealed class MainViewModelTests
             var bootstrapper = new DependencyBootstrapper(
                 [Probe],
                 NullLogger<DependencyBootstrapper>.Instance);
+            LocalModel = new FakeLocalModelSetup();
+            PowerShell = new FakePowerShellSetup();
+            Reasoner = new FakeLocalModelReasoner();
+            ApprovalPreferences = new FakeModelApprovalPreferences();
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
                 bootstrapper,
+                LocalModel,
+                PowerShell,
+                Reasoner,
+                ApprovalPreferences,
                 MicrophoneAccess,
                 Voice,
                 TextToSpeech,
                 NamePreferences,
                 AppearancePreferences,
                 Preferences,
+                SpeechOffers,
                 AudioPreferences,
                 OutputPreferences,
                 CallPreferences,
@@ -3592,6 +4805,8 @@ public sealed class MainViewModelTests
 
         public FakeTextToSpeechPreferences Preferences { get; }
 
+        public FakeSpeechOfferPreferences SpeechOffers { get; }
+
         public FakeAudioDevicePreferences AudioPreferences { get; }
 
         public FakeResponseOutputPreferences OutputPreferences { get; }
@@ -3607,6 +4822,14 @@ public sealed class MainViewModelTests
         public FakeSecurityAuditLog Audit { get; }
 
         public StubProbe Probe { get; }
+
+        public FakeLocalModelSetup LocalModel { get; }
+
+        public FakePowerShellSetup PowerShell { get; }
+
+        public FakeLocalModelReasoner Reasoner { get; }
+
+        public FakeModelApprovalPreferences ApprovalPreferences { get; }
 
         public MainViewModel ViewModel { get; }
 
@@ -3628,6 +4851,139 @@ public sealed class MainViewModelTests
             return fixture;
         }
 
+        public sealed class FakeSpeechOfferPreferences : IOptionalSpeechOfferPreferences
+        {
+            public OptionalSpeechOfferState State { get; private set; } = new(false, null);
+
+            public OptionalSpeechOfferState Load() => State;
+
+            public void Save(OptionalSpeechOfferState state) => State = state;
+        }
+
+        public sealed class FakeLocalModelSetup : ILocalModelSetup
+        {
+            public TaskCompletionSource? Gate { get; set; }
+
+            public TaskCompletionSource Started { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public int Calls { get; private set; }
+
+            public async Task InstallAsync(
+                IProgress<LocalModelSetupProgress> progress,
+                CancellationToken cancellationToken)
+            {
+                Calls++;
+                progress.Report(new LocalModelSetupProgress("Downloading the selected local model.", 42));
+                Started.TrySetResult();
+                if (Gate is not null)
+                {
+                    await Gate.Task.WaitAsync(cancellationToken);
+                }
+            }
+        }
+
+        public sealed class FakePowerShellSetup : IPowerShellSetup
+        {
+            public string TaskId => "powershell.runtime";
+
+            public string TaskName => "PowerShell 7 (pwsh)";
+
+            public int InstallCalls { get; private set; }
+
+            public TaskCompletionSource? Gate { get; set; }
+
+            public TaskCompletionSource Started { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Exception? Failure { get; set; }
+
+            public DependencyReadiness Readiness { get; set; } = DependencyReadiness.Ready;
+
+            public async Task InstallAsync(CancellationToken cancellationToken)
+            {
+                InstallCalls++;
+                Started.TrySetResult();
+                if (Gate is not null)
+                {
+                    await Gate.Task.WaitAsync(cancellationToken);
+                }
+                if (Failure is not null)
+                {
+                    throw Failure;
+                }
+            }
+
+            public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken) =>
+                ValueTask.FromResult(new DependencyStatus(
+                    TaskId, TaskName, Readiness, "PowerShell verified."));
+        }
+
+        public sealed class FakeLocalModelReasoner : ILocalModelReasoner
+        {
+            public List<string> Requests { get; } = [];
+
+            public TaskCompletionSource<string>? Gate { get; set; }
+
+            public BuiltInAction? Action { get; set; }
+            public GrantChange? GrantChange { get; set; }
+            public LocalModelQuestion? Question { get; set; }
+
+            public Exception? Failure { get; set; }
+
+            public LocalModelContext? LastContext { get; private set; }
+
+            public async Task<LocalModelResponse> ReasonAsync(
+                string request,
+                LocalModelContext context,
+                CancellationToken cancellationToken)
+            {
+                Requests.Add(request);
+                LastContext = context;
+                if (Failure is not null)
+                {
+                    throw Failure;
+                }
+
+                if (Action is not null)
+                {
+                    return new LocalModelResponse(null, Action);
+                }
+                if (GrantChange is not null)
+                {
+                    return new LocalModelResponse(null, null, GrantChange);
+                }
+                if (Question is not null)
+                {
+                    return new LocalModelResponse(null, null, null, Question);
+                }
+
+                return new LocalModelResponse(
+                    Gate is null ? "A local answer." : await Gate.Task.WaitAsync(cancellationToken),
+                    null);
+            }
+        }
+
+        public sealed class FakeModelApprovalPreferences : IModelApprovalPreferences
+        {
+            public ModelApprovalPreferences Preferences { get; private set; } =
+                new(true, []);
+
+            public IOException? SaveFailure { get; set; }
+
+            public ModelApprovalPreferences Load() => Preferences;
+
+            public void Save(ModelApprovalPreferences preferences)
+            {
+                if (SaveFailure is not null)
+                {
+                    throw SaveFailure;
+                }
+
+                Preferences = preferences;
+            }
+        }
+
         public async Task RunAsync(string command)
         {
             ViewModel.CommandText = command;
@@ -3635,8 +4991,14 @@ public sealed class MainViewModelTests
         }
     }
 
-    private sealed class StubProbe(DependencyStatus status) : IDependencyProbe
+    private sealed class StubProbe(DependencyStatus status) : ISetupDependencyProbe
     {
+        public DependencyStatus Status { get; set; } = status;
+
+        public string TaskId => Status.Id;
+
+        public string TaskName => Status.Name;
+
         public TaskCompletionSource? Gate { get; set; }
 
         public async ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken)
@@ -3646,7 +5008,7 @@ public sealed class MainViewModelTests
                 await Gate.Task.WaitAsync(cancellationToken);
             }
 
-            return status;
+            return Status;
         }
     }
 
@@ -3734,6 +5096,7 @@ public sealed class MainViewModelTests
         public async Task StartAsync(
             MicrophoneDevice microphone,
             IEnumerable<string> phrases,
+            string? assistantName = null,
             CancellationToken cancellationToken = default)
         {
             StartedMicrophone = microphone;

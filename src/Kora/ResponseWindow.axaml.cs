@@ -46,8 +46,24 @@ public sealed partial class ResponseWindow : Window
         KeyDown += OnInteraction;
     }
 
-    private void OnDismissClicked(object? sender, RoutedEventArgs eventArgs) =>
+    private async void OnDismissClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        await viewModel.RejectPendingModelActionAsync();
+        await viewModel.RejectPendingGrantChangeAsync();
+        await viewModel.CancelModelQuestionAsync();
         viewModel.HideApplication();
+    }
+
+    private async void OnQuestionChoiceClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is Button { Tag: ModelQuestionChoice choice })
+        {
+            await viewModel.SelectModelQuestionChoiceAsync(choice);
+        }
+    }
+
+    private async void OnCancelQuestionClicked(object? sender, RoutedEventArgs eventArgs) =>
+        await viewModel.CancelModelQuestionAsync();
 
     private void OnInteraction(object? sender, PointerPressedEventArgs eventArgs)
     {
@@ -91,6 +107,10 @@ public sealed partial class ResponseWindow : Window
             || string.Equals(
                 eventArgs.PropertyName,
                 nameof(MainViewModel.PresenceTimeoutSeconds),
+                StringComparison.Ordinal)
+            || string.Equals(
+                eventArgs.PropertyName,
+                nameof(MainViewModel.IsResponseInteractionPending),
                 StringComparison.Ordinal))
         {
             RestartResponseTimeout();
@@ -100,7 +120,7 @@ public sealed partial class ResponseWindow : Window
     private void OnResponseTimeout(object? sender, EventArgs eventArgs)
     {
         responseTimeoutTimer.Stop();
-        if (!viewModel.IsResponseAlwaysVisible)
+        if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending)
         {
             Hide();
         }
@@ -143,7 +163,8 @@ public sealed partial class ResponseWindow : Window
     private void RestartResponseTimeout()
     {
         responseTimeoutTimer.Stop();
-        if (!IsVisible || viewModel.IsResponseAlwaysVisible)
+        if (!IsVisible || viewModel.IsResponseAlwaysVisible
+            || viewModel.IsResponseInteractionPending)
         {
             return;
         }

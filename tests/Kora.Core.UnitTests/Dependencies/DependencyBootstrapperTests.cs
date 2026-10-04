@@ -63,6 +63,52 @@ public sealed class DependencyBootstrapperTests(
         results.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task ProbeAsync_reports_optional_speech_readiness_without_adding_a_setup_task()
+    {
+        var bootstrapper = new DependencyBootstrapper(
+            [new StubProbe("windows.tts", DependencyReadiness.Missing)],
+            Logger);
+
+        var results = await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
+
+        results.Should().ContainSingle().Which.Id.Should().Be("windows.tts");
+        bootstrapper.Tasks.Tasks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProbeAsync_reconciles_missing_and_recovered_dependencies_on_each_run()
+    {
+        var probe = new MutableProbe();
+        var bootstrapper = new DependencyBootstrapper([probe], Logger);
+
+        await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
+        bootstrapper.Tasks.Tasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.NeedsAction);
+
+        probe.Readiness = DependencyReadiness.Ready;
+        await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
+        bootstrapper.Tasks.Tasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.Completed);
+
+        probe.Readiness = DependencyReadiness.Failed;
+        await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
+        bootstrapper.Tasks.Tasks.Should().ContainSingle()
+            .Which.State.Should().Be(SetupTaskState.Failed);
+    }
+
+    private sealed class MutableProbe : ISetupDependencyProbe
+    {
+        public DependencyReadiness Readiness { get; set; } = DependencyReadiness.Missing;
+
+        public string TaskId => "sqlite";
+
+        public string TaskName => "SQLite";
+
+        public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new DependencyStatus("sqlite", "SQLite", Readiness, "probe result"));
+    }
+
     private sealed class StubProbe(string id, DependencyReadiness readiness) : IDependencyProbe
     {
         public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken) =>

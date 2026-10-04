@@ -6,8 +6,12 @@ namespace Kora.Core.Dependencies;
 
 public sealed class StorageDependencyProbe(
     IApplicationDataPaths paths,
-    ILogger<StorageDependencyProbe> logger) : IDependencyProbe
+    ILogger<StorageDependencyProbe> logger) : ISetupDependencyProbe
 {
+    public string TaskId => "kora.storage";
+
+    public string TaskName => "Application storage";
+
     public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

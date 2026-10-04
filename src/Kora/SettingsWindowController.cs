@@ -18,6 +18,7 @@ public sealed class SettingsWindowController : IDisposable
         this.viewModel = viewModel;
         this.logger = logger;
         viewModel.SettingsRequested += OnSettingsRequested;
+        viewModel.ReadinessRequested += OnReadinessRequested;
     }
 
     public void Dispose()
@@ -30,6 +31,7 @@ public sealed class SettingsWindowController : IDisposable
         disposed = true;
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
+        viewModel.ReadinessRequested -= OnReadinessRequested;
         if (window is not null)
         {
             window.Closed -= OnWindowClosed;
@@ -48,6 +50,12 @@ public sealed class SettingsWindowController : IDisposable
         }
 
         window.Activate();
+    }
+
+    private void OnReadinessRequested(object? sender, EventArgs eventArgs)
+    {
+        OnSettingsRequested(sender, eventArgs);
+        window!.ShowReadiness();
     }
 
     private SettingsWindow CreateWindow()

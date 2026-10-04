@@ -45,6 +45,12 @@ is unavailable.
 Changing the assistant name while listening restarts the existing capture
 session with the updated grammar. It does not grant new consent.
 
+For a model-suggested action that needs approval, Kora always shows the
+request and can speak the question. It releases microphone capture while
+speaking, then resumes listening for **approve once**, **approve for this
+session**, **always allow this**, or **reject**. Say the assistant name first
+unless you turned off that requirement under **Settings > Approvals**.
+
 ## Speech providers
 
 Kora always includes the **Windows** provider. It uses installed SAPI voices and

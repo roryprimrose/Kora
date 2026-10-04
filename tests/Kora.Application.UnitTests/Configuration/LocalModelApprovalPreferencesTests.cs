@@ -50,6 +50,17 @@ public sealed class LocalModelApprovalPreferencesTests
     [InlineData("""{"Version":2,"RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":[]}""")]
     [InlineData("""{"Version":1,"AlwaysAllowedActions":[]}""")]
     [InlineData("""{"Version":1,"AlwaysAllowedActions":["LockMachine"]""")]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("""{"RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":[]}""")]
+    [InlineData("""{"Version":"1","RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":[]}""")]
+    [InlineData("""{"Version":1.5,"RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":[]}""")]
+    [InlineData("""{"Version":1,"RequireAssistantNameForVoiceApproval":null,"AlwaysAllowedActions":[]}""")]
+    [InlineData("""{"Version":1,"RequireAssistantNameForVoiceApproval":true}""")]
+    [InlineData("""{"Version":1,"RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":null}""")]
+    [InlineData("""{"Version":1,"RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":[1]}""")]
+    [InlineData("""{"Version":1,"RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":["9999"]}""")]
+    [InlineData("""{"Version":1,"RequireAssistantNameForVoiceApproval":true,"AlwaysAllowedActions":["lockmachine"]}""")]
     public void Invalid_or_newer_grants_are_never_accepted(string json)
     {
         var path = Path.Combine(Path.GetTempPath(), $"kora-approvals-{Guid.NewGuid():N}");
@@ -66,6 +77,25 @@ public sealed class LocalModelApprovalPreferencesTests
         {
             Directory.Delete(path, recursive: true);
         }
+    }
+
+    [Fact]
+    public void Save_rejects_null_preferences_and_invalid_grants()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kora-approvals-{Guid.NewGuid():N}");
+        var preferences = new LocalModelApprovalPreferences(new TestPaths(path));
+
+        var nullPreferences = () => preferences.Save(null!);
+        var nullGrants = () => preferences.Save(new ModelApprovalPreferences(true, null!));
+        var unknownGrant = () => preferences.Save(new ModelApprovalPreferences(true, [(BuiltInAction)9999]));
+        var duplicateGrant = () => preferences.Save(
+            new ModelApprovalPreferences(true, [BuiltInAction.LockMachine, BuiltInAction.LockMachine]));
+
+        nullPreferences.Should().Throw<ArgumentNullException>();
+        nullGrants.Should().Throw<ArgumentException>();
+        unknownGrant.Should().Throw<ArgumentException>();
+        duplicateGrant.Should().Throw<ArgumentException>();
+        Directory.Exists(path).Should().BeFalse();
     }
 
     private sealed record TestPaths(string LocalRoot) : IApplicationDataPaths

@@ -410,16 +410,23 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref isGrantEditorVisible, value))
             {
                 PrepareGrantChangeCommand.NotifyCanExecuteChanged();
-                forceVisualResponse = value || IsResponseInteractionPending
-                    || State == AssistantState.Failure || !IsSpeechOutputAvailable;
+                forceVisualResponse = ShouldForceVisualResponse(
+                    value, IsResponseInteractionPending, State, IsSpeechOutputAvailable);
                 NotifyOutputPolicyChanged();
-                if (value && !isInitializing)
+                if (ShouldShowGrantEditor(value, isInitializing))
                 {
                     WindowActionRequested?.Invoke(this, WindowAction.Show);
                 }
             }
         }
     }
+    internal static bool ShouldForceVisualResponse(
+        bool editorVisible, bool interactionPending, AssistantState state, bool speechOutputAvailable) =>
+        editorVisible || interactionPending || state == AssistantState.Failure || !speechOutputAvailable;
+
+    internal static bool ShouldShowGrantEditor(bool editorVisible, bool initializing) =>
+        editorVisible && !initializing;
+
     public IReadOnlyList<CommandDefinition> GrantActions => commandCatalog.GetCommands(AssistantName);
     public IReadOnlyList<GrantChangeOperation> GrantOperations { get; } =
         Enum.GetValues<GrantChangeOperation>();
@@ -500,7 +507,7 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        if (scope != ModelApprovalScope.Always || !alwaysAllowedModelActions.Contains(action))
+        if (!alwaysAllowedModelActions.Contains(action))
         {
             return;
         }
@@ -1858,12 +1865,7 @@ public sealed class MainViewModel : ObservableObject
             scope = inSession ? ModelApprovalScope.Session : ModelApprovalScope.Always;
         }
 
-        var exists = scope == ModelApprovalScope.Session ? inSession : inAlways;
-        if (proposal.Operation == GrantChangeOperation.Add && (exists || proposal.TargetScope is not null)
-            || proposal.Operation == GrantChangeOperation.Remove && (!exists || proposal.TargetScope is not null)
-            || proposal.Operation == GrantChangeOperation.Move
-                && (!exists || proposal.TargetScope is null || proposal.TargetScope == scope
-                    || (proposal.TargetScope == ModelApprovalScope.Session ? inSession : inAlways)))
+        if (IsGrantChangeInapplicable(proposal, scope, inSession, inAlways))
         {
             ShowInformation("Grant change cannot be prepared.",
                 $"Check the existing {proposal.Action} grants and select an applicable operation and scope.");
@@ -1894,7 +1896,18 @@ public sealed class MainViewModel : ObservableObject
         WindowActionRequested?.Invoke(this, WindowAction.Show);
     }
 
-    private static string DescribeGrantChange(GrantChange change) =>
+    internal static bool IsGrantChangeInapplicable(
+        GrantChange proposal, ModelApprovalScope scope, bool inSession, bool inAlways)
+    {
+        var exists = scope == ModelApprovalScope.Session ? inSession : inAlways;
+        return proposal.Operation == GrantChangeOperation.Add && (exists || proposal.TargetScope is not null)
+            || proposal.Operation == GrantChangeOperation.Remove && (!exists || proposal.TargetScope is not null)
+            || proposal.Operation == GrantChangeOperation.Move
+                && (!exists || proposal.TargetScope is null || proposal.TargetScope == scope
+                    || (proposal.TargetScope == ModelApprovalScope.Session ? inSession : inAlways));
+    }
+
+    internal static string DescribeGrantChange(GrantChange change) =>
         change.Operation switch
         {
             GrantChangeOperation.Add => $"Add {change.Scope} grant for {change.Action}.",
@@ -2146,9 +2159,12 @@ public sealed class MainViewModel : ObservableObject
         HashSet<BuiltInAction> actions)
     {
         builder.Append("## ").AppendLine(heading).AppendLine();
-        foreach (var command in commandCatalog.GetCommands(AssistantName)
-            .Where(command => actions.Contains(command.Action)))
+        foreach (var command in commandCatalog.GetCommands(AssistantName))
         {
+            if (!actions.Contains(command.Action))
+            {
+                continue;
+            }
             builder.Append("- **")
                 .Append(command.Action)
                 .Append("** — ")
@@ -2172,6 +2188,12 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task RefreshAsync()
     {
+        if (IsBusy)
+        {
+            ShowInformation("Readiness check is busy.", "Wait for the current operation to finish before refreshing readiness.");
+            return;
+        }
+
         if (IsPowerShellSetupActive)
         {
             ShowInformation("PowerShell setup is running.", "Wait for setup to finish before refreshing readiness.");
@@ -3567,15 +3589,7 @@ public sealed class MainViewModel : ObservableObject
                 }
                 else
                 {
-                    await ApproveModelActionAsync(
-                        approvalReply switch
-                        {
-                            ModelApprovalReply.Once => ModelApprovalScope.Once,
-                            ModelApprovalReply.Session => ModelApprovalScope.Session,
-                            ModelApprovalReply.Always => ModelApprovalScope.Always,
-                            _ => throw new InvalidOperationException("Unsupported approval reply."),
-                        },
-                        initiator);
+                    await ApproveModelActionAsync(ScopeForApprovalReply(approvalReply), initiator);
                 }
                 return;
             }
@@ -3605,6 +3619,14 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    internal static ModelApprovalScope ScopeForApprovalReply(ModelApprovalReply reply) => reply switch
+    {
+        ModelApprovalReply.Once => ModelApprovalScope.Once,
+        ModelApprovalReply.Session => ModelApprovalScope.Session,
+        ModelApprovalReply.Always => ModelApprovalScope.Always,
+        _ => throw new InvalidOperationException("Unsupported approval reply."),
+    };
+
     private Task HandleUnmatchedRequestAsync(
         string spokenText,
         SecurityAuditInitiator initiator,
@@ -3620,7 +3642,14 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var request = spokenText.Trim();
-        if (commandRouter.IsActivationPrefixed(request, AssistantName))
+        if (string.Equals(
+            request.TrimEnd(',', ':', '-', '—').TrimEnd(),
+            AssistantName,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            request = string.Empty;
+        }
+        else if (commandRouter.IsActivationPrefixed(request, AssistantName))
         {
             request = request[AssistantName.Length..].TrimStart(' ', ',', ':', '-', '—');
         }
@@ -3637,9 +3666,9 @@ public sealed class MainViewModel : ObservableObject
             return Task.CompletedTask;
         }
 
-        if (activeReasoningCancellation is not null || isModelActionDispatchActive
-            || isModelApprovalPromptActive
-            || IsBusy || IsLocalModelSetupActive || IsPowerShellSetupActive)
+        if (IsLocalReasoningBusy(activeReasoningCancellation is not null,
+            isModelActionDispatchActive, isModelApprovalPromptActive,
+            IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive))
         {
             ShowInformation(
                 "Local reasoning is busy.",
@@ -3680,6 +3709,11 @@ public sealed class MainViewModel : ObservableObject
         }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
         return Task.CompletedTask;
     }
+
+    internal static bool IsLocalReasoningBusy(
+        bool reasoning, bool actionDispatch, bool approvalPrompt,
+        bool busy, bool modelSetup, bool powerShellSetup) =>
+        reasoning || actionDispatch || approvalPrompt || busy || modelSetup || powerShellSetup;
 
     private async Task RunReasoningAsync(string request, CancellationTokenSource cancellation, int questionDepth)
     {
@@ -3946,7 +3980,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private static bool ModelActionRequiresApproval(BuiltInAction action) => action switch
+    internal static bool ModelActionRequiresApproval(BuiltInAction action) => action switch
     {
         BuiltInAction.HideApplication or BuiltInAction.ExitApplication
             or BuiltInAction.RestartApplication or BuiltInAction.CancelTask
@@ -3966,20 +4000,8 @@ public sealed class MainViewModel : ObservableObject
         ModelApprovalScope scope,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
-        if (!Enum.IsDefined(scope))
-        {
-            throw new ArgumentOutOfRangeException(nameof(scope));
-        }
-
-        if (pendingModelAction is not { } action)
-        {
-            throw new InvalidOperationException("No model-suggested action is awaiting approval.");
-        }
-
-        if (IsBusy || IsLocalModelSetupActive || IsPowerShellSetupActive)
-        {
-            throw new InvalidOperationException("A model-suggested action cannot run while setup is active.");
-        }
+        var action = ValidateModelActionApproval(
+            scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
 
         var approval = pendingModelActionAudit;
         try
@@ -4028,6 +4050,28 @@ public sealed class MainViewModel : ObservableObject
             ApplicationLog.Error(logger, exception, "Executing an approved model-suggested action");
             ShowFailure("The approved action failed.", exception.Message);
         }
+    }
+
+    internal static BuiltInAction ValidateModelActionApproval(
+        ModelApprovalScope scope, BuiltInAction? pendingAction,
+        bool busy, bool modelSetup, bool powerShellSetup)
+    {
+        if (!Enum.IsDefined(scope))
+        {
+            throw new ArgumentOutOfRangeException(nameof(scope));
+        }
+
+        if (pendingAction is not { } action)
+        {
+            throw new InvalidOperationException("No model-suggested action is awaiting approval.");
+        }
+
+        if (busy || modelSetup || powerShellSetup)
+        {
+            throw new InvalidOperationException("A model-suggested action cannot run while setup is active.");
+        }
+
+        return action;
     }
 
     public void RejectPendingModelAction()

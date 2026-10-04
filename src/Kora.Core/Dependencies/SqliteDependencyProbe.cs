@@ -24,6 +24,7 @@ public sealed class SqliteDependencyProbe(
             Pooling = false,
         }.ToString();
 
+        DependencyStatus status;
         try
         {
             await using var connection = new SqliteConnection(connectionString);
@@ -46,8 +47,7 @@ public sealed class SqliteDependencyProbe(
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = "PRAGMA user_version";
-            var version = (long)(await command.ExecuteScalarAsync(cancellationToken)
-                ?? throw new InvalidDataException("The database did not return a schema version."));
+            var version = RequireSchemaVersion(await command.ExecuteScalarAsync(cancellationToken));
             if (version > 1)
             {
                 return new DependencyStatus(
@@ -72,7 +72,7 @@ public sealed class SqliteDependencyProbe(
                 await command.ExecuteNonQueryAsync(cancellationToken);
             }
             await transaction.CommitAsync(cancellationToken);
-            return new DependencyStatus(
+            status = new DependencyStatus(
                 "kora.sqlite",
                 "Local SQLite storage",
                 DependencyReadiness.Ready,
@@ -81,11 +81,15 @@ public sealed class SqliteDependencyProbe(
         catch (SqliteException exception)
         {
             CoreLog.SqliteStorageUnavailable(logger, exception, databasePath);
-            return new DependencyStatus(
+            status = new DependencyStatus(
                 "kora.sqlite",
                 "Local SQLite storage",
                 DependencyReadiness.Failed,
                 $"Local database could not be opened or migrated: {exception.Message}. Existing data was not replaced.");
         }
+        return status;
     }
+
+    internal static long RequireSchemaVersion(object? result) =>
+        (long)(result ?? throw new InvalidDataException("The database did not return a schema version."));
 }

@@ -30,8 +30,9 @@ public sealed class LocalOptionalSpeechOfferPreferences(IApplicationDataPaths pa
             throw new InvalidDataException("The saved optional speech offer state has an invalid format.");
         }
 
-        return JsonSerializer.Deserialize<OptionalSpeechOfferState>(contents)
-            ?? throw new InvalidDataException("The saved optional speech offer state is invalid.");
+        return new OptionalSpeechOfferState(
+            handled.GetBoolean(),
+            missing.ValueKind == JsonValueKind.Null ? null : missing.GetString());
     }
 
     public void Save(OptionalSpeechOfferState state)

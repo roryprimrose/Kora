@@ -40,6 +40,41 @@ public sealed class LocalOptionalSpeechOfferPreferencesTests : IDisposable
         action.Should().Throw<InvalidDataException>();
     }
 
+    [Theory]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("""{"MissingProviderNotified":null}""")]
+    [InlineData("""{"InitialOfferHandled":null,"MissingProviderNotified":null}""")]
+    [InlineData("""{"InitialOfferHandled":false}""")]
+    [InlineData("""{"InitialOfferHandled":false,"MissingProviderNotified":false}""")]
+    public void Load_rejects_invalid_offer_state(string json)
+    {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "optional-speech-offer.json"), json);
+
+        var action = CreatePreferences().Load;
+
+        action.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void Load_accepts_unhandled_offer_with_null_provider()
+    {
+        CreatePreferences().Save(new OptionalSpeechOfferState(false, null));
+
+        CreatePreferences().Load().Should().Be(new OptionalSpeechOfferState(false, null));
+    }
+
+    [Fact]
+    public void Save_rejects_null_state()
+    {
+        var action = () => CreatePreferences().Save(null!);
+
+        action.Should().Throw<ArgumentNullException>();
+        Directory.Exists(root).Should().BeFalse();
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root))

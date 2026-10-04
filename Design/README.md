@@ -6,6 +6,15 @@ Status: proposed design, not an implemented capability statement.
 The documents below turn that direction into an initial delivery scope and architectural decisions.
 Where the vision is broader or less specific, these documents define the proposed implementation constraints.
 
+## Implementation Status and Next Work
+
+[Implementation Status and Delivery Roadmap](Implementation_Roadmap.md) compares
+the design with source and checked-in tests, distinguishes delivered bootstrap
+behavior from partial/outstanding features and missing release proof, and orders
+remaining work by safety, user value and explicit dependencies.
+It is the current delivery baseline; the numbered A0-A4/B/C checkpoints remain
+acceptance milestones, not a claim that the bootstrap has completed any slice.
+
 ## Current Bootstrap Boundary
 
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,

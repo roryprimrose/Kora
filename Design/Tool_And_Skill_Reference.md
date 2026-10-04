@@ -22,6 +22,10 @@ current bootstrap.** Exact commands dispatch C# handlers; unmatched requests
 can produce one local-model answer, question, action, or grant-change proposal.
 The current model cannot call the proposed logical tools below directly.
 
+See the [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
+for source/test evidence, delivered-versus-outstanding scope, dependencies and
+the acceptance gates required before these planned contracts are advertised.
+
 The **Current host behavior** column means:
 
 - **Current:** the listed host behavior exists through an exact command or UI.

@@ -7,6 +7,11 @@ model-proposed actions/grants; it does not complete Slice A or close D-003/D-008
 
 Related: [Vision](Vision_Statement.md), [Architecture](Architecture.md), [Decision Register](Decision_Register.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
+records what the current source actually delivers and the dependency/value-ordered
+work remaining. A documented capability, local readiness proof or native window
+does not establish acceptance of an entire checkpoint.
+
 ## Product Outcome
 
 A Windows user with current owner presence can say "Kora, explain the clipboard", see the answer, hear a short summary, and interrupt the interaction without typing or pressing an activation control.
@@ -31,6 +36,14 @@ Linux GitHub Actions build/test/package infrastructure does not make Linux a sup
 Slice A is delivered through independently accepted implementation checkpoints.
 A checkpoint may be used for development evaluation but is not advertised as the completed product outcome until all Slice A checkpoints pass.
 Do not begin a later checkpoint while an earlier checkpoint has unresolved safety/correctness failures.
+
+This rule governs enabling dependent behavior and checkpoint acceptance, not
+the order of all foundational engineering. Durable identity, intent, approval
+and storage primitives associated with A3 are implemented early where A0's
+context/tool path depends on them. Independent feasibility prototypes can run
+in parallel, but cannot bypass a failed prerequisite gate. The
+[roadmap dependency graph](Implementation_Roadmap.md#ordered-outstanding-work)
+defines that engineering order; sign-off remains A0 through A4.
 
 1. **A0 — Deterministic shell:** native setup/recovery, explicit push-to-talk, local transcription/TTS, clipboard snapshot/preview, one remote runtime, egress approval, streaming display, cancellation, and no model-assisted work management.
 2. **A1 — Voice-first activation:** packaged local "Kora" detector, immediate wake-and-command preservation, playback rejection, interruption, locked-session policy, and the required wake quality/resource evidence.

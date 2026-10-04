@@ -4,6 +4,11 @@ Status: active proposed-design register.
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
+is the source-backed delivery baseline. It separates accepted direction from
+implemented behavior and required proof, and assigns dependencies/priority to
+remaining work without closing the decisions below.
+
 This register records accepted product/UX direction separately from unresolved technical choices and implementation evidence that can block or materially change delivery.
 The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
@@ -26,6 +31,26 @@ An Accepted direction status records the agreed behavior, not completed contract
 
 The [Internal Model Tool Catalogue](Internal_Model_Tools.md) is the exposure inventory for D-001/D-008/D-011.
 Registry/schema/lane coverage, unavailable-tool exclusion, and host-only boundaries are release evidence, not implied by an SDK's native tool support.
+
+## Roadmap Dependencies
+
+R01 records and reconciles the outstanding initial-release authority, microphone
+lifecycle, optional privacy and standalone-lock session-binding contracts.
+The deferred standalone-application rollback question is due before R27, not
+before ordinary read-only tools or fixed bundled actions.
+
+| Decisions | Primary roadmap packages and closure evidence |
+|---|---|
+| D-001/D-004 | R02 actual SDK/provider control and budget proofs, R06/R08 mediated local/remote loop, R13 independent management/concurrency |
+| D-002/D-003/D-007 | R02 candidate/licence/hardware selection, R03/R07/R09 actual privacy/local-answer/wake trials, R19 integrated acceptance |
+| D-005 | R02/R17 protected Linux-built distribution/installed Windows evidence, R18 notify-only maintenance; no install-capable updater implied |
+| D-006 | Optional R24 only; do not make learning or verification a baseline voice prerequisite |
+| D-008/D-012 | R01 resolved authority/origin rules, R03/R05 common privacy/grant gateway, R11/R15/R16 real containment/call/power enforcement |
+| D-009/D-010 | R04 durable identity/encrypted storage, R12 lifecycle/deletion/queue, R13 isolated scheduler/resource budgets |
+| D-011 | R05 shared questions/grants, R06 registry, R12/R13 addressing/ledger, R14/R18 coordinated workspace/proactive interaction |
+
+R19 and R23 compile the applicable release results; a merged implementation or
+fake-only test does not close a decision that requires real boundary evidence.
 
 ## D-001 Copilot Adapter Control Proof
 

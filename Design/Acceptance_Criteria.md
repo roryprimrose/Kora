@@ -4,6 +4,11 @@ Status: proposed release gates. Targets are not claims of measured performance.
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
 
+The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
+maps these gates to current source/test evidence and outstanding work packages.
+Delivered bootstrap behavior does not mean these release gates have passed;
+actual provider, hardware, containment and installation evidence remains required.
+
 ## Test Environment and Evidence
 
 Before implementation is accepted, record an exact reference machine:
@@ -677,16 +682,23 @@ Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contra
 
 ### Additional Capability Evidence
 
-Before adding capabilities outside the MVP:
+Required initial-release evidence, not optional post-MVP enhancements:
+
+| Capability | Required checkpoint evidence |
+|---|---|
+| Ollama/inference adapter | A2: shared-loop conformance, network-blocked offline clipboard answering, tool/result mediation, context/egress limits, quality/cancellation and reference-hardware/licence/performance proof |
+| Fixed bundled execution | A3: complete embedded multi-script identity/review, common direct/model/UI/skill grant gate, truthful cancellation/lock receipts, and actual OS filesystem/network/child-process/credential/protected-Kora-resource containment |
+| Concurrent independent session tasks | A3: two-slot baseline on reference hardware, one task per session, resource conflict scheduling, isolated task/approval/provider contexts, per-task cancellation, fair budgets and truthful grounded/aggregated status |
+
+Before adding capabilities outside the initial release:
 
 | Capability | Additional required evidence |
 |---|---|
-| Ollama/inference adapter | Shared-loop conformance, offline answering, tool mediation, context limits |
 | Knowledge indexing | Access revocation, deletion, freshness, identity partitioning, citation correctness, reindex behaviour |
-| Restricted execution | Adversarial filesystem, network, child-process, credential, and protected Kora-resource access tests against actual OS containment |
+| General applications/user-provided executable skills | Complete dependency discovery/immutable snapshots, content-bound applicability/revocation, and adversarial filesystem, network, child-process, credential, and protected Kora-resource access tests against actual OS containment |
 | Screen/image context | Explicit capture, region/source provenance, secret handling, no ambient collection |
 | Kora MCP server | Authenticated clients, per-client scopes, no unattended reuse of interactive grants |
 | Extension updates | Digest/version changes invalidate affected grants and policy mappings |
-| Multiple task executors | Resource conflict scheduling, isolated task/approval contexts, per-task cancellation, dependency gates, fair provider budgets, and truthful aggregated status |
+| Intra-session parallel or multi-agent execution | Separate scope approval, isolated subtask/approval/provider contexts, resource conflict scheduling, cancellation/dependency gates, fair budgets and truthful aggregated status beyond the initial one-task-per-session rule |
 
 No roadmap feature inherits release approval solely because it uses an existing extension interface.

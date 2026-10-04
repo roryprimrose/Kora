@@ -1,6 +1,6 @@
 # Ambient UI study
 
-Status: native transparent constellation and separate response surface
+Status: native transparent presence and separate response surface
 implemented; advanced approval, placement customization, and fullscreen
 suppression remain future work.
 
@@ -8,9 +8,20 @@ Open [the interactive prototype](Prototypes/ambient-ui.html) in a modern browser
 self-contained, works offline, and uses no external assets, dependencies, telemetry,
 microphone, clipboard, or runtime. Controls and task results are simulations.
 
+## Presence terminology
+
+**Presence** is the name of Kora's abstract desktop state-feedback surface.
+It appears when needed and communicates the assistant's state through colour
+and motion, without becoming a dashboard or a percentage-complete indicator.
+The **particle cloud** is its current visual treatment; ribbon orbit and signal
+lattice are alternative treatments of the same presence, not different features.
+The presence remains distinct from response windows, speech text, native
+approval/error panels, the tray icon, and microphone status. Hiding it changes
+presentation only; it does not mute listening or stop work.
+
 ## Visual directions
 
-1. **Constellation (recommended):** a small, original three-dimensional particle
+1. **Particle cloud (recommended):** a small, original three-dimensional particle
    swarm. Each dot has its own position, velocity, random steering changes, and
    occasional short dart, like an individual insect in a collective. Gentle
    attraction and local separation keep the cloud loosely gathered, not arranged
@@ -68,7 +79,7 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
 |---|---|---|---|
 | Idle / Wake Listening | None on presence surface | None | Presence hidden; wake-listening status remains visible in tray/status UI |
 | Capturing Command | Sea glass / teal | Attentive wandering; other concepts gently breathe | Visible throughout wake-activated or optional PTT capture |
-| Transcribing / preparing / calculating | Lavender | Independent darting in the constellation; orbital motion in other concepts | Until preparation completes |
+| Transcribing / preparing / calculating | Lavender | Independent darting in the presence; orbital motion in other concepts | Until preparation completes |
 | Clarification / approval wait | Warm amber | Almost still | Until resolved, cancelled, or expired |
 | Executing | Clear blue | Directional flow / scanning | Until terminal outcome |
 | Success | Sage green | Settle | Brief receipt, then fade if not engaged |
@@ -81,23 +92,23 @@ only during command capture. A hidden presence must not conceal enabled micropho
 listening; the separate tray/status indicator communicates local wake listening.
 
 Native state changes cross-fade between the current and target state colours rather
-than replacing the palette in one frame. Showing and hiding the constellation also
+than replacing the palette in one frame. Showing and hiding the presence also
 fades over a short interval; a request to show it again cancels a pending hide.
 
-During Kora speech playback, the constellation may contract and expand between 90%
+During Kora speech playback, the presence may contract and expand between 90%
 and 112% of its resting size from a normalized output-level signal. This is a speech
 playback dimension, not task progress or microphone input. The bootstrap exposes the
 visual `IsSpeaking` and `SpeechOutputLevel` contract, but keeps both inactive until a
 real TTS service can provide playback timing and output levels.
 
 The native Settings surface provides device-local sliders for the overall
-constellation footprint (240-600 px, default 360), particle diameter (50-200%,
+presence footprint (240-600 px, default 360), particle diameter (50-200%,
 default 100%), and particle movement speed (25-200%, default 100%). Changes apply
 live. Resizing preserves the bottom-right working-area anchor; movement speed
 scales state-driven velocity without changing lifecycle state or particle count.
 
 Keep the normal presence entirely abstract: no letters, symbols, or visible status
-caption in or beneath the constellation. Colour and motion convey state; voice
+caption in or beneath the presence. Colour and motion convey state; voice
 output provides context without narrating every routine state transition. Keep
 screen-reader state announcements and accessible control names, and offer expandable
 visual details as a non-voice alternative. Effective processing mode/runtime remains
@@ -111,7 +122,7 @@ playback and execution.
 ## Interaction proposal
 
 Native rich output follows [Information Display](Information_Display.md): optional speech
-text is a separate readable surface, not a caption beneath the constellation.
+text is a separate readable surface, not a caption beneath the presence.
 Markdown/diagrams and browser/HTML views use explicit detail/viewer surfaces; this
 offline prototype does not implement captions, Markdown rendering, or browser isolation.
 
@@ -139,7 +150,7 @@ offline prototype does not implement captions, Markdown rendering, or browser is
   runtime requirement. No real data is transmitted.
 - Click the visual to expand/collapse routine detail. Approval and error details
   remain open even with the detail toggle off. The initial activity view is
-  constellation-only; Wake Kora opens an illustrative information response.
+  presence-only; Wake Kora opens an illustrative information response.
 - Escape or the close control cancels active capture/work first and displays the
   cancellation result. A subsequent dismissal hides it. Remote cancellation does
   not assert that side effects were undone.
@@ -154,7 +165,7 @@ offline prototype does not implement captions, Markdown rendering, or browser is
 - Reduced motion defaults to the system preference and freezes the visual. Quiet,
   Balanced, and Expressive adjust density, size, and opacity. The shared
   System/Light/Dark application theme controls the visual background and
-  surrounding result surface; the constellation uses darker particles in the
+  surrounding result surface; the presence uses darker particles in the
   effective light theme rather than bright glow to maintain legibility.
 - Stop animation work while hidden or the browser tab is inactive. Reduced motion
   redraws only on relevant changes.

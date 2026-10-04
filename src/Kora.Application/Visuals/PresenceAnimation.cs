@@ -2,7 +2,7 @@ using Kora.Core;
 
 namespace Kora.Application.Visuals;
 
-public sealed class ConstellationAnimation
+public sealed class PresenceAnimation
 {
     public static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(33);
 
@@ -15,15 +15,15 @@ public sealed class ConstellationAnimation
     private const double MinimumSpeechScale = 0.9;
     private const double SpeechScaleRange = 0.22;
 
-    public ConstellationAnimation(AssistantState initialState)
+    public PresenceAnimation(AssistantState initialState)
     {
-        Current = new ConstellationVisualFrame(
+        Current = new PresenceVisualFrame(
             GetStateColor(initialState),
             initialState == AssistantState.Hidden ? 0 : 1,
             1);
     }
 
-    public ConstellationVisualFrame Current { get; private set; }
+    public PresenceVisualFrame Current { get; private set; }
 
     public bool Advance(
         AssistantState state,
@@ -50,7 +50,7 @@ public sealed class ConstellationAnimation
             ? MinimumSpeechScale + (Math.Clamp(speechOutputLevel, 0, 1) * SpeechScaleRange)
             : 1;
 
-        var next = new ConstellationVisualFrame(
+        var next = new PresenceVisualFrame(
             MoveTowards(Current.Color, targetColor, elapsed, ColorTransitionDuration),
             MoveTowards(Current.Opacity, targetOpacity, elapsed, VisibilityTransitionDuration, 1),
             MoveTowards(Current.Scale, targetScale, elapsed, SpeechScaleTransitionDuration, SpeechScaleRange));
@@ -59,7 +59,7 @@ public sealed class ConstellationAnimation
         return changed;
     }
 
-    private static ConstellationColor GetStateColor(AssistantState state) => state switch
+    private static PresenceColor GetStateColor(AssistantState state) => state switch
     {
         AssistantState.Listening => new(0x6A, 0xE1, 0xDA),
         AssistantState.Calculating => new(0xAF, 0x9B, 0xFF),
@@ -70,14 +70,14 @@ public sealed class ConstellationAnimation
         _ => new(0xB8, 0xD9, 0xEC),
     };
 
-    private static ConstellationColor MoveTowards(
-        ConstellationColor current,
-        ConstellationColor target,
+    private static PresenceColor MoveTowards(
+        PresenceColor current,
+        PresenceColor target,
         TimeSpan elapsed,
         TimeSpan duration)
     {
         var maximumDelta = (int)Math.Ceiling(byte.MaxValue * elapsed.TotalMilliseconds / duration.TotalMilliseconds);
-        return new ConstellationColor(
+        return new PresenceColor(
             MoveTowards(current.Red, target.Red, maximumDelta),
             MoveTowards(current.Green, target.Green, maximumDelta),
             MoveTowards(current.Blue, target.Blue, maximumDelta));

@@ -26,7 +26,7 @@ Content viewing is not browser automation or implicit permission to capture a we
 Every Kora-owned visual surface uses the single persisted application theme:
 System (default), Light, or Dark. System follows the effective Windows
 light/dark preference while Kora is running. Light and Dark override it.
-The constellation, chat and answer windows, speech text, native questions,
+The presence, chat and answer windows, speech text, native questions,
 approvals, errors, Markdown, diagrams, task/result panels, Settings, browser
 chrome, and generated-HTML chrome update immediately from the same observable
 setting.

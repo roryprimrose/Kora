@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title description">
   <title id="title">Kora brand mark samples</title>
-  <desc id="description">Primary multicolour and monochrome vertical infinity marks on dark and light surfaces, followed by the constellation state palette.</desc>
+  <desc id="description">Primary multicolour and monochrome vertical infinity marks on dark and light surfaces, followed by the assistant-state palette.</desc>
   <defs>
     <linearGradient id="state-spectrum" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#F49C9C" />
@@ -44,7 +44,7 @@
     <use href="#loop" fill="none" stroke="#24202F" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" />
   </g>
 
-  <text x="56" y="574" fill="#24202F" font-family="Segoe UI, sans-serif" font-size="18" font-weight="600">Constellation state spectrum</text>
+  <text x="56" y="574" fill="#24202F" font-family="Segoe UI, sans-serif" font-size="18" font-weight="600">Assistant-state spectrum</text>
   <g font-family="Segoe UI, sans-serif" font-size="13" fill="#454A57">
     <rect x="56" y="602" width="136" height="20" rx="10" fill="#6AE1DA" />
     <text x="56" y="648">Listening</text>

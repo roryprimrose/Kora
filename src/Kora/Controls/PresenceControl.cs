@@ -9,39 +9,39 @@ using Kora.Core;
 
 namespace Kora.Controls;
 
-public sealed class ConstellationControl : Control
+public sealed class PresenceControl : Control
 {
     private const string ActualThemeVariantPropertyName = "ActualThemeVariant";
 
     public static readonly StyledProperty<AssistantState> StateProperty =
-        AvaloniaProperty.Register<ConstellationControl, AssistantState>(nameof(State), AssistantState.Information);
+        AvaloniaProperty.Register<PresenceControl, AssistantState>(nameof(State), AssistantState.Information);
 
     public static readonly StyledProperty<bool> IsSpeakingProperty =
-        AvaloniaProperty.Register<ConstellationControl, bool>(nameof(IsSpeaking));
+        AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsSpeaking));
 
     public static readonly StyledProperty<double> SpeechOutputLevelProperty =
-        AvaloniaProperty.Register<ConstellationControl, double>(nameof(SpeechOutputLevel));
+        AvaloniaProperty.Register<PresenceControl, double>(nameof(SpeechOutputLevel));
 
     public static readonly StyledProperty<int> DotSizePercentProperty =
-        AvaloniaProperty.Register<ConstellationControl, int>(nameof(DotSizePercent), 100);
+        AvaloniaProperty.Register<PresenceControl, int>(nameof(DotSizePercent), 100);
 
     public static readonly StyledProperty<int> MovementSpeedPercentProperty =
-        AvaloniaProperty.Register<ConstellationControl, int>(nameof(MovementSpeedPercent), 100);
+        AvaloniaProperty.Register<PresenceControl, int>(nameof(MovementSpeedPercent), 100);
 
-    private readonly ConstellationAnimation animation = new(AssistantState.Information);
+    private readonly PresenceAnimation animation = new(AssistantState.Information);
     private readonly Particle[] particles;
     private readonly DispatcherTimer timer;
 
-    static ConstellationControl()
+    static PresenceControl()
     {
-        AffectsRender<ConstellationControl>(
+        AffectsRender<PresenceControl>(
             StateProperty,
             IsSpeakingProperty,
             SpeechOutputLevelProperty,
             DotSizePercentProperty);
     }
 
-    public ConstellationControl()
+    public PresenceControl()
     {
         var random = new Random(104729);
         particles = Enumerable.Range(0, 150)
@@ -54,7 +54,7 @@ public sealed class ConstellationControl : Control
                 0.7 + random.NextDouble() * 1.2))
             .ToArray();
 
-        timer = new DispatcherTimer(ConstellationAnimation.FrameInterval, DispatcherPriority.Background, OnTick);
+        timer = new DispatcherTimer(PresenceAnimation.FrameInterval, DispatcherPriority.Background, OnTick);
     }
 
     public AssistantState State
@@ -151,7 +151,7 @@ public sealed class ConstellationControl : Control
             State,
             IsSpeaking,
             SpeechOutputLevel,
-            ConstellationAnimation.FrameInterval);
+            PresenceAnimation.FrameInterval);
         var activity = State switch
         {
             AssistantState.Listening => 0.8,

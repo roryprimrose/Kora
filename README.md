@@ -2,11 +2,11 @@
 
 A Windows voice-first, local-first assistant.
 
-The runnable bootstrap includes an Avalonia constellation shell, deterministic
-C# built-in handlers, Windows speech and optional local Kokoro speech output,
-local storage and SQLite, and a consented, verified Ollama model for unmatched
-requests. Script-backed skills and general application launching are not yet
-available.
+The runnable bootstrap includes an Avalonia desktop shell with an ambient
+particle-cloud presence, deterministic C# built-in handlers, Windows speech
+and optional local Kokoro speech output, local storage and SQLite, and a
+consented, verified Ollama model for unmatched requests. Script-backed skills
+and general application launching are not yet available.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ On first launch:
 3. Kora starts listening automatically when the selected microphone and voice
    activation policy are available.
 4. Say **“Kora, what can you do?”** or another phrase in the built-in catalogue.
-5. Observe the transcript, matched action, and constellation state.
+5. Observe the transcript, matched action, and presence state.
 6. Choose **Disable listening** whenever you want to release the microphone for
    the rest of the current run. **Preview** can test the selected local voice
    even while listening is enabled.
@@ -59,18 +59,18 @@ context menu uses the configured assistant name for **Show**, **Settings**, and
 **Exit**, and also provides **Documentation**.
 Windows may place the icon under **Show hidden icons** until the user promotes
 it to the always-visible notification area.
-After successful startup Kora hides its borderless transparent constellation and
-continues listening in the background. The constellation appears while the user
+After successful startup Kora hides its borderless transparent presence and
+continues listening in the background. The presence appears while the user
 is interacting with Kora or when Kora has information/results to provide.
 Visual text uses a separate compact response surface; configuration remains in
 Settings. Closing visible surfaces returns to the background state, while only
 **Exit** stops the process.
-The constellation and unpinned response window automatically hide after 5
+The presence and unpinned response window automatically hide after 5
 seconds without interaction by default. Settings or the pinned response-window
 controls can change this shared device-local timeout from 1 to 60 seconds
 without restarting Kora. Drag the response title area to reposition it; its
 controls can keep the current response visible until dismissed and can disable
-the default stay-on-top behavior. The visible constellation can also be dragged
+the default stay-on-top behavior. The visible presence can also be dragged
 to a device-local position that is restored across restarts.
 Documentation opens the embedded end-user guide from [`docs/readme.md`](docs/readme.md)
 in a single themed Markdown window. Settings opens a single
@@ -91,7 +91,7 @@ The same Documentation window can be opened from the tray or with the built-in
 phrases **open documentation**, **show documentation**, and
 **show the user guide**.
 
-The Settings, constellation, and response surfaces bind to the same application
+The Settings, presence, and response surfaces bind to the same application
 state. Changes are reflected immediately across any open surface. Typed setting
 mutations also raise the same property notifications, providing the update path
 for future validated verbal/model setting commands; those setting commands are
@@ -105,20 +105,23 @@ preference, including changes while Kora is running. Light and Dark are explicit
 overrides. The selection is stored at
 `%LOCALAPPDATA%\Kora\Preferences\appearance-theme.txt`.
 
-Appearance settings also provide live sliders for the constellation's overall
+Appearance settings also provide live sliders for the presence's overall
 size (240-600 px), dot size (50-200%), and dot movement speed (25-200%).
 The defaults are 360 px, 100%, and 100%. These device-local settings are stored
 under `%LOCALAPPDATA%\Kora\Preferences`.
 
+Presence is the feature name; particle cloud describes its current visual
+treatment.
+
 The selected effective theme applies immediately to Kora's existing
-constellation, Settings, response, documentation, and approval surfaces.
+presence, Settings, response, documentation, and approval surfaces.
 Browser, generated-HTML, and diagram result surfaces are not implemented.
 
 ## Assistant name
 
 The assistant name defaults to **Kora**. Settings can change it to a validated
 1-3 word name of at most 32 characters; letters, numbers, spaces, apostrophes,
-and hyphens are supported. Applying a name updates the constellation, response,
+and hyphens are supported. Applying a name updates the presence, response,
 and Settings surfaces, tray labels and tooltip, command catalogue and prefix, visual
 responses, spoken responses, and voice preview immediately. If listening is
 already enabled, capture is restarted with the new local recognition grammar
@@ -294,7 +297,7 @@ The automated test boundary is:
 - `src/Kora.Core` — portable command, dependency, voice, and platform contracts.
 - `src/Kora.Application` — portable application orchestration and view models.
 - `src/Kora.Windows` — Windows microphone, speech-recognition, text-to-speech, readiness, and session integrations.
-- `src/Kora` — Avalonia composition root and constellation interface.
+- `src/Kora` — Avalonia composition root and presence interface.
 - `tests/Kora.Core.UnitTests` and `tests/Kora.Application.UnitTests` — portable unit tests and CI coverage.
 - `tests/Kora.Windows.IntegrationTests` — non-destructive Windows integration tests.
 - `Design` — product, architecture, safety, and interaction specifications.

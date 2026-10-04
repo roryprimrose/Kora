@@ -53,7 +53,7 @@ broader approval-policy evidence in D-008.
 ## Visual Exploration
 
 [Branding](Branding.md) defines the proposed vertical infinity-loop identity,
-its constellation-state gradient, monochrome fallbacks, and small-size samples.
+its assistant-state gradient, monochrome fallbacks, and small-size samples.
 
 [Ambient UI study](Ambient_UI.md) explores a hidden-by-default, transparent desktop
 presence and three animated visual directions. The [interactive browser prototype](Prototypes/ambient-ui.html)

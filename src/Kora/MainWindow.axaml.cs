@@ -142,7 +142,7 @@ public sealed partial class MainWindow : Window
         {
             case WindowAction.ShowPresence:
             case WindowAction.Show:
-                DesktopLog.Debug(logger, "Showing the constellation presence");
+                DesktopLog.Debug(logger, "Showing the presence");
                 CancelPendingHide();
                 EnsurePositionOnConnectedScreen();
                 Show();
@@ -157,7 +157,7 @@ public sealed partial class MainWindow : Window
                 try
                 {
                     await Task.Delay(
-                        ConstellationAnimation.VisibilityTransitionDuration + ConstellationAnimation.FrameInterval,
+                        PresenceAnimation.VisibilityTransitionDuration + PresenceAnimation.FrameInterval,
                         hideRequest.Token);
                     Hide();
                 }
@@ -205,8 +205,8 @@ public sealed partial class MainWindow : Window
         positionSaveTimer.Stop();
         if (positionInitialized)
         {
-            _ = viewModel.SetConstellationPosition(
-                new ConstellationPosition(Position.X, Position.Y));
+            _ = viewModel.SetPresencePosition(
+                new PresencePosition(Position.X, Position.Y));
         }
 
         if (shutdownRequested
@@ -229,7 +229,7 @@ public sealed partial class MainWindow : Window
         {
             SchedulePresenceTimeout();
         }
-        else if (eventArgs.PropertyName is nameof(MainViewModel.ConstellationSizePixels))
+        else if (eventArgs.PropertyName is nameof(MainViewModel.PresenceSizePixels))
         {
             EnsurePositionOnConnectedScreen();
         }
@@ -258,8 +258,8 @@ public sealed partial class MainWindow : Window
     private void OnPositionSaveTimer(object? sender, EventArgs eventArgs)
     {
         positionSaveTimer.Stop();
-        _ = viewModel.SetConstellationPosition(
-            new ConstellationPosition(Position.X, Position.Y));
+        _ = viewModel.SetPresencePosition(
+            new PresencePosition(Position.X, Position.Y));
     }
 
     private void OnPresenceTimeout(object? sender, EventArgs eventArgs)
@@ -270,7 +270,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        DesktopLog.Debug(logger, "Hiding the inactive constellation after its listening timeout");
+        DesktopLog.Debug(logger, "Hiding the inactive presence after its listening timeout");
         Hide();
     }
 
@@ -308,7 +308,7 @@ public sealed partial class MainWindow : Window
     private void RestorePosition()
     {
         positionInitialized = false;
-        var savedPosition = viewModel.ConstellationPosition;
+        var savedPosition = viewModel.PresencePosition;
         if (savedPosition is not null
             && IsPositionOnConnectedScreen(savedPosition))
         {
@@ -324,14 +324,14 @@ public sealed partial class MainWindow : Window
 
     private void EnsurePositionOnConnectedScreen()
     {
-        var position = new ConstellationPosition(Position.X, Position.Y);
+        var position = new PresencePosition(Position.X, Position.Y);
         if (!IsPositionOnConnectedScreen(position))
         {
             PositionAtWorkingArea();
         }
     }
 
-    private bool IsPositionOnConnectedScreen(ConstellationPosition position)
+    private bool IsPositionOnConnectedScreen(PresencePosition position)
     {
         var point = new PixelPoint(position.X, position.Y);
         return Screens.All.Any(screen => screen.WorkingArea.Contains(point));

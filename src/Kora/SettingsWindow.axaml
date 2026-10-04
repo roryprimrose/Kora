@@ -72,7 +72,7 @@
             <StackPanel Spacing="5" Margin="0,8,0,0">
               <TextBlock Text="Visual feedback" FontSize="18" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Control how Kora's constellation and response window remain visible."
+                  Text="Control how the presence and response window remain visible."
                   Classes="muted"
                   FontSize="12"
                   TextWrapping="Wrap" />
@@ -132,18 +132,27 @@
               </Grid>
             </Border>
 
+            <StackPanel Spacing="5" Margin="0,8,0,0">
+              <TextBlock Text="Presence appearance" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Animated dots that communicate the assistant's current state."
+                  Classes="muted"
+                  FontSize="12"
+                  TextWrapping="Wrap" />
+            </StackPanel>
+
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Constellation size" Classes="settings-title" />
+                  <TextBlock Text="Presence size" Classes="settings-title" />
                   <TextBlock
-                      Text="{Binding ConstellationSizeDescription}"
+                      Text="{Binding PresenceSizeDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <Slider
                     Grid.Column="1"
-                    Value="{Binding ConstellationSizePixels}"
+                    Value="{Binding PresenceSizePixels}"
                     Minimum="240"
                     Maximum="600"
                     TickFrequency="20"
@@ -157,13 +166,13 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Dot size" Classes="settings-title" />
                   <TextBlock
-                      Text="{Binding ConstellationDotSizeDescription}"
+                      Text="{Binding PresenceDotSizeDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <Slider
                     Grid.Column="1"
-                    Value="{Binding ConstellationDotSizePercent}"
+                    Value="{Binding PresenceDotSizePercent}"
                     Minimum="50"
                     Maximum="200"
                     TickFrequency="10"
@@ -175,15 +184,15 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Dot movement speed" Classes="settings-title" />
+                  <TextBlock Text="Movement speed" Classes="settings-title" />
                   <TextBlock
-                      Text="{Binding ConstellationMovementSpeedDescription}"
+                      Text="{Binding PresenceMovementSpeedDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <Slider
                     Grid.Column="1"
-                    Value="{Binding ConstellationMovementSpeedPercent}"
+                    Value="{Binding PresenceMovementSpeedPercent}"
                     Minimum="25"
                     Maximum="200"
                     TickFrequency="5"

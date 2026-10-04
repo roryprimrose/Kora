@@ -12,7 +12,7 @@ one continuous ribbon.
 
 ![Primary Kora vertical infinity loop](Branding/Kora.Mark.Primary.svg)
 
-The continuous gradient uses the same colours as the constellation states. It
+The continuous gradient uses the same colours as the assistant states. It
 represents Kora moving through different modes of attention and feedback while
 remaining one assistant. It is not a rainbow decoration and must not be
 recoloured with an unrelated spectrum.
@@ -32,7 +32,7 @@ recoloured with an unrelated spectrum.
 
 ## State palette
 
-| State | Colour | Meaning in the constellation |
+| State | Colour | Meaning in the presence |
 |---|---|---|
 | Listening | `#6AE1DA` | Voice input is active |
 | Calculating | `#AF9BFF` | Kora is interpreting or planning |
@@ -43,7 +43,7 @@ recoloured with an unrelated spectrum.
 | Information | `#B8D9EC` | Neutral status or explanatory feedback |
 
 The static brand mark contains the complete palette. Runtime state is still
-communicated by the constellation, text, and accessible status indicators; the
+communicated by the presence, text, and accessible status indicators; the
 static icon must not be treated as a live state indicator.
 
 ## Animated web mark
@@ -66,7 +66,7 @@ logo feels ambient rather than like a progress indicator.
 - The internal `prefers-reduced-motion: reduce` rule stops travel and leaves all
   seven colour bands visible in a static arrangement.
 - Do not speed it up to imply activity. Application progress and runtime state
-  continue to belong to the constellation and accessible status surfaces.
+  continue to belong to the presence and accessible status surfaces.
 
 ## Small sizes
 

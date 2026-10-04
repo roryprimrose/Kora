@@ -23,10 +23,10 @@ public sealed class MainViewModel : ObservableObject
 {
     private const string ApplicationRestartAction = "application.restart";
     private const string AppearanceThemeConfigurationAction = "configuration.appearance-theme";
-    private const string ConstellationDotSizeConfigurationAction = "configuration.constellation-dot-size";
-    private const string ConstellationMovementSpeedConfigurationAction = "configuration.constellation-movement-speed";
-    private const string ConstellationPositionConfigurationAction = "configuration.constellation-position";
-    private const string ConstellationSizeConfigurationAction = "configuration.constellation-size";
+    private const string PresenceDotSizeConfigurationAction = "configuration.presence-dot-size";
+    private const string PresenceMovementSpeedConfigurationAction = "configuration.presence-movement-speed";
+    private const string PresencePositionConfigurationAction = "configuration.presence-position";
+    private const string PresenceSizeConfigurationAction = "configuration.presence-size";
     private const string PresenceTimeoutConfigurationAction = "configuration.presence-timeout";
     private const string ResponseWindowConfigurationAction = "configuration.response-window";
     private const string AssistantNameConfigurationAction = "configuration.assistant-name";
@@ -125,7 +125,7 @@ public sealed class MainViewModel : ObservableObject
     private bool suppressSpeechProviderPreferenceSave;
     private bool suppressAudioDevicePreferenceSave;
     private bool suppressAppearancePreferenceSave;
-    private bool suppressConstellationPreferenceSave;
+    private bool suppressPresenceAppearancePreferenceSave;
     private bool suppressPresencePreferenceSave;
     private bool suppressResponseWindowPreferenceSave;
     private bool suppressResponseModeSave;
@@ -140,10 +140,10 @@ public sealed class MainViewModel : ObservableObject
     private string outputDeviceAvailabilityMessage = "Checking Windows audio output devices.";
     private ApplicationThemeMode themeMode = ApplicationThemeMode.System;
     private int presenceTimeoutSeconds = PresenceSettings.DefaultTimeoutSeconds;
-    private int constellationSizePixels = ConstellationSettings.DefaultSizePixels;
-    private int constellationDotSizePercent = ConstellationSettings.DefaultDotSizePercent;
-    private int constellationMovementSpeedPercent = ConstellationSettings.DefaultMovementSpeedPercent;
-    private ConstellationPosition? constellationPosition;
+    private int presenceSizePixels = PresenceSettings.DefaultSizePixels;
+    private int presenceDotSizePercent = PresenceSettings.DefaultDotSizePercent;
+    private int presenceMovementSpeedPercent = PresenceSettings.DefaultMovementSpeedPercent;
+    private PresencePosition? presencePosition;
     private ResponseWindowSettings responseWindowSettings = ResponseWindowSettings.Default;
     private ResponseOutputMode defaultResponseMode = ResponseOutputMode.Hybrid;
     private ResponseOutputMode? queueResponseMode;
@@ -697,16 +697,16 @@ public sealed class MainViewModel : ObservableObject
         $"System follows the current Windows light or dark preference. Light and Dark override it for all {AssistantName} surfaces.";
 
     public string PresenceTimeoutDescription =>
-        "Hide the constellation and an unpinned response window after this many seconds without interaction.";
+        "Hide the presence and an unpinned response window after this many seconds without interaction.";
 
-    public string ConstellationSizeDescription =>
-        $"Overall constellation footprint: {ConstellationSizePixels} pixels.";
+    public string PresenceSizeDescription =>
+        $"Overall presence footprint: {PresenceSizePixels} pixels.";
 
-    public string ConstellationDotSizeDescription =>
-        $"Relative particle diameter: {ConstellationDotSizePercent}%.";
+    public string PresenceDotSizeDescription =>
+        $"Relative particle diameter: {PresenceDotSizePercent}%.";
 
-    public string ConstellationMovementSpeedDescription =>
-        $"Relative particle movement speed: {ConstellationMovementSpeedPercent}%.";
+    public string PresenceMovementSpeedDescription =>
+        $"Relative particle movement speed: {PresenceMovementSpeedPercent}%.";
 
     public string MainCaptureDescription =>
         $"{AssistantName} enumerates devices without recording. Capture starts only after you enable listening.";
@@ -818,135 +818,135 @@ public sealed class MainViewModel : ObservableObject
             initiator);
     }
 
-    public int ConstellationSizePixels
+    public int PresenceSizePixels
     {
-        get => constellationSizePixels;
-        set => _ = SetConstellationSizePixels(value);
+        get => presenceSizePixels;
+        set => _ = SetPresenceSizePixels(value);
     }
 
-    public bool SetConstellationSizePixels(
+    public bool SetPresenceSizePixels(
         int value,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
-        ConstellationSettings.ValidateSizePixels(value);
-        if (ConstellationSizePixels == value)
+        PresenceSettings.ValidateSizePixels(value);
+        if (PresenceSizePixels == value)
         {
             return true;
         }
 
-        if (!suppressConstellationPreferenceSave
-            && !SaveConstellationPreference(
-                () => appearancePreferences.SaveConstellationSizePixels(value),
-                ConstellationSizeConfigurationAction,
-                "constellation size",
+        if (!suppressPresenceAppearancePreferenceSave
+            && !SavePresencePreference(
+                () => appearancePreferences.SavePresenceSizePixels(value),
+                PresenceSizeConfigurationAction,
+                "presence size",
                 initiator))
         {
-            OnPropertyChanged(nameof(ConstellationSizePixels));
+            OnPropertyChanged(nameof(PresenceSizePixels));
             return false;
         }
 
-        SetProperty(ref constellationSizePixels, value, nameof(ConstellationSizePixels));
-        OnPropertyChanged(nameof(ConstellationSizeDescription));
+        SetProperty(ref presenceSizePixels, value, nameof(PresenceSizePixels));
+        OnPropertyChanged(nameof(PresenceSizeDescription));
         return true;
     }
 
-    public int ConstellationDotSizePercent
+    public int PresenceDotSizePercent
     {
-        get => constellationDotSizePercent;
-        set => _ = SetConstellationDotSizePercent(value);
+        get => presenceDotSizePercent;
+        set => _ = SetPresenceDotSizePercent(value);
     }
 
-    public bool SetConstellationDotSizePercent(
+    public bool SetPresenceDotSizePercent(
         int value,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
-        ConstellationSettings.ValidateDotSizePercent(value);
-        if (ConstellationDotSizePercent == value)
+        PresenceSettings.ValidateDotSizePercent(value);
+        if (PresenceDotSizePercent == value)
         {
             return true;
         }
 
-        if (!suppressConstellationPreferenceSave
-            && !SaveConstellationPreference(
-                () => appearancePreferences.SaveConstellationDotSizePercent(value),
-                ConstellationDotSizeConfigurationAction,
-                "constellation dot size",
+        if (!suppressPresenceAppearancePreferenceSave
+            && !SavePresencePreference(
+                () => appearancePreferences.SavePresenceDotSizePercent(value),
+                PresenceDotSizeConfigurationAction,
+                "presence dot size",
                 initiator))
         {
-            OnPropertyChanged(nameof(ConstellationDotSizePercent));
-            return false;
-        }
-
-        SetProperty(
-            ref constellationDotSizePercent,
-            value,
-            nameof(ConstellationDotSizePercent));
-        OnPropertyChanged(nameof(ConstellationDotSizeDescription));
-        return true;
-    }
-
-    public int ConstellationMovementSpeedPercent
-    {
-        get => constellationMovementSpeedPercent;
-        set => _ = SetConstellationMovementSpeedPercent(value);
-    }
-
-    public bool SetConstellationMovementSpeedPercent(
-        int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        ConstellationSettings.ValidateMovementSpeedPercent(value);
-        if (ConstellationMovementSpeedPercent == value)
-        {
-            return true;
-        }
-
-        if (!suppressConstellationPreferenceSave
-            && !SaveConstellationPreference(
-                () => appearancePreferences.SaveConstellationMovementSpeedPercent(value),
-                ConstellationMovementSpeedConfigurationAction,
-                "constellation movement speed",
-                initiator))
-        {
-            OnPropertyChanged(nameof(ConstellationMovementSpeedPercent));
+            OnPropertyChanged(nameof(PresenceDotSizePercent));
             return false;
         }
 
         SetProperty(
-            ref constellationMovementSpeedPercent,
+            ref presenceDotSizePercent,
             value,
-            nameof(ConstellationMovementSpeedPercent));
-        OnPropertyChanged(nameof(ConstellationMovementSpeedDescription));
+            nameof(PresenceDotSizePercent));
+        OnPropertyChanged(nameof(PresenceDotSizeDescription));
         return true;
     }
 
-    public ConstellationPosition? ConstellationPosition => constellationPosition;
+    public int PresenceMovementSpeedPercent
+    {
+        get => presenceMovementSpeedPercent;
+        set => _ = SetPresenceMovementSpeedPercent(value);
+    }
 
-    public bool SetConstellationPosition(
-        ConstellationPosition value,
+    public bool SetPresenceMovementSpeedPercent(
+        int value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        PresenceSettings.ValidateMovementSpeedPercent(value);
+        if (PresenceMovementSpeedPercent == value)
+        {
+            return true;
+        }
+
+        if (!suppressPresenceAppearancePreferenceSave
+            && !SavePresencePreference(
+                () => appearancePreferences.SavePresenceMovementSpeedPercent(value),
+                PresenceMovementSpeedConfigurationAction,
+                "presence movement speed",
+                initiator))
+        {
+            OnPropertyChanged(nameof(PresenceMovementSpeedPercent));
+            return false;
+        }
+
+        SetProperty(
+            ref presenceMovementSpeedPercent,
+            value,
+            nameof(PresenceMovementSpeedPercent));
+        OnPropertyChanged(nameof(PresenceMovementSpeedDescription));
+        return true;
+    }
+
+    public PresencePosition? PresencePosition => presencePosition;
+
+    public bool SetPresencePosition(
+        PresencePosition value,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (ConstellationPosition == value)
+        if (PresencePosition == value)
         {
             return true;
         }
 
-        if (!suppressConstellationPreferenceSave
-            && !SaveConstellationPreference(
-                () => appearancePreferences.SaveConstellationPosition(value),
-                ConstellationPositionConfigurationAction,
-                "constellation position",
+        if (!suppressPresenceAppearancePreferenceSave
+            && !SavePresencePreference(
+                () => appearancePreferences.SavePresencePosition(value),
+                PresencePositionConfigurationAction,
+                "presence position",
                 initiator))
         {
-            OnPropertyChanged(nameof(ConstellationPosition));
+            OnPropertyChanged(nameof(PresencePosition));
             return false;
         }
 
         return SetProperty(
-            ref constellationPosition,
+            ref presencePosition,
             value,
-            nameof(ConstellationPosition));
+            nameof(PresencePosition));
     }
 
     public MicrophoneDevice? SelectedMicrophone
@@ -2248,33 +2248,33 @@ public sealed class MainViewModel : ObservableObject
 
             var savedThemeMode = appearancePreferences.LoadThemeMode();
             var savedPresenceTimeoutSeconds = appearancePreferences.LoadPresenceTimeoutSeconds();
-            var savedConstellationSizePixels = appearancePreferences.LoadConstellationSizePixels();
-            var savedConstellationDotSizePercent = appearancePreferences.LoadConstellationDotSizePercent();
-            var savedConstellationMovementSpeedPercent =
-                appearancePreferences.LoadConstellationMovementSpeedPercent();
-            var savedConstellationPosition =
-                appearancePreferences.LoadConstellationPosition();
+            var savedPresenceSizePixels = appearancePreferences.LoadPresenceSizePixels();
+            var savedPresenceDotSizePercent = appearancePreferences.LoadPresenceDotSizePercent();
+            var savedPresenceMovementSpeedPercent =
+                appearancePreferences.LoadPresenceMovementSpeedPercent();
+            var savedPresencePosition =
+                appearancePreferences.LoadPresencePosition();
             var savedResponseWindowSettings = appearancePreferences.LoadResponseWindowSettings();
             suppressAppearancePreferenceSave = true;
             suppressPresencePreferenceSave = true;
-            suppressConstellationPreferenceSave = true;
+            suppressPresenceAppearancePreferenceSave = true;
             suppressResponseWindowPreferenceSave = true;
             try
             {
                 ThemeMode = savedThemeMode ?? ApplicationThemeMode.System;
                 PresenceTimeoutSeconds =
                     savedPresenceTimeoutSeconds ?? PresenceSettings.DefaultTimeoutSeconds;
-                ConstellationSizePixels =
-                    savedConstellationSizePixels ?? ConstellationSettings.DefaultSizePixels;
-                ConstellationDotSizePercent =
-                    savedConstellationDotSizePercent ?? ConstellationSettings.DefaultDotSizePercent;
-                ConstellationMovementSpeedPercent =
-                    savedConstellationMovementSpeedPercent
-                    ?? ConstellationSettings.DefaultMovementSpeedPercent;
+                PresenceSizePixels =
+                    savedPresenceSizePixels ?? PresenceSettings.DefaultSizePixels;
+                PresenceDotSizePercent =
+                    savedPresenceDotSizePercent ?? PresenceSettings.DefaultDotSizePercent;
+                PresenceMovementSpeedPercent =
+                    savedPresenceMovementSpeedPercent
+                    ?? PresenceSettings.DefaultMovementSpeedPercent;
                 SetProperty(
-                    ref constellationPosition,
-                    savedConstellationPosition,
-                    nameof(ConstellationPosition));
+                    ref presencePosition,
+                    savedPresencePosition,
+                    nameof(PresencePosition));
                 _ = SetResponseWindowSettings(
                     savedResponseWindowSettings ?? ResponseWindowSettings.Default,
                     SecurityAuditInitiator.System);
@@ -2283,7 +2283,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 suppressAppearancePreferenceSave = false;
                 suppressPresencePreferenceSave = false;
-                suppressConstellationPreferenceSave = false;
+                suppressPresenceAppearancePreferenceSave = false;
                 suppressResponseWindowPreferenceSave = false;
             }
 
@@ -3245,7 +3245,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private bool SaveConstellationPreference(
+    private bool SavePresencePreference(
         Action savePreference,
         string actionId,
         string settingName,

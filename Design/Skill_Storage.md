@@ -27,7 +27,9 @@ Proposed Kora-owned data layout:
 
 The layout and package schema are versioned; they are not executable search paths.
 This describes the proposed declarative Slice C store, not a shipped
-script runner. Future stored-script execution requires explicit review and
+script runner. Its explicit declarative manifest is distinct from the
+implicit folder descriptor for future user-provided executable skills below.
+Future stored-script execution requires explicit review and
 hash-bound grants under
 [skill and task execution design](../docs/skill-and-task-execution-design.md);
 merely finding or enabling a skill never grants execution.
@@ -69,6 +71,114 @@ Profile packages containing required scripts, custom validators, executable entr
 Reading such a package cannot promote its scripts into the bundled trust class.
 An explicit user request can instead create a reviewed declarative adaptation using already admitted tools.
 Skill instructions and descriptions remain untrusted content; policy is enforced at actual tool use.
+
+## Future User-Provided Executable Skills
+
+Status: future feature, outside the MVP declarative authoring/import policy
+and not available in the bootstrap. This section defines dependency discovery
+requirements, not permission to enable existing profile scripts today.
+
+Unlike a built-in's explicit embedded manifest, a user-provided executable
+skill has an **implicit manifest derived from its selected folder**.
+The host reads a supported instruction document such as `SKILL.md`, its
+bounded metadata, and the folder's script inventory into a normalised
+in-memory descriptor. It does not require or write a built-in-style
+manifest file beside it. A folder name is not a trustworthy skill ID, task
+binding, or approval.
+
+The descriptor records the source-qualified identity, canonical selected
+root, Markdown identity/digest, script entry point, complete dependency set,
+per-file identities/digests, and invocation contract. Select an entry point
+through supported metadata or an explicit user choice; do not guess among
+multiple `.ps1` files or execute code fences. Discover `.ps1` files recursively
+within the selected folder under size/depth/count limits, without following
+unapproved links. Include that inventory in the script set conservatively,
+then expand it with statically resolvable transitive script dependencies.
+Folder discovery never grants execution.
+
+### PowerShell Dependency Discovery
+
+For each discovered `.ps1`, use the admitted PowerShell parser/AST, not regex
+search or evaluation of the script. Attempt to resolve references including:
+
+- Dot-sourcing, for example `. "$PSScriptRoot\helpers\common.ps1"`.
+- Call-operator invocation, for example
+  `& "$PSScriptRoot\scripts\step.ps1"`.
+- Literal `.ps1` command paths and supported static script imports or
+  registered child-script launch forms.
+- References in other discovered scripts, recursively.
+
+Only literal paths and explicitly supported constant path forms, such as
+`$PSScriptRoot` relative to the referencing file, may resolve automatically.
+Relative paths must use the approved execution contract's base directory;
+if the runtime base is ambiguous or cannot be reproduced, block rather than
+assuming the skill folder. Do not run `Join-Path`, variable assignments,
+module initialisers, or any other code to discover a target.
+
+Canonicalise and verify each resolved file identity within approved source
+scope. Reject traversal/link escapes, ambiguous casing/aliases, missing or
+unreadable files, and unsupported reference forms with the referencing file
+and reason. A reference outside the skill folder requires explicit selection
+of an additional bounded source; until then the skill is unavailable.
+This allows a future shared user helper to be included without trusting
+an arbitrary sibling directory or the entire profile.
+
+Walk the dependency graph with a visited set so cycles terminate and each
+canonical file appears once in the hash inventory. Detect and report cycles;
+execution remains unavailable unless the admitted runner explicitly supports
+their semantics. Never omit a dependency because parsing or resolution failed.
+Variable/computed paths, `Invoke-Expression`, generated/downloaded scripts,
+dynamic modules, or unregistered child-process script launches are unresolved
+execution dependencies, not an empty dependency list. Report them as blocking
+the narrow content-bound grant. Any future broader execution capability needs
+a separate design and explicit approval; this feature cannot silently fall
+back to an unrestricted shell.
+
+Static parsing is an attempt to discover the complete set, not proof of all
+possible PowerShell behaviour. The execution mechanism must enforce the same
+resolved snapshot map and deny undeclared script/module/process access. If
+ordinary PowerShell import semantics cannot be served from stable handles
+or immutable verified snapshots without unchecked live reads, leave that
+skill unavailable. Parser success alone is not an admission gate.
+
+### Hashing, Review, and Changes
+
+Use the same [`Kora.ScriptSet.v1` combined-content encoding](Built_In_Skills.md#deterministic-script-set-hash)
+as built-ins, not just the entry-point hash. Folder-discovered scripts receive
+stable root-relative logical names; explicitly selected external dependencies
+receive source-qualified relative names under separate host-owned root IDs.
+Sort the complete logical names ordinally, preserve exact content bytes, and
+retain canonical physical identities separately in the grant key. Reject
+name/alias collisions; do not depend on discovery order or machine-specific
+absolute paths for the combined-content encoding. Changed physical targets or
+root bindings still require reapproval even when their bytes match.
+
+Compute a definition digest using `Kora.SkillDefinition.v1` over the Markdown,
+supported metadata files, and a host-generated implicit manifest. That
+manifest uses a versioned deterministic serialization of source bindings,
+entry point, dependency graph, and invocation contract; its format must be
+specified and covered by fixed-vector tests before this feature ships.
+The descriptor is host-calculated from actual files, not a checksum supplied
+by the skill. Its authoritative grant record remains device-local.
+
+At enablement/review, capture immutable content; immediately before dispatch,
+rediscover folder membership, reparse references, and compare current
+identities, hashes, and contracts with the approved snapshot. Watchers are
+advisory, never the only check. Added/removed scripts, a new import, changed
+dependency bytes, changed Markdown, or a moved/retargeted file revoke affected
+grants and require fresh review. Changes to a shared external helper invalidate
+all dependent skills, just as for embedded shared scripts.
+Reverting content does not restore a revoked grant.
+Persist revocation and its content-change reason; retain perpetual records
+as revoked rather than deleting them. Fresh approval creates a new grant,
+never updates the old digest or silently reactivates the record.
+
+Required future tests cover multi-script folders, nested/transitive imports,
+shared dependencies, identical basenames, cycles, missing files, source-scope
+escapes, unresolved dynamic references, directory membership changes,
+review/launch races, and parser-success cases that still attempt undeclared
+execution. Until these checks and containment pass, packages requiring
+scripts remain disabled under the existing MVP policy.
 
 ## Identity and Revision Handling
 

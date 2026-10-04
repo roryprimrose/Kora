@@ -248,21 +248,21 @@ This is not an executable/script grant, and exact direct lock does not yet
 use the same gate. The inventory and finer-grained grants below are proposed;
 future side-effecting built-ins and skills share the content/version-bound
 execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
-The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, consumed, session-ended, and explicitly removed states.
-Show stable ID, capability/action, canonical resource, identity, destination, scope/bound session, creator channel, creation/edit history, last use/use count, policy revision, and reason for inapplicability/removal.
+The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, content-revoked, consumed, session-ended, and explicitly removed states.
+Show stable ID, capability/action, canonical resource, identity, destination, scope/bound session, creator channel, creation/edit history, last use/use count, policy revision, and reason for inapplicability/revocation/removal.
 Perpetual grants have no expiry/retention/eviction; see [Grant Types and Inheritance](Security_Data_Flows.md#grant-types-and-inheritance).
 It never needs to display raw sensitive payloads; show content/parameter hashes and safe labels.
 
 Deterministic voice commands may open or filter that page, explain why an action is currently allowed, and request revocation.
 Explicit voice or UI confirmation completes removal, scope narrowing, or bulk removal against the exact displayed/read-back scope.
-Broadening scope, changing identity/destination, choosing session/perpetual scope, or replacing consumed/ended/removed access requires newly reviewed action-specific approval through either channel and any mandatory OS/provider checks.
+Broadening scope, changing identity/destination, choosing session/perpetual scope, or replacing consumed/ended/revoked/removed access requires newly reviewed action-specific approval through either channel and any mandatory OS/provider checks.
 No approvable action category is categorically denied session/always duration; future execution grants bind exact implementation/dependency digests, invocation, and resources, unlike today's named model-action preferences.
 Extending beyond a host maximum, granting unspecified effects, or approving a prohibited action is rejected, not overridable by approval.
 Revocation blocks new calls immediately and reports in-flight work as cancelled, completed, or uncertain.
 
 Required operations:
 
-- List grants by scope and applicable/consumed/session-ended/inapplicable/removed state.
+- List grants by scope and applicable/consumed/session-ended/inapplicable/content-revoked/removed state.
 - Inspect one grant and its use history.
 - Revoke one grant.
 - Revoke all grants for a provider, account, resource, skill/revision, or capability.

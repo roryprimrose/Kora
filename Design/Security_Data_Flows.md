@@ -243,12 +243,18 @@ The user chooses one of three grant scopes for an exact operation:
 |---|---|
 | Single-use (`Once`) | One exact invocation; consumed atomically and never replayed |
 | Session (`Session`) | Repeated use of that approved operation within the identified Kora work session; ends when that session is marked Done/deleted or the user removes it; resuming a Done session does not restore the grant |
-| Perpetual (`Always`) | Reusable for the approved operation until explicitly removed or edited by the user; no expiry, retention, inactivity cleanup, eviction, or archive/delete/restart removal |
+| Perpetual (`Always`) | Reusable for the approved operation until explicitly removed/edited or revoked for changed approved skill/script content; its record has no expiry, retention, inactivity cleanup, eviction, or archive/delete/restart removal |
 
 A Kora work session is not an application process: restarting Kora does not itself end an Active persisted work session or its session grant, but never replays consumed authorizations or interrupted work.
 Current bootstrap Session preferences are process-local; mapping them to durable work-session identity remains implementation work, not a change to the three chosen scopes.
 Perpetual records retain minimal scope/provenance separately from session history and audit events. Storage pressure must report failure/options, never evict them.
 Scope/applicability is distinct from stored record lifetime: operation/account/content constraints still gate every dispatch.
+An observed change to an approved skill/script-set hash or skill definition
+digest permanently revokes the affected grant's authorization in every scope.
+Persist its revoked state and reason without deleting the perpetual record.
+Restoring the old bytes never restores authorization; fresh exact approval
+creates a new grant. Temporary call-policy blocking and unverifiable resources
+are inapplicability, not content-change revocation.
 The default-On [in-call grant-ignore setting](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls) temporarily excludes Session/Perpetual reuse and requires fresh single-use approval per operation, without changing stored grants.
 The host revalidates it immediately before dispatch, including background work; feedback/speak-once preferences cannot bypass it.
 During protected calls, the [settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated voice/in-call configuration changes, including disabling grant-ignore/detection and clearing manual call state.
@@ -261,7 +267,9 @@ grant: identify its task, resources, invocation, and relevant dependencies
 first. A future `always` execution grant may persist only for an exact
 task/implementation identity, invocation and complete digest-bound
 executable/script resource set; any changed or unverifiable bytes,
-dependencies, or invocation make it inapplicable to that operation without removing its record. This is a future capability, not
+dependencies, or invocation block that operation without removing its record,
+and changed approved skill/script content permanently revokes authorization.
+This is a future capability, not
 the current model-action `Always` preference, which authorises named
 registered actions rather than executable content.
 See [skill and task execution design](../docs/skill-and-task-execution-design.md).

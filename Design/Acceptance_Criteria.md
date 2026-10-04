@@ -325,6 +325,10 @@ Use disposable protected fixtures and actual deployment identities/ACLs, not onl
 
 - Inspect source-build and precompiled publish artifacts: every built-in manifest/instruction/fixture/script is an embedded application resource, with no loose built-in skill files or writable execution extraction.
 - Test resource catalogue identity/digest validation and missing/corrupt resource failures; reject rather than searching profiles, PATH, other assemblies, or caches for a substitute.
+- Verify explicit built-in manifests identify their Markdown document, entry point, and complete multi-script set; shared helpers have one embedded identity referenced by multiple skills.
+- Prove the [combined script-set encoding](Built_In_Skills.md#deterministic-script-set-hash) against fixed byte vectors: ordinal full-name order, length framing, original bytes, and independence from catalogue/list enumeration order.
+- Shared-helper changes revoke every dependent skill/task grant for once/session/always, not unrelated skills; manifest/Markdown changes require review even with an unchanged script-set hash. No grant transfers between skills or upgrades automatically from a single-script/action-name grant.
+- Revoked hash-bound authorizations never return when old bytes are restored; perpetual records retain the revoked state/reason through restart and session/audit cleanup. Fresh approval creates a new grant rather than changing the old digest or reactivating it.
 - User voice/UI/authoring/import operations cannot edit/delete/override embedded skills; same-name profile skills and exported resource text never become privileged originals.
 - Execute verified resource snapshots without loose script files; runtime incompatibility fails explicitly, without a temporary-file or unrestricted-shell fallback.
 - Tampered/replaced application fixtures are rejected where protected deployment identity, external release metadata, or installed-file permissions can detect them; changing both embedded bytes and internal checksums does not satisfy the unsigned release's external origin/digest checks.

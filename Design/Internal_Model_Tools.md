@@ -92,6 +92,9 @@ Grants have three scopes: single-use (Once), the approved operation for an ident
 The canonical [grant-scope contract](Security_Data_Flows.md#grant-types-and-inheritance) defines consumption, session end, restart, and applicability.
 Only perpetual grants have no expiry, retention, inactivity cleanup, or eviction; they remain independently until explicitly removed or edited.
 Grant creation/edit/removal requires trusted user confirmation; host single-use consumption and session-end enforcement do not require a new user decision.
+Host revocation for a changed approved skill/script hash or definition digest
+also requires no new user decision. Preserve the record as revoked, never
+restore it when old bytes return, and require fresh approval for a new grant.
 History can reference a grant but is neither its storage owner nor live authority.
 Content, invocation, resource, account/identity, destination, and policy checks still determine applicability at every use; changed effects cannot inherit old approval.
 Retain each perpetual grant's minimal scope, implementation digests, creator/evidence class, and applicability reason independently of the originating chat, without retaining that entire deleted chat.
@@ -100,7 +103,7 @@ Approval proposals declare `grantScope: Once/Session/Perpetual` and a bound sess
 Short-lived question/proposal deadlines and one-invocation dispatch receipts do not impose expiry on perpetual grants.
 The separate default-On `calls.ignoreReusableGrants` setting temporarily ignores Session/Perpetual reuse during protected calls and requires fresh single-use approval per exact operation.
 The host owns call/setting revalidation at dispatch; models cannot self-confirm the operation or switch this protection Off.
-`approvals.inspect`/`approvals.explain` distinguish "ignored during call" from expired/removed/inapplicable, while `approvals.request` reports effective required scope Once and the blocker.
+`approvals.inspect`/`approvals.explain` distinguish "ignored during call" from expired/removed/inapplicable and permanently content-revoked grants, while `approvals.request` reports effective required scope Once and the blocker.
 See [Ignoring Reusable Grants During Calls](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls); this changes applicability, not storage or perpetual retention.
 The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-originated voice/in-call configuration mutations, including call-protection downgrades, manual clearance, reset/undo, and temporary/speak-once exceptions.
 Host-recorded origin survives model/tool hops and cannot be replaced by a later approval click; the user must start a new UI request. Models cannot choose the registry's protected-option classification.
@@ -172,7 +175,7 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
-| `approvals.list`, `approvals.inspect`, `approvals.explain` | Grant ID/scope/capability/resource filter or exact action proposal; hashes, applicability/use summary or why approval is needed | M/E | Proposed A3; distinguish consumed single-use, ended session, and independently retained perpetual grants |
+| `approvals.list`, `approvals.inspect`, `approvals.explain` | Grant ID/scope/capability/resource filter or exact action proposal; hashes, applicability/use summary or why approval is needed | M/E | Proposed A3; distinguish consumed single-use, ended session, content-revoked grants, and independently retained perpetual records |
 | `approvals.show` | Grant/proposal/filter ID; trusted inventory/editor reference | M/E | Proposed A3; opening editor creates no permission |
 | `approvals.request` | Typed exact invocation/resources/identity/digests/destination, grant scope/bound session ID and lineage; host-classified approval proposal | M/E | Proposed A3; M proposes management approval only, not task execution |
 | `approvals.propose_edit`, `approvals.revoke` | Exact grant IDs/revisions and scoped edit/remove preview; trusted decision-required/result | M/E | Proposed A3; user action required, no arbitrary expiry or bulk retention deletion |

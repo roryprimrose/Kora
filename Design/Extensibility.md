@@ -102,7 +102,11 @@ Neither extension needs direct clipboard access.
 Skills contain versioned instructions, tool references, parameter schemas, and validation rules.
 They cannot add permissions, suppress approvals, or turn source content into trusted instructions.
 MVP user-authored skills are explicit user-selected declarative workflows, not executable code.
-Bundled first-party skills may include fixed protected scripts, such as "lock the machine"; see [Out-of-the-Box Skills](Built_In_Skills.md).
+Bundled first-party skills contain an explicit embedded manifest and Markdown
+instructions and may include multiple fixed protected scripts, such as
+"lock the machine". Scripts can be shared between manifests; grants bind
+their deterministic combined content as well as the skill definition and
+invocation. See [Out-of-the-Box Skills](Built_In_Skills.md).
 Users can create and improve them by voice through [Skill Authoring](Skill_Authoring.md).
 The dedicated skill store is writable data; bundled skills and executable components remain protected.
 Shared profile skills can be referenced read-only after compatibility review and explicit enablement.
@@ -116,6 +120,10 @@ Suggested manifest fields:
 - Package origin and content digest.
 
 Declared capabilities are requirements, not grants. Missing dependencies disable the skill with an explanation.
+The future user-provided executable-skill format derives an implicit manifest
+from a selected folder and parses supported script references to discover
+dependencies; it does not change the MVP declarative policy. See
+[future executable skill storage](Skill_Storage.md#future-user-provided-executable-skills).
 
 ### MCP: External System Functionality
 

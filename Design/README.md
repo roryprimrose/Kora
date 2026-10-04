@@ -36,8 +36,8 @@ broader approval-policy evidence in D-008.
 6. [Task Lifecycle and Recovery](Task_Lifecycle.md): voice interaction, cancellation, and failure behaviour.
 7. [Work Management and Request Queue](Work_Management.md): contextual scheduling, concurrent management, and grounded status.
 8. [Voice-Driven Skill Authoring](Skill_Authoring.md): creating usable skills without modifying application code.
-9. [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md): protected scripted skills and mandatory microphone lock policy.
-10. [Skill Sources and Roaming Storage](Skill_Storage.md): read-only profile reuse and Kora-specific skill partitions.
+9. [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md): explicit embedded manifests, Markdown and shared multi-script packaging, deterministic grant hashes, and mandatory microphone lock policy.
+10. [Skill Sources and Roaming Storage](Skill_Storage.md): read-only profile reuse, Kora-specific partitions, and future folder-based executable-skill dependency discovery.
 11. [Distribution and Updates](Distribution_And_Updates.md): source bootstrap, compiled binaries, startup, and maintenance boundaries.
 12. [Proactive Voice Interaction](Proactive_Interaction.md): Kora-initiated conversations and trusted prompt routing.
 13. [Environment Setup and Readiness](Environment_Setup.md): Kora-owned first-run storage and capability-based dependency provisioning.
@@ -90,7 +90,7 @@ is an offline design mockup, not an implemented application or a change to relea
 - External integrations normally use MCP; repeatable instructions use skills.
 - Arbitrary code is not made safe merely by running it out of process.
 - Users develop declarative skills by voice; agent capabilities cannot modify Kora's own code or executable components.
-- Built-in skill definitions and scripts are embedded resources in the protected application binary, without loose-file overrides or writable extraction; microphone use is prohibited while Windows is locked.
+- Built-in skill manifests, Markdown, and all required scripts are embedded resources in the protected application binary, without loose-file overrides or writable extraction. Scripts may be shared; grants bind a deterministic combined-content hash and the exact skill definition/invocation. Microphone use is prohibited while Windows is locked.
 - Shared profile skills are read-only references; Kora-specific skills and reviewed edited copies live in `%APPDATA%\Kora\Skills`, with device-local enablement.
 - Source-bootstrap and precompiled runtime-only binary deployment are both supported; package format is not yet selected.
 - The expected repository is public/open-source on GitHub; Linux Actions build/package/publish initially unsigned Windows releases, with explicit unsigned-artifact disclosure, final-byte hashes/provenance, and Windows validation outside the required build pipeline.

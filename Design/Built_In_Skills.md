@@ -354,6 +354,8 @@ itself an execution grant. Under the future common gate, direct and
 model-suggested lock both require action-specific approval for the exact
 version-bound implementation, with once/session/always duration choices;
 no separate named spoken confirmation is required as for shutdown/restart.
+Session is offered only under the durable binding rule below; priority dispatch
+does not waive identity, persistence, grant, or call-policy checks.
 Today direct exact lock is still ungated, while model-suggested lock is
 approval-gated. Do not present the current discrepancy as the intended policy.
 Ambiguous or quoted/retrieved mentions of locking are not an invocation.
@@ -362,6 +364,36 @@ The skill cannot select another user/session, unlock Windows, obtain credentials
 This narrow host-admitted session control can bypass the task queue, like cancellation, so it remains available during long-running work.
 It is not a second general task executor and does not give the work-management model script/tool access.
 The host owns the priority allowlist; neither a user skill nor a modified manifest can claim it.
+
+### Standalone Lock Work-Session Binding
+
+An unaddressed standalone lock request creates a new durable Active Kora
+control work session through the deterministic host, without routing inference
+or waiting for a general task slot. Use a neutral lock-control title, not
+private labels copied from another session. Never attach it to the selected
+window, foreground voice question, currently running task, or an inferred
+related session. A request deliberately addressed to an Active work session
+(including its composer) uses that exact session after host validation;
+ambiguous or Done targets require clarification/explicit resume.
+
+Before presenting approval or dispatching in any scope, atomically commit the
+work-session identity and request/task/proposal lineage, then show/read back
+the bound session and exact lock action. Session approval may be offered only
+after that committed Active binding exists. Creation/selection is not approval;
+Once and Perpetual still bind the exact implementation/invocation and retain
+their own rules. If persistence fails, report the failure and do not dispatch
+or silently fall back to process-local Session authority.
+
+The priority host path records grant use and the correlated observed lock
+receipt in that same session, even when all general execution slots are busy.
+A terminal lock task does not automatically mark the work session Done.
+Later unaddressed standalone requests create new control sessions and cannot
+reuse the first session's grant; deliberate addressing of the still-Active
+control session permits only its exact approved operation after revalidation.
+Done/deletion ends Session authority, resume never restores it, and an ordinary
+restart preserves only still-applicable Active-session grants without replay.
+Protected calls may require Once instead of reusable scope under their
+independent grant-ignore policy.
 
 A failure or missing confirmation produces an explicit failure/unknown result with an action receipt.
 Do not announce success solely on script exit code and do not automatically retry an uncertain lock.
@@ -425,6 +457,10 @@ Ship protected shutdown and restart skills alongside lock, mapped to fixed `comp
 The same script identity, containment, non-self-modification, and local routing requirements apply.
 No generic shell, remote target, forced-close parameter, or user-defined privileged command is exposed.
 Their action-specific voice or UI confirmation, mandatory OS checks, all-session active-work handling, host countdown, and cancellation are defined in [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).
+M/E may submit proposals only. The deterministic host lifecycle controller
+owns approval and dispatch through the admitted execution gateway/worker under
+[Management Power Proposal Authority](Security_Data_Flows.md#management-power-proposal-authority);
+management inference never runs these scripts.
 App exit/hide/settings and queue controls are built-in lifecycle intents, not scripts required to control the host.
 
 ## Mandatory Locked-Session Microphone Policy
@@ -443,7 +479,8 @@ Kora must release microphone capture, not merely stop forwarding recognised comm
 - Reject attempts to enable listening from skills, runtime adapters, queued requests, shortcuts, or stale callbacks.
 - Unlock does not re-enable listening automatically; require explicit user
   re-enabling for the current run. A later ordinary application restart uses the
-  default automatic startup policy.
+  saved-consent startup policy and fresh gates in the
+  [microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
 
 No model instruction, bundled script, user setting, or approval may override this policy.
 It does not independently disable Microsoft integrations or cancel all background tasks.

@@ -44,6 +44,9 @@ The **Lane** column identifies the intended entry boundary:
 Some functions are host-only even though users can ask for them verbally.
 Opening or explaining a host flow never grants a model its execution authority.
 An operation's presence in this reference is not its enablement or permission.
+M/E power proposals have the same proposal-only authority:
+[the deterministic host lifecycle controller](Security_Data_Flows.md#management-power-proposal-authority)
+owns approval/countdown and dispatch through the admitted gateway/worker.
 
 ## Common Invocation Contract
 
@@ -190,6 +193,9 @@ Remote management is independently bounded to one request, 32 KiB input,
 The host owns capture consent, device lifetime, playback and notification
 events. No runtime receives ambient audio or enrollment material.
 Device selection alone never authorises microphone acquisition.
+The [microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix)
+governs ongoing consent, ordinary startup and current-run recovery; models
+cannot open capture or treat endpoint selection/testing as consent.
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
@@ -413,6 +419,10 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
 - **Grant:** exact definition digest, complete combined script-set hash,
   individual resource/dependency digests and invocation; Once/Session/Perpetual
   scope where applicable; direct, UI and model routes share the gate.
+  An unaddressed standalone request creates a new durable Active control work
+  session; commit/present its identity before approval or priority dispatch.
+  Session is offered only after [that binding](Built_In_Skills.md#standalone-lock-work-session-binding);
+  new control sessions cannot reuse another Session grant.
 - **Execution/result:** priority host-admitted route; fixed snapshot execution,
   observed Windows lock receipt; failed/unknown is not confirmed success.
   Microphone/sensitive output policy applies to every lock origin.
@@ -435,6 +445,8 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
   OS/provider check. Bind the proposal approval to a two-minute single-use expiry,
   not expiry of a perpetual grant record.
   Start a host-owned 30-second countdown and revalidate before graceful OS request.
+  M/E submit a pending proposal only; the host lifecycle controller owns these
+  decisions and dispatch through the admitted execution gateway/worker.
 - **Result:** proposal/countdown state, OS acceptance/blocker and receipt;
   acceptance is not proof the computer completed shutdown.
 - **Current:** `ProposeShutdown` creates a visible non-executing proposal.

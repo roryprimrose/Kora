@@ -1,7 +1,8 @@
 # Implementation Status and Delivery Roadmap
 
-Status: source-backed implementation inventory and proposed delivery order.
-Reviewed on 2026-10-05 against repository revision `457a743`.
+Status: source-backed implementation inventory and proposed delivery order;
+R01 policy reconciliation approved, implementation and acceptance proof open.
+Reviewed on 2026-10-05 against repository revision `e4688c3`.
 Update this baseline and the evidence below when implementation changes.
 
 Related: [MVP Scope](MVP_Scope.md), [Decision Register](Decision_Register.md), [Acceptance Criteria](Acceptance_Criteria.md), [Canonical Tool Catalogue](Internal_Model_Tools.md), [Technical Capability Reference](Tool_And_Skill_Reference.md).
@@ -74,15 +75,18 @@ Keep current/planned labels and unavailable-tool exclusion until the exact repla
 
 ## Design Reconciliation Before Expansion
 
-R01 resolves the following discrepancies by recording an explicit decision and aligning the affected contracts/tests. This roadmap does not silently select new product policy.
+R01's initial-release choices were approved on 2026-10-05 in the reconciliation
+session. The [decision register](Decision_Register.md#r01-accepted-policy-reconciliation)
+records that approval and separates accepted contracts from implementation
+evidence. No runtime behavior was changed or acceptance trial performed by R01.
 
 | Issue | Affected contract | Required resolution and affected work |
 |---|---|---|
-| Management power authority | [Management boundary](Security_Data_Flows.md) forbids task tools/action approvals; [power proposal tools](Internal_Model_Tools.md#computer-controls-and-notify-only-maintenance) admit M/E. | Define whether M can only propose a management change or can create a power proposal, and which host/execution lane owns approval/dispatch. Block affected exposure in R06/R13/R16 until consistent. |
-| Capture after restart/unlock/resume | [Lifecycle](Task_Lifecycle.md), [configuration](User_Configuration.md) and [voice/startup acceptance](Acceptance_Criteria.md) differ over explicit re-enabling versus safe automatic startup listening. | Publish one first-launch/restart/unlock/resume/manual-disable/permission-loss consent matrix; distinguish consent from transient enablement and current bootstrap behavior. R03/R09/R17 implement it. |
-| Optional private-speech fallback | [Design index](README.md) and [lifecycle](Task_Lifecycle.md) use unconditional fallback wording; [MVP scope](MVP_Scope.md) and [security](Security_Data_Flows.md) condition owner-aware privacy on enablement. | Align the setting-conditioned fallback and baseline voice behavior; require no compulsory speaker verification. R09/R15 and optional R24 use that decision. |
+| Management power authority | [Management boundary](Security_Data_Flows.md#management-power-proposal-authority) and [power proposal tools](Internal_Model_Tools.md#computer-controls-and-notify-only-maintenance) now agree. | Resolved: M/E submit proposals only; host lifecycle owns approval/countdown and gateway/worker dispatch. No M task tools or self-approval. R06/R13/R16 exposure still requires implementation evidence. |
+| Capture after restart/unlock/resume | [Canonical matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix), [lifecycle](Task_Lifecycle.md), [configuration](User_Configuration.md) and acceptance are aligned. | Resolved: explicit first-launch ongoing consent; saved consent permits fresh-gated ordinary startup/restart. Unlock/resume/manual-disable/loss recovery requires explicit Enable listening within the run; consent withdrawal persists. R03/R09/R17 implement it. |
+| Optional private-speech fallback | [Design index](README.md), [lifecycle](Task_Lifecycle.md), [MVP scope](MVP_Scope.md) and [security](Security_Data_Flows.md#explicit-verification-and-output-privacy) condition owner-aware fallback on enablement. | Resolved: baseline voice needs no verifier; selected owner-aware protection falls back visually on uncertain/unavailable confidence and never silently switches Off. R09/R15 and optional R24 use this boundary. |
 | Acceptance placement | Earlier additional-capability wording classified Ollama/independent executors outside MVP despite A2/A3 requirements. | The [additional gates](Acceptance_Criteria.md#additional-capability-evidence) are reclassified with this roadmap; retain concrete A2/A3 proof rather than treating it as a later enhancement. |
-| Standalone lock Session grants | [Bundled skill](Built_In_Skills.md) requires a durable Kora work-session ID but offers Session on a priority lock path without a complete standalone binding rule. | Define how an unaddressed deterministic lock gets its work-session identity, or when Session cannot be offered. Never use the selected window as authority. R04/R05/R11 require the resolved rule. |
+| Standalone lock Session grants | [Bundled skill binding](Built_In_Skills.md#standalone-lock-work-session-binding) defines durable identity before approval/priority dispatch. | Resolved: create a new Active control work session for an unaddressed standalone request; commit and present binding before offering Session. Deliberate Active-session addressing is preserved; no selected-window authority. R04/R05/R11 prove it. |
 | Deferred application rollback | [Execution design](../docs/skill-and-task-execution-design.md) distinguishes permanent bundled-content revocation from standalone application-binary inapplicability. | Before R27, specify whether restoration of old standalone application bytes can restore applicability. This deferred decision does not block read-only/initial fixed bundled capabilities; do not generalize bundled revocation to it without a decision. |
 
 ## Ordered Outstanding Work
@@ -96,12 +100,15 @@ An R02 dependency names the relevant branch below, not a requirement to finish
 unrelated vendor/packaging investigations before safe local work can proceed.
 R03's existing-host privacy/ownership work can start after R01 and runs its own
 actual Windows trials; it need not wait for a Copilot integration decision.
+R01's required policy decisions are now resolved: R02 feasibility branches and
+R03 ownership/privacy implementation are unblocked at the design dependency.
+Their technical and real-boundary acceptance gates remain outstanding.
 
 ### Core Foundations and First Useful Interaction
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
-| R01 - Reconcile policy, scope and checkpoint contracts | Outstanding decisions/alignment above | P0 - prevent incompatible authority and consent implementations | None | Record the initial-release resolutions, ownership and gates; align canonical tools, security, lifecycle, configuration and acceptance. Track the standalone-application question for R27 rather than blocking all core work on deferred scope. |
+| R01 - Reconcile policy, scope and checkpoint contracts | Design reconciliation complete; approved 2026-10-05; no runtime changes | P0 - prevent incompatible authority and consent implementations | None | Initial-release authority, consent, optional privacy and standalone-lock binding recorded and aligned above; A2/A3 evidence remains required. Standalone application rollback remains deferred R27 work. Runtime/enforcement proof is not claimed by this package. |
 | R02 - Run release-blocking feasibility proofs | Partial candidates in I01/I06/I09/I16; proof outstanding | P0 - discover impossible runtime, hardware or containment assumptions before expansion | R01 | Pin/prove Copilot control points and management-provider envelope, local model/license/reference CPU floor, wake candidates, OS worker containment, protected deployment and encrypted-storage/key strategy. Record D-001 through D-005/D-007 technical choices and failed/disabled capabilities. Reuse existing candidates, but exercise actual SDK/provider/OS boundaries. Later packages must pass their relevant proof branch before exposure. |
 | R03 - Establish Windows/audio ownership and privacy foundation | Partial I03-I06/I12/I13 | P0 - stop unauthorized capture and overlapping owners | R01 | Implement cross-build single-owner activation/handoff/return, consent/enablement generations, explicit PTT, bounded audio/transcript buffers and stale-callback rejection. Enforce wake-only versus activated-transcription separation; never label current ambient grammar capture as production wake. Observe lock/disconnect/suspend/permission/device changes and close capture/clear audio/output on every required event. Release capture within 500 ms of observed lock in every reference trial. Provide native/tray recovery without model/network/speech. |
 | R04 - Introduce durable identities and authoritative host contracts | Partial setup storage/ledger in I07/I15 | P0 - stable attribution, state and crash-safe intent | R01, R02 (storage/key), R03 | Define typed request/origin, work-session/task/question/proposal/invocation/revision identities, result states and resource descriptors. Implement encrypted event/artifact persistence with OS-protected keys, ordered commits, migration/integrity/crash recovery and no automatic action replay. Separate operational/security evidence from diagnostic logs; preserve legacy preferences through explicit migrations. Lay the foundation, not the full history/queue UI. |

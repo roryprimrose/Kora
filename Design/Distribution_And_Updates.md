@@ -134,10 +134,16 @@ Use [Instance Coordination](Instance_Coordination.md) across installed/developer
 No handoff installs code or bypasses the current maintenance restrictions.
 
 Startup opens the shell/tray and automatically attempts listening when the
-interactive session, selected microphone, and voice activation policy permit it.
+host has saved ongoing voice consent and fresh ownership, interactive-session,
+permission, selected-microphone, asset and voice/call-policy checks permit it.
+First launch obtains explicit consent, not recording permission from install,
+device selection or logon registration.
 Manual disablement lasts for the current process; a later app restart/logon again
 uses the automatic startup policy. Locked, disconnected, or unknown session
 states still block acquisition and require explicit recovery after unlock.
+Unlock/resume and permission/device recovery in the current run never reopen
+capture silently; consent withdrawal persists across restart. See the
+[canonical microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
 Uninstallation removes startup/deployment registrations and offers to retain user skills/settings.
 It does not delete shared profile skills.
 

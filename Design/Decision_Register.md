@@ -34,8 +34,8 @@ Registry/schema/lane coverage, unavailable-tool exclusion, and host-only boundar
 
 ## Roadmap Dependencies
 
-R01 records and reconciles the outstanding initial-release authority, microphone
-lifecycle, optional privacy and standalone-lock session-binding contracts.
+R01's initial-release policy reconciliation was approved on 2026-10-05 and is
+recorded below. This closes design discrepancies, not runtime or release proof.
 The deferred standalone-application rollback question is due before R27, not
 before ordinary read-only tools or fixed bundled actions.
 
@@ -51,6 +51,27 @@ before ordinary read-only tools or fixed bundled actions.
 
 R19 and R23 compile the applicable release results; a merged implementation or
 fake-only test does not close a decision that requires real boundary evidence.
+
+## R01 Accepted Policy Reconciliation
+
+Product approval in the R01 session resolved the initial-release policy choices:
+
+| Contract | Accepted decision and canonical owner | Implementation / evidence still required |
+|---|---|---|
+| Management power authority | M/E may submit typed proposal-only shutdown/restart requests. The deterministic host lifecycle controller owns all-session review, approval, countdown and dispatch through the admitted execution gateway/worker; neither model lane approves or executes. [Security contract](Security_Data_Flows.md#management-power-proposal-authority) | R05/R06/R13/R16 lane, grant, quiescence, cancellation and real worker/OS proofs |
+| Microphone consent and enablement | Explicit first-launch ongoing consent; saved consent permits ordinary safe automatic launch/restart. Unlock/resume/manual disablement/permission or device loss require explicit recovery within the run. Run-scoped holds do not survive ordinary restart; consent withdrawal does. [Canonical matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix) | R03/R09/R17 actual Windows/audio ownership, event and stale-generation trials; bootstrap auto-listening is not this complete policy |
+| Optional private speech | Owner-confidence fallback applies only while owner-aware protection is enabled; its failure never silently disables it. Baseline voice trusts the active unlocked profile and normal output/privacy/call policy without compulsory verification. Learning is not enrollment or authority. [Output privacy](Security_Data_Flows.md#explicit-verification-and-output-privacy) | R09/R15 normal output gates; R24 verifier/learning claims only if separately delivered |
+| Standalone lock Session binding | The deterministic host creates a new durable Active control work session for an unaddressed standalone lock. Commit and present its identity/lineage before approval/dispatch; offer Session only after binding. Explicitly addressed Active sessions remain valid targets; window selection is never authority. [Binding rule](Built_In_Skills.md#standalone-lock-work-session-binding) | R04/R05/R11 persistence failures, targeting, priority-path grant/receipt and lifetime evidence |
+| Acceptance placement | Ollama/offline answering remains required A2 evidence; fixed bundled containment and concurrent independent tasks remain required A3 evidence. [Additional capability evidence](Acceptance_Criteria.md#additional-capability-evidence) is already correctly classified | Actual provider, hardware, containment and concurrency evidence remains open |
+| Standalone application rollback | No policy chosen for restoring old standalone application bytes. This is deferred R27 work, not a prerequisite for initial fixed capabilities. [Execution-grant boundary](../docs/skill-and-task-execution-design.md#execution-grants) | Record the rollback/applicability decision before R27 admission; never weaken permanent bundled-content revocation |
+
+No required R01 product question remains open. D-001 through D-011 technical
+choices/enforcement evidence retain their existing status and due checkpoints;
+R01 does not claim their closure or acceptance of A0-A4.
+R02's independent feasibility branches and R03's existing-host
+ownership/privacy foundation may now start against these contracts.
+R03 need not wait for the Copilot/provider decision, but production wake
+exposure still needs its relevant R02/R09 proof.
 
 ## D-001 Copilot Adapter Control Proof
 

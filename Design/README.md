@@ -14,6 +14,10 @@ behavior from partial/outstanding features and missing release proof, and orders
 remaining work by safety, user value and explicit dependencies.
 It is the current delivery baseline; the numbered A0-A4/B/C checkpoints remain
 acceptance milestones, not a claim that the bootstrap has completed any slice.
+R01's initial-release policy reconciliation is
+[approved and recorded](Decision_Register.md#r01-accepted-policy-reconciliation):
+R02 feasibility and R03 ownership/privacy work can start. Runtime acceptance
+remains open; standalone application rollback is deferred R27 work.
 
 ## Current Bootstrap Boundary
 
@@ -105,7 +109,11 @@ is an offline design mockup, not an implemented application or a change to relea
 - Independent persistent sessions execute concurrently within verified limits; the model proposes routing/queue intent, while the host enforces isolation, resource coordination, scheduling, and approvals.
 - Clipboard capture is built in. Interpretation and downstream workflows are extensible.
 - Local-only mode never silently falls back to a remote service.
-- Optional local speaker verification is a per-profile privacy confidence signal, never authentication or approval; private speech falls back to a neutral visual notice when owner confidence is absent.
+- Optional local speaker verification is a per-profile privacy confidence
+  signal, never authentication or approval; private speech falls back to a
+  neutral visual notice on absent/uncertain confidence only while owner-aware
+  protection is enabled. Baseline voice uses normal output/privacy/call policy
+  without compulsory verification.
 - External integrations normally use MCP; repeatable instructions use skills.
 - Arbitrary code is not made safe merely by running it out of process.
 - Users develop declarative skills by voice; agent capabilities cannot modify Kora's own code or executable components.
@@ -118,6 +126,14 @@ is an offline design mockup, not an implemented application or a change to relea
 - Automatic speech defaults to visual-only during calls or uncertain enabled-detector state; users configure this verbally and can request a single spoken response.
 - Every workflow supports voice, mouse/keyboard, or mixed interaction; explicit voice/UI approvals share Windows-session trust, with optional speaker confidence and mandatory OS/provider checks preserved.
 - OOTB computer/app/queue controls have explicit scopes; shutdown/restart require fresh action-specific confirmation through either channel, safe work handling, and a cancellable countdown.
+- Management power tools propose only; the deterministic host lifecycle
+  controller owns approval/countdown and gated fixed-action dispatch.
+- Ongoing microphone consent is explicit on first launch and persists separately
+  from run-scoped disablement/recovery holds; ordinary safe restart can use it,
+  but unlock/resume and loss recovery require explicit enablement within the run.
+- An unaddressed standalone lock creates a durable Active control work session;
+  Session approval is offered only after its binding is committed and presented,
+  never from the selected window.
 - General requests create a new session unless clearly related to an Active session; explicit targeting wins and archived sessions resume only explicitly.
 - Full permitted session history survives restart and Done; defaults archive after 24 inactive hours and delete after 30 inactive days, with both settings configurable.
 - Every supported preference has verbal discovery/get/set/reset operations through the same host service as the UI; mandatory safety rules are not configurable bypasses.

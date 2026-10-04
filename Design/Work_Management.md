@@ -18,6 +18,8 @@ The management lane:
 - Routes general requests to a new session unless clearly related to an Active session; explicit session targeting wins.
 - Interprets requests against the addressed session's task and queue.
 - Proposes queue additions, edits, ordering, removal, replacement, or clarification.
+- Submits explicitly admitted typed host lifecycle proposals, including
+  shutdown/restart, without approval or execution authority.
 - Answers current-work and remaining-work questions from an authoritative ledger.
 - Routes approval replies to the correct task and request.
 
@@ -65,6 +67,11 @@ control path; this does not grant management inference executable-tool access
 or waive the future action-specific approval gate. Today direct exact lock
 calls the Windows API without that gate; model-suggested lock asks for approval.
 See [Bundled Skills](Built_In_Skills.md).
+Standalone lock uses [durable control-session binding](Built_In_Skills.md#standalone-lock-work-session-binding)
+without routing inference; window selection never supplies Session authority.
+For [power proposals](Security_Data_Flows.md#management-power-proposal-authority),
+the deterministic host lifecycle controller owns all-session review,
+approval/countdown and gated fixed-worker dispatch. M/E propose only.
 If management inference fails or is unavailable, show the limitation and ask explicitly how to handle an ambiguous new request.
 Local-only mode does not call a remote management model.
 

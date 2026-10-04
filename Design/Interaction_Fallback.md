@@ -17,25 +17,31 @@ Speech is an optional additional delivery channel when existing output consent/p
 Hidden speech text, visual detail preferences, or an unavailable rich renderer cannot hide these controls.
 Provide equivalent keyboard/screen-reader interaction; mouse use never requires a spoken acknowledgement.
 
-## First Launch: Explain Automatic Listening
+## First Launch: Obtain Ongoing Voice Consent
 
 1. Open accessible first-run onboarding, even when the normal configured startup presentation is tray/minimal.
 2. Enumerate audio capture endpoints before opening capture.
-3. Select System when no Kora override exists and explain visibly that Kora
-   starts listening automatically when startup readiness and session policy allow.
+3. Select System without recording when no Kora override exists. Explain
+   ongoing local wake listening and obtain explicit voice consent before
+   enabling it; later ordinary startup uses saved consent and fresh gates.
 4. Show each detected endpoint with friendly name, stable host identity, current availability, and a default-device badge where applicable.
 5. Provide an immediately accessible Disable listening action that releases the
    microphone for the current run, plus microphone selection and test actions.
 6. Explain local configured-name detection ("Kora" initially), bounded ambient audio, command transcription, visible listening status, and mandatory locked-session denial.
-7. Offer "Disable listening", an explicitly consented "Test selected microphone",
-   "Choose another microphone", and "Continue without voice".
+7. Offer "Enable voice" with explained ongoing consent, an explicitly consented
+   "Test selected microphone", "Choose another microphone", and "Continue
+   without voice"; also expose Disable listening once capture is active.
 8. Before automatic startup or explicit recovery, revalidate session,
    endpoint, permissions, and assets; confirm readiness only after the real checks succeed.
 9. If prerequisites are missing or opening fails, show the exact blocker and next actions; remain fully usable through mouse-based prompts.
 
-Normal safe startup attempts capture automatically because listening is Kora's
-primary purpose. Device selection by itself does not restart capture after the
-user manually disables listening during the current run.
+After saved ongoing consent, ordinary safe startup attempts capture
+automatically because listening is Kora's primary purpose. Declined/withdrawn
+consent stays closed across restart. The
+[microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix)
+separates consent from current-run enablement and recovery holds.
+Device selection by itself does not restart capture after manual disablement,
+lock/unlock, suspend/resume, permission/device loss or capture/asset failure.
 Offer [Activation Name](Activation_Name.md) selection before ongoing listening, including a custom-only recommendation for shared offices; this is available by mouse before voice is ready.
 Distinguish duplicate friendly names with device details; bind operations to an enumerated endpoint ID, never the displayed label alone.
 A system-default change may reroute active capture only while System is selected;

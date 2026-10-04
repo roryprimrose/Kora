@@ -251,6 +251,10 @@ removed/edited or revoked by a changed approved content identity).
 These scopes never authorize future versions of the files.
 See [Grant Types and Inheritance](../Design/Security_Data_Flows.md#grant-types-and-inheritance)
 for consumption, session end, and Active-session restart behavior.
+For initial fixed lock, use the
+[standalone control-session binding](../Design/Built_In_Skills.md#standalone-lock-work-session-binding):
+commit/present a new Active session for an unaddressed request before
+approval/dispatch; Session cannot mean process lifetime or selected window.
 Perpetual grant records have no expiry, retention, or eviction policy and remain
 independently of session/audit cleanup, even when inapplicable or revoked.
 A different digest, missing
@@ -271,6 +275,11 @@ For example, if the user previously allowed Kora to launch an application and
 its binary is replaced by an updated build, the old approval must be ignored
 and shown as inapplicable. Kora must ask again for the new binary's hash before launching
 it; approving the application name alone is insufficient.
+Whether restoring old standalone application bytes can restore applicability
+is an unresolved **deferred R27 decision**, due before that capability is
+admitted. It does not block initial read-only or fixed bundled capabilities.
+Do not apply this open question to bundled skill/script content: its observed
+content change permanently revokes authorization even if old bytes return.
 
 Grant management must show the approved digest (or a readable abbreviation
 with access to the complete digest), resource identity, task, scope, and whether

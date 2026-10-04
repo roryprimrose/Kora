@@ -57,14 +57,18 @@ Relative changes such as "slower" resolve to a displayed concrete value within t
 Changes that disable speech are acknowledged visually under the resulting policy.
 Use device-local persistence by default; explicit task/conversation/temporary scope does not change the default.
 Do not roam preferences, grants, device IDs, or credentials with skill files.
-Persisted preferences do not persist manual listening disablement, manual call state, or temporary overrides across restart.
+Persisted preferences include the explicit ongoing voice-consent choice, not
+live capture or run-scoped recovery holds. Manual listening disablement, manual
+call state and temporary overrides do not persist across ordinary restart;
+consent withdrawal does. See the
+[microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
 
 ## 1. Voice Input and Activation
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Input device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; changing selection after manual disablement does not restart capture | "Use my headset microphone" |
-| Listening enabled | Starts automatically on ordinary safe startup; manual disablement releases capture for the current run | "Stop listening" |
+| Listening enabled | Closed until explicit first-launch ongoing consent; saved consent permits automatic ordinary safe startup; manual disablement/recovery holds release capture for the current run | "Stop listening" |
 | Assistant display and command name | "Kora" initially; one validated custom-only name of 1-3 words and at most 32 characters | "Change your name to Nova" |
 | Optional PTT shortcut | Unassigned until selected; validate conflicts | "Set push-to-talk to Control Shift Space" |
 | Activation feedback | Visual always; non-speech cue when output policy permits | "Turn off the activation sound" |
@@ -73,7 +77,7 @@ Persisted preferences do not persist manual listening disablement, manual call s
 | Maximum utterance | 60 seconds; 10-120 seconds | "Limit commands to forty-five seconds" |
 | Recognition language/model | Initial supported local English configuration; choose only delivered/ready assets | "Use the more accurate installed recognition model" |
 | Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
-| Owner-aware private speech | On when an enrolled supported verifier is available; private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable` | "Only read private information when you recognise my voice" |
+| Owner-aware private speech | Optional; On for an explicitly enrolled supported verifier, not baseline voice or learning; while enabled, private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable`, without silently switching protection Off | "Only read private information when you recognise my voice" |
 
 The default assistant name is "Kora"; [Assistant and Activation Name](Activation_Name.md)
 defines the implemented display/command identity, its device-local persistence,
@@ -82,8 +86,11 @@ name is custom-only: after commit, the previous name is not retained as a
 hidden alias. The executable, application-data roots, assemblies, log names,
 and trust identity remain Kora.
 Device switching revalidates session, capture, and playback-rejection safety.
-First run selects System and automatically attempts listening after readiness
-checks. System uses Windows default-device stream routing, so later
+First run selects System without recording and obtains explicit ongoing voice
+consent before enabling listening. Later ordinary startup may automatically
+enable after saved consent and fresh gates under the
+[microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
+System uses Windows default-device stream routing during enabled capture, so later
 multimedia-default changes are applied without creating a Kora endpoint override
 or reopening capture. Device-loss
 replacement always works by mouse through
@@ -92,6 +99,10 @@ not silently replace a specifically selected endpoint. The persistent system tra
 context menu lists detected microphones and provides Disable listening while
 capture is active plus Enable listening for recovery after manual disablement or
 failure; selecting a replacement alone does not restart recording.
+Unlock/resume, restored permissions, reconnection, asset repair and selection
+changes never release a current-run recovery hold without explicit Enable
+listening. Without owner-aware protection selected, normal privacy/output/call
+policy governs baseline speech; unavailable verification alone does not mute it.
 "Start listening" can set the preference only through an already available explicit input channel; a closed microphone cannot receive the utterance.
 Do not keep a secret listening path merely to support voice unmute.
 Speaker enrollment, replacement, deletion, and verifier threshold policy remain protected biometric workflows with Windows Hello or equivalent OS reauthentication.
@@ -237,7 +248,9 @@ Reducing audit retention or removing source enablement explains any immediate de
 
 During the unsigned phase, update installation is external to Kora; no install/stage/download approval or "automatic install" setting exists.
 Changing channels does not authorise a downgrade, skip verification, or rewrite the protected feed/trust configuration.
-Logon startup does not waive explicit microphone re-enabling or locked-session policy.
+Logon startup uses saved ongoing consent and fresh gates, not a pre-logon
+listener or a waiver of locked-session policy; current-run unlock/resume
+recovery still requires explicit Enable listening under the microphone matrix.
 
 ## 8. Permissions and Approvals
 

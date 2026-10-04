@@ -148,7 +148,7 @@ During the initial unsigned phase, Kora checks for updates and notifies through 
 Voice may defer, suppress reminders, show release details, or open the configured canonical release page.
 It cannot approve download, staging, execution, source mutation, or activation.
 The user obtains and launches a replacement outside Kora under the normal unsigned-install disclosure and OS prompts.
-An install-capable updater is a future capability requiring independently authenticated signed metadata with a protected offline/root trust anchor, expiry, rollback/freeze protection, threshold/key-rotation design, native secure approval, and separate acceptance evidence.
+An install-capable updater is a future capability requiring independently authenticated signed metadata with a protected offline/root trust anchor, expiry, rollback/freeze protection, threshold/key-rotation design, exact host-owned voice/UI approval with mandatory OS checks, and separate acceptance evidence.
 
 Do not infer update ownership merely by finding `.git`.
 Use installation metadata to distinguish a managed source deployment, binary deployment, and developer checkout.
@@ -204,7 +204,7 @@ MSIX/App Installer is deferred while initial artifacts remain unsigned because i
 Select the implementation only after demonstrating the Linux build/package/release path and Windows protection/update gates.
 Installer/activation mechanisms sit behind the platform boundary; NSIS is a Windows candidate, not a universal installer or a commitment to other platform packages.
 The bootstrap concept does not commit Kora to Chocolatey as a dependency.
-Future package configuration must preserve per-release native secure approval; do not enable unattended App Installer updates that would bypass the selected policy.
+Future package configuration must preserve per-release exact host-owned approval and mandatory OS checks; do not enable unattended App Installer updates that bypass that policy.
 Do not implement multiple independent update authorities for the same installation.
 
 References: [NSIS portable compiler](https://nsis.sourceforge.io/Features), [Velopack cross-compiling](https://docs.velopack.io/packaging/cross-compiling), [Velopack update controls](https://docs.velopack.io/integrating/overview).

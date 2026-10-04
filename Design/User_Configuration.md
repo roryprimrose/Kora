@@ -1,8 +1,8 @@
 # User Configuration and Verbal Settings
 
-Status: proposed. Every supported user preference must be discoverable, inspected, and set verbally once local voice input is ready.
+Status: proposed. Every supported user preference must be discoverable, inspected, and set verbally once local voice input is ready, subject to the explicit protected-call origin gate and mandatory secure workflows.
 
-Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md).
+Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
 
@@ -22,11 +22,16 @@ Each registered option declares:
 - Scope: device, conversation/task, source/connector, or bounded temporary override.
 - Availability/dependencies, validation, sensitivity, confirmation rule, and application timing.
 - Whether it can be reset, and the changes affected by reset.
+- Host-assigned voice/in-call effect classification, including whether the protected-call initiating-channel restriction applies.
 
 The model may interpret a request into an option/value proposal; the host validates it against the registry.
 It cannot supply a configuration-file path, arbitrary JSON patch, shell command, executable reference, or undocumented option.
 Exact basic settings commands remain usable without a model/network.
 Changing a supported preference is not permission to alter policy implementation, install software, grant tools, or execute an action.
+Model-facing discovery/get/change/reset/undo operations are inventoried in [Internal Model Tools](Internal_Model_Tools.md#grants-settings-and-evidence).
+The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated changes to voice settings and every in-call-related option while protected call evidence applies.
+This includes reset/undo, detector/manual-state changes, grant-ignore and temporary/speak-once call overrides; a new UI-originated request is required, not UI confirmation of the rejected voice request.
+Deterministic safety controls and read-only inspection remain available; this is an explicit exception to ordinary verbal-setting availability.
 
 ## Voice Interaction
 
@@ -67,6 +72,7 @@ Persisted preferences do not persist manual listening disablement, manual call s
 | Trailing-silence endpoint | 1 second; 0.5-3 seconds | "Allow two seconds of silence before finishing my command" |
 | Maximum utterance | 60 seconds; 10-120 seconds | "Limit commands to forty-five seconds" |
 | Recognition language/model | Initial supported local English configuration; choose only delivered/ready assets | "Use the more accurate installed recognition model" |
+| Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
 | Owner-aware private speech | On when an enrolled supported verifier is available; private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable` | "Only read private information when you recognise my voice" |
 
 The default assistant name is "Kora"; [Assistant and Activation Name](Activation_Name.md)
@@ -88,14 +94,17 @@ capture is active plus Enable listening for recovery after manual disablement or
 failure; selecting a replacement alone does not restart recording.
 "Start listening" can set the preference only through an already available explicit input channel; a closed microphone cannot receive the utterance.
 Do not keep a secret listening path merely to support voice unmute.
-Speaker enrollment, replacement, deletion, threshold policy, and any relaxation of owner-aware private speech are security-sensitive native workflows, not ordinary verbally settable preferences.
-Voice may open the relevant settings page or report non-sensitive enrollment availability, but Windows Hello or equivalent native reauthentication and visual confirmation complete the change.
+Speaker enrollment, replacement, deletion, and verifier threshold policy remain protected biometric workflows with Windows Hello or equivalent OS reauthentication.
+That requirement applies to explicitly enrolled verification, not merely optional non-authorizing frequent-speaker learning.
+Learning consent/status/reset/deletion follow [Optional Local Frequent-Speaker Learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning); Off stops learning but is not an implicit deletion of derived features.
+Voice can initiate verification enrollment but cannot bypass its secure flow. Changes to owner-aware output/approval preferences use explicit exact voice/UI confirmation, not automatic template adaptation.
+All voice-profile settings and management changes obey the protected-call origin gate; status inspection remains available.
 
 ## 2. Spoken and Visual Responses
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
-| Response mode | Hybrid device default; transient current-queue/current-task overrides; task > queue > device | "Use visual responses only for this task" |
+| Response mode | Hybrid device default; explicit session and transient task/queue overrides; applicable in-call > task > queue > session > device, subject to mandatory policy and explicit permitted speak-once exception | "Use visual responses only for this session" |
 | Output device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; stale/missing/unselected/muted/zero-volume/open/playback failure forces visual fallback | "Speak through my headphones" |
 | Local voice | Supported installed voice; do not silently download on selection | "Use the second installed voice" |
 | Speech rate | Engine normal; advertised supported range | "Speak twenty percent slower" |
@@ -114,7 +123,7 @@ Voice may open the relevant settings page or report non-sensitive enrollment ava
 Visual-only does not close the microphone. Output-device changes never change global system/call volume.
 Voice-only still preserves required visual approval/error/fallback surfaces; it cannot suppress safety information.
 When speech output is missing, temporarily unavailable, or fails during playback, the response text and window are forced visible regardless of the effective response mode.
-Task and queue response-mode overrides are memory-only and expire with their scope; only an explicit device-default change is persisted.
+Task and queue response-mode overrides expire with their execution scope; an explicitly chosen session mode is persisted with that session until reset/deletion. The device default changes only explicitly.
 Specific microphone and output selections are device-local Kora overrides. A
 saved override wins on later starts while that stable endpoint exists. Missing
 saved or current explicit endpoints are not replaced silently; the user must
@@ -132,7 +141,8 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Call speech mode | Suppress automatic requested/proactive speech; one-shot override allowed | "Only suppress unsolicited suggestions during calls" |
-| Detected-call visual override | On; Active/Suspected observations use visual-only responses instead of the normal task/queue/device response mode | "Use my normal response mode during calls" |
+| In-call feedback override | UI-only by default; Voice / UI / Both / Inherit; Active/Suspected observations use this separate device-local setting ahead of task/queue/session/device response mode, subject to speech/privacy policy | "Use UI responses only when I'm in a call" |
+| Ignore reusable grants during calls (`calls.ignoreReusableGrants`) | On by default; Boolean device-local setting; require fresh single-use approval instead of Session/Perpetual reuse while call protection applies; Off requires exact protection-downgrade confirmation | "Ignore saved grants while I'm in a call" |
 | Voice activation during calls | On; independently configurable and does not reopen capture without explicit listening consent | "Disable voice activation during calls" |
 | Unknown enabled-detector behaviour | Suppress automatic speech | "Use normal speech when detection is unavailable" |
 | Detector enablement/account | Explicitly configured supported sources only | "Use Teams presence to decide when to stay quiet" |
@@ -145,7 +155,10 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Reminder deferral | 24 hours; 1 hour-7 days | "Remind me about updates tomorrow" |
 
 Detectors need explicit setup/account/network consent; setting a preference does not create Graph credentials.
-The visual override and voice-activation setting are device-local and independent: visual-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
+The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
+Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
+The grant-ignore setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention.
+Its evidence, dispatch-race, and approval rules are defined in [Ignoring Reusable Grants During Calls](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls).
 When no detector is configured, Kora reports automatic call detection as unavailable and preserves the ordinary response and listening configuration.
 Hard lock/mute rules always outrank call/proactive preferences.
 Notification settings cannot hide necessary action approval from the visual interface or turn silence into approval.
@@ -158,15 +171,24 @@ Notification settings cannot hide necessary action approval from the visual inte
 | Successful-completion dispatch | Automatic next ready item; manual mode optional | "Ask before starting each queued task" |
 | Pending request lifetime | 30 minutes; 1-120 minutes | "Keep queued requests for an hour" |
 | Active-task deadline | 5 minutes excluding user waits; 1-60 minutes within tool/provider limits | "Give tasks ten minutes by default" |
-| Conversation idle expiry | 30 minutes; may reduce to 1-30 minutes | "Clear idle context after ten minutes" |
+| Session automatic archive inactivity | 24 hours; configurable finite positive duration | "Mark sessions done after two idle days" |
+| Session automatic deletion inactivity | 30 days from last meaningful activity; configurable and later than archive | "Delete sessions after sixty idle days" |
+| Concurrent session task limit | Proposed default 2; positive limit within verified provider/hardware envelope; one task per session | "Run up to three sessions at once" |
+| Model-assisted session routing | On where verified; explicit targeting wins, clear Active match continues, otherwise new session/clarification | "Turn off automatic related-session matching" |
+| Owner-voice approval preference | Optional additional confidence; Off by default; available only after verifier proof/enrollment | "Require voice matching for spoken high-risk approvals" |
 | Clipboard text limit | 256 KiB maximum; may lower | "Limit clipboard snapshots to sixty-four kilobytes" |
 | Model-bound tool-result limit | 64 KiB maximum; may lower | "Limit tool excerpts to thirty-two kilobytes" |
 
 Lowering capacity never evicts existing work; hold admissions until occupancy fits.
 Shortening lifetime/expiry shows affected requests/content and requires confirmation before expiring them immediately.
+Archive and deletion are independent configurable values using one inactivity clock, not time since creation/Done.
+Passive selection/history queries do not extend it; actual user/work activity and explicit resume do.
+Changing retention previews resulting due dates and requires a separate apply-now decision for immediate archive/deletion; otherwise existing due dates remain until subsequent meaningful activity, with new sessions using the new policy.
+Normal automatic expiry under the disclosed policy does not require repeated per-session confirmation.
+Lowering concurrency affects future admissions, not active-task cancellation; unknown resource effects still require exclusive coordination.
 Extending a default deadline affects future tasks; changing the current task requires explicit task scope and revalidation.
 Manual dispatch is an additional admission decision, never a substitute for tool approval.
-Executor count remains one; it is not a configurable parallelism option in the MVP.
+Concurrency is bounded by verified provider/hardware capability and host resource coordination, never a permission to share context/grants or race writes.
 Fixed approval lifetimes, process cancellation grace, power confirmations, secret blocking, and bounded raw-audio retention are safety controls, not arbitrary user knobs.
 
 ## 5. Providers, Local Models, and Connections
@@ -180,8 +202,8 @@ Fixed approval lifetimes, process cancellation grace, power confirmations, secre
 | Account/connector selection | Explicit supported signed-in identity | "Use my work account for Teams detection" |
 | Connector enablement | Only registered/validated connector | "Disable the GitHub connector" |
 
-Changes increasing remote exposure require owner presence and native confirmation; voice may open and explain the exact proposal but cannot complete the privacy downgrade.
-That confirms the setting only; each new outgoing payload still follows egress policy and its applicable owner-presence/native-confirmation requirement.
+Changes increasing remote exposure require deliberate exact voice or UI confirmation in the unlocked session, with any explicitly selected speaker protection and mandatory OS/provider checks.
+That confirms the setting only; each new outgoing payload still follows exact egress approval and the selected speaker/privacy and mandatory OS/provider requirements.
 Remote endpoints require a validated destination and setup/network decision, not guessing or silent fallback.
 Provider changes do not transplant active task context or continue a task under another account automatically.
 Credentials/tokens/passwords are not dictatable option values; voice starts supported sign-in/sign-out/configuration flows.
@@ -199,7 +221,7 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
 Do not require typing a path, but do not infer one from unrelated context.
 The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
-Raw audio/conversation persistence, silent remote diagnostic upload, automatic executable imports, and secret logging remain unsupported.
+Permitted conversation history is encrypted and durable under session retention. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports, and secret logging remain unsupported.
 Reducing audit retention or removing source enablement explains any immediate destructive/invalidation effect before confirmation.
 
 ## 7. Startup and Updates
@@ -226,26 +248,25 @@ This is not an executable/script grant, and exact direct lock does not yet
 use the same gate. The inventory and finer-grained grants below are proposed;
 future side-effecting built-ins and skills share the content/version-bound
 execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
-The native Permissions & Approvals page lists active, recent, expired, and revoked grants with stable ID, capability/action, canonical resource, identity, destination, scope, creator channel, creation/expiry, last use/use count, policy revision, and revocation reason.
+The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, consumed, session-ended, and explicitly removed states.
+Show stable ID, capability/action, canonical resource, identity, destination, scope/bound session, creator channel, creation/edit history, last use/use count, policy revision, and reason for inapplicability/removal.
+Perpetual grants have no expiry/retention/eviction; see [Grant Types and Inheritance](Security_Data_Flows.md#grant-types-and-inheritance).
 It never needs to display raw sensitive payloads; show content/parameter hashes and safe labels.
 
 Deterministic voice commands may open or filter that page, explain why an action is currently allowed, and request revocation.
-The visible host-owned confirmation accepts an exact spoken reply or a mouse
-selection for revocation, scope narrowing, expiry shortening, or bulk revocation.
-Broadening scope, changing identity/destination, making a grant persistent, or
-restoring a revoked/expired grant requires a new exact approval; a verbal scope
-choice may be accepted on the visible prompt but cannot silently alter a grant.
-Any additional OS presence verification remains specific to the action, not a
-blanket denial of session or always duration.
+Explicit voice or UI confirmation completes removal, scope narrowing, or bulk removal against the exact displayed/read-back scope.
+Broadening scope, changing identity/destination, choosing session/perpetual scope, or replacing consumed/ended/removed access requires newly reviewed action-specific approval through either channel and any mandatory OS/provider checks.
+No approvable action category is categorically denied session/always duration; future execution grants bind exact implementation/dependency digests, invocation, and resources, unlike today's named model-action preferences.
+Extending beyond a host maximum, granting unspecified effects, or approving a prohibited action is rejected, not overridable by approval.
 Revocation blocks new calls immediately and reports in-flight work as cancelled, completed, or uncertain.
 
 Required operations:
 
-- List active/recent/expired/revoked grants.
+- List grants by scope and applicable/consumed/session-ended/inapplicable/removed state.
 - Inspect one grant and its use history.
 - Revoke one grant.
 - Revoke all grants for a provider, account, resource, skill/revision, or capability.
-- Narrow resources/capabilities or shorten expiry.
+- Narrow resources/capabilities or explicitly change the grant scope; never set retention/eviction for perpetual grants.
 - Export content-minimising approval/audit metadata after preview.
 - Explain which new approval would be required to restore or broaden access.
 
@@ -268,5 +289,6 @@ Never treat undo as reinstating expired grants or microphone consent.
 All supported preference values have verbal operations while Kora can hear the user.
 Closed microphone, locked session, missing recogniser, and signed-out OS prevent receiving speech; an explicit physical/visual activation/setup path is necessary.
 This is a physical/security constraint, not a reason to omit voice setters from ready capabilities.
-OS sign-in/OAuth/credential entry and mandatory elevated/destructive operation approvals remain separate workflows, not user-option values dictated to the model.
+OS sign-in/OAuth/credential entry and required OS elevation remain separate secure workflows, not user-option values dictated to the model.
+Kora risk determines review and confirmation specificity, not mandatory mouse use. Optional speaker matching and baseline UI input are not reauthentication.
 No option can enable self-modification, disable mandatory lock policy, bypass executable isolation/egress/action approvals, or change "Kora" into a hidden always-transcribing microphone.

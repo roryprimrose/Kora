@@ -44,7 +44,7 @@ version-bound implementation identity (for example, the SHA-256 of a dedicated
 adapter assembly plus the task's invocation contract), so an always grant
 cannot silently authorize changed C# behavior solely because the action enum
 name stayed the same. Avoid binding all native grants to Kora's entire binary
-when an unrelated application update would needlessly revoke them.
+when an unrelated application update would needlessly make them inapplicable.
 
 The current built-in actions use C# handlers, not embedded `.ps1` skill
 definitions. Model-suggested disruptive actions have only action-name grants;
@@ -102,20 +102,26 @@ visible to the user before approval.
 ## Execution grants
 
 Grant keys must identify the precise task, invocation, and executable resource
-set, including the SHA-256 digest for **each** executable or script. Once,
-session, and always are duration choices, not permission to trust future
-versions of the files. An always grant survives a restart only while the same
-approved bytes and invocation remain available. A different digest, missing
+set, including the SHA-256 digest for **each** executable or script.
+Scopes are **Once** (one exact invocation), **Session** (that operation within
+the identified Kora work session), and **Always/Perpetual** (until explicitly
+removed or edited). These scopes never authorize future versions of the files.
+See [Grant Types and Inheritance](../Design/Security_Data_Flows.md#grant-types-and-inheritance)
+for consumption, session end, and Active-session restart behavior.
+Perpetual grants have no expiry, retention, or eviction policy and remain
+independently of session/audit cleanup, even when no longer applicable.
+A different digest, missing
 file, unreadable file, different resolved target, changed manifest or invocation,
 or unverifiable dependency makes the previous grant **inapplicable**; Kora must
 not silently rebind it to a new digest. A renamed or relocated executable also
 requires review even when its bytes match. No grant may be scoped merely to a
 directory, file name, extension, publisher, skill name, or script interpreter.
-Once Kora observes a mismatch, it must revoke the affected session and stored
-grants; reverting the file to its old bytes must not resurrect that approval.
+Once Kora observes a mismatch, it must block affected grants and retain the
+inapplicability evidence; reverting the file to its old bytes must not silently
+clear that blocker. Perpetual grant records remain until explicit removal/edit.
 For example, if the user previously allowed Kora to launch an application and
 its binary is replaced by an updated build, the old approval must be ignored
-and revoked. Kora must ask again for the new binary's hash before launching
+and shown as inapplicable. Kora must ask again for the new binary's hash before launching
 it; approving the application name alone is insufficient.
 
 Grant management must show the approved digest (or a readable abbreviation
@@ -128,16 +134,24 @@ always grants. Other tasks' unrelated grants remain valid.
 
 ## Task execution gate
 
+The host also applies the default-On
+[in-call grant-ignore policy](../Design/Call_Aware_Speech.md#ignoring-reusable-grants-during-calls).
+During protected calls, Session/Perpetual grants are preserved but cannot
+authorize execution; require fresh single-use approval for each exact invocation.
+Revalidate call/setting policy generation at dispatch, including every queued
+or background step; changing feedback/speech preferences does not bypass it.
+
 Before each execution, the host resolves and validates the complete target
 set, computes current hashes, and compares them with the approved grant.
 Checks must happen at execution time, not just when the skill is loaded, the
 grant is created, or a file watcher reports a change. Missing, unreadable,
 invalid, or changed resources fail closed: do not start any part of the task;
-show which resource changed and request a fresh, exact approval. Revoke the
-cached and persisted grants for the affected task and audit the denial without
-recording script contents or sensitive arguments. If revocation cannot be
+show which resource changed and request a fresh, exact approval. Block the
+affected task's grant applicability and audit the denial without
+recording script contents or sensitive arguments. If that blocker cannot be
 persisted, continue to deny execution and report the storage failure rather
-than allowing a stale grant to authorize a later run.
+than allowing a stale grant to authorize a later run. This does not delete or evict
+the perpetual grant record.
 
 The execution mechanism must prevent a file being swapped between hashing and
 launch. For filesystem-sourced programs or user-created scripts, hold stable
@@ -188,5 +202,10 @@ invoked through an exact built-in command, not just through the model.
   PowerShell or an approval.
 - The review window shows the exact script to be run with syntax highlighting,
   does not modify it, and never confirms an approval simply by opening.
-- Updating an embedded script in a new Kora build revokes its old grants;
-  updating unrelated scripts does not revoke unrelated task grants.
+- Updating an embedded script makes its old grants inapplicable without
+  deleting perpetual records; unrelated task grants remain unaffected.
+- A single-use grant authorizes exactly one invocation; a session grant
+  authorizes only that operation in its bound Active session and ends on Done/deletion.
+- Perpetual records survive elapsed time, session/audit cleanup, restart, and
+  storage pressure without retention/eviction; only explicit user removal/edit
+  changes the stored grant, while applicability checks still block changed effects.

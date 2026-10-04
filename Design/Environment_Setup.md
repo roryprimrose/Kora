@@ -47,6 +47,7 @@ Recheck on startup and relevant configuration/environment changes without reinst
 | PowerShell 7 | Probe a supported `pwsh.exe` (7.4 or later); offer separate verified setup | Consent to installation; readiness is independent of local inference and does not authorise a script |
 | Skills | Initialise Kora-specific store, register immutable bundled skills, offer shared source selection | Discover/enable shared sources only under existing skill policy |
 | Speech/wake models | Inspect supported local assets; offer verified downloads if missing | Show source, size, storage, licence, and network use before obtaining assets |
+| Optional frequent-speaker learning | Detect a supported local learner and current-profile/device readiness; offer status/test/correction/reset/delete | Separate explained consent; newly activated commands only; protected derived features, no ambient/history training or remote biometric processing; not mandatory verification enrollment |
 | Optional speaker verifier | Detect supported local verifier/anti-spoof assets and per-user enrollment state | Explicit opt-in; Windows Hello or equivalent native reauthentication before enrollment/replacement; no cloud biometric processing |
 | Microphone/device readiness | Enumerate capture endpoints without recording; select System by default, validate permissions and actual capture readiness | Ordinary safe startup automatically attempts listening after readiness; offer testing, disable/recovery, device selection, and continue-without-voice via [Interaction Fallback](Interaction_Fallback.md) |
 | Ollama | Detect compatible existing runtime/endpoint; offer supported installation/configuration when a local-model adapter is available and selected | Reuse first; external installation/download/startup changes require consent |
@@ -90,10 +91,13 @@ see [D-003](Decision_Register.md#d-003-local-inference-baseline).
 
 CPU-only support and hardware limits must be communicated; installing a large model does not prove that it will perform acceptably.
 
-Speaker-verification setup is optional and separate from wake listening and speech recognition.
-Declining or failing enrollment leaves speaker confidence `Unavailable`; it does not block general voice use, safety-preserving controls, or visual interaction.
-Enrollment cannot be completed by a voice-only prompt and never reuses ordinary command audio.
-Setup deletes transient enrollment audio after deriving the protected device-local template and verifies that the template is absent from roaming, logs, diagnostics, and model-accessible stores.
+Frequent-speaker learning and speaker verification are optional, separate from wake listening and general speech recognition.
+Offer separately explained local **Learn my voice** consent; declining/failing it does not block general voice or imply consent from microphone setup.
+After consent, the non-authorizing learning capability uses only new deliberately activated commands under [its privacy/quality contract](Security_Data_Flows.md#optional-local-frequent-speaker-learning); no ambient/history training or retained recording archive.
+Explicit verification enrollment retains its protected OS flow and fresh prompted samples; it never treats the learned profile or ordinary command audio as that enrollment.
+Declining/failing verification leaves confidence `Unavailable`, not an authenticated owner or a block on baseline voice use.
+Both capabilities discard transient sample audio and keep derived templates device-local, protected, and absent from roaming, logs, diagnostics, and model-accessible stores.
+Provide status/test/correct/reset/delete recovery; protected-call changes require new UI initiation under the origin gate.
 
 ## Setup Flow
 

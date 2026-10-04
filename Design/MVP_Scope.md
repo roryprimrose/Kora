@@ -10,7 +10,9 @@ Related: [Vision](Vision_Statement.md), [Architecture](Architecture.md), [Decisi
 ## Product Outcome
 
 A Windows user with current owner presence can say "Kora, explain the clipboard", see the answer, hear a short summary, and interrupt the interaction without typing or pressing an activation control.
-When owner presence is absent or uncertain, the same request pauses at native confirmation before clipboard capture or egress.
+When intent is ambiguous or a selected speaker protection is unsatisfied, the same request pauses for explicit clarification/alternate-channel confirmation before clipboard capture or egress.
+Owner presence uses the revised unlocked-session/deliberate-input baseline, with optional speaker protection; ordinary confirmation can be completed by voice or UI.
+Equivalent UI-only and mixed-channel workflows and persistent concurrent sessions follow [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
 
 The first release proves a complete, predictable interaction rather than shipping an incomplete version of every capability in the vision.
 
@@ -33,10 +35,12 @@ Do not begin a later checkpoint while an earlier checkpoint has unresolved safet
 1. **A0 — Deterministic shell:** native setup/recovery, explicit push-to-talk, local transcription/TTS, clipboard snapshot/preview, one remote runtime, egress approval, streaming display, cancellation, and no model-assisted work management.
 2. **A1 — Voice-first activation:** packaged local "Kora" detector, immediate wake-and-command preservation, playback rejection, interruption, locked-session policy, and the required wake quality/resource evidence.
 3. **A2 — Local-first answering:** one supported Ollama-backed inference adapter and selected model pass local-only clipboard-answering, cancellation, setup, hardware, licence, and performance gates. Cloud is not a fallback.
-4. **A3 — Managed work and controls:** bounded independent management lane, authoritative ledger/queue, deterministic degraded behavior, configuration registry, and protected computer/application controls.
-5. **A4 — Ambient integration:** proactive task/update conversations, call-aware speech, optional owner-aware private speech, and bounded presentation details.
+4. **A3 — Sessions, managed work and controls:** encrypted session/event/artifact persistence and retention, deterministic session controls, bounded independent routing/management, isolated concurrent scheduler/resource leases, authoritative per-session ledger/queue, structured questions/grants, configuration registry, and protected computer/application controls.
+5. **A4 — Session workspace and interaction surfaces:** compact latest interaction, Sessions workspace with session list beside full conversation/history and per-session work/queue, separate immutable detail/script viewing, shared native questions/approvals, supporting tray/settings/grant/setup surfaces, proactive conversations, call-aware output/authorization/origin gates, and bounded presentation details.
 
 Each checkpoint preserves all earlier controls and has a separately reported acceptance result.
+The [coordinated window design](UI_Workspace_And_Windows.md) owns A4 layouts and behavior; opening multiple windows is not evidence of A3 task concurrency.
+Optional frequent-speaker learning and owner-aware verification remain separately capability-gated under [D-006](Decision_Register.md#d-006-optional-speaker-verification), not mandatory first-release checkpoints. Missing either never blocks baseline voice; advertise them only after their own quality/privacy evidence passes.
 
 1. The user configures a microphone and a supported runtime and consents to local wake-word listening.
 2. The user says "Kora, explain the clipboard"; local detection activates command capture without requiring a pause after "Kora".
@@ -57,20 +61,23 @@ Included:
 - Local wake-word activation as the primary interaction ("Kora" by default), with optional push-to-talk and one opt-in validated custom activation name.
 - Local command endpoint detection, transcription, and speech output.
 - Visible wake-listening/capture/mute states and verbal interruption during speech output.
-- Out-of-the-box lock/shutdown/restart skills with definitions/scripts embedded in the protected application binary and local routing; disruptive power actions require named voice confirmation plus native secure confirmation outside the speech/model path.
+- Out-of-the-box lock/shutdown/restart skills with definitions/scripts embedded in the protected application binary and local routing; disruptive power actions require action-specific voice or UI confirmation, safe handling of all sessions, mandatory OS checks, and a cancellable countdown.
 - Built-in application lifecycle, queue, speech, readiness, and maintenance phrase support as defined in [OOTB Phrases](OOTB_Phrases.md).
-- Verbal discovery/get/set/reset of all supported user preferences through a typed host registry, as defined in [User Configuration](User_Configuration.md).
+- Verbal discovery/get/set/reset through the typed host registry, subject to mandatory secure workflows and the protected-call voice-origin restriction; a new UI request is required for affected changes during calls. See [User Configuration](User_Configuration.md).
 - Mandatory microphone shutdown/release while the Windows session is locked, regardless of lock origin.
 - Built-in plain-text clipboard capture and preview.
-- One executing task with an independent, concurrently responsive work-management lane.
+- Bounded concurrent independent sessions, including writes to different resources, with one task per session, shared-resource coordination, and an independently responsive work-management lane.
 - Model-assisted contextual queue management, clarification when intent is ambiguous, and local cancellation/status controls.
 - Spoken answers to "what are you currently working on?" and "what do you have left to do?", grounded in the work ledger.
 - Copilot runtime integration, conditional on the integration proof.
 - Local-only and remote-enabled modes with capability-aware routing.
 - Explicit error, approval, and cancellation experiences.
 - Host-owned proactive voice suggestions, grounded task notifications, and unprompted release-availability conversations.
-- Call-aware speech gating with voice-configurable preferences, manual call mode, and explicit speak-once override; Teams automatic detection is the first best-effort integration subject to capability proof.
-- In-memory conversation context and local configuration storage.
+- Call-aware gating with UI-only feedback and ignored reusable grants by default, manual call state, and exact single-use operation approval; voice-originated voice/in-call changes, including temporary/speak-once exceptions, require new UI initiation while protected. Teams automatic detection remains the first best-effort integration subject to capability proof.
+- Encrypted permitted full session history/artifacts and local configuration storage; Active/Done retrieval survives restart without action/approval replay.
+- Configurable inactivity policies defaulting to automatic Done after 24 hours and deletion after 30 days from last meaningful activity.
+- Structured single-/multi-choice and text questions, concise/full answers, exact grants, and interchangeable voice/UI replies.
+- Model-facing bounded session discovery/history/artifact and interaction tools mediated by host policy and context egress.
 - Optional playback-bound speech text and bounded basic Markdown answer details, as defined in [Information Display](Information_Display.md); Mermaid/browser/HTML viewers follow their dedicated gates.
 - Content-minimising diagnostic and action metadata.
 
@@ -116,7 +123,7 @@ Add a narrowly scoped Builder workflow that develops usable skills through voice
 3. Review the exact diff and hear a behaviour/capability summary.
 4. Run built-in schema/dependency checks and data-only simulated examples.
 5. Approve and save the validated revision to the dedicated user skill store.
-6. Separately native-confirm enablement, then invoke it by voice under normal task permissions.
+6. Separately confirm exact enablement through voice or UI, then invoke it through either channel under normal task permissions.
 
 See [Voice-Driven Skill Authoring](Skill_Authoring.md).
 Kora-specific skills and edited copies of shared skills are saved under `%APPDATA%\Kora\Skills`; shared profile sources are never edited.
@@ -129,7 +136,7 @@ Kora cannot update its own code, binaries, executable extensions, or security/up
 ## Non-Goals for the First Release
 
 - Continuous ambient transcription, speaker authentication, voice isolation, or mandatory biometric enrollment. Continuous local wake-word detection is included.
-- Optional local speaker verification may be added only as a privacy confidence signal under the shared-space policy; it is not authentication, an approval mechanism, or a prerequisite for general voice use.
+- Optional local speaker verification may add privacy/approval confidence under explicit user preferences; matching is not authentication or approval itself, and enrollment is not required for general voice use.
 - Wake-word-free conversational follow-ups and unlimited/unvalidated activation names. Custom names with explicit custom-only/both choice follow [Custom Activation Names](Activation_Name.md).
 - Clipboard monitoring, clipboard images/HTML/file lists, or automatic URL fetching.
 - Screen capture, OCR, arbitrary desktop automation, or browser automation.
@@ -139,7 +146,7 @@ Kora cannot update its own code, binaries, executable extensions, or security/up
 - Arbitrary C# scripts, in-process third-party plugins, or unrestricted process execution.
 - Agent-driven modification of Kora itself. Application updates are out-of-band maintenance, not skill authoring.
 - Exposing Kora as an MCP server.
-- Multiple concurrent task executors, multi-agent task workflows, concurrent write tasks, or cross-device federation. Concurrent work management is included.
+- Unbounded executors, intra-session parallel/multi-agent task workflows, uncoordinated conflicting writes, or cross-device federation. Bounded isolated concurrent sessions are included.
 - Guaranteed offline answering without a compatible installed local runtime.
 - Linux/macOS application support, installers, native backends, or multi-platform release matrices; architectural portability is required without implementing those ports.
 
@@ -156,10 +163,13 @@ An alternative runtime requires an explicit scope decision and must pass the sam
 - Typing is not required for the primary workflow.
 - Before local voice prerequisites exist, use a minimal accessible setup UI; after consent and readiness checks, setup can continue by voice.
 - After initial microphone consent, verbal activation does not require a click or keypress. Push-to-talk is an alternative, not a prerequisite.
-- A visual UI remains available for inspecting context, errors, and changes.
+- A complete accessible UI is an equal alternative for every supported workflow; no required spoken acknowledgment.
 - Large results have a spoken summary and voice commands to navigate or explain them.
-- High-risk confirmations require the specified native secure action; wake detection and optional speaker verification are not identity verification or approval.
-- Private spoken output defaults to a neutral visual notice when an optional enrolled verifier does not report `LikelyOwner`, and remains subject to normal output policy even when it does.
+- High-risk confirmations require exact consequence/source/target review and deliberate action-specific voice or UI input; required OS/provider checks remain mandatory. Wake detection and optional speaker matching are not authentication or approval.
+- Baseline enabled voice trusts the active unlocked Windows profile, not the speaker's identity; no compulsory biometric/PTT/UI-only authorization is introduced because the user cannot be identified.
+- Optional separately consented local frequent-speaker learning may improve recognition/personalization after its quality/privacy gate; unavailable learning never blocks general voice or grants new authority.
+- During protected calls, voice-originated voice-setting and in-call-option changes require new UI initiation, while ordinary operation approvals and safety/status controls retain their independent policy. This is the explicit channel-parity exception, not generic mouse superiority.
+- With owner-aware private speech enabled, uncertain verifier output uses a neutral visual notice; baseline output otherwise follows configured privacy/call policy, and a match never bypasses that policy.
 - Credentials and account sign-in use the provider's supported secure flow, not dictated secrets.
 
 ## Distribution Requirements
@@ -192,5 +202,7 @@ The authoritative owner, due checkpoint, evidence, and status for these items ar
 - Protected Kora installation/source identities and a skill-store writer whose effective targets cannot escape into them.
 - A Linux GitHub Actions cross-publish/package/provenance path for unsigned artifacts, external Windows acceptance evidence, runtime-only deployment verification, and protected startup/maintenance registration.
 - A bounded trusted setup catalogue, safe database migrations, and dependency ownership/health checks.
+- Encrypted persistent session/event/artifact/index storage, journal/backup deletion and restart migration proofs.
+- Provider session isolation/concurrency, enforced resource coordination, shared interaction schemas, and bounded history/routing tools.
 
 These are implementation gates, not assumptions that the named technologies already satisfy the design.

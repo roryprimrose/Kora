@@ -5,15 +5,18 @@ end-user guide now has a bounded native Markdig/Avalonia renderer; generated,
 remote, and skill-provided Markdown remain governed by the proposed contract
 below and are not accepted by that documentation surface.
 
-Related: [Ambient UI](Ambient_UI.md), [User Configuration](User_Configuration.md), [Security](Security_Data_Flows.md), [Extensibility](Extensibility.md).
+Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Ambient UI](Ambient_UI.md), [User Configuration](User_Configuration.md), [Security](Security_Data_Flows.md), [Extensibility](Extensibility.md).
 
 ## Recommended Surfaces
 
 Keep the ambient presence small; do not turn every answer into a browser window.
-Use three independently controlled surfaces:
+The compact response surface evolves into a session-labelled latest-interaction view, paired with the Sessions workspace (session list plus full conversation/history) and a separately bound detail/artifact viewer.
+The [coordinated window design](UI_Workspace_And_Windows.md) owns layouts/navigation and native card placement; [Interaction and Sessions](Interaction_And_Sessions.md) owns their data/lifecycle contracts.
+Concise output links to retained full content; expansion never reruns a task. Structured questions and exact grants use host-owned cards, not generated markup.
+Rich-content presentation adds these independently controlled roles within that wider window design:
 
 1. Optional speech-text overlay for the words Kora is currently speaking.
-2. Expandable answer/detail panel for text, Markdown, diagrams, citations, and task information.
+2. Workspace history/inline expansion and separate detail/artifact viewing for text, Markdown, diagrams, citations, immutable `.ps1` source/diffs, and session/task evidence.
 3. Dedicated content viewer for explicitly requested websites or generated HTML, with native trusted navigation/provenance controls.
 
 Showing/hiding one surface does not cancel work, mute the microphone, or change another surface's visibility.
@@ -70,7 +73,7 @@ Word highlighting is optional only when the selected engine provides verified al
 
 The overlay follows actual playback: do not show queued, suppressed, cancelled, or failed speech as though spoken.
 On interruption/finish, clear after a configurable 5-second default delay (0-30 seconds), unless pinned.
-Pinned content is labelled previous speech, remains memory-only, and follows conversation expiry.
+Pinned content is labelled previous speech; the playback overlay itself is ephemeral, while its permitted source response remains subject to session retention.
 Speech text must be selectable, accessible, legible over any desktop background, and repositionable independently of the abstract presence.
 It must not steal focus or use a transparent hit-test surface that intercepts unrelated desktop input.
 Sensitive speech remains sensitive visible content; captions obey lock/privacy rules.
@@ -178,7 +181,9 @@ Unknown extensions show source and a capability explanation; no silent dependenc
 ## Typed Presentation Contract
 
 The host accepts bounded items with task/response ID, item ID, revision, kind, content/source reference, provenance/classification, digest, and supported profile.
-Kinds include plain text, Markdown, static HTML snapshot, and approved browser destination.
+Kinds include plain text, Markdown, static HTML snapshot, read-only script/diff source, and approved browser destination.
+Every item also carries session identity and an immutable history/artifact reference so delayed output cannot replace another session's selected interaction.
+Script/source viewers show exact bytes/digest and provenance; no automatic Run button or execution triggered by expansion.
 The host chooses surfaces and validates capabilities; model hints cannot force topmost windows, auto-open links, grant network access, or dismiss approval panels.
 An arbitrary HTML "Approve" button is inert content, not a real approval.
 Native chrome stays outside content so pages cannot cover or replace trust indicators.
@@ -212,4 +217,4 @@ Mermaid follows its dedicated renderer gate. Embedded browsing/generated HTML ar
 Basic text remains available if a rich renderer is missing; labelled fallback does not masquerade as successful rich rendering.
 Delivery includes required renderer assets; runtime setup can offer only protected compatible browser-engine requirements with normal setup consent.
 No cloud renderer/CDN is required for local Markdown/diagrams.
-Presentation preferences do not affect memory-only conversation retention or authorise modification of Kora implementation.
+Presentation preferences do not change durable session retention, context-use eligibility, or authorize modification of Kora implementation.

@@ -37,6 +37,7 @@ The active instance asks:
 
 Use a native question with exact validated incoming/original identities, consequences, Accept/Decline, and normal prompt expiry.
 Speech is optional and follows current call/private-output rules; no microphone/model is needed to answer.
+When the active assistant can hear the user, the same exact host proposal accepts deliberate voice confirmation; the waiting candidate never acquires its own microphone to obtain approval.
 Default is no change. Lock, expiry, rejection, candidate exit, or stale identity leaves the original active.
 The question offers "Wait until current work finishes" or explicit cancellation of affected work; switching cannot silently kill work.
 This host handoff grants a running local candidate ownership only, not trust in arbitrary executable content, permission to install code, or tool/egress grants.
@@ -46,7 +47,7 @@ After approval:
 
 1. Bind a single-use handoff ticket to original/candidate process creation identities, validated image digests, user, coordinator epoch, and expiry.
 2. Hold queue admission/dispatch and resolve active work explicitly through existing cancellation/quiescence rules.
-3. Revoke pending grants, clear ephemeral queue/context, stop playback/capture, invalidate audio callbacks, release owned workers and mutable-store handles.
+3. Revoke pending grants, withdraw dispatch eligibility/ephemeral context, durably record interrupted/unknown outcomes for all sessions, stop playback/capture, invalidate audio callbacks, and release workers/mutable-store handles. History remains in its original data partition.
 4. Stop the original assistant host. A minimal lifecycle-only supervisor may remain for handoff/restart monitoring; it is not an active Kora assistant.
 5. Transfer exclusive ownership through the coordinator only after actual quiescence; the candidate acquires ownership and acknowledges startup readiness.
 6. Candidate starts normally with its own verified configuration/readiness and
@@ -66,6 +67,7 @@ After candidate exit/crash and verified release of ownership/resources, it prese
 > "Kora 0.3.0 Debug has exited. Start the original Kora 0.2.0 release again?"
 
 This is a minimal native lifecycle prompt, not a second assistant: no wake detection, TTS, model/tools, queue processing, or background task work.
+Voice cannot answer while no assistant owns capture; this physical availability limitation uses the explicit mouse/keyboard return route rather than creating a hidden second listener.
 When locked/disconnected, defer sensitive display until eligible; never start or listen automatically.
 Accept revalidates the original canonical launch identity/digest and availability, launches that exact original unprivileged with no task arguments, and waits for normal exclusive-owner/readiness acknowledgement.
 If another assistant has become active, do not launch a competing original; explain the changed state.

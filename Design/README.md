@@ -45,10 +45,25 @@ broader approval-policy evidence in D-008.
 15. [OOTB Phrase Catalogue](OOTB_Phrases.md): computer, application, queue, speech, skill, and maintenance commands.
 16. [User Configuration](User_Configuration.md): verbally discoverable settings, defaults, scopes, and safety boundaries.
 17. [Information Display](Information_Display.md): optional speech text, browser/static HTML viewing, Markdown and Mermaid.
-18. [Mouse-Based Interaction and Voice Recovery](Interaction_Fallback.md): first-run microphone choice, visual questions, and device-loss recovery.
+18. [Shared Questions and Voice Recovery](Interaction_Fallback.md): equal voice/UI question paths, first-run microphone choice, and device-loss recovery.
 19. [Custom Voice Activation Names](Activation_Name.md): local renaming with explicit custom-only or default-plus-custom choice.
 20. [Single Active Instance and Version Handoff](Instance_Coordination.md): duplicate activation, approved release/debug takeover, and original-version return.
 21. [Acceptance Criteria](Acceptance_Criteria.md): evidence required before release.
+22. [Internal Model Tool Catalogue](Internal_Model_Tools.md): complete current action/proposal inventory, proposed internal tools, caller lanes, capability gates, and host-only exclusions.
+23. [Session Workspace and Coordinated Windows](UI_Workspace_And_Windows.md): compact interaction, session list plus full conversation workspace, detail/script review, native cards, concurrent work UX, and supporting windows.
+
+## Human Interaction and Sessions
+
+[Human Interaction and Persistent Sessions](Interaction_And_Sessions.md) is the canonical contract for voice/UI parity, structured questions, concise/full responses, risk-based grants, concurrent work streams, routing, durable history, and configurable inactivity policies.
+It replaces the earlier single-executor, memory-only-conversation direction and distinguishes Kora work sessions from Windows and provider sessions.
+Read it before the task/work-management and presentation documents.
+Read [Session Workspace and Coordinated Window Design](UI_Workspace_And_Windows.md) alongside it for the primary UI design: the session list sits beside full conversation/history, with a lightweight compact view and separate details.
+
+## Accepted Security Direction
+
+[Security and Data Flows](Security_Data_Flows.md#accepted-controls-and-verification-boundary) records the accepted active-Windows-profile trust boundary, scoped grants and call restrictions, and host control requirements.
+Optional [frequent-speaker learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning) is separately consented local personalization, not authentication or authorization.
+Design-level concerns are resolved within that boundary; implementation evidence remains required before capabilities are advertised or released.
 
 ## Visual Exploration
 
@@ -68,7 +83,7 @@ is an offline design mockup, not an implemented application or a change to relea
 - A replaceable agent-runtime adapter may own its model/tool loop only when Kora can enforce the required controls.
 - Copilot SDK support requires an integration proof; SDK capabilities are not assumed.
 - Local wake activation is primary from Slice A, defaulting to "Kora"; renaming asks custom-only or default-plus-custom, with custom-only recommended for shared offices. Push-to-talk is optional.
-- Work management runs alongside one task executor; the model interprets queue intent and asks when ambiguous, while the host enforces scheduling and approvals.
+- Independent persistent sessions execute concurrently within verified limits; the model proposes routing/queue intent, while the host enforces isolation, resource coordination, scheduling, and approvals.
 - Clipboard capture is built in. Interpretation and downstream workflows are extensible.
 - Local-only mode never silently falls back to a remote service.
 - Optional local speaker verification is a per-profile privacy confidence signal, never authentication or approval; private speech falls back to a neutral visual notice when owner confidence is absent.
@@ -82,7 +97,10 @@ is an offline design mockup, not an implemented application or a change to relea
 - Delivery installs Kora; the running application sets up its stores and approved requirements for selected capabilities, reusing existing installations.
 - Kora initiates eligible conversations, including unsigned/manual update notices; initial update handling is notify-only and cannot download, stage, execute, or install replacement code.
 - Automatic speech defaults to visual-only during calls or uncertain enabled-detector state; users configure this verbally and can request a single spoken response.
-- OOTB computer/app/queue controls have explicit scopes; shutdown/restart require a second named spoken confirmation plus native secure confirmation outside the speech/model path.
+- Every workflow supports voice, mouse/keyboard, or mixed interaction; explicit voice/UI approvals share Windows-session trust, with optional speaker confidence and mandatory OS/provider checks preserved.
+- OOTB computer/app/queue controls have explicit scopes; shutdown/restart require fresh action-specific confirmation through either channel, safe work handling, and a cancellable countdown.
+- General requests create a new session unless clearly related to an Active session; explicit targeting wins and archived sessions resume only explicitly.
+- Full permitted session history survives restart and Done; defaults archive after 24 inactive hours and delete after 30 inactive days, with both settings configurable.
 - Every supported preference has verbal discovery/get/set/reset operations through the same host service as the UI; mandatory safety rules are not configurable bypasses.
 - Optional speech text, rich answer details, and browser/HTML viewing are separate host-owned surfaces; rendered content cannot act as trusted controls.
 - Native questions always accept mouse input; first-run microphone selection and device-loss recovery do not depend on speech, a model, or a network.

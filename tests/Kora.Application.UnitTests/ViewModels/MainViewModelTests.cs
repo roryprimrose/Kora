@@ -2885,6 +2885,145 @@ public sealed partial class MainViewModelTests
         fixture.WindowActions.Should().Equal(WindowAction.Show);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Enabling_muted_output_fallback_does_not_reveal_a_response_in_a_locked_session(bool initializing)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
+        fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
+        await fixture.RunAsync("Kora, what can you do?");
+        fixture.WindowActions.Clear();
+        fixture.Session.IsUnlocked = false;
+
+        if (initializing)
+        {
+            fixture.OutputPreferences.MutedOutputVisualFallback = true;
+            await fixture.ViewModel.InitializeAsync();
+        }
+        else
+        {
+            fixture.ViewModel.FallbackToVisualWhenOutputMuted = true;
+        }
+
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().BeTrue();
+        fixture.WindowActions.Should().NotContain(WindowAction.Show);
+    }
+
+    [Fact]
+    public async Task Reinitializing_with_enabled_muted_output_fallback_does_not_request_a_window()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
+        fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
+        await fixture.RunAsync("Kora, what can you do?");
+        fixture.OutputPreferences.MutedOutputVisualFallback = true;
+        fixture.WindowActions.Clear();
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().BeTrue();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.WindowActions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Enabling_muted_output_fallback_is_safe_without_a_window_subscriber()
+    {
+        var fixture = await Fixture.CreateInitializedAsync(subscribeToWindowActions: false);
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
+        fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
+        await fixture.RunAsync("Kora, what can you do?");
+
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted = true;
+
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Voice_preview_reports_runtime_mute_instead_of_retaining_an_ordinary_response(
+        bool explicitOutput, bool removedDuringPlayback)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        if (explicitOutput)
+        {
+            fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+        }
+        if (removedDuringPlayback)
+        {
+            fixture.TextToSpeech.BeforeSpeak = () => fixture.ViewModel.OutputDevices.Clear();
+        }
+        fixture.TextToSpeech.SpeakException = new AudioOutputDeviceUnavailableException(
+            AudioOutputFailureReason.Muted, "endpoint muted during preview");
+        fixture.WindowActions.Clear();
+
+        await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Audio output is muted.");
+        fixture.ViewModel.ResponseBody.Should().Be("endpoint muted during preview");
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be(explicitOutput ? "0" : SystemAudioDevices.Output.Id);
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.WindowActions.Should().Equal(WindowAction.Show);
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task Runtime_mute_fallback_respects_session_privacy_and_absent_window_subscribers(
+        bool explicitOutput, bool lockedDuringPlayback)
+    {
+        var fixture = await Fixture.CreateInitializedAsync(subscribeToWindowActions: false);
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        if (explicitOutput)
+        {
+            fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+        }
+        if (lockedDuringPlayback)
+        {
+            fixture.ViewModel.WindowActionRequested += (_, action) => fixture.WindowActions.Add(action);
+            fixture.TextToSpeech.BeforeSpeak = () => fixture.Session.IsUnlocked = false;
+        }
+        fixture.TextToSpeech.SpeakException = new AudioOutputDeviceUnavailableException(
+            AudioOutputFailureReason.Muted, "endpoint muted");
+        fixture.WindowActions.Clear();
+
+        await fixture.RunAsync("Kora, what can you do?");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.WindowActions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Output_enumeration_failure_before_a_response_is_reported_without_overwriting_the_error()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.TextToSpeech.OutputEnumerationException = new IOException("render endpoints unavailable");
+        fixture.TextToSpeech.ClearSpokenResponse();
+        fixture.WindowActions.Clear();
+
+        await fixture.RunAsync("Kora, what can you do?");
+
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.ResponseTitle.Should().Be("Audio output is unavailable.");
+        fixture.ViewModel.ResponseBody.Should().Be("render endpoints unavailable");
+        fixture.TextToSpeech.SpokenText.Should().NotContain("Built-in commands are ready.");
+        fixture.WindowActions.Should().Equal(WindowAction.Show);
+    }
+
     [Fact]
     public async Task InitializeAsync_loads_the_persisted_device_default()
     {
@@ -6909,6 +7048,8 @@ public sealed partial class MainViewModelTests
 
         public Exception? SpeakException { get; set; }
 
+        public Action? BeforeSpeak { get; set; }
+
         public Exception? StopException { get; set; }
 
         public Action? BeforeStop { get; set; }
@@ -6962,6 +7103,7 @@ public sealed partial class MainViewModelTests
             AudioOutputDevice outputDevice,
             CancellationToken cancellationToken = default)
         {
+            BeforeSpeak?.Invoke();
             if (SpeakException is not null)
             {
                 throw SpeakException;

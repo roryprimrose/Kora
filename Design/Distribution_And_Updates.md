@@ -2,7 +2,7 @@
 
 Status: proposed. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
 Installer/package technology remains undecided. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
-The expected source host is a public open-source GitHub repository; Linux GitHub Actions runners are the build/package/release baseline.
+The expected source host is a public source-available GitHub repository; Linux GitHub Actions runners are the build/package/release baseline.
 Initial binary and setup artifacts are intentionally unsigned.
 Windows remains the only supported application runtime for the foreseeable future; Linux build runners do not imply Linux releases.
 

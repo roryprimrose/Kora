@@ -149,7 +149,7 @@ is an offline design mockup, not an implemented application or a change to relea
 - Built-in skill manifests, Markdown, and all required scripts are embedded resources in the protected application binary, without loose-file overrides or writable extraction. Scripts may be shared; grants bind a deterministic combined-content hash and the exact skill definition/invocation. Microphone use is prohibited while Windows is locked.
 - Shared profile skills are read-only references; Kora-specific skills and reviewed edited copies live in `%APPDATA%\Kora\Skills`, with device-local enablement.
 - Source-bootstrap and precompiled runtime-only binary deployment are both supported; package format is not yet selected.
-- The expected repository is public/open-source on GitHub; Linux Actions build/package/publish initially unsigned Windows releases, with explicit unsigned-artifact disclosure, final-byte hashes/provenance, and Windows validation outside the required build pipeline.
+- The expected repository is public and source-available on GitHub; Linux Actions build/package/publish initially unsigned Windows releases, with explicit unsigned-artifact disclosure, final-byte hashes/provenance, and Windows validation outside the required build pipeline.
 - Delivery installs Kora; the running application sets up its stores and approved requirements for selected capabilities, reusing existing installations.
 - Kora initiates eligible conversations, including unsigned/manual update notices; initial update handling is notify-only and cannot download, stage, execute, or install replacement code.
 - Automatic speech defaults to visual-only during calls or uncertain enabled-detector state; users configure this verbally and can request a single spoken response.

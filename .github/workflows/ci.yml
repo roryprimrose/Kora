@@ -41,6 +41,10 @@ jobs:
       - name: Restore local tools
         run: dotnet tool restore
 
+      - name: Enforce dependency license policy
+        shell: pwsh
+        run: ./eng/Test-DependencyLicenses.ps1
+
       - name: Build
         run: dotnet build Kora.slnx --configuration Release --no-restore
 
@@ -101,6 +105,26 @@ jobs:
           --self-contained false
           --property:RestoreLockedMode=true
           --output artifacts/Kora-win-x86
+
+      - name: Add dependency license texts to publish artifacts
+        shell: pwsh
+        run: |
+          foreach ($destination in @('artifacts/Kora-win-x64', 'artifacts/Kora-win-x86')) {
+            foreach ($licenseDirectory in @('licenses', 'package-notices')) {
+              Copy-Item `
+                -Path (Join-Path 'artifacts/license-compliance' $licenseDirectory) `
+                -Destination (Join-Path $destination $licenseDirectory) `
+                -Recurse
+            }
+          }
+
+      - name: Upload dependency license audit
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: dependency-license-audit
+          path: artifacts/license-compliance
+          if-no-files-found: error
 
       - name: Upload test results
         if: always()

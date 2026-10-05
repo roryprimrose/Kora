@@ -340,6 +340,98 @@ public sealed partial class MainViewModelTests
             .Which.Kind.Should().Be(ResponseActionKind.OpenVoiceSettings);
     }
 
+    [Theory]
+    [InlineData(false, "connect a microphone")]
+    [InlineData(true, "confirm Windows microphone access")]
+    public async Task First_launch_greeting_explains_missing_or_unknown_microphone_access(
+        bool hasMicrophone,
+        string expectedGuidance)
+    {
+        var fixture = new Fixture();
+        fixture.VoiceConsent.Consent = null;
+        fixture.UserName.AddressName = " ";
+        if (hasMicrophone)
+        {
+            fixture.Voice.Microphones = [new MicrophoneDevice("0", "Headset")];
+            fixture.Voice.DefaultMicrophoneId = "0";
+        }
+        fixture.MicrophoneAccess.Status = new MicrophoneAccessStatus(
+            MicrophoneAccessState.Unknown,
+            "Windows microphone access could not be verified.");
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Hi, I'm Kora.");
+        fixture.ViewModel.ResponseBody.Should().Contain(expectedGuidance);
+        fixture.ViewModel.ResponseBody.Should().Contain("grant explicit voice consent");
+        fixture.ViewModel.ResponseBody.Should().Contain("continue without voice");
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.ViewModel.ResponseActions.Should().ContainSingle()
+            .Which.Kind.Should().Be(ResponseActionKind.OpenVoiceSettings);
+    }
+
+    [Fact]
+    public async Task Greeting_action_opens_settings_without_a_voice_recovery_subscriber()
+    {
+        var fixture = new Fixture();
+        fixture.VoiceConsent.Consent = null;
+        var settingsRequests = 0;
+        fixture.ViewModel.SettingsRequested += (_, _) => settingsRequests++;
+        await fixture.ViewModel.InitializeAsync();
+        var action = fixture.ViewModel.ResponseActions.Should().ContainSingle().Which;
+
+        await fixture.ViewModel.ExecuteResponseActionAsync(action);
+        await fixture.ViewModel.ExecuteResponseActionAsync(action);
+
+        settingsRequests.Should().Be(1);
+        fixture.ViewModel.ResponseActions.Should().BeEmpty();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Dismissing_the_greeting_invalidates_its_response_action()
+    {
+        var fixture = new Fixture();
+        fixture.VoiceConsent.Consent = null;
+        var settingsRequests = 0;
+        fixture.ViewModel.SettingsRequested += (_, _) => settingsRequests++;
+        await fixture.ViewModel.InitializeAsync();
+        var action = fixture.ViewModel.ResponseActions.Should().ContainSingle().Which;
+
+        fixture.ViewModel.HideApplication();
+        await fixture.ViewModel.ExecuteResponseActionAsync(action);
+
+        fixture.ViewModel.HasResponseActions.Should().BeFalse();
+        settingsRequests.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Response_action_rejects_null()
+    {
+        var fixture = new Fixture();
+        var action = () => fixture.ViewModel.ExecuteResponseActionAsync(null!);
+
+        await action.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task Response_action_rejects_an_unknown_host_action_kind()
+    {
+        var fixture = new Fixture();
+        var responseAction = new ResponseAction((ResponseActionKind)int.MaxValue, "Invalid");
+        typeof(MainViewModel).GetProperty(nameof(MainViewModel.ResponseActions))!
+            .SetValue(fixture.ViewModel, new[] { responseAction });
+        var action = () => fixture.ViewModel.ExecuteResponseActionAsync(responseAction);
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Unknown response action:*");
+        fixture.ViewModel.ResponseActions.Should().BeEmpty();
+        fixture.WindowActions.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Reinitializing_while_listening_does_not_start_capture_again()
     {

@@ -1676,7 +1676,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     : "To talk with me, grant explicit voice consent in Settings > Speech & audio. "
                         + "The microphone stays closed until you use push-to-talk. You can also continue without voice.";
         ShowInformation(title, body);
-        SetResponseActions(new ResponseAction(
+        SetResponseAction(new ResponseAction(
             ResponseActionKind.OpenVoiceSettings,
             "Review voice settings"));
     }
@@ -1702,13 +1702,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return Task.CompletedTask;
     }
 
-    private void SetResponseActions(params ResponseAction[] actions)
+    private void SetResponseAction(ResponseAction action)
     {
-        ResponseActions = actions;
+        ResponseActions = [action];
         OnPropertyChanged(nameof(ResponseActions));
         OnPropertyChanged(nameof(HasResponseActions));
-        forceVisualResponse = actions.Length > 0 || ShouldForceVisualResponse(
-            IsGrantEditorVisible, IsResponseInteractionPending, State);
+        forceVisualResponse = true;
         NotifyOutputPolicyChanged();
     }
 

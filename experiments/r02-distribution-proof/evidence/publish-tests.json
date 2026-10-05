@@ -1,0 +1,11 @@
+{
+  "tests": [
+    "Actual runtimeconfig requires both x64 .NET 10 shared frameworks",
+    "Observed ONNX Runtime VC++ import requirements retained",
+    "Missing runtimeconfig explicitly rejected",
+    "Wrong native PE architecture explicitly rejected",
+    "Tampered final bytes rejected before compiler invocation"
+  ],
+  "count": 5,
+  "staticOnly": true
+}

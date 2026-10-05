@@ -3,7 +3,9 @@
 Experimental evidence for D-001 and D-004, **not production integration or
 decision closure**. Gate 0 is not passed: hook-only failed-result mediation
 fails, and global observation, hosted-account trials and .NET parity are
-blocked. Keep this PR draft and remote capabilities disabled.
+blocked. The user approved merging these partial findings with
+[outstanding proofs deferred](../../Design/Deferred_Validation.md#runtimeprovider-follow-up).
+Remote capabilities remain disabled; merge is not production certification.
 
 The user approved **no-account loopback validation only**. No hosted inference,
 paid operation, resource provisioning, account sign-in or credential reading
@@ -95,7 +97,7 @@ tests. A passing test verifies an expected observed limitation too; it does
 
 `npm run proof` regenerates [evidence/results.json](evidence/results.json).
 Exit **2** means the evidence matrix contains FAIL/BLOCKED rows and is the
-expected result for this draft. Exit 0 is reserved for an all-PASS matrix;
+expected result for this partial proof. Exit 0 is reserved for an all-PASS matrix;
 other nonzero results must be investigated. Never interpret exit 2 as
 production success or suppress it in release validation.
 

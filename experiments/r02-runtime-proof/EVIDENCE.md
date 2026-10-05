@@ -1,7 +1,8 @@
 # D-001 / D-004 evidence and disposition
 
 **Disposition: experimental candidate only; production Gate 0 incomplete.
-D-001 and D-004 remain open. Draft PR; no auto-merge while blocked.**
+D-001 and D-004 remain open. Partial research may merge; capability
+acceptance remains gated.**
 
 [Machine-readable observations](evidence/results.json) contain the actual run
 timestamp, Windows/CPU/runtime identity, counters, timings and statuses.
@@ -82,7 +83,7 @@ historical failure matrix unchanged.
 
 ## Publication and validation
 
-Final local validation on 2026-10-05, after the second fetch/rebase onto
+Initial publication validation on 2026-10-05, after the second fetch/rebase onto
 `7d5e6a352261dce48f2ca4d3048650ee13f51705`:
 
 - Clean `npm ci --ignore-scripts --no-audit --no-fund`: passed.
@@ -94,16 +95,34 @@ Final local validation on 2026-10-05, after the second fetch/rebase onto
 - Denied-tool effects **0**; denied context markers forwarded **0**.
 - `git diff --check`: passed; generated trial directories cleaned.
 
+Post-integration validation on 2026-10-05, after rebasing onto
+`6cb718cf8c2f5332d3220cccfdc3031cbaa56f92`:
+
+- `npm test`: **16 passed, 0 failed, 0 skipped**; strict TypeScript build passed.
+- `npm run proof`: **13 PASS, 1 FAIL, 3 BLOCKED**, readiness exit **2**.
+- Refreshed content-minimized observations at **2026-10-05T05:16:08.962Z**:
+  actual host deadline **15012 ms**, independent management **177 ms**,
+  denied-tool effects **0**, denied markers forwarded **0**.
+- The same pinned SDK/runtime bytes were verified; no hosted service or
+  production adapter was used. The hook-only FAIL and three BLOCKED rows
+  remain unchanged, not waived by merge approval.
+
 The initial proof branch was rebased onto `origin/main` before work and again
 before final validation/first push, with R01 ancestry checked. Proof/tests
 were repeated after that rebase. The later documentation follow-up updates
 canonical outcomes/roadmap alongside this retained experiment, with no
-production code changes or rewrite of published history.
+production code changes. The final integration rebase preserves the newly
+merged storage, local-inference and containment outcomes; the user explicitly
+approved the guarded force-with-lease update of this published branch.
+Remaining .NET, lifecycle, envelope and hosted-account trials are recorded in
+the [deferred-validation register](../../Design/Deferred_Validation.md#runtimeprovider-follow-up)
+for later separately approved work.
 
 The repository's existing required checks are **Portable build, tests,
 coverage, and package** and **Windows integration tests** (strict
 up-to-date main). They do not run these manual experimental Node tests.
 No existing workflow is changed and no required check/review is bypassed.
-When all blocking proofs/prerequisites are actually resolved, mark ready and
-enable squash auto-merge subject to those checks and any applicable reviews;
-this incomplete draft deliberately does not enable it.
+The user approved publication and merge of this scoped partial research,
+subject to the required checks and any applicable reviews. Marking this PR
+ready or merging it does not turn FAIL/BLOCKED rows into passes, close
+D-001/D-004 or authorize live trials/production integration.

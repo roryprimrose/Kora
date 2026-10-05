@@ -199,6 +199,9 @@ other R02 feasibility branches are complete. The
 [technical continuation](Runtime_Provider_Feasibility.md) specifies the
 candidate boundaries and unsupported-control decision path.
 No gate below is closed by merging the retained Node experiment.
+The [deferred runtime/provider checklist](Deferred_Validation.md#runtimeprovider-follow-up)
+records preparation, missing fixtures and the evidence to collect in a later
+approved test session; partial research may merge while those gates stay open.
 
 | Gate / owner | Current state | Needs / next action | Exit evidence and downstream effect |
 |---|---|---|---|
@@ -317,7 +320,7 @@ Checkpoint sign-off remains A0, then A1, then A2, then A3, then A4; later testin
 
 | Checkpoint | Current assessment | Roadmap evidence required to close it |
 |---|---|---|
-| Platform/Gate 0 | Shared projects and CI partial; I17 Node proof measured, hook-only FAIL and .NET/global/account BLOCKED | R02-RT1/RT2 and relevant R02-PV1, then R03/R04/R05/R08/R11/R17 actual integration/OS/provider/deployment evidence; MG1 for model-assisted management |
+| Platform/Gate 0 | Shared projects and CI partial; I18 Node proof measured, hook-only FAIL and .NET/global/account BLOCKED | R02-RT1/RT2 and relevant R02-PV1, then R03/R04/R05/R08/R11/R17 actual integration/OS/provider/deployment evidence; MG1 for model-assisted management |
 | A0 deterministic shell | Partial shell/setup/transcription/TTS; no explicit PTT, clipboard, controlled remote path or streamed answer | R03-R08 foundation/vertical-slice evidence; no dependence on model-assisted management; native setup/recovery and cancellation measured |
 | A1 voice-first activation | Grammar proof, not production wake or complete lock/event policy | R02/R03/R09 actual wake, endpointing, privacy and interruption trials |
 | A2 local-first answering | Bootstrap candidate and R02 identity/licence/unavailable-path evidence; no successful real-model, full clipboard/offline or floor qualification | R02-L1-L5 candidate/floor disposition and L6 handoff; R06/R07/R08 actual local adapter/clipboard/streaming conformance and independently network-blocked host trials. D-003 and applicable D-007 evidence remain open until owner-reviewed passes; harness tests/merge do not close them |

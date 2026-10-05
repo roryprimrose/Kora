@@ -160,6 +160,12 @@ inference disabled with deterministic choices, not a guessed price ceiling.
 
 ## Acceptance and Maintenance
 
+Partial experimental evidence and this technical direction may merge without
+closing D-001/D-004 or enabling the candidate. The
+[deferred-validation register](Deferred_Validation.md#runtimeprovider-follow-up)
+owns the later-session handoff, including required .NET fixtures,
+instrumentation and separate account/usage approval.
+
 Re-run the relevant conformance evidence for any change to SDK/runtime bytes,
 transport, authentication method, endpoint/model, result format, storage,
 automatic collection or admitted feature. Maintain version-bound capability

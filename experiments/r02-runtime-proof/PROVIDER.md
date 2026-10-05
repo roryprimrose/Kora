@@ -3,7 +3,9 @@
 Reviewed 2026-10-05. Public documentation is background evidence, not an
 account-specific entitlement or legal approval. **No hosted account was
 approved or tested.** The user explicitly chose no-account loopback proof
-and a draft PR with hosted validation blocked.
+and initially a draft PR with hosted validation blocked. Later approval to
+merge the partial evidence does not approve hosted usage or close the
+[deferred provider trials](../../Design/Deferred_Validation.md#runtimeprovider-follow-up).
 
 ## Authentication and permitted use
 

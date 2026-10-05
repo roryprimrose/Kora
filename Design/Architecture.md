@@ -542,8 +542,16 @@ The [R02 runtime/provider proof](../experiments/r02-runtime-proof/EVIDENCE.md)
 exercised Node SDK 1.0.16 with runtime 1.0.90. Initial-context mediation,
 successful-result mediation and isolated loopback lanes passed; **hook-only
 failed-result mediation failed**. A supported experimental final model-request
-handler blocked that unredacted continuation. Global egress/storage
-observation, hosted-account eligibility and .NET parity remain blocked.
+handler blocked that unredacted continuation. The separate
+[actual .NET RT1 fixture](../experiments/r02-dotnet-control-proof/EVIDENCE.md)
+passes 45/45 real-runtime tests for the explicitly approved unmodified
+exact-tag v1.0.16 source-built minimal HTTP/stdio profile with runtime
+1.0.90/protocol 3. Final initial/history/all-result/exception mediation,
+pre-effect denial, volatile session I/O and failure, streaming/auth errors,
+truthful cancellation and execution/management isolation are measured.
+Hook-only FAIL and Node evidence remain unchanged. Released NuGet byte
+parity, global lifecycle egress/storage/diagnostics observation and
+hosted-account eligibility remain blocked/open.
 D-001/D-004 are not closed and no production adapter is enabled.
 
 The next candidate must combine pre-effect tool authorization, host-sanitized
@@ -554,8 +562,9 @@ enforcement; an empty tool list does not prove no ambient collection or
 persistence. Abort acknowledgement is not physical stop or rollback.
 
 [Runtime and Provider Feasibility](Runtime_Provider_Feasibility.md) owns the
-technical continuation: isolated .NET public-API parity first, then lifecycle
-network/storage observation and approved provider trials, with explicit
+technical continuation: preserve scoped RT1 pins and regressions, then RT2
+lifecycle network/storage/diagnostic observation and MG1 .NET management
+envelope, followed by approved provider trials, with explicit
 stop/decision paths for unsupported controls.
 The [roadmap gates](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
 must pass before R08 remote exposure or R13 model-assisted management.

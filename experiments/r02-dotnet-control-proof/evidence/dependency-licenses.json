@@ -1,0 +1,246 @@
+[
+  {
+    "PackageId": "AwesomeAssertions",
+    "PackageVersion": "9.6.0",
+    "PackageProjectUrl": "https://github.com/AwesomeAssertions/AwesomeAssertions",
+    "Copyright": "Copyright Dennis Doomen 2010-2025, AwesomeAssertions 2025-",
+    "Authors": "AwesomeAssertions, Dennis Doomen, Jonas Nyrup and contributors",
+    "Description": "A fork of FluentAssertions.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "GitHub.Copilot.SDK",
+    "PackageVersion": "1.0.16-rt1.source.f8ae645.1",
+    "PackageProjectUrl": "https://github.com/github/copilot-sdk",
+    "Copyright": "Copyright (c) Microsoft Corporation. All rights reserved.",
+    "Authors": "GitHub",
+    "Description": "SDK for programmatic control of GitHub Copilot CLI",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.ApplicationInsights",
+    "PackageVersion": "2.23.0",
+    "PackageProjectUrl": "https://go.microsoft.com/fwlink/?LinkId=392727",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "Application Insights Base API. This package provides core functionality for transmission of all Application Insights Telemetry Types and is a dependent package for all other Application Insights packages. Please install the platform specific package for the best experience. Privacy statement: https://go.microsoft.com/fwlink/?LinkId=512156",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Bcl.AsyncInterfaces",
+    "PackageVersion": "6.0.0",
+    "PackageProjectUrl": "https://dot.net/",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "Provides the IAsyncEnumerable\u003CT\u003E and IAsyncDisposable interfaces and helper types for .NET Standard 2.0. This package is not required starting with .NET Standard 2.1 and .NET Core 3.0.\n\nCommonly Used Types:\nSystem.IAsyncDisposable\nSystem.Collections.Generic.IAsyncEnumerable\nSystem.Collections.Generic.IAsyncEnumerator",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Extensions.AI.Abstractions",
+    "PackageVersion": "10.2.0",
+    "PackageProjectUrl": "https://dot.net/",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "Abstractions representing generative AI components.",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Extensions.DependencyInjection.Abstractions",
+    "PackageVersion": "10.0.2",
+    "PackageProjectUrl": "https://dot.net/",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "Abstractions for dependency injection.\n\nCommonly Used Types:\nMicrosoft.Extensions.DependencyInjection.IServiceCollection",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Extensions.Logging.Abstractions",
+    "PackageVersion": "10.0.2",
+    "PackageProjectUrl": "https://dot.net/",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "Logging abstractions for Microsoft.Extensions.Logging.\n\nCommonly Used Types:\nMicrosoft.Extensions.Logging.ILogger\nMicrosoft.Extensions.Logging.ILoggerFactory\nMicrosoft.Extensions.Logging.ILogger\u003CTCategoryName\u003E\nMicrosoft.Extensions.Logging.LogLevel\nMicrosoft.Extensions.Logging.Logger\u003CT\u003E\nMicrosoft.Extensions.Logging.LoggerMessage\nMicrosoft.Extensions.Logging.Abstractions.NullLogger",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Testing.Extensions.Telemetry",
+    "PackageVersion": "2.4.0",
+    "PackageProjectUrl": "https://github.com/microsoft/testfx",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "This package provides telemetry for the platform.\n\nMicrosoft Testing is a set of platform, framework and protocol intended to make it possible to run any test on any target or device.",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Testing.Extensions.TrxReport",
+    "PackageVersion": "2.4.1",
+    "PackageProjectUrl": "https://github.com/microsoft/testfx",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "This package extends Microsoft Testing Platform to provide TRX test reports.\n\nMicrosoft Testing is a set of platform, framework and protocol intended to make it possible to run any test on any target or device.",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Testing.Extensions.TrxReport.Abstractions",
+    "PackageVersion": "2.4.1",
+    "PackageProjectUrl": "https://github.com/microsoft/testfx",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "This package provides the abstractions used by extensions that contribute data to, or read data from, TRX test reports. Install Microsoft.Testing.Extensions.TrxReport to generate the reports themselves.\n\nMicrosoft Testing is a set of platform, framework and protocol intended to make it possible to run any test on any target or device.",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Testing.Platform",
+    "PackageVersion": "2.4.1",
+    "PackageProjectUrl": "https://github.com/microsoft/testfx",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "This package provides the core platform and the .NET implementation of the protocol.\n\nMicrosoft Testing is a set of platform, framework and protocol intended to make it possible to run any test on any target or device.",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Testing.Platform.MSBuild",
+    "PackageVersion": "2.4.0",
+    "PackageProjectUrl": "https://github.com/microsoft/testfx",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "This package provides MSBuild integration of the platform, its extensions and configuration files.\n\nMicrosoft Testing is a set of platform, framework and protocol intended to make it possible to run any test on any target or device.",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "Microsoft.Win32.Registry",
+    "PackageVersion": "5.0.0",
+    "PackageProjectUrl": "https://github.com/dotnet/runtime",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "Provides support for accessing and modifying the Windows Registry.\n\nCommonly Used Types:\nMicrosoft.Win32.RegistryKey\nMicrosoft.Win32.Registry\nMicrosoft.Win32.RegistryValueKind\nMicrosoft.Win32.RegistryHive\nMicrosoft.Win32.RegistryView\n \nWhen using NuGet 3.x this package requires at least version 3.4.",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "System.Security.AccessControl",
+    "PackageVersion": "6.0.1",
+    "PackageProjectUrl": "https://dot.net/",
+    "Copyright": "\u00A9 Microsoft Corporation. All rights reserved.",
+    "Authors": "Microsoft",
+    "Description": "Provides base classes that enable managing access and audit control lists on securable objects.\n\nCommonly Used Types:\nSystem.Security.AccessControl.AccessRule\nSystem.Security.AccessControl.AuditRule\nSystem.Security.AccessControl.ObjectAccessRule\nSystem.Security.AccessControl.ObjectAuditRule\nSystem.Security.AccessControl.ObjectSecurity",
+    "License": "MIT",
+    "LicenseUrl": "https://licenses.nuget.org/MIT",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.analyzers",
+    "PackageVersion": "2.1.0",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson,marcind",
+    "Description": "xUnit.net is a developer testing framework, built to support Test Driven Development, with a design goal of extreme simplicity and alignment with framework features.\n\nInstalling this package provides code analyzers to help developers find and fix frequent issues when writing tests and xUnit.net extensibility code.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "xUnit.net is a developer testing framework, built to support Test Driven Development, with a design goal of extreme simplicity and alignment with framework features. Supports .NET Framework 4.7.2 or later, and .NET 8 or later.\n\nInstalling this package installs xunit.v3.mtp-v2.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3.assert",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "Includes the assertion library from xUnit.net (xunit.v3.assert.dll). Supports .NET Standard 2.0 or later, and .NET 8 or later.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3.common",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "Includes common code shared between xunit.v3.core and xunit.v3.runner.common (xunit.v3.common.dll). Supports .NET Standard 2.0 or later.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3.core.mtp-v2",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "Includes the core library (xunit.v3.core.dll), to be used for writing tests; extensibility authors should include xunit.v3.extensibility.core instead. Includes support for Microsoft.Testing.Platform v2. Supports .NET Framework 4.7.2 or later, and .NET 8 or later.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3.extensibility.core",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "Includes the core library (xunit.v3.core.dll), to be used for extensibility; test authors should include xunit.v3.core instead. Supports .NET Standard 2.0 or later.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3.mtp-v2",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "xUnit.net is a developer testing framework, built to support Test Driven Development, with a design goal of extreme simplicity and alignment with framework features. Supports .NET Framework 4.7.2 or later, and .NET 8 or later.\n\nInstalling this package installs xunit.v3.core.mtp-v2, xunit.v3.assert, and xunit.analyzers.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3.runner.common",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "Includes common code shared between in-process runners (like xunit.v3.runner.inproc.console) and xunit.v3.runner.utility (used by 1st and 3rd party external runners). Supports .NET Standard 2.0 or later.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  },
+  {
+    "PackageId": "xunit.v3.runner.inproc.console",
+    "PackageVersion": "4.0.1",
+    "Copyright": "Copyright (C) .NET Foundation",
+    "Authors": "jnewkirk,bradwilson",
+    "Description": "In-process console runner for xUnit.net framework, providing the entrypoint for self-executing unit tests. Supports .NET Framework 4.7.2 or later, and .NET 8 or later.",
+    "License": "Apache-2.0",
+    "LicenseUrl": "https://licenses.nuget.org/Apache-2.0",
+    "LicenseInformationOrigin": 0
+  }
+]

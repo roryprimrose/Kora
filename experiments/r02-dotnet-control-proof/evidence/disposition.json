@@ -1,0 +1,31 @@
+{
+  "observedAtUtc": "2026-10-05T22:45:35.1480202+00:00",
+  "rt1": "PASS: reviewed exact-tag source-built minimal HTTP/stdio profile only",
+  "testSdk": "10.0.401",
+  "tests": {
+    "total": 45,
+    "failed": 0,
+    "passed": 45
+  },
+  "capabilityRows": {
+    "selectedProfilePass": 44,
+    "rejectedHookOnlyFail": 1
+  },
+  "modelPayloadDeniedMarkersForwarded": 0.0,
+  "deniedToolEffects": 0,
+  "nodeWitnessUnchanged": true,
+  "releasedNugetByteParity": "BLOCKED: direct registry TLS acquisition; source-build alternative explicitly approved",
+  "rt2": "NOT RUN: full process lifecycle network/file/diagnostic attribution required",
+  "mg1": "NOT RUN: .NET complete byte/deadline/admission envelope required",
+  "pv1": "BLOCKED: no intended-account or potentially paid-usage approval",
+  "gate0": "OPEN; production adapter disabled",
+  "sdkAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+  "sdkPackageSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+  "fixtureAssemblySha256": "f041209f0b155658f9f0264af77b99f708564d607e3b6a593bcd904220012436",
+  "sourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+  "commands": [
+    "Prepare-Candidate.ps1",
+    "dotnet build ControlProof.csproj --configuration Release --no-restore",
+    "dotnet test --project ControlProof.csproj --configuration Release --no-build --results-directory TestResults --report-trx"
+  ]
+}

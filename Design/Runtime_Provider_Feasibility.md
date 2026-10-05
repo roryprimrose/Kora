@@ -2,7 +2,8 @@
 
 Status: evidence-backed technical direction; production runtime/provider
 selection and D-001/D-004 closure remain open.
-Reviewed 2026-10-05 against the R02 proof recorded in `e0af3ea`.
+Reviewed 2026-10-05 UTC against the retained Node proof and the separate
+[actual .NET RT1 fixture](../experiments/r02-dotnet-control-proof/README.md).
 
 Related: [Architecture](Architecture.md#copilot-integration-proof),
 [Decision Register](Decision_Register.md#r02-runtimeprovider-feasibility-outcomes),
@@ -10,7 +11,7 @@ Related: [Architecture](Architecture.md#copilot-integration-proof),
 [Security](Security_Data_Flows.md#runtime-egress-enforcement),
 [Management Envelope](Work_Management.md#management-operating-envelope-and-degraded-mode).
 
-## Evidence Baseline and Interpretation
+## Historical Node Baseline and Interpretation
 
 The [runnable experiment](../experiments/r02-runtime-proof/README.md) exercised
 the actual Node Copilot SDK 1.0.16, bundled runtime 1.0.90/protocol 3 and
@@ -36,7 +37,7 @@ experiment's aggregate nonzero exit as a permanent veto on all Copilot use.
 | Two blocked execution conversations and a manager on another endpoint remained independent; manager completed in 177 ms. | Preserve separate lane identities/context/tool sets. Verify the same topology in .NET and on the intended account/provider; this is not a production slot, quota or resource-lease proof. |
 | Abort was acknowledged, but an already-admitted non-cooperative test tool completed later. | Cancellation closes new dispatch/egress and suppresses late presentation; admitted effects require observed receipts or Outcome Unknown. Never infer rollback, physical stop or replay safety from SDK acknowledgement. |
 | Complete model JSON accepted at 32768 bytes and rejected at 32769; typed UTF-8 JSON accepted at 4096 and overflow rejected. Held inference returned deadline at 15011 ms. | Carry the host envelope to .NET, including protocol overhead and asynchronous deadline handling. Do not substitute token counts, character limits, provider timeout or truncated JSON. |
-| No hosted account was approved; all-destination observation and .NET parity were not performed. | Keep those gates BLOCKED. No approved provider, price ceiling, terms entitlement or production implementation follows from this experiment. |
+| No hosted account was approved; all-destination observation and .NET parity were not performed in the Node experiment. | Historical Node rows stay unchanged. The separate .NET RT1 outcome below does not prove RT2 or PV1; no approved provider, price ceiling, terms entitlement or production implementation follows from Node evidence. |
 
 The numerical timings are single recorded observations, not reference-machine
 SLO acceptance. No microphone, real model quality, worker containment,
@@ -44,6 +45,72 @@ protected deployment, encrypted Kora storage or local inference decision was
 validated by this runtime branch.
 
 ## Implementation Direction
+
+### RT1 .NET outcome: selected source-built profile passes
+
+The [RT1 disposition](../experiments/r02-dotnet-control-proof/evidence/disposition.json)
+records **PASS for the reviewed exact-tag source-built minimal HTTP/stdio
+profile**, not released-NuGet byte parity or Gate 0. All 45 actual .NET/native
+tests pass: 44 selected-profile PASS rows and one expected rejected hook-only
+FAIL. Historical Node evidence remains unchanged and separate.
+
+Public .NET SDK release `v1.0.16`, source
+`f8ae645902b74b62cd47aac1fd9b29adaec3aff2`, exposes experimental
+`CopilotRequestHandler.SendRequestAsync`/`OpenWebSocketAsync` and public
+per-session `SessionFsProvider`. Runtime 1.0.90/protocol 3 uses the same verified
+native launcher/payload as the Node witness. SDK 10.0.401/.NET 10.0.12,
+source/package/assembly/native/fixture hashes, UTC receipts, separate locks
+and dependency/native license review are recorded in the fixture.
+Direct NuGet acquisition failed TLS; the user explicitly approved an
+unmodified exact-tag source build, distinctly versioned
+`1.0.16-rt1.source.f8ae645.1`. A separate clean-source build reproduces identical
+package/assembly bytes after ZIP-timestamp-only normalization. Released NuGet
+byte conformance remains **Blocked**, not silently substituted.
+
+Measured boundaries:
+
+- Complete final JSON covers initial system/prompt, prior user/assistant
+  history and every tested result status: success, failure, denied, rejected,
+  unavailable, cancelled, unknown, timeout, blocked, conflict and pending.
+  Rich host statuses remain structured receipt facts, not SDK enum claims.
+  Denied tool effects and denied markers forwarded are **zero**.
+- `rejected` ends the current turn but persists into later history; subsequent
+  sends are gated too. Synchronous/faulted tool exceptions both reach final
+  denial; their original exception marker is absent from these runtime-formatted
+  requests, so omission is not generalized into a privacy guarantee.
+- Streaming and scripted 401/429/500/drop/malformed SSE paths are explicit;
+  synthetic credentials are in headers, never model bodies. Internal retries
+  are observed and blocked after one admitted attempt. Redirects are not followed.
+- Two held execution conversations do not block the isolated manager on another
+  loopback endpoint. Hostile model IDs/approval fields do not select host identity
+  or authorize a tool. This is not a resource-lease/scheduler/account proof.
+- SDK abort acknowledgement, request-token cancellation and loopback connection
+  termination are separate observations. An admitted non-cooperative owned-file
+  effect completes after cancellation and is **Unknown** at cancellation.
+  `SendAndWaitAsync` timeout alone does not terminate held inference.
+- Empty mode has zero advertised built-ins, failed excluded-tool proposals,
+  disabled discovery/collection features and actual volatile session-I/O writes.
+  Store write denial produces a real session error. Scoped disk scans show
+  zero context-marker persistence; all owned trials clean up. This is not
+  all-network/file/diagnostic observation.
+
+Only ephemeral synthetic HTTP/SSE providers and harmless owned scratch were
+used. Ambient auth/environment/default routing were excluded; no account,
+installed application, provider inference, paid operation, global policy or
+other worktree was used. WebSockets, attachments, MCP, built-in agents/tools,
+skills/plugins/extensions/canvas, remote export, embedding retrieval, memory,
+spill and native SQL/session stores remain unavailable in the tested profile.
+The full optional runtime bundle is not admitted for redistribution.
+
+RT1 permits **RT2 and MG1 proof work for these exact bytes**, not production
+integration. RT2 must observe complete lifecycle destinations/diagnostics,
+optional helper loading, collection and persistence. MG1 still needs its
+complete byte/deadline/admission/unknown-termination envelope. PV1 remains
+blocked pending intended-account/terms/cost approval. R04 owns durable identity,
+audit and trace contracts: SDK IDs/trace headers are correlation only, and an
+SDK completion cannot commit host authority or certify durable storage.
+No architecture decision is changed, no sidecar is selected and D-001 remains
+open. A change to released artifact/transport/runtime/profile requires retesting.
 
 ### Host boundaries, not hook-only authority
 
@@ -82,8 +149,9 @@ implicitly admitted by those product contracts.
 
 ### .NET-first continuation and explicit stop condition
 
-The next implementation task is **an isolated .NET conformance proof**, not
-R08 production composition. Pin an actual .NET SDK and compatible runtime;
+The first isolated .NET conformance proof above is complete for its approved
+source-built profile, not R08 production composition. Pin any next actual
+.NET artifact and compatible runtime;
 do not assume Node's version number or callback inventory applies to .NET.
 Reproduce the recorded controls through supported public APIs, including
 the final HTTP gate and host-owned session I/O. Record exact versions,
@@ -128,8 +196,9 @@ proposals and revision/target checks without task tools or approval authority.
 The [roadmap follow-up gates](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
 assign owners, prerequisites and exit evidence. Execute in this order:
 
-1. **R02-RT1:** pin and test .NET public control-point parity. Passing allows
-   continuation of this candidate, not production exposure. Failure triggers
+1. **R02-RT1:** selected exact-tag source-built profile passes; preserve its
+   conformance/negative tests and artifact pins. Released NuGet parity remains
+   blocked. Passing allows RT2/MG1, not production exposure. Failure triggers
    an explicit D-001 architecture decision; stop that integration path.
 2. **R02-RT2:** observe the candidate runtime's full network/storage lifecycle
    and establish a verified minimal processing profile. Any unexplained or

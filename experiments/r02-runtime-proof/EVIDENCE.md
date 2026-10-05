@@ -71,6 +71,18 @@ hook-only failure; it does not reclassify that failure as a passed gate.
 
 ## Publication and validation
 
+Final local validation on 2026-10-05, after the second fetch/rebase onto
+`7d5e6a352261dce48f2ca4d3048650ee13f51705`:
+
+- Clean `npm ci --ignore-scripts --no-audit --no-fund`: passed.
+- `npm test`: **16 passed, 0 failed, 0 skipped**, including the real SDK cases
+  and the supplementary stalled-acknowledgement test.
+- `npm run proof`: **13 PASS, 1 FAIL, 3 BLOCKED**, readiness exit **2**.
+- Actual deadline: **15011 ms**; management acknowledgement while both
+  execution conversations were blocked: **177 ms** in the recorded proof run.
+- Denied-tool effects **0**; denied context markers forwarded **0**.
+- `git diff --check`: passed; generated trial directories cleaned.
+
 The branch is rebased onto `origin/main` before work and again before final
 validation/first push, with R01 ancestry checked. The proof/tests are repeated
 after the latter rebase. Only this experimental directory is staged.

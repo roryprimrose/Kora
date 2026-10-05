@@ -1,7 +1,9 @@
 {
-  "recordedAt": "2026-10-05T00:14:18.331Z",
+  "recordedAt": "2026-10-05T00:24:33.704Z",
   "sdk": "@github/copilot-sdk@1.0.16",
   "bundledRuntime": "1.0.90",
+  "executableSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+  "payloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
   "node": "v24.16.0",
   "npm": "11.13.0",
   "typescript": "5.9.3",
@@ -85,6 +87,15 @@
       }
     },
     {
+      "id": "final-boundary-failed-result-egress",
+      "status": "PASS",
+      "detail": "Supported experimental model request handler observed and rejected the unredacted failed result before forwarding any HTTP payload to the synthetic provider.",
+      "measurements": {
+        "deniedOutbound": 0,
+        "blockedContinuations": 1
+      }
+    },
+    {
       "id": "authentication-throttling-errors",
       "status": "PASS",
       "detail": "Synthetic 401/429/500 produce explicit SDK errors and deterministic fallback; host boundary prevents any second management HTTP attempt.",
@@ -101,10 +112,11 @@
     {
       "id": "independent-lanes-and-provider-isolation",
       "status": "PASS",
-      "detail": "Management completed on a separate provider/session while the execution tool was blocked; no task context/tool leakage.",
+      "detail": "Management completed on a separate provider/session while one execution tool and a second execution inference were blocked; no task context/tool leakage. Three independent SDK conversations, not three production execution slots.",
       "measurements": {
-        "managementMs": 187,
-        "executionRequests": 1,
+        "managementMs": 177,
+        "executionConversations": 2,
+        "executionRequests": 2,
         "managementRequests": 1,
         "managementTools": 0
       }
@@ -159,6 +171,17 @@
           "home\\AppData\\Local\\Microsoft\\PowerShell\\StartupProfileData-NonInteractive",
           "workspace\\AGENTS.md"
         ]
+      }
+    },
+    {
+      "id": "management-host-admission",
+      "status": "PASS",
+      "detail": "Deterministic host tests: one in-flight request, 30 calls per rolling hour, exact expiry, local-only denial and fail-closed quarantine after unconfirmed termination. Not provider quota evidence.",
+      "measurements": {
+        "remoteCallsPerHour": 30,
+        "inFlightLimit": 1,
+        "rollingWindowMs": 3600000,
+        "oversizedUtf8InputBytes": 32769
       }
     },
     {

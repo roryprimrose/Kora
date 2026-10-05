@@ -75,6 +75,12 @@ specifies that future gate for both direct and suggested side-effecting tasks.
 None of this closes the hardware/performance/offline proof in D-003 or the
 broader approval-policy evidence in D-008.
 
+The [Dependency Catalogue](Dependency_Catalogue.md) inventories current optional
+software, speech/model assets and setup-path tools alongside known future
+requirements. It separates bundled/launch prerequisites from user-selected
+capabilities and experimental candidates; installing a dependency is not
+adapter admission or release acceptance.
+
 ## Reading Order
 
 1. [MVP Scope and Non-Goals](MVP_Scope.md): what ships first and what does not.
@@ -156,8 +162,8 @@ is an offline design mockup, not an implemented application or a change to relea
 - Users develop declarative skills by voice; agent capabilities cannot modify Kora's own code or executable components.
 - Built-in skill manifests, Markdown, and all required scripts are embedded resources in the protected application binary, without loose-file overrides or writable extraction. Scripts may be shared; grants bind a deterministic combined-content hash and the exact skill definition/invocation. Microphone use is prohibited while Windows is locked.
 - Shared profile skills are read-only references; Kora-specific skills and reviewed edited copies live in `%APPDATA%\Kora\Skills`, with device-local enablement.
-- Source-bootstrap and precompiled runtime-only binary deployment are both supported; package format is not yet selected.
-- The expected repository is public and source-available on GitHub; Linux Actions build/package/publish initially unsigned Windows releases, with explicit unsigned-artifact disclosure, final-byte hashes/provenance, and Windows validation outside the required build pipeline.
+- Source-bootstrap and precompiled runtime-only binary deployment are both required; [WiX MSI + Burn is the selected production direction](Distribution_And_Updates.md#selected-windows-installer-direction), with implementation/acceptance still open and the NSIS proof retained as historical evidence.
+- The repository is public and source-available on GitHub. Use Linux Actions for build/test/cross-publish and release work wherever feasible, with explicit Windows WiX packaging jobs, unsigned-artifact disclosure, final-byte hashes/provenance and separate installed Windows acceptance.
 - Delivery installs Kora; the running application sets up its stores and approved requirements for selected capabilities, reusing existing installations.
 - Kora initiates eligible conversations, including unsigned/manual update notices; initial update handling is notify-only and cannot download, stage, execute, or install replacement code.
 - Automatic speech defaults to visual-only during calls or uncertain enabled-detector state; users configure this verbally and can request a single spoken response.

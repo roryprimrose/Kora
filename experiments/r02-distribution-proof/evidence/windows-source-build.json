@@ -1,0 +1,36 @@
+{
+  "sdk": "10.0.401",
+  "os": "Microsoft Windows 10.0.26300",
+  "source": "7d5e6a352261dce48f2ca4d3048650ee13f51705",
+  "dependencyLocks": [
+    {
+      "path": "src/Kora/packages.lock.json",
+      "sha256": "0f182a4716c9a6fce128dcdc3c9dff3685fe7267b3908f6a61843571608ab05f"
+    },
+    {
+      "path": "src/Kora.Application/packages.lock.json",
+      "sha256": "ea9b9f9613a98483fb55ffba313980abefbd9498d36781be19d636890922cdf3"
+    },
+    {
+      "path": "src/Kora.Core/packages.lock.json",
+      "sha256": "6d89e137683584e0114760d5c698aa686740c2a9d0ccc7a650bdb81b701b3127"
+    },
+    {
+      "path": "src/Kora.Windows/packages.lock.json",
+      "sha256": "947e400b21b5599172d12c3e07431e5ceb66c28fa9a7e0aa25196e2677430108"
+    },
+    {
+      "path": "tests/Kora.Application.UnitTests/packages.lock.json",
+      "sha256": "4e71274ea80d3b3552cfa27d6f405568444782dfdbf81f5df75379578b0f92d6"
+    },
+    {
+      "path": "tests/Kora.Core.UnitTests/packages.lock.json",
+      "sha256": "f65de6ba68c119872ec04aaa81c1ccf23127fa916a0383af59b3b89efe00119b"
+    },
+    {
+      "path": "tests/Kora.Windows.IntegrationTests/packages.lock.json",
+      "sha256": "ce5e41c072cee53f6c51a8284abf78ea4d67b052b6725aa16485992f20ae2d3b"
+    }
+  ],
+  "smoke": "Static publish contract only. Runtime launch requires approved Windows lab."
+}

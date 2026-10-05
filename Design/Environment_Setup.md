@@ -3,24 +3,85 @@
 Status: proposed full setup capability. The current bootstrap implements
 independent storage/SQLite, PowerShell, and local-model readiness tasks;
 remaining catalogue and acceptance requirements below are not claimed as
-shipped. Delivery installs Kora; the running app owns setup of its environment.
+shipped. Delivery installs Kora; the running app owns dependency detection and
+setup even when optional installer assistance is offered.
 
-Related: [Distribution](Distribution_And_Updates.md), [Architecture](Architecture.md), [Security](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
+Related: [Dependency Catalogue](Dependency_Catalogue.md), [Distribution](Distribution_And_Updates.md), [Architecture](Architecture.md), [Security](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Boundary
 
 Source and binary delivery install/publish Kora and the code/assets required to launch its shell and setup controller.
-They do not provision an entire AI stack, populate user databases, configure providers, or install Ollama.
+Neither delivery path requires a preconfigured AI stack, provider selection,
+model downloads or Ollama installation. Optional installer-assisted dependency
+setup is a convenience, not a replacement for the running application's setup
+controller. User stores are initialised by Kora, not populated by the installer.
 Source delivery still requires build prerequisites; framework-dependent binary delivery still requires the declared .NET runtime before Kora can run.
 Kora cannot install a prerequisite for its own process before that process can launch.
 
+R02 inspection established concrete pre-launch requirements for the current
+framework-dependent win-x64 bootstrap: a supported patched .NET 10 x64 Desktop
+Runtime providing both declared .NET shared frameworks, plus external VC++ v14
+x64 runtime DLLs imported by ONNX. See the canonical
+[launch prerequisite baseline](Distribution_And_Updates.md#launch-prerequisite-baseline)
+for exact observations and remaining Windows loader tests. These are delivery
+requirements, not model-selected setup actions or a reason to install an SDK
+on a binary user's machine. Missing optional speech/model assets still belong
+to the running app's scoped readiness flow.
+
 Once running, Kora identifies the requirements of selected capabilities, explains what is missing, and configures the environment through trusted setup operations.
 Do not install every possible connector, model, or tool "just in case".
+
+## Optional Dependencies and Built-In-Command-Only Operation
+
+Users may decline all optional inference providers and their external
+dependencies, including Ollama/local models and any external runtime or account
+requirements of an admitted Copilot adapter. No provider choice or capability
+dependency selection is required to install Kora or finish basic onboarding.
+This does not make the launch-critical prerequisites optional.
+
+Without a ready selected inference provider, Kora remains usable for its
+supported deterministic built-in commands, native settings, help, readiness and
+recovery. Each command still needs its own actual dependencies and applicable
+privacy/approval gates: declining speech assets may leave typed/native input
+available but voice unavailable; declining an interpreter disables commands
+that require it. Do not advertise all built-ins as dependency-free. Free-form
+inference and model-mediated tools remain explicitly unavailable, with no cloud
+fallback or model calls to interpret an unsupported request.
+
+Declining setup is a supported choice, not an installation failure or consent
+to retry. Preserve the choice without repeatedly opening setup or downloading
+dependencies on startup. Users can later reopen setup and select a capability;
+Kora detects current state and obtains any required consent before installing.
+Detection, installation/configuration, cancellation and health verification
+remain available inside Kora regardless of whether the installer offered help.
+Re-probe installer-prepared dependencies rather than trusting its success flag.
+
+If optional installer assistance is provided, it uses the same reviewed
+dependency identities, supported versions, sources, verification and consent
+requirements as app-led setup. It must offer a complete Kora-only path without
+requiring users to choose packages or providers upfront. Assistance cannot
+install every dependency by default, silently configure an account, enable
+listening, create execution grants, or authorise later app-led setup. Detect and
+reuse compatible existing installations; preserve their ownership and settings.
+Partial, failed or skipped assistance is reconciled by Kora's normal readiness
+flow, not treated as permission to reinstall or remove user-owned components.
+Missing adapter implementation still requires an application release, not
+dependency setup that patches Kora code.
+
+These are capability/setup requirements, not a waiver of release acceptance.
+For example, the product must still implement and prove the required A2 local
+adapter even though an individual user may decline to install or use its model.
+Installer assistance is optional future delivery work; the current bootstrap
+and distribution proof do not demonstrate it or complete this onboarding policy.
 
 ## Built-In Setup Controller
 
 Setup is deterministic host functionality, available without a configured model or skill.
 It owns a versioned dependency catalogue, probes, scoped setup actions, readiness records, cancellation, and recovery.
+The [source-backed dependency inventory](Dependency_Catalogue.md) distinguishes
+current PowerShell/Ollama/speech/Kokoro requirements, bundled and launch
+dependencies, experimental wake candidates and future provider/connector/viewer
+requirements. It is a design inventory, not the implemented executable catalogue.
 The catalogue defines supported versions/platforms, trusted sources, verification, installation scope, health probes, resource estimates, and removal ownership.
 Models can explain a host plan but cannot invent package URLs, choose executables, change the catalogue, or run an arbitrary setup script.
 
@@ -63,7 +124,8 @@ Schema changes need backup/recovery and downgrade compatibility appropriate to t
 
 ## Ollama and Existing User Installations
 
-Ollama is optional, not a requirement for a user selecting only a supported remote provider.
+Ollama is optional, not a requirement for users selecting remote processing or
+no inference provider at all.
 Installing Ollama is useful only when the running Kora version has a compatible local-model adapter.
 Missing application adapters require a verified Kora release or out-of-band development, not generation of new executable code by setup.
 The initial Ollama adapter rollout remains governed by MVP/provider scope.
@@ -136,7 +198,7 @@ Provide status/test/correct/reset/delete recovery; protected-call changes requir
 ## Setup Flow
 
 1. Launch Kora's setup shell and initialise its own local storage.
-2. Ask which interaction/provider capabilities the user wants.
+2. Offer interaction/provider capabilities and an explicit continue-without-optional-dependencies path; no provider selection is compulsory.
 3. Probe those requirements and show Ready/Missing/Blocked items.
 4. Present a bounded plan for missing/configuration steps, including downloads and changes.
 5. Obtain required consent and execute registered host actions in dependency order.

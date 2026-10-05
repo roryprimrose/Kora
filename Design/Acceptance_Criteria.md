@@ -555,6 +555,7 @@ Verify:
 - Launch setup successfully with no speech models, database files, or Ollama present; initialise selected capabilities from the running app without Git/SDK.
 - Validate launch-critical packaged libraries and embedded lock-script resources, plus speech readiness after Kora-led explicit asset setup.
 - Missing/incompatible runtime and architecture cases identify the actual requirement; no SDK install or source-build fallback occurs.
+- Derive pre-launch prerequisites from the exact published runtime configuration and native imports. For the current R02 baseline, test missing/base-only/wrong-major/wrong-architecture .NET against both declared .NET 10 shared frameworks, then record the actual supported x64 Desktop Runtime patch selected. Test absent/incompatible VC++ x64 runtime dependencies and delayed/dynamic native loads; registry or DLL presence alone does not pass runtime-only launch.
 - Source and binary deployments preserve the same skill/data partitions and application-integrity guarantees.
 - Start-at-logon is opt-in, runs published binaries as the interactive user, starts only one instance, and never builds or elevates.
 - Ordinary unlocked logon/restart tests automatically begin listening when ready;
@@ -562,7 +563,7 @@ Verify:
   explicit re-enabling for that run.
 - Uninstall removes startup entries and offers data retention without deleting shared profile skills.
 - Installation metadata, not `.git` presence, determines maintenance mode; developer checkouts are not automatically pulled/reset.
-- Binary update checks use the configured hosted release feed without Git/SDK, respect channel/architecture/runtime, and exclude drafts/prereleases on stable.
+- Binary update checks use the canonical GitHub Releases feed without Git/SDK and respect channel/architecture/runtime. Fixtures exclude drafts in every channel and prereleases in production; explicit preview discovery can find published prereleases without depending on the latest-production endpoint. Reject other hosts/repositories, CI artifacts and branch builds as released versions.
 - Failed/offline checks are not reported as current; repeated checks respect cadence/backoff and maintenance network policy.
 - Eligible release metadata produces an unprompted unsigned/manual-update notice when voice delivery is permitted.
 - "Update/install Kora" never downloads, stages, executes, mutates source, or activates an artifact during the unsigned phase; it can only show details or propose the exact canonical release page.
@@ -572,24 +573,29 @@ Verify:
 
 An install-capable updater remains unavailable until independent signed-metadata trust, rollback/freeze protection, key rotation, exact host-owned approval/mandatory OS checks, and separate acceptance evidence are added.
 
-### Public GitHub and Linux Release Gate
+### Public GitHub and Linux-First Release Gate
 
-- Build/package/publish the unsigned Windows reference release on clean Linux Actions runners without required Windows build jobs or hidden Windows-only tools.
+- Build/test/cross-publish and publish release metadata on clean Linux Actions runners wherever feasible; assemble the WiX MSI and single Burn setup EXE in an explicit pinned Windows job. Verify payload digests/revision/provenance across the job boundary; justify other Windows-specific work rather than moving portable stages by default. No Wine or Linux-runtime support claim.
+- Version-tag builds select production candidates from exact protected tag revisions; routine branch/main builds do not become production releases. Exercise an absent version, matching published version, provenance/channel/artifact conflict, draft/prerelease, interrupted candidate, concurrent publication and failed/ambiguous GitHub lookup. Already-published matching versions skip build/publication; no case overwrites released assets or moves a tag, and publication still requires all licence/Windows/approval gates.
 - Verify Windows RID/native dependency completeness, runtime-only packaging, embedded resources, licences, and final-byte hashes/provenance.
+- Close the [distribution follow-ups](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery): retain the NSIS proof as historical evidence, not WiX acceptance or a mandatory Linux-native NSIS gate. Apply the repository licence/NuGet-notice controls and separately clear WiX build-tool terms and external/native/model assets; recorded cross-publishing does not prove installed behavior.
 - Application, maintenance, and setup artifacts contain no Authenticode signature during the initial unsigned phase; release/setup surfaces disclose this and document the expected Unknown Publisher/SmartScreen behavior.
 - Published SHA-256 values match the downloadable final bytes, and the UI/documentation never presents those hashes or build attestations as Windows publisher authentication.
+- Hash each final setup assembly independently and bind its provenance and Windows trial receipts to that digest, even when the source/payload/name is unchanged. A prior assembly's receipt cannot certify later bytes.
 - Fork/PR checks cannot access release-write permissions or production identity; approved release workflows use pinned actions and protected revisions/environments.
 - Public binary acquisition/update metadata needs no user GitHub token, Git, or SDK; rate-limit/cache/offline/feed failures remain truthful.
 - Official release lookup accepts only the configured canonical repository, approved release record, immutable source revision, expected artifact identity, and matching digest; it cannot substitute fork artifacts, generic workflow outputs, default-branch commits, or mutable tag names.
 - A single setup EXE contains the intended payload; any companion updater metadata/packages refer to the same exact approved release identity.
 - External Windows integration evidence binds the final artifact digest and covers runtime/native assets, install/UAC/ACLs, unprivileged launch, device/tray/lock, and protected update/recovery.
 - Missing mandatory Windows evidence leaves the candidate draft/unreleased despite successful Linux builds.
-- NSIS/Velopack adoption passes Linux packaging and actual protected Windows update tests; a per-user writable install does not pass the no-self-modification gate by itself.
+- Static embedded-documentation/resource inventories do not pass future bundled-skill/interpreter/worker gates. Repeat packaging and installed Windows checks when those components exist; blocked or absent components remain explicitly unaccepted.
+- WiX MSI/Burn implementation passes fresh install, upgrade, repair, failed/interrupted operations, previous-version recovery and uninstall on approved disposable Windows deployments. Verify prerequisite/bootstrapper closure, optional setup refusal/re-entry, preservation of unrelated/pre-existing dependencies and user data, unprivileged app launch and actual independent protection. Standard MSI behavior or a per-user writable install does not establish the no-self-modification boundary. No separate WiX feasibility project is required, but these implementation acceptance gates remain mandatory.
 - MSIX/App Installer is not an initial unsigned-package option.
 
 ## Environment Setup Gate
 
-- Source and binary delivery provision only Kora/build prerequisites, not user databases, model downloads, provider accounts, or Ollama.
+- The admitted host-owned catalogue and [design inventory](Dependency_Catalogue.md) agree on actual dependency identity/version/source/verification and enabled capability. Test missing/declined dependencies per capability; bundled code, launch prerequisites and experimental/unimplemented candidates are not represented as optional installable substitutes for missing application code.
+- Source and binary delivery provide a complete Kora-only path with launch/build prerequisites as applicable; no provider/package selection is compulsory. Optional installer dependency assistance is independently consented, shares the app's reviewed dependency contract and never replaces in-app detection/setup or initialises user databases.
 - First launch resolves known folders, creates its expected stores, and initialises SQLite without an external database installer.
 - Rerun reuses valid data/schema; migration failure does not delete user data or silently create an alternative database.
 - The setup UI works with no model/provider/speech recogniser configured and explains the initial visual setup exception.
@@ -597,6 +603,10 @@ An install-capable updater remains unavailable until independent signed-metadata
 - The currently supported local plan offers separately consented per-user Ollama 0.35.1 and `qwen3:1.7b`; verify the pinned digest and a completed nonempty response from loopback inference, not only endpoint/model metadata. Malformed metadata yields an incompatible readiness state without aborting startup.
 - Capability probes distinguish absence, incompatibility, failed health checks, and blocked setup; installer exit code alone cannot mark Ready.
 - Selecting a remote-only provider does not install Ollama; selecting a delivered local adapter offers only its required runtime/model steps.
+- Declining all optional providers/dependencies completes basic onboarding and preserves the supported deterministic commands, native help/settings/readiness and recovery. Test the actual dependency-qualified subset, not an assertion that every built-in works without speech/interpreter assets.
+- With no ready selected provider, free-form/model-mediated requests report unavailable and invoke no model or automatic cloud fallback. The user's reduced configuration does not close or waive the product's A2/provider acceptance gates.
+- Declined setup remains declined across restart without repeated setup windows, downloads or installation retries; explicitly reopening/selecting the capability can start a fresh consented plan.
+- With installer assistance skipped, failed or cancelled, Kora detects/reconciles current dependency state and can complete later approved setup. With assistance successful, Kora reuses and functionally verifies dependencies without duplicate installation or ownership transfer. Both paths preserve pre-existing user components and cannot imply account, microphone or execution consent.
 - A pre-existing healthy Ollama installation/model is reused without changed ownership, settings, startup, deletion, or unrelated process termination.
 - Approved Ollama setup verifies endpoint/version and real model inference; insufficient disk/hardware, network failure, or rejection leaves an explicit readiness state.
 - Keep D-003 open until reference CPU-only latency, answer/cancellation quality, licence/storage evidence, and network-blocked offline proof are recorded; a successful bootstrap inference check is insufficient.

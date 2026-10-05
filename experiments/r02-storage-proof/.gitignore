@@ -1,0 +1,4 @@
+.scratch/
+evidence/latest.json
+evidence/latest-native.json
+evidence/cross-user*.json

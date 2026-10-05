@@ -1,0 +1,878 @@
+{
+  "generatedUtc": "2026-10-05T00:11:13.0641178+00:00",
+  "os": "Microsoft Windows 10.0.26300",
+  "runtime": ".NET 10.0.12",
+  "architecture": "X64",
+  "logicalProcessors": 16,
+  "overallStatus": "blocked",
+  "fixture": "Synthetic records only; no application database or settings opened.",
+  "checks": [
+    {
+      "name": "owner-only scratch ACL",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "DPAPI CurrentUser persisted roundtrip",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "wrapped key does not contain raw key",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "DPAPI blob tampering rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "missing key fails without replacement",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "key loss did not create replacement",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "new key cannot read old ciphertext",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "explicit re-encryption survives rotation",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "deleting current wrapper does not revoke copied wrapper",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM roundtrip",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "random nonces change ciphertext",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM version tamper rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM nonce tamper rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM tag tamper rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM ciphertext tamper rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM truncated envelope rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM row substitution rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "AES-GCM wrong key rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes readback",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes SQLite temporary store is memory-only",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes content-bearing temp table exercised",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes persistent WAL observed",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes live WAL/index UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes injected migration failure",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes migration preserves version and rows",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes explicitly keyed backup readable",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes storage capacity failure is explicit",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes capacity failure preserves existing rows",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "plaintext FTS positive-control leaks in WAL",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes backup/journal/temp UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes targeted deletion preserves unrelated records",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes logical deletion and index cleanup",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes backup still recovers deleted content (limitation)",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes future schema refused",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes future schema refusal preserves file",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes closed storage UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-uncommitted actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-uncommitted interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-uncommitted crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-uncommitted atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-committed actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-committed interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-committed crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-committed atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-intent actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-intent interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-intent crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-intent atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-intent durable intent without receipt classified unknown",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-journal actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-journal rollback journal observed",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-journal interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-journal crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-journal atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-stage actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-stage interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-artifact-stage crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-stage atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-stage recovered staged/orphan/referenced artifact authenticates",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-stage no dangling committed reference",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-publish actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-publish interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-artifact-publish crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-publish atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-publish recovered staged/orphan/referenced artifact authenticates",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-publish no dangling committed reference",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-reference actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-reference interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "envelopes-artifact-reference crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-reference atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-reference recovered staged/orphan/referenced artifact authenticates",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelopes-artifact-reference no dangling committed reference",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelope blind equality index returns exact fixture count",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "envelope measured database/WAL UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher readback",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher SQLite temporary store is memory-only",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher content-bearing temp table exercised",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher persistent WAL observed",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher live WAL/index UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher injected migration failure",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher migration preserves version and rows",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher explicitly keyed backup readable",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher storage capacity failure is explicit",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher capacity failure preserves existing rows",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher backup/journal/temp UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher targeted deletion preserves unrelated records",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher logical deletion and index cleanup",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "SQLCipher deleted FTS entries absent",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher backup still recovers deleted content (limitation)",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "SQLCipher wrong key rejected without replacement",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "wrong key preserves existing file",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "SQLCipher authenticated page tampering rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher future schema refused",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher future schema refusal preserves file",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher closed storage UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-uncommitted actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-uncommitted interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-uncommitted crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-uncommitted atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-committed actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-committed interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-committed crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-committed atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-intent actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-intent interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-intent crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-intent atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-intent durable intent without receipt classified unknown",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-journal actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-journal rollback journal observed",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-journal interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-journal crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-journal atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-stage actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-stage interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-artifact-stage crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-stage atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-stage recovered staged/orphan/referenced artifact authenticates",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-stage no dangling committed reference",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-publish actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-publish interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-artifact-publish crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-publish atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-publish recovered staged/orphan/referenced artifact authenticates",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-publish no dangling committed reference",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-reference actual live child at interruption",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-reference interrupted files UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "sqlcipher-artifact-reference crash integrity",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-reference atomic recovery",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-reference recovered staged/orphan/referenced artifact authenticates",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "sqlcipher-artifact-reference no dangling committed reference",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "SQLCipher FTS index returns exact fixture count",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "cipher measured database/WAL UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "keying plaintext database is not a migration",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "failed conversion preserves legacy source",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "failed conversion target has no partial content",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "legacy source byte-preserved after failed conversion",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "copy migration verifies encrypted candidate before replacement",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "verified conversion still leaves legacy plaintext (limitation)",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "conversion candidate after managed legacy unlink UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "SQLCipher explicit rekey readable with new key",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "SQLCipher old key rejected after rekey",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "SQLCipher rekey does not rotate independent backup (limitation)",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "artifact staging/temp UTF-8/UTF-16 sentinel scan",
+      "status": "passed",
+      "detail": "No fixture marker in observed files; not a general absence-of-plaintext proof."
+    },
+    {
+      "name": "artifact published before reference is recoverable orphan",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "artifact authenticated digest roundtrip",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "artifact tampering rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "artifact identity substitution rejected",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "artifact unlink leaves backup readable (limitation)",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "managed artifact/current backup logical cleanup",
+      "status": "passed",
+      "detail": null
+    },
+    {
+      "name": "actual cross-user protection evidence",
+      "status": "blocked",
+      "detail": "BLOCKED: no approved second-account trial; not simulated"
+    }
+  ],
+  "measurements": [
+    {
+      "strategy": "AES-GCM\u002BHMAC-equality-index",
+      "records": 2000,
+      "payloadBytes": 4133,
+      "openMs": 8.3669,
+      "batchWriteMs": 59.7519,
+      "batchWritesPerSecond": 33471.73897399079,
+      "commitP50Ms": 0.6448,
+      "commitP95Ms": 0.8121,
+      "readP50Ms": 0.0154,
+      "readP95Ms": 0.061,
+      "indexMs": 0.2326,
+      "databaseBytes": 4096,
+      "walBytes": 11185832
+    },
+    {
+      "engine": "3.39.2",
+      "sqlcipher": "4.5.2 community",
+      "cipherProvider": "libtomcrypt",
+      "cipherProviderVersion": "1.18.2",
+      "cipherPageSize": "4096",
+      "kdfIterations": "256000",
+      "cipherHmac": "1",
+      "tempStore": 2,
+      "tempStoreCompileOption": "TEMP_STORE=2"
+    },
+    {
+      "strategy": "SQLCipher\u002BFTS5",
+      "records": 2000,
+      "payloadBytes": 4133,
+      "openMs": 547.9004,
+      "batchWriteMs": 326.241,
+      "batchWritesPerSecond": 6130.437314745847,
+      "commitP50Ms": 1.9778,
+      "commitP95Ms": 2.9894,
+      "readP50Ms": 0.0462,
+      "readP95Ms": 0.0973,
+      "indexMs": 1.4134,
+      "databaseBytes": 4096,
+      "walBytes": 25164992
+    }
+  ],
+  "observedFiles": [
+    "12949E434030F1F9FB66A325EC51FC0411ECEE36CB6B3C68DF19FB59FA6766BF.stage",
+    "child-key.dpapi",
+    "child-ready",
+    "cipher-perf.db",
+    "cipher-perf.db-shm",
+    "cipher-perf.db-wal",
+    "diagnostics.jsonl",
+    "envelope-perf.db",
+    "envelope-perf.db-shm",
+    "envelope-perf.db-wal",
+    "envelopes-artifact-publish.db",
+    "envelopes-artifact-publish.db.blob",
+    "envelopes-artifact-reference.db",
+    "envelopes-artifact-reference.db-shm",
+    "envelopes-artifact-reference.db-wal",
+    "envelopes-artifact-reference.db.blob",
+    "envelopes-artifact-stage.db",
+    "envelopes-artifact-stage.db.stage",
+    "envelopes-committed.db",
+    "envelopes-committed.db-shm",
+    "envelopes-committed.db-wal",
+    "envelopes-intent.db",
+    "envelopes-intent.db-shm",
+    "envelopes-intent.db-wal",
+    "envelopes-journal.db",
+    "envelopes-journal.db-journal",
+    "envelopes-uncommitted.db",
+    "envelopes-uncommitted.db-shm",
+    "envelopes-uncommitted.db-wal",
+    "envelopes.backup",
+    "envelopes.db",
+    "envelopes.db-shm",
+    "envelopes.db-wal",
+    "page-rekey.backup",
+    "page-rekey.db",
+    "proof-owned",
+    "sqlcipher-artifact-publish.db",
+    "sqlcipher-artifact-publish.db-shm",
+    "sqlcipher-artifact-publish.db-wal",
+    "sqlcipher-artifact-publish.db.blob",
+    "sqlcipher-artifact-reference.db",
+    "sqlcipher-artifact-reference.db-shm",
+    "sqlcipher-artifact-reference.db-wal",
+    "sqlcipher-artifact-reference.db.blob",
+    "sqlcipher-artifact-stage.db",
+    "sqlcipher-artifact-stage.db-shm",
+    "sqlcipher-artifact-stage.db-wal",
+    "sqlcipher-artifact-stage.db.stage",
+    "sqlcipher-committed.db",
+    "sqlcipher-committed.db-shm",
+    "sqlcipher-committed.db-wal",
+    "sqlcipher-intent.db",
+    "sqlcipher-intent.db-shm",
+    "sqlcipher-intent.db-wal",
+    "sqlcipher-journal.db",
+    "sqlcipher-journal.db-journal",
+    "sqlcipher-uncommitted.db",
+    "sqlcipher-uncommitted.db-shm",
+    "sqlcipher-uncommitted.db-wal",
+    "sqlcipher.backup",
+    "sqlcipher.db",
+    "sqlcipher.db-shm",
+    "sqlcipher.db-wal",
+    "synthetic-converted.db",
+    "tampered.db"
+  ],
+  "scanExclusions": "Live -shm mappings observed but not read: SQLite Windows byte locks; WAL-index metadata, not encrypted page content.",
+  "crossUser": "BLOCKED until approved different Windows SID rejects original DPAPI blob."
+}

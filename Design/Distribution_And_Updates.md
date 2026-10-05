@@ -67,8 +67,13 @@ assumed. No install-capable updater is part of this path.
 | Developer checkout | Developer toolchain | User-owned checkout | Development; no automatic checkout mutation |
 
 Neither required option depends on the other.
-Both deliver Kora only, including its launch-critical code/assets; the running application provisions capability-specific environment requirements.
-See [Environment Setup](Environment_Setup.md).
+Both support installing Kora and its launch-critical code/assets without
+selecting optional providers or capability dependencies. The running application
+retains dependency detection and installation/configuration. An installer may
+offer optional dependency assistance under the
+[shared setup contract](Environment_Setup.md#optional-dependencies-and-built-in-command-only-operation);
+this is an extra convenience, not a required delivery option or consent to
+install a complete AI stack.
 The bootstrap script is a convenience installer, not a requirement to run a binary release.
 Framework-dependent means compiled/published application binaries, not source compiled on first launch.
 Self-contained is distinct from Native AOT and does not automatically eliminate every native dependency.
@@ -140,8 +145,13 @@ health has yet been proven on a clean runtime-only Windows machine.
 
 ### Payload and Deployment Responsibilities
 
-Speech models, local storage/databases, Ollama, and other capability-specific requirements are detected/configured by Kora's built-in setup controller after launch.
-They are not provisioned by the delivery script or binary archive.
+Speech models, Ollama and other capability-specific requirements remain
+detectable/configurable by Kora's built-in setup controller after launch.
+Optional installer assistance may prepare explicitly consented catalogue
+dependencies; the published application must not depend on that assistance.
+User stores/databases remain app-owned initialisation, not installer provisioning.
+Users may decline providers and retain the supported deterministic built-in
+subset, subject to each command's dependencies and policy.
 Disclose downloads, verify their identity/licences, and report capabilities unavailable until setup completes.
 That setup must not compile application code or silently use cloud speech as a fallback.
 

@@ -570,7 +570,7 @@ An install-capable updater remains unavailable until independent signed-metadata
 
 ## Environment Setup Gate
 
-- Source and binary delivery provision only Kora/build prerequisites, not user databases, model downloads, provider accounts, or Ollama.
+- Source and binary delivery provide a complete Kora-only path with launch/build prerequisites as applicable; no provider/package selection is compulsory. Optional installer dependency assistance is independently consented, shares the app's reviewed dependency contract and never replaces in-app detection/setup or initialises user databases.
 - First launch resolves known folders, creates its expected stores, and initialises SQLite without an external database installer.
 - Rerun reuses valid data/schema; migration failure does not delete user data or silently create an alternative database.
 - The setup UI works with no model/provider/speech recogniser configured and explains the initial visual setup exception.
@@ -578,6 +578,10 @@ An install-capable updater remains unavailable until independent signed-metadata
 - The currently supported local plan offers separately consented per-user Ollama 0.35.1 and `qwen3:1.7b`; verify the pinned digest and a completed nonempty response from loopback inference, not only endpoint/model metadata. Malformed metadata yields an incompatible readiness state without aborting startup.
 - Capability probes distinguish absence, incompatibility, failed health checks, and blocked setup; installer exit code alone cannot mark Ready.
 - Selecting a remote-only provider does not install Ollama; selecting a delivered local adapter offers only its required runtime/model steps.
+- Declining all optional providers/dependencies completes basic onboarding and preserves the supported deterministic commands, native help/settings/readiness and recovery. Test the actual dependency-qualified subset, not an assertion that every built-in works without speech/interpreter assets.
+- With no ready selected provider, free-form/model-mediated requests report unavailable and invoke no model or automatic cloud fallback. The user's reduced configuration does not close or waive the product's A2/provider acceptance gates.
+- Declined setup remains declined across restart without repeated setup windows, downloads or installation retries; explicitly reopening/selecting the capability can start a fresh consented plan.
+- With installer assistance skipped, failed or cancelled, Kora detects/reconciles current dependency state and can complete later approved setup. With assistance successful, Kora reuses and functionally verifies dependencies without duplicate installation or ownership transfer. Both paths preserve pre-existing user components and cannot imply account, microphone or execution consent.
 - A pre-existing healthy Ollama installation/model is reused without changed ownership, settings, startup, deletion, or unrelated process termination.
 - Approved Ollama setup verifies endpoint/version and real model inference; insufficient disk/hardware, network failure, or rejection leaves an explicit readiness state.
 - Keep D-003 open until reference CPU-only latency, answer/cancellation quality, licence/storage evidence, and network-blocked offline proof are recorded; a successful bootstrap inference check is insufficient.

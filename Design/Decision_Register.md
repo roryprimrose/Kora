@@ -176,6 +176,15 @@ Linux packaging and Windows lab trials are currently blocked by environment/
 approval availability; missing licence decisions and future resources are
 separate blockers, not waived gates. Preserve the independently gated future
 signed-metadata trust design and unsigned-phase notify-only maintenance.
+
+Installer-assisted dependency setup is an optional convenience, independent
+of the packaging choice. The application must retain detection and
+installation/configuration, and users may decline all optional providers and
+use the dependency-qualified deterministic command subset. See the
+[shared optional-dependency contract](Environment_Setup.md#optional-dependencies-and-built-in-command-only-operation).
+This clarification does not select WiX, demonstrate installer assistance, or
+waive required product-level provider/resource acceptance.
+
 ## D-006 Optional Speaker Verification
 
 No verifier or frequent-speaker profile is required for general voice use or baseline explicit voice approval in an unlocked Windows session.

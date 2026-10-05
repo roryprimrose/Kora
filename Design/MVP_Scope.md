@@ -97,6 +97,11 @@ Included:
 Local-only mode must remain usable for local capture and transcription.
 Slice A2 requires a supported Ollama-backed adapter and selected local model so the product's local-first answer path is proven.
 On an installation where that runtime/model is absent or unhealthy, answering is explicitly unavailable until setup succeeds; cloud processing is not a fallback.
+Installing or using an inference provider is not compulsory for an individual
+user. Users who decline local and remote inference retain supported
+deterministic built-in commands and native setup/recovery, subject to each
+command's own dependencies and policy. This supported reduced mode does not
+waive the product's required A2 adapter and acceptance evidence.
 
 See [Work Management and Request Queue](Work_Management.md) for scheduling, context, and status semantics.
 See [Out-of-the-Box Skills](Built_In_Skills.md) for bundled executable skills and session policy.
@@ -194,9 +199,14 @@ An alternative runtime requires an explicit scope decision and must pass the sam
 Provide both a clone/build/publish bootstrap script and CI-produced precompiled framework-dependent Windows binaries.
 The binary option runs with the required .NET runtime and documented native dependencies, without Git, SDK, restore, or application compilation.
 Both offer optional start-at-logon registration without weakening microphone/session policy.
-Delivery provides Kora, not a preconfigured environment. Once launched, Kora initialises its own stores and offers setup of the chosen speech/provider/runtime requirements.
-Ollama provisioning is available with the required Slice A2 adapter, but installation remains optional for users who select only remote processing.
-See [Environment Setup](Environment_Setup.md).
+Delivery does not require a preconfigured AI environment or provider selection.
+Once launched, Kora initialises its own stores and retains detection/setup of
+optional speech/provider/runtime requirements. An installer may provide extra
+consented dependency assistance, but users need not select it or choose packages
+upfront. Ollama provisioning remains available with the required Slice A2
+adapter; users may instead select remote processing or decline inference
+entirely and use the supported deterministic subset. See the
+[optional-dependency setup contract](Environment_Setup.md#optional-dependencies-and-built-in-command-only-operation).
 Binary deployments check the hosted release feed and proactively offer unsigned/manual update notices; installation remains external and Kora has no install-capable updater during the unsigned phase.
 Package format remains a separate decision.
 Source is expected to be public/open-source on GitHub, with Linux GitHub Actions building, packaging, and publishing initially unsigned official Windows releases.

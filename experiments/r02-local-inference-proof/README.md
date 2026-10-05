@@ -266,7 +266,7 @@ The publication scope is the harness, truthful partial evidence, canonical
 technical outcomes and the deferred-testing handoff below. Unperformed
 interactive/hardware/licence-distribution/offline trials are capability
 blockers, **not prerequisites for merging this limited research scope**.
-Approved R01 is present; the merged speech/containment proofs and independent
+Approved R01 is present; the merged speech/storage/containment proofs and independent
 distribution work do not qualify this runtime or authorise any new trial.
 Normal build/hygiene, repository checks and reviews still apply; when this
 limited scope is ready, squash auto-merge may use those ordinary protections.
@@ -284,7 +284,7 @@ history without explicit approval.
 The [shared deferred-validation register](../../Design/Deferred_Validation.md)
 is the entry point when the operator returns to an interactive session.
 The rows below implement the [R02-L1-L6 handoff](../../Design/Implementation_Roadmap.md#r02-local-inference-continuation);
-they do not reuse speech/containment approvals or waive unperformed tests.
+they do not reuse speech/storage/containment approvals or waive unperformed tests.
 All real-model and integrated-host rows remain outstanding. The current
 commands cover synthetic inference only; returning to the machine is not
 permission to install assets, change network policy, capture audio/clipboard

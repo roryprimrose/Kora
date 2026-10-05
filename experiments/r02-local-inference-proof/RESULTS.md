@@ -40,6 +40,16 @@ again reports `Missing`/`Unavailable`, with failure detection of 2,075.8832 ms /
 2,099.4621 ms and only the same two loopback GET attempts. This adds no
 real-model, reference-hardware or independent offline qualification.
 
+When the storage proof (#20) subsequently landed, another approved rebase onto
+`bcd4b81` preserved its S1-S4 admission checklist and downstream R04/R12 plan.
+The [storage-aware validation receipt](results/storage-rebase/validation.json)
+again records a zero-warning/error Release build, 31 passing deterministic
+tests and the same 46 proof-input hashes. The
+[new unavailable observation](results/storage-rebase/observed-workflow.json)
+records `Missing`/`Unavailable` at 2,062.335 ms / 2,087.8585 ms, with only the
+same two loopback GET attempts. Earlier snapshots remain unchanged; no storage
+proof, production source or model/network trial was added by this rerun.
+
 ## Machine actually inspected
 
 [Initial inventory](results/machine.initial.json) and

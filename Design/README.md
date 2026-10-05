@@ -30,7 +30,8 @@ cross-profile isolation; routine second-account OS-denial trials are not
 required for this profile-local application or for merging its research outcome.
 
 [Deferred Proof Validation](Deferred_Validation.md) is the interactive-session
-handoff for outstanding speech, local-inference, containment and distribution trials. It links
+handoff for outstanding speech, storage/key, local-inference, containment and
+distribution validation. It links
 safe reruns and proof-specific checklists while keeping consent/privilege
 requirements and capability blockers distinct from merging partial research.
 

@@ -31,8 +31,8 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 Each proof-specific checklist owns its detailed procedures; this register
 does not replace them or weaken their separate consent requirements. Local
 inference isolation proves the answering environment's remote-egress boundary,
-not the containment worker's attributable network denial. Speech, containment
-and distribution receipts cannot qualify an untested inference runtime or
+not the containment worker's attributable network denial. Speech, storage,
+containment and distribution receipts cannot qualify an untested inference runtime or
 authorise its provisioning/network changes. The
 distribution entry records coordination with a published draft, not a claim
 that its implementation has landed on main. Preserve both distribution and

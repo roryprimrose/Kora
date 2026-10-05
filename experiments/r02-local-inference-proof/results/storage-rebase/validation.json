@@ -1,0 +1,258 @@
+{
+  "BaseRevisionAtRun": "23f99e91e4731794ac4edf381bdb0f546c7b74c7",
+  "SourceInputs": [
+    {
+      "Sha256": "41D0A851648A05A84E3CDCCE7D27F1F022E28FD6D22AA60182C7DAE33B3688C3",
+      "Path": "experiments\\r02-local-inference-proof\\Directory.Build.props"
+    },
+    {
+      "Sha256": "69F68F996D824A932BE5580C99D83978F209FFD2BAC58BDB52D532AEA48CAE46",
+      "Path": "experiments\\r02-local-inference-proof\\fixtures.json"
+    },
+    {
+      "Sha256": "F7FD745F1E173E6BAA7FCEDBDB961DBAE28780B62933FCAFB0D8ACD5D045F362",
+      "Path": "experiments\\r02-local-inference-proof\\LocalTransport.cs"
+    },
+    {
+      "Sha256": "3DE1A324E34608022C0903D15A605C52C14A3F80E2F93F6FB4FA422B25AFA040",
+      "Path": "experiments\\r02-local-inference-proof\\Measurements.cs"
+    },
+    {
+      "Sha256": "652624E1AC15698BE31DC7BC90A74B1FCC4314C387551013C61FB3A113843D28",
+      "Path": "experiments\\r02-local-inference-proof\\NuGet.Config"
+    },
+    {
+      "Sha256": "7BDC0F8F2E990A1287A7A2B5C89BC9F0879026293DF998DBD23E1A7DF4A5B6D8",
+      "Path": "experiments\\r02-local-inference-proof\\Program.cs"
+    },
+    {
+      "Sha256": "2DA6A6B052AA5902F005715BB183FB220BC4F7C64681FAD251E3B81D42CEECFC",
+      "Path": "experiments\\r02-local-inference-proof\\Proof.csproj"
+    },
+    {
+      "Sha256": "F3F1C1F1653D3587A90601FB049310168A1AA98C36C68AEA2D38D4DF86BC162C",
+      "Path": "experiments\\r02-local-inference-proof\\Quality.cs"
+    },
+    {
+      "Sha256": "453D36DDD7B66EB75DE0496FEBB56F390EEAC140F9C72D0C53F2CAF7B60F4D5D",
+      "Path": "experiments\\r02-local-inference-proof\\Record-CandidateMetadata.ps1"
+    },
+    {
+      "Sha256": "F2D69D5B266E393069C7018A530EAF629ADBD8F0E593AF0E79879F027D43EB2D",
+      "Path": "experiments\\r02-local-inference-proof\\Record-Machine.ps1"
+    },
+    {
+      "Sha256": "3B0D5320CF9C2DE3E7CE180A2A730C0D5B9954DA14CA6F22233D2397EAEE6128",
+      "Path": "experiments\\r02-local-inference-proof\\ResourceMeter.cs"
+    },
+    {
+      "Sha256": "8847E2FEDB39AE08D1EA92F85F0A09FA4E59B02ED70E9845AC9E288C8C2516D7",
+      "Path": "experiments\\r02-local-inference-proof\\Run-Validation.ps1"
+    },
+    {
+      "Sha256": "1E62277EE9B53A58D46C14FCEA979FEE0989AF499B2429B285AA86C8D56A4A03",
+      "Path": "experiments\\r02-local-inference-proof\\SelfTests.cs"
+    },
+    {
+      "Sha256": "4977AE364D92D2679ACC93FCB364EB2D7C990A320EDEBF034B01B9ED14098D84",
+      "Path": "global.json"
+    },
+    {
+      "Sha256": "E05B13E6EDE0C33275FB78FE255861D4EDB275D735AE413EDC92878FF2B93776",
+      "Path": "src\\Kora.Core\\Commands\\BuiltInAction.cs"
+    },
+    {
+      "Sha256": "B9C2B02BA6B99DD02C7BFB1276ABB3580416E000F63DA5AFDC1A3BD200BF2758",
+      "Path": "src\\Kora.Core\\Commands\\BuiltInCommandCatalog.cs"
+    },
+    {
+      "Sha256": "639963836B040B61855D78EA5E11700E425DABFAD59C2A3EA3BD57F65733A4F9",
+      "Path": "src\\Kora.Core\\Commands\\BuiltInCommandRouter.cs"
+    },
+    {
+      "Sha256": "AA9B87CAA4E6DACCF0F7398DFB95B4C3436C4F56E98528ECCF4485E5B83FE765",
+      "Path": "src\\Kora.Core\\Commands\\CommandDefinition.cs"
+    },
+    {
+      "Sha256": "BA9069167117A832BEE9FA4B031D4CCABF262F2276960E24815BD960DBB88340",
+      "Path": "src\\Kora.Core\\Commands\\CommandMatch.cs"
+    },
+    {
+      "Sha256": "7BD4D49EAEFBB12C9BC4883BBC8E6FCD3635D549116DBA02B800475150C766EF",
+      "Path": "src\\Kora.Core\\Commands\\GrantChange.cs"
+    },
+    {
+      "Sha256": "24704080F95763DE062DEA943B23B2CAAF0996A8B7D69251E2AD067579BA1161",
+      "Path": "src\\Kora.Core\\Commands\\GrantChangeOperation.cs"
+    },
+    {
+      "Sha256": "1DFCC1236F4774E49AACDD02718329A8F7F915A4A3A4E9BC1C6FEECE92F24B4C",
+      "Path": "src\\Kora.Core\\Commands\\IModelApprovalPreferences.cs"
+    },
+    {
+      "Sha256": "A03FBA0F8C3F9354F6124E077E7B4F772F6CBDDB533CE0130F28E328E3459684",
+      "Path": "src\\Kora.Core\\Commands\\ModelApprovalPreferences.cs"
+    },
+    {
+      "Sha256": "5634258C00DA97AE23C62F239C6A9335FA348092B65BE7BDE4F5C5D421F5200B",
+      "Path": "src\\Kora.Core\\Commands\\ModelApprovalReply.cs"
+    },
+    {
+      "Sha256": "0DF56B595B1E7C894C02CA1DA37167FC52D524759E9666830D015B16E61FA01B",
+      "Path": "src\\Kora.Core\\Commands\\ModelApprovalScope.cs"
+    },
+    {
+      "Sha256": "F98A5B5EE1A78C6F8C6D2E09FF933C0C39EB5F15DE19F44498D1AAA67254B45F",
+      "Path": "src\\Kora.Core\\Commands\\ModelApprovalSpeech.cs"
+    },
+    {
+      "Sha256": "1498230B29F895E0D90664474DEA406350AAA263164B5032B9AE39B90B02C069",
+      "Path": "src\\Kora.Core\\Configuration\\AssistantNameRules.cs"
+    },
+    {
+      "Sha256": "3A3AEB956639C9FD4539F488134B904B58FA02753234C29E5C323E3DFFE4D2D8",
+      "Path": "src\\Kora.Core\\Dependencies\\DependencyReadiness.cs"
+    },
+    {
+      "Sha256": "C26D006A2C90124BB7ECACCDC24676F7E8E2A6A82D4A88C9B4164EE4AB705C2C",
+      "Path": "src\\Kora.Core\\Dependencies\\DependencyStatus.cs"
+    },
+    {
+      "Sha256": "BC09EDB05BF23CF376AD1565EB2A80B8B5AB5900D817EDD0FDB3830CB778092B",
+      "Path": "src\\Kora.Core\\Dependencies\\IDependencyProbe.cs"
+    },
+    {
+      "Sha256": "E76837C6E4FE60F9534E9910F96BA348C0774EC3DC3989ABE4C8054795A74ECA",
+      "Path": "src\\Kora.Core\\Dependencies\\ILocalModelReasoner.cs"
+    },
+    {
+      "Sha256": "5D4DB282F5CD36E8E75DDA73DE452C2FD277508270B8B7BCCB5D1CD0172CBC46",
+      "Path": "src\\Kora.Core\\Dependencies\\ILocalModelSetup.cs"
+    },
+    {
+      "Sha256": "864D423E74B8A58D0DBEA7AD7CC7A06C2CFEAB5CB71F61AA070A849D71D06E69",
+      "Path": "src\\Kora.Core\\Dependencies\\ISetupDependencyProbe.cs"
+    },
+    {
+      "Sha256": "68E8224C7C6A1655117CCCA1BF839A1CE7D20F027C84233B5CDD92C997DF5F15",
+      "Path": "src\\Kora.Core\\Dependencies\\LocalModelContext.cs"
+    },
+    {
+      "Sha256": "6A04BB2FC8F75017730B42B597741AD1A843527D995FB4C5838AF6A97DB2C361",
+      "Path": "src\\Kora.Core\\Dependencies\\LocalModelDependency.cs"
+    },
+    {
+      "Sha256": "B1D4D39D4CB1B6520DEB414D238351E22362C3F735BE6ED4851E82F283FFEB7C",
+      "Path": "src\\Kora.Core\\Dependencies\\LocalModelQuestion.cs"
+    },
+    {
+      "Sha256": "AD4B4E6EEA804CF0F4BF01AE6F0FE6A05A02A13828D8BF14DA81398088C6EE6B",
+      "Path": "src\\Kora.Core\\Dependencies\\LocalModelQuestionSpeech.cs"
+    },
+    {
+      "Sha256": "B66A1BAD729302EE6294E4E596E8749E3DF53944EAEBE0DFFB818BC0B75CF666",
+      "Path": "src\\Kora.Core\\Dependencies\\LocalModelResponse.cs"
+    },
+    {
+      "Sha256": "FE2221B90D6D20AB0E42AAD029D183821F1154CED169CBFA7210F052C21100DB",
+      "Path": "src\\Kora.Core\\Dependencies\\LocalModelSetupProgress.cs"
+    },
+    {
+      "Sha256": "1AC5E7DD3ED66237852A12A1F99F08E1B695292176BA49E55CAD17D4BFFD2747",
+      "Path": "src\\Kora.Core\\Dependencies\\LocalModelTask.cs"
+    },
+    {
+      "Sha256": "37BEEF51D82BA69E8228135DABD2F5E2A92A2FD35C5FB8C9A01B089CE26338DF",
+      "Path": "src\\Kora.Core\\Dependencies\\SetupTaskState.cs"
+    },
+    {
+      "Sha256": "D22B724FB015A87C0EBD4814D5B35B6D1D3DF8F25F80A6B2200C5D5415301CA2",
+      "Path": "src\\Kora.Windows\\Dependencies\\IOllamaProcessRunner.cs"
+    },
+    {
+      "Sha256": "DADCBDDD8E6A3BF1D61344D25D355C1C16460BCA7ED2D7C41C056081984C91B1",
+      "Path": "src\\Kora.Windows\\Dependencies\\LocalInferenceDependencyProbe.cs"
+    },
+    {
+      "Sha256": "B9E4690EEA53647B6DB6544BCF78EA83F0C47AD4937EF5924E60669F4D0A21F7",
+      "Path": "src\\Kora.Windows\\Dependencies\\OllamaProcessRunner.cs"
+    },
+    {
+      "Sha256": "97239AC8F836A0DBBBBAC31B799E48DC645A9D3E94BB9FA45F00F83AB252DC52",
+      "Path": "src\\Kora.Windows\\Dependencies\\WindowsOllamaReasoner.cs"
+    },
+    {
+      "Sha256": "704A9485F9B1E02DF2A457A69FDFD9E9D63BBDF13C57C3E31BDC939DD7B6BB4E",
+      "Path": "src\\Kora.Windows\\Dependencies\\WindowsOllamaSetupService.cs"
+    }
+  ],
+  "Scope": "Source-linked experiment, not full application/voice/tool-loop or offline/reference-hardware acceptance.",
+  "Schema": "Kora.R02.ValidationEvidence.v1",
+  "ExpectedUnavailable": true,
+  "Commands": [
+    {
+      "Tool": "dotnet",
+      "Arguments": [
+        "restore",
+        "Q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\Proof.csproj",
+        "--configfile",
+        "Q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\NuGet.Config",
+        "-p:NuGetAudit=false"
+      ],
+      "Output": "Determining projects to restore...\r\n  All projects are up-to-date for restore.",
+      "ExitCode": 0,
+      "ExpectedExitCode": 0
+    },
+    {
+      "Tool": "dotnet",
+      "Arguments": [
+        "build",
+        "Q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\Proof.csproj",
+        "-c",
+        "Release",
+        "--no-restore"
+      ],
+      "Output": "Proof -> Q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\bin\\Release\\net10.0\\Proof.dll\r\n\r\nBuild succeeded.\r\n    0 Warning(s)\r\n    0 Error(s)\r\n\r\nTime Elapsed 00:00:00.83",
+      "ExitCode": 0,
+      "ExpectedExitCode": 0
+    },
+    {
+      "Tool": "dotnet",
+      "Arguments": [
+        "run",
+        "--project",
+        "Q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\Proof.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--",
+        "self-test",
+        "--output",
+        "q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\results\\storage-rebase\\self-test.json"
+      ],
+      "Output": "self-test: evidence written to q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\results\\storage-rebase\\self-test.json; exit 0.",
+      "ExitCode": 0,
+      "ExpectedExitCode": 0
+    },
+    {
+      "Tool": "dotnet",
+      "Arguments": [
+        "run",
+        "--project",
+        "Q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\Proof.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--",
+        "observe",
+        "--output",
+        "q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\results\\storage-rebase\\observed-workflow.json"
+      ],
+      "Output": "observe: evidence written to q:\\Repos\\Kora.worktrees\\kora-r02-local-inference-setup\\experiments\\r02-local-inference-proof\\results\\storage-rebase\\observed-workflow.json; exit 2.",
+      "ExitCode": 2,
+      "ExpectedExitCode": 2
+    }
+  ],
+  "PassedSelfTests": 31,
+  "RecordedUtc": "2026-10-05T04:46:47.8909653+00:00"
+}

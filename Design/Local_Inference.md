@@ -144,7 +144,7 @@ The [shared deferred-validation register](Deferred_Validation.md) and
 are the interactive-session handoff. They separate deterministic reruns from
 real endpoint generation, separately approved provisioning/residency/isolation,
 and rows requiring independent instrumentation or later host implementation.
-The merged speech/containment proofs do not qualify inference or supply consent
+The merged speech/storage/containment proofs do not qualify inference or supply consent
 for it; whole-environment inference isolation does not resolve the worker's
 attributable network-denial gate. Safe standalone inference measurements remain
 distinct from UI/voice acceptance with the required R03/R09 controls.

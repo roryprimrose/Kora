@@ -3,7 +3,16 @@
 Status: **partial offline proof; acoustic/packaged-host acceptance blocked**.
 D-002 and D-007 remain open. This experiment does not change the decision
 register, production recognition/TTS, shared manifests, solution or CI.
-Use a draft PR; do not enable auto-merge while the proof is incomplete.
+On 2026-10-05 the user approved publishing and squash auto-completion of this
+PR **as partial research evidence**, with outstanding testing retained.
+This is not approval of production speech or closure of D-002/D-007.
+
+> **Testing to run later:** at the time of deferral the machine was locked
+> and accessed remotely. Only file-based tests were eligible; live capture/playback
+> requires an unlocked interactive Windows profile and a physically present
+> test operator. See the [outstanding testing checklist](#outstanding-testing-checklist)
+> for prerequisites, measurements and evidence to retain. Unlocking alone
+> does not authorize capture or complete the missing integration.
 
 ## Baseline and contracts
 
@@ -217,7 +226,7 @@ serials/account identifiers. Recorded pilot hardware:
 | Speaker + microphone with supported playback reference/AEC | Not used | Self-TTS/output correlation and live human interruption |
 | Native/tray/keyboard/screen-reader recovery | Source contract only | Real accessibility evidence coordinated with R03/R09 |
 
-## Live/acoustic continuation and draft exit gates
+## Outstanding testing checklist
 
 The user explicitly selected **recorded synthetic fixtures only; live trials
 deferred** in this session. No microphone capture or audible output occurred.
@@ -227,25 +236,114 @@ bounded trial; consent must cover participants/bystanders, duration,
 endpoint/volume, retention and a visible stop control. Consent to a test is
 not ongoing microphone consent.
 
-To leave draft / claim D-002 or D-007 completion, retain actual evidence for:
+### Safe to rerun remotely, including while locked
 
-1. Packaged Windows detector, admitted names/custom-only cutover, actual
-   wake-boundary exclusion, command transcription and bounded lifecycle.
-2. Each headset and speaker/mic setup: >=100 Kora activations across >=5
-   consented speakers per quiet/noise/TTS condition; >=95% quiet and >=90%
-   office-noise/during-TTS recall, reported separately.
-3. >=10 hours diverse negatives per setup, <=1 false activation/hour;
-   >=100 Kora-generated playback outputs, zero self-activation/derived
-   commands; supported output/loopback discrimination with residual limits.
-4. Human wake-triggered interruption during TTS: p95 <=500 ms, actual TTS
-   sample-stop p95 <=250 ms; wake feedback p95 <=500 ms; transcript p95 <=2 s.
-   At least five warmups and 30 measured trials; cold start separately.
-5. >=30 minutes wake-only overhead with UI/normal services: <=5% total CPU
-   capacity and <=200 MiB incremental working set over actual muted idle.
-6. Supported-OS/hardware/device/accessibility matrix, product/native/model
-   redistribution notices, offline boundary evidence and required reviews.
+These are file-based checks only. They do not require opening capture,
+unlocking Windows or starting Kora. If the environment/fixtures have not been
+prepared, follow [Reproduce](#reproduce-windows-x64-cpython-312) first.
+
+- [ ] Rerun dependency validation, source compilation and the 15 deterministic
+  tests with `.\Validate.ps1`. This refreshes the local test receipt, not
+  acoustic evidence.
+- [ ] Rerun the threshold sweep into an ignored scratch directory rather than
+  replacing the committed measured snapshot:
+
+  ```powershell
+  # From experiments\r02-speech-proof
+  & .venv\Scripts\python.exe benchmark.py --output scratch\later-recorded-results.json --thresholds 0.1 0.25 0.5 --warmups 5 --repetitions 30 --paced-seconds 60
+  ```
+
+- [ ] Optionally repeat with `--paced-seconds 1800` for a 30-minute **file-only
+  Python** resource pilot. This still does not satisfy the integrated
+  wake-only overhead gate with Kora UI, devices and actual muted-idle baseline.
+- [ ] Review candidate/model redistribution clearance and packaged binary
+  notices. openWakeWord and Porcupine remain blocked until their documented
+  availability/licensing prerequisites are met; do not supply credentials or
+  download unreviewed models as a shortcut.
+
+### Before a live test session
+
+The current scripts cannot run live trials. The checklist below is a test
+plan for a separately prepared instrumented host/front-end, **not a command
+to launch the existing bootstrap and assume it implements the contract**.
+
+- [ ] Arrange a time with a physically present operator using the intended
+  Windows profile, plus consent from every participant and potentially
+  recorded bystander. Identify a wired headset and a separate supported
+  speaker/microphone setup; schedule each independently.
+- [ ] Have the operator unlock Windows locally. Confirm the session is
+  connected and authoritative Unlocked; Locked, Disconnected or Unknown is
+  a stop condition. Remote Desktop audio redirection, virtual endpoints and
+  loopback must be recorded; redirected audio is not proof of the machine's
+  physical acoustic setup.
+- [ ] Coordinate with R03/R09 and identify a test build implementing the
+  relevant consent, single-owner capture, generation, wake-only, endpointing
+  and playback-reference controls. Do not run a second audio owner alongside
+  another Kora build. If these controls or measurement hooks are unavailable,
+  mark the affected trial **blocked**, not passed.
+- [ ] Agree on bounded duration, microphone/output endpoints, comfortable
+  volume, distances, fixture sources, local retention/deletion and a visible
+  immediate stop control. Use synthetic or licensed/consented material and
+  non-destructive commands such as "open settings"; do not exercise power
+  controls or collect private clipboard/context data for this speech proof.
+- [ ] Start capture only after current test consent and fresh
+  ownership/session/permission/device gates. Unlock/resume/reconnection alone
+  must not reopen it; explicit Enable listening is required. On lock, consent
+  withdrawal, permission/device loss or an unknown session state, stop the
+  trial and verify capture closes and buffers clear.
+
+### Live / instrumented acceptance work still outstanding
+
+Every row below is currently **not run**, even where deterministic probes
+passed. Record headset and speaker/microphone results separately; do not
+combine conditions or hide failed trials in averages.
+
+| Check | Procedure and required result | Evidence to retain |
+|---|---|---|
+| Real command capture and endpointing | Speak immediate "Kora, open settings" and wake-then-command; verify first command words survive and wake/unrelated ambient audio is excluded from actual transcription. Wake-only expires after 5 s without model/context/tool calls; 1 s trailing silence endpoints; commands stop at 60 s; pre-roll never exceeds 2 s and is overwritten. Include custom-only name switching, retired callbacks and duplicate activation. | Annotated utterance/detection/capture/transcript timestamps, buffer sample counts, transition reasons and zero duplicate dispatch; not oracle-only results. |
+| Wake recall | Per setup, >=100 activations across >=5 consented speakers in each quiet, recorded office-noise and during-TTS condition. Require >=95% quiet and >=90% noise/during-TTS recall. Record accents and report each condition separately. | Trial IDs, speaker pseudonyms, conditions, model/threshold, detections/misses and denominators. |
+| False activation | Per setup, >=10 h diverse licensed/consented negative audio including similar words, conversation and media; <=1 false activation/hour. Repeating the short synthetic corpus does not establish diversity. | Actual exposure duration, fixture provenance and every false event; any activation still obeys context/action policy. |
+| Self-TTS and other playback rejection | Replay >=100 Kora-generated outputs containing "Kora"/activation cues; require zero self-activations and playback-derived commands. Test supported active Windows output/loopback routes; disclose unsupported system-output correlation. | Output endpoint, reference/AEC configuration, source attribution and event/command counts. If self-TTS rejection cannot be established, suspend spoken output explicitly while retaining wake activation and visual recovery. |
+| Human interruption and latency | A person says "Kora, stop" / "Kora, stop speaking" during real TTS. After >=5 warmups, measure >=30 trials: interruption p95 <=500 ms, stop activation to final playback sample p95 <=250 ms, wake feedback p95 <=500 ms, final transcript for a <=10 s utterance p95 <=2 s. Record cold start separately. | Synchronized acoustic wake-end, capture/UI, stop activation, last-output-sample and transcript timestamps; individual results and p95, not file-processing time. |
+| Integrated resources | >=30 min wake-only with UI and normal local services open; mean CPU <=5% of total machine capacity and incremental working set <=200 MiB over actual muted idle. | CPU/RSS time series, muted-idle baseline, OS/runtime/model versions, power plan and competing workload. |
+| Hardware, recovery and accessibility | Repeat relevant gates on proposed supported Windows/CPU/RAM configurations, including the intended lower hardware floor. Check selected endpoint identity, mute/removal/failure recovery and native/tray/keyboard/screen-reader fallback. | Named test owner, exact hardware/OS revisions, endpoint configuration and observed recovery/accessibility outcomes. |
+| Packaging / offline boundary | Exercise the pinned detector/assets in the packaged Windows host; review native/model notices. Verify the intended local-only behavior with separately controlled network-blocking/observation without disrupting the remote session. | Final artifact identity/hashes, notices, installation/probe results and observed network boundary. Do not infer this from Python-only inference. |
+
+### Recording a later run
+
+Keep raw live recordings local and outside version control under the agreed
+retention policy; do not include private speech or device/account identifiers
+in diagnostic logs. Commit only reviewed, content-minimizing measurements and
+licensed fixture provenance. For each trial group, record:
+
+- Date, test/build revision, operator, session state, consent scope and
+  headset versus speaker/microphone setup.
+- Exact OS build, CPU/logical cores/RAM/storage, power profile, runtime/model
+  hashes, thresholds, endpoint routing, distances, volume and AEC/reference.
+- Fixture license/consent/provenance, speaker pseudonyms/accents, noise source,
+  repetitions/warmups and individual observed outcomes/timings.
+- Actual versus expected result, **pass / fail / blocked / not run**, residual
+  limitations and any interruption of the test session.
+
+Do not edit [recorded-results.json](evidence/recorded-results.json) or
+[validation.json](evidence/validation.json) to imply that a later live trial
+was part of this offline run. Add separately identified reviewed acoustic
+evidence once it exists.
+
+### Merge versus acceptance
+
+On 2026-10-05 the user requested publishing and auto-completing the PR after
+the outstanding-testing documentation was added. The approved merge scope
+is **partial research evidence**, not a completed feasibility/acceptance gate.
+Live trials are not prerequisites for merging that limited scope; all
+outstanding gates above remain required before claiming D-002/D-007 completion
+or authorizing the corresponding production integration.
 
 No required checks/reviews may be bypassed. R01 has landed; unrelated R02
-proof branches are not prerequisites for safe experiment work. Integration
-prerequisites and the missing acoustic proof must land/pass before this
-draft is made ready and squash auto-merge is enabled.
+proof branches are not prerequisites for safe experiment work. The PR may be
+marked ready and squash auto-merge requested for this limited scope, subject
+to normal GitHub checks/reviews. The original
+[validation receipt](evidence/validation.json) preserves the draft disposition
+at the time of the offline run; it is historical evidence, not the current
+publication status. Merging this research does not change its measured results,
+make an unrun test pass, or enable any production capture/playback capability.

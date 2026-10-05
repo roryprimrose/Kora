@@ -13,6 +13,6 @@ if ([string]::IsNullOrWhiteSpace($userSid)) { throw 'Host SID missing; cannot sa
 foreach ($name in 'environment.json', 'trials.json', 'cleanup.json', 'verification.json', 'validation.json') {
     $text = Get-Content -LiteralPath (Join-Path $Source $name) -Raw
     # Preserve real API outcomes, synthetic container SID and timing; remove personal account identity.
-    $text.Replace($userSid, 'host-user (redacted)') |
+    $text.Replace($userSid, 'host-user (redacted)').TrimEnd() |
         Set-Content -LiteralPath (Join-Path $Destination $name) -Encoding utf8
 }

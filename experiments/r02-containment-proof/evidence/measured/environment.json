@@ -1,0 +1,20 @@
+{
+  "Os": "Microsoft Windows NT 10.0.26300.0",
+  "Framework": ".NET 10.0.12",
+  "Architecture": "X64",
+  "HostToken": {
+    "AppContainer": false,
+    "UserSid": "host-user (redacted)",
+    "ContainerSid": null,
+    "Elevated": false,
+    "IntegritySid": "S-1-16-8192"
+  },
+  "WorkerSid": "S-1-15-2-2928716718-2081031924-47647725-2287757276-2678079444-1071509137-2385361099",
+  "Capabilities": [],
+  "OriginalPowerShell": "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.6.0_x64__8wekyb3d8bbwe\\pwsh.exe",
+  "LocalRuntimeCopy": true,
+  "ExecutableSha256": "5450FD8F6D8B969A3EAEF8BAB2452A684A426D74E9C287A27BFE64FE9FD2FD84",
+  "AssemblySha256": "E7C3A3864B73F83F5C71653422DEE81C0A7DC5C59398D3D3E809EFD7FE9E0E1F",
+  "PowerShellSha256": "BFB46AF89433268872DDB43D1CA7A3F433452EE91ED356A9786940F90118E285",
+  "Utc": "2026-10-05T00:15:09.6066175+00:00"
+}

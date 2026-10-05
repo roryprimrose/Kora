@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\src\Kora.Core\Commands\*.cs" Link="Production\Commands\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Kora.Core\Configuration\AssistantNameRules.cs" Link="Production\AssistantNameRules.cs" />
+    <Compile Include="..\..\src\Kora.Core\Dependencies\DependencyReadiness.cs;
+                      ..\..\src\Kora.Core\Dependencies\DependencyStatus.cs;
+                      ..\..\src\Kora.Core\Dependencies\IDependencyProbe.cs;
+                      ..\..\src\Kora.Core\Dependencies\ISetupDependencyProbe.cs;
+                      ..\..\src\Kora.Core\Dependencies\ILocalModelReasoner.cs;
+                      ..\..\src\Kora.Core\Dependencies\ILocalModelSetup.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelContext.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelDependency.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelTask.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelResponse.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelQuestion.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelQuestionSpeech.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelSetupProgress.cs;
+                      ..\..\src\Kora.Core\Dependencies\SetupTaskState.cs"
+             Link="Production\Dependencies\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Kora.Windows\Dependencies\WindowsOllamaReasoner.cs;
+                      ..\..\src\Kora.Windows\Dependencies\LocalInferenceDependencyProbe.cs;
+                      ..\..\src\Kora.Windows\Dependencies\WindowsOllamaSetupService.cs;
+                      ..\..\src\Kora.Windows\Dependencies\IOllamaProcessRunner.cs;
+                      ..\..\src\Kora.Windows\Dependencies\OllamaProcessRunner.cs"
+             Link="Production\Windows\%(Filename)%(Extension)" />
+    <None Include="fixtures.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

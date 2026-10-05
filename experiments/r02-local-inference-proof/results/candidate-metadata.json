@@ -1,0 +1,70 @@
+{
+  "Schema": "Kora.R02.PublicCandidateMetadata.v1",
+  "RetrievedUtc": "2026-10-05T00:05:52.9225677+00:00",
+  "Provenance": "Public metadata only. No runtime installer or model weights downloaded; not an installed-runtime measurement.",
+  "Runtime": {
+    "InstalledExecutableDigest": null,
+    "ExpandedRuntimeStorageBytes": null,
+    "SourceLicense": "MIT",
+    "Version": "0.35.1",
+    "InstallerUrl": "https://github.com/ollama/ollama/releases/download/v0.35.1/OllamaSetup.exe",
+    "Limitation": "Source MIT licence is not an audit of bundled Windows runtime/native dependency notices.",
+    "InstallerDownloadBytes": 1580352416,
+    "ReleaseMetadataUrl": "https://api.github.com/repos/ollama/ollama/releases/tags/v0.35.1",
+    "PublishedInstallerDigest": "sha256:2544c6dc60c57866f5cfbd32b8f7c5ffa5e1f7f0579ca59da5ff20bdc53ad3d2",
+    "SourceLicenseUrl": "https://raw.githubusercontent.com/ollama/ollama/v0.35.1/LICENSE",
+    "SourceLicenseSha256": "5934ED2CE0D15154BCDB9C85203210ABAC0DA4314AF34081E36DF4599F90B226",
+    "InstallerDigestLocallyVerified": false
+  },
+  "Model": {
+    "Name": "qwen3:1.7b",
+    "License": "Apache-2.0",
+    "ContextMeasured": false,
+    "AdvertisedContextTokens": 32768,
+    "LicenseBlobDigest": "sha256:D18A5CC71B84BC4AF394A31116BD3932B42241DE70C77D2B76D69A314EC8AA12",
+    "LicenseBlobUrl": "https://registry.ollama.ai/v2/library/qwen3/blobs/sha256:d18a5cc71b84bc4af394a31116bd3932b42241de70c77d2b76d69a314ec8aa12",
+    "LicenseBlobBytes": 11338,
+    "ManifestDigest": "sha256:8F68893C685C3DDFF2AA3FFFCE2AA60A30BB2DA65CA488B61FFF134A4D1730E7",
+    "ContextSource": "https://huggingface.co/Qwen/Qwen3-1.7B/blob/main/README.md",
+    "ManifestUrl": "https://registry.ollama.ai/v2/library/qwen3/manifests/1.7b",
+    "DownloadBlobBytes": 1359293444,
+    "ManifestBytes": 859,
+    "Manifest": {
+      "schemaVersion": 2,
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+      "config": {
+        "mediaType": "application/vnd.docker.container.image.v1+json",
+        "digest": "sha256:517ccaff02fe9f99718ab2f478e611aa2813c36263eeed86c2427bc122d14ad8",
+        "size": 487
+      },
+      "layers": [
+        {
+          "mediaType": "application/vnd.ollama.image.model",
+          "digest": "sha256:3d0b790534fe4b79525fc3692950408dca41171676ed7e21db57af5c65ef6ab6",
+          "size": 1359279776
+        },
+        {
+          "mediaType": "application/vnd.ollama.image.template",
+          "digest": "sha256:ae370d884f108d16e7cc8fd5259ebc5773a0afa6e078b11f4ed7e39a27e0dfc4",
+          "size": 1723
+        },
+        {
+          "mediaType": "application/vnd.ollama.image.license",
+          "digest": "sha256:d18a5cc71b84bc4af394a31116bd3932b42241de70c77d2b76d69a314ec8aa12",
+          "size": 11338
+        },
+        {
+          "mediaType": "application/vnd.ollama.image.params",
+          "digest": "sha256:cff3f395ef3756ab63e58b0ad1b32bb6f802905cae1472e6a12034e4246fbbdb",
+          "size": 120
+        }
+      ]
+    }
+  },
+  "Storage": {
+    "Requirements": "Expanded runtime, temporary installer/pull files, filesystem overhead, KV cache and RAM must be measured in an approved provisioned environment. Existing blobs may be reused.",
+    "BootstrapModelFreeSpaceGuardBytes": 2000000000,
+    "TotalInstallerAndModelDownloadBytes": 2939645860,
+    "ModelBlobPlusManifestBytes": 1359294303
+  }
+}

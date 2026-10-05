@@ -1,0 +1,51 @@
+{
+  "schema": "Kora.R02.LocalInferenceProof.v1",
+  "startedUtc": "2026-10-05T00:06:06.7353314\u002B00:00",
+  "mode": "observe",
+  "machineSummary": {
+    "os": "Microsoft Windows 10.0.26300",
+    "architecture": "X64",
+    "logicalProcessors": 16,
+    "dotnet": ".NET 10.0.12",
+    "cpuIdentifier": "AMD64 Family 26 Model 112 Stepping 0, AuthenticAMD"
+  },
+  "candidate": {
+    "runtime": "Ollama",
+    "version": "0.35.1",
+    "model": "qwen3:1.7b",
+    "modelDigest": "sha256:8F68893C685C3DDFF2AA3FFFCE2AA60A30BB2DA65CA488B61FFF134A4D1730E7",
+    "bootstrapDownloadEstimate": "approximately 1.36 GB",
+    "endpoint": "http://127.0.0.1:11434"
+  },
+  "networkEvidence": "NOT ESTABLISHED: transport confinement is not OS egress containment; attach approved isolated-environment control and independent capture evidence.",
+  "referenceHardwareEvidence": "NOT ESTABLISHED: a machine inventory alone is not a CPU-floor trial with UI and normal local services running.",
+  "probe": {
+    "state": "Missing",
+    "Detail": "No Ollama runtime is listening on 127.0.0.1:11434. Installation requires approval after Kora has a supported local-model adapter.",
+    "completionMs": 2074.824
+  },
+  "workflow": {
+    "fixtureId": "http-error",
+    "path": "source-linked production reasoner; CPU-only transport override; otherwise production defaults",
+    "state": "Unavailable",
+    "error": "HttpRequestException: No connection could be made because the target machine actively refused it. (127.0.0.1:11434)",
+    "completionMs": 2076.6578,
+    "firstTokenMs": null,
+    "firstTokenLimitation": "Production uses stream=false; first-token latency is not observable on this path.",
+    "resources": {
+      "Samples": 22,
+      "PeakAggregateWorkingSetBytes": 0,
+      "PeakAggregatePrivateBytes": 0,
+      "SampledCpuSeconds": 0,
+      "AverageMachineCpuPercent": 0,
+      "ProcessIds": [],
+      "ObservationErrors": []
+    }
+  },
+  "calls": [
+    "GET /api/version",
+    "GET /api/tags"
+  ],
+  "fallback": "No remote client/provider, no redirect/proxy, no retry or asset acquisition path invoked.",
+  "finishedUtc": "2026-10-05T00:06:10.9451347\u002B00:00"
+}

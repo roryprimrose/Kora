@@ -148,14 +148,13 @@ this actionable deferred-testing handoff and normal repository checks/reviews.
 It must not enable a worker, grant broader authority or change the result to
 success to make the PR mergeable.
 
-<<<<<<< HEAD
 The storage proof's historical blocked second-account result remains in its
 original snapshot. Its revised automated run verifies application-controlled
 scope and permissions and returns success only for that bounded proof;
 optional OS-boundary corroboration is not relabelled as passed.
 Neither merging its design direction nor a successful synthetic run closes
 S1-S4 or D-009.
-=======
+
 Likewise, local inference may merge as a source-linked harness, truthful partial
 results, technical outcomes and an actionable LI01-LI07/R02-L1-L6 handoff after
 normal validation/checks/reviews. Missing runtime, operator/hardware trials and
@@ -163,7 +162,6 @@ independent offline capture remain capability blockers, not prerequisites for
 merging that limited scope. Keep historical observations unchanged and
 D-003/D-007 open; no inference pin, production tool loop or remote fallback is
 enabled by publication.
->>>>>>> 389a253 (docs: Track deferred interactive inference validation)
 
 On 2026-10-05 the user requested rebasing R03 onto main and adding its deferred
 interactive testing alongside the other proofs so the scoped PR can merge.

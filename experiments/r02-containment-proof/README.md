@@ -10,6 +10,12 @@ required evidence and independently protected deployment are resolved.
 R01 commit `7d5e6a3` / PR #19 was present after the initial rebase. Its approved
 policy reconciliation is a prerequisite, not runtime containment evidence.
 This branch investigates only R02's Windows worker/deployment slice.
+The initial proof kept canonical designs unchanged. The subsequent outcome
+handoff now records [design consequences and continuation gates](../../Design/Security_Data_Flows.md#r02-windows-containment-outcomes),
+[D-013](../../Design/Decision_Register.md#d-013-windows-worker-and-deployment-containment)
+and [roadmap W1-W4](../../Design/Implementation_Roadmap.md#r02-windows-containment-follow-up).
+Those documents own delivery direction; this experiment retains reproducible
+commands and measured evidence without becoming production composition.
 
 Read contracts:
 

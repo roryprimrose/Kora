@@ -315,6 +315,12 @@ Third-party MCP servers and script workers run separately from the UI process.
 Process separation does not imply filesystem or network sandboxing; see the execution trust model.
 Agent-executable components must additionally be unable to mutate protected Kora resources; unrestricted ambient-rights workers are not admitted merely because their code is trusted.
 
+The [R02 worker outcomes and continuation gates](Security_Data_Flows.md#r02-windows-containment-outcomes)
+reject Job-only restricted execution and retain capability-free AppContainer as
+a partial candidate. Network denial, dependency admission and independently
+protected deployment remain unresolved under D-013; no production worker is
+composed and no typed native broker is selected by the experiment.
+
 ## Skill Data Versus Application Code
 
 The built-in authoring service accepts voice refinements and produces declarative skill packages.

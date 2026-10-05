@@ -189,7 +189,7 @@ the 100% coverage gate (98.7% line / 97.5% branch). Hosted Windows CI also found
 SID-alias ACL comparison and elevated-runner assumptions. These are historical
 failed checks, not waived or relabeled as passing evidence.
 
-After rebasing onto `ca63f73` (including the merged R02 speech/containment proofs),
+After rebasing onto `bcd4b81` (including the merged R02 speech/containment/storage proofs),
 the CI fixes and expanded privacy/race tests were validated with .NET SDK
 10.0.401 on Windows:
 
@@ -203,7 +203,7 @@ the CI fixes and expanded privacy/race tests were validated with .NET SDK
 | Locked framework-dependent win-x64 and win-x86 publish | Passed; binaries not launched |
 | Merged portable line/branch coverage | 100% / 100%; passed the unchanged 100% / 100% gate |
 
-Coverage includes 4,767 of 4,767 lines and 1,819 of 1,819 branches. No coverage
+Coverage includes 4,768 of 4,768 lines and 1,823 of 1,823 branches. No coverage
 exclusions or threshold reductions were introduced. The added tests exercise
 queued privacy transitions, output/consent failures, endpoint selection,
 approval rechecks and lifecycle admission. Clearing selection now closes armed

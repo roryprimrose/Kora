@@ -170,3 +170,26 @@ lock event in every reference trial**, recording OS notification delay
 separately. This implementation does not establish that measured target or
 production wake quality. Overall roadmap/decision status is left to integration
 review.
+
+### R03 validation evidence
+
+After the final fetch/rebase, the baseline remained the approved R01 commit
+`7d5e6a3`. Validation used .NET SDK 10.0.401 on Windows:
+
+| Check | Result |
+| --- | --- |
+| Locked solution restore | Passed |
+| Fresh Debug and Release solution builds | Passed, zero warnings/errors |
+| Release Core unit tests | 250 passed |
+| Release application unit tests | 592 passed |
+| Release Windows tests | 161 passed |
+| Locked framework-dependent win-x64 and win-x86 publish | Passed; binaries not launched |
+| Merged portable line/branch coverage | 98.7% / 97.5%; **failed** the unchanged 100% / 100% gate |
+
+Coverage includes 4,672 of 4,732 lines and 1,774 of 1,819 branches. No coverage
+exclusions or threshold reductions were introduced to hide the remaining gaps.
+The Windows count combines deterministic fakes with non-disruptive native
+object/device enumeration checks; it is not 161 real lifecycle or microphone
+trials. Debug/Release publishing is not proof of cross-build or cross-architecture
+handoff. The coverage gate and unauthorized real Windows reference trials are
+explicit draft-PR blockers; squash auto-merge remains disabled.

@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
+    <DefaultItemExcludes>$(DefaultItemExcludes);.candidate\**;.scratch\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,142 @@
+{
+  "observedAtUtc": "2026-10-05T22:47:15.2387588Z",
+  "repositoryHead": "d3d2296387e30d2a55850b71d4b8d80be7594ffd",
+  "scope": "Isolated RT1 worktree; root Release validation and publish inspection, not installed acceptance",
+  "environment": {
+    "windows": "10.0.26300.0",
+    "architecture": "x64",
+    "dotnetSdk": "10.0.401",
+    "dotnetSdkCommit": "e34a38d2ae",
+    "msbuild": "18.9.11+e34a38d2a",
+    "dotnetRuntime": "10.0.12",
+    "dotnetRuntimeCommit": "95017c711e",
+    "nugetLicense": "4.0.18",
+    "reportGenerator": "5.4.7"
+  },
+  "initialBuild": {
+    "command": "dotnet build .\\Kora.slnx --configuration Release --no-restore",
+    "outcome": "FAIL: NETSDK1004 missing project.assets.json in seven projects",
+    "resolution": "Missing dependency assets justified locked restore; no package/version or production manifest change"
+  },
+  "restore": {
+    "command": "dotnet restore .\\Kora.slnx --locked-mode",
+    "outcome": "PASS"
+  },
+  "releaseBuild": {
+    "command": "dotnet build .\\Kora.slnx --configuration Release --no-restore",
+    "outcome": "PASS",
+    "warnings": 0,
+    "errors": 0,
+    "analyzersEnabled": true
+  },
+  "repositoryTests": [
+    {
+      "project": "Kora.Core.UnitTests",
+      "command": "dotnet test --project .\\tests\\Kora.Core.UnitTests\\Kora.Core.UnitTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\\core --report-trx --coverlet --coverlet-output-format cobertura --coverlet-file-prefix core",
+      "startUtc": "2026-10-05T22:43:07.5299368Z",
+      "finishUtc": "2026-10-05T22:43:08.2351745Z",
+      "total": 251,
+      "passed": 251,
+      "failed": 0,
+      "skipped": 0,
+      "trxSha256": "8d5ed05463a73be358eccf9d23f5582e81b44bb219e51fb1dd705ef55d0b57ed"
+    },
+    {
+      "project": "Kora.Application.UnitTests",
+      "command": "dotnet test --project .\\tests\\Kora.Application.UnitTests\\Kora.Application.UnitTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\\application --report-trx --coverlet --coverlet-output-format cobertura --coverlet-file-prefix application",
+      "startUtc": "2026-10-05T22:43:11.0040857Z",
+      "finishUtc": "2026-10-05T22:43:13.1548614Z",
+      "total": 712,
+      "passed": 712,
+      "failed": 0,
+      "skipped": 0,
+      "trxSha256": "d8283d5d4cb1b05279b0a5a2a80aa412b9a36f83b1920c3f465feb509cea8575"
+    },
+    {
+      "project": "Kora.Windows.IntegrationTests",
+      "command": "dotnet test --project .\\tests\\Kora.Windows.IntegrationTests\\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\\windows --report-trx",
+      "startUtc": "2026-10-05T22:43:15.016029Z",
+      "finishUtc": "2026-10-05T22:43:16.4852827Z",
+      "total": 174,
+      "passed": 174,
+      "failed": 0,
+      "skipped": 0,
+      "trxSha256": "4144df4211b5bdf6fb4d10da9b4f3e25642411f7cfca45ec3f084bf5a94ea583"
+    }
+  ],
+  "repositoryTestTotal": 1137,
+  "coverage": {
+    "generateCommand": "dotnet reportgenerator \"-reports:.net-test-artifacts\\**\\*.coverage.cobertura.*.xml\" \"-targetdir:.net-test-artifacts\\coverage-report\" \"-reporttypes:Cobertura;MarkdownSummaryGithub;TextSummary\" \"-assemblyfilters:+Kora.Core;+Kora.Application\"",
+    "gateCommand": ".\\eng\\Assert-CodeCoverage.ps1 -ReportPath .net-test-artifacts\\coverage-report\\Cobertura.xml -MinimumLine 100 -MinimumBranch 100",
+    "outcome": "PASS",
+    "linesCovered": 4819,
+    "linesValid": 4819,
+    "branchesCovered": 1903,
+    "branchesValid": 1903,
+    "linePercent": 100,
+    "branchPercent": 100,
+    "reportSha256": "f7bb307cc553162552ca5d22d30d23278423a7b9f575bf2f50e5e5aa9e0f6da6",
+    "reportWarnings": "Two generated LoggerMessage.g.cs source files unavailable for source rendering; aggregate coverage generation and gate pass"
+  },
+  "licenses": {
+    "productionCommand": ".\\eng\\Test-DependencyLicenses.ps1",
+    "productionOutcome": "PASS; committed production notices unchanged; experiments excluded",
+    "fixtureCommand": "dotnet nuget-license --input .\\experiments\\r02-dotnet-control-proof\\ControlProof.csproj --include-transitive --allowed-license-types .\\eng\\licenses\\allowed-licenses.json --override-package-information .\\eng\\licenses\\package-overrides.json --output JsonPretty --file-output .\\experiments\\r02-dotnet-control-proof\\evidence\\dependency-licenses.json",
+    "fixtureOutcome": "PASS",
+    "fixturePackages": 23,
+    "sourceBuildCommand": "dotnet nuget-license --input .\\experiments\\r02-dotnet-control-proof\\.candidate\\source\\copilot-sdk-f8ae645902b74b62cd47aac1fd9b29adaec3aff2\\dotnet\\src\\GitHub.Copilot.SDK.csproj --include-transitive --target-framework net10.0 --allowed-license-types .\\eng\\licenses\\allowed-licenses.json --output JsonPretty --file-output .\\experiments\\r02-dotnet-control-proof\\evidence\\source-build-licenses.json",
+    "sourceBuildOutcome": "PASS",
+    "sourceBuildPackages": 7,
+    "nativeReview": "GitHub Copilot CLI proprietary license reviewed for unchanged research use; optional bundle redistribution completeness not admitted"
+  },
+  "fixture": {
+    "prepareCommand": ".\\experiments\\r02-dotnet-control-proof\\Prepare-Candidate.ps1",
+    "prepareOutcome": "PASS; verified public archives and locked original SDK/fixture restore",
+    "reproductionCommand": ".\\experiments\\r02-dotnet-control-proof\\Test-Reproduction.ps1",
+    "reproductionOutcome": "PASS; separate clean-source package byte-identical; ZIP timestamps only normalized",
+    "testCommand": ".\\experiments\\r02-dotnet-control-proof\\Run-Conformance.ps1",
+    "testOutcome": "PASS; final exact-byte-pinned fixture",
+    "total": 45,
+    "passed": 45,
+    "failed": 0,
+    "skipped": 0,
+    "capabilityRowsPass": 44,
+    "expectedHookOnlyFail": 1,
+    "ownedCleanupCompleted": 45,
+    "deniedEffects": 0,
+    "deniedMarkersForwarded": 0,
+    "details": "disposition.json and results.json"
+  },
+  "publishInspection": {
+    "commands": [
+      "dotnet publish .\\src\\Kora\\Kora.csproj --configuration Release --runtime win-x64 --self-contained false --no-restore --property:RestoreLockedMode=true --output .\\artifacts\\Kora-win-x64",
+      "dotnet publish .\\src\\Kora\\Kora.csproj --configuration Release --runtime win-x86 --self-contained false --no-restore --property:RestoreLockedMode=true --output .\\artifacts\\Kora-win-x86"
+    ],
+    "outcome": "PASS for both RID publishes; neither binary launched",
+    "notices": "Copied generated license-compliance licenses and package-notices into each publish, matching CI; LICENSE and THIRD-PARTY-NOTICES.md also present",
+    "experimentalDependenciesAbsent": true,
+    "nativeMethod": "Read PE header offset at 0x3c and machine field at PE+4; x64=0x8664, x86=0x014c; SHA256 over exact files",
+    "nativeFiles": [
+      { "rid": "win-x64", "file": "Kora.exe", "machine": "0x8664", "sha256": "fd843bbd76e52c471ff96158632b114dfd829d560878d79c50d84254059a7ce6" },
+      { "rid": "win-x64", "file": "av_libglesv2.dll", "machine": "0x8664", "sha256": "53191a77fe783cd757ca7767077c2a64a662e7043777a5b4ab74980d4a0b73e3" },
+      { "rid": "win-x64", "file": "libHarfBuzzSharp.dll", "machine": "0x8664", "sha256": "145ade963eba427027d5e1381db5d51a0ef9e98e9fef9efbfa6074ca20da246f" },
+      { "rid": "win-x64", "file": "libSkiaSharp.dll", "machine": "0x8664", "sha256": "7dec3ba900ab353491e6446f0083739924c6f8dd668832e2f09d38ebffdbbe1c" },
+      { "rid": "win-x86", "file": "Kora.exe", "machine": "0x014c", "sha256": "48b917e642a5b0b4ef23617ef68ebce3711a5179d0f45dfa408d5b42f6039d8e" },
+      { "rid": "win-x86", "file": "av_libglesv2.dll", "machine": "0x014c", "sha256": "1e4df6ab43cc25cdaa5405048cb1088b5ca26660adfdddaeaf88c8954464244a" },
+      { "rid": "win-x86", "file": "libHarfBuzzSharp.dll", "machine": "0x014c", "sha256": "99a97ab4b2b4b60f37930584d79849bd3ef2d1252c51ac47df9805deb08912af" },
+      { "rid": "win-x86", "file": "libSkiaSharp.dll", "machine": "0x014c", "sha256": "2e49b47ff56a0f6ccf61932d33e01e9046c319da35bbb16f9ec9572a9dcf675f" }
+    ],
+    "limitation": "PE/publish inspection is not installed loading, runtime-only launch or installer acceptance; x86 runtime not present and not installed"
+  },
+  "notRunOrBlocked": {
+    "releasedNugetByteParity": "BLOCKED: TLS acquisition failures; exact-tag source build explicitly approved, not released artifact parity",
+    "rt2": "NOT RUN: full lifecycle network/file/diagnostic attribution and optional-asset admission",
+    "mg1": "NOT RUN: complete .NET management byte/deadline/admission envelope",
+    "pv1": "BLOCKED: no live account/usage approval",
+    "productionAdapter": "NOT IMPLEMENTED or enabled",
+    "schedulerHostAuditAcceptance": "NOT RUN; no sibling contracts or test results borrowed",
+    "installedApplicationAcceptance": "NOT RUN",
+    "liveInferenceCalls": 0,
+    "modelChargesUsd": 0
+  }
+}

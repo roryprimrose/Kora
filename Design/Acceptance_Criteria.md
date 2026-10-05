@@ -124,6 +124,12 @@ Unperformed or blocked trials keep the relevant capability disabled and
 D-001/D-004 open. Deterministic local management does not depend on hosted
 model-assisted management acceptance.
 
+The [actual .NET RT1 evidence](../experiments/r02-dotnet-control-proof/EVIDENCE.md)
+passes only its explicitly approved exact-tag source-built minimal profile.
+It does not accept released-NuGet bytes, RT2 full lifecycle observation, MG1's
+complete envelope, PV1 account eligibility, host authority/audit integration
+or installed/scheduler acceptance. The requirements above are unchanged.
+
 ## Command, Tool, and Skill Interaction Gate
 
 Apply [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)

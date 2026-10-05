@@ -540,7 +540,7 @@ Verify:
   explicit re-enabling for that run.
 - Uninstall removes startup entries and offers data retention without deleting shared profile skills.
 - Installation metadata, not `.git` presence, determines maintenance mode; developer checkouts are not automatically pulled/reset.
-- Binary update checks use the configured hosted release feed without Git/SDK, respect channel/architecture/runtime, and exclude drafts/prereleases on stable.
+- Binary update checks use the canonical GitHub Releases feed without Git/SDK and respect channel/architecture/runtime. Fixtures exclude drafts in every channel and prereleases in production; explicit preview discovery can find published prereleases without depending on the latest-production endpoint. Reject other hosts/repositories, CI artifacts and branch builds as released versions.
 - Failed/offline checks are not reported as current; repeated checks respect cadence/backoff and maintenance network policy.
 - Eligible release metadata produces an unprompted unsigned/manual-update notice when voice delivery is permitted.
 - "Update/install Kora" never downloads, stages, executes, mutates source, or activates an artifact during the unsigned phase; it can only show details or propose the exact canonical release page.
@@ -570,6 +570,7 @@ An install-capable updater remains unavailable until independent signed-metadata
 
 ## Environment Setup Gate
 
+- The admitted host-owned catalogue and [design inventory](Dependency_Catalogue.md) agree on actual dependency identity/version/source/verification and enabled capability. Test missing/declined dependencies per capability; bundled code, launch prerequisites and experimental/unimplemented candidates are not represented as optional installable substitutes for missing application code.
 - Source and binary delivery provide a complete Kora-only path with launch/build prerequisites as applicable; no provider/package selection is compulsory. Optional installer dependency assistance is independently consented, shares the app's reviewed dependency contract and never replaces in-app detection/setup or initialises user databases.
 - First launch resolves known folders, creates its expected stores, and initialises SQLite without an external database installer.
 - Rerun reuses valid data/schema; migration failure does not delete user data or silently create an alternative database.

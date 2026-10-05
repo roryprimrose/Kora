@@ -6,7 +6,7 @@ remaining catalogue and acceptance requirements below are not claimed as
 shipped. Delivery installs Kora; the running app owns dependency detection and
 setup even when optional installer assistance is offered.
 
-Related: [Distribution](Distribution_And_Updates.md), [Architecture](Architecture.md), [Security](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
+Related: [Dependency Catalogue](Dependency_Catalogue.md), [Distribution](Distribution_And_Updates.md), [Architecture](Architecture.md), [Security](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Boundary
 
@@ -78,6 +78,10 @@ and distribution proof do not demonstrate it or complete this onboarding policy.
 
 Setup is deterministic host functionality, available without a configured model or skill.
 It owns a versioned dependency catalogue, probes, scoped setup actions, readiness records, cancellation, and recovery.
+The [source-backed dependency inventory](Dependency_Catalogue.md) distinguishes
+current PowerShell/Ollama/speech/Kokoro requirements, bundled and launch
+dependencies, experimental wake candidates and future provider/connector/viewer
+requirements. It is a design inventory, not the implemented executable catalogue.
 The catalogue defines supported versions/platforms, trusted sources, verification, installation scope, health probes, resource estimates, and removal ownership.
 Models can explain a host plan but cannot invent package URLs, choose executables, change the catalogue, or run an arbitrary setup script.
 

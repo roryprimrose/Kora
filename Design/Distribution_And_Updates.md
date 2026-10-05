@@ -262,8 +262,17 @@ Never describe a failed check as proof that the installation is current.
 
 ## Hosted Release Feed and Notify-Only Interaction
 
-Use the host's configured repository/release API or authenticated release manifest, not arbitrary page text or a model's proposed download URL.
-Select the configured channel and matching architecture/runtime; stable excludes drafts and prereleases.
+GitHub Releases is the sole current version host for both prerelease and
+production versions of `roryprimrose/Kora`. Use its release API, or future
+authenticated release metadata published with those releases, not arbitrary
+page text, another hosting feed or a model's proposed download URL.
+The canonical release page is https://github.com/roryprimrose/Kora/releases.
+Select the configured channel and matching architecture/runtime; production
+excludes drafts and prereleases, while explicitly selected preview discovery
+can include published prereleases. Drafts remain excluded in every channel.
+Prerelease discovery must use release enumeration rather than treating the
+latest-production endpoint as a preview feed. CI artifacts and default-branch
+builds are not released versions.
 Compare published version/release identity, not commit timestamps or a local Git branch.
 Validate the configured canonical repository, release identity, immutable source revision, expected artifact name, and final-byte digest against protected maintenance configuration.
 During the unsigned phase this detects changed or mismatched release content but does not provide independent Windows publisher authentication; surface that limitation rather than claiming a trusted publisher.

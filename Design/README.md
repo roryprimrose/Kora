@@ -67,6 +67,12 @@ specifies that future gate for both direct and suggested side-effecting tasks.
 None of this closes the hardware/performance/offline proof in D-003 or the
 broader approval-policy evidence in D-008.
 
+The [Dependency Catalogue](Dependency_Catalogue.md) inventories current optional
+software, speech/model assets and setup-path tools alongside known future
+requirements. It separates bundled/launch prerequisites from user-selected
+capabilities and experimental candidates; installing a dependency is not
+adapter admission or release acceptance.
+
 ## Reading Order
 
 1. [MVP Scope and Non-Goals](MVP_Scope.md): what ships first and what does not.

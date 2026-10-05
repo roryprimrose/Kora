@@ -39,6 +39,9 @@ public sealed partial class SettingsWindow : Window
 
     public void ShowVoiceRecovery() => SettingsTabs.SelectedItem = SpeechAudioTab;
 
+    private void OnPushToTalkFocusLost(object? sender, Avalonia.Input.FocusChangedEventArgs eventArgs) =>
+        OnCaptureSurfaceUnavailable(sender, eventArgs);
+
     private async void OnPushToTalkPressed(object? sender, Avalonia.Input.PointerPressedEventArgs eventArgs)
     {
         if (sender is Control control && eventArgs.GetCurrentPoint(control).Properties.IsLeftButtonPressed

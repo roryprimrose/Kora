@@ -242,11 +242,19 @@ public sealed partial class MainViewModelTests
         fixture.Voice.StartCalls.Should().Be(0);
     }
 
-    [Fact]
-    public async Task Unreadable_consent_fails_closed_with_an_explicit_error()
+    [Theory]
+    [InlineData("io")]
+    [InlineData("access")]
+    [InlineData("corrupt")]
+    public async Task Unreadable_consent_fails_closed_with_an_explicit_error(string failure)
     {
         var fixture = CreateVoicePrivacyFixture();
-        fixture.VoiceConsent.Failure = new IOException("consent unreadable");
+        fixture.VoiceConsent.Failure = failure switch
+        {
+            "access" => new UnauthorizedAccessException("consent unreadable"),
+            "corrupt" => new InvalidDataException("consent unreadable"),
+            _ => new IOException("consent unreadable"),
+        };
 
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.ResponseTitle.Should().Be("Voice consent could not be read.");
@@ -1017,6 +1025,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.OutputDevices = [];
         PublishTopology(fixture, 1);
         fixture.ViewModel.SelectedOutputDevice?.Id.Should().Be(pinned ? "0" : null);
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
     }
 
     [Fact]
@@ -1030,12 +1039,19 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Topology_change_invalidates_active_output_and_reports_failed_stop(bool failure)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Unavailable_output_invalidates_active_speech_and_reports_failed_stop(bool failure, bool pinned)
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
+        if (pinned)
+        {
+            fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
+                string.Equals(device.Id, "0", StringComparison.Ordinal));
+        }
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
         await fixture.TextToSpeech.SpeakStarted.Task;
@@ -1043,25 +1059,155 @@ public sealed partial class MainViewModelTests
         {
             fixture.TextToSpeech.StopException = new IOException("render release failed");
         }
+        fixture.TextToSpeech.OutputDevices = pinned
+            ? [new AudioOutputDevice("new-default", "Other available output")] : [];
+        fixture.TextToSpeech.DefaultOutputDeviceId = "new-default";
         PublishTopology(fixture, 1);
         await fixture.ViewModel.PrivacyClosureTask;
         fixture.TextToSpeech.SpeakGate.TrySetResult();
         await preview;
         fixture.ViewModel.IsSpeaking.Should().BeFalse();
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be(
+            pinned ? "0" : SystemAudioDevices.Output.Id);
         if (failure)
         {
             fixture.ViewModel.ResponseTitle.Should().Be("Audio output route changed.");
         }
     }
 
-    private static void PublishTopology(Fixture fixture, long revision)
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Eligible_default_and_unrelated_topology_changes_preserve_active_output(
+        bool pinned, bool inputChange)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        if (pinned)
+        {
+            fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
+                string.Equals(device.Id, "0", StringComparison.Ordinal));
+        }
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        fixture.Events.Clear();
+        var stopCalls = fixture.TextToSpeech.StopCalls;
+        if (!inputChange)
+        {
+            fixture.TextToSpeech.OutputDevices =
+            [
+                new AudioOutputDevice("0", "Default output"),
+                new AudioOutputDevice("new-default", "New default"),
+            ];
+            fixture.TextToSpeech.DefaultOutputDeviceId = "new-default";
+        }
+
+        PublishTopology(fixture, 1, inputChange
+            ? WindowsPrivacyChangeReason.InputTopology : WindowsPrivacyChangeReason.DefaultSpeaker);
+
+        fixture.TextToSpeech.IsSpeaking.Should().BeTrue();
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
+        fixture.TextToSpeech.StopCalls.Should().Be(stopCalls);
+        fixture.Events.Should().NotContain("speech.invalidate");
+        fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be(
+            pinned ? "0" : SystemAudioDevices.Output.Id);
+        fixture.TextToSpeech.SpeakGate.TrySetResult();
+        await preview;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Muted_effective_output_stops_active_speech_without_substitution(bool pinned)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        if (pinned)
+        {
+            fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
+                string.Equals(device.Id, "0", StringComparison.Ordinal));
+        }
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
+
+        PublishTopology(fixture, 1);
+        await fixture.ViewModel.PrivacyClosureTask;
+        await preview;
+
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        fixture.TextToSpeech.IsSpeaking.Should().BeFalse();
+        fixture.Events.Should().Contain("speech.invalidate");
+    }
+
+    [Fact]
+    public async Task Output_enumeration_failure_invalidates_active_speech()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        fixture.TextToSpeech.OutputEnumerationException = new IOException("render endpoints unavailable");
+
+        PublishTopology(fixture, 1);
+        await fixture.ViewModel.PrivacyClosureTask;
+        await preview;
+
+        fixture.TextToSpeech.IsSpeaking.Should().BeFalse();
+        fixture.Events.Should().Contain("speech.invalidate");
+        fixture.ViewModel.ResponseTitle.Should().Be("Audio output is unavailable.");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Valid_default_microphone_change_preserves_activation_without_releasing_a_run_hold(bool disabled)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        if (disabled)
+        {
+            await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        }
+        var generation = fixture.Voice.Generation;
+        fixture.Voice.Microphones = [new MicrophoneDevice("new-mic", "New default microphone")];
+        fixture.Voice.DefaultMicrophoneId = "new-mic";
+        var previous = fixture.PrivacyObservation.Current;
+        var current = previous with
+        {
+            TopologyRevision = previous.TopologyRevision + 1,
+            ActiveMicrophoneIds = ["new-mic"],
+            DefaultMicrophoneId = "new-mic",
+        };
+        fixture.PrivacyObservation.Current = current;
+
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            previous, current, WindowsPrivacyChangeReason.DefaultMicrophone));
+
+        fixture.ViewModel.IsVoiceEnabled.Should().Be(!disabled);
+        fixture.ViewModel.IsListening.Should().Be(!disabled);
+        fixture.Voice.Generation.Should().Be(generation);
+        fixture.Voice.StartCalls.Should().Be(1);
+        await fixture.ViewModel.EndPushToTalkAsync();
+    }
+
+    private static void PublishTopology(
+        Fixture fixture, long revision,
+        WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.OutputTopology)
     {
         var previous = fixture.PrivacyObservation.Current;
         var current = new WindowsPrivacySnapshot(WindowsSessionState.Unlocked, MicrophoneAccessState.Allowed,
-            revision, ["mic"], "mic", "0");
+            revision, ["mic"], "mic", fixture.TextToSpeech.DefaultOutputDeviceId);
         fixture.PrivacyObservation.Current = current;
         fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(previous, current,
-            WindowsPrivacyChangeReason.OutputTopology));
+            reason));
     }
 
     [Fact]

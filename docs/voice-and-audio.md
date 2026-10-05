@@ -16,9 +16,11 @@ Kora override. Choosing **System** removes that override. A missing pinned
 microphone is shown as unavailable and is not silently replaced by a same-name
 or newly-default device.
 
-Changing the Windows default while System is selected closes and invalidates
-current capture. Refresh the endpoints and explicitly enable listening before
-a new activation; the device change cannot reopen capture by itself.
+Changing the Windows default while System is selected automatically reroutes
+an already active WASAPI capture to the new available default microphone.
+Named endpoint selections remain pinned. A missing effective microphone closes
+capture and requires explicit recovery; restoration or a default change cannot
+reopen capture after it has closed or release a current-run recovery hold.
 
 ## Voice consent and explicit push-to-talk
 
@@ -135,10 +137,12 @@ The audio output list contains:
 - **System** - follows the live Windows multimedia-default output;
 - each active Windows render endpoint - pins Kora to that endpoint.
 
-Choosing System removes a saved Kora speaker override. An observed output-route
-change stops current playback; subsequent eligible speech resolves the current
-endpoint without replaying the interrupted output. A pinned endpoint is never
-silently replaced.
+Choosing System removes a saved Kora speaker override. An available new Windows
+default automatically reroutes active WASAPI playback while System is selected.
+Named endpoint selections remain pinned, even when Windows defaults or unrelated
+devices change. A missing or muted effective output stops speech without replay;
+subsequent eligible speech resolves the selected endpoint. A pinned endpoint is
+never silently replaced.
 
 ## Mute and playback failures
 

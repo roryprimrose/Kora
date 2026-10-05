@@ -35,6 +35,11 @@ Run the dependency-license gate before adding or upgrading a package:
 .\eng\Test-DependencyLicenses.ps1
 ```
 
+The gate covers projects in `Kora.slnx`, not isolated experiments. Experimental
+dependencies require separate recorded review and cannot enter production or
+publish archives without the admission steps in the
+[dependency license policy](DEPENDENCY-LICENSES.md#experimental-dependencies).
+
 If an intentional dependency change alters the notice report, review the new
 license and provenance first. Add an approved license identifier or a
 version-specific metadata override only with evidence, then regenerate:

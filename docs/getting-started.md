@@ -62,8 +62,10 @@ The initial microphone and speaker setting is **System**. System is not a saved
 endpoint snapshot. It follows later Windows default-device changes, including
 changes during active capture or playback.
 
-When voice readiness succeeds, Kora starts listening automatically even if
-local inference or PowerShell setup still needs attention. If no usable
+First launch requires explicit saved voice consent before voice can be enabled.
+With saved consent, safe startup arms push-to-talk even if
+local inference or PowerShell setup still needs attention. It does not open
+ambient capture: production wake is unavailable. If no usable
 microphone or recognizer is available, Kora remains visual and reports what
 needs attention.
 
@@ -77,10 +79,11 @@ the recovery prompt. The Windows speech provider remains the default.
 ## Enable listening
 
 1. Confirm the microphone shown in Settings.
-2. Wait for the Listening state after startup.
-3. Say a supported phrase such as **"Kora, what can you do?"**.
+2. Review and grant ongoing voice consent, or continue without voice.
+3. Hold **Push to talk** in Speech & audio, say a supported phrase such as
+   **"Kora, what can you do?"**, then release to finish.
 4. Select **Disable listening** when you want to release the microphone.
-5. Select **Enable listening** to resume capture during the current run.
+5. Select **Enable listening** to re-arm push-to-talk after a recovery hold.
 
 Selecting or refreshing a microphone after manual disablement does not reopen
 capture by itself.
@@ -104,11 +107,11 @@ readiness and task progress are sent to Ollama on `127.0.0.1`; Kora does not
 add clipboard contents, files, logs, web access, or earlier conversations.
 The model can suggest a built-in action, but it cannot invoke arbitrary APIs.
 When an action needs approval, Kora displays the request even in VoiceOnly
-mode, speaks it when speech is available, and briefly pauses listening while
+mode, speaks it when speech is available, and closes command capture while
 speaking to avoid hearing itself. Choose **Once**, **This session**,
 **Always**, or **Reject** on screen. You can also say **"Kora, approve once"**,
 **"Kora, approve for this session"**, **"Kora, always allow this"**, or
-**"Kora, reject"** after Kora resumes listening. The name is required by
+**"Kora, reject"** using a new push-to-talk activation. The name is required by
 default; the **Approvals** settings tab can allow unprefixed replies.
 Session approval lasts until Kora exits, restarts, or locks Windows through
 Kora. Always approval is stored on this device for that named action until
@@ -127,13 +130,13 @@ model requests. There is no cloud fallback.
 5. Select **Preview**.
 6. Select **Stop** if needed.
 
-Wake listening remains active during preview. Kora forces visual text when
+No ambient recognition runs during preview. Kora forces visual text when
 preview or response playback cannot be delivered.
 
 ## Keep Kora available
 
 Kora starts with its transparent presence hidden after successful voice
-readiness and keeps listening in the background. The presence and compact
+readiness and keeps its native controls available in the background. The presence and compact
 response surface appear only during interaction or when Kora has information to
 provide. Closing Settings, Documentation, or the response surface leaves Kora
 running. Use the tray icon to show Kora again. Choose **Exit Kora** from the

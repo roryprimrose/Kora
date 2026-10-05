@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.ViewModels;
 
-public sealed class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private const string ApplicationRestartAction = "application.restart";
     private const string AppearanceThemeConfigurationAction = "configuration.appearance-theme";
@@ -58,7 +58,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly ILocalModelReasoner localModelReasoner;
     private readonly IModelApprovalPreferences modelApprovalPreferences;
     private readonly IMicrophoneAccessService microphoneAccessService;
-    private readonly IVoiceRecognitionService voiceRecognition;
+    private readonly IActivatedVoiceRecognitionService voiceRecognition;
     private readonly ITextToSpeechService textToSpeech;
     private readonly IAssistantNamePreferences assistantNamePreferences;
     private readonly IAppearancePreferences appearancePreferences;
@@ -74,6 +74,17 @@ public sealed class MainViewModel : ObservableObject
     private readonly IApplicationInfo applicationInfo;
     private readonly ISecurityAuditLog securityAuditLog;
     private readonly ILogger<MainViewModel> logger;
+    private readonly IVoiceConsentPreferences voiceConsentPreferences;
+    private readonly IWindowsPrivacyObservationService privacyObservation;
+    private bool? voiceConsent;
+    private int voiceEnabled;
+    private long voiceRecoveryRevision;
+    private long microphoneTopologyRevision;
+    private bool lifecycleAdmissionClosed;
+    private bool hostExitRequested;
+    private int handoffPreparationActive;
+    private int privacyPresentationHeld;
+    private bool voiceStartupApplied;
     private MicrophoneDevice? selectedMicrophone;
     private SpeechProvider? selectedSpeechProvider;
     private SpeechVoice? selectedVoice;
@@ -169,7 +180,7 @@ public sealed class MainViewModel : ObservableObject
         ILocalModelReasoner localModelReasoner,
         IModelApprovalPreferences modelApprovalPreferences,
         IMicrophoneAccessService microphoneAccessService,
-        IVoiceRecognitionService voiceRecognition,
+        IActivatedVoiceRecognitionService voiceRecognition,
         ITextToSpeechService textToSpeech,
         IAssistantNamePreferences assistantNamePreferences,
         IAppearancePreferences appearancePreferences,
@@ -184,7 +195,9 @@ public sealed class MainViewModel : ObservableObject
         IUiDispatcher uiDispatcher,
         IApplicationInfo applicationInfo,
         ISecurityAuditLog securityAuditLog,
-        ILogger<MainViewModel> logger)
+        ILogger<MainViewModel> logger,
+        IVoiceConsentPreferences voiceConsentPreferences,
+        IWindowsPrivacyObservationService privacyObservation)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -211,13 +224,22 @@ public sealed class MainViewModel : ObservableObject
         this.applicationInfo = applicationInfo;
         this.securityAuditLog = securityAuditLog;
         this.logger = logger;
+        this.voiceConsentPreferences = voiceConsentPreferences;
+        this.privacyObservation = privacyObservation;
 
         ToggleListeningCommand = new AsyncCommand(
             ToggleListeningAsync,
-            () => EffectiveMicrophone is not null
-                  && !IsBusy
-                  && (IsListening
-                      || (IsVoiceActivationAvailable && !IsMicrophoneAccessDenied)));
+            () => !lifecycleAdmissionClosed && !IsBusy
+                  && (IsVoiceEnabled
+                      || (HasVoiceConsent && EffectiveMicrophone is not null
+                      && IsVoiceActivationAvailable && !IsMicrophoneAccessDenied)));
+        BeginPushToTalkCommand = new AsyncCommand(
+            BeginPushToTalkAsync,
+            () => IsVoiceEnabled && !IsListening && (!IsBusy || IsSpeaking) && !lifecycleAdmissionClosed);
+        EndPushToTalkCommand = new AsyncCommand(EndPushToTalkAsync);
+        WithdrawVoiceConsentCommand = new AsyncCommand(() => SetVoiceConsentAsync(false));
+        EnableVoiceConsentCommand = new AsyncCommand(() => SetVoiceConsentAsync(true));
+        RefreshMicrophonesCommand = new AsyncCommand(RefreshMicrophonesAsync);
         RefreshCommand = new AsyncCommand(
             RefreshAsync,
             () => !IsBusy && !IsLocalModelSetupActive && !IsPowerShellSetupActive
@@ -228,7 +250,7 @@ public sealed class MainViewModel : ObservableObject
                   && (!IsBusy || IsSetupStatusCommand()));
         PreviewVoiceCommand = new AsyncCommand(
             PreviewVoiceAsync,
-            () => IsSpeechOutputAvailable && !IsBusy);
+            () => IsSpeechOutputAvailable && !IsBusy && !IsListening && !voiceRecognition.IsListening);
         StopSpeechCommand = new AsyncCommand(StopSpeakingAsync, () => IsSpeaking);
         DownloadSpeechProviderCommand = new AsyncCommand(
             DownloadSpeechProviderAsync,
@@ -302,9 +324,12 @@ public sealed class MainViewModel : ObservableObject
 
         voiceRecognition.TranscriptRecognized += OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed += OnRecognitionFailed;
+        voiceRecognition.CaptureStateChanged += OnCaptureStateChanged;
+        voiceRecognition.RecognitionCompleted += OnRecognitionCompleted;
         callStateService.StateChanged += OnCallStateChanged;
         dependencyBootstrapper.Tasks.Changed += (_, _) =>
             uiDispatcher.Post(() => OnPropertyChanged(nameof(SetupTasks)));
+        privacyObservation.Changed += OnWindowsPrivacyChanged;
     }
 
     public MicrophoneAccessStatus MicrophoneAccessStatus
@@ -349,8 +374,9 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        if (!AllowVoiceActivationDuringCalls && IsListening)
+        if (!AllowVoiceActivationDuringCalls && IsVoiceEnabled)
         {
+            HoldVoiceInput("Microphone closed · call policy blocks voice activation");
             await StopListeningAsync();
         }
 
@@ -626,6 +652,16 @@ public sealed class MainViewModel : ObservableObject
         Enum.GetValues<ApplicationThemeMode>();
 
     public AsyncCommand ToggleListeningCommand { get; }
+
+    public AsyncCommand BeginPushToTalkCommand { get; }
+
+    public AsyncCommand EndPushToTalkCommand { get; }
+
+    public AsyncCommand WithdrawVoiceConsentCommand { get; }
+
+    public AsyncCommand EnableVoiceConsentCommand { get; }
+
+    public AsyncCommand RefreshMicrophonesCommand { get; }
 
     public AsyncCommand RefreshCommand { get; }
 
@@ -954,19 +990,31 @@ public sealed class MainViewModel : ObservableObject
         get => selectedMicrophone;
         set
         {
+            if (!suppressAudioDevicePreferenceSave && value is not null && !Microphones.Contains(value))
+            {
+                ApplicationLog.Information(logger, "Rejected a stale microphone selection; refresh devices");
+                ShowFailure("The microphone list changed.", "Refresh and select the current endpoint again.");
+                return;
+            }
             var selectionChanged = !string.Equals(
                 selectedMicrophone?.Id,
                 value?.Id,
                 StringComparison.Ordinal);
+            if (selectionChanged && !suppressAudioDevicePreferenceSave)
+            {
+                HoldVoiceInput("Microphone changed · use Enable listening");
+            }
             if (SetProperty(ref selectedMicrophone, value))
             {
                 ToggleListeningCommand.NotifyCanExecuteChanged();
                 UpdateMicrophoneAvailability(selectedMicrophoneUnavailable: false);
                 if (selectionChanged
-                    && !suppressAudioDevicePreferenceSave
-                    && value is not null)
+                    && !suppressAudioDevicePreferenceSave)
                 {
-                    SaveMicrophonePreference(value);
+                    if (value is not null)
+                    {
+                        SaveMicrophonePreference(value);
+                    }
                 }
             }
         }
@@ -1232,7 +1280,8 @@ public sealed class MainViewModel : ObservableObject
     private MicrophoneDevice? EffectiveMicrophone =>
         SelectedMicrophone?.IsSystemDefault == true
             ? systemDefaultMicrophone
-            : SelectedMicrophone;
+            : SelectedMicrophone is not null && Microphones.Contains(SelectedMicrophone)
+                ? SelectedMicrophone : null;
 
     private AudioOutputDevice? EffectiveOutputDevice =>
         SelectedOutputDevice?.IsSystemDefault == true
@@ -1246,7 +1295,10 @@ public sealed class MainViewModel : ObservableObject
         || !IsSpeechOutputAvailable;
 
     public bool IsSpeechResponseEnabled =>
-        EffectiveResponseMode != ResponseOutputMode.VisualOnly
+        !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
+        && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
+        && !voiceRecognition.IsListening
+        && EffectiveResponseMode != ResponseOutputMode.VisualOnly
         && !IsCallVisualOverrideActive
         && IsSpeechOutputAvailable;
 
@@ -1457,10 +1509,28 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public string ListeningButtonText => IsListening ? "Disable listening" : "Enable listening";
+    public bool HasVoiceConsent => voiceConsent == true;
+
+    public bool NeedsVoiceConsent => voiceConsent is null;
+
+    public bool IsVoiceEnabled => Volatile.Read(ref voiceEnabled) != 0;
+
+    public long MicrophoneTopologyRevision => Interlocked.Read(ref microphoneTopologyRevision);
+
+    public string VoiceConsentDescription =>
+        "Voice consent is saved for this Windows profile and device. Activated command audio is processed locally. "
+        + "Production wake detection is not available in this build: no ambient audio is recorded or transcribed. "
+        + "Use explicit push-to-talk after enabling listening. Disable listening closes capture for this run; "
+        + "Withdraw consent keeps it closed across restart. Lock, disconnect, suspend and device/permission loss require explicit recovery.";
+
+    public string ListeningButtonText => IsVoiceEnabled ? "Disable listening" : "Enable listening";
 
     public string ListeningStatus => IsListening
-        ? $"Wake listening on {SelectedMicrophone!.Name}"
+        ? $"Push-to-talk capture on {SelectedMicrophone!.Name}"
+        : IsVoiceEnabled
+            ? $"Push-to-talk ready on {SelectedMicrophone!.Name} · microphone closed · production wake unavailable"
+        : !HasVoiceConsent
+            ? "Microphone closed · ongoing voice consent not granted"
         : IsMicrophoneAccessDenied
             ? "Microphone closed · Windows access is blocked"
             : listeningPauseReason
@@ -1473,10 +1543,31 @@ public sealed class MainViewModel : ObservableObject
         isInitializing = true;
         try
         {
+            try
+            {
+                voiceConsent = voiceConsentPreferences.Load();
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                ApplicationLog.Error(logger, exception, "Loading ongoing voice consent");
+                voiceConsent = false;
+                HoldVoiceInput("Microphone closed · saved consent could not be read");
+                await RefreshAsync();
+                ShowFailure("Voice consent could not be read.", exception.Message);
+                voiceStartupApplied = true;
+                return;
+            }
+            OnPropertyChanged(nameof(HasVoiceConsent));
+            OnPropertyChanged(nameof(NeedsVoiceConsent));
             await RefreshAsync();
+            if (voiceStartupApplied)
+            {
+                return;
+            }
+            voiceStartupApplied = true;
             if (State != AssistantState.Failure
                 && EffectiveMicrophone is not null
-                && !IsListening)
+                && !IsVoiceEnabled && HasVoiceConsent)
             {
                 if (IsMicrophoneAccessDenied)
                 {
@@ -1504,6 +1595,14 @@ public sealed class MainViewModel : ObservableObject
                 }
 
                 await StartListeningAsync();
+            }
+            else if (!HasVoiceConsent)
+            {
+                ShowInformation("Voice consent is required.", VoiceConsentDescription);
+                if (NeedsVoiceConsent)
+                {
+                    RequestVoiceRecovery();
+                }
             }
         }
         finally
@@ -1770,6 +1869,13 @@ public sealed class MainViewModel : ObservableObject
 
     public void ShowApplication()
     {
+        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
+        {
+            ApplicationLog.Information(logger, "Denied revealing the application outside an eligible Windows session");
+            return;
+        }
+        Interlocked.Exchange(ref privacyPresentationHeld, 0);
+        OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
         if (State == AssistantState.Hidden)
         {
             State = AssistantState.Information;
@@ -1792,8 +1898,13 @@ public sealed class MainViewModel : ObservableObject
         HidePresentation();
     }
 
-    public void ShowPresentation() =>
-        WindowActionRequested?.Invoke(this, WindowAction.Show);
+    public void ShowPresentation()
+    {
+        if (!IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked())
+        {
+            WindowActionRequested?.Invoke(this, WindowAction.Show);
+        }
+    }
 
     public void HidePresentation() =>
         WindowActionRequested?.Invoke(this, WindowAction.Hide);
@@ -1801,7 +1912,17 @@ public sealed class MainViewModel : ObservableObject
     public void NotifyPresenceInteraction() =>
         WindowActionRequested?.Invoke(this, WindowAction.ShowPresence);
 
-    public void ShowSettings() => SettingsRequested?.Invoke(this, EventArgs.Empty);
+    public void ShowSettings()
+    {
+        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
+        {
+            ApplicationLog.Information(logger, "Denied opening settings outside an eligible Windows session");
+            return;
+        }
+        Interlocked.Exchange(ref privacyPresentationHeld, 0);
+        OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+        SettingsRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     public void ShowReadiness() => ReadinessRequested?.Invoke(this, EventArgs.Empty);
 
@@ -1920,6 +2041,11 @@ public sealed class MainViewModel : ObservableObject
     public async Task ConfirmGrantChangeAsync(
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
+        if (!IsHostInputEligible)
+        {
+            ApplicationLog.Information(logger, "Denied grant confirmation outside the eligible host generation");
+            return;
+        }
         if (pendingGrantChange is not { } change)
         {
             throw new InvalidOperationException("No grant change is awaiting confirmation.");
@@ -1940,6 +2066,11 @@ public sealed class MainViewModel : ObservableObject
         }
         if (!ReferenceEquals(pendingGrantChangeAudit, approval))
         {
+            return;
+        }
+        if (!IsHostInputEligible)
+        {
+            ApplicationLog.Information(logger, "Denied grant confirmation after a Windows privacy transition");
             return;
         }
 
@@ -2182,6 +2313,10 @@ public sealed class MainViewModel : ObservableObject
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
         ApplicationLog.Information(logger, "Kora exit was requested");
+        hostExitRequested = true;
+        lifecycleAdmissionClosed = true;
+        HoldVoiceInput("Microphone closed · application exiting");
+        textToSpeech.InvalidateOutput();
         await StopAudioAsync(fromModelActionDispatch);
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
@@ -2289,6 +2424,8 @@ public sealed class MainViewModel : ObservableObject
 
             var savedMicrophoneId = audioDevicePreferences.LoadMicrophoneId();
             var microphones = voiceRecognition.GetMicrophones();
+            Interlocked.Increment(ref microphoneTopologyRevision);
+            OnPropertyChanged(nameof(MicrophoneTopologyRevision));
             Microphones.Clear();
             Microphones.Add(SystemAudioDevices.Microphone);
             foreach (var microphone in microphones)
@@ -2424,9 +2561,10 @@ public sealed class MainViewModel : ObservableObject
                     (0, _, _) => $"Connect a microphone and refresh. {AssistantName} has not opened an audio capture device.",
                     (_, 0, _) => "Install a Windows text-to-speech voice in Settings, then refresh. Typed and visual commands remain available.",
                     (_, _, 0) => "Connect or enable a Windows audio output device, then refresh. Typed and visual commands remain available.",
-                    _ => "Listening starts automatically on the selected microphone. No model or network is required for built-in commands.",
+                    _ => "With saved voice consent, safe startup enables push-to-talk. Ambient wake is unavailable; the microphone stays closed until explicit activation.",
                 };
             PresentResponse(AssistantState.Information, setupTitle, setupBody);
+            OnPropertyChanged(nameof(MicrophoneTopologyRevision));
             ApplicationLog.EnvironmentRefreshCompleted(
                 logger,
                 microphones.Count,
@@ -2472,8 +2610,9 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task ToggleListeningAsync()
     {
-        if (IsListening)
+        if (IsVoiceEnabled)
         {
+            HoldVoiceInput("Microphone closed · listening was disabled manually");
             await StopListeningAsync();
             SetListeningPauseReason(
                 "Microphone closed · listening was disabled manually");
@@ -2490,11 +2629,34 @@ public sealed class MainViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            await StartVoiceRecognitionAsync();
+            var revision = Interlocked.Read(ref voiceRecoveryRevision);
+            var privacy = privacyObservation.Refresh();
+            MicrophoneAccessStatus = microphoneAccessService.GetStatus();
+            if (!HasVoiceConsent || EffectiveMicrophone is null || MicrophoneAccessStatus.State != MicrophoneAccessState.Allowed
+                || !IsVoiceActivationAvailable || lifecycleAdmissionClosed
+                || !privacy.CanCaptureFrom(SelectedMicrophone!)
+                || !sessionController.IsCurrentSessionUnlocked())
+            {
+                HoldVoiceInput("Microphone closed · readiness/session gate failed");
+                await StopListeningAsync();
+                ShowFailure("Listening cannot be enabled.",
+                    "Review voice consent, microphone permission, endpoint and unlocked Windows session, then explicitly enable listening.");
+                return;
+            }
+            if (revision != Interlocked.Read(ref voiceRecoveryRevision))
+            {
+                ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
+                return;
+            }
+            Interlocked.Exchange(ref voiceEnabled, 1);
+            Interlocked.Exchange(ref privacyPresentationHeld, 0);
+            OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+            NotifyVoiceEnablementChanged();
+            SetListeningPauseReason(null);
             PresentResponse(
-                AssistantState.Listening,
-                "I'm listening.",
-                $"Say “{AssistantName}” followed by a supported command. Recognition stays local to Windows.");
+                AssistantState.Information,
+                "Push-to-talk is ready.",
+                "The microphone remains closed until you press and hold Push to talk. Production wake detection is unavailable.");
         }
         catch (ArgumentOutOfRangeException exception)
         {
@@ -2515,19 +2677,11 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task StopListeningAsync()
     {
+        Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
+        voiceRecognition.InvalidateCapture();
         await voiceRecognition.StopAsync();
         IsListening = false;
         ApplicationLog.Information(logger, "Voice activation stopped");
-    }
-
-    private async Task StartVoiceRecognitionAsync()
-    {
-        var microphone = SelectedMicrophone!;
-        var phrases = GetRecognitionPhrases();
-        await voiceRecognition.StartAsync(microphone, phrases, AssistantName);
-        IsListening = true;
-        SetListeningPauseReason(null);
-        ApplicationLog.Information(logger, "Voice activation started on the selected microphone");
     }
 
     private async Task DownloadSpeechProviderAsync()
@@ -2782,6 +2936,11 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task PreviewVoiceAsync()
     {
+        if (!IsHostInputEligible)
+        {
+            ApplicationLog.Information(logger, "Denied voice preview outside the eligible host generation");
+            return;
+        }
         var previewText = $"Hello, I'm {AssistantName}.";
         IsBusy = true;
         IsSpeaking = true;
@@ -2792,6 +2951,10 @@ public sealed class MainViewModel : ObservableObject
                 previewText,
                 SelectedVoice!,
                 SelectedOutputDevice!);
+        }
+        catch (OperationCanceledException)
+        {
+            ApplicationLog.Information(logger, "Voice preview was invalidated by a privacy transition");
         }
         catch (ArgumentOutOfRangeException exception)
         {
@@ -2832,6 +2995,9 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task StopAudioAsync(bool skipCurrentModelDispatchWait = false)
     {
+        HoldVoiceInput("Microphone closed · host lifecycle stopped");
+        textToSpeech.InvalidateOutput();
+        var captureClosure = StopListeningAsync();
         Interlocked.Increment(ref stoppingAudioOperations);
         try
         {
@@ -2855,7 +3021,7 @@ public sealed class MainViewModel : ObservableObject
                 ClearPendingModelQuestion();
             }
 
-            await textToSpeech.StopAsync();
+            await Task.WhenAll(captureClosure, textToSpeech.StopAsync());
             activeSpokenText = null;
             IsSpeaking = false;
             if (activeReasoningCancellation is { } cancellation)
@@ -2873,7 +3039,6 @@ public sealed class MainViewModel : ObservableObject
                 await dispatchTask;
             }
 
-            await StopListeningAsync();
         }
         finally
         {
@@ -2900,8 +3065,9 @@ public sealed class MainViewModel : ObservableObject
     public async Task SetAllowVoiceActivationDuringCallsAsync(bool value)
     {
         AllowVoiceActivationDuringCalls = value;
-        if (!AllowVoiceActivationDuringCalls && IsCallDetected && IsListening)
+        if (!AllowVoiceActivationDuringCalls && IsCallDetected && IsVoiceEnabled)
         {
+            HoldVoiceInput("Microphone closed · voice activation paused during detected call");
             await StopListeningAsync();
         }
     }
@@ -2955,23 +3121,16 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        var restartListening = IsListening;
-        if (restartListening)
+        if (IsVoiceEnabled || IsListening)
         {
+            HoldVoiceInput("Microphone closed · activation name changed; use Enable listening");
             await StopListeningAsync();
         }
 
         ApplyAssistantNameState(normalizedName);
-        if (restartListening)
-        {
-            await StartListeningAsync();
-        }
-        else
-        {
-            ShowSuccess(
-                $"{AssistantName} is ready.",
-                $"The display name, command prefix, and spoken identity now use {AssistantName}.");
-        }
+        ShowSuccess(
+            $"{AssistantName} is ready.",
+            $"The display name, command prefix, and spoken identity now use {AssistantName}.");
     }
 
     private void SaveMicrophonePreference(MicrophoneDevice microphone)
@@ -3421,6 +3580,12 @@ public sealed class MainViewModel : ObservableObject
 
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs)
     {
+        if (!IsVoiceEnabled || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+            || eventArgs.Generation != voiceRecognition.Generation)
+        {
+            ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
+            return;
+        }
         try
         {
             await uiDispatcher.InvokeAsync(
@@ -3434,13 +3599,19 @@ public sealed class MainViewModel : ObservableObject
 
     private void OnRecognitionFailed(object? sender, VoiceRecognitionFailureEventArgs eventArgs)
     {
+        if (!IsVoiceEnabled
+            || Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
+        {
+            ApplicationLog.Debug(logger, "Rejected an unactivated or stale recognition failure");
+            return;
+        }
+        HoldVoiceInput("Microphone closed · command capture failed; use Enable listening");
         uiDispatcher.Post(() =>
         {
-            if (IsSpeaking)
+            if (!sessionController.IsCurrentSessionUnlocked() || IsPrivacyPresentationHeld)
             {
                 return;
             }
-
             if (pendingModelQuestion is { } question)
             {
                 ShowInformation("I didn't catch an option.",
@@ -3455,29 +3626,19 @@ public sealed class MainViewModel : ObservableObject
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs)
     {
+        if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
+            || !sessionController.IsCurrentSessionUnlocked())
+        {
+            ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
+            return;
+        }
+        if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
+        {
+            return;
+        }
+        IsListening = voiceRecognition.IsListening;
         if (IsSpeaking)
         {
-            if (!commandRouter.IsActivationPrefixed(
-                    eventArgs.Transcript,
-                    AssistantName))
-            {
-                ApplicationLog.Debug(
-                    logger,
-                    "Ignoring unprefixed recognition while speech output is active");
-                return;
-            }
-
-            if (activeSpokenText is not null
-                && commandRouter.ContainsNormalizedPhrase(
-                    activeSpokenText,
-                    eventArgs.Transcript))
-            {
-                ApplicationLog.Debug(
-                    logger,
-                    "Ignoring a recognition result that matches active speech output");
-                return;
-            }
-
             await textToSpeech.StopAsync();
             activeSpokenText = null;
             IsSpeaking = false;
@@ -3494,6 +3655,11 @@ public sealed class MainViewModel : ObservableObject
         float confidence,
         SecurityAuditInitiator initiator)
     {
+        if (!IsHostInputEligible)
+        {
+            ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
+            return;
+        }
         if (pendingModelQuestion is { } question)
         {
             if (initiator != SecurityAuditInitiator.VoiceCommand
@@ -3910,20 +4076,14 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task SpeakModelApprovalPromptAsync()
     {
-        if (!IsSpeechResponseEnabled)
-        {
-            if (IsModelQuestionPending && IsListening)
-            {
-                await StopListeningAsync();
-                await StartVoiceRecognitionAsync();
-            }
-            return;
-        }
-
         var wasListening = IsListening;
         if (wasListening)
         {
             await StopListeningAsync();
+        }
+        if (!IsSpeechResponseEnabled)
+        {
+            return;
         }
 
         try
@@ -3965,18 +4125,8 @@ public sealed class MainViewModel : ObservableObject
         }
         finally
         {
-            if (wasListening)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(250));
-            }
-
-            if (wasListening
-                && !IsListening
-                && Volatile.Read(ref stoppingAudioOperations) == 0
-                && sessionController.IsCurrentSessionUnlocked())
-            {
-                await StartVoiceRecognitionAsync();
-            }
+            // A question never opens capture; each voice reply needs a new explicit activation.
+            NotifyVoiceEnablementChanged();
         }
     }
 
@@ -4000,6 +4150,11 @@ public sealed class MainViewModel : ObservableObject
         ModelApprovalScope scope,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
+        if (!IsHostInputEligible)
+        {
+            ApplicationLog.Information(logger, "Denied model-action approval outside the eligible host generation");
+            return;
+        }
         var action = ValidateModelActionApproval(
             scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
 
@@ -4010,6 +4165,11 @@ public sealed class MainViewModel : ObservableObject
             await StopModelApprovalPromptAsync();
             if (!ReferenceEquals(pendingModelActionAudit, approval))
             {
+                return;
+            }
+            if (!IsHostInputEligible)
+            {
+                ApplicationLog.Information(logger, "Denied model-action approval after a Windows privacy transition");
                 return;
             }
 
@@ -4156,6 +4316,10 @@ public sealed class MainViewModel : ObservableObject
                 activeSpeechVoice!,
                 SelectedOutputDevice!);
         }
+        catch (OperationCanceledException)
+        {
+            ApplicationLog.Information(logger, "Spoken response was invalidated by a privacy transition");
+        }
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Playing a response with the selected speech voice");
@@ -4287,6 +4451,11 @@ public sealed class MainViewModel : ObservableObject
         CommandDefinition command,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.System)
     {
+        if (!IsHostInputEligible)
+        {
+            ApplicationLog.Information(logger, "Denied command dispatch outside the eligible host generation");
+            return;
+        }
         ApplicationLog.BuiltInActionExecuting(logger, command.Action);
         switch (command.Action)
         {
@@ -4355,11 +4524,11 @@ public sealed class MainViewModel : ObservableObject
                         ? $"Setting up {active.Name}."
                         : outstanding.Length > 0
                             ? "Setup needs attention."
-                            : IsListening ? "Waiting for your command." : "Voice is not active.",
+                            : IsVoiceEnabled ? "Waiting for your command." : "Voice is not active.",
                     outstanding.Length > 0
                         ? string.Join(" ", outstanding.Select(task =>
                             $"{task.Name}: {task.State} — {task.Detail}"))
-                        : IsListening ? ListeningStatus : "Enable listening or use the typed proof field.");
+                        : IsVoiceEnabled ? ListeningStatus : "Enable listening or use the typed proof field.");
                 break;
             case BuiltInAction.ShowCurrentTaskProgress:
                 var currentTask = dependencyBootstrapper.Tasks.ActiveTask;
@@ -4623,6 +4792,7 @@ public sealed class MainViewModel : ObservableObject
             || !IsSpeechOutputAvailable;
         NotifyOutputPolicyChanged();
         if (!isInitializing
+            && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
             && requestWindow
             && responseState != AssistantState.Listening
             && IsVisualResponseVisible)

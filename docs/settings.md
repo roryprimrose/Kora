@@ -13,7 +13,7 @@ state as the presence and response surfaces.
 ## Approvals
 
 Model-suggested actions that need approval offer **Once**, **This session**,
-**Always**, and **Reject** on a visible response card. Kora also accepts spoken
+**Always**, and **Reject** on a visible response card. Kora also accepts newly activated push-to-talk
 replies after it finishes speaking the approval question. By default, say the
 assistant name first: **"Kora, approve once"**, **"Kora, approve for this
 session"**, **"Kora, always allow this"**, or **"Kora, reject"**. The
@@ -131,17 +131,24 @@ When access is blocked, select **Open Windows microphone settings** in Kora,
 enable **Microphone access** and **Let desktop apps access your microphone**,
 then refresh readiness.
 
-### Voice activation
+### Voice consent and activation
 
-- Listening starts automatically when Kora starts and the microphone is ready.
+- First launch requires explicit ongoing consent. Saved consent allows safe
+  startup to arm push-to-talk, never ambient command transcription.
+- Production wake is unavailable. Hold **Push to talk** (mouse, Space or Enter),
+  speak one command, then release.
 - The status explains when listening is paused because Windows reports the
   session as locked, microphone access is blocked, call policy prevents
   activation, or listening was disabled manually.
-- **Enable listening** reopens the selected microphone after manual disablement.
+- **Enable listening** re-arms push-to-talk after manual disablement or privacy recovery.
 - **Disable listening** releases it.
+- **Withdraw voice consent** persists the closed choice across restart.
 
 Manual disablement is not persisted across application restarts; Kora returns
-to its default listening behavior on the next start.
+to fresh-gated push-to-talk enablement on the next ordinary start with saved consent.
+Unlock, resume, restored permission and device reconnection require explicit
+Enable listening in the same run. Device selection or refresh does not release
+that hold.
 
 ### Speech provider
 
@@ -161,14 +168,12 @@ Provider and voice selections are stored on this device.
 ### Speech voice
 
 - Select a voice supplied by the chosen provider.
-- **Preview** speaks a short identity phrase with the selected voice and output
-  while wake listening remains active.
+- **Preview** speaks a short identity phrase with the selected voice and output.
+  No ambient recognition is active.
 - **Stop** cancels active speech.
 
-While speech is playing, start a command with the configured assistant name to
-interrupt it, for example **"Kora, stop"** or **"Kora, open settings"**.
-Unprefixed recognition is ignored during playback to reduce accidental
-self-triggering.
+Push-to-talk stops current speech before opening command capture.
+**Stop speaking** is also available from the tray without speech or a model.
 
 ### Audio output
 

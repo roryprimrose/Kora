@@ -204,7 +204,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Speech &amp; audio">
+      <TabItem x:Name="SpeechAudioTab" Header="Speech &amp; audio">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
@@ -269,15 +269,25 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Voice activation" Classes="settings-title" />
+                  <TextBlock Text="Voice consent and activation" Classes="settings-title" />
                   <TextBlock Text="{Binding ListeningStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding VoiceConsentDescription}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
-                <Button
-                    Grid.Column="1"
-                    Classes="primary"
-                    Content="{Binding ListeningButtonText}"
-                    Command="{Binding ToggleListeningCommand}"
-                    VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                  <Button Classes="primary" Content="Enable voice (save consent)" Command="{Binding EnableVoiceConsentCommand}" IsVisible="{Binding !HasVoiceConsent}" />
+                  <Button Content="Continue without voice" Command="{Binding WithdrawVoiceConsentCommand}" IsVisible="{Binding !HasVoiceConsent}" />
+                  <Button Content="Refresh microphones" Command="{Binding RefreshMicrophonesCommand}" />
+                  <Button Classes="primary" Content="{Binding ListeningButtonText}" Command="{Binding ToggleListeningCommand}" IsVisible="{Binding HasVoiceConsent}" />
+                  <Button Content="Withdraw voice consent" Command="{Binding WithdrawVoiceConsentCommand}" IsVisible="{Binding HasVoiceConsent}" />
+                  <Button
+                      Content="Push to talk (hold)"
+                      IsEnabled="{Binding IsVoiceEnabled}"
+                      PointerPressed="OnPushToTalkPressed"
+                      PointerReleased="OnPushToTalkReleased"
+                      PointerCaptureLost="OnPushToTalkCaptureLost"
+                      KeyDown="OnPushToTalkKeyDown"
+                      KeyUp="OnPushToTalkKeyUp" />
+                </StackPanel>
               </Grid>
             </Border>
 

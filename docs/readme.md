@@ -26,13 +26,15 @@ planned, not available.
    PowerShell is not required to use local reasoning.
 3. Leave the microphone and audio output on **System** to follow the Windows
    defaults, or choose specific devices.
-4. Kora starts listening automatically when the selected microphone is ready.
-5. Say **"Kora, what can you do?"** or enter a command in the typed command box.
+4. Review ongoing voice consent in Speech & audio, or continue without voice.
+5. Hold **Push to talk**, say **"Kora, what can you do?"**, then release, or
+   enter a typed command. Production wake is unavailable; ambient audio is not
+   transcribed.
 6. Select **Disable listening** whenever you want Kora to release the microphone.
 7. Use **Settings** to change the theme, assistant name, speech provider,
    voice, devices, response output, and detected-call behavior.
 
-Listening is Kora's default startup behavior and primary interaction mode. A
+Saved consent permits safe startup to arm push-to-talk without recording. A
 device change by itself does not open capture after you have disabled listening
 for the current run; use **Enable listening** to resume it.
 
@@ -52,7 +54,7 @@ for the current run; use **Enable listening** to resume it.
 ## Open this guide
 
 - Right-click the Kora tray icon and select **Documentation**.
-- Say **"Kora, open documentation"** while listening is enabled.
+- Use push-to-talk and say **"Kora, open documentation"** while voice is enabled.
 - Enter **open documentation** in the typed command box.
 
 If you renamed the assistant, use the configured name instead of Kora.
@@ -67,9 +69,8 @@ If you renamed the assistant, use the configured name instead of Kora.
 - Automatic call detection is not currently available. The call-aware settings
   take effect when a supported detector reports an Active or Suspected call.
 - Ordinary responses while microphone capture is active are visual; previews
-  and spoken approval prompts manage capture separately. Wake listening
-  remains active during previews and ordinary playback for prefixed
-  interruptions.
+  and spoken approval prompts close capture. New voice replies require new
+  explicit push-to-talk. No ambient grammar runs as a substitute wake engine.
 - Shutdown and computer-restart commands create visible proposals only. They do
   not send a power request to Windows.
 - Physical speaker failures beyond Windows cannot always be detected. A powered

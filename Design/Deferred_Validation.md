@@ -1,8 +1,9 @@
 # Deferred Proof Validation
 
 Status: outstanding validation register, not passed acceptance or permission
-to run a test. Partial feasibility evidence may merge while the affected
-capabilities remain disabled and their decisions/gates stay open.
+to run a test. Partial feasibility evidence and scoped implementation may merge while
+unproven capabilities remain gated and their decisions/acceptance gates stay
+open. Merge is not certification for production release.
 
 Use this page to plan remaining validation. Safe file/database-only scratch
 reruns may run remotely while the physical console is locked; only rows
@@ -24,6 +25,7 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 | R02 storage/key | [Synthetic storage proof and safe Windows reruns](../experiments/r02-storage-proof/README.md#reproduce); authenticated content, DPAPI/key-file ACLs and transaction/artifact interruption evidence | [Storage admission follow-up](#storage-admission-follow-up): maintained native selection, installed x64/x86 loading, production profile-path/CurrentUser/permission integration, and integrated recovery/deletion. Safe proof reruns require a loaded Windows profile, not an unlocked console. Routine second-account OS-denial trials are optional for profile-local storage. | D-009; R02 native admission, R04 integration and R12 lifecycle/deletion remain open; no production store is enabled |
 | R02 Windows containment | [Fixed owned-scratch reproduction](../experiments/r02-containment-proof/README.md#reproduce); partial OS denials and lifetime/Unknown receipts already observed | [Containment outstanding-testing checklist](../experiments/r02-containment-proof/README.md#outstanding-testing-checklist): supported-OS repeat, attributable network denial, dependency/control mechanism, independent deployment and aliases, helper contracts, actual controlled effects and host-death/race recovery. Most rows require a new bounded fixture or instrumented implementation; the current runner is not a general executor. | D-013 and [W1-W4](Implementation_Roadmap.md#r02-windows-containment-follow-up); R11/R16/R17 exposure remains gated |
 | R02 distribution | [Draft proof #24](https://github.com/roryprimrose/Kora/pull/24); separate build/inspection evidence, not an implementation dependency of the containment proof | Its approved scope is build/inspect only. Linux package construction and actual Windows installation, effective ACL/token protection, native/runtime-only launch and recovery require separate validation. Before any real installation/launch/registry/privileged trial, obtain a new scoped approval and use a disposable lab deployment. Follow the distribution proof's checklist when its documentation is integrated. | D-005/R17; no production worker/catalogue acceptance from package inspection or the absence of those components |
+| R03 Windows ownership/audio privacy | [Implementation PR #26](https://github.com/roryprimrose/Kora/pull/26), portable policy/race tests, non-disruptive Windows object/enumeration tests and x64/x86 builds/publishes; not live microphone or lifecycle evidence | [R03 interactive checklist](#r03-windows-ownership-and-audio-privacy). Prepare an instrumented, non-elevated test host and obtain separate approval for each capture/playback, launch/handoff and OS-transition trial. Production wake is not selected or enabled by R03. | R03 real-adapter acceptance; capture release within 500 ms of the observed lock event in every reference trial, takeover/return, hardware/offline ASR, native recovery and cross-architecture evidence remain open |
 
 The speech checklist remains the owner of detailed acoustic procedures; this
 register does not replace it or weaken its consent requirements. The
@@ -54,6 +56,61 @@ Such trials need approved real accounts and explicit fixture/effect scope;
 the retained [optional handoff protocol](../experiments/r02-storage-proof/README.md#optional-real-cross-user-handoff-protocol)
 does not create an account or grant authority to test another profile.
 Per-user DPAPI is not same-user worker containment; D-013/W1-W4 remain separate.
+
+## R03 Windows Ownership and Audio Privacy
+
+Status: **all interactive rows below Not run**. The operator deferred live
+trials; no microphone capture/playback, app launch, lock/disconnect/suspend,
+takeover/return or crash-recovery trial was performed for PR #26. Tests using
+fakes and native object/device enumeration are supplementary only. Publishing
+two architectures does not prove cross-build transfer or acoustic behavior.
+
+The scoped implementation has saved device/profile-local microphone consent,
+fresh-gated ordinary startup, run-scoped explicit recovery, held PTT, bounded
+generation-tagged capture, external privacy observation and native recovery.
+It does not implement/select production wake, durable sessions, general grants,
+model adapters or script execution. Do not exercise those future capabilities
+or infer that the R02 containment experiment is part of this host.
+
+### Preparation and Approval
+
+- Record exact source/artifact hashes, supported Windows servicing build, CPU,
+  memory, power profile, physical endpoint IDs, runtime/recognizer versions,
+  operator and participants. Use disposable profiles/data and synthetic commands.
+- Obtain fresh, bounded test approval covering participants/bystanders,
+  microphone/playback endpoint and volume, duration, retention/deletion and a
+  visible immediate stop path. Saved microphone consent is not trial approval.
+- Obtain separate explicit approval before app launch/ownership transfer,
+  process termination or lock/disconnect/suspend. Being unlocked, approving this
+  documentation or merging the PR authorizes none of those actions.
+- Prepare monotonic timestamp hooks for OS notification, capture handle release,
+  buffer clearing, last output sample and dispatch receipts. If hooks, native
+  recovery or stable process identities are missing, mark the row Blocked.
+  Measure only the owned host; never terminate unrelated applications by name.
+- Start capture only as the verified non-elevated owner in an authoritative
+  unlocked/connected session. Record RDP/redirection/virtual endpoints separately;
+  they do not certify physical headset or speaker/microphone behavior.
+
+### Interactive Trials and Closure Evidence
+
+| ID | Procedure and required result | Closure evidence |
+|---|---|---|
+| A01 - Consent and ordinary startup | On a clean disposable profile, enumerate without capture; exercise grant/decline, ordinary startup with saved consent, run disable/re-enable and persistent withdrawal/restart. Distinguish armed PTT from actual recording. Permission/device availability alone grants no capture. Debug/release partitions do not copy consent. | Consent/profile/build identities, individual capture-open/close observations and fresh-gate decisions. Withdrawal or persistence failure never keeps capture open. |
+| A02 - Explicit command and stale generations | Hold mouse/Space/Enter PTT and use harmless commands such as help/open settings; release or lose focus/close the control. Exercise early result during open, early release, empty speech, maximum duration, failed open and delayed/duplicate callbacks. Verify first command words, bound receipts and exactly one admitted dispatch. | Per-activation generation, sample/queue/transcript bounds and timestamps; no unactivated audio in command transcription and no retired callback dispatch. Hardware/offline Windows ASR behavior is measured, not inferred from fakes. |
+| A03 - External session privacy | Separately approve Win+L/idle lock, disconnect, suspend/resume and applicable session transitions while an owned activation/output is active. Capture closes, buffers clear, output stops and sensitive presentation hides. Unlock/reconnect/resume requires explicit recovery and cannot replay audio/approvals. | **Capture released within 500 ms from the observed lock event in every reference trial**. Record OS event-to-notification delay separately, plus each observed-event-to-release duration, buffer clearing, last output sample and zero stale dispatch; no averages/p95 substitution for this target. |
+| A04 - Permission and device changes | With approved capture/output fixtures, revoke/restore desktop microphone permission; remove/disable pinned endpoints; change System-default input/output; hot-plug and refresh. Missing pinned endpoints cannot select a same-name substitute. Restored readiness never removes a run hold. | Endpoint/permission revisions, native failure/closure receipts, individual timings, bounded audio clearing, stopped output without replay and explicit recovery. Do not change global privacy settings without separately scoped approval. |
+| A05 - Cross-build owner, handoff and return | Launch validated same-build and different-build candidates across approved paths/versions/x64/x86. Verify activation without startup argument dispatch, one assistant owner/tray, inactive candidate, native default-deny approval, active-work refusal and full release before transfer. Exercise decline, expiry, candidate death, lock during approval, abort and explicit exact-original return. | OS-authenticated process/SID/session/creation/content identities, approvals, held-handle/owner epochs, actual desktop/service/capture quiescence and zero simultaneous owners. Return is lifecycle-only before explicit acceptance; no task/grant/audio/consent transfer. |
+| A06 - Unclean ownership and failure recovery | In a disposable instrumented host only, separately approve stable-identity process termination and preparation/transfer failure. Unknown/orphaned effects must block automatic crash takeover/return. Changed/elevated/cross-session/unknown identities deny. | Correlated process/job/resource outcomes, continuity marker and explicit blocker/reconciliation receipts; process death alone is not proof of worker quiescence or permission to delete a marker. |
+| A07 - Native fallback and private output | Without model/network/optional speech dependencies, exercise tray/settings refresh, revision-bound endpoint selection, enable/disable, PTT, Stop speaking, keyboard/focus/screen-reader paths and locked presentation denial. Test in-flight/queued synthesis and route changes so retired audio cannot start late. | Native UI/accessibility observations and last-output-sample/generation receipts under supported headset and speaker/microphone setups; stale menus do not authorize a substitute. Production wake, acoustic playback rejection and interruption quality remain owned by the separate speech gates. |
+
+For every row, retain approval scope, artifact/revision and machine identities,
+trial ID/expected versus actual result, individual timing/dispatch/resource
+receipts, positive controls, native errors and cleanup. Keep raw recordings
+local under agreed retention; commit only reviewed, content-minimizing/redacted
+measurements. Add a new dated run, not a replacement for historical evidence.
+Mark Pass/Fail/Blocked/Not run and close only the corresponding acceptance gate
+when its complete evidence passes. No claim of overall R03 or A0/A1 acceptance
+is made by this handoff.
 
 ## Interactive Session Workflow
 
@@ -92,6 +149,19 @@ scope and permissions and returns success only for that bounded proof;
 optional OS-boundary corroboration is not relabelled as passed.
 Neither merging its design direction nor a successful synthetic run closes
 S1-S4 or D-009.
+
+On 2026-10-05 the user requested rebasing R03 onto main and adding its deferred
+interactive testing alongside the other proofs so the scoped PR can merge.
+The authorized merge scope is implementation plus this actionable evidence
+handoff, **not completion of interactive acceptance or a production release**.
+The live A01-A07 rows remain capability/release blockers, not prerequisites for
+merging that limited scope. This does not disable the explicitly consented PTT
+implementation or mislabel it as proven wake/audio privacy; deployment/release
+acceptance still requires its real-boundary evidence. Production wake remains
+unavailable. Normal build/test/100% line-and-branch coverage checks and required
+reviews must pass; documenting deferred trials cannot waive CI failures or
+authorize disruptive testing. Overall roadmap/decision-register acceptance
+consolidation remains with integration review.
 
 No live speech, protected installation, privileged diagnostics or disruptive
 computer-control validation was performed by adding this register.

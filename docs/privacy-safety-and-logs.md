@@ -2,8 +2,9 @@
 
 ## Local speech
 
-Built-in speech recognition uses the installed Windows recognizer and a
-host-owned fixed grammar. The built-in text-to-speech provider uses installed
+Explicitly activated command recognition uses the installed Windows recognizer.
+Ambient audio never enters its command transcription pipeline; production wake
+is unavailable, not the old ambient grammar. The built-in text-to-speech provider uses installed
 Windows SAPI voices. Kora does not need a cloud account or network connection
 for these features.
 
@@ -57,8 +58,8 @@ consent, and successful installation is verified. This setup does not
 authorize or execute any skill or built-in `.ps1`, nor gate local inference.
 
 The approval request always appears on screen, including in VoiceOnly mode.
-When speech is available, Kora pauses microphone capture while speaking the
-question, then resumes listening for an answer. By default, spoken approvals
+When speech is available, Kora closes command capture while speaking the
+question. A spoken answer requires a new explicit push-to-talk activation. By default, spoken approvals
 must start with the assistant name. Settings can allow an unprefixed spoken
 reply; this changes the recognition gate, not the scope of an existing grant.
 
@@ -71,11 +72,15 @@ or another service; synthesis runs locally after installation.
 
 ## Microphone consent
 
-Device discovery and selection do not record audio by themselves. Kora opens
-capture automatically on startup when voice readiness succeeds because
-listening is its primary interaction mode. **Disable listening** releases the
-microphone for the current run. Listening is also closed on exit and before
-Kora locks Windows.
+Device discovery/selection and **Enable listening** do not record audio.
+First launch requires explicit ongoing consent; it is saved separately from
+endpoint preferences and Windows permission. Safe ordinary startup with saved
+consent arms push-to-talk; capture opens only while deliberately activated.
+**Disable listening** closes input for this run. **Withdraw voice consent**
+keeps it closed across restart. Lock/disconnect/unknown session, suspend,
+permission/device loss and capture failure invalidate generations, clear audio,
+stop output and require explicit recovery. Unlock/resume/hot-plug cannot
+silently reopen it. Native/tray controls require no model, network or speech.
 
 ## Visual safety fallback
 

@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
-public sealed class MainViewModelTests
+public sealed partial class MainViewModelTests
 {
     [Fact]
     public void Grant_editor_visual_policy_covers_each_independent_reason_to_show_the_response()
@@ -176,7 +176,7 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task InitializeAsync_populates_readiness_selects_system_devices_and_starts_listening()
+    public async Task InitializeAsync_with_saved_consent_arms_PTT_without_ambient_capture()
     {
         var fixture = new Fixture();
         fixture.Voice.Microphones =
@@ -196,13 +196,14 @@ public sealed class MainViewModelTests
         fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
         fixture.ViewModel.Dependencies.Should().ContainSingle()
             .Which.Readiness.Should().Be(DependencyReadiness.Ready);
-        fixture.Voice.StartCalls.Should().Be(1);
-        fixture.Voice.StartedMicrophone.Should().Be(SystemAudioDevices.Microphone);
-        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.StartedMicrophone.Should().BeNull();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
         fixture.ViewModel.MicrophoneAccessStatus.State.Should().Be(MicrophoneAccessState.Allowed);
         fixture.ViewModel.MicrophoneAccessMessage.Should().Contain("allowed");
-        fixture.ViewModel.ResponseTitle.Should().Be("I'm listening.");
-        fixture.ViewModel.State.Should().Be(AssistantState.Listening);
+        fixture.ViewModel.ResponseTitle.Should().Be("Push-to-talk is ready.");
+        fixture.ViewModel.State.Should().Be(AssistantState.Information);
         fixture.ViewModel.IsBusy.Should().BeFalse();
     }
 
@@ -283,13 +284,14 @@ public sealed class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         await fixture.ViewModel.InitializeAsync();
 
-        fixture.Voice.StartCalls.Should().Be(1);
-        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
     }
 
     [Theory]
     [MemberData(nameof(StartFailures))]
-    public async Task InitializeAsync_surfaces_expected_automatic_listening_failures(
+    public async Task Explicit_PTT_surfaces_capture_open_failures(
         Exception exception,
         string expectedTitle)
     {
@@ -299,6 +301,7 @@ public sealed class MainViewModelTests
         fixture.Voice.StartException = exception;
 
         await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
 
         fixture.Voice.StartCalls.Should().Be(1);
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
@@ -941,17 +944,22 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task Applying_a_name_while_listening_restarts_capture_with_name_aware_grammar_and_preview()
+    public async Task Applying_a_name_retires_capture_and_new_PTT_uses_the_new_grammar()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
 
         fixture.ViewModel.AssistantNameInput = "Nova";
         await fixture.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
 
         fixture.Voice.StopCalls.Should().Be(1);
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
         fixture.Voice.StartCalls.Should().Be(2);
-        fixture.ViewModel.IsListening.Should().BeTrue();
         fixture.Voice.StartedPhrases.Should().Contain("Nova what can you do");
         fixture.Voice.StartedPhrases.Should().NotContain("Kora what can you do");
 
@@ -2352,7 +2360,7 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task Voice_activation_remains_listening_when_a_call_is_detected_by_default()
+    public async Task Voice_activation_remains_armed_without_capture_when_a_call_is_detected_by_default()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
@@ -2360,7 +2368,8 @@ public sealed class MainViewModelTests
         fixture.CallState.SetState(CallState.Active);
         await fixture.Dispatcher.LastInvocation;
 
-        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.IsListening.Should().BeFalse();
         fixture.Voice.StopCalls.Should().Be(0);
     }
 
@@ -2585,7 +2594,7 @@ public sealed class MainViewModelTests
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         fixture.TextToSpeech.ClearSpokenResponse();
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, what can you do", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, what can you do", 0.9f);
 
         fixture.TextToSpeech.SpokenText.Should().Contain("Built-in commands are ready.");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
@@ -2990,6 +2999,8 @@ public sealed class MainViewModelTests
         var fixture = await Fixture.CreateInitializedAsync();
 
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        fixture.Voice.StartCalls.Should().Be(0);
+        await fixture.ViewModel.BeginPushToTalkAsync();
 
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases);
@@ -3023,7 +3034,7 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task Preview_voice_keeps_listening_active()
+    public async Task Preview_voice_keeps_PTT_armed_without_ambient_recording()
     {
         var fixture = await Fixture.CreateInitializedAsync();
 
@@ -3033,13 +3044,14 @@ public sealed class MainViewModelTests
         await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
 
         fixture.Voice.StopCalls.Should().Be(0);
-        fixture.Voice.StartCalls.Should().Be(1);
-        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.IsListening.Should().BeFalse();
         fixture.TextToSpeech.SpokenText.Should().Be("Hello, I'm Kora.");
     }
 
     [Fact]
-    public async Task Prefixed_voice_command_interrupts_active_preview()
+    public async Task Explicit_PTT_interrupts_active_preview_before_command_capture()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var settingsRequests = 0;
@@ -3050,12 +3062,13 @@ public sealed class MainViewModelTests
 
         var previewTask = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
         await fixture.TextToSpeech.SpeakStarted.Task;
-        await fixture.Voice.RaiseTranscriptAsync("Kora, open settings", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, open settings", 0.9f);
         await previewTask;
 
         fixture.TextToSpeech.StopCalls.Should().BeGreaterThan(0);
         settingsRequests.Should().Be(1);
-        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -3088,9 +3101,7 @@ public sealed class MainViewModelTests
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var responseTask = fixture.Voice.RaiseTranscriptAsync(
-            "Kora, what can you do",
-            0.9f);
+        var responseTask = fixture.RunAsync("Kora, what can you do");
         await fixture.TextToSpeech.SpeakStarted.Task;
         await fixture.Voice.RaiseTranscriptAsync(
             "Kora, open documentation",
@@ -3168,8 +3179,8 @@ public sealed class MainViewModelTests
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.Voice.StartGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        var start = fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        var start = fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
 
         fixture.ViewModel.IsBusy.Should().BeTrue();
         fixture.ViewModel.RefreshCommand.CanExecute(null).Should().BeFalse();
@@ -3205,6 +3216,7 @@ public sealed class MainViewModelTests
         fixture.Voice.StartException = exception;
 
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
 
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
         fixture.ViewModel.ResponseTitle.Should().Be(expectedTitle);
@@ -4026,9 +4038,9 @@ public sealed class MainViewModelTests
         fixture.ViewModel.PrepareGrantChange(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
 
-        await fixture.Voice.RaiseTranscriptAsync("approve once", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("approve once", 0.9f);
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
-        await fixture.Voice.RaiseTranscriptAsync("Kora, approve once", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, approve once", 0.9f);
 
         fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
@@ -4046,11 +4058,11 @@ public sealed class MainViewModelTests
         var change = new GrantChange(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always);
         fixture.ViewModel.PrepareGrantChange(change);
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, always allow this", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, always allow this", 0.9f);
         fixture.ViewModel.ResponseTitle.Should().Be("Confirm the exact change once.");
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, reject", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, reject", 0.9f);
         fixture.ViewModel.IsGrantChangePending.Should().BeFalse();
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         fixture.Session.LockCalls.Should().Be(0);
@@ -4102,9 +4114,8 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("pick a color");
         await fixture.ViewModel.ActiveReasoningTask!;
         var oldChoice = fixture.ViewModel.ModelQuestionChoices[0];
+        await fixture.RaiseActivatedTranscriptAsync("option one", 0.9f);
         fixture.Voice.StartedPhrases.Should().Contain("Kora option one");
-
-        await fixture.Voice.RaiseTranscriptAsync("option one", 0.9f);
         fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
         fixture.Reasoner.Requests.Should().ContainSingle();
         await fixture.ViewModel.CancelModelQuestionAsync();
@@ -4114,7 +4125,7 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("pick another color");
         await fixture.ViewModel.ActiveReasoningTask!;
         fixture.Reasoner.Question = null;
-        await fixture.Voice.RaiseTranscriptAsync("Kora, option two", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, option two", 0.9f);
         await fixture.ViewModel.ActiveReasoningTask!;
         fixture.Reasoner.Requests.Should().HaveCount(3);
         fixture.Reasoner.Requests[2].Should().Contain("Green");
@@ -4133,10 +4144,10 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("choose a color");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        await fixture.Voice.RaiseTranscriptAsync("maybe later", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("maybe later", 0.9f);
         fixture.ViewModel.ResponseTitle.Should().Be("Choose an option or cancel the question.");
         fixture.ViewModel.IsModelQuestionPending.Should().BeTrue();
-        await fixture.Voice.RaiseTranscriptAsync("Kora, what version are you running", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, what version are you running", 0.9f);
         fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("Kora version");
         fixture.Reasoner.Requests.Should().ContainSingle();
@@ -4155,7 +4166,7 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("choose a color");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, cancel question", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, cancel question", 0.9f);
 
         fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
         fixture.Reasoner.Requests.Should().ContainSingle();
@@ -4177,10 +4188,11 @@ public sealed class MainViewModelTests
         fixture.ViewModel.RequireAssistantNameForVoiceApproval = false;
         await fixture.RunAsync("should I proceed");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Voice.StartedPhrases.Should().Contain("yes");
+        fixture.Voice.StartCalls.Should().Be(0);
         fixture.Reasoner.Question = null;
 
-        await fixture.Voice.RaiseTranscriptAsync("yes", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("yes", 0.9f);
+        fixture.Voice.StartedPhrases.Should().Contain("yes");
         await fixture.ViewModel.ActiveReasoningTask!;
 
         fixture.Reasoner.Requests.Should().HaveCount(2);
@@ -4351,7 +4363,7 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public async Task Spoken_approval_requires_the_name_by_default_and_resumes_listening_after_the_question()
+    public async Task Spoken_approval_requires_the_name_and_new_PTT_after_the_question()
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
@@ -4364,14 +4376,14 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        fixture.Voice.StopCalls.Should().BeGreaterThan(0);
-        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        await fixture.RaiseActivatedTranscriptAsync("always allow this", 0.9f);
         fixture.Voice.StartedPhrases.Should().Contain("Kora always allow this");
-        await fixture.Voice.RaiseTranscriptAsync("always allow this", 0.9f);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, always allow this", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, always allow this", 0.9f);
 
         fixture.Session.LockCalls.Should().Be(1);
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
@@ -4393,7 +4405,7 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("please propose a reboot");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        await fixture.Voice.RaiseTranscriptAsync("yes for this session", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("yes for this session", 0.9f);
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.ViewModel.SessionAllowedModelActions.Should().Contain(command =>
@@ -4465,9 +4477,15 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("lock this workstation please");
         await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        fixture.TextToSpeech.StopGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
 
         var approving = fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
-        await fixture.RunAsync("show task progress");
+        approving.IsCompleted.Should().BeFalse();
+        var superseding = fixture.RunAsync("show task progress");
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.TextToSpeech.StopGate.SetResult();
+        await superseding.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         await approving.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         fixture.Session.LockCalls.Should().Be(0);
@@ -4534,8 +4552,8 @@ public sealed class MainViewModelTests
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
 
+        await fixture.RaiseActivatedTranscriptAsync("Kora, show the task queue", 0.9f);
         fixture.Voice.StartedPhrases.Should().Contain("Kora show the task queue");
-        await fixture.Voice.RaiseTranscriptAsync("Kora, show the task queue", 0.9f);
 
         fixture.ViewModel.ResponseTitle.Should().Be("Waiting for your command.");
         fixture.Reasoner.Requests.Should().BeEmpty();
@@ -4552,9 +4570,9 @@ public sealed class MainViewModelTests
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
 
-        await fixture.Voice.RaiseTranscriptAsync("why is the sky blue", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("why is the sky blue", 0.9f);
         fixture.Reasoner.Requests.Should().BeEmpty();
-        await fixture.Voice.RaiseTranscriptAsync("Kora, why is the sky blue", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, why is the sky blue", 0.9f);
         await fixture.ViewModel.ActiveReasoningTask!;
 
         fixture.Reasoner.Requests.Should().ContainSingle().Which.Should().Be("why is the sky blue");
@@ -4716,6 +4734,7 @@ public sealed class MainViewModelTests
                 break;
         }
         await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
         fixture.Voice.StopException = new IOException("recognition cannot stop");
 
         await fixture.RunAsync("please decide");
@@ -4737,6 +4756,7 @@ public sealed class MainViewModelTests
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
         fixture.Voice.BeforeStopFailure = fixture.ViewModel.HideApplication;
         fixture.Voice.StopException = new IOException("recognition cannot stop");
 
@@ -4779,7 +4799,7 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, reject", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, reject", 0.9f);
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.Session.LockCalls.Should().Be(0);
@@ -4798,7 +4818,7 @@ public sealed class MainViewModelTests
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, approve once", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, approve once", 0.9f);
 
         fixture.Session.LockCalls.Should().Be(1);
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
@@ -5558,13 +5578,15 @@ public sealed class MainViewModelTests
     {
         var fixture = await Fixture.CreateInitializedAsync();
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        fixture.WindowActions.Clear();
         fixture.ViewModel.CommandText = "Kora, hide Kora";
 
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
 
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Hide);
         fixture.ViewModel.State.Should().Be(AssistantState.Hidden);
-        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -5682,7 +5704,7 @@ public sealed class MainViewModelTests
     {
         var fixture = new Fixture();
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, lock the machine", 0.9f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, lock the machine", 0.9f);
 
         AssertAuditPair(
             fixture,
@@ -5805,7 +5827,7 @@ public sealed class MainViewModelTests
     {
         var fixture = new Fixture();
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, show Kora", 0.87f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, show Kora", 0.87f);
 
         fixture.ViewModel.Transcript.Should().Contain(0.87f.ToString("P0", CultureInfo.CurrentCulture));
         fixture.WindowActions.Should().Equal(WindowAction.ShowPresence, WindowAction.Show);
@@ -5816,15 +5838,17 @@ public sealed class MainViewModelTests
     {
         var fixture = new Fixture(subscribeToWindowActions: false);
 
-        await fixture.Voice.RaiseTranscriptAsync("Kora, what can you do", 0.87f);
+        await fixture.RaiseActivatedTranscriptAsync("Kora, what can you do", 0.87f);
 
         fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
     }
 
     [Fact]
-    public void Recognition_failure_is_dispatched_to_the_information_surface()
+    public async Task Recognition_failure_is_dispatched_to_the_information_surface()
     {
-        var fixture = new Fixture();
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
 
         fixture.Voice.RaiseFailure("not recognized");
 
@@ -5834,9 +5858,11 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
-    public void Voice_dispatch_failure_is_reported()
+    public async Task Voice_dispatch_failure_is_reported()
     {
-        var fixture = new Fixture();
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
         fixture.Dispatcher.InvokeException = new InvalidOperationException("dispatch failed");
 
         fixture.Voice.RaiseTranscript("Kora, show Kora", 0.9f);
@@ -6018,6 +6044,11 @@ public sealed class MainViewModelTests
             CallPreferences = new FakeCallAwarePreferences();
             CallState = new FakeCallStateService();
             Session = new FakeSessionController(Events);
+            PrivacyObservation = new FakePrivacyObservationService(() => new WindowsPrivacySnapshot(
+                Session.IsUnlocked ? WindowsSessionState.Unlocked : WindowsSessionState.Locked,
+                MicrophoneAccess.Status.State, 0,
+                Voice.Microphones.Select(device => device.Id).ToArray(),
+                Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit = new FakeSecurityAuditLog();
             Probe = new StubProbe(new DependencyStatus(
@@ -6057,7 +6088,9 @@ public sealed class MainViewModelTests
                 Dispatcher,
                 ApplicationInfo,
                 Audit,
-                NullLogger<MainViewModel>.Instance);
+                NullLogger<MainViewModel>.Instance,
+                VoiceConsent,
+                PrivacyObservation);
             if (subscribeToWindowActions)
             {
                 ViewModel.WindowActionRequested += (_, action) =>
@@ -6114,9 +6147,89 @@ public sealed class MainViewModelTests
 
         public MainViewModel ViewModel { get; }
 
+        public FakeVoiceConsentPreferences VoiceConsent { get; } = new();
+
+        public FakePrivacyObservationService PrivacyObservation { get; }
+
+        public sealed class FakePrivacyObservationService(Func<WindowsPrivacySnapshot> read) : IWindowsPrivacyObservationService
+        {
+            private WindowsPrivacySnapshot? snapshotOverride;
+
+            public event EventHandler<WindowsPrivacyChangedEventArgs>? Changed;
+
+            public WindowsPrivacySnapshot Current
+            {
+                get => snapshotOverride ?? read();
+                set => snapshotOverride = value;
+            }
+
+            public Action? BeforeRefresh { get; set; }
+
+            public Exception? RefreshException { get; set; }
+
+            public WindowsPrivacySnapshot Refresh()
+            {
+                var callback = BeforeRefresh;
+                BeforeRefresh = null;
+                callback?.Invoke();
+                if (RefreshException is { } exception)
+                {
+                    throw exception;
+                }
+                return Current;
+            }
+
+            public void Publish(WindowsPrivacyChangedEventArgs change) => Changed?.Invoke(this, change);
+
+            public void Dispose()
+            {
+            }
+        }
+
         public List<WindowAction> WindowActions { get; } = [];
 
         public List<string> Events { get; } = [];
+
+        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence)
+        {
+            if (Voice.Microphones.Count == 0)
+            {
+                Voice.Microphones = [new MicrophoneDevice("0", "Headset")];
+                Voice.DefaultMicrophoneId = "0";
+            }
+            await ViewModel.RefreshMicrophonesAsync();
+            ViewModel.SelectedMicrophone ??= SystemAudioDevices.Microphone;
+            if (!ViewModel.HasVoiceConsent)
+            {
+                await ViewModel.SetVoiceConsentAsync(true);
+            }
+            if (!ViewModel.IsVoiceEnabled)
+            {
+                await ViewModel.ToggleListeningCommand.ExecuteAsync();
+            }
+            await ViewModel.BeginPushToTalkAsync();
+            await ViewModel.EndPushToTalkAsync();
+            WindowActions.Clear();
+            await Voice.RaiseTranscriptAsync(transcript, confidence);
+        }
+
+        public sealed class FakeVoiceConsentPreferences : IVoiceConsentPreferences
+        {
+            public bool? Consent { get; set; } = true;
+
+            public IOException? Failure { get; set; }
+
+            public bool? Load() => Failure is { } error ? throw error : Consent;
+
+            public void Save(bool consent)
+            {
+                if (Failure is { } error)
+                {
+                    throw error;
+                }
+                Consent = consent;
+            }
+        }
 
         public static async Task<Fixture> CreateInitializedAsync(bool subscribeToWindowActions = true)
         {
@@ -6330,6 +6443,10 @@ public sealed class MainViewModelTests
 
         public InvalidOperationException? InvokeException { get; set; }
 
+        public Action? BeforeInvoke { get; set; }
+
+        public Action? BeforePost { get; set; }
+
         public Task InvokeAsync(Func<Task> action)
         {
             if (InvokeException is not null)
@@ -6337,22 +6454,94 @@ public sealed class MainViewModelTests
                 throw InvokeException;
             }
 
+            var callback = BeforeInvoke;
+            BeforeInvoke = null;
+            callback?.Invoke();
             LastInvocation = action();
             return LastInvocation;
         }
 
-        public void Post(Action action) => action();
+        public void Post(Action action)
+        {
+            var callback = BeforePost;
+            BeforePost = null;
+            callback?.Invoke();
+            action();
+        }
     }
 
     private sealed class FakeVoiceRecognitionService(
         ImmediateDispatcher dispatcher,
-        List<string> events) : IVoiceRecognitionService
+        List<string> events) : IActivatedVoiceRecognitionService
     {
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
 
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed;
 
+        public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
+
+        public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted;
+
         public bool IsListening { get; private set; }
+
+        public long Generation { get; private set; }
+
+        public long CaptureGeneration => Generation;
+
+        public bool IsAmbientListeningAvailable => false;
+
+        public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
+
+        public bool PreventQuiescence { get; set; }
+
+        public bool RejectAcknowledgement { get; set; }
+
+        public string? EarlyTranscript { get; set; }
+
+        public bool AcceptCaptureGeneration(long generation)
+        {
+            if (RejectAcknowledgement || generation != Generation)
+            {
+                return false;
+            }
+            if (EarlyTranscript is { } transcript)
+            {
+                EarlyTranscript = null;
+                RaiseTranscript(transcript, 1);
+            }
+            return true;
+        }
+
+        public Task BeginPushToTalkAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
+            string? assistantName = null, CancellationToken cancellationToken = default) =>
+            StartAsync(microphone, phrases, assistantName, cancellationToken);
+
+        public Task EndPushToTalkAsync(CancellationToken cancellationToken = default) =>
+            EndCaptureAsync(cancellationToken);
+
+        public void PublishCaptureState(VoiceCaptureStateChangedEventArgs change) =>
+            CaptureStateChanged?.Invoke(this, change);
+
+        public void CompleteCapture() => IsListening = false;
+
+        public void PublishCompletion(VoiceRecognitionCompletedEventArgs change) =>
+            RecognitionCompleted?.Invoke(this, change);
+
+        public void InvalidateCapture()
+        {
+            Generation++;
+            IsListening = false;
+        }
+
+        public Task EndCaptureAsync(CancellationToken cancellationToken = default)
+        {
+            if (EndException is not null)
+            {
+                throw EndException;
+            }
+            IsListening = false;
+            return Task.CompletedTask;
+        }
 
         public IReadOnlyList<MicrophoneDevice> Microphones { get; set; } = [];
 
@@ -6362,9 +6551,17 @@ public sealed class MainViewModelTests
 
         public Exception? StopException { get; set; }
 
+        public Exception? EndException { get; set; }
+
         public Action? BeforeStopFailure { get; set; }
 
         public TaskCompletionSource? StartGate { get; set; }
+
+        public bool IgnoreStartCancellation { get; set; }
+
+        public Action? AfterStart { get; set; }
+
+        public void AdvanceGeneration() => Generation++;
 
         public MicrophoneDevice? StartedMicrophone { get; private set; }
 
@@ -6409,6 +6606,7 @@ public sealed class MainViewModelTests
             StartedMicrophone = microphone;
             StartedPhrases = phrases.ToArray();
             StartCalls++;
+            Generation++;
             if (StartException is not null)
             {
                 throw StartException;
@@ -6416,10 +6614,22 @@ public sealed class MainViewModelTests
 
             if (StartGate is not null)
             {
-                await StartGate.Task.WaitAsync(cancellationToken);
+                if (IgnoreStartCancellation)
+                {
+                    await StartGate.Task;
+                }
+                else
+                {
+                    await StartGate.Task.WaitAsync(cancellationToken);
+                }
             }
 
             IsListening = true;
+            if (EarlyTranscript is not null)
+            {
+                IsListening = false;
+            }
+            AfterStart?.Invoke();
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default)
@@ -6439,19 +6649,35 @@ public sealed class MainViewModelTests
 
         public async Task RaiseTranscriptAsync(string transcript, float confidence)
         {
-            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence));
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation));
             await dispatcher.LastInvocation;
         }
 
         public void RaiseTranscript(string transcript, float confidence) =>
-            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence));
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation));
+
+        public void RaiseTranscriptForGeneration(long generation) =>
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs("lock the machine", 1, generation));
 
         public void RaiseFailure(string message) =>
-            RecognitionFailed?.Invoke(this, new VoiceRecognitionFailureEventArgs(message));
+            RecognitionFailed?.Invoke(this, new VoiceRecognitionFailureEventArgs(message, Generation));
+
+        public void RaiseRetiredFailure(string message)
+        {
+            var retired = Generation;
+            InvalidateCapture();
+            RecognitionFailed?.Invoke(this, new VoiceRecognitionFailureEventArgs(message, retired));
+        }
     }
 
     private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService
     {
+        public void InvalidateOutput()
+        {
+            events.Add("speech.invalidate");
+            IsSpeaking = false;
+        }
+
         public bool IsSpeaking { get; private set; }
 
         public IReadOnlyList<SpeechProvider> Providers { get; set; } =
@@ -6487,6 +6713,10 @@ public sealed class MainViewModelTests
         public Exception? SpeakException { get; set; }
 
         public Exception? StopException { get; set; }
+
+        public Action? BeforeStop { get; set; }
+
+        public IOException? OutputEnumerationException { get; set; }
 
         public TaskCompletionSource? StopGate { get; set; }
 
@@ -6614,6 +6844,7 @@ public sealed class MainViewModelTests
             events.Add("tts.stop");
             StopCalls++;
             StopStarted.TrySetResult();
+            BeforeStop?.Invoke();
             if (StopException is not null)
             {
                 throw StopException;
@@ -6636,7 +6867,7 @@ public sealed class MainViewModelTests
         }
 
         public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
-            => OutputDevices;
+            => OutputEnumerationException is { } exception ? throw exception : OutputDevices;
 
         public AudioOutputDevice? GetDefaultOutputDevice() =>
             OutputDevices.FirstOrDefault(device => string.Equals(

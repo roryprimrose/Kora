@@ -1,11 +1,13 @@
 using System.ComponentModel;
 using System.Diagnostics;
 
+using Kora.Core.Coordination;
 using Kora.Core.Platform;
 
 namespace Kora;
 
-internal sealed class DesktopApplicationProcessController : IApplicationProcessController
+internal sealed class DesktopApplicationProcessController(
+    IInstanceLifecycleController lifecycle) : IApplicationProcessController
 {
     public void OpenWindowsMicrophonePrivacySettings()
     {
@@ -25,26 +27,6 @@ internal sealed class DesktopApplicationProcessController : IApplicationProcessC
 
     public void RestartCurrentApplication()
     {
-        var executablePath = Environment.ProcessPath;
-        if (string.IsNullOrWhiteSpace(executablePath))
-        {
-            throw new InvalidOperationException("The application executable path is unavailable.");
-        }
-
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo(executablePath)
-            {
-                UseShellExecute = true,
-            });
-            if (process is null)
-            {
-                throw new InvalidOperationException("Windows did not start the replacement application process.");
-            }
-        }
-        catch (Win32Exception exception)
-        {
-            throw new InvalidOperationException("Windows could not restart the application.", exception);
-        }
+        lifecycle.RequestRestartAfterQuiescence();
     }
 }

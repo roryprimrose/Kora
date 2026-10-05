@@ -11,6 +11,42 @@ public sealed class WindowsTextToSpeechServiceTests(
     ITestOutputHelper output) : LoggingTestsBase<WindowsTextToSpeechService>(output)
 {
     [Fact]
+    public void Generated_output_samples_are_clearable_even_after_the_reader_closes_the_stream()
+    {
+        byte[] samples = [1, 2, 3, 4];
+        var stream = WindowsTextToSpeechService.CreateOutputAudioStream(samples);
+        stream.Dispose();
+
+        WindowsTextToSpeechService.ClearOutputAudio(stream);
+
+        samples.Should().OnlyContain(sample => sample == 0);
+    }
+
+    [Fact]
+    public void Sapi_output_clearing_includes_unused_buffer_capacity()
+    {
+        using var stream = new MemoryStream(8);
+        stream.Write([1, 2, 3, 4]);
+        var samples = stream.GetBuffer();
+
+        WindowsTextToSpeechService.ClearOutputAudio(stream);
+
+        samples.Should().OnlyContain(sample => sample == 0);
+    }
+
+    [Fact]
+    public async Task Privacy_invalidation_is_idempotent_without_opening_playback()
+    {
+        await using var service = new WindowsTextToSpeechService(Logger);
+
+        service.InvalidateOutput();
+        service.InvalidateOutput();
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        service.IsSpeaking.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task StopAsync_is_idempotent_before_playback_starts()
     {
         await using var service = new WindowsTextToSpeechService(Logger);

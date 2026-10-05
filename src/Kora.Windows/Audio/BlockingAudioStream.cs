@@ -1,16 +1,19 @@
-using System.Collections.Concurrent;
+using System.Security.Cryptography;
 
 namespace Kora.Windows.Audio;
 
-internal sealed class BlockingAudioStream : Stream
+internal sealed class BlockingAudioStream(int maximumBufferedBytes = 64000) : Stream
 {
-    private readonly BlockingCollection<byte[]> buffers = new();
+    private readonly object sync = new();
+    private readonly Queue<byte[]> buffers = new();
     private byte[]? currentBuffer;
     private int currentOffset;
+    private int bufferedBytes;
     private long position;
+    private bool completed;
     private bool disposed;
 
-    public override bool CanRead => true;
+    public override bool CanRead => !disposed;
 
     public override bool CanSeek => false;
 
@@ -24,37 +27,123 @@ internal sealed class BlockingAudioStream : Stream
         set => throw new NotSupportedException();
     }
 
-    public void Add(ReadOnlySpan<byte> buffer)
+    internal int BufferedBytes
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        buffers.Add(buffer.ToArray());
+        get
+        {
+            lock (sync)
+            {
+                return bufferedBytes;
+            }
+        }
     }
 
-    public void Complete() => buffers.CompleteAdding();
+    public bool TryAdd(ReadOnlySpan<byte> buffer)
+    {
+        lock (sync)
+        {
+            if (disposed || completed)
+            {
+                return false;
+            }
+
+            if (buffer.Length > maximumBufferedBytes - bufferedBytes)
+            {
+                ClearBuffers();
+                completed = true;
+                Monitor.PulseAll(sync);
+                return false;
+            }
+
+            if (!buffer.IsEmpty)
+            {
+                buffers.Enqueue(buffer.ToArray());
+                bufferedBytes += buffer.Length;
+                Monitor.PulseAll(sync);
+            }
+
+            return true;
+        }
+    }
+
+    public void Add(ReadOnlySpan<byte> buffer)
+    {
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (!TryAdd(buffer))
+            {
+                throw new InvalidOperationException("The bounded audio stream is closed.");
+            }
+        }
+    }
+
+    public void Complete()
+    {
+        lock (sync)
+        {
+            completed = true;
+            Monitor.PulseAll(sync);
+        }
+    }
+
+    public void ClearAndComplete()
+    {
+        lock (sync)
+        {
+            ClearBuffers();
+            completed = true;
+            Monitor.PulseAll(sync);
+        }
+    }
 
     public override int Read(byte[] buffer, int offset, int count)
     {
         ArgumentNullException.ThrowIfNull(buffer);
-        ObjectDisposedException.ThrowIf(disposed, this);
-
-        while (currentBuffer is null || currentOffset >= currentBuffer.Length)
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        if (offset > buffer.Length - count)
         {
-            try
-            {
-                currentBuffer = buffers.Take();
-                currentOffset = 0;
-            }
-            catch (InvalidOperationException)
+            throw new ArgumentException("The requested range exceeds the destination buffer.", nameof(count));
+        }
+
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (count == 0)
             {
                 return 0;
             }
-        }
 
-        var bytesToCopy = Math.Min(count, currentBuffer.Length - currentOffset);
-        Buffer.BlockCopy(currentBuffer, currentOffset, buffer, offset, bytesToCopy);
-        currentOffset += bytesToCopy;
-        position += bytesToCopy;
-        return bytesToCopy;
+            while (currentBuffer is null)
+            {
+                if (buffers.TryDequeue(out currentBuffer))
+                {
+                    currentOffset = 0;
+                    break;
+                }
+
+                if (completed || disposed)
+                {
+                    return 0;
+                }
+
+                Monitor.Wait(sync);
+            }
+
+            var bytesToCopy = Math.Min(count, currentBuffer.Length - currentOffset);
+            Buffer.BlockCopy(currentBuffer, currentOffset, buffer, offset, bytesToCopy);
+            CryptographicOperations.ZeroMemory(currentBuffer.AsSpan(currentOffset, bytesToCopy));
+            currentOffset += bytesToCopy;
+            bufferedBytes -= bytesToCopy;
+            position += bytesToCopy;
+            if (currentOffset == currentBuffer.Length)
+            {
+                currentBuffer = null;
+            }
+
+            return bytesToCopy;
+        }
     }
 
     public override void Flush()
@@ -69,13 +158,34 @@ internal sealed class BlockingAudioStream : Stream
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && !disposed)
+        if (disposing)
         {
-            disposed = true;
-            buffers.CompleteAdding();
-            buffers.Dispose();
+            lock (sync)
+            {
+                disposed = true;
+                ClearBuffers();
+                completed = true;
+                Monitor.PulseAll(sync);
+            }
         }
 
         base.Dispose(disposing);
+    }
+
+    private void ClearBuffers()
+    {
+        if (currentBuffer is not null)
+        {
+            CryptographicOperations.ZeroMemory(currentBuffer);
+            currentBuffer = null;
+        }
+
+        while (buffers.TryDequeue(out var buffer))
+        {
+            CryptographicOperations.ZeroMemory(buffer);
+        }
+
+        bufferedBytes = 0;
+        currentOffset = 0;
     }
 }

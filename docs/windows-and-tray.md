@@ -12,7 +12,7 @@ this device and restores it after restart when that display remains connected.
 If the saved display is unavailable, the presence returns to the
 bottom-right of an available working area.
 
-The presence is hidden during passive background listening. It appears
+The presence can be hidden while push-to-talk is armed without recording. It appears
 when you interact with Kora, while Kora is processing work, or when a result
 requires attention. Colour and motion reflect whether Kora is calculating,
 waiting, executing, reporting information, succeeding, or failing.
@@ -57,14 +57,53 @@ The right-click menu contains:
 - **Show Kora**
 - **Kora Settings**
 - **Documentation**
+- **Enable listening / Disable listening**
+- **Voice consent / push-to-talk**
+- **Microphones** (enumerated endpoint IDs, selected and unavailable state)
+- **Refresh microphones** (no model/network dependency)
+- **Stop speaking**
 - **Exit Kora**
 
 Tray labels use the configured assistant name except for the fixed
 Documentation label.
 
+Selection does not release a privacy/manual-disable recovery hold. Tray clicks
+never implicitly activate capture. Windows privacy events hide sensitive
+Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
+launcher/tray to return to native status and recovery.
+
 Closing Settings, Documentation, or the visual response closes or hides only
 that surface. Kora remains available in the background until you choose
 **Exit Kora** or use the supported exit command.
+
+## Launching another build and returning
+
+Installed and developer builds share a SID-scoped ownership domain. Ownership
+is checked before application services, migration, tray or audio initialization.
+A validated same-build launch activates the existing owner and forwards no task
+arguments. An unreachable, incompatible or unverifiable owner is a blocker,
+not permission to run a second assistant.
+
+A different build remains a waiting candidate without microphone, model,
+network work or a second assistant tray. The original presents a native
+question with independently verified build/content and process identities.
+Decline, expiry, lock or candidate death leaves ownership unchanged. Current
+setup/reasoning/provider work must finish before handoff; it is not silently
+killed. Approved transfer waits for actual desktop/service/audio quiescence.
+
+After a safely released replacement exits, the original process acts only as a
+native lifecycle supervisor and offers an explicit return. It has no assistant,
+speech or capture services. Accept revalidates the exact original bytes and
+normal ownership/readiness; decline or dismissal never restarts automatically.
+An unclean-owner marker blocks crash takeover/return when orphaned work cannot
+be reconciled; process death alone is not proof of worker quiescence. Follow the
+native blocker rather than deleting it without checking interrupted work.
+
+Developer builds use `%LOCALAPPDATA%\Kora\Development`, separate from installed
+release data and microphone consent. Handoff does not transfer consent,
+approvals, tasks or audio. Same-build activation, real takeover/return,
+crash recovery and cross-architecture trials remain unverified; this R03
+session ran only deterministic and non-disruptive tests.
 
 ## Themes
 

@@ -52,16 +52,10 @@ This fallback overrides VoiceOnly so a failed spoken response is never lost.
 
 ## Interrupting spoken responses
 
-Kora keeps wake listening active during previews and ordinary spoken responses.
-Begin any supported command with the configured assistant name to interrupt
-playback, for example **"Kora, stop"** or **"Kora, open settings"**. Kora stops
-the current speech before executing the new command.
-
-During playback, unprefixed recognition is ignored. Kora also suppresses
-recognized phrases that occur in its own active speech text. This reduces
-self-triggering, but real-world barge-in quality still depends on microphone and
-speaker placement, headset use, and acoustic echo cancellation supplied by the
-Windows audio device.
+No ambient command recognizer runs during playback. Explicit push-to-talk stops
+Kora speech before opening capture. **Stop speaking** is also available in the
+tray without model, network or recognition. Production wake and acoustic
+barge-in/playback-rejection quality require separate real-hardware proof.
 
 ## Detected-call settings
 

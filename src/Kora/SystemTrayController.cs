@@ -26,6 +26,8 @@ public sealed class SystemTrayController : IDisposable
     private readonly NativeMenuItem showItem;
     private readonly NativeMenuItem settingsItem;
     private readonly NativeMenuItem exitItem;
+    private readonly NativeMenuItem listeningItem;
+    private readonly NativeMenuItem microphonesItem;
     private readonly TrayIcon trayIcon;
     private readonly TrayIcons trayIcons;
     private readonly DispatcherTimer trayClickTimer;
@@ -55,6 +57,25 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        listeningItem = new NativeMenuItem();
+        listeningItem.Click += async (_, _) =>
+            await viewModel.ToggleListeningCommand.ExecuteAsync();
+        menu.Add(listeningItem);
+        var voiceRecoveryItem = new NativeMenuItem("Voice consent / push-to-talk");
+        voiceRecoveryItem.Click += (_, _) => RunAfterNativeMenuCloses(() =>
+        {
+            viewModel.ShowSettings();
+            viewModel.RequestVoiceRecovery();
+        });
+        menu.Add(voiceRecoveryItem);
+        microphonesItem = new NativeMenuItem("Microphones");
+        menu.Add(microphonesItem);
+        var refreshItem = new NativeMenuItem("Refresh microphones");
+        refreshItem.Click += async (_, _) => await viewModel.RefreshMicrophonesAsync();
+        menu.Add(refreshItem);
+        var stopSpeechItem = new NativeMenuItem("Stop speaking");
+        stopSpeechItem.Click += async (_, _) => await viewModel.StopSpeechCommand.ExecuteAsync();
+        menu.Add(stopSpeechItem);
         menu.Add(exitItem);
 
         using var iconStream = AssetLoader.Open(IconUri);
@@ -78,6 +99,7 @@ public sealed class SystemTrayController : IDisposable
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         UpdateIdentityText();
         UpdateToolTip();
+        UpdateVoiceControls();
         DesktopLog.Information(logger, "System tray controls initialized");
     }
 
@@ -139,9 +161,13 @@ public sealed class SystemTrayController : IDisposable
             UpdateIdentityText();
             UpdateToolTip();
         }
-        else if (eventArgs.PropertyName is nameof(MainViewModel.ListeningStatus) or nameof(MainViewModel.IsListening))
+        else if (eventArgs.PropertyName is nameof(MainViewModel.ListeningStatus) or nameof(MainViewModel.IsListening)
+            or nameof(MainViewModel.IsVoiceEnabled) or nameof(MainViewModel.HasVoiceConsent)
+            or nameof(MainViewModel.MicrophoneTopologyRevision) or nameof(MainViewModel.SelectedMicrophone)
+            or nameof(MainViewModel.IsBusy))
         {
             UpdateToolTip();
+            UpdateVoiceControls();
         }
     }
 
@@ -154,6 +180,27 @@ public sealed class SystemTrayController : IDisposable
 
     private void UpdateToolTip() =>
         trayIcon.ToolTipText = $"{viewModel.AssistantName} - {viewModel.ListeningStatus}";
+
+    private void UpdateVoiceControls()
+    {
+        listeningItem.Header = viewModel.ListeningButtonText;
+        listeningItem.IsEnabled = viewModel.ToggleListeningCommand.CanExecute(null);
+        var devices = new NativeMenu();
+        var revision = viewModel.MicrophoneTopologyRevision;
+        foreach (var device in viewModel.Microphones)
+        {
+            var item = new NativeMenuItem(
+                $"{(string.Equals(viewModel.SelectedMicrophone?.Id, device.Id, StringComparison.Ordinal) ? "[selected] " : string.Empty)}{device.Name}"
+                + (device.IsSystemDefault ? " (Windows default)" : $" · {device.Id}"));
+            item.Click += async (_, _) => await viewModel.SelectMicrophoneAsync(device, revision);
+            devices.Add(item);
+        }
+        if (viewModel.SelectedMicrophone is { } previous && !viewModel.Microphones.Contains(previous))
+        {
+            devices.Add(new NativeMenuItem($"Unavailable: {previous.Name} · {previous.Id}") { IsEnabled = false });
+        }
+        microphonesItem.Menu = devices;
+    }
 
     private void ShowWindow()
     {

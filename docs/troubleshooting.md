@@ -43,11 +43,13 @@ Kora does not run user-created scripts during this check.
    specific active microphone.
 5. Read the Voice activation status. It identifies a locked-session safety
    pause, call-policy pause, or manual disablement.
-6. Select **Refresh devices and readiness**.
-7. If listening was manually disabled, select **Enable listening**.
-8. Use one of the exact phrases in the command guide.
+6. Select **Refresh microphones** (no model/network/speech dependency).
+7. Review saved voice consent. After manual disablement, lock, disconnect,
+   suspend or device/permission loss, select **Enable listening** explicitly.
+8. Hold **Push to talk**, use an exact phrase, then release.
 
-Kora normally starts listening automatically when voice readiness succeeds.
+Production wake is unavailable in this build. Safe startup with saved consent
+arms push-to-talk; it never opens an ambient command recognizer.
 
 ## The Windows default microphone changed
 

@@ -71,6 +71,11 @@ public sealed partial class MainWindow : Window
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
         RestorePosition();
+        if (!viewModel.CanRevealPrivatePresentation)
+        {
+            Hide();
+            return;
+        }
         if (viewModel.GetOptionalSpeechProviderOffer() is { } offer)
         {
             Opacity = 1;
@@ -79,7 +84,7 @@ public sealed partial class MainWindow : Window
             viewModel.AcknowledgeOptionalSpeechProviderOffer(offer, review);
         }
 
-        if (viewModel.Dependencies.Any(status =>
+        if (!viewModel.NeedsVoiceConsent && viewModel.Dependencies.Any(status =>
             string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
             && status.Readiness != Kora.Core.Dependencies.DependencyReadiness.Ready))
         {
@@ -138,6 +143,10 @@ public sealed partial class MainWindow : Window
 
     private async void OnWindowActionRequested(object? sender, WindowAction action)
     {
+        if (action is WindowAction.Show or WindowAction.ShowPresence && !viewModel.CanRevealPrivatePresentation)
+        {
+            return;
+        }
         switch (action)
         {
             case WindowAction.ShowPresence:

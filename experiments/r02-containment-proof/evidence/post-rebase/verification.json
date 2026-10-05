@@ -1,0 +1,15 @@
+{
+  "Assertions": 71,
+  "Passed": 63,
+  "UnmetAssertions": [
+    "appcontainer-complete: OS denies network.loopback",
+    "appcontainer-complete: OS denies network.owned-interface",
+    "appcontainer-complete: PowerShell loopback denied",
+    "appcontainer-complete: PowerShell owned-interface denied",
+    "appcontainer-cancel: OS denies network.loopback",
+    "appcontainer-cancel: OS denies network.owned-interface",
+    "appcontainer-cancel: PowerShell loopback denied",
+    "appcontainer-cancel: PowerShell owned-interface denied"
+  ],
+  "FullProductionProfileCertified": false
+}

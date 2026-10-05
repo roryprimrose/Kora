@@ -1,0 +1,516 @@
+[
+  {
+    "Profile": "job-only-complete",
+    "State": "Exited",
+    "EffectOutcome": "Observed",
+    "ExitCode": 0,
+    "LaunchError": null,
+    "Receipt": {
+      "RunId": "job-only-complete",
+      "Pid": 44172,
+      "Token": {
+        "AppContainer": false,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": null,
+        "Elevated": false,
+        "IntegritySid": "S-1-16-8192"
+      },
+      "Probes": [
+        {
+          "Name": "filesystem.allowed.read",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.allowed.write",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.read",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.write",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.delete",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.rename.managed",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.rename",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.hardlink.write",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.traversal.write",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "network.loopback",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "network.owned-interface",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "credential.synthetic",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "desktop.input.open",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": "Handle only; no desktop switch or computer control"
+        },
+        {
+          "Name": "child.normal",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "child.breakaway",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "powershell.fixed",
+          "Outcome": "Observed",
+          "NativeError": null,
+          "Detail": "{\u0022version\u0022:\u00227.6.6\u0022,\u0022allowed\u0022:\u0022synthetic-allowed-worker\u0022,\u0022protectedWrite\u0022:\u0022Allowed\u0022,\u0022protectedError\u0022:null,\u0022network\u0022:\u0022Allowed\u0022,\u0022networkError\u0022:null,\u0022networkLan\u0022:\u0022Allowed\u0022,\u0022networkLanError\u0022:null}"
+        }
+      ],
+      "Children": [
+        47644
+      ]
+    },
+    "JobPids": [
+      47644,
+      8316,
+      39756,
+      41836
+    ],
+    "TreeStopped": true,
+    "ShutdownMilliseconds": 27.2383,
+    "ProtectedBytesUnchanged": false,
+    "ChildTokens": [
+      {
+        "AppContainer": false,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": null,
+        "Elevated": false,
+        "IntegritySid": "S-1-16-8192"
+      },
+      {
+        "AppContainer": false,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": null,
+        "Elevated": false,
+        "IntegritySid": "S-1-16-8192"
+      }
+    ],
+    "EffectMarkerExists": true,
+    "Failure": null
+  },
+  {
+    "Profile": "appcontainer-complete",
+    "State": "Exited",
+    "EffectOutcome": "Observed",
+    "ExitCode": 0,
+    "LaunchError": null,
+    "Receipt": {
+      "RunId": "appcontainer-complete",
+      "Pid": 18716,
+      "Token": {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      },
+      "Probes": [
+        {
+          "Name": "filesystem.allowed.read",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.allowed.write",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.read",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.write",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.delete",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.rename.managed",
+          "Outcome": "Unknown",
+          "NativeError": 2,
+          "Detail": "FileNotFoundException"
+        },
+        {
+          "Name": "filesystem.protected.rename",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.hardlink.write",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.traversal.write",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "network.loopback",
+          "Outcome": "Unknown",
+          "NativeError": null,
+          "Detail": "Timed out"
+        },
+        {
+          "Name": "network.owned-interface",
+          "Outcome": "Unknown",
+          "NativeError": null,
+          "Detail": "Timed out"
+        },
+        {
+          "Name": "credential.synthetic",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "desktop.input.open",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "child.normal",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "child.breakaway",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "powershell.fixed",
+          "Outcome": "Observed",
+          "NativeError": null,
+          "Detail": "{\u0022version\u0022:\u00227.6.6\u0022,\u0022allowed\u0022:\u0022synthetic-allowed-worker\u0022,\u0022protectedWrite\u0022:\u0022Denied\u0022,\u0022protectedError\u0022:-2147024891,\u0022network\u0022:\u0022Unknown\u0022,\u0022networkError\u0022:null,\u0022networkLan\u0022:\u0022Unknown\u0022,\u0022networkLanError\u0022:null}"
+        }
+      ],
+      "Children": [
+        57852
+      ]
+    },
+    "JobPids": [
+      57852,
+      46464,
+      54892,
+      48868
+    ],
+    "TreeStopped": true,
+    "ShutdownMilliseconds": 14.216,
+    "ProtectedBytesUnchanged": true,
+    "ChildTokens": [
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      },
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      }
+    ],
+    "EffectMarkerExists": true,
+    "Failure": null
+  },
+  {
+    "Profile": "appcontainer-cancel",
+    "State": "Cancelled",
+    "EffectOutcome": "Observed",
+    "ExitCode": 0,
+    "LaunchError": null,
+    "Receipt": {
+      "RunId": "appcontainer-cancel",
+      "Pid": 32188,
+      "Token": {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      },
+      "Probes": [
+        {
+          "Name": "filesystem.allowed.read",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.allowed.write",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.read",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.write",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.delete",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.protected.rename.managed",
+          "Outcome": "Unknown",
+          "NativeError": 2,
+          "Detail": "FileNotFoundException"
+        },
+        {
+          "Name": "filesystem.protected.rename",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.hardlink.write",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "filesystem.traversal.write",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "network.loopback",
+          "Outcome": "Unknown",
+          "NativeError": null,
+          "Detail": "Timed out"
+        },
+        {
+          "Name": "network.owned-interface",
+          "Outcome": "Unknown",
+          "NativeError": null,
+          "Detail": "Timed out"
+        },
+        {
+          "Name": "credential.synthetic",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "desktop.input.open",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "child.normal",
+          "Outcome": "Allowed",
+          "NativeError": null,
+          "Detail": null
+        },
+        {
+          "Name": "child.breakaway",
+          "Outcome": "Denied",
+          "NativeError": 5,
+          "Detail": null
+        },
+        {
+          "Name": "powershell.fixed",
+          "Outcome": "Observed",
+          "NativeError": null,
+          "Detail": "{\u0022version\u0022:\u00227.6.6\u0022,\u0022allowed\u0022:\u0022synthetic-allowed-worker\u0022,\u0022protectedWrite\u0022:\u0022Denied\u0022,\u0022protectedError\u0022:-2147024891,\u0022network\u0022:\u0022Unknown\u0022,\u0022networkError\u0022:null,\u0022networkLan\u0022:\u0022Unknown\u0022,\u0022networkLanError\u0022:null}"
+        }
+      ],
+      "Children": [
+        56640
+      ]
+    },
+    "JobPids": [
+      32188,
+      10752,
+      56640,
+      52360,
+      4948,
+      59072
+    ],
+    "TreeStopped": true,
+    "ShutdownMilliseconds": 13.8913,
+    "ProtectedBytesUnchanged": true,
+    "ChildTokens": [
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      },
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      }
+    ],
+    "EffectMarkerExists": true,
+    "Failure": null
+  },
+  {
+    "Profile": "appcontainer-lost-receipt",
+    "State": "TimedOut",
+    "EffectOutcome": "Unknown",
+    "ExitCode": 0,
+    "LaunchError": null,
+    "Receipt": null,
+    "JobPids": [
+      31376,
+      17284,
+      2788,
+      56896,
+      50088,
+      29952
+    ],
+    "TreeStopped": true,
+    "ShutdownMilliseconds": 13.5645,
+    "ProtectedBytesUnchanged": true,
+    "ChildTokens": [
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      },
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      }
+    ],
+    "EffectMarkerExists": true,
+    "Failure": null
+  },
+  {
+    "Profile": "appcontainer-malformed-receipt",
+    "State": "Aborted",
+    "EffectOutcome": "Unknown",
+    "ExitCode": 0,
+    "LaunchError": null,
+    "Receipt": null,
+    "JobPids": [
+      51796,
+      57584,
+      24420,
+      46168,
+      25668,
+      56528
+    ],
+    "TreeStopped": true,
+    "ShutdownMilliseconds": 15.1319,
+    "ProtectedBytesUnchanged": true,
+    "ChildTokens": [
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      },
+      {
+        "AppContainer": true,
+        "UserSid": "host-user (redacted)",
+        "ContainerSid": "S-1-15-2-3546385242-490942465-2852098721-744925700-2094176614-1247506529-1032151213",
+        "Elevated": false,
+        "IntegritySid": "S-1-16-4096"
+      }
+    ],
+    "EffectMarkerExists": true,
+    "Failure": "Unverifiable receipt; effect remains Unknown: \u0027u\u0027 is an invalid start of a property name. Expected a \u0027\u0022\u0027. Path: $ | LineNumber: 0 | BytePositionInLine: 1."
+  }
+]

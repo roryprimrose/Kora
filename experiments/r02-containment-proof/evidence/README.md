@@ -130,3 +130,42 @@ Later rebases and validation runs are publication follow-ups, not changes to
 the original snapshot's source/OS observations or its initial draft disposition.
 The [shared deferred-validation register](../../../Design/Deferred_Validation.md)
 separates safe reruns from separately approved interactive/privileged acceptance.
+
+## Post-Rebase Publication Validation
+
+On 2026-10-05 the branch was rebased onto `1d6ed77` (merged speech proof #25)
+without conflicts. Approved R01 `7d5e6a3` remains an ancestor. The user explicitly
+approved one guarded `--force-with-lease` publication of this already-published
+branch; that approval does not authorize an unguarded push or future rewrites.
+The required final fetch/rebase was repeated before validation and was a no-op.
+
+The existing fixed scratch proof was rebuilt and rerun at source revision
+`076e038`, with environment recorded at `04:14:31.0116479 UTC`.
+These are separately retained results, not edits to the original snapshot:
+
+| Validation | Post-rebase outcome |
+|---|---|
+| Isolated proof Release build | Passed; 0 warnings, 0 errors |
+| Deterministic receipt/classification assertions | 5/5 passed |
+| Actual OS assertions | 63/71 met; the same eight network-denial assertions remain unproven |
+| Strict proof exit | **2**, preserved |
+| Tree shutdown | All five tracked trees stopped; individual shutdown times 13.56-27.24 ms |
+| AppContainer protected fixtures | Unchanged in all four AppContainer trials |
+| Effect without valid receipt | Lost/malformed receipt trials remain **Unknown** |
+| Cleanup | Synthetic credential, temporary profile and exact scratch directory deleted |
+| Embedded documentation build/tests | Release build passed; 9/9 focused tests passed |
+| Production/interactive acceptance | Not certified; deferred C01-C07 remain required |
+
+- [Post-rebase identities, runtime and build hashes](post-rebase/environment.json)
+- [Post-rebase correlated trials and native observations](post-rebase/trials.json)
+- [Post-rebase strict assertion results](post-rebase/verification.json)
+- [Post-rebase proof/build classification](post-rebase/validation.json)
+- [Post-rebase cleanup receipts](post-rebase/cleanup.json)
+
+Only existing non-elevated owned-scratch checks and focused documentation tests
+were repeated. No speech capture/playback, Kora installation/launch, privileged
+tracing, installed ACL/global policy changes, lock, shutdown or restart trial
+was performed. The [shared register](../../../Design/Deferred_Validation.md)
+and [C01-C07 checklist](../README.md#outstanding-testing-checklist) hand those
+gates to a later separately approved interactive session. Publication/merge of
+this partial evidence through normal repository checks does not close them.

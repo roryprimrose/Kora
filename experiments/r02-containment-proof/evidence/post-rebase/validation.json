@@ -1,0 +1,6 @@
+{
+  "build": "Passed",
+  "receiptTests": "Passed (5 assertions; supplementary only)",
+  "osProofExitCode": 2,
+  "osProof": "Unsupported or unproven; examine trials.json"
+}

@@ -1286,7 +1286,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private AudioOutputDevice? EffectiveOutputDevice =>
         SelectedOutputDevice?.IsSystemDefault == true
             ? systemDefaultOutputDevice
-            : SelectedOutputDevice;
+            : SelectedOutputDevice is not null && OutputDevices.Contains(SelectedOutputDevice)
+                ? SelectedOutputDevice : null;
 
     public bool IsVisualResponseVisible =>
         IsCallVisualOverrideActive
@@ -1547,7 +1548,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 voiceConsent = voiceConsentPreferences.Load();
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 ApplicationLog.Error(logger, exception, "Loading ongoing voice consent");
                 voiceConsent = false;

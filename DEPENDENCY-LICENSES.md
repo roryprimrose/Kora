@@ -7,7 +7,8 @@ dependencies remain under their respective licenses.
 
 The repository pins `nuget-license` as a local .NET tool. The license gate:
 
-1. reads the restored, locked dependency graph for every project;
+1. reads the restored, locked dependency graph for every project in
+   `Kora.slnx` (the application, libraries, and their test projects);
 2. includes direct and transitive NuGet packages;
 3. permits only the reviewed identifiers in
    `eng/licenses/allowed-licenses.json`;
@@ -29,6 +30,26 @@ The CI workflow runs the same command and publishes its JSON report, downloaded
 license texts, and package-provided notice files as an audit artifact. Official
 publish archives include Kora's license, the generated third-party notice, and
 those dependency license and notice files.
+
+### Experimental dependencies
+
+Projects under `experiments/` are not members of `Kora.slnx` and are not covered
+by this automated gate or its generated distribution notice. This exclusion
+also applies to experimental NuGet dependencies, not just Python and npm
+packages. Experimental dependencies and assets must be reviewed separately and
+are not approved for production or distribution by a passing solution gate.
+
+In particular, the storage proof's `Microsoft.Data.Sqlite.Core` and
+`SQLitePCLRaw.bundle_e_sqlcipher` dependencies are research-only. Their version,
+native SQLCipher provenance, license and redistribution gates are recorded in
+the [storage proof](experiments/r02-storage-proof/README.md). The other
+[R02 proofs](Design/Deferred_Validation.md) retain their own dependency and
+asset-review evidence and outstanding gates.
+
+Before moving experimental code into the product, include its production
+project in the solution gate, review all direct/transitive packages and native
+assets, and regenerate the production notices. Do not copy experimental
+binaries, models, or license reports into official publish archives.
 
 ## Review requirements
 

@@ -206,6 +206,37 @@ public sealed class ActivatedVoiceRecognitionTests(
         capture.StartCount.Should().Be(1);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Valid_default_microphone_changes_preserve_active_generation_and_pinned_capture(bool pinned)
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var capture = new FakeCapture();
+        factory.OpenResult.SetResult(capture);
+        await using var service = Create(privacy, factory);
+        await service.BeginPushToTalkAsync(
+            pinned ? Microphone : SystemAudioDevices.Microphone, ["help"],
+            cancellationToken: TestContext.Current.CancellationToken);
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+        var generation = service.Generation;
+
+        privacy.Set(Ready with
+        {
+            TopologyRevision = 2,
+            ActiveMicrophoneIds = pinned ? ["mic", "new-mic"] : ["new-mic"],
+            DefaultMicrophoneId = "new-mic",
+        });
+
+        service.IsListening.Should().BeTrue();
+        service.Generation.Should().Be(generation);
+        capture.ReleaseCount.Should().Be(0);
+        capture.StartCount.Should().Be(1);
+        factory.OpenCount.Should().Be(1);
+        await service.EndPushToTalkAsync(TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     public async Task PTT_end_releases_capture_then_accepts_only_bounded_final_recognition()
     {

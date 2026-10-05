@@ -126,6 +126,25 @@ $licences = @(
         }
     }
 )
+$files = @(Get-PayloadFiles $Payload)
+$releaseBlockers = [Collections.Generic.List[string]]::new()
+$licensingEvidence = @(
+    foreach ($path in 'LICENSE', 'THIRD-PARTY-NOTICES.md') {
+        $file = $files | Where-Object path -CEQ $path | Select-Object -First 1
+        if ($null -eq $file) {
+            $releaseBlockers.Add("Missing distribution licensing file: $path")
+        }
+        [ordered]@{
+            path = $path
+            present = ($null -ne $file)
+            bytes = if ($null -ne $file) { $file.bytes } else { $null }
+            sha256 = if ($null -ne $file) { $file.sha256 } else { $null }
+        }
+    }
+)
+$releaseBlockers.Add('Per-release redistribution clearance is not established by static inspection.')
+$releaseBlockers.Add('Installed Windows protection and runtime-only acceptance require separate evidence.')
+$releaseBlockers.Add('Bundled-resource and worker acceptance require separate evidence.')
 $manifest = [ordered]@{
     schema = 1
     repository = 'https://github.com/roryprimrose/Kora'
@@ -133,12 +152,14 @@ $manifest = [ordered]@{
     buildOrigin = $BuildOrigin
     rid = 'win-x64'
     frameworks = $frameworks
-    files = @(Get-PayloadFiles $Payload)
+    files = $files
     peFiles = $peFiles
     nativeAssets = $native
     nativeImportReview = 'Static normal-import inventory only; delay loads and dynamic loading need real Windows trials.'
     licences = $licences
-    releaseAcceptance = 'BLOCKED: no project licence, future workers/resources absent, Windows lab evidence required.'
+    licensingEvidence = $licensingEvidence
+    releaseBlockers = @($releaseBlockers)
+    releaseAcceptance = 'BLOCKED: ' + ($releaseBlockers -join ' ')
 }
 Write-ProofJson $manifest (Join-Path $EvidenceDirectory 'payload.json')
 $manifest.files | ForEach-Object { "$($_.sha256)  $($_.path)" } |

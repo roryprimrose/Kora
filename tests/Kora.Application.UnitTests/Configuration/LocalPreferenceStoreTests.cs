@@ -74,6 +74,7 @@ public sealed class LocalPreferenceStoreTests : IDisposable
     [InlineData("")]
     [InlineData("nested/value.txt")]
     [InlineData(@"nested\value.txt")]
+    [InlineData(@"C:value.txt")]
     [InlineData("..")]
     public void Operations_reject_paths_outside_the_preference_directory(string fileName)
     {

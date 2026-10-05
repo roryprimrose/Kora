@@ -74,7 +74,10 @@ internal sealed class LocalPreferenceStore(IApplicationDataPaths paths) : IPrefe
     private string GetPath(string fileName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
-        if (!string.Equals(fileName, Path.GetFileName(fileName), StringComparison.Ordinal)
+        if (fileName.Contains('/')
+            || fileName.Contains('\\')
+            || fileName.Contains(':')
+            || !string.Equals(fileName, Path.GetFileName(fileName), StringComparison.Ordinal)
             || fileName is "." or "..")
         {
             throw new ArgumentException(

@@ -8,9 +8,10 @@ owner's approval. No mock identity is counted as Windows evidence.
 This is a standalone, synthetic, executable experiment. It does not reference
 Kora projects, open `%LOCALAPPDATA%\Kora`, change preferences, implement grants,
 or define the future R04/R05 session/task schema. All new files, dependency
-versions, lock files, scripts and recommendations live in this directory.
-Production manifests, composition, solution, CI and canonical contracts are
-unchanged.
+versions, lock files, scripts and measured evidence live in this directory.
+Its outcome now updates the canonical architecture, decision, security/session
+and acceptance contracts and roadmap. Production manifests, composition,
+solution, persistence/preferences and CI are unchanged.
 
 **Supported OS scope: Windows only**, as confirmed by the owner on 2026-10-05.
 Linux runtime support and Linux-host cross-build validation are outside this
@@ -135,53 +136,22 @@ not actual action execution, authorization, session restoration or no-replay
 enforcement. Those remain R04/R05/R12 host responsibilities. The harness
 contains no effect-dispatch path at all.
 
-## Recommended strategy
+## Outcome in Canonical Contracts
 
-**Prefer maintained, authenticated whole-database encryption for content-bearing
-events/metadata/search plus AES-GCM for out-of-database artifacts, with random
-keys wrapped by CurrentUser DPAPI and restricted local ACLs.** Select a modern,
-proven native distribution only after the deployment gates below. Do not ship
-this experiment's unofficial old native engine.
+The [Windows durable-storage direction](../../Design/Architecture.md#windows-durable-storage-direction)
+now owns the implementation requirements: maintained authenticated
+whole-database encryption, AES-GCM managed artifacts and CurrentUser DPAPI keys.
+The [D-009 record](../../Design/Decision_Register.md#d-009-session-persistence-and-retention)
+owns choices/rejections, remaining evidence and reconsideration triggers.
+The [roadmap](../../Design/Implementation_Roadmap.md#r02-storagekey-outcome-and-follow-on-work)
+assigns native/key admission to R02, durable migration/key/artifact recovery to
+R04, and integrated lifecycle/managed-copy deletion to R12.
 
-1. Keep all content-bearing FTS/summaries/indexes inside the keyed store.
-   Force in-memory temporary storage on every connection; fail initialization
-   if the expected engine/encryption configuration is absent. Ban unkeyed
-   backups, diagnostic SQL tracing and exports of decrypted temp files.
-2. Use SQLite transactions for ordered evidence/revision commits with FULL
-   durability. Persist required intent before an effect and receipts afterward.
-   Recovery reads evidence and marks interrupted/unknown work; it never dispatches
-   automatically. This proof does not prescribe the final schema.
-3. Stage/authenticate/flush artifacts, publish before reference commit, and
-   reconcile staged/orphan/missing files on recovery. Bound artifact sizes.
-   The immutable digest can itself leak equality/content identity: consider
-   opaque names or keyed digests for sensitive artifacts in the final design.
-4. Treat key wrappers as versioned recoverable data. Missing/invalid keys stop
-   writes and dispatch dependent on durable evidence, never create a new
-   database or fresh key over existing content. Plan rotation and wrapper
-   publication together with every retained backup. DPAPI entropy here is a
-   public domain separator, not a password or second security boundary.
-5. Define a deletion ownership inventory for current rows, FTS, artifacts,
-   caches, staging, journals and every **managed** backup. Purge/rewrite owned
-   recoverable copies; do not promise per-record cryptographic erasure with a
-   shared database key. Per-owner content keys may help only if every wrapped
-   copy, plaintext index and historical backup is also handled; that design is
-   not proven here.
-6. Explicitly disclose lack of forensic erasure: SSD wear levelling, filesystem
-   snapshots, OS paging/dumps, user exports and provider copies survive local
-   unlink. `secure_delete`, checkpoint and VACUUM are hygiene, not guarantees.
-
-If maintained page encryption cannot be admitted, the measured envelope
-approach is a viable **narrower fallback** for content records/artifacts, with
-in-memory search or explicitly accepted equality-token leakage. It must
-envelope all retained content-bearing metadata and derived indexes; plaintext
-FTS is not an acceptable shortcut. Key separation, keyed-index rotation,
-nonce budgets, replay/rollback resistance, per-owner deletion and large-store
-search costs still need design and tests before exposure.
-
-AES-GCM/page MACs detect corruption and tampering, but neither proves complete
-history, detects deletion of whole valid records, nor prevents restoring a
-valid older database/backup. D-008 tamper-evident audit is a separate gate;
-this proof does not implement it or any grant store.
+The measured old native engine is not production-admitted. An envelope fallback
+requires revisiting D-009; the prototype does not silently select it or define
+future host types. Detailed requirements belong in those canonical contracts,
+not a second experimental specification. This directory preserves the runnable
+evidence needed to verify or revisit them.
 
 ## Licensing, native assets and Windows-only scope
 

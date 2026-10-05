@@ -288,7 +288,8 @@ Tool names and descriptions are untrusted metadata. Policy bindings are maintain
 ## Storage and Processes
 
 The proposed store uses SQLite for configuration, session/events, and task/action metadata, with encrypted permitted content/artifacts/indexes and OS-protected keys.
-Encryption integration, transactional persistence, migration, journal/backup deletion, and failure behavior are release gates; no particular encryption package is selected here.
+The Windows durable-storage direction below follows the R02 feasibility evidence; no particular native encryption package is production-admitted.
+Encryption integration, transactional persistence, migration, journal/backup deletion, and failure behavior remain release gates.
 Machine-local configuration/enablement/audit storage is under `%LOCALAPPDATA%\Kora`.
 Kora-specific declarative skill packages are under the Windows Roaming AppData folder at `%APPDATA%\Kora\Skills`.
 Shared profile skill roots are registered read-only sources, not writable storage.
@@ -320,6 +321,35 @@ reject Job-only restricted execution and retain capability-free AppContainer as
 a partial candidate. Network denial, dependency admission and independently
 protected deployment remain unresolved under D-013; no production worker is
 composed and no typed native broker is selected by the experiment.
+
+### Windows Durable Storage Direction
+
+The R02 storage/key investigation selects **maintained, authenticated whole-database encryption for content-bearing SQLite events, metadata and indexes, plus AES-256-GCM for managed out-of-database artifacts**.
+Use random keys wrapped by Windows CurrentUser DPAPI and user-restricted local filesystem ACLs.
+This is an implementation direction, not a selected shipping package or a completed R04/R05 schema.
+Windows is the only supported product OS; Linux runtime support and local Linux-host validation are outside this storage proof.
+Existing Linux-hosted CI building Windows artifacts remains unchanged and does not imply Linux product support.
+[D-009](Decision_Register.md#d-009-session-persistence-and-retention) owns selection status and remaining gates; the [reproducible R02 evidence](../experiments/r02-storage-proof/README.md) supports, rather than replaces, this contract.
+
+Implementation requirements:
+
+- Admit only a maintained native engine with reviewed provenance/licences, authenticated encryption configuration and installed Windows x64/x86 loading evidence. The measured unofficial package reports SQLCipher 4.5.2, SQLite 3.39.2 and LibTomCrypt 1.18.2 and is not admitted for production.
+- Keep content-bearing FTS, summaries and derived indexes inside the keyed store. Require memory-only SQLite temporary storage on every connection; reject an absent codec or incompatible configuration. Backups must be explicitly keyed. Do not trace decrypted SQL parameters, connection passwords or record content into diagnostics.
+- Transactionally commit ordered intent/decision evidence before consequential dispatch and link observed receipts afterward. Use FULL-synchronous durability, then prove recovery on the admitted engine. Recovery restores readable interrupted/unknown evidence, never fresh execution authority or automatic replay.
+- Authenticate artifacts with versioned, identity/role-bound envelopes. Stage, flush and publish before committing the reference; recover staged files, unreferenced published files and missing/corrupt referenced files explicitly. Bound sizes and account for immutable digest/equality disclosure when choosing artifact names.
+- Version key wrappers and coordinate publication, rotation and recovery with all managed backup generations. Missing/invalid keys fail visibly without overwriting existing data, creating replacement keys over it or changing storage location. Prove actual approved different-user Windows DPAPI and ACL denial; a mock SID or same-user process is insufficient. CurrentUser DPAPI is not an unconditional device-binding guarantee for every profile/domain configuration.
+- Convert legacy plaintext into a separate encrypted candidate, verify its contents before replacement, and preserve recoverable originals on failure. Applying a key to an existing plaintext SQLite file is not conversion. Track the retained plaintext original and its copies as migration/deletion-owned data, not an undisclosed indefinite backup.
+- Define deletion ownership across rows, indexes, caches, staging, artifacts, journals and every managed backup. Prevent late appends and prove that unrelated content remains readable. A shared database key does not provide per-session cryptographic erasure; checkpoint, VACUUM and `secure_delete` are hygiene, not forensic-erasure guarantees.
+
+If maintained page encryption cannot be admitted, reconsider D-009 before using an application-envelope fallback; never silently downgrade.
+That fallback must encrypt every content-bearing field and artifact and use in-memory search or explicitly accepted keyed-equality leakage, not plaintext FTS.
+The measured equality index does not prove ranked, substring or semantic search, key separation/rotation, or large-history performance.
+
+Page authentication and AES-GCM do not detect removal of whole valid records or restoration of an older valid database.
+Independent tamper-evident security evidence remains D-008 work.
+DPAPI wrapper deletion and live-database rekey do not revoke copied wrappers or old backups; local unlink cannot erase user exports, provider copies, filesystem snapshots, SSD remnants, OS paging or third-party dumps.
+The R02 sentinel scans and process-kill trials do not establish absence of all plaintext or hardware power-loss durability.
+The [acceptance criteria](Acceptance_Criteria.md#persistence-configurable-lifecycle-and-deletion) govern admission and later integration.
 
 ## Skill Data Versus Application Code
 

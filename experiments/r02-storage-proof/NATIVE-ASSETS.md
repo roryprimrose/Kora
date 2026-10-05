@@ -75,8 +75,10 @@ Selecting prebuilt Windows assets is not proof of their source build provenance,
 CRT/import requirements, signatures, installer access controls or clean-machine
 runtime load. Installed Windows x86/x64 native dependency resolution remains
 an open gate, and DPAPI runtime tests require actual Windows. No host bootstrap,
-container service, account, shared pipeline, or canonical deployment document
-was changed. Do not bypass existing required CI checks/reviews or treat this
+container service, account or shared pipeline was changed. The resulting
+native admission requirements are recorded in the
+[canonical storage direction](../../Design/Architecture.md#windows-durable-storage-direction).
+Do not bypass existing required CI checks/reviews or treat this
 directory as shipping composition.
 
 ## Source references (consulted 2026-10-05)

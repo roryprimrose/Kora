@@ -690,6 +690,12 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.
 Encrypt history, artifacts, and indexes with OS-protected keys; deletion must cover caches, indexes, blobs, journals/recoverable copies, and outstanding session dispatch authority, not independently stored perpetual grants.
+The [Windows durable-storage direction](Architecture.md#windows-durable-storage-direction) requires maintained authenticated page encryption, authenticated managed artifacts, CurrentUser DPAPI key wrapping and restricted local ACLs; the R02 native candidate is not production-admitted.
+Key custody must be verified using actual approved different Windows users for DPAPI and filesystem denial, not mock identities.
+Do not persist content-bearing temporary stores or plaintext FTS, emit decrypted database tracing, or make unkeyed backups.
+Maintain an explicit inventory of managed recoverable copies and key-wrapper/backup generations: deleting a wrapper, rekeying the live database or unlinking an artifact does not revoke historical copies.
+The deletion contract must remove or rewrite owned recoverable content without destroying unrelated sessions or independently retained grants.
+Do not describe shared-key deletion as per-session cryptographic erasure or content authentication as detection of whole-record removal/valid-backup rollback.
 Source revocation may remove restricted content before normal session expiry. Mark omissions/redactions explicitly.
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.
 Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.

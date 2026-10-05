@@ -1,0 +1,81 @@
+{
+  "reviewed_on": "2026-10-05",
+  "purpose": "R02 D-002/D-007 experiment; not product licensing approval or release acceptance",
+  "candidates": [
+    {
+      "name": "openWakeWord",
+      "version": "0.6.0",
+      "execution_status": "NOT_RUN",
+      "code_license": "Apache-2.0",
+      "model_license": "Bundled pretrained models: CC-BY-NC-SA-4.0, separately from code",
+      "windows_availability": "Universal Python wheel; ONNX path documented; not installed or exercised here",
+      "model_version_reviewed": "v0.5.1 asset release, hey_jarvis_v0.1.onnx; no supplied Kora classifier",
+      "reviewed_threshold": 0.5,
+      "reviewed_sample_rate": 16000,
+      "reviewed_frame_samples": 1280,
+      "blockers": [
+        "No reviewed Kora model",
+        "Commercial-purpose evaluation/bundling not assumed permissible under noncommercial model terms",
+        "Custom training and training-data/model rights not cleared",
+        "Windows dependency closure and acoustic front-end not tested"
+      ],
+      "sources": [
+        "https://pypi.org/pypi/openwakeword/0.6.0/json",
+        "https://github.com/dscripka/openWakeWord/blob/v0.6.0/README.md",
+        "https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.en"
+      ]
+    },
+    {
+      "name": "sherpa-onnx",
+      "version": "1.13.8",
+      "execution_status": "RECORDED_SYNTHETIC_AUDIO_ONLY",
+      "code_license": "Apache-2.0",
+      "model_license": "Apache License 2.0 explicitly declared by model author and archive README",
+      "windows_availability": "CPython 3.12 Windows AMD64 binding/core wheels installed and exercised",
+      "model": "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01",
+      "archive_sha256": "f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a",
+      "keyword": "KORA",
+      "thresholds_tested": [0.1, 0.25, 0.5],
+      "sample_rate": 16000,
+      "feed_samples": 1600,
+      "blockers": [
+        "No acoustic headset/speaker proof or 5-speaker corpus",
+        "Raw detector activates on self-TTS; no source discrimination/AEC",
+        "Weak synthetic noise/overlap performance; no production threshold selected",
+        "Actual word-boundary exclusion and activated transcription not proven",
+        "Packaged .NET Windows host and third-party notice integration not tested"
+      ],
+      "sources": [
+        "https://pypi.org/pypi/sherpa-onnx/1.13.8/json",
+        "https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/LICENSE",
+        "https://k2-fsa.github.io/sherpa/onnx/kws/pretrained_models/index.html",
+        "https://www.modelscope.cn/api/v1/models/pkufool/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01/repo?Revision=master&FilePath=README.md"
+      ]
+    },
+    {
+      "name": "Picovoice Porcupine",
+      "version": "4.0.3",
+      "execution_status": "NOT_RUN",
+      "code_license": "Public Python binding: Apache-2.0; not a license grant for proprietary engine/models",
+      "model_license": "Picovoice proprietary terms/additional agreement; no redistribution grant established for Kora",
+      "windows_availability": "SDK documents Windows AMD64 engine; not installed/initialized here",
+      "model_version_reviewed": "No Windows Kora .ppn provided",
+      "reviewed_sensitivity": 0.5,
+      "reviewed_frame_samples": null,
+      "reviewed_sample_rate": null,
+      "frame_note": "Read frame_length and sample_rate from a licensed initialized handle; do not assume constants",
+      "blockers": [
+        "No user-authorized account, AccessKey, evaluation agreement or custom Windows Kora profile",
+        "Cold disconnected licensing behavior and usage metadata need actual verification",
+        "Model/engine redistribution and publication requirements need separate clearance"
+      ],
+      "sources": [
+        "https://pypi.org/pypi/pvporcupine/4.0.3/json",
+        "https://picovoice.ai/docs/quick-start/porcupine-python/",
+        "https://picovoice.ai/docs/faq/general/",
+        "https://picovoice.ai/docs/terms-of-use/"
+      ]
+    }
+  ],
+  "decision": "No production detector, threshold or supported hardware floor recommended. Sherpa is an available account-free follow-up experiment, not a passed gate."
+}

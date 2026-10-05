@@ -1,0 +1,40 @@
+{
+  "status": "EXPERIMENT_VALIDATED_RELEASE_PROOF_INCOMPLETE",
+  "code_commit_after_second_fetch_rebase": "d4a4cf832b619251633178e758a36c40f856aff2",
+  "origin_main_after_second_fetch_rebase": "7d5e6a352261dce48f2ca4d3048650ee13f51705",
+  "approved_r01_ancestor_verified": true,
+  "second_rebase_conflicts": false,
+  "post_rebase_validation": {
+    "model_archive_and_selected_files_reprepared": true,
+    "silent_sapi_fixture_rendering_repeated": true,
+    "generated_fixture_manifest_sha256_before_and_after": "b274b036b4488d959208e77150524fa504b00b1a78de3bad9e3f214d70250157",
+    "fixture_regeneration_bit_identical_on_reference_machine": true,
+    "pip_check_passed": true,
+    "python_compileall_passed": true,
+    "unit_tests_passed": 15,
+    "unit_tests_failed": 0,
+    "native_benchmark_thresholds_repeated": [0.1, 0.25, 0.5],
+    "warmups_per_threshold": 5,
+    "measured_trials_per_threshold": 30,
+    "paced_pilot_seconds": 60,
+    "recorded_source_hashes_match_worktree": true,
+    "default_threshold_immediate_prefix_sample_equality_verified": true,
+    "default_threshold_empty_timeout_exactly_80000_samples_after_activation_verified": true,
+    "default_threshold_command_limit_exactly_960000_samples_verified": true,
+    "git_diff_check_passed": true,
+    "all_changed_paths_under_experiment_directory": true
+  },
+  "user_consent": "Recorded synthetic fixtures only; live microphone/playback trials deferred",
+  "microphone_or_audible_playback_used": false,
+  "production_services_shared_manifests_ci_canonical_documents_changed": false,
+  "large_models_or_audio_committed": false,
+  "remaining": [
+    "Licensed Kora-specific openWakeWord and Porcupine availability",
+    "Real command boundary/transcription and acoustic endpointing",
+    "Self-TTS/source rejection and human interruption",
+    "Five-speaker quiet/office-noise/TTS corpus and ten-hour negatives",
+    "Thirty-minute integrated wake-only overhead and supported hardware/device/accessibility matrix",
+    "Packaged Windows host/assets/notices and offline boundary proof"
+  ],
+  "publish_disposition": "Draft PR; D-002/D-007 remain open; auto-merge not enabled"
+}

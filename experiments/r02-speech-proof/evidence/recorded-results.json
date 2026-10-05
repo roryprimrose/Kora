@@ -1,0 +1,3456 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-05T00:33:54.666502+00:00",
+  "kind": "recorded_synthetic_audio_not_acoustic_proof",
+  "git_head": "d4a4cf832b619251633178e758a36c40f856aff2",
+  "main_baseline": "7d5e6a352261dce48f2ca4d3048650ee13f51705",
+  "hardware": {
+    "cpu": [
+      {
+        "Name": "AMD RYZEN AI MAX 385 w/ Radeon 8050S           ",
+        "NumberOfCores": 8,
+        "NumberOfLogicalProcessors": 16,
+        "MaxClockSpeed": 3600
+      }
+    ],
+    "os": {
+      "Caption": "Microsoft Windows 11 Enterprise",
+      "Version": "10.0.26300",
+      "BuildNumber": "26300",
+      "OSArchitecture": "64-bit"
+    },
+    "windows_revision": {
+      "DisplayVersion": "26H2",
+      "UBR": 9457
+    },
+    "system": {
+      "TotalPhysicalMemory": 25530408960,
+      "Manufacturer": "HP",
+      "Model": "HP ZBook Ultra G1a 14 inch Mobile Workstation PC"
+    },
+    "disk": [
+      {
+        "FriendlyName": "SK hynix PC801 HFS001TEJ9X101N",
+        "MediaType": "SSD"
+      }
+    ],
+    "power": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)",
+    "ui_processes": [
+      {
+        "Name": "Code",
+        "Count": 23
+      }
+    ]
+  },
+  "python": "3.12.10",
+  "logical_cpus": 16,
+  "versions": {
+    "numpy": "2.2.6",
+    "psutil": "7.2.2",
+    "sentencepiece": "0.2.1",
+    "sherpa-onnx": "1.13.8",
+    "sherpa-onnx-core": "1.13.8"
+  },
+  "source_files": {
+    "prepare.py": "7a883eea79630bdecb9ed464927ea3c22e710f2b32cd1fc3307969233e32dcbd",
+    "fixtures.py": "29015cfcc10e300c4f7403230ab24ff2a7b992e5c309f0811b98a7a23500d735",
+    "capture_probe.py": "5005b7e767281bbd150d570345e9561bcdd9a533091ffd268f617e1054d88329",
+    "benchmark.py": "48ab4d142db995b179ae23acf36cab115df832e9573eb13543a5b07c7ea9958a",
+    "test_benchmark.py": "000e6208af2f63075dfda53f0e95e4ae24772b2aa6ee0842f4d19e7d4a2f400f",
+    "Render-Fixtures.ps1": "74df7c943329f16c1b75f47740eb795c9c453693c879ce4e2931e4790d57ac01",
+    "Validate.ps1": "a0b897122c815aaaa88ad2409f0c4473fb9aa937d40709bac21a7c77e7b32209",
+    "requirements.txt": "701be38c64333558bd046d324f40776d475ed3cda70b33879f58a4bb7208e3da"
+  },
+  "assets": {
+    "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.tar.bz2",
+    "archive_sha256": "f170013b4716e41b62b9bfd809687c207cef798ef9bc6534d524e17af9b6561a",
+    "keyword": "KORA",
+    "bpe_pieces": [
+      "\u2581K",
+      "OR",
+      "A"
+    ],
+    "files": {
+      "bpe.model": "c8a2a0129c4ab8e463164c142f82d25649661b122c8cd0b7aab5c9e80b90ad24",
+      "tokens.txt": "fd2ded4050a55d2b1578870ba8697d02371980217806b7558bd0a5cc60f3ba53",
+      "README.md": "74e42d37d63acd2366b042151d576fcc0c4917a41de339414a37f1e79f4e80e2",
+      "encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx": "1e721676515bcd42a186979733981213c66c80db680e1cc582dfedf3be76e678",
+      "decoder-epoch-12-avg-2-chunk-16-left-64.onnx": "f61ebd3eed3773a44d088d53dfae92dbb6aec4839f4dcaee2d402414741663a3",
+      "joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx": "eae9da0c7e1e6c6a3f4cc42d167899c388f6c6701b94cb96320e4f55df79624c",
+      "kora.txt": "3127ec0691decf8f18849871b057b9c9015c368ea4621849317c9cc6f8251ef5"
+    },
+    "note": "Archive hash recorded on 2026-10-05; upstream release exposes no signed digest"
+  },
+  "fixtures": {
+    "kind": "synthetic_file_only",
+    "sample_rate": 16000,
+    "noise_seed": 2007,
+    "noise": "PCG64 white Gaussian; not recorded office noise",
+    "source_provenance": [
+      {
+        "file": "voice-0-rate--1-wake.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "wake",
+        "text": "Kora",
+        "sha256": "5a9a309a83853eb174cad69965f9458764cb05713e98e8360b3412826f8d9009",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate--1-immediate.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "immediate",
+        "text": "Kora, open settings",
+        "sha256": "57a3da1fe9df5a3595c380fa40fd83c2744691eaa7195ec24ea0466d7a9e8e7e",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate--1-command.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "command",
+        "text": "open settings",
+        "sha256": "9974b3f05c8a24d65bc91a49a50ec6eec7406348e1b4a805171b9f92aa516e22",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate--1-stop.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "stop",
+        "text": "stop speaking",
+        "sha256": "339d809546ae4b1e9241023edd3ec23fece61753196629f1c452adc2a64187c3",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate--1-tts.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "tts",
+        "text": "Kora, open settings. Kora, stop speaking. Say Kora to begin.",
+        "sha256": "4d32d6c66f10e67ff0861238088c8b24bdf41d736e34431cadc425ace76cb711",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate--1-negative.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "negative",
+        "text": "The core of the coral is a quarter of the corridor. Nora and Laura opened settings. Please stop speaking about the weather. We will meet tomorrow.",
+        "sha256": "8a1dc0ef8b6b94d21ec7adeb27081f3b74d209cee154ff67bf45bb9eb72f7763",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate-1-wake.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "wake",
+        "text": "Kora",
+        "sha256": "c7d0a4f726cbd6396c4fefe8e0022293db28dc0b08a0481ac8a07cfebc8062e6",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate-1-immediate.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "immediate",
+        "text": "Kora, open settings",
+        "sha256": "010e825cf5fded30e2df2a415c08afd4f43aa09d50af89c674dac4495a2a069c",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate-1-command.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "command",
+        "text": "open settings",
+        "sha256": "9f61e893623f523a28b1100b05687c3b48e5106918d7844acbe70973079ca3cf",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate-1-stop.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "stop",
+        "text": "stop speaking",
+        "sha256": "be17af039992108686ac2a41db7e00c8857a856c66b3b7154ff6d3d3855abd4e",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate-1-tts.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "tts",
+        "text": "Kora, open settings. Kora, stop speaking. Say Kora to begin.",
+        "sha256": "0becdced81edbbb9ed68103c1b5a99520b3dd9aaa75724e53e8307b38354c3c1",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-0-rate-1-negative.wav",
+        "voice": "Microsoft David Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "negative",
+        "text": "The core of the coral is a quarter of the corridor. Nora and Laura opened settings. Please stop speaking about the weather. We will meet tomorrow.",
+        "sha256": "683b00216648385929b99362a14e92e32a4ae1b532c09406e6ad73c67e6b62a4",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate--1-wake.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "wake",
+        "text": "Kora",
+        "sha256": "04277c920c7a6c4e9345d35afd29bd014d84c4ab57eca71f26295aed01ceb754",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate--1-immediate.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "immediate",
+        "text": "Kora, open settings",
+        "sha256": "9b919da581ea7d7a2348cd90746eeda671a89a92a69474eed859b22adfa182ef",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate--1-command.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "command",
+        "text": "open settings",
+        "sha256": "6c5d8279bf40d6d5b4344b47c66e04e33928ac2278ac6e595df60e00b98b78dc",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate--1-stop.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "stop",
+        "text": "stop speaking",
+        "sha256": "b971dfc100c77457e13b5f41295f5d062ae5f8a9e1a42f28b4703a4a1de120fb",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate--1-tts.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "tts",
+        "text": "Kora, open settings. Kora, stop speaking. Say Kora to begin.",
+        "sha256": "8c3f1beb24130660150ebd0be07f94150ffbdf3f4b03b5960c4b6f790f733625",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate--1-negative.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": -1,
+        "phrase_id": "negative",
+        "text": "The core of the coral is a quarter of the corridor. Nora and Laura opened settings. Please stop speaking about the weather. We will meet tomorrow.",
+        "sha256": "87088b56b16f22b1a14cc1450916f8162c4ffff1825000a2b28521b0857eab74",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate-1-wake.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "wake",
+        "text": "Kora",
+        "sha256": "32aa09020e4232efbb56299116a2ee8753b5df15c832e3c3f96fbe4fc864e6f0",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate-1-immediate.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "immediate",
+        "text": "Kora, open settings",
+        "sha256": "9547c27a744929e5875f5e47c76d31f0e8e26cdbeec935ebc70631392a69638c",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate-1-command.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "command",
+        "text": "open settings",
+        "sha256": "7d9ddfbbd804a2edc5a51f819e264e2959719f061036e59a2bc6201821ea531a",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate-1-stop.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "stop",
+        "text": "stop speaking",
+        "sha256": "93c0a432a5eef5a035827509392469dd27d2c13d360479922bbe18ee778929ae",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate-1-tts.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "tts",
+        "text": "Kora, open settings. Kora, stop speaking. Say Kora to begin.",
+        "sha256": "a07ba9cfafe784702befcfadd5d431cf1282d81a8c1c7e053de301e94205584c",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      },
+      {
+        "file": "voice-1-rate-1-negative.wav",
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "rate": 1,
+        "phrase_id": "negative",
+        "text": "The core of the coral is a quarter of the corridor. Nora and Laura opened settings. Please stop speaking about the weather. We will meet tomorrow.",
+        "sha256": "1d1d2a2c249c618ad07c0374c6944a329ca80f1ac9ccb0b891561a3451731f07",
+        "provenance": "Locally authored synthetic text; installed Windows SAPI voice; file-only rendering",
+        "redistribution": "Audio stays local/ignored; Windows voice/software rights are not relicensed by this experiment"
+      }
+    ],
+    "cases": [
+      {
+        "id": "0-wake",
+        "file": "0-wake.wav",
+        "sha256": "efe5fc7adc07e8f61158d4520558a177868b74b841f0ffb93e5073515fbf6ac0",
+        "group": "wake_only",
+        "samples": 110695,
+        "seconds": 6.9184375,
+        "wake_end_sample": 14695,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-immediate",
+        "file": "0-immediate.wav",
+        "sha256": "e56048850811a90fed0ec989c3a550383df504a394a851879a05dd57a543dcf1",
+        "group": "immediate_spliced",
+        "samples": 61866,
+        "seconds": 3.866625,
+        "wake_end_sample": 14695,
+        "command_start_sample": 14695,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-continuous",
+        "file": "0-continuous.wav",
+        "sha256": "d465f277162de769d8ba160fe7c7385be30bc5ef47976c408a5f74bfa1e43c72",
+        "group": "continuous",
+        "samples": 69183,
+        "seconds": 4.3239375,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-paused",
+        "file": "0-paused.wav",
+        "sha256": "6f8e343480c035c166ef9b23d16a905f64a7da95a8672b5f5d5bfc5fe150527a",
+        "group": "paused",
+        "samples": 74666,
+        "seconds": 4.666625,
+        "wake_end_sample": 14695,
+        "command_start_sample": 27495,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-long-command",
+        "file": "0-long-command.wav",
+        "sha256": "ad1a6fd29e2319c365608458db90ee413f1f983d576def6081dc3b114e180a9c",
+        "group": "long_command_tone",
+        "samples": 1086695,
+        "seconds": 67.9184375,
+        "wake_end_sample": 14695,
+        "command_start_sample": 14695,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-noise-10",
+        "file": "0-noise-10.wav",
+        "sha256": "5ecb0a1bbed052d96c208032087e09eb79b6617de01c0400fe8572e458f2931b",
+        "group": "white_noise_10dB",
+        "samples": 61866,
+        "seconds": 3.866625,
+        "wake_end_sample": 14695,
+        "command_start_sample": 14695,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-noise-0",
+        "file": "0-noise-0.wav",
+        "sha256": "41530d89c0df8c1d27d06c12f10810926785cf5434b20baf6abc4b107f325807",
+        "group": "white_noise_0dB",
+        "samples": 61866,
+        "seconds": 3.866625,
+        "wake_end_sample": 14695,
+        "command_start_sample": 14695,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-tts-replay",
+        "file": "0-tts-replay.wav",
+        "sha256": "cceeb4dee9e8e0be7baeebc26a9c4fd7cbf27cb1c2ce91c3bfb6d9962c4a5b6a",
+        "group": "self_tts_replay",
+        "samples": 151788,
+        "seconds": 9.48675,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-overlap",
+        "file": "0-overlap.wav",
+        "sha256": "1dd9f901879a2b80fb99d3ccf05d24b80aa83fb5d990a7887514812bc670e887",
+        "group": "synthetic_overlap",
+        "samples": 143788,
+        "seconds": 8.98675,
+        "wake_end_sample": 30695,
+        "command_start_sample": 30695,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "0-negative",
+        "file": "0-negative.wav",
+        "sha256": "9c92c9584cb755a1ecfecb5072e0ea3a763e079ac5e4c7300e44d3dd49bf4a0a",
+        "group": "negative_speech",
+        "samples": 209197,
+        "seconds": 13.0748125,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "1-wake",
+        "file": "1-wake.wav",
+        "sha256": "e7265ed0abd08b3a4cba0466fcdae25408c2b9462a3074515ece697efb9310f8",
+        "group": "wake_only",
+        "samples": 109568,
+        "seconds": 6.848,
+        "wake_end_sample": 13568,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-immediate",
+        "file": "1-immediate.wav",
+        "sha256": "29345dada364ff6bd475e32d45d781a5f1d36a32a0d418c86bc27b8741f0a271",
+        "group": "immediate_spliced",
+        "samples": 57811,
+        "seconds": 3.6131875,
+        "wake_end_sample": 13568,
+        "command_start_sample": 13568,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-continuous",
+        "file": "1-continuous.wav",
+        "sha256": "cdc9017ac4e5681e87d7d6500652132e42c26520047a848a069d66c319888cf0",
+        "group": "continuous",
+        "samples": 63492,
+        "seconds": 3.96825,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-paused",
+        "file": "1-paused.wav",
+        "sha256": "bafccbcc4bca22c8641b3bd902fba0aeadbd6324c1bac292aedb0241270b9259",
+        "group": "paused",
+        "samples": 70611,
+        "seconds": 4.4131875,
+        "wake_end_sample": 13568,
+        "command_start_sample": 26368,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-long-command",
+        "file": "1-long-command.wav",
+        "sha256": "35a1597a0c4615c29182825c0f5ee923bf41076da0c85e4a850bd30763e9255c",
+        "group": "long_command_tone",
+        "samples": 1085568,
+        "seconds": 67.848,
+        "wake_end_sample": 13568,
+        "command_start_sample": 13568,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-noise-10",
+        "file": "1-noise-10.wav",
+        "sha256": "907a2a548b8bdec4cb64c84ad9efcae642a309965dcc68b2f170fd78fc4eeec4",
+        "group": "white_noise_10dB",
+        "samples": 57811,
+        "seconds": 3.6131875,
+        "wake_end_sample": 13568,
+        "command_start_sample": 13568,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-noise-0",
+        "file": "1-noise-0.wav",
+        "sha256": "69324631cd8ee2741ff7485435499774d582395ab9aee4e6ade59435ffce3a6d",
+        "group": "white_noise_0dB",
+        "samples": 57811,
+        "seconds": 3.6131875,
+        "wake_end_sample": 13568,
+        "command_start_sample": 13568,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-tts-replay",
+        "file": "1-tts-replay.wav",
+        "sha256": "fef22bff5d19afd55bd1509c0793171e750d2e303a6be3510a2b2dd6db802a94",
+        "group": "self_tts_replay",
+        "samples": 129548,
+        "seconds": 8.09675,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-overlap",
+        "file": "1-overlap.wav",
+        "sha256": "91eb327ce962d43132ea4a7ae63fada8b050e4a14c468cfcbfbb119e83ee3ba0",
+        "group": "synthetic_overlap",
+        "samples": 121548,
+        "seconds": 7.59675,
+        "wake_end_sample": 29568,
+        "command_start_sample": 29568,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "1-negative",
+        "file": "1-negative.wav",
+        "sha256": "c080c4c31930fd953135b390000c368f9558b4f040c4853202167c7ed423a06f",
+        "group": "negative_speech",
+        "samples": 175195,
+        "seconds": 10.9496875,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft David Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "2-wake",
+        "file": "2-wake.wav",
+        "sha256": "305673f2ebcf162fc3a1ffe7de984934e62644215644a302c0a81c1b9480609f",
+        "group": "wake_only",
+        "samples": 112367,
+        "seconds": 7.0229375,
+        "wake_end_sample": 16367,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-immediate",
+        "file": "2-immediate.wav",
+        "sha256": "f270f1d80c2717d7e2263bf6b913bd4853fd57109e160c7ceae367c3a6c79986",
+        "group": "immediate_spliced",
+        "samples": 64082,
+        "seconds": 4.005125,
+        "wake_end_sample": 16367,
+        "command_start_sample": 16367,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-continuous",
+        "file": "2-continuous.wav",
+        "sha256": "fb21619953ace9d8638ba8a0dc1bc3892b5892afac59cf99ee392a1baa0c4974",
+        "group": "continuous",
+        "samples": 70717,
+        "seconds": 4.4198125,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-paused",
+        "file": "2-paused.wav",
+        "sha256": "1753939ddfeaf547bf3d0fced838f391ed27fa4a4f82cf6e0597e065df02be78",
+        "group": "paused",
+        "samples": 76882,
+        "seconds": 4.805125,
+        "wake_end_sample": 16367,
+        "command_start_sample": 29167,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-long-command",
+        "file": "2-long-command.wav",
+        "sha256": "b4a3944030078baeda05f319905a43a0d4559f5547565c3be2d420c72f431391",
+        "group": "long_command_tone",
+        "samples": 1088367,
+        "seconds": 68.0229375,
+        "wake_end_sample": 16367,
+        "command_start_sample": 16367,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-noise-10",
+        "file": "2-noise-10.wav",
+        "sha256": "eb722f28bb9baf27ba8d2e79fcc3e24267425d3eb3f52a4f6874b5d21b09ae2b",
+        "group": "white_noise_10dB",
+        "samples": 64082,
+        "seconds": 4.005125,
+        "wake_end_sample": 16367,
+        "command_start_sample": 16367,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-noise-0",
+        "file": "2-noise-0.wav",
+        "sha256": "66ba7a328287f80136cb9bc02a4eb6c4f10935a7811d74e8b003813c6b343761",
+        "group": "white_noise_0dB",
+        "samples": 64082,
+        "seconds": 4.005125,
+        "wake_end_sample": 16367,
+        "command_start_sample": 16367,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-tts-replay",
+        "file": "2-tts-replay.wav",
+        "sha256": "44e3c08e131205d6361f94c140e0c2ffc1d1a9051a0df1e2a973da88568e2f35",
+        "group": "self_tts_replay",
+        "samples": 154868,
+        "seconds": 9.67925,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-overlap",
+        "file": "2-overlap.wav",
+        "sha256": "d211a03726eb79a2c78df358b13e133ce9db5f23b347f38d048ff7c098a74452",
+        "group": "synthetic_overlap",
+        "samples": 146868,
+        "seconds": 9.17925,
+        "wake_end_sample": 32367,
+        "command_start_sample": 32367,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "2-negative",
+        "file": "2-negative.wav",
+        "sha256": "d2aad4b124d5a04b044bcb97c9d48948a4ee3cec0f19ed7f39891186332b21b6",
+        "group": "negative_speech",
+        "samples": 207853,
+        "seconds": 12.9908125,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": -1
+      },
+      {
+        "id": "3-wake",
+        "file": "3-wake.wav",
+        "sha256": "80dcc6f2eb1299b5cb8aacdc123e4a3f701b5a40b82fc75abd2ec1c0852a9b35",
+        "group": "wake_only",
+        "samples": 110836,
+        "seconds": 6.92725,
+        "wake_end_sample": 14836,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-immediate",
+        "file": "3-immediate.wav",
+        "sha256": "34f747fd93e19434daf2cc15e3e505274431c600c0b6d2a14279e4b74e03f2b1",
+        "group": "immediate_spliced",
+        "samples": 59444,
+        "seconds": 3.71525,
+        "wake_end_sample": 14836,
+        "command_start_sample": 14836,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-continuous",
+        "file": "3-continuous.wav",
+        "sha256": "9e1a384fc0bfb072c7a3771819e8c687a952ec4fecfe01f7e7c85b7239a31fd6",
+        "group": "continuous",
+        "samples": 64597,
+        "seconds": 4.0373125,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-paused",
+        "file": "3-paused.wav",
+        "sha256": "69d8ef8423b2baea301355ad1a4567fc6dbac5506d1e219bb2257ef7f0a8b4cc",
+        "group": "paused",
+        "samples": 72244,
+        "seconds": 4.51525,
+        "wake_end_sample": 14836,
+        "command_start_sample": 27636,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-long-command",
+        "file": "3-long-command.wav",
+        "sha256": "cbb410cd58cc88234d99458b77a0d2f4439cfb1f3b958faba85b345cb62f1791",
+        "group": "long_command_tone",
+        "samples": 1086836,
+        "seconds": 67.92725,
+        "wake_end_sample": 14836,
+        "command_start_sample": 14836,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-noise-10",
+        "file": "3-noise-10.wav",
+        "sha256": "d2b4a6b953a666d4b66b769b65f7f0275ab3c4a34faacbf52e804e5cc8d21e65",
+        "group": "white_noise_10dB",
+        "samples": 59444,
+        "seconds": 3.71525,
+        "wake_end_sample": 14836,
+        "command_start_sample": 14836,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-noise-0",
+        "file": "3-noise-0.wav",
+        "sha256": "8e2b7533673298f0ebb45126d7663c5b9e7a706e9f65707b9d80bad51ac728ff",
+        "group": "white_noise_0dB",
+        "samples": 59444,
+        "seconds": 3.71525,
+        "wake_end_sample": 14836,
+        "command_start_sample": 14836,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-tts-replay",
+        "file": "3-tts-replay.wav",
+        "sha256": "5c44c66872b59685eb258343c3318ee88c90229cd1b9445c7c8e4e3f31882bb4",
+        "group": "self_tts_replay",
+        "samples": 131721,
+        "seconds": 8.2325625,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-overlap",
+        "file": "3-overlap.wav",
+        "sha256": "eb6b48e53721da4363aff4ce4afec50f3b4cbff7083ad1d667e7f09286b303dd",
+        "group": "synthetic_overlap",
+        "samples": 123721,
+        "seconds": 7.7325625,
+        "wake_end_sample": 30836,
+        "command_start_sample": 30836,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "3-negative",
+        "file": "3-negative.wav",
+        "sha256": "2474255e242e7a8455aeffaa0f2b2355ba08769dbb97f2e9d5bc00e27b1d2e34",
+        "group": "negative_speech",
+        "samples": 173308,
+        "seconds": 10.83175,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": "Microsoft Zira Desktop - English (United States)",
+        "sapi_rate": 1
+      },
+      {
+        "id": "negative-silence",
+        "file": "negative-silence.wav",
+        "sha256": "40abc924dc63f75aafb2400bb99fd66741e22eb9ff2450973a18db53a06286ac",
+        "group": "negative_silence",
+        "samples": 480000,
+        "seconds": 30.0,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": null,
+        "sapi_rate": null
+      },
+      {
+        "id": "negative-noise",
+        "file": "negative-noise.wav",
+        "sha256": "9c1ce7baa096cf0a7d3e671c946be132efb1235a3912e77b99f4088f097aa96a",
+        "group": "negative_noise",
+        "samples": 480000,
+        "seconds": 30.0,
+        "wake_end_sample": null,
+        "command_start_sample": null,
+        "voice": null,
+        "sapi_rate": null
+      }
+    ],
+    "limitations": [
+      "Two installed en-US SAPI voices are not human speakers or accent coverage",
+      "Spliced zero-gap wake/command has oracle boundaries, not natural coarticulation",
+      "Continuous utterance has no annotated word boundary",
+      "Digital TTS replay/overlap is not real speaker-to-microphone or human interruption",
+      "Generated assets stay ignored; rights to redistribute Windows voice assets are not asserted"
+    ]
+  },
+  "settings": [
+    {
+      "threshold": 0.1,
+      "configuration": {
+        "provider": "cpu",
+        "threads": 2,
+        "sample_rate": 16000,
+        "feed_samples": 1600,
+        "max_active_paths": 4,
+        "keywords_score": 1.0,
+        "num_trailing_blanks": 1,
+        "keyword": "KORA",
+        "encoder": "int8",
+        "decoder": "float32",
+        "joiner": "int8",
+        "vad": "none in detector",
+        "aec": "none",
+        "playback_reference": "none"
+      },
+      "cold_model_construction_ms": 1245.6900000106543,
+      "resources": {
+        "accelerated_wall_seconds": 12.363520200015046,
+        "process_cpu_seconds": 48.203125,
+        "cpu_percent_total_capacity": 24.367617505055993,
+        "baseline_imported_python_rss_bytes": 66703360,
+        "model_loaded_rss_bytes": 111493120,
+        "observed_peak_rss_bytes": 121229312,
+        "incremental_peak_rss_bytes": 54525952,
+        "frame_processing_p95_ms": 7.422499998938292,
+        "boundary": "Accelerated file inference in isolated Python; not Kora UI/muted-idle or acoustic latency"
+      },
+      "summary": {
+        "wake_only": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 27.716625,
+          "recall": 1.0
+        },
+        "immediate_spliced": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 1.0
+        },
+        "continuous": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 16.7493125,
+          "recall": 1.0
+        },
+        "paused": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 18.4001875,
+          "recall": 1.0
+        },
+        "long_command_tone": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 271.716625,
+          "recall": 1.0
+        },
+        "white_noise_10dB": {
+          "cases": 4,
+          "cases_detected": 3,
+          "raw_events": 3,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 0.75
+        },
+        "white_noise_0dB": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 0.0
+        },
+        "self_tts_replay": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 8,
+          "unique_audio_seconds": 35.4953125,
+          "source_attribution": "unavailable; raw wake events are not accepted user commands"
+        },
+        "synthetic_overlap": {
+          "cases": 4,
+          "cases_detected": 1,
+          "raw_events": 1,
+          "unique_audio_seconds": 33.4953125,
+          "source_attribution": "unavailable; raw wake events are not accepted user commands"
+        },
+        "negative_speech": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 47.8470625,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_silence": {
+          "cases": 1,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 30.0,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_noise": {
+          "cases": 1,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 30.0,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_total": {
+          "unique_audio_seconds": 107.84706249999999,
+          "raw_events": 0,
+          "false_activations_per_hour": 0.0,
+          "warning": "Small synthetic sample, not the required 10-hour diverse acoustic negative corpus"
+        }
+      },
+      "cases": [
+        {
+          "id": "0-wake",
+          "group": "wake_only",
+          "seconds": 6.9184375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.866625,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 31065,
+            "captured_seconds": 1.9415625,
+            "transition_sample": 45760,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-continuous",
+          "group": "continuous",
+          "seconds": 4.3239375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "0-paused",
+          "group": "paused",
+          "seconds": 4.666625,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 34560,
+            "captured_seconds": 2.16,
+            "transition_sample": 58560,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.9184375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 974720,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.866625,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "capturing",
+            "reason": null,
+            "activation_sample": 24000,
+            "captured_samples": 47065,
+            "captured_seconds": 2.9415625,
+            "transition_sample": 61760,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.866625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 9.48675,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            },
+            {
+              "keyword": "KORA",
+              "observed_sample": 64000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "0-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 8.98675,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-negative",
+          "group": "negative_speech",
+          "seconds": 13.0748125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "1-wake",
+          "group": "wake_only",
+          "seconds": 6.848,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 652.0
+        },
+        {
+          "id": "1-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.6131875,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 19200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 19200,
+            "captured_samples": 28192,
+            "captured_seconds": 1.762,
+            "transition_sample": 41760,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 352.0
+        },
+        {
+          "id": "1-continuous",
+          "group": "continuous",
+          "seconds": 3.96825,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "1-paused",
+          "group": "paused",
+          "seconds": 4.4131875,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 30560,
+            "captured_seconds": 1.91,
+            "transition_sample": 54560,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 652.0
+        },
+        {
+          "id": "1-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.848,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 973600,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 652.0
+        },
+        {
+          "id": "1-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.6131875,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.6131875,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 8.09675,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            },
+            {
+              "keyword": "KORA",
+              "observed_sample": 59200
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "1-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 7.59675,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-negative",
+          "group": "negative_speech",
+          "seconds": 10.9496875,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "2-wake",
+          "group": "wake_only",
+          "seconds": 7.0229375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-immediate",
+          "group": "immediate_spliced",
+          "seconds": 4.005125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 31633,
+            "captured_seconds": 1.9770625,
+            "transition_sample": 48000,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-continuous",
+          "group": "continuous",
+          "seconds": 4.4198125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "2-paused",
+          "group": "paused",
+          "seconds": 4.805125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 36800,
+            "captured_seconds": 2.3,
+            "transition_sample": 60800,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-long-command",
+          "group": "long_command_tone",
+          "seconds": 68.0229375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 976480,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 4.005125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "capturing",
+            "reason": null,
+            "activation_sample": 24000,
+            "captured_samples": 47633,
+            "captured_seconds": 2.9770625,
+            "transition_sample": 64000,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 4.005125,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 9.67925,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            },
+            {
+              "keyword": "KORA",
+              "observed_sample": 70400
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "2-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 9.17925,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 59200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 59200,
+            "captured_samples": 98353,
+            "captured_seconds": 6.1470625,
+            "transition_sample": 130720,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 1677.0625
+        },
+        {
+          "id": "2-negative",
+          "group": "negative_speech",
+          "seconds": 12.9908125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "3-wake",
+          "group": "wake_only",
+          "seconds": 6.92725,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 572.75
+        },
+        {
+          "id": "3-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.71525,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 19200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 19200,
+            "captured_samples": 28524,
+            "captured_seconds": 1.78275,
+            "transition_sample": 43360,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 272.75
+        },
+        {
+          "id": "3-continuous",
+          "group": "continuous",
+          "seconds": 4.0373125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "3-paused",
+          "group": "paused",
+          "seconds": 4.51525,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 32160,
+            "captured_seconds": 2.01,
+            "transition_sample": 56160,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 572.75
+        },
+        {
+          "id": "3-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.92725,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 974880,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 572.75
+        },
+        {
+          "id": "3-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.71525,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 19200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "capturing",
+            "reason": null,
+            "activation_sample": 19200,
+            "captured_samples": 44524,
+            "captured_seconds": 2.78275,
+            "transition_sample": 59360,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 272.75
+        },
+        {
+          "id": "3-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.71525,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 8.2325625,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            },
+            {
+              "keyword": "KORA",
+              "observed_sample": 59200
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "3-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 7.7325625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-negative",
+          "group": "negative_speech",
+          "seconds": 10.83175,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "negative-silence",
+          "group": "negative_silence",
+          "seconds": 30.0,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "negative-noise",
+          "group": "negative_noise",
+          "seconds": 30.0,
+          "events": [],
+          "capture_probe": null
+        }
+      ],
+      "repeated_trials": {
+        "warmups": 5,
+        "measured": 30,
+        "utterance_id": "0-immediate",
+        "clip_processing_p95_ms": 86.29939996171743,
+        "trials": [
+          {
+            "wall_ms": 76.55980001436546,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.523099960759282
+          },
+          {
+            "wall_ms": 71.43190002534539,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.285200011916459
+          },
+          {
+            "wall_ms": 67.95270001748577,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.184500001836568
+          },
+          {
+            "wall_ms": 74.3578000110574,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.578799977432936
+          },
+          {
+            "wall_ms": 77.15969998389482,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.5388999646529555
+          },
+          {
+            "wall_ms": 67.96429998939857,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.559499946888536
+          },
+          {
+            "wall_ms": 67.97650002408773,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 5.92500000493601
+          },
+          {
+            "wall_ms": 59.205800003837794,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 5.718500004149973
+          },
+          {
+            "wall_ms": 66.89030001871288,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 5.924299999605864
+          },
+          {
+            "wall_ms": 63.91310004983097,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 5.698000022675842
+          },
+          {
+            "wall_ms": 77.37620000261813,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.816200038883835
+          },
+          {
+            "wall_ms": 66.51719997171313,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 5.984799994621426
+          },
+          {
+            "wall_ms": 73.96310003241524,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.393000017851591
+          },
+          {
+            "wall_ms": 63.016199972480536,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 5.828699970152229
+          },
+          {
+            "wall_ms": 78.48140003625304,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.1546999970451
+          },
+          {
+            "wall_ms": 81.03060000576079,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.090199971571565
+          },
+          {
+            "wall_ms": 80.14849998289719,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.893200043123215
+          },
+          {
+            "wall_ms": 86.11069998005405,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.680400041863322
+          },
+          {
+            "wall_ms": 82.30469998670742,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.545700005721301
+          },
+          {
+            "wall_ms": 72.1429000259377,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.788099999539554
+          },
+          {
+            "wall_ms": 77.7529000188224,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.877299980260432
+          },
+          {
+            "wall_ms": 58.504699962213635,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 5.823599989525974
+          },
+          {
+            "wall_ms": 71.28390000434592,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.601799977943301
+          },
+          {
+            "wall_ms": 76.15269999951124,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.586899980902672
+          },
+          {
+            "wall_ms": 83.34930002456531,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.867899956181645
+          },
+          {
+            "wall_ms": 86.29939996171743,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 8.288700017146766
+          },
+          {
+            "wall_ms": 85.63250000588596,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 8.180400007404387
+          },
+          {
+            "wall_ms": 89.05039995443076,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 8.128600020427257
+          },
+          {
+            "wall_ms": 84.33949999744073,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.4078000034205616
+          },
+          {
+            "wall_ms": 82.57229998707771,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.606099999975413
+          }
+        ],
+        "note": "Repeated synthetic utterance; not independent speakers or end-to-end feedback trials"
+      }
+    },
+    {
+      "threshold": 0.25,
+      "configuration": {
+        "provider": "cpu",
+        "threads": 2,
+        "sample_rate": 16000,
+        "feed_samples": 1600,
+        "max_active_paths": 4,
+        "keywords_score": 1.0,
+        "num_trailing_blanks": 1,
+        "keyword": "KORA",
+        "encoder": "int8",
+        "decoder": "float32",
+        "joiner": "int8",
+        "vad": "none in detector",
+        "aec": "none",
+        "playback_reference": "none"
+      },
+      "cold_model_construction_ms": 1086.3517000107095,
+      "resources": {
+        "accelerated_wall_seconds": 11.852595800010022,
+        "process_cpu_seconds": 46.890625,
+        "cpu_percent_total_capacity": 24.725925965496284,
+        "baseline_imported_python_rss_bytes": 66555904,
+        "model_loaded_rss_bytes": 111566848,
+        "observed_peak_rss_bytes": 121720832,
+        "incremental_peak_rss_bytes": 55164928,
+        "frame_processing_p95_ms": 7.164300011936575,
+        "boundary": "Accelerated file inference in isolated Python; not Kora UI/muted-idle or acoustic latency"
+      },
+      "summary": {
+        "wake_only": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 27.716625,
+          "recall": 1.0
+        },
+        "immediate_spliced": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 1.0
+        },
+        "continuous": {
+          "cases": 4,
+          "cases_detected": 2,
+          "raw_events": 2,
+          "unique_audio_seconds": 16.7493125,
+          "recall": 0.5
+        },
+        "paused": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 18.4001875,
+          "recall": 1.0
+        },
+        "long_command_tone": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 4,
+          "unique_audio_seconds": 271.716625,
+          "recall": 1.0
+        },
+        "white_noise_10dB": {
+          "cases": 4,
+          "cases_detected": 2,
+          "raw_events": 2,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 0.5
+        },
+        "white_noise_0dB": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 0.0
+        },
+        "self_tts_replay": {
+          "cases": 4,
+          "cases_detected": 4,
+          "raw_events": 5,
+          "unique_audio_seconds": 35.4953125,
+          "source_attribution": "unavailable; raw wake events are not accepted user commands"
+        },
+        "synthetic_overlap": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 33.4953125,
+          "source_attribution": "unavailable; raw wake events are not accepted user commands"
+        },
+        "negative_speech": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 47.8470625,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_silence": {
+          "cases": 1,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 30.0,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_noise": {
+          "cases": 1,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 30.0,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_total": {
+          "unique_audio_seconds": 107.84706249999999,
+          "raw_events": 0,
+          "false_activations_per_hour": 0.0,
+          "warning": "Small synthetic sample, not the required 10-hour diverse acoustic negative corpus"
+        }
+      },
+      "cases": [
+        {
+          "id": "0-wake",
+          "group": "wake_only",
+          "seconds": 6.9184375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.866625,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 31065,
+            "captured_seconds": 1.9415625,
+            "transition_sample": 45760,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-continuous",
+          "group": "continuous",
+          "seconds": 4.3239375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "0-paused",
+          "group": "paused",
+          "seconds": 4.666625,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 34560,
+            "captured_seconds": 2.16,
+            "transition_sample": 58560,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.9184375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 974720,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 581.5625
+        },
+        {
+          "id": "0-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.866625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.866625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 9.48675,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "0-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 8.98675,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-negative",
+          "group": "negative_speech",
+          "seconds": 13.0748125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "1-wake",
+          "group": "wake_only",
+          "seconds": 6.848,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 652.0
+        },
+        {
+          "id": "1-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.6131875,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 19200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 19200,
+            "captured_samples": 28192,
+            "captured_seconds": 1.762,
+            "transition_sample": 41760,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 352.0
+        },
+        {
+          "id": "1-continuous",
+          "group": "continuous",
+          "seconds": 3.96825,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "1-paused",
+          "group": "paused",
+          "seconds": 4.4131875,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 30560,
+            "captured_seconds": 1.91,
+            "transition_sample": 54560,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 652.0
+        },
+        {
+          "id": "1-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.848,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 973600,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 652.0
+        },
+        {
+          "id": "1-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.6131875,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.6131875,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 8.09675,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            },
+            {
+              "keyword": "KORA",
+              "observed_sample": 59200
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "1-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 7.59675,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-negative",
+          "group": "negative_speech",
+          "seconds": 10.9496875,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "2-wake",
+          "group": "wake_only",
+          "seconds": 7.0229375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-immediate",
+          "group": "immediate_spliced",
+          "seconds": 4.005125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 31633,
+            "captured_seconds": 1.9770625,
+            "transition_sample": 48000,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-continuous",
+          "group": "continuous",
+          "seconds": 4.4198125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "2-paused",
+          "group": "paused",
+          "seconds": 4.805125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 36800,
+            "captured_seconds": 2.3,
+            "transition_sample": 60800,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-long-command",
+          "group": "long_command_tone",
+          "seconds": 68.0229375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 976480,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 4.005125,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "capturing",
+            "reason": null,
+            "activation_sample": 24000,
+            "captured_samples": 47633,
+            "captured_seconds": 2.9770625,
+            "transition_sample": 64000,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 4.005125,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 9.67925,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 70400
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "2-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 9.17925,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-negative",
+          "group": "negative_speech",
+          "seconds": 12.9908125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "3-wake",
+          "group": "wake_only",
+          "seconds": 6.92725,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "capture_probe": {
+            "state": "wake",
+            "reason": "empty_5s",
+            "activation_sample": 24000,
+            "captured_samples": 0,
+            "captured_seconds": 0.0,
+            "transition_sample": 104000,
+            "first_200ms_command_exact": null,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 572.75
+        },
+        {
+          "id": "3-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.71525,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 19200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 19200,
+            "captured_samples": 28524,
+            "captured_seconds": 1.78275,
+            "transition_sample": 43360,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 272.75
+        },
+        {
+          "id": "3-continuous",
+          "group": "continuous",
+          "seconds": 4.0373125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "3-paused",
+          "group": "paused",
+          "seconds": 4.51525,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "future_audio",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 24000,
+            "captured_samples": 32160,
+            "captured_seconds": 2.01,
+            "transition_sample": 56160,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 572.75
+        },
+        {
+          "id": "3-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.92725,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 974880,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 572.75
+        },
+        {
+          "id": "3-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.71525,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 19200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "capturing",
+            "reason": null,
+            "activation_sample": 19200,
+            "captured_samples": 44524,
+            "captured_seconds": 2.78275,
+            "transition_sample": 59360,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 272.75
+        },
+        {
+          "id": "3-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.71525,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 8.2325625,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 59200
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "3-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 7.7325625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-negative",
+          "group": "negative_speech",
+          "seconds": 10.83175,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "negative-silence",
+          "group": "negative_silence",
+          "seconds": 30.0,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "negative-noise",
+          "group": "negative_noise",
+          "seconds": 30.0,
+          "events": [],
+          "capture_probe": null
+        }
+      ],
+      "repeated_trials": {
+        "warmups": 5,
+        "measured": 30,
+        "utterance_id": "0-immediate",
+        "clip_processing_p95_ms": 82.2010999545455,
+        "trials": [
+          {
+            "wall_ms": 80.45060001313686,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.79920002585277
+          },
+          {
+            "wall_ms": 78.7263999809511,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.703399984166026
+          },
+          {
+            "wall_ms": 71.80309999966994,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.604399997740984
+          },
+          {
+            "wall_ms": 73.29289999324828,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.848799996078014
+          },
+          {
+            "wall_ms": 78.87689996277913,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.7517000134103
+          },
+          {
+            "wall_ms": 75.80059999600053,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.358800037764013
+          },
+          {
+            "wall_ms": 66.72199995955452,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.072500022128224
+          },
+          {
+            "wall_ms": 73.46109999343753,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.537799956277013
+          },
+          {
+            "wall_ms": 80.21769998595119,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.436399988364428
+          },
+          {
+            "wall_ms": 79.56680003553629,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.966899964027107
+          },
+          {
+            "wall_ms": 82.2010999545455,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.753399957437068
+          },
+          {
+            "wall_ms": 83.21090001845732,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.495499972719699
+          },
+          {
+            "wall_ms": 79.6519999857992,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.405499985907227
+          },
+          {
+            "wall_ms": 82.1655000327155,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.8158999676816165
+          },
+          {
+            "wall_ms": 68.1203999556601,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.715700030326843
+          },
+          {
+            "wall_ms": 68.88779997825623,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.619200052227825
+          },
+          {
+            "wall_ms": 73.24980001430959,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.467100000008941
+          },
+          {
+            "wall_ms": 78.90289998613298,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.336399983614683
+          },
+          {
+            "wall_ms": 76.26619999064133,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.796000001486391
+          },
+          {
+            "wall_ms": 72.56630004849285,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.821000017225742
+          },
+          {
+            "wall_ms": 68.69869999354705,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.861499976366758
+          },
+          {
+            "wall_ms": 68.63270001485944,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.471100030466914
+          },
+          {
+            "wall_ms": 74.35030001215637,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.680600043386221
+          },
+          {
+            "wall_ms": 71.75469998037443,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.890599965117872
+          },
+          {
+            "wall_ms": 74.22720000613481,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.5190999885089695
+          },
+          {
+            "wall_ms": 79.95330000994727,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.192899996880442
+          },
+          {
+            "wall_ms": 74.51459998264909,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.8236999795772135
+          },
+          {
+            "wall_ms": 80.04359999904409,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 7.125600008293986
+          },
+          {
+            "wall_ms": 67.09580001188442,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.6781999776139855
+          },
+          {
+            "wall_ms": 70.82909997552633,
+            "first_event_sample": 24000,
+            "events": 1,
+            "frame_p95_ms": 6.511500047054142
+          }
+        ],
+        "note": "Repeated synthetic utterance; not independent speakers or end-to-end feedback trials"
+      }
+    },
+    {
+      "threshold": 0.5,
+      "configuration": {
+        "provider": "cpu",
+        "threads": 2,
+        "sample_rate": 16000,
+        "feed_samples": 1600,
+        "max_active_paths": 4,
+        "keywords_score": 1.0,
+        "num_trailing_blanks": 1,
+        "keyword": "KORA",
+        "encoder": "int8",
+        "decoder": "float32",
+        "joiner": "int8",
+        "vad": "none in detector",
+        "aec": "none",
+        "playback_reference": "none"
+      },
+      "cold_model_construction_ms": 1034.8295000148937,
+      "resources": {
+        "accelerated_wall_seconds": 12.050980100000743,
+        "process_cpu_seconds": 47.4375,
+        "cpu_percent_total_capacity": 24.602511375815958,
+        "baseline_imported_python_rss_bytes": 66125824,
+        "model_loaded_rss_bytes": 110448640,
+        "observed_peak_rss_bytes": 119730176,
+        "incremental_peak_rss_bytes": 53604352,
+        "frame_processing_p95_ms": 7.396399974822998,
+        "boundary": "Accelerated file inference in isolated Python; not Kora UI/muted-idle or acoustic latency"
+      },
+      "summary": {
+        "wake_only": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 27.716625,
+          "recall": 0.0
+        },
+        "immediate_spliced": {
+          "cases": 4,
+          "cases_detected": 1,
+          "raw_events": 1,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 0.25
+        },
+        "continuous": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 16.7493125,
+          "recall": 0.0
+        },
+        "paused": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 18.4001875,
+          "recall": 0.0
+        },
+        "long_command_tone": {
+          "cases": 4,
+          "cases_detected": 1,
+          "raw_events": 1,
+          "unique_audio_seconds": 271.716625,
+          "recall": 0.25
+        },
+        "white_noise_10dB": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 0.0
+        },
+        "white_noise_0dB": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 15.2001875,
+          "recall": 0.0
+        },
+        "self_tts_replay": {
+          "cases": 4,
+          "cases_detected": 1,
+          "raw_events": 1,
+          "unique_audio_seconds": 35.4953125,
+          "source_attribution": "unavailable; raw wake events are not accepted user commands"
+        },
+        "synthetic_overlap": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 33.4953125,
+          "source_attribution": "unavailable; raw wake events are not accepted user commands"
+        },
+        "negative_speech": {
+          "cases": 4,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 47.8470625,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_silence": {
+          "cases": 1,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 30.0,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_noise": {
+          "cases": 1,
+          "cases_detected": 0,
+          "raw_events": 0,
+          "unique_audio_seconds": 30.0,
+          "false_activations_per_hour": 0.0
+        },
+        "negative_total": {
+          "unique_audio_seconds": 107.84706249999999,
+          "raw_events": 0,
+          "false_activations_per_hour": 0.0,
+          "warning": "Small synthetic sample, not the required 10-hour diverse acoustic negative corpus"
+        }
+      },
+      "cases": [
+        {
+          "id": "0-wake",
+          "group": "wake_only",
+          "seconds": 6.9184375,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "0-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.866625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-continuous",
+          "group": "continuous",
+          "seconds": 4.3239375,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "0-paused",
+          "group": "paused",
+          "seconds": 4.666625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.9184375,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.866625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.866625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 9.48675,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "0-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 8.98675,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "0-negative",
+          "group": "negative_speech",
+          "seconds": 13.0748125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "1-wake",
+          "group": "wake_only",
+          "seconds": 6.848,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "1-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.6131875,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 19200
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "silence_1s",
+            "activation_sample": 19200,
+            "captured_samples": 28192,
+            "captured_seconds": 1.762,
+            "transition_sample": 41760,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 352.0
+        },
+        {
+          "id": "1-continuous",
+          "group": "continuous",
+          "seconds": 3.96825,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "1-paused",
+          "group": "paused",
+          "seconds": 4.4131875,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.848,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.6131875,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.6131875,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 8.09675,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 59200
+            }
+          ],
+          "capture_probe": null
+        },
+        {
+          "id": "1-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 7.59675,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "1-negative",
+          "group": "negative_speech",
+          "seconds": 10.9496875,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "2-wake",
+          "group": "wake_only",
+          "seconds": 7.0229375,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "2-immediate",
+          "group": "immediate_spliced",
+          "seconds": 4.005125,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-continuous",
+          "group": "continuous",
+          "seconds": 4.4198125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "2-paused",
+          "group": "paused",
+          "seconds": 4.805125,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-long-command",
+          "group": "long_command_tone",
+          "seconds": 68.0229375,
+          "events": [
+            {
+              "keyword": "KORA",
+              "observed_sample": 24000
+            }
+          ],
+          "oracle_command_head_availability": "in_preroll",
+          "capture_probe": {
+            "state": "wake",
+            "reason": "limit_60s",
+            "activation_sample": 24000,
+            "captured_samples": 960000,
+            "captured_seconds": 60.0,
+            "transition_sample": 976480,
+            "first_200ms_command_exact": true,
+            "boundary": "Oracle fixture wake/command boundary; energy mask >200, 10 ms cadence; not production VAD/alignment/STT"
+          },
+          "first_event_audio_delay_ms": 477.0625
+        },
+        {
+          "id": "2-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 4.005125,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 4.005125,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 9.67925,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "2-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 9.17925,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "2-negative",
+          "group": "negative_speech",
+          "seconds": 12.9908125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "3-wake",
+          "group": "wake_only",
+          "seconds": 6.92725,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "3-immediate",
+          "group": "immediate_spliced",
+          "seconds": 3.71525,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-continuous",
+          "group": "continuous",
+          "seconds": 4.0373125,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "3-paused",
+          "group": "paused",
+          "seconds": 4.51525,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-long-command",
+          "group": "long_command_tone",
+          "seconds": 67.92725,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-noise-10",
+          "group": "white_noise_10dB",
+          "seconds": 3.71525,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-noise-0",
+          "group": "white_noise_0dB",
+          "seconds": 3.71525,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-tts-replay",
+          "group": "self_tts_replay",
+          "seconds": 8.2325625,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "3-overlap",
+          "group": "synthetic_overlap",
+          "seconds": 7.7325625,
+          "events": [],
+          "oracle_command_head_availability": "not_detected",
+          "capture_probe": null
+        },
+        {
+          "id": "3-negative",
+          "group": "negative_speech",
+          "seconds": 10.83175,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "negative-silence",
+          "group": "negative_silence",
+          "seconds": 30.0,
+          "events": [],
+          "capture_probe": null
+        },
+        {
+          "id": "negative-noise",
+          "group": "negative_noise",
+          "seconds": 30.0,
+          "events": [],
+          "capture_probe": null
+        }
+      ],
+      "repeated_trials": {
+        "warmups": 5,
+        "measured": 30,
+        "utterance_id": "0-immediate",
+        "clip_processing_p95_ms": 87.23609999287874,
+        "trials": [
+          {
+            "wall_ms": 87.8925999859348,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 8.350599964614958
+          },
+          {
+            "wall_ms": 87.23609999287874,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.89989996701479
+          },
+          {
+            "wall_ms": 84.2986999778077,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.48799997381866
+          },
+          {
+            "wall_ms": 80.78509999904782,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.652599946595728
+          },
+          {
+            "wall_ms": 84.00200004689395,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.548499968834221
+          },
+          {
+            "wall_ms": 85.74340003542602,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 8.013300015591085
+          },
+          {
+            "wall_ms": 69.23589995130897,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.343499990180135
+          },
+          {
+            "wall_ms": 64.55660000210628,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.2243000138551
+          },
+          {
+            "wall_ms": 75.32330002868548,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.76800002111122
+          },
+          {
+            "wall_ms": 83.4745999891311,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.520699989981949
+          },
+          {
+            "wall_ms": 81.29270002245903,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.312300032936037
+          },
+          {
+            "wall_ms": 81.19190001161769,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.036799972411245
+          },
+          {
+            "wall_ms": 64.69460000516847,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.036599981598556
+          },
+          {
+            "wall_ms": 73.81819997681305,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.728600012138486
+          },
+          {
+            "wall_ms": 69.89159999648109,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.412899994757026
+          },
+          {
+            "wall_ms": 69.20030002947897,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.833699997514486
+          },
+          {
+            "wall_ms": 70.7904000300914,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.543099996633828
+          },
+          {
+            "wall_ms": 75.02930000191554,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.833799998275936
+          },
+          {
+            "wall_ms": 65.2915999526158,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.235899985767901
+          },
+          {
+            "wall_ms": 75.27719996869564,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.992699985858053
+          },
+          {
+            "wall_ms": 71.41380000393838,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 7.558399986010045
+          },
+          {
+            "wall_ms": 66.2737000384368,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.068200047593564
+          },
+          {
+            "wall_ms": 73.0230999761261,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.55900000128895
+          },
+          {
+            "wall_ms": 72.20029999734834,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.405899999663234
+          },
+          {
+            "wall_ms": 74.66530002420768,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.787499994970858
+          },
+          {
+            "wall_ms": 64.83689998276532,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.563200033269823
+          },
+          {
+            "wall_ms": 71.05389999924228,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.191200052853674
+          },
+          {
+            "wall_ms": 79.3227999820374,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.870499986689538
+          },
+          {
+            "wall_ms": 64.6921000443399,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 5.99009997677058
+          },
+          {
+            "wall_ms": 74.64569999137893,
+            "first_event_sample": null,
+            "events": 0,
+            "frame_p95_ms": 6.474399997387081
+          }
+        ],
+        "note": "Repeated synthetic utterance; not independent speakers or end-to-end feedback trials"
+      }
+    }
+  ],
+  "paced": {
+    "threshold": 0.25,
+    "wall_seconds": 60.00030409998726,
+    "audio_seconds": 60.0,
+    "cpu_seconds": 24.515625,
+    "cpu_percent_total_capacity": 2.5536979945078735,
+    "observed_peak_rss_bytes": 118157312,
+    "baseline_imported_python_rss_bytes": 66551808,
+    "incremental_peak_rss_bytes": 51605504,
+    "frame_processing_p95_ms": 8.778100018389523,
+    "raw_events": 0,
+    "note": "Paced repeated synthetic negative speech; not independent negative exposure, not application overhead"
+  },
+  "measurement_isolation": "Fresh Python process per threshold and paced run; RSS includes imports/fixtures",
+  "live_trials": "Not consented. No microphone or audible playback used.",
+  "production_changes": false,
+  "accepted_commands_or_tool_invocations": 0,
+  "release_gate": "INCOMPLETE: small synthetic corpus, no acoustic front-end, packaged host or reference headset trial"
+}

@@ -19,6 +19,11 @@ R01's initial-release policy reconciliation is
 R02 feasibility and R03 ownership/privacy work can start. Runtime acceptance
 remains open; standalone application rollback is deferred R27 work.
 
+[Deferred Proof Validation](Deferred_Validation.md) is the interactive-session
+handoff for outstanding speech, containment and distribution trials. It links
+safe reruns and proof-specific checklists while keeping consent/privilege
+requirements and capability blockers distinct from merging partial research.
+
 ## Current Bootstrap Boundary
 
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,

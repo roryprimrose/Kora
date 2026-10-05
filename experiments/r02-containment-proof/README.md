@@ -2,8 +2,10 @@
 
 Experimental, Windows x64 only. **No production execution profile is enabled.**
 The feasibility investigation has useful OS denial evidence, but the strict
-network-denial gate is unproven on this host. Keep the PR draft until that
-required evidence and independently protected deployment are resolved.
+network-denial gate is unproven on this host. This partial research and its
+delivery plan may merge without certifying a production profile. Outstanding
+capability validation is recorded in [the testing checklist](#outstanding-testing-checklist)
+and [shared deferred-validation register](../../Design/Deferred_Validation.md).
 
 ## Scope and contracts
 
@@ -201,3 +203,83 @@ write denial, full alias/TOCTOU/repository protection, external provenance,
 child dependency admission, actual network denial, controlled lock/power effects,
 and abrupt host-death/reboot recovery. Job close is measured; a host crash/reboot
 was not trialled. None is replaced by a mock, application path check or warning.
+
+## Outstanding Testing Checklist
+
+Use this checklist when the operator returns to an interactive session; it is
+a deferred-validation handoff, not permission to run disruptive or privileged
+tests. The [shared register](../../Design/Deferred_Validation.md) links the
+independent speech and distribution proofs without consuming their unmerged
+implementations. All rows below are currently outstanding; existing fixed
+scratch trials prove only the narrower [recorded observations](evidence/README.md).
+
+### Safe Existing Checks
+
+The existing runner builds, runs five deterministic assertions and uses only
+fixed probes against owned synthetic resources. It creates/deletes a temporary
+AppContainer profile and a single synthetic Credential Manager entry, copies
+the installed runtime into scratch, opens local listeners and closes its owned
+process tree. It does not capture audio, install/launch Kora, alter installed
+ACLs, change global policy or request lock/power effects.
+
+Run [Reproduce](#reproduce) under a non-elevated Windows x64 token into a new
+evidence directory. No unlock is required for these scratch checks, but the
+read-only desktop-handle observation is session-dependent and never establishes
+computer-control acceptance. Preserve strict exit `2` and every unmet assertion
+when network denial remains unproven; an unexpected error/cleanup failure is
+not an acceptable research result.
+
+### Before Interactive or Privileged Trials
+
+- [ ] Identify a named physically present operator, a supported serviced
+  Windows release and the intended host/worker identities. Record the current
+  source/runtime versions and agree on bounded owned fixtures and cleanup.
+- [ ] Select the exact row and obtain separate approval before elevation,
+  privileged tracing, a real installation/launch/registry mutation, or any
+  lock/shutdown/restart. Returning/unlocking the session is not that approval.
+- [ ] Prepare the row's required instrumented worker/host and emergency stop/
+  recovery path. The current fixed runner does not implement dependency
+  allowlisting, multi-script helpers, a protected installer, typed broker or
+  computer controls. Their absence means Blocked, not permission to improvise
+  an unrestricted PowerShell action or run the bootstrap as a substitute.
+- [ ] Use disposable lab resources and public synthetic canaries, not real
+  secrets, private content or existing installation ACLs. Do not change global
+  firewall/security policy. Keep unrelated speech/deployment approvals separate.
+
+### Deferred Containment and Deployment Trials
+
+| ID / gate | Status | Required procedure and closure evidence |
+|---|---|---|
+| C01 - Supported reference repeat / W1-W3 | Not run on the supported reference matrix | Rerun the fixed owned-scratch proof on the selected supported Windows release with exact servicing revision and actual host/AppContainer/descendant token observations. Retain allowed-data/Job-only positive controls, protected before/after identities, native errors and cleanup. The original build 26300 snapshot does not certify the support matrix. |
+| C02 - Attributable network denial / W1 | Blocked: current connections timed out | Prepare owned working endpoints and observe actual access-denied or an independent OS block attributable to the worker boundary, token/process and endpoint. Cover applicable loopback/non-loopback, IPv4/IPv6, TCP/UDP/DNS and descendants. A generic unrelated firewall block or timeout is insufficient. Privileged WFP diagnostics require approval; no global policy changes. |
+| C03 - Dependency and fixed-action mechanism / W2 | Blocked: no enforced executable/module allowlist | Prepare a bounded fixture testing denied undeclared executable/module/script loads versus admitted dependencies under the actual worker. Ordinary child identity and breakaway tests are not an allowlist. Establish fixed-action feasibility or obtain an explicit typed-adapter/broker versus unavailable decision; do not silently replace the embedded-script contract or broaden ambient authority. |
+| C04 - Protected roots, identities and aliases / W3, R17 | Blocked: no independently owned installed fixture | After separate scoped elevation/installation approval, use a distinct disposable versioned payload with independent owner/activation authority. Test the actual medium non-elevated application and contained worker tokens, payload/parent/dependency effective ACLs including delete-child/ownership/DACL rights, selected runtime/native resolution, hard links/reparse/alternate paths and target/parent-swap races. Preserve allowed-data controls and denied mutation evidence; do not modify an existing Kora installation. Follow [the security checklist](../../Design/Security_Data_Flows.md#protected-deployment-identity-and-validation) and distribution's separate runtime-only acceptance plan. |
+| C05 - Bundled helper and admission integration / W4, R11 | Blocked: production catalogue/runspace/gateway absent | Prepare immutable separate resource blocks and declared helper initialization/calls/typed parameters under the selected admitted worker. Test denial of undeclared file/module/process resolution, no extraction, common direct/model/skill grants, malformed/oversized/missing/uncorrelated receipts and no duplicate/replayed effects. Fixed encoded input is not evidence for this full contract. |
+| C06 - Real approved computer controls / R11, R16 | Not run; requires separately approved disruptive trial | With the instrumented gated implementation and a present operator, test only the exact registered lock/power effect separately approved for that trial, including durable session/grant binding, fresh power confirmation/countdown, safe-work handling, cancellation and observed OS receipts. Do not lock/shutdown/restart to validate this checklist now; desktop-handle denial is not an effect trial. |
+| C07 - Host-death and effect/cancellation races / W4 | Blocked: no prepared abrupt-host-death fixture | Terminate only the owned test host by a stable recorded identity and verify all contained descendants stop, no breakaway/handle transfer keeps the job alive, and effect-before-receipt loss remains Unknown without retry. Race cancellation, stale/uncorrelated output and partial effects. Job close was measured; host death/reboot was not. Any reboot requires separate disruptive approval and must not be inferred from host-death results. |
+
+### Evidence and Completion
+
+For each row, retain date/revision/operator, OS/runtime/token identities,
+approval scope, fixtures, actual versus expected outcomes, native errors or
+attributable enforcement observations, individual timings/receipts and cleanup.
+Label the result Pass, Fail, Blocked or Not run. Commit only reviewed/redacted
+measurements; preserve original snapshots and add a separately identified run.
+Do not upgrade a timeout, inaccessible/missing file or terminated process to a
+denial/success/rollback claim. Unknown effects must not cause automatic retry.
+
+Update [D-013](../../Design/Decision_Register.md#d-013-windows-worker-and-deployment-containment),
+[W1-W4](../../Design/Implementation_Roadmap.md#r02-windows-containment-follow-up)
+and the applicable acceptance gates only when their required evidence passes.
+No outstanding row is waived by merging this proof.
+
+### Merge Versus Acceptance
+
+On 2026-10-05 the user requested rebasing and publishing the PR after recording
+deferred validation. The publication scope is partial feasibility evidence,
+canonical outcomes and an actionable delivery/testing plan. Unperformed
+interactive or privileged trials are capability blockers, not prerequisites for
+merging that limited scope. R01 is present; unrelated R02 proof implementations
+are not dependencies. Normal required checks/reviews still apply, with squash
+auto-merge permitted only through those gates. This does not select a broker,
+enable a production worker or change the strict proof outcome to success.

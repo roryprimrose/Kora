@@ -114,11 +114,19 @@ admission and exact controlled computer actions remain required before exposing
 the affected capabilities. No existing installation ACL, global firewall policy,
 CI, production manifest/composition or canonical design document was changed.
 No privileged/disruptive trial, lock, shutdown, arbitrary script, bundled skill
-or final grant schema was introduced. Keep the evidence PR draft and do not
-enable squash auto-merge while these required validations are blocked.
+or final grant schema was introduced. These gaps block capability acceptance,
+not publication of this partial research with the
+[outstanding-testing handoff](../README.md#outstanding-testing-checklist).
+Normal repository checks/reviews remain mandatory; no measured failure or
+Unknown outcome is relabelled as success to publish the PR.
 
 The snapshot above describes the initial proof scope. Subsequent documentation
 changes now record [canonical outcomes and next gates](../../../Design/Security_Data_Flows.md#r02-windows-containment-outcomes),
 the [open D-013 decision](../../../Design/Decision_Register.md#d-013-windows-worker-and-deployment-containment)
 and [staged delivery work](../../../Design/Implementation_Roadmap.md#r02-windows-containment-follow-up).
 They do not alter these measured results or enable production execution.
+
+Later rebases and validation runs are publication follow-ups, not changes to
+the original snapshot's source/OS observations or its initial draft disposition.
+The [shared deferred-validation register](../../../Design/Deferred_Validation.md)
+separates safe reruns from separately approved interactive/privileged acceptance.

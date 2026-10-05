@@ -139,6 +139,12 @@ absent workers/catalogues and unperformed deployment trials remain explicit
 acceptance blockers. The current bootstrap's direct C# lock behavior is unchanged
 and still lacks the future common content-bound gate.
 
+The [deferred-validation register](Deferred_Validation.md) and
+[containment testing checklist](../experiments/r02-containment-proof/README.md#outstanding-testing-checklist)
+make the remaining W1-W4 interactive/privileged trials runnable as separately
+approved future work. Merging partial research does not close those gates or
+enable the affected profiles.
+
 ### Core Foundations and First Useful Interaction
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |

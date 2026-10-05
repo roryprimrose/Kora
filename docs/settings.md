@@ -204,6 +204,18 @@ Temporary response-mode override with the highest precedence.
 Select **Inherit** in the dropdown to remove the task override and use the
 queue override, or the device default when no queue override exists.
 
+### Muted speaker fallback
+
+Default: **on**. Show audible-only responses as text when the selected Windows
+speaker is muted or its endpoint volume is zero. Applies to the device default
+and task/queue overrides, using either **System** output or a selected endpoint.
+The configured response mode is unchanged; unmuting restores it on the next
+response without refreshing devices.
+
+Turning this off suppresses ordinary visual fallback for muted output only.
+Failures, pending questions, approvals, missing devices, and unavailable speech
+voices still use visual output.
+
 ### Effective output
 
 Read-only explanation of the currently resolved mode and any forced visual

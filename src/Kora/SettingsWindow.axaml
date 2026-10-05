@@ -454,6 +454,23 @@
               </Grid>
             </Border>
 
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Muted speaker fallback" Classes="settings-title" />
+                  <TextBlock
+                      Text="Show audible-only responses as text when the selected speaker is muted or its volume is zero."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Fall back to visual"
+                    IsChecked="{Binding FallbackToVisualWhenOutputMuted}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
             <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
               <StackPanel Spacing="4">
                 <TextBlock Text="Effective output" Classes="settings-title" />

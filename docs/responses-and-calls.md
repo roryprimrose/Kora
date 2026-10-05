@@ -10,6 +10,18 @@ Kora supports three response modes:
 
 Safety and recovery information remains visible even in VoiceOnly mode.
 
+**Settings > Responses > Muted speaker fallback** controls whether audible-only
+responses fall back to text when the selected Windows output is muted or at zero
+volume. It is **enabled by default** and saved on this device. The original
+response is displayed, not replaced by a mute warning. Kora checks output
+availability before each response, so unmuting restores the configured response
+mode on the next response without a manual refresh. This applies to both
+**System** output and a selected speaker.
+
+Turning the option off leaves ordinary audible-only responses hidden while the
+speaker is muted. Failures, pending questions, approvals, and other safety or
+recovery information still remain visible.
+
 ## Output precedence
 
 Three scopes can control the effective mode:
@@ -42,13 +54,14 @@ Kora always displays text when:
 
 - no compatible speech voice is available;
 - no usable audio output is available;
-- the output is muted or at zero volume;
+- the output is muted or at zero volume and **Muted speaker fallback** is enabled;
 - synthesis or playback fails;
 - microphone capture is active;
 - a response reports failure or safety information; or
 - detected-call policy requires visual output.
 
-This fallback overrides VoiceOnly so a failed spoken response is never lost.
+These fallbacks override VoiceOnly. Only the muted-output fallback can be
+disabled with **Muted speaker fallback**.
 
 ## Interrupting spoken responses
 

@@ -180,7 +180,11 @@ device default is persisted locally; current-queue and current-task overrides
 are transient, with task taking precedence over queue and queue over the device
 default. Voice-only is a preference, not permission to hide failures: Kora
 forces the visual response panel visible whenever speech is unavailable,
-temporarily blocked, or playback fails.
+temporarily blocked, or playback fails. **Settings > Responses > Muted speaker
+fallback** is enabled by default and shows the original response as text when
+the selected speaker is muted or at zero volume. It can be disabled for ordinary
+voice-only responses without hiding safety or recovery information. Unmuting
+restores the configured mode on the next response.
 
 Typed and local-model responses use the effective output mode. When microphone
 capture is active, Kora uses visual output to avoid recognizing its own speech;

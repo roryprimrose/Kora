@@ -38,6 +38,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string MicrophoneConfigurationAction = "configuration.microphone";
     private const string OutputDeviceConfigurationAction = "configuration.audio-output";
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
+    private const string MutedOutputFallbackConfigurationAction = "configuration.muted-output-visual-fallback";
     private const string SpeechProviderInstallAction = "speech-provider.install";
     private const string LocalModelInstallAction = "local-model.install";
     private const string PowerShellInstallAction = "powershell.install";
@@ -157,6 +158,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private PresencePosition? presencePosition;
     private ResponseWindowSettings responseWindowSettings = ResponseWindowSettings.Default;
     private ResponseOutputMode defaultResponseMode = ResponseOutputMode.Hybrid;
+    private bool fallbackToVisualWhenOutputMuted = true;
     private ResponseOutputMode? queueResponseMode;
     private ResponseOutputMode? taskResponseMode;
     private CallState currentCallState;
@@ -437,7 +439,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 PrepareGrantChangeCommand.NotifyCanExecuteChanged();
                 forceVisualResponse = ShouldForceVisualResponse(
-                    value, IsResponseInteractionPending, State, IsSpeechOutputAvailable);
+                    value, IsResponseInteractionPending, State);
                 NotifyOutputPolicyChanged();
                 if (ShouldShowGrantEditor(value, isInitializing))
                 {
@@ -447,8 +449,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
     internal static bool ShouldForceVisualResponse(
-        bool editorVisible, bool interactionPending, AssistantState state, bool speechOutputAvailable) =>
-        editorVisible || interactionPending || state == AssistantState.Failure || !speechOutputAvailable;
+        bool editorVisible, bool interactionPending, AssistantState state) =>
+        editorVisible || interactionPending || state == AssistantState.Failure;
 
     internal static bool ShouldShowGrantEditor(bool editorVisible, bool initializing) =>
         editorVisible && !initializing;
@@ -1221,6 +1223,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         set => DefaultResponseMode = value;
     }
 
+    public bool FallbackToVisualWhenOutputMuted
+    {
+        get => fallbackToVisualWhenOutputMuted;
+        set
+        {
+            if (value == fallbackToVisualWhenOutputMuted)
+            {
+                return;
+            }
+
+            if (!suppressResponseModeSave && !SaveMutedOutputFallbackPreference(value))
+            {
+                OnPropertyChanged(nameof(FallbackToVisualWhenOutputMuted));
+                return;
+            }
+
+            var wasVisible = IsVisualResponseVisible;
+            SetProperty(ref fallbackToVisualWhenOutputMuted, value);
+            UpdateOutputDeviceAvailability();
+            NotifyOutputPolicyChanged();
+            if (!wasVisible && IsVisualResponseVisible && CanRevealPrivatePresentation && !isInitializing)
+            {
+                WindowActionRequested?.Invoke(this, WindowAction.Show);
+            }
+        }
+    }
+
     public ResponseOutputMode? QueueResponseMode
     {
         get => queueResponseMode;
@@ -1292,7 +1321,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsCallVisualOverrideActive
         || EffectiveResponseMode != ResponseOutputMode.VoiceOnly
         || forceVisualResponse
-        || !IsSpeechOutputAvailable;
+        || IsSpeechOutputVisualFallbackRequired;
+
+    private bool IsSpeechOutputVisualFallbackRequired =>
+        !IsSpeechOutputAvailable
+        && (activeSpeechVoice is null
+            || EffectiveOutputDevice?.IsMuted != true
+            || FallbackToVisualWhenOutputMuted);
 
     public bool IsSpeechResponseEnabled =>
         !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
@@ -2488,12 +2523,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             savedSpeechProviderIdForOffer = savedSpeechProviderId;
             var savedVoiceId = textToSpeechPreferences.LoadVoiceId();
             var savedResponseMode = responseOutputPreferences.LoadDefaultMode();
+            var savedMutedOutputFallback = responseOutputPreferences.LoadMutedOutputVisualFallback();
             var savedCallAwareSettings = callAwarePreferences.Load() ?? CallAwareSettings.Default;
             suppressResponseModeSave = true;
             suppressCallAwarePreferenceSave = true;
             try
             {
                 DefaultResponseMode = savedResponseMode ?? ResponseOutputMode.Hybrid;
+                FallbackToVisualWhenOutputMuted = savedMutedOutputFallback ?? true;
                 ShowVisualTextDuringCalls = savedCallAwareSettings.ShowVisualTextDuringCalls;
                 AllowVoiceActivationDuringCalls = savedCallAwareSettings.AllowVoiceActivationDuringCalls;
             }
@@ -3279,6 +3316,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private bool SaveMutedOutputFallbackPreference(bool value)
+    {
+        var audit = StartAudit(
+            SecurityAuditCategory.ConfigurationWrite,
+            MutedOutputFallbackConfigurationAction,
+            SecurityAuditInitiator.LocalUser,
+            DeviceLocalPreferencesTarget);
+        try
+        {
+            responseOutputPreferences.SaveMutedOutputVisualFallback(value);
+            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+            return true;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
+            ApplicationLog.Error(logger, exception, "Saving the muted-output visual fallback because access was denied");
+            ShowFailure("The muted-output visual fallback could not be saved.", exception.Message);
+            return false;
+        }
+        catch (IOException exception)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
+            ApplicationLog.Error(logger, exception, "Saving the muted-output visual fallback due to an I/O error");
+            ShowFailure("The muted-output visual fallback could not be saved.", exception.Message);
+            return false;
+        }
+    }
+
     private bool SaveAppearancePreference(
         ApplicationThemeMode value,
         SecurityAuditInitiator initiator)
@@ -3553,16 +3619,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateOutputDeviceAvailability(bool selectedDeviceUnavailable = false)
     {
+        var mutedOutputStatus = FallbackToVisualWhenOutputMuted
+            ? "Visual text is forced."
+            : "Automatic visual fallback for muted output is off.";
         OutputDeviceAvailabilityMessage = SelectedOutputDevice switch
         {
             { IsSystemDefault: true } when systemDefaultOutputDevice is { IsMuted: true } =>
-                "The Windows default audio output is muted or its volume is zero. Visual text is forced.",
+                $"The Windows default audio output is muted or its volume is zero. {mutedOutputStatus}",
             { IsSystemDefault: true } when systemDefaultOutputDevice is not null =>
                 $"System is selected and follows the Windows default audio output for {AssistantName} playback.",
             { IsSystemDefault: true } =>
                 "System is selected, but Windows has no active default audio output. Visual text is forced.",
             { IsMuted: true } =>
-                $"{SelectedOutputDevice.Name} is muted or its Windows volume is zero. Visual text is forced.",
+                $"{SelectedOutputDevice.Name} is muted or its Windows volume is zero. {mutedOutputStatus}",
             not null => $"{SelectedOutputDevice.Name} is selected for {AssistantName} playback.",
             null when selectedDeviceUnavailable =>
                 "The saved audio output device is no longer available. Select another device.",
@@ -4329,7 +4398,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (AudioOutputDeviceUnavailableException exception)
         {
             ApplicationLog.Error(logger, exception, "Playing a response through audio output");
-            HandleAudioOutputFailure(exception, "The selected audio output is unavailable.");
+            HandleAudioOutputFailure(exception, "The selected audio output is unavailable.", preserveResponseOnMute: true);
         }
         catch (InvalidOperationException exception)
         {
@@ -4416,7 +4485,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void HandleAudioOutputFailure(
         AudioOutputDeviceUnavailableException exception,
-        string unavailableTitle)
+        string unavailableTitle,
+        bool preserveResponseOnMute = false)
     {
         if (SelectedOutputDevice?.IsSystemDefault == true)
         {
@@ -4427,6 +4497,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
             UpdateOutputDeviceAvailability();
+            if (exception.Reason == AudioOutputFailureReason.Muted && preserveResponseOnMute)
+            {
+                RevealMutedResponse();
+                return;
+            }
             ShowFailure(
                 exception.Reason == AudioOutputFailureReason.Muted
                     ? "Audio output is muted."
@@ -4439,12 +4514,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             && SelectedOutputDevice is not null)
         {
             SelectedOutputDevice = SelectedOutputDevice with { IsMuted = true };
+            if (preserveResponseOnMute)
+            {
+                RevealMutedResponse();
+                return;
+            }
             ShowFailure("Audio output is muted.", exception.Message);
             return;
         }
 
         SelectedOutputDevice = null;
         ShowFailure(unavailableTitle, exception.Message);
+    }
+
+    private void RevealMutedResponse()
+    {
+        if (IsVisualResponseVisible && CanRevealPrivatePresentation)
+        {
+            WindowActionRequested?.Invoke(this, WindowAction.Show);
+        }
     }
 
     internal async Task ExecuteAsync(
@@ -4784,12 +4872,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         string body,
         bool requestWindow = true)
     {
+        if (!isInitializing
+            && responseState is not (AssistantState.Failure or AssistantState.Listening)
+            && EffectiveResponseMode != ResponseOutputMode.VisualOnly
+            && SelectedOutputDevice is not null
+            && !RefreshOutputEndpoints())
+        {
+            return;
+        }
+
         State = responseState;
         ResponseTitle = title;
         ResponseBody = body;
-        forceVisualResponse = responseState == AssistantState.Failure
-            || IsResponseInteractionPending || IsGrantEditorVisible
-            || !IsSpeechOutputAvailable;
+        forceVisualResponse = ShouldForceVisualResponse(
+            IsGrantEditorVisible, IsResponseInteractionPending, responseState);
         NotifyOutputPolicyChanged();
         if (!isInitializing
             && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()

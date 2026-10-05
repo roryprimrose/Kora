@@ -60,6 +60,44 @@ public sealed class LocalResponseOutputPreferencesTests : IDisposable
         action.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    [Fact]
+    public void LoadMutedOutputVisualFallback_returns_null_when_no_preference_exists()
+    {
+        CreatePreferences().LoadMutedOutputVisualFallback().Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Muted_output_fallback_is_persisted_independently_of_the_response_mode(bool enabled)
+    {
+        var preferences = CreatePreferences();
+        preferences.SaveDefaultMode(ResponseOutputMode.VoiceOnly);
+        preferences.SaveMutedOutputVisualFallback(!enabled);
+        preferences.SaveMutedOutputVisualFallback(enabled);
+
+        var reloaded = CreatePreferences();
+        reloaded.LoadMutedOutputVisualFallback().Should().Be(enabled);
+        reloaded.LoadDefaultMode().Should().Be(ResponseOutputMode.VoiceOnly);
+        File.Exists(Path.Combine(root, "Preferences", "muted-output-visual-fallback.tmp")).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("invalid")]
+    [InlineData("2")]
+    public void LoadMutedOutputVisualFallback_rejects_invalid_content(string content)
+    {
+        var preferences = CreatePreferences();
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "muted-output-visual-fallback.txt"), content);
+
+        var action = preferences.LoadMutedOutputVisualFallback;
+
+        action.Should().Throw<InvalidDataException>();
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root))

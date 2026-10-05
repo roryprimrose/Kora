@@ -64,6 +64,28 @@
 
       <StackPanel
           Grid.Row="3"
+          IsVisible="{Binding HasResponseActions}">
+        <ItemsControl ItemsSource="{Binding ResponseActions}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button
+                  Classes="response-link"
+                  Tag="{Binding}"
+                  Click="OnResponseActionClicked">
+                <TextBlock Text="{Binding Label}" TextDecorations="Underline" />
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <StackPanel
+          Grid.Row="4"
           Orientation="Horizontal"
           Spacing="10"
           IsVisible="{Binding IsModelActionApprovalPending}">
@@ -82,7 +104,7 @@
             Command="{Binding RejectModelActionCommand}" />
       </StackPanel>
 
-      <StackPanel Grid.Row="4" Spacing="6" IsVisible="{Binding IsGrantEditorVisible}">
+      <StackPanel Grid.Row="5" Spacing="6" IsVisible="{Binding IsGrantEditorVisible}">
         <TextBlock Text="Choose exact grant change" Classes="eyebrow" />
         <ComboBox ItemsSource="{Binding GrantActions}" SelectedItem="{Binding SelectedGrantAction}" DisplayMemberBinding="{Binding Action}" />
         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -94,12 +116,12 @@
         </StackPanel>
       </StackPanel>
 
-      <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsGrantChangePending}">
+      <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsGrantChangePending}">
         <Button Classes="primary" Content="Confirm grant change" Command="{Binding ConfirmGrantChangeCommand}" />
         <Button Content="Reject" Command="{Binding RejectGrantChangeCommand}" />
       </StackPanel>
 
-      <StackPanel Grid.Row="6" Spacing="6" IsVisible="{Binding IsModelQuestionPending}">
+      <StackPanel Grid.Row="7" Spacing="6" IsVisible="{Binding IsModelQuestionPending}">
         <TextBlock Text="CHOOSE AN OPTION (NOT AN APPROVAL)" Classes="eyebrow" />
         <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto">
           <ItemsControl ItemsSource="{Binding ModelQuestionChoices}">
@@ -116,7 +138,7 @@
         <Button Content="Cancel question" Click="OnCancelQuestionClicked" HorizontalAlignment="Left" />
       </StackPanel>
 
-      <Grid Grid.Row="7" ColumnDefinitions="*,Auto" ColumnSpacing="9">
+      <Grid Grid.Row="8" ColumnDefinitions="*,Auto" ColumnSpacing="9">
         <TextBox
             Text="{Binding CommandText}"
             PlaceholderText="Type a command"

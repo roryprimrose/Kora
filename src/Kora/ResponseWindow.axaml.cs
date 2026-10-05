@@ -62,6 +62,14 @@ public sealed partial class ResponseWindow : Window
         }
     }
 
+    private async void OnResponseActionClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is Button { Tag: ResponseAction action })
+        {
+            await viewModel.ExecuteResponseActionAsync(action);
+        }
+    }
+
     private async void OnCancelQuestionClicked(object? sender, RoutedEventArgs eventArgs) =>
         await viewModel.CancelModelQuestionAsync();
 
@@ -119,6 +127,10 @@ public sealed partial class ResponseWindow : Window
             || string.Equals(
                 eventArgs.PropertyName,
                 nameof(MainViewModel.IsResponseInteractionPending),
+                StringComparison.Ordinal)
+            || string.Equals(
+                eventArgs.PropertyName,
+                nameof(MainViewModel.HasResponseActions),
                 StringComparison.Ordinal))
         {
             RestartResponseTimeout();
@@ -128,7 +140,8 @@ public sealed partial class ResponseWindow : Window
     private void OnResponseTimeout(object? sender, EventArgs eventArgs)
     {
         responseTimeoutTimer.Stop();
-        if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending)
+        if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
+            && !viewModel.HasResponseActions)
         {
             Hide();
         }
@@ -172,7 +185,8 @@ public sealed partial class ResponseWindow : Window
     {
         responseTimeoutTimer.Stop();
         if (!IsVisible || viewModel.IsResponseAlwaysVisible
-            || viewModel.IsResponseInteractionPending)
+            || viewModel.IsResponseInteractionPending
+            || viewModel.HasResponseActions)
         {
             return;
         }

@@ -1,0 +1,19 @@
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+Push-Location $PSScriptRoot
+try {
+    $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
+    if (-not (Test-Path $python)) { throw 'Create the experiment-local Python environment first; see README.' }
+    & $python -m pip check
+    if ($LASTEXITCODE -ne 0) { throw 'Experiment dependency validation failed.' }
+    & $python -m compileall -q prepare.py fixtures.py capture_probe.py benchmark.py test_benchmark.py
+    if ($LASTEXITCODE -ne 0) { throw 'Experiment compilation failed.' }
+    New-Item -ItemType Directory -Path evidence -Force | Out-Null
+    & $python -m unittest -v test_benchmark 2>&1 | Tee-Object -FilePath evidence\unit-tests.txt
+    if ($LASTEXITCODE -ne 0) { throw 'Experiment tests failed.' }
+}
+finally {
+    Pop-Location
+}

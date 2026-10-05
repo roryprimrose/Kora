@@ -1,0 +1,20 @@
+test_disable_clears_audio_and_rejects_retired_callbacks (test_benchmark.CaptureContractTests.test_disable_clears_audio_and_rejects_retired_callbacks) ... ok
+test_duplicate_activation_is_rejected (test_benchmark.CaptureContractTests.test_duplicate_activation_is_rejected) ... ok
+test_empty_activation_expires_exactly_at_five_seconds (test_benchmark.CaptureContractTests.test_empty_activation_expires_exactly_at_five_seconds) ... ok
+test_frame_shape_is_enforced (test_benchmark.CaptureContractTests.test_frame_shape_is_enforced) ... ok
+test_immediate_prefix_preservation_and_wake_exclusion_with_oracle_boundary (test_benchmark.CaptureContractTests.test_immediate_prefix_preservation_and_wake_exclusion_with_oracle_boundary) ... ok
+test_missing_or_late_detection_is_not_success (test_benchmark.CaptureContractTests.test_missing_or_late_detection_is_not_success) ... ok
+test_non_aligned_boundary_never_exceeds_sixty_seconds (test_benchmark.CaptureContractTests.test_non_aligned_boundary_never_exceeds_sixty_seconds) ... ok
+test_paused_command_begins_before_empty_deadline (test_benchmark.CaptureContractTests.test_paused_command_begins_before_empty_deadline) ... ok
+test_preroll_is_exactly_bounded_and_overwritten (test_benchmark.CaptureContractTests.test_preroll_is_exactly_bounded_and_overwritten) ... ok
+test_real_frame_replay_preserves_oracle_prefix_and_endpoints (test_benchmark.CaptureContractTests.test_real_frame_replay_preserves_oracle_prefix_and_endpoints) ... ok
+test_sixty_second_limit_includes_buffered_command_audio (test_benchmark.CaptureContractTests.test_sixty_second_limit_includes_buffered_command_audio) ... ok
+test_false_activation_counts_events_not_just_files (test_benchmark.MeasurementTests.test_false_activation_counts_events_not_just_files) ... ok
+test_p95_uses_nearest_rank_and_reports_absence (test_benchmark.MeasurementTests.test_p95_uses_nearest_rank_and_reports_absence) ... ok
+test_pcm_round_trip (test_benchmark.MeasurementTests.test_pcm_round_trip) ... ok
+test_summary_preserves_failed_capture_and_actual_trial_counts (test_benchmark.MeasurementTests.test_summary_preserves_failed_capture_and_actual_trial_counts) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.151s
+
+OK

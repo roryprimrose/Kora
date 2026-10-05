@@ -42,6 +42,11 @@ capture. Each answer or approval requires a new activation. Transcripts use the
 same deterministic command pipeline as typed input; activation alone approves
 nothing.
 
+A result that arrives during microphone startup is staged as one bounded
+transcript until the application acknowledges that exact activation generation.
+Empty/timeout completion closes the recording and reports that no command was
+heard; it does not authorize a late transcript or a new activation.
+
 Kora stops capture when:
 
 - you disable listening;
@@ -180,16 +185,16 @@ After the final fetch/rebase, the baseline remained the approved R01 commit
 | --- | --- |
 | Locked solution restore | Passed |
 | Fresh Debug and Release solution builds | Passed, zero warnings/errors |
-| Release Core unit tests | 250 passed |
-| Release application unit tests | 592 passed |
-| Release Windows tests | 161 passed |
+| Release Core unit tests | 251 passed |
+| Release application unit tests | 599 passed |
+| Release Windows tests | 164 passed |
 | Locked framework-dependent win-x64 and win-x86 publish | Passed; binaries not launched |
 | Merged portable line/branch coverage | 98.7% / 97.5%; **failed** the unchanged 100% / 100% gate |
 
-Coverage includes 4,672 of 4,732 lines and 1,774 of 1,819 branches. No coverage
+Coverage includes 4,708 of 4,768 lines and 1,778 of 1,823 branches. No coverage
 exclusions or threshold reductions were introduced to hide the remaining gaps.
 The Windows count combines deterministic fakes with non-disruptive native
-object/device enumeration checks; it is not 161 real lifecycle or microphone
+object/device enumeration checks; it is not 164 real lifecycle or microphone
 trials. Debug/Release publishing is not proof of cross-build or cross-architecture
 handoff. The coverage gate and unauthorized real Windows reference trials are
 explicit draft-PR blockers; squash auto-merge remains disabled.

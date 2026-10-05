@@ -47,6 +47,14 @@ The [LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#out
 provides the later interactive-session procedures; merging partial research
 does not close the outstanding inference or independent proof gates.
 
+R02's [runtime/provider outcomes and technical path](Runtime_Provider_Feasibility.md)
+now record actual Node candidate evidence, reject hook-only failed-result
+mediation and require a .NET final-request/storage proof next.
+The [runtime follow-up gates](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
+separate SDK parity, full lifecycle observation, the host management envelope
+and approved-account trials. D-001/D-004 remain open; deterministic local
+work is not held behind unapproved hosted-model tests.
+
 ## Current Bootstrap Boundary
 
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,

@@ -250,6 +250,26 @@ Likely secrets block transmission pending removal/redaction and review of the ne
 Credential-store values are never available as model context, even through an override.
 Re-detect and re-approve after a transformation changes the outgoing content.
 
+### Runtime Egress Enforcement
+
+The [R02 outcomes](Runtime_Provider_Feasibility.md#evidence-baseline-and-interpretation)
+reject prompt/tool-hook-only mediation: failed tool output bypassed the
+successful-result hook. Every result status and exception must be host-bounded
+and sanitized before SDK submission, without inventing success or changing
+the underlying action receipt. A host final request gate must also inspect
+the complete serialized content, lane, identity/destination, approved source
+lineage and live request/cancellation generation before each provider send.
+Unknown content-bearing sources or destinations are denied, not assumed to
+inherit initial-context approval.
+
+Runtime configuration is not an enforcement receipt. Verify startup, session,
+authentication, failure and shutdown traffic, storage and diagnostics;
+model-request callbacks alone do not observe every process or OS path.
+Keep uncontrollable collection/persistence and unverified transports disabled.
+SDK memory/transcripts cannot become a second unreviewed store alongside
+Kora's host-owned permitted history. The measured loopback marker filter is
+a test oracle, not a sufficient production classifier or OS sandbox.
+
 ## Grants and Approvals
 
 Permissions combine capability, canonical resource scope, identity, destination where relevant, and current applicability; proposal/dispatch deadlines are separate from perpetual grant lifetime.

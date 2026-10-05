@@ -11,6 +11,11 @@ was performed. GitHub authentication used to publish this branch is not model
 provider approval. All prompts, tool arguments/results and provider responses
 are synthetic.
 
+The [canonical technical outcomes and next gates](../../Design/Runtime_Provider_Feasibility.md)
+and [updated roadmap](../../Design/Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
+now turn these measurements into delivery work. This experiment remains the
+failure witness and reproducible test source, not the owner of design policy.
+
 ## Prerequisite and scope
 
 R01 was verified after rebasing: merged `roryprimrose/Kora#19`, commit
@@ -36,9 +41,11 @@ Existing bootstrap inspection:
   validates the digest-pinned local model and a completed inference response.
   This is setup readiness, not remote control-point or concurrency evidence.
 
-No registry, shared production loop, clipboard broker, application adapter,
-production manifest/composition, existing CI or canonical design document is
-changed. These dependencies are local to this directory.
+The executable proof changes no registry, shared production loop, clipboard
+broker, application adapter, production manifest/composition or existing CI.
+Experimental dependencies remain local to this directory. The follow-up
+documentation records outcomes and the path forward in the canonical design,
+decision register and roadmap; it does not enable production capabilities.
 
 ## Exact candidate
 

@@ -16,16 +16,16 @@ An Accepted direction status records the agreed behavior, not completed contract
 
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
-| D-001 | Copilot adapter/control-point viability | Runtime engineering lead | Slice A0 implementation | Open, release-blocking | Pinned SDK/version; context/tool/egress interception; streaming; cancellation; independent session behavior; unsupported built-ins disabled |
+| D-001 | Copilot adapter/control-point viability | Runtime engineering lead | Slice A0 implementation | Open, release-blocking; Node candidate measured, hook-only approach rejected | R02-RT1/RT2 and execution R02-PV1: pinned .NET/runtime parity; final serialized-request mediation for every result status; all-destination/storage observation; hosted auth; streaming/cancellation/isolation; unsupported built-ins disabled |
 | D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
-| D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management | Independent-session permission, SDK/account tier, terms, quota/rate limit, cost estimate, 32 KiB/4 KiB bounds, 15-second deadline, deterministic fallback |
+| D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management; loopback host envelope passed | R02-MG1 and management R02-PV1: .NET byte/deadline/no-retry proof; approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost envelope; deterministic fallback independent of inference |
 | D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | Open, release-blocking | NSIS proof, Linux build, final-byte hash/provenance, Unknown Publisher/SmartScreen UX, no install-capable updater, external Windows evidence; future signed-metadata root design separately gated |
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes; schema/enforcement proof open, release-blocking; initial model grants only | Single-use consumption, operation-bound durable session grants, perpetual grants without retention/eviction, applicability/provenance after chat deletion, native explicit edit/removal, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
 | D-009 | Durable session storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Lifecycle and Windows encryption direction recorded; synthetic R02 evidence measured; native/key integration and schema/deletion acceptance open, release-blocking | Maintained authenticated SQLite and AES-GCM artifacts, CurrentUser/profile-path/effective-ACL integration and installed Windows evidence, event ordering, crash/migration/key/backup recovery, configurable 24-hour/30-day inactivity policies, journal/cache/backup deletion, no action/grant replay |
-| D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; isolation/budget proof open, release-blocking | Pinned SDK/provider isolation and concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races |
+| D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; Node conversation topology measured, production isolation/budget proof open | R02 .NET/provider isolation and concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races; loopback conversations are not execution-slot proof |
 | D-011 | Shared interaction and session routing/history tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; protocol/integration proof open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact interaction/list-plus-conversation workspace/separate detail surfaces, minimal Active-session routing context, bounded paginated tools, provenance/egress, foreground voice versus addressed UI races |
 | D-012 | Windows-session trust model and accepted voice boundary | Product and security leads | Design acceptance; enforcement before associated capability release | Accepted direction; implementation evidence outstanding | Enabled verbal input trusts the active unlocked profile, not speaker identity; no compulsory biometrics/PTT/UI for ordinary voice; scoped grants, call origin/reuse gates, intent/content separation, containment and truthful recovery tests |
 | D-013 | Windows worker and protected-deployment containment | Security and Windows engineering leads | R11 execution admission; R17 protected-deployment acceptance | Open, release-blocking; partial AppContainer proof, Job-only restriction rejected | Attributable OS network denial, executable dependency admission, effective app/worker identities and protected-root ACLs, aliases/TOCTOU, fixed-control feasibility, truthful receipts and descendant/crash shutdown |
@@ -42,7 +42,7 @@ before ordinary read-only tools or fixed bundled actions.
 
 | Decisions | Primary roadmap packages and closure evidence |
 |---|---|
-| D-001/D-004 | R02 actual SDK/provider control and budget proofs, R06/R08 mediated local/remote loop, R13 independent management/concurrency |
+| D-001/D-004 | [R02-RT1/RT2/MG1/PV1](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates) complete .NET, observation and account/budget evidence; R06/R08 integrate mediated local/remote loop, R13 deterministic core then independently gated model-assisted management |
 | D-002/D-003/D-007 | R02 candidate/licence/hardware selection, with [R02-L1-L5](Implementation_Roadmap.md#r02-local-inference-continuation) local-inference qualification and L6 handoff; R03/R07/R09 actual privacy/local-answer/wake trials, R19 integrated acceptance |
 | D-005 | R02/R17 protected Linux-built distribution/installed Windows evidence, R18 notify-only maintenance; no install-capable updater implied |
 | D-006 | Optional R24 only; do not make learning or verification a baseline voice prerequisite |
@@ -53,6 +53,39 @@ before ordinary read-only tools or fixed bundled actions.
 
 R19 and R23 compile the applicable release results; a merged implementation or
 fake-only test does not close a decision that requires real boundary evidence.
+
+## R02 Runtime/Provider Feasibility Outcomes
+
+The 2026-10-05 [recorded experiment](../experiments/r02-runtime-proof/EVIDENCE.md)
+tested Node SDK 1.0.16 / runtime 1.0.90 through synthetic loopback providers:
+13 PASS, 1 FAIL and 3 BLOCKED outcomes, with 16 passing conformance tests.
+This is candidate evidence, not selection approval or decision closure.
+
+- **Reject:** hook-only result mediation. Failed results do not traverse the
+  successful-result hook. Require host sanitization and supported final
+  serialized-request gating before every send.
+- **Continue proving:** minimal child-process runtime configuration,
+  host-owned session I/O and isolated execution/management conversations.
+  The next candidate is an isolated pinned .NET proof, not a production Node
+  bridge or assumed language parity.
+- **Carry forward:** the host byte/deadline envelope, explicit no-retry
+  boundary and truthful cancellation/unknown effects; none proves a hosted
+  account allowance or rollback.
+- **Keep blocked:** .NET parity, complete destination/diagnostic/storage
+  observation, and hosted-account/auth/terms/usage/concurrency evidence.
+
+The hook-only failure rejects an option, not every Copilot integration.
+Closure evaluates the selected final-request-gated profile and its remaining
+required controls; it does not require reclassifying the historical failure.
+
+[Runtime and Provider Feasibility](Runtime_Provider_Feasibility.md) owns the
+technical path and unsupported-candidate stop condition. The
+[named follow-up gates](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
+assign runtime/security/provider owners and measurable go/no-go exits.
+D-001 closes only on the relevant actual runtime/provider evidence; D-004
+additionally requires the management envelope/account trial. D-010 still
+requires integrated resource leases and scheduler/unknown-effect evidence.
+Unapproved provider trials do not block the deterministic local core.
 
 ## R01 Accepted Policy Reconciliation
 

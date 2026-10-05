@@ -210,6 +210,12 @@ Cancellation cannot undo a completed write or prove a remote operation never ran
 If a remote service acknowledges only request cancellation, Kora reports that remote completion may still occur.
 Late receipts can refine the action record without turning a cancelled task into a successful one.
 
+R02 observed a non-cooperative admitted tool completing after SDK abort
+acknowledgement. Block new dispatch and provider egress for the cancelled
+generation; quarantine uncertain inference and retain Outcome Unknown until
+receipt/reconciliation. See the [runtime continuation](Runtime_Provider_Feasibility.md)
+and [management envelope](Work_Management.md#management-operating-envelope-and-degraded-mode).
+
 ## Failure and Retry Rules
 
 | Failure | Required response |
@@ -228,6 +234,9 @@ Late receipts can refine the action record without turning a cancelled task into
 | Worker crash | Fail its invocation, contain UI impact, show diagnostic reference |
 
 At most one automatic retry is allowed for a classified transient read-only operation, within the original deadline and unchanged permissions.
+Management inference is a stricter exception: no automatic retry is allowed;
+the host final request gate must block SDK retry attempts independently of
+error hooks under [Work Management](Work_Management.md#management-operating-envelope-and-degraded-mode).
 Do not automatically retry writes, process executions, or requests with unknown outcomes.
 A write may be retried only after reconciliation and a fresh user decision, unless the tool has a tested idempotency contract.
 

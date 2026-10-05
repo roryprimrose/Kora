@@ -45,6 +45,17 @@ hook-only failure; it does not reclassify that failure as a passed gate.
 
 ## Recommendations
 
+These observations are now incorporated into the
+[canonical runtime technical direction](../../Design/Runtime_Provider_Feasibility.md),
+[decision register](../../Design/Decision_Register.md#r02-runtimeprovider-feasibility-outcomes)
+and [named roadmap gates](../../Design/Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates).
+Those documents own the next implementation steps and acceptance dependencies;
+this report retains the measured evidence.
+The hook-only failure is a rejected approach, not a requirement to make that
+approach pass. A future selected profile must pass its required final-boundary
+and remaining controls with separate acceptance evidence; retain this
+historical failure matrix unchanged.
+
 1. Retain SDK 1.0.16 / runtime 1.0.90 as a **candidate**, not an approved
    production runtime. Prefer explicit empty mode and child-process stdio;
    in-process transport does not honor the same environment isolation
@@ -83,9 +94,11 @@ Final local validation on 2026-10-05, after the second fetch/rebase onto
 - Denied-tool effects **0**; denied context markers forwarded **0**.
 - `git diff --check`: passed; generated trial directories cleaned.
 
-The branch is rebased onto `origin/main` before work and again before final
-validation/first push, with R01 ancestry checked. The proof/tests are repeated
-after the latter rebase. Only this experimental directory is staged.
+The initial proof branch was rebased onto `origin/main` before work and again
+before final validation/first push, with R01 ancestry checked. Proof/tests
+were repeated after that rebase. The later documentation follow-up updates
+canonical outcomes/roadmap alongside this retained experiment, with no
+production code changes or rewrite of published history.
 
 The repository's existing required checks are **Portable build, tests,
 coverage, and package** and **Windows integration tests** (strict

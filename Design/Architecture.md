@@ -432,6 +432,30 @@ Evidence must show rejected actions never executed and rejected markers never en
 If supported SDK hooks cannot establish that, the affected capability is unsupported.
 Do not monkey-patch undocumented internals or claim that a UI approval compensates for an unmediated SDK path.
 
+### R02 Outcome and Candidate Integration Direction
+
+The [R02 runtime/provider proof](../experiments/r02-runtime-proof/EVIDENCE.md)
+exercised Node SDK 1.0.16 with runtime 1.0.90. Initial-context mediation,
+successful-result mediation and isolated loopback lanes passed; **hook-only
+failed-result mediation failed**. A supported experimental final model-request
+handler blocked that unredacted continuation. Global egress/storage
+observation, hosted-account eligibility and .NET parity remain blocked.
+D-001/D-004 are not closed and no production adapter is enabled.
+
+The next candidate must combine pre-effect tool authorization, host-sanitized
+results for every outcome, and a final gate over each complete serialized
+model request before transmission. Prompt/tool hooks alone are insufficient.
+Minimal runtime configuration and host-owned session I/O require observed
+enforcement; an empty tool list does not prove no ambient collection or
+persistence. Abort acknowledgement is not physical stop or rollback.
+
+[Runtime and Provider Feasibility](Runtime_Provider_Feasibility.md) owns the
+technical continuation: isolated .NET public-API parity first, then lifecycle
+network/storage observation and approved provider trials, with explicit
+stop/decision paths for unsupported controls.
+The [roadmap gates](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
+must pass before R08 remote exposure or R13 model-assisted management.
+
 ## Evolution
 
 Use dependency-injected interfaces and typed protocols internally; do not expose private application services directly to extensions.

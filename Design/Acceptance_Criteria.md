@@ -532,6 +532,7 @@ Verify:
 - Launch setup successfully with no speech models, database files, or Ollama present; initialise selected capabilities from the running app without Git/SDK.
 - Validate launch-critical packaged libraries and embedded lock-script resources, plus speech readiness after Kora-led explicit asset setup.
 - Missing/incompatible runtime and architecture cases identify the actual requirement; no SDK install or source-build fallback occurs.
+- Derive pre-launch prerequisites from the exact published runtime configuration and native imports. For the current R02 baseline, test missing/base-only/wrong-major/wrong-architecture .NET against both declared .NET 10 shared frameworks, then record the actual supported x64 Desktop Runtime patch selected. Test absent/incompatible VC++ x64 runtime dependencies and delayed/dynamic native loads; registry or DLL presence alone does not pass runtime-only launch.
 - Source and binary deployments preserve the same skill/data partitions and application-integrity guarantees.
 - Start-at-logon is opt-in, runs published binaries as the interactive user, starts only one instance, and never builds or elevates.
 - Ordinary unlocked logon/restart tests automatically begin listening when ready;
@@ -553,14 +554,17 @@ An install-capable updater remains unavailable until independent signed-metadata
 
 - Build/package/publish the unsigned Windows reference release on clean Linux Actions runners without required Windows build jobs or hidden Windows-only tools.
 - Verify Windows RID/native dependency completeness, runtime-only packaging, embedded resources, licences, and final-byte hashes/provenance.
+- Close the [R02 distribution follow-ups](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery): recorded Linux cross-publishing does not prove native Linux setup assembly, and a Windows-assembled setup does not replace that evidence. Resolve the project licence and actual third-party redistribution/notices before public distribution; absent nuspec declarations do not establish permission.
 - Application, maintenance, and setup artifacts contain no Authenticode signature during the initial unsigned phase; release/setup surfaces disclose this and document the expected Unknown Publisher/SmartScreen behavior.
 - Published SHA-256 values match the downloadable final bytes, and the UI/documentation never presents those hashes or build attestations as Windows publisher authentication.
+- Hash each final setup assembly independently and bind its provenance and Windows trial receipts to that digest, even when the source/payload/name is unchanged. A prior assembly's receipt cannot certify later bytes.
 - Fork/PR checks cannot access release-write permissions or production identity; approved release workflows use pinned actions and protected revisions/environments.
 - Public binary acquisition/update metadata needs no user GitHub token, Git, or SDK; rate-limit/cache/offline/feed failures remain truthful.
 - Official release lookup accepts only the configured canonical repository, approved release record, immutable source revision, expected artifact identity, and matching digest; it cannot substitute fork artifacts, generic workflow outputs, default-branch commits, or mutable tag names.
 - A single setup EXE contains the intended payload; any companion updater metadata/packages refer to the same exact approved release identity.
 - External Windows integration evidence binds the final artifact digest and covers runtime/native assets, install/UAC/ACLs, unprivileged launch, device/tray/lock, and protected update/recovery.
 - Missing mandatory Windows evidence leaves the candidate draft/unreleased despite successful Linux builds.
+- Static embedded-documentation/resource inventories do not pass future bundled-skill/interpreter/worker gates. Repeat packaging and installed Windows checks when those components exist; blocked or absent components remain explicitly unaccepted.
 - NSIS/Velopack adoption passes Linux packaging and actual protected Windows update tests; a per-user writable install does not pass the no-self-modification gate by itself.
 - MSIX/App Installer is not an initial unsigned-package option.
 

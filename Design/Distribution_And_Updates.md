@@ -1,12 +1,61 @@
 # Distribution, Startup, and Application Maintenance
 
 Status: proposed. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
-Installer/package technology remains undecided. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
+Installer/package technology remains undecided; R02 has a partial NSIS 3.13 proof and a defined follow-up path below. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
 The expected source host is a public open-source GitHub repository; Linux GitHub Actions runners are the build/package/release baseline.
 Initial binary and setup artifacts are intentionally unsigned.
 Windows remains the only supported application runtime for the foreseeable future; Linux build runners do not imply Linux releases.
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Application Integrity](Security_Data_Flows.md#application-integrity-and-no-self-modification), [Acceptance Criteria](Acceptance_Criteria.md).
+
+## R02 Distribution Outcomes and Direction
+
+The 2026-10-05 [distribution proof](../experiments/r02-distribution-proof/README.md)
+inspected the bootstrap at approved R01 revision
+`7d5e6a352261dce48f2ca4d3048650ee13f51705`. It establishes the narrow findings
+below, not a completed installer, protected deployment or D-005 acceptance.
+Future builds must inspect their own exact revision and final bytes.
+
+| Finding | Design / implementation consequence |
+|---|---|
+| Ubuntu 24.04 CI cross-published the existing framework-dependent win-x64 bootstrap with SDK 10.0.401. | Retain normal managed cross-publishing on Linux as the build baseline. Windows is the only deployed runtime; preserve the [platform seams](Architecture.md#platform-boundaries-and-support) for future extensibility without adding other OS releases. |
+| NSIS 3.13 assembled one unsigned EXE on Windows from that Linux-produced payload. Native Linux NSIS execution was unavailable. | Continue with NSIS as the first packaging candidate, using its native POSIX compiler and redistributable Windows stubs/plugins. Prove Linux assembly before selecting it; a Windows compiler or Wine is not a substitute. |
+| Runtime metadata requires both .NET 10 base and Windows Desktop shared frameworks, and ONNX imports external VC++ runtime DLLs. | Declare the observed [launch prerequisites](#launch-prerequisite-baseline) separately from Kora-led capability setup. Binary users do not need an SDK, Git or source checkout. |
+| Exact-revision managed-source publishing and hash-verified reruns succeeded; fixtures preserve local edits and earlier outputs on failure. | Reuse dedicated detached checkout, versioned staging, explicit ownership and non-destructive reruns. Add protected deployment, interrupted-install reconciliation and actual Windows launch smoke tests before calling it a production source bootstrap. |
+| Repeated setup assembly changed the final EXE digest despite unchanged payload identity and size. | Hash every finished setup, not its filename, revision or input directory alone; bind provenance and Windows results to those exact final bytes. Do not claim bit-identical builds from this experiment. |
+| No project licence was found; three OpenTK prerelease nuspecs lack licence declarations. | Obtain the product owner's project-licence decision and review actual third-party redistribution terms/notices before public distribution. Missing declarations are unresolved evidence, not proof of either permission or prohibition. |
+| Only documentation/Avalonia resources are embedded; the planned skill catalogue, scripts and protected workers are absent. | Keep their R11/R16/R17 gates open. Shipping or testing this bootstrap does not establish resource completeness or worker protection for the designed release. |
+| Windows installation/launch trials were not approved; ACL and runtime-only evidence are absent. | Allocate an approved disposable Windows 11 x64 lab. Keep release candidates draft/unreleased and dependent execution capabilities unavailable until the actual boundaries pass. |
+
+The path forward is staged in the
+[distribution follow-up roadmap](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery).
+First clear redistribution decisions, prove native Linux setup assembly and
+establish the Windows protected-deployment boundary; these investigations can
+run in parallel. Then turn the prototype into the two required R17 delivery
+options, integrate release metadata/provenance, and accept the exact installed
+candidate on Windows after its resource/privacy/worker prerequisites exist.
+Do not wait for unrelated R02 provider proofs to run private packaging tests,
+and do not confuse permission to prototype with permission to release.
+
+The protected-deployment candidate is an independently administered, versioned
+x64 Program Files tree, with the application running non-elevated. The
+containment workstream confirmed these as assumptions to test, not guarantees:
+both the deployment parent and version trees need independent ownership and
+effective protection of binaries, native libraries, runtime/dependency metadata,
+launch selectors and future workers. External runtime/dependency roots and
+DLL resolution must not admit writable substitutions. Validate parent
+delete-child rights, all token/group grants, links and replacement races,
+not merely a displayed Users RX entry. The experiment's version-tree ACL
+requests alone do not establish this boundary. Source/Git/build roots remain
+protected resources even when staging is separate.
+
+Production R17 work must resolve the Windows known folder and independently
+protect activation authority, preserve writable user-data partitions outside
+executable loading paths, and prove the application's actual non-elevated
+token plus each admitted worker identity. Never launch the assistant directly
+with an elevated installer's token. Unknown protection disables affected
+write/execution capabilities; no unmerged containment implementation is
+assumed. No install-capable updater is part of this path.
 
 ## Installation Options
 
@@ -60,6 +109,36 @@ Include:
 Specify the required runtime family/version from the actual published runtime configuration; do not assume the SDK or Windows Desktop runtime is needed merely because the app has a desktop UI.
 The installer/launcher reports missing or wrong-architecture runtimes with actionable instructions.
 It must not respond by installing an SDK or switching to a source build.
+
+### Launch Prerequisite Baseline
+
+For the inspected R01 win-x64 payload, `Kora.runtimeconfig.json` declares
+`Microsoft.NETCore.App` **10.0.0** and `Microsoft.WindowsDesktop.App` **10.0.0**.
+The Desktop dependency comes from NAudio.WinForms 3.1.0's WindowsForms framework
+reference, not an assumption based on Avalonia having a desktop UI.
+Use a supported, patched **.NET 10 x64 Desktop Runtime** installation providing
+both frameworks. The declared minimum and the runtime patch actually selected
+on the test machine are separate evidence; registry presence alone is not
+launch success. Reinspect this contract after dependency changes.
+
+The bundled ONNX native binaries import `VCRUNTIME140.dll`,
+`VCRUNTIME140_1.dll`, `MSVCP140.dll` and `MSVCP140_1.dll`, absent from that
+publish directory. The current candidate therefore declares the Microsoft
+Visual C++ v14 x64 Redistributable as an external native prerequisite.
+Select and record its supported version during Windows validation; static
+import names or file-presence checks do not prove loader compatibility.
+Verify delayed/dynamic loads, including OpenTK/OpenAL and optional speech,
+separately. A missing optional capability must remain explicitly unavailable,
+not strand the launchable shell/setup experience or trigger a hidden download.
+
+Prerequisite failure must identify the missing family/version/architecture and
+provide an official manual remediation path, with no automatic SDK install,
+source-build fallback or unrelated provider/model setup. Delivery handles
+pre-launch requirements; the running application cannot repair a prerequisite
+required for its own process to start. Neither runtime nor native prerequisite
+health has yet been proven on a clean runtime-only Windows machine.
+
+### Payload and Deployment Responsibilities
 
 Speech models, local storage/databases, Ollama, and other capability-specific requirements are detected/configured by Kora's built-in setup controller after launch.
 They are not provisioned by the delivery script or binary archive.
@@ -195,7 +274,7 @@ Kora never replaces executable files underneath active work.
 
 ## Technology Decision Still Required
 
-The leading initial proposal is NSIS for a single setup EXE without an install-capable maintenance coordinator.
+The leading initial proposal remains NSIS for a single setup EXE without an install-capable maintenance coordinator; the R02 Windows-assembled prototype is evidence to continue its evaluation, not a completed technology selection.
 NSIS can generate Windows installers on POSIX/Linux without Windows or Wine; it does not supply a complete release-feed/self-update framework.
 The application handles notify-only release discovery; protected installation/activation remains an external user operation.
 

@@ -20,7 +20,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management | Independent-session permission, SDK/account tier, terms, quota/rate limit, cost estimate, 32 KiB/4 KiB bounds, 15-second deadline, deterministic fallback |
-| D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | Open, release-blocking | NSIS proof, Linux build, final-byte hash/provenance, Unknown Publisher/SmartScreen UX, no install-capable updater, external Windows evidence; future signed-metadata root design separately gated |
+| D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | Open, release-blocking; R02 Linux cross-publish and Windows-assembled NSIS candidate recorded | Native Linux NSIS packaging, licence/notice clearance, final-byte release provenance, actual runtime/native requirements and protected runtime-only Windows trials remain required; follow R02-D01 through R17-D03 below; no install-capable updater |
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes; schema/enforcement proof open, release-blocking; initial model grants only | Single-use consumption, operation-bound durable session grants, perpetual grants without retention/eviction, applicability/provenance after chat deletion, native explicit edit/removal, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
@@ -146,6 +146,36 @@ Compare packaging options against protected installation, unsigned disclosure, a
 Any future install-capable updater is a separate decision requiring independently signed metadata with a protected offline/root trust anchor, threshold/key rotation, expiry, rollback/freeze protection, exact host-owned voice/UI approval, and mandatory OS checks.
 Authenticode remains a later separate decision.
 
+The 2026-10-05 R02 distribution proof records successful Ubuntu win-x64
+cross-publishing, a Windows-assembled unsigned NSIS 3.13 setup, static
+runtime/native/resource/licence inspection, and exact-revision managed-source
+publishing with non-destructive reruns. This is sufficient to continue NSIS
+evaluation, not to accept NSIS or close D-005. The deployed application remains
+Windows-only; portable architecture and Linux build infrastructure do not
+promise another runtime platform.
+
+The [canonical distribution outcomes](Distribution_And_Updates.md#r02-distribution-outcomes-and-direction)
+own the technical consequences, prerequisite baseline and protection
+assumptions. The
+[distribution follow-up roadmap](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery)
+assigns the closure sequence:
+
+- R02-D01: project-licence decision, third-party notices and launch-dependency
+  inventory; no public redistribution before clearance.
+- R02-D02: run NSIS natively on Linux and record the exact Windows setup bytes;
+  no Windows/Wine substitute.
+- R02-D03: prove the independent deployment boundary on an approved Windows
+  lab under actual application identities; coordinate worker requirements
+  without treating absent workers as tested.
+- R17-D01/D02: production managed-source/binary delivery and official
+  release/provenance integration, not promotion of the lab-only scripts.
+- R17-D03: integrated runtime-only Windows acceptance against the exact final
+  artifact and implemented resources/workers before first public binary sign-off.
+
+Linux packaging and Windows lab trials are currently blocked by environment/
+approval availability; missing licence decisions and future resources are
+separate blockers, not waived gates. Preserve the independently gated future
+signed-metadata trust design and unsigned-phase notify-only maintenance.
 ## D-006 Optional Speaker Verification
 
 No verifier or frequent-speaker profile is required for general voice use or baseline explicit voice approval in an unlocked Windows session.

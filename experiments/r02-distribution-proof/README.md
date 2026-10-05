@@ -2,8 +2,13 @@
 
 Status: **partial proof; release-blocking validation remains open**. This is not
 an installer release, an updater, or R17 acceptance. All scripts, dependencies
-and outputs are local to this experiment; production manifests, CI and canonical
-design documents are unchanged.
+and outputs are local to this experiment; production manifests and CI are
+unchanged. Following review, the
+[canonical distribution outcomes](../../Design/Distribution_And_Updates.md#r02-distribution-outcomes-and-direction)
+and [R02/R17 follow-up roadmap](../../Design/Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery)
+record the findings, owners, next actions and closure conditions. This directory
+retains the runnable proof and historical evidence, not the release plan's only
+source of truth.
 
 Platform scope confirmed by the user: **Windows-only deployed runtime**.
 GitHub builds/packaging should use Linux as far as feasible; that is build

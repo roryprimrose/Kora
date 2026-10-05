@@ -14,6 +14,16 @@ They do not provision an entire AI stack, populate user databases, configure pro
 Source delivery still requires build prerequisites; framework-dependent binary delivery still requires the declared .NET runtime before Kora can run.
 Kora cannot install a prerequisite for its own process before that process can launch.
 
+R02 inspection established concrete pre-launch requirements for the current
+framework-dependent win-x64 bootstrap: a supported patched .NET 10 x64 Desktop
+Runtime providing both declared .NET shared frameworks, plus external VC++ v14
+x64 runtime DLLs imported by ONNX. See the canonical
+[launch prerequisite baseline](Distribution_And_Updates.md#launch-prerequisite-baseline)
+for exact observations and remaining Windows loader tests. These are delivery
+requirements, not model-selected setup actions or a reason to install an SDK
+on a binary user's machine. Missing optional speech/model assets still belong
+to the running app's scoped readiness flow.
+
 Once running, Kora identifies the requirements of selected capabilities, explains what is missing, and configures the environment through trusted setup operations.
 Do not install every possible connector, model, or tool "just in case".
 

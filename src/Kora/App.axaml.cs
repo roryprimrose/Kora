@@ -8,6 +8,7 @@ using Avalonia.Styling;
 
 using Kora.Application.Documentation;
 using Kora.Application.ViewModels;
+using Kora.Application;
 using Kora.Core.Configuration;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,7 @@ public sealed partial class App : Avalonia.Application
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             viewModel = Services.GetRequiredService<MainViewModel>();
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
             ApplyThemeMode(viewModel.ThemeMode);
             logger = Services.GetRequiredService<ILogger<App>>();
             DesktopLog.Information(logger, "Initializing the Kora desktop application");
@@ -57,6 +59,46 @@ public sealed partial class App : Avalonia.Application
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>());
+            var host = viewModel;
+            var dispatcher = Services.GetRequiredService<IUiDispatcher>();
+            Services.GetRequiredService<DesktopInstanceOwnershipBridge>().BindCallbacks(
+                cancellationToken => dispatcher.InvokeAsync(() =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    host.ShowApplication();
+                    return Task.CompletedTask;
+                }),
+                async cancellationToken =>
+                {
+                    var quiescent = false;
+                    await dispatcher.InvokeAsync(async () =>
+                    {
+                        try
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            quiescent = await host.TryPrepareHandoffAsync();
+                            if (quiescent)
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                desktop.Shutdown();
+                            }
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            if (quiescent)
+                            {
+                                host.AbandonHandoffPreparation();
+                            }
+                            throw;
+                        }
+                    });
+                    return quiescent;
+                },
+                _ => dispatcher.InvokeAsync(() =>
+                {
+                    host.AbandonHandoffPreparation();
+                    return Task.CompletedTask;
+                }));
             desktop.Exit += OnDesktopExit;
         }
 
@@ -65,6 +107,7 @@ public sealed partial class App : Avalonia.Application
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs eventArgs)
     {
+        Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();
         if (logger is not null)
         {
             DesktopLog.Information(logger, "Shutting down the Kora desktop application");
@@ -72,6 +115,7 @@ public sealed partial class App : Avalonia.Application
         if (viewModel is not null)
         {
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
             viewModel = null;
         }
         systemTray?.Dispose();
@@ -99,6 +143,18 @@ public sealed partial class App : Avalonia.Application
             && viewModel is not null)
         {
             ApplyThemeMode(viewModel.ThemeMode);
+        }
+
+    }
+
+    private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            foreach (var window in desktop.Windows.ToArray())
+            {
+                window.Hide();
+            }
         }
     }
 

@@ -44,6 +44,10 @@ public sealed class DocumentationWindowController : IDisposable
 
     private void OnDocumentationRequested(object? sender, EventArgs eventArgs)
     {
+        if (!viewModel.CanRevealPrivatePresentation)
+        {
+            return;
+        }
         DesktopLog.Information(logger, "Documentation window was requested");
         window ??= CreateWindow();
         if (!window.IsVisible)

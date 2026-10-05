@@ -20,8 +20,24 @@ public sealed class StorageDependencyProbeTests(ITestOutputHelper output) : IDis
 
         Path.IsPathFullyQualified(paths.LocalRoot).Should().BeTrue();
         Path.IsPathFullyQualified(paths.RoamingRoot).Should().BeTrue();
+#if DEBUG
+        Path.GetFileName(paths.LocalRoot).Should().Be("Development");
+        Path.GetFileName(paths.RoamingRoot).Should().Be("Development");
+        Path.GetFileName(Path.GetDirectoryName(paths.LocalRoot)).Should().Be("Kora");
+        Path.GetFileName(Path.GetDirectoryName(paths.RoamingRoot)).Should().Be("Kora");
+#else
         Path.GetFileName(paths.LocalRoot).Should().Be("Kora");
         Path.GetFileName(paths.RoamingRoot).Should().Be("Kora");
+#endif
+    }
+
+    [Fact]
+    public void Verified_entry_build_identity_isolates_development_even_with_mixed_library_configuration()
+    {
+        var development = new ApplicationDataPaths(developmentBuild: true);
+        var release = new ApplicationDataPaths(developmentBuild: false);
+        development.LocalRoot.Should().Be(Path.Combine(release.LocalRoot, "Development"));
+        development.RoamingRoot.Should().Be(development.LocalRoot);
     }
 
     [Fact]

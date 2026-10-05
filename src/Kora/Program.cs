@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+
 using Avalonia;
 
 using Kora.Application;
@@ -10,12 +12,14 @@ using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Coordination;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
 using Kora.Windows.Communication;
+using Kora.Windows.Coordination;
 using Kora.Windows.Dependencies;
 using Kora.Windows.Session;
 
@@ -30,29 +34,112 @@ namespace Kora;
 internal static class Program
 {
     [STAThread]
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
-        var paths = new ApplicationDataPaths();
-        var fileLogger = CreateFileLogger(paths);
-        Log.Logger = fileLogger;
-
+        var ownershipBridge = new DesktopInstanceOwnershipBridge();
+        WindowsInstanceCoordinator coordinator;
         try
         {
-            var services = new ServiceCollection();
-            ConfigureServices(services, paths, fileLogger);
-            App.Services = services.BuildServiceProvider();
-            Log.Information("Starting Kora desktop host.");
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            coordinator = new WindowsInstanceCoordinator(ownershipBridge);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WindowsInstanceCoordinator.ReportStartupFailure(
+                $"Kora could not prove its Windows ownership/launch identity: {exception.Message}");
+            return 1;
+        }
+
+        ExceptionDispatchInfo? failure = null;
+        var exitCode = 0;
+        try
+        {
+            using (coordinator)
+            {
+                var disposition = coordinator.Enter();
+                if (disposition != InstanceStartupDisposition.Owner)
+                {
+                    if (disposition == InstanceStartupDisposition.Denied)
+                    {
+                        coordinator.ShowFailure();
+                        exitCode = 1;
+                    }
+                }
+                else
+                {
+                    var safelyDisposed = false;
+                    ServiceProvider? provider = null;
+                    try
+                    {
+                        var paths = new ApplicationDataPaths(coordinator.BuildIdentity.IsDebug);
+                        var fileLogger = CreateFileLogger(paths);
+                        Log.Logger = fileLogger;
+                        var services = new ServiceCollection();
+                        ConfigureServices(services, paths, fileLogger, ownershipBridge, coordinator);
+                        provider = services.BuildServiceProvider();
+                        App.Services = provider;
+                        Log.Information("Starting Kora desktop host.");
+                        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+                        safelyDisposed = true;
+                    }
+                    catch (Exception exception)
+                    {
+                        failure = ExceptionDispatchInfo.Capture(exception);
+                        Log.Fatal(exception, "Kora terminated unexpectedly.");
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            // App also disposes on normal exit; provider disposal is idempotent.
+                            provider?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                        }
+                        catch (Exception exception)
+                        {
+                            safelyDisposed = false;
+                            failure ??= ExceptionDispatchInfo.Capture(exception);
+                            Log.Error(exception, "Kora service shutdown failed; clean ownership release is not verified.");
+                        }
+
+                        ownershipBridge.UnbindCallbacks();
+                        provider = null;
+                        App.Services = null!;
+                        if (Avalonia.Application.Current is { } application)
+                        {
+                            application.ApplicationLifetime = null;
+                        }
+
+                        try
+                        {
+                            Log.CloseAndFlush();
+                        }
+                        catch (Exception exception)
+                        {
+                            safelyDisposed = false;
+                            failure ??= ExceptionDispatchInfo.Capture(exception);
+                        }
+
+                        try
+                        {
+                            coordinator.CompleteHostExit(safelyDisposed);
+                        }
+                        catch (Exception exception)
+                        {
+                            failure ??= ExceptionDispatchInfo.Capture(exception);
+                            WindowsInstanceCoordinator.ReportStartupFailure(
+                                $"Kora could not complete its safe ownership transition: {exception.Message}");
+                        }
+                    }
+                }
+            }
         }
         catch (Exception exception)
         {
-            Log.Fatal(exception, "Kora terminated unexpectedly.");
-            throw;
+            // Coordinator disposal must not replace an earlier host/teardown failure.
+            failure ??= ExceptionDispatchInfo.Capture(exception);
         }
-        finally
-        {
-            Log.CloseAndFlush();
-        }
+
+        failure?.Throw();
+        return exitCode;
     }
 
     public static AppBuilder BuildAvaloniaApp() =>
@@ -64,7 +151,9 @@ internal static class Program
     private static void ConfigureServices(
         IServiceCollection services,
         ApplicationDataPaths paths,
-        Serilog.Core.Logger fileLogger)
+        Serilog.Core.Logger fileLogger,
+        DesktopInstanceOwnershipBridge ownershipBridge,
+        WindowsInstanceCoordinator coordinator)
     {
         services.AddLogging(builder =>
         {
@@ -72,6 +161,9 @@ internal static class Program
             builder.SetMinimumLevel(LogLevel.Debug);
             builder.AddSerilog(fileLogger, dispose: true);
         });
+        services.AddSingleton(ownershipBridge);
+        services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);
+        services.AddSingleton<IInstanceLifecycleController>(coordinator);
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
@@ -121,9 +213,15 @@ internal static class Program
         services.AddSingleton<IAudioDevicePreferences, LocalAudioDevicePreferences>();
         services.AddSingleton<IResponseOutputPreferences, LocalResponseOutputPreferences>();
         services.AddSingleton<ICallAwarePreferences, LocalCallAwarePreferences>();
+        services.AddSingleton<IVoiceConsentPreferences, LocalVoiceConsentPreferences>();
         services.AddSingleton<ICallStateService, UnavailableCallStateService>();
         services.AddSingleton<IMicrophoneAccessService, WindowsMicrophoneAccessService>();
-        services.AddSingleton<IVoiceRecognitionService, WindowsVoiceRecognitionService>();
+        services.AddSingleton<IWindowsPrivacyObservationService, WindowsPrivacyObservationService>();
+        services.AddSingleton<WindowsVoiceRecognitionService>();
+        services.AddSingleton<IVoiceRecognitionService>(provider =>
+            provider.GetRequiredService<WindowsVoiceRecognitionService>());
+        services.AddSingleton<IActivatedVoiceRecognitionService>(provider =>
+            provider.GetRequiredService<WindowsVoiceRecognitionService>());
         services.AddSingleton(new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(15),

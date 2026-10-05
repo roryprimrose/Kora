@@ -36,9 +36,10 @@ On first launch:
    built-in commands or local reasoning.
 2. Review the microphone and speaker selected from the current Windows defaults,
    or choose Kora-specific overrides in Settings.
-3. Kora starts listening automatically when the selected microphone and voice
-   activation policy are available.
-4. Say **“Kora, what can you do?”** or another phrase in the built-in catalogue.
+3. Review explicit ongoing voice consent in Speech & audio, or continue without
+   voice. Safe startup with saved consent arms push-to-talk without recording.
+4. Hold **Push to talk**, say **“Kora, what can you do?”** or another phrase,
+   then release. Production wake is unavailable; ambient audio is not transcribed.
 5. Observe the transcript, matched action, and presence state.
 6. Choose **Disable listening** whenever you want to release the microphone for
    the rest of the current run. **Preview** can test the selected local voice
@@ -124,8 +125,8 @@ The assistant name defaults to **Kora**. Settings can change it to a validated
 and hyphens are supported. Applying a name updates the presence, response,
 and Settings surfaces, tray labels and tooltip, command catalogue and prefix, visual
 responses, spoken responses, and voice preview immediately. If listening is
-already enabled, capture is restarted with the new local recognition grammar
-without granting new microphone consent.
+already enabled, current capture is invalidated and requires explicit Enable
+listening. The next push-to-talk uses the new grammar without new consent.
 Names that would collide with a built-in command phrase are rejected.
 
 The configured name is stored at
@@ -154,7 +155,10 @@ the [skill and task execution design](docs/skill-and-task-execution-design.md).
 The verified model can answer, ask bounded questions, propose grant changes,
 or suggest a registered built-in action, never an arbitrary command.
 
-The initial recognizer uses the installed English Windows speech engine and a fixed host-owned grammar. It is a command proof, not the final wake-word, endpointing, playback-rejection, or transcription implementation described by the design documents.
+The recognizer uses the installed English Windows speech engine only for bounded,
+explicitly activated commands. The previous ambient grammar is not production
+wake and is disabled on unactivated audio. Production wake selection and
+acoustic playback-rejection proof remain outside this package.
 
 The initial text-to-speech adapter uses installed Windows SAPI voices and does
 not download voice assets or use a network service. An explicitly selected
@@ -168,9 +172,8 @@ another installed voice. If no speech pack is available, Kora keeps typed and
 visual commands working, reports speech output as unavailable, directs the user
 to install a Windows voice, and forces the response panel visible even when
 voice-only output was configured.
-Wake listening stays active during previews and ordinary spoken responses.
-Assistant-name-prefixed built-in commands can interrupt playback; unprefixed
-recognition is ignored during playback.
+No ambient recognizer runs during previews or spoken responses. Push-to-talk
+stops playback before opening capture; tray Stop speaking needs no recognizer.
 
 Response output can be configured as hybrid, voice-only, or visual-only. The
 device default is persisted locally; current-queue and current-task overrides
@@ -202,8 +205,9 @@ Without a Kora-specific device preference, Kora selects **System** for both the
 microphone and speaker. System follows the live Windows multimedia-default
 endpoint, including default changes while capture or playback is active.
 Enumeration alone does not open the microphone; listening still requires
-an available effective microphone and voice activation policy. Kora attempts to
-start listening automatically during normal startup. Choosing a specific
+saved explicit consent, an available effective microphone and fresh ownership,
+Windows-session, permission and voice-policy gates. Normal startup arms
+push-to-talk without opening ambient capture. Choosing a specific
 microphone or speaker in Settings persists its stable Windows Core Audio endpoint
 ID as a device-local Kora override.
 Selecting System again removes that override. Future validated verbal/model

@@ -103,6 +103,69 @@ Resume the original only when its store remains compatible; keep original data o
 
 ## Test Requirements
 
+### R03 implementation boundary
+
+`Program.Main` enters the Windows coordinator before application paths, log
+creation, service composition, migrations, tray or audio. Core contracts live
+in `Kora.Core.Coordination`; Windows process authentication, restricted
+SID-scoped global mutexes, bounded current-user-only pipes and native questions
+live in `Kora.Windows.Coordination`. The desktop binds
+`DesktopInstanceOwnershipBridge.BindCallbacks` for reveal and safe quiescence.
+The original retains exclusive ownership until the desktop lifetime has ended
+and the service provider is disposed; a callback alone never releases it.
+The bridge also requires an admission-only `abortHandoff` callback before it
+will prepare a different-build switch. Failed/cancelled preparation awaits the
+actual callback's completion before undoing its own handoff hold; a timed-out
+IPC waiter cannot race a late preparation. Abort does not restore audio,
+playback, revoked approvals or another lifecycle hold. An abort failure blocks
+future preparations and requires explicit recovery.
+
+Authentication obtains SID, session, process creation time and canonical image
+from retained OS handles. Build identity hashes the apphost, application
+metadata, managed DLL closure, dependency and runtime configuration files,
+retaining read-only image handles. Unsupported images (including `dotnet.exe`
+launches/single-file layouts), elevated processes, unknown debug/release
+metadata, cross-session peers and unproven identities deny explicitly.
+Same-build acknowledgement never forwards startup arguments or grants.
+
+The desktop callback must refuse active tasks, setup, model or speech-install
+work, uncertain remote effects or owned workers that cannot actually stop.
+The native Yes action requests an idle, safely quiescent switch; it does not
+silently cancel active work. No leaves ownership unchanged so the user can retry
+after current work finishes. Prompt expiry, secure desktop, disconnect, ambiguity or candidate
+death revoke the proposal. Only one proposal/local restart is pending.
+Application restart is deferred through the same lifecycle controller rather
+than launching a secondary that merely activates an owner about to exit.
+Host cleanup captures the first exception and rethrows it only after cleanup and
+coordinator disposal; a shutdown failure cannot mask an earlier host failure or
+claim verified clean disposal.
+
+After disposal, the original process may remain only as an out-of-band native
+lifecycle supervisor, with logging closed and no composed services. It retains
+the replacement process handle and the exact original launch identity; return
+requires a fresh native acceptance, unchanged original files, eligible session
+and free ownership, followed by normal startup acknowledgement. No automatic
+restart, arbitrary executable fallback or nested replacement is permitted.
+Closing/expiring the return offer ends supervision; a locked offer is deferred.
+
+Debug local and preference data default to device-local `Kora\Development`
+(even the roaming-path contract resolves locally), separate from release
+`Kora`. The verified entry build, not a possibly mixed Core assembly's debug
+flag, selects that partition. Coordination alone uses the shared device-local
+`Kora\Coordination` directory. Its restricted `unclean-owner` file is one
+non-sensitive dirty bit (no sessions, identities, tickets or grants), cleared
+only after verified clean disposal. It persists when the final mutex handle
+vanishes after a crash: mutex disappearance cannot prove orphaned workers or
+remote effects stopped. Crash/uncertain disposal therefore blocks takeover and
+return pending explicit manual reconciliation/removal of that marker; it never
+authorises killing or automatic recovery.
+
+Focused portable transaction/framing and uniquely named OS-object tests do not
+launch the assistant, display questions, capture audio, change session state or
+take over the production coordinator namespace. Actual simultaneous desktop
+activation, lock/takeover/return, worker-crash and deployment/architecture trials
+remain separate user-confirmed validation gates.
+
 - Simultaneous same-build launches yield one assistant/tray/capture owner and reveal the existing window; only acknowledged secondary processes exit successfully.
 - Different semantic version, debug/release, and changed binary under unchanged version text yield the exact-identity handoff question.
 - Rejection, expiry, lock, missing microphone, incompatible protocol, candidate death, stale/forged tickets, and unreachable owner never create a competing assistant.

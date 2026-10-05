@@ -23,9 +23,70 @@ public sealed partial class SettingsWindow : Window
     {
         AvaloniaXamlLoader.Load(this);
         DataContext = viewModel;
+        Deactivated += OnCaptureSurfaceUnavailable;
+        Closed += OnCaptureSurfaceUnavailable;
+    }
+
+    private async void OnCaptureSurfaceUnavailable(object? sender, EventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            await viewModel.EndPushToTalkAsync();
+        }
     }
 
     public void ShowReadiness() => SettingsTabs.SelectedItem = ReadinessTab;
+
+    public void ShowVoiceRecovery() => SettingsTabs.SelectedItem = SpeechAudioTab;
+
+    private async void OnPushToTalkPressed(object? sender, Avalonia.Input.PointerPressedEventArgs eventArgs)
+    {
+        if (sender is Control control && eventArgs.GetCurrentPoint(control).Properties.IsLeftButtonPressed
+            && DataContext is MainViewModel viewModel)
+        {
+            eventArgs.Handled = true;
+            eventArgs.Pointer.Capture(control);
+            await viewModel.BeginPushToTalkAsync();
+        }
+    }
+
+    private async void OnPushToTalkReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs eventArgs)
+    {
+        eventArgs.Handled = true;
+        if (DataContext is MainViewModel viewModel)
+        {
+            await viewModel.EndPushToTalkAsync();
+        }
+        eventArgs.Pointer.Capture(null);
+    }
+
+    private async void OnPushToTalkCaptureLost(object? sender, Avalonia.Input.PointerCaptureLostEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            await viewModel.EndPushToTalkAsync();
+        }
+    }
+
+    private async void OnPushToTalkKeyDown(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
+            && DataContext is MainViewModel viewModel)
+        {
+            eventArgs.Handled = true;
+            await viewModel.BeginPushToTalkAsync();
+        }
+    }
+
+    private async void OnPushToTalkKeyUp(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
+            && DataContext is MainViewModel viewModel)
+        {
+            eventArgs.Handled = true;
+            await viewModel.EndPushToTalkAsync();
+        }
+    }
 
     private async void OnInstallLocalModelClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs)
     {

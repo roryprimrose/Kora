@@ -16,22 +16,39 @@ Kora override. Choosing **System** removes that override. A missing pinned
 microphone is shown as unavailable and is not silently replaced by a same-name
 or newly-default device.
 
-Changing the Windows default while System is selected automatically reroutes
-active WASAPI capture. It does not reopen capture after listening has been
-manually disabled for the current run.
+Changing the Windows default while System is selected closes and invalidates
+current capture. Refresh the endpoints and explicitly enable listening before
+a new activation; the device change cannot reopen capture by itself.
 
-## Voice activation
+## Voice consent and explicit push-to-talk
 
-Kora enables listening automatically during startup when the selected
-microphone and local recognizer are ready. **Enable listening** reopens the
-selected microphone after manual disablement and loads the fixed local
-recognition grammar. **Disable listening** closes capture.
+First launch enumerates devices without recording. In **Settings > Speech &
+audio**, review the explanation and choose **Enable voice (save consent)** or
+**Continue without voice**. Consent is device/profile-local, separate from
+Windows permission and endpoint selection. **Withdraw voice consent** persists
+the closed choice across restart.
+
+With saved consent and fresh ownership/session/permission/device gates, ordinary
+startup enables push-to-talk. **Enable listening** explicitly releases a
+current-run recovery hold, but does not open the microphone. **Disable
+listening** closes input for the current run without withdrawing saved consent.
+
+The production wake engine is not selected or integrated. The previous ambient
+phrase grammar is not production wake and is no longer run on ambient audio.
+The microphone stays closed until explicit push-to-talk. Hold **Push to talk**
+in the native Speech & audio settings (mouse, Space or Enter), speak one
+command, then release to finish. Losing the capture control/window also ends
+capture. Each answer or approval requires a new activation. Transcripts use the
+same deterministic command pipeline as typed input; activation alone approves
+nothing.
 
 Kora stops capture when:
 
 - you disable listening;
 - Kora exits;
-- the Windows session is locked through Kora;
+- Windows reports lock (including Win+L/idle lock), disconnect or unknown state;
+- Windows suspends;
+- microphone permission or the selected endpoint is lost;
 - detected-call policy disables voice activation; or
 - capture fails.
 
@@ -42,12 +59,14 @@ check the Voice activation status; Kora also blocks automatic capture when
 Windows reports the current session as locked or the interactive input desktop
 is unavailable.
 
-Changing the assistant name while listening restarts the existing capture
-session with the updated grammar. It does not grant new consent.
+Unlock, resume, restored permission, hot-plug and refreshed/replaced devices
+never release a current-run recovery hold. Use **Enable listening** explicitly.
+Changing the assistant name invalidates current capture; enable listening again.
+An ordinary restart uses its own saved consent and fresh gates, not old audio.
 
 For a model-suggested action that needs approval, Kora always shows the
 request and can speak the question. It releases microphone capture while
-speaking, then resumes listening for **approve once**, **approve for this
+speaking. Activate push-to-talk again for **approve once**, **approve for this
 session**, **always allow this**, or **reject**. Say the assistant name first
 unless you turned off that requirement under **Settings > Approvals**.
 
@@ -98,16 +117,11 @@ If the Windows provider has no voice, install a Windows text-to-speech voice
 through Windows Settings. If Kokoro is selected but absent, download it from
 Kora Settings. Typed commands and visual output continue to work.
 
-Select **Preview** to test the chosen voice and output device. Wake listening
-remains active during previews and ordinary spoken responses.
-
-To interrupt speech, begin any supported command with the configured assistant
-name, for example **"Kora, stop"** or **"Kora, open settings"**. Kora stops the
-current playback before executing the new command. Unprefixed recognition and
-phrases detected in Kora's own active speech are ignored during playback to
-reduce self-triggering. Results depend on the microphone, speaker placement,
-headset use, and any acoustic echo cancellation supplied by the Windows audio
-device.
+Select **Preview** to test the chosen voice and output device. No ambient
+recognizer runs during playback. Push-to-talk stops Kora playback before opening
+command capture. **Stop speaking** remains available from the tray without
+speech recognition. Acoustic playback rejection for a future production wake
+pipeline still requires separate real-hardware proof.
 
 ## Audio output selection
 
@@ -116,9 +130,10 @@ The audio output list contains:
 - **System** - follows the live Windows multimedia-default output;
 - each active Windows render endpoint - pins Kora to that endpoint.
 
-Choosing System removes a saved Kora speaker override. Changing the Windows
-default while System is selected automatically reroutes active WASAPI playback.
-A pinned endpoint is never silently replaced.
+Choosing System removes a saved Kora speaker override. An observed output-route
+change stops current playback; subsequent eligible speech resolves the current
+endpoint without replaying the interrupted output. A pinned endpoint is never
+silently replaced.
 
 ## Mute and playback failures
 
@@ -138,3 +153,20 @@ text instead.
 Windows cannot reliably detect every physical failure. Speakers may be powered
 off, disconnected after an analog output, or muted by hardware without Windows
 reporting it.
+
+## Bounds and validation boundary
+
+Activated PCM and transcript handling are bounded and generation-tagged.
+Privacy closure invalidates input/output before asynchronous UI recovery;
+old opens, samples and transcripts cannot re-enable or dispatch. Audio is
+memory-only and cleared on closure, not logged or saved.
+
+Deterministic policy/race tests are not real Windows acceptance trials.
+External lock/disconnect/suspend, microphone-permission/device changes,
+cross-build takeover/return and capture-release timings require reference
+Windows trials. Those disruptive trials were not authorized for this R03
+session. The release requirement remains **at most 500 ms from the observed
+lock event in every reference trial**, recording OS notification delay
+separately. This implementation does not establish that measured target or
+production wake quality. Overall roadmap/decision status is left to integration
+review.

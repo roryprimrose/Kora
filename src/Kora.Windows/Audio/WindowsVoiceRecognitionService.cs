@@ -1,89 +1,157 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Speech.AudioFormat;
-using System.Speech.Recognition;
 
+using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Windows.Diagnostics;
-
-using NAudio.CoreAudioApi;
-using NAudio.Wave;
+using Kora.Windows.Session;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+using NAudio.CoreAudioApi;
 
 namespace Kora.Windows.Audio;
 
-public sealed class WindowsVoiceRecognitionService(
-    ILogger<WindowsVoiceRecognitionService> logger) : IVoiceRecognitionService
+public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionService
 {
-    private const int SampleRate = 16000;
-    private const int BitsPerSample = 16;
-    private const int Channels = 1;
     private const float MinimumConfidence = 0.62f;
-
+    private readonly Lock gate = new();
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
-    private SpeechRecognitionEngine? recognizer;
-    private WasapiRecorder? recorder;
-    private MMDevice? activeInputDevice;
+    private readonly ILogger<WindowsVoiceRecognitionService> logger;
+    private readonly IActivatedCaptureFactory factory;
+    private readonly VoiceCaptureLimits limits;
+    private readonly HashSet<Task> pendingResourceOperations = [];
+    private readonly bool ownsPrivacy;
+    private IWindowsPrivacyObservationService? privacy;
+    private IActivatedCapture? capture;
+    private CaptureCallbacks? callbacks;
+    private CancellationTokenSource? openingCancellation;
+    private long? pendingBeginGeneration;
     private BlockingAudioStream? audioStream;
-    private TaskCompletionSource? recognitionCompletion;
+    private MicrophoneDevice? selectedMicrophone;
+    private MicrophoneDevice? resultMicrophone;
+    private Timer? maximumCaptureTimer;
+    private Timer? emptySpeechTimer;
+    private long generation;
+    private bool captureAdmitted;
+    private bool acceptingAudio;
+    private bool recordingStarted;
+    private bool reportedListening;
+    private long reportedGeneration;
+    private bool transcriptDelivered;
     private bool disposed;
+    private bool resourceCleanupFailed;
+    private int stopRequests;
+
+    public WindowsVoiceRecognitionService(
+        ILogger<WindowsVoiceRecognitionService> logger,
+        IWindowsPrivacyObservationService? privacy = null)
+        : this(logger, privacy, new WindowsActivatedCaptureFactory(), VoiceCaptureLimits.Default)
+    {
+    }
+
+    internal WindowsVoiceRecognitionService(
+        ILogger<WindowsVoiceRecognitionService> logger,
+        IWindowsPrivacyObservationService? privacy,
+        IActivatedCaptureFactory factory,
+        VoiceCaptureLimits limits)
+    {
+        this.logger = logger;
+        this.privacy = privacy;
+        this.factory = factory;
+        this.limits = limits;
+        ownsPrivacy = privacy is null;
+        if (privacy is not null)
+        {
+            privacy.Changed += OnPrivacyChanged;
+        }
+    }
 
     public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
 
     public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed;
 
-    public bool IsListening { get; private set; }
+    public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
+
+    public bool IsAmbientListeningAvailable => false;
+
+    public bool IsCaptureQuiescent
+    {
+        get
+        {
+            lock (gate)
+            {
+                return capture is null && !pendingBeginGeneration.HasValue && stopRequests == 0 && !resourceCleanupFailed &&
+                    pendingResourceOperations.All(task => task.IsCompletedSuccessfully);
+            }
+        }
+    }
+
+    public long CaptureGeneration => Interlocked.Read(ref generation);
+
+    public long Generation => CaptureGeneration;
+
+    public bool IsListening
+    {
+        get
+        {
+            lock (gate)
+            {
+                return captureAdmitted && acceptingAudio && recordingStarted;
+            }
+        }
+    }
 
     public IReadOnlyList<MicrophoneDevice> GetMicrophones()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-
         try
         {
             using var enumerator = new MMDeviceEnumerator();
-            var endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
-            var devices = new List<MicrophoneDevice>(endpoints.Count);
-            foreach (var endpoint in endpoints)
+            var devices = new List<MicrophoneDevice>();
+            foreach (var endpoint in enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
             {
-                devices.Add(new MicrophoneDevice(endpoint.ID, endpoint.FriendlyName));
-                endpoint.Dispose();
+                using (endpoint)
+                {
+                    devices.Add(new MicrophoneDevice(endpoint.ID, endpoint.FriendlyName));
+                }
             }
 
-            var result = devices
-                .OrderBy(device => device.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ToArray();
-            WindowsLog.DevicesEnumerated(logger, result.Length, "microphone");
-            return result;
+            WindowsLog.DevicesEnumerated(logger, devices.Count, "microphone");
+            return devices.OrderBy(device => device.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
         }
         catch (COMException exception)
         {
             WindowsLog.Error(logger, exception, "Enumerating Windows microphone input");
-            throw new InvalidOperationException(
-                "Windows could not enumerate microphone input devices.",
-                exception);
+            throw new InvalidOperationException("Windows could not enumerate microphone input devices.", exception);
         }
     }
 
     public MicrophoneDevice? GetDefaultMicrophone()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-
         try
         {
             using var enumerator = new MMDeviceEnumerator();
             using var endpoint = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
-            return endpoint.State == DeviceState.Active
-                ? new MicrophoneDevice(endpoint.ID, endpoint.FriendlyName)
-                : null;
+            return endpoint.State == DeviceState.Active ? new MicrophoneDevice(endpoint.ID, endpoint.FriendlyName) : null;
         }
         catch (COMException)
         {
-            WindowsLog.Warning(logger, "No active Windows multimedia input endpoint is available");
             return null;
         }
     }
 
-    public async Task StartAsync(
+    /// <summary>Compatibility entry point for an explicit activated invocation, not ambient listening.</summary>
+    public Task StartAsync(
+        MicrophoneDevice microphone,
+        IEnumerable<string> phrases,
+        string? assistantName = null,
+        CancellationToken cancellationToken = default) =>
+        BeginPushToTalkAsync(microphone, phrases, assistantName, cancellationToken);
+
+    public async Task BeginPushToTalkAsync(
         MicrophoneDevice microphone,
         IEnumerable<string> phrases,
         string? assistantName = null,
@@ -92,137 +160,612 @@ public sealed class WindowsVoiceRecognitionService(
         ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentNullException.ThrowIfNull(microphone);
         ArgumentNullException.ThrowIfNull(phrases);
+        cancellationToken.ThrowIfCancellationRequested();
+        var commandPhrases = phrases.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        long requestedGeneration;
+        lock (gate)
+        {
+            if (stopRequests != 0)
+            {
+                throw new InvalidOperationException("Capture is closing. Wait for confirmed stop before activating again.");
+            }
 
-        await lifecycleLock.WaitAsync(cancellationToken);
+            if (captureAdmitted || pendingBeginGeneration.HasValue)
+            {
+                throw new InvalidOperationException("An activated capture is already in progress.");
+            }
+
+            if (resourceCleanupFailed || pendingResourceOperations.Any(task => !task.IsCompletedSuccessfully))
+            {
+                throw new InvalidOperationException("Prior native capture cleanup is not confirmed. Explicit recovery must wait for quiescence.");
+            }
+
+            requestedGeneration = Interlocked.Increment(ref generation);
+            pendingBeginGeneration = requestedGeneration;
+        }
+
+        CancellationTokenSource? openCancellation = null;
+        CancellationTokenRegistration openRegistration = default;
+        var lifecycleAcquired = false;
         var started = false;
-        var recognitionStarted = false;
         try
         {
-            if (IsListening)
+            await lifecycleLock.WaitAsync(cancellationToken);
+            lifecycleAcquired = true;
+            ObjectDisposedException.ThrowIf(disposed, this);
+            RequireGeneration(requestedGeneration);
+            await Task.Run(DisposeCaptureAsync, CancellationToken.None);
+            var openStarted = Stopwatch.GetTimestamp();
+            openCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            openRegistration = openCancellation.Token.Register(() => InvalidateGeneration(requestedGeneration));
+            lock (gate)
             {
-                WindowsLog.Debug(logger, "Ignoring a duplicate voice activation start request");
-                return;
+                openingCancellation = openCancellation;
             }
 
-            if (microphone.IsSystemDefault && GetDefaultMicrophone() is null)
+            var observer = await Task.Run(EnsurePrivacyObserver, CancellationToken.None)
+                .WaitAsync(RemainingOpenTime(openStarted), openCancellation.Token);
+            var beforeOpen = await Task.Run(observer.Refresh, CancellationToken.None)
+                .WaitAsync(RemainingOpenTime(openStarted), openCancellation.Token);
+            RequireMicrophone(beforeOpen, microphone);
+            RequireGeneration(requestedGeneration);
+            var stream = new BlockingAudioStream();
+            lock (gate)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(microphone),
-                    "Windows has no active default microphone.");
+                RequireGeneration(requestedGeneration);
+                audioStream = stream;
+                selectedMicrophone = microphone;
+                resultMicrophone = microphone;
             }
-
-            activeInputDevice = microphone.IsSystemDefault
-                ? null
-                : ResolveInputDevice(microphone);
-
-            var recognizerInfo = SpeechRecognitionEngine.InstalledRecognizers()
-                .FirstOrDefault(info => string.Equals(
-                    info.Culture.TwoLetterISOLanguageName,
-                    "en",
-                    StringComparison.Ordinal))
-                ?? throw new InvalidOperationException("No English Windows speech recognizer is installed.");
-
-            var grammarPhrases = phrases
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            if (grammarPhrases.Length == 0)
-            {
-                throw new ArgumentException("At least one recognition phrase is required.", nameof(phrases));
-            }
-
-            audioStream = new BlockingAudioStream();
-            recognizer = new SpeechRecognitionEngine(recognizerInfo.Id);
-            var grammarBuilder = new GrammarBuilder
-            {
-                Culture = recognizerInfo.Culture,
-            };
-            grammarBuilder.Append(new Choices(grammarPhrases));
-            recognizer.LoadGrammar(new Grammar(grammarBuilder));
-            if (!string.IsNullOrWhiteSpace(assistantName))
-            {
-                var freeform = new GrammarBuilder
+            var opening = Task.Run(() => factory.OpenAsync(microphone, commandPhrases, stream,
+                () =>
                 {
-                    Culture = recognizerInfo.Culture,
-                };
-                freeform.Append(assistantName);
-                freeform.AppendDictation();
-                recognizer.LoadGrammar(new Grammar(freeform));
-            }
-            recognizer.SpeechRecognized += OnSpeechRecognized;
-            recognizer.SpeechRecognitionRejected += OnSpeechRecognitionRejected;
-            recognizer.RecognizeCompleted += OnRecognitionCompleted;
-            recognizer.SetInputToAudioStream(
-                audioStream,
-                new SpeechAudioFormatInfo(
-                    EncodingFormat.Pcm,
-                    SampleRate,
-                    BitsPerSample,
-                    Channels,
-                    SampleRate * Channels * (BitsPerSample / 8),
-                    Channels * (BitsPerSample / 8),
-                    null));
-
-            var recorderBuilder = new WasapiRecorderBuilder()
-                .WithFormat(new WaveFormat(SampleRate, BitsPerSample, Channels))
-                .WithBufferLength(100);
-            if (microphone.IsSystemDefault)
+                    var snapshot = observer.Refresh();
+                    return CaptureGeneration == requestedGeneration && !openCancellation.IsCancellationRequested &&
+                        snapshot.TopologyRevision == beforeOpen.TopologyRevision && snapshot.CanCaptureFrom(microphone);
+                }), CancellationToken.None);
+            IActivatedCapture opened;
+            try
             {
-                recorderBuilder.WithDefaultDeviceStreamRouting();
+                opened = await opening.WaitAsync(RemainingOpenTime(openStarted), openCancellation.Token);
             }
-            else
+            catch
             {
-                recorderBuilder.WithDevice(activeInputDevice!);
+                TrackResourceOperation(DisposeLateOpenAsync(opening, stream));
+                throw;
             }
 
-            recorder = await recorderBuilder.BuildAsync();
-            recorder.DataAvailable += OnDataAvailable;
-            recorder.RecordingStopped += OnRecordingStopped;
+            lock (gate)
+            {
+                capture = opened;
+                RequireGeneration(requestedGeneration);
+            }
+            var afterOpen = await Task.Run(observer.Refresh, CancellationToken.None)
+                .WaitAsync(RemainingOpenTime(openStarted), openCancellation.Token);
+            RequireGeneration(requestedGeneration);
+            RequireMicrophone(afterOpen, microphone);
+            if (beforeOpen.TopologyRevision != afterOpen.TopologyRevision)
+            {
+                throw new InvalidOperationException("Audio devices changed while opening capture. Refresh and enable explicitly.");
+            }
 
-            recognitionCompletion = new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            recognizer.RecognizeAsync(RecognizeMode.Multiple);
-            recognitionStarted = true;
-            recorder.StartRecording();
-            IsListening = true;
+            callbacks = new CaptureCallbacks(this, opened, requestedGeneration);
+            lock (gate)
+            {
+                RequireGeneration(requestedGeneration);
+                openCancellation.Token.ThrowIfCancellationRequested();
+                captureAdmitted = true;
+                acceptingAudio = true;
+                recordingStarted = false;
+                transcriptDelivered = false;
+                maximumCaptureTimer = new Timer(_ => EndBoundedCapture(requestedGeneration), null,
+                    limits.MaximumCapture, Timeout.InfiniteTimeSpan);
+                emptySpeechTimer = new Timer(_ => AbandonEmptyCapture(requestedGeneration), null,
+                    limits.EmptySpeechDeadline, Timeout.InfiniteTimeSpan);
+            }
+
+            var starting = Task.Run(() =>
+            {
+                opened.Start();
+                lock (gate)
+                {
+                    RequireGeneration(requestedGeneration);
+                    recordingStarted = true;
+                }
+
+                NotifyCaptureState();
+            }, CancellationToken.None);
+            try
+            {
+                await starting.WaitAsync(RemainingOpenTime(openStarted), openCancellation.Token);
+            }
+            catch
+            {
+                TrackResourceOperation(ObserveLateStartAsync(starting));
+                throw;
+            }
+            lock (gate)
+            {
+                RequireGeneration(requestedGeneration);
+            }
             started = true;
-            WindowsLog.VoiceActivationStarted(logger, grammarPhrases.Length);
+            WindowsLog.VoiceActivationStarted(logger, commandPhrases.Length);
+            _ = ObserveCompletionAsync(opened, requestedGeneration);
         }
         catch (COMException exception)
         {
-            WindowsLog.Error(logger, exception, "Opening the selected microphone");
+            WindowsLog.Error(logger, exception, "Opening local activated microphone capture");
             throw new InvalidOperationException("Windows could not open the selected microphone.", exception);
         }
         finally
         {
+            lock (gate)
+            {
+                openingCancellation = null;
+                if (pendingBeginGeneration == requestedGeneration)
+                {
+                    pendingBeginGeneration = null;
+                }
+            }
+
             try
             {
                 if (!started)
                 {
-                    await DisposeRecognitionResourcesAsync(recognitionStarted);
+                    InvalidateGeneration(requestedGeneration);
+                    if (lifecycleAcquired)
+                    {
+                        _ = ObserveDetachedCleanupAsync(DisposeCaptureAsync());
+                    }
                 }
             }
             finally
             {
-                lifecycleLock.Release();
+                try
+                {
+                    await openRegistration.DisposeAsync();
+                    openCancellation?.Dispose();
+                }
+                finally
+                {
+                    if (lifecycleAcquired)
+                    {
+                        lifecycleLock.Release();
+                    }
+                }
+            }
+        }
+    }
+
+    public void InvalidateCapture()
+    {
+        lock (gate)
+        {
+            Interlocked.Increment(ref generation);
+            captureAdmitted = false;
+            acceptingAudio = false;
+            recordingStarted = false;
+            openingCancellation?.Cancel();
+            maximumCaptureTimer?.Dispose();
+            emptySpeechTimer?.Dispose();
+            audioStream?.ClearAndComplete();
+            // Initiate native release now; do not wait for UI dispatch or recognition cancellation.
+            _ = capture?.ReleaseRecorder();
+        }
+
+        NotifyCaptureState();
+    }
+
+    public Task EndPushToTalkAsync(CancellationToken cancellationToken = default) =>
+        EndPushToTalkAsync(expectedGeneration: null, cancellationToken);
+
+    public Task EndCaptureAsync(CancellationToken cancellationToken = default) =>
+        EndPushToTalkAsync(cancellationToken);
+
+    private async Task EndPushToTalkAsync(long? expectedGeneration, CancellationToken cancellationToken)
+    {
+        IActivatedCapture? current;
+        long currentGeneration;
+        lock (gate)
+        {
+            if (expectedGeneration.HasValue && generation != expectedGeneration.Value)
+            {
+                return;
+            }
+
+            if (pendingBeginGeneration.HasValue)
+            {
+                InvalidateCapture();
+                return;
+            }
+
+            if (!captureAdmitted)
+            {
+                return;
+            }
+
+            currentGeneration = generation;
+            acceptingAudio = false;
+            recordingStarted = false;
+            StopCaptureTimers();
+            current = capture;
+            audioStream?.Complete();
+            _ = current?.ReleaseRecorder();
+        }
+
+        NotifyCaptureState();
+        if (current is not null)
+        {
+            try
+            {
+                current.FinishRecognition(cancel: false);
+                await AwaitRecognitionAsync(current, currentGeneration, cancellationToken);
+            }
+            catch
+            {
+                InvalidateGeneration(currentGeneration);
+                await CleanupAsync(expectedCapture: current);
+                throw;
             }
         }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        await lifecycleLock.WaitAsync(cancellationToken);
+        lock (gate)
+        {
+            stopRequests++;
+        }
+
+        InvalidateCapture();
+        var acquired = false;
         try
         {
-            if (!IsListening && recognizer is null && recorder is null)
+            await lifecycleLock.WaitAsync(cancellationToken);
+            acquired = true;
+            _ = DisposeCaptureAsync();
+            await WaitForResourceQuiescenceAsync(cancellationToken);
+        }
+        finally
+        {
+            if (acquired)
             {
-                WindowsLog.Debug(logger, "Voice activation was already stopped");
+                lifecycleLock.Release();
+            }
+
+            lock (gate)
+            {
+                stopRequests--;
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        lock (gate)
+        {
+            if (disposed)
+            {
                 return;
             }
 
-            IsListening = false;
-            await DisposeRecognitionResourcesAsync(recognitionStarted: true);
-            WindowsLog.Information(logger, "Voice activation stopped and capture resources were released");
+            disposed = true;
+        }
+
+        try
+        {
+            await StopAsync();
+        }
+        finally
+        {
+            if (privacy is not null)
+            {
+                privacy.Changed -= OnPrivacyChanged;
+                if (ownsPrivacy)
+                {
+                    privacy.Dispose();
+                }
+            }
+        }
+    }
+
+    private IWindowsPrivacyObservationService EnsurePrivacyObserver()
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (privacy is not null)
+            {
+                return privacy;
+            }
+        }
+
+        var created = new WindowsPrivacyObservationService(
+            new WindowsMicrophoneAccessService(NullLogger<WindowsMicrophoneAccessService>.Instance),
+            NullLogger<WindowsPrivacyObservationService>.Instance);
+        IWindowsPrivacyObservationService? effective;
+        lock (gate)
+        {
+            if (!disposed && privacy is null)
+            {
+                privacy = created;
+                privacy.Changed += OnPrivacyChanged;
+            }
+
+            effective = disposed ? null : privacy;
+        }
+
+        if (!ReferenceEquals(effective, created))
+        {
+            created.Dispose();
+        }
+
+        return effective ?? throw new ObjectDisposedException(nameof(WindowsVoiceRecognitionService));
+    }
+
+    private TimeSpan RemainingOpenTime(long started)
+    {
+        var remaining = limits.OpenDeadline - Stopwatch.GetElapsedTime(started);
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private void OnDataAvailable(IActivatedCapture sender, ReadOnlySpan<byte> buffer, long expected)
+    {
+        lock (gate)
+        {
+            if (!captureAdmitted || !acceptingAudio || generation != expected || !ReferenceEquals(sender, capture))
+            {
+                return;
+            }
+        }
+
+        var observed = privacy!.Current;
+        lock (gate)
+        {
+            if (!captureAdmitted || !acceptingAudio || generation != expected || !ReferenceEquals(sender, capture))
+            {
+                return;
+            }
+
+            if (selectedMicrophone is null || !observed.CanCaptureFrom(selectedMicrophone))
+            {
+                FailCapture("Windows privacy prerequisites no longer permit capture.");
+            }
+            else if (audioStream is not null && !audioStream.TryAdd(buffer))
+            {
+                FailCapture("Microphone audio exceeded the bounded local buffer.");
+            }
+        }
+    }
+
+    private void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs, long expected)
+    {
+        long currentGeneration;
+        lock (gate)
+        {
+            if (!captureAdmitted || transcriptDelivered || generation != expected || !ReferenceEquals(sender, capture))
+            {
+                return;
+            }
+
+            currentGeneration = generation;
+        }
+
+        var observed = privacy!.Refresh();
+        lock (gate)
+        {
+            if (!captureAdmitted || generation != currentGeneration || !ReferenceEquals(sender, capture))
+            {
+                return;
+            }
+
+            if (selectedMicrophone is null || !observed.CanCaptureFrom(selectedMicrophone))
+            {
+                FailCapture("Windows privacy prerequisites no longer permit recognition.");
+                return;
+            }
+
+            if (eventArgs.Transcript.Length > limits.MaximumTranscriptCharacters)
+            {
+                FailCapture("The activated transcript exceeded the local size limit.");
+                return;
+            }
+
+            if (eventArgs.Confidence >= MinimumConfidence && !string.IsNullOrWhiteSpace(eventArgs.Transcript))
+            {
+                transcriptDelivered = true;
+                acceptingAudio = false;
+                maximumCaptureTimer?.Dispose();
+                emptySpeechTimer?.Dispose();
+                audioStream?.ClearAndComplete();
+                _ = capture?.ReleaseRecorder();
+                NotifyCaptureState();
+                WindowsLog.CommandRecognized(logger, eventArgs.Confidence);
+                Notify(TranscriptRecognized,
+                    new VoiceTranscriptEventArgs(eventArgs.Transcript, eventArgs.Confidence, currentGeneration));
+            }
+        }
+    }
+
+    private void OnRecognitionFailed(object? sender, VoiceRecognitionFailureEventArgs eventArgs, long expected)
+    {
+        lock (gate)
+        {
+            if (captureAdmitted && generation == expected && ReferenceEquals(sender, capture))
+            {
+                FailCapture("Local activated speech recognition failed.");
+            }
+        }
+    }
+
+    private void OnSpeechDetected(object? sender, EventArgs eventArgs, long expected)
+    {
+        lock (gate)
+        {
+            if (captureAdmitted && generation == expected && ReferenceEquals(sender, capture))
+            {
+                emptySpeechTimer?.Dispose();
+            }
+        }
+    }
+
+    private void OnPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
+    {
+        lock (gate)
+        {
+            if (!eventArgs.Current.CanCapture || resultMicrophone is not null &&
+                !eventArgs.Current.CanCaptureFrom(resultMicrophone))
+            {
+                if (captureAdmitted || selectedMicrophone is not null)
+                {
+                    FailCapture("Windows session, permission or microphone availability changed. Explicit enablement is required.");
+                }
+                else
+                {
+                    InvalidateCapture();
+                }
+            }
+        }
+    }
+
+    private void FailCapture(string message)
+    {
+        var failedGeneration = CaptureGeneration;
+        InvalidateCapture();
+        Notify(RecognitionFailed, new VoiceRecognitionFailureEventArgs(message, failedGeneration));
+        _ = CleanupAsync(CaptureGeneration);
+    }
+
+    private void InvalidateGeneration(long expected)
+    {
+        lock (gate)
+        {
+            if (generation == expected)
+            {
+                InvalidateCapture();
+            }
+        }
+    }
+
+    private void RequireGeneration(long expected)
+    {
+        if (CaptureGeneration != expected)
+        {
+            throw new OperationCanceledException("Capture was invalidated while opening.");
+        }
+    }
+
+    private static void RequireMicrophone(WindowsPrivacySnapshot observed, MicrophoneDevice microphone)
+    {
+        var endpointId = microphone.IsSystemDefault ? observed.DefaultMicrophoneId : microphone.Id;
+        if (endpointId is null || !observed.ActiveMicrophoneIds.Contains(endpointId, StringComparer.Ordinal))
+        {
+            throw new ArgumentOutOfRangeException(nameof(microphone), "The selected microphone is no longer available.");
+        }
+
+        if (!observed.CanCapture)
+        {
+            throw new InvalidOperationException("Capture requires an authoritative unlocked Windows session and confirmed microphone permission.");
+        }
+    }
+
+    private void EndBoundedCapture(long expected)
+    {
+        lock (gate)
+        {
+            if (generation != expected || !captureAdmitted)
+            {
+                return;
+            }
+        }
+
+        _ = EndBoundedCaptureAsync(expected);
+    }
+
+    private async Task EndBoundedCaptureAsync(long expected)
+    {
+        try
+        {
+            await EndPushToTalkAsync(expected, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WindowsLog.Error(logger, exception, "Ending bounded activated capture");
+            InvalidateGeneration(expected);
+        }
+    }
+
+    private void AbandonEmptyCapture(long expected)
+    {
+        lock (gate)
+        {
+            if (generation == expected && captureAdmitted)
+            {
+                InvalidateCapture();
+                _ = CleanupAsync(CaptureGeneration);
+            }
+        }
+    }
+
+    private async Task ObserveCompletionAsync(IActivatedCapture current, long expected)
+    {
+        try
+        {
+#pragma warning disable VSTHRD003 // Completion is raised by a local recognition callback.
+            await current.Completion;
+#pragma warning restore VSTHRD003
+            CompleteGeneration(expected);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WindowsLog.Error(logger, exception, "Completing local activated recognition");
+            InvalidateGeneration(expected);
+        }
+
+        await CleanupAsync(expectedCapture: current);
+    }
+
+    private async Task AwaitRecognitionAsync(IActivatedCapture current, long expected, CancellationToken cancellationToken)
+    {
+        try
+        {
+#pragma warning disable VSTHRD003 // Completion is raised by a local recognition callback.
+            await current.Completion.WaitAsync(limits.RecognitionDeadline, cancellationToken);
+#pragma warning restore VSTHRD003
+        }
+        catch (TimeoutException)
+        {
+            WindowsLog.Warning(logger, "Activated recognition did not complete within its teardown deadline");
+            InvalidateGeneration(expected);
+        }
+        catch (OperationCanceledException)
+        {
+            InvalidateGeneration(expected);
+            throw;
+        }
+        finally
+        {
+            CompleteGeneration(expected);
+            await CleanupAsync(expectedCapture: current);
+        }
+    }
+
+    private async Task CleanupAsync(long? expectedGeneration = null, IActivatedCapture? expectedCapture = null)
+    {
+        // Recorder release has already started; slower native recognition teardown leaves the event thread.
+        await Task.Yield();
+        await lifecycleLock.WaitAsync();
+        try
+        {
+            if ((!expectedGeneration.HasValue || CaptureGeneration == expectedGeneration.Value) &&
+                (expectedCapture is null || ReferenceEquals(capture, expectedCapture)))
+            {
+                await DisposeCaptureAsync();
+            }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WindowsLog.Error(logger, exception, "Releasing activated speech resources");
         }
         finally
         {
@@ -230,150 +773,282 @@ public sealed class WindowsVoiceRecognitionService(
         }
     }
 
-    public async ValueTask DisposeAsync()
+    private void CompleteGeneration(long expected)
     {
-        if (disposed)
+        lock (gate)
         {
-            WindowsLog.Debug(logger, "Voice recognition was already disposed");
-            return;
-        }
+            if (generation == expected)
+            {
+                captureAdmitted = false;
+                acceptingAudio = false;
+                recordingStarted = false;
+                maximumCaptureTimer?.Dispose();
+                emptySpeechTimer?.Dispose();
+                audioStream?.ClearAndComplete();
+                _ = capture?.ReleaseRecorder();
+            }
 
-        await StopAsync();
-        disposed = true;
-        lifecycleLock.Dispose();
-        WindowsLog.Debug(logger, "Voice recognition was disposed");
-    }
-
-    private void OnDataAvailable(
-        ReadOnlySpan<byte> buffer,
-        AudioClientBufferFlags _,
-        long __,
-        long ___)
-    {
-        if (IsListening)
-        {
-            audioStream?.Add(buffer);
+            NotifyCaptureState();
         }
     }
 
-    private void OnSpeechRecognized(object? sender, SpeechRecognizedEventArgs eventArgs)
+    private async Task DisposeLateOpenAsync(Task<IActivatedCapture> opening, BlockingAudioStream stream)
     {
-        if (eventArgs.Result.Confidence >= MinimumConfidence)
-        {
-            WindowsLog.CommandRecognized(logger, eventArgs.Result.Confidence);
-            TranscriptRecognized?.Invoke(
-                this,
-                new VoiceTranscriptEventArgs(eventArgs.Result.Text, eventArgs.Result.Confidence));
-        }
-    }
-
-    private void OnSpeechRecognitionRejected(object? sender, SpeechRecognitionRejectedEventArgs eventArgs)
-    {
-        WindowsLog.Information(logger, "Speech recognition rejected audio that did not match the command grammar");
-        RecognitionFailed?.Invoke(
-            this,
-            new VoiceRecognitionFailureEventArgs("I heard speech but could not match a supported command."));
-    }
-
-    private void OnRecognitionCompleted(object? sender, RecognizeCompletedEventArgs eventArgs) =>
-        recognitionCompletion?.TrySetResult();
-
-    private void OnRecordingStopped(object? sender, StoppedEventArgs eventArgs)
-    {
-        if (eventArgs.Exception is not null)
-        {
-            WindowsLog.Error(logger, eventArgs.Exception, "Capturing microphone audio");
-            RecognitionFailed?.Invoke(
-                this,
-                new VoiceRecognitionFailureEventArgs($"Microphone capture stopped: {eventArgs.Exception.Message}"));
-        }
-    }
-
-    private async Task DisposeRecognitionResourcesAsync(bool recognitionStarted)
-    {
-        var currentRecorder = recorder;
-        var currentRecognizer = recognizer;
-        var currentAudioStream = audioStream;
-        var currentRecognitionCompletion = recognitionCompletion;
-
         try
         {
-            if (currentRecorder is not null)
+#pragma warning disable VSTHRD003 // Noncancellable native opens are quarantined and disposed on late completion.
+            var late = await opening;
+#pragma warning restore VSTHRD003
+            try
             {
-                currentRecorder.DataAvailable -= OnDataAvailable;
+                await late.ReleaseRecorder();
             }
-
-            currentAudioStream?.Complete();
-
-            if (recognitionStarted && currentRecognizer is not null)
+            finally
             {
-                currentRecognizer.RecognizeAsyncCancel();
+                await late.DisposeAsync();
             }
-
-            currentRecorder?.StopRecording();
-
-            var recorderDisposal = currentRecorder is null
-                ? ValueTask.CompletedTask
-                : currentRecorder.DisposeAsync();
-            var recognizerCompletion =
-                recognitionStarted && currentRecognitionCompletion is not null
-                    ? currentRecognitionCompletion.Task
-                    : Task.CompletedTask;
-
-            await VoiceRecognitionShutdown.WaitForCompletionAsync(
-                recorderDisposal,
-                recognizerCompletion);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WindowsLog.Error(logger, exception, "Releasing a cancelled microphone open");
+            if (exception is not OperationCanceledException)
+            {
+                lock (gate)
+                {
+                    resourceCleanupFailed = true;
+                }
+            }
         }
         finally
         {
-            if (currentRecorder is not null)
-            {
-                currentRecorder.RecordingStopped -= OnRecordingStopped;
-            }
-
-            if (currentRecognizer is not null)
-            {
-                currentRecognizer.SpeechRecognized -= OnSpeechRecognized;
-                currentRecognizer.SpeechRecognitionRejected -= OnSpeechRecognitionRejected;
-                currentRecognizer.RecognizeCompleted -= OnRecognitionCompleted;
-                currentRecognizer.Dispose();
-            }
-
-            if (currentAudioStream is not null)
-            {
-                await currentAudioStream.DisposeAsync();
-            }
-
-            activeInputDevice?.Dispose();
-
-            recorder = null;
-            recognizer = null;
-            audioStream = null;
-            activeInputDevice = null;
-            recognitionCompletion = null;
+            await stream.DisposeAsync();
         }
     }
 
-    private MMDevice ResolveInputDevice(MicrophoneDevice microphone)
+    private async Task ObserveLateStartAsync(Task starting)
     {
         try
         {
-            using var enumerator = new MMDeviceEnumerator();
-            var endpoint = enumerator.GetDevice(microphone.Id);
-            if (endpoint.State == DeviceState.Active)
+#pragma warning disable VSTHRD003 // A late synchronous native start is quarantined, never allowed to restore its generation.
+            await starting;
+#pragma warning restore VSTHRD003
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WindowsLog.Error(logger, exception, "Completing an invalidated native recording start");
+        }
+    }
+
+    private async Task ObserveDetachedCleanupAsync(Task releasing)
+    {
+        try
+        {
+#pragma warning disable VSTHRD003 // Cleanup has already detached and cleared its generation-owned resources.
+            await releasing;
+#pragma warning restore VSTHRD003
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            WindowsLog.Error(logger, exception, "Releasing failed activated capture resources");
+        }
+    }
+
+    private Task DisposeCaptureAsync()
+    {
+        IActivatedCapture? current;
+        BlockingAudioStream? stream;
+        Task releasing;
+        lock (gate)
+        {
+            current = capture;
+            stream = audioStream;
+            capture = null;
+            callbacks?.Unsubscribe();
+            callbacks = null;
+            audioStream = null;
+            selectedMicrophone = null;
+            StopCaptureTimers();
+            maximumCaptureTimer = null;
+            emptySpeechTimer = null;
+            stream?.ClearAndComplete();
+            releasing = Task.Run(() => ReleaseCaptureResourcesAsync(current, stream), CancellationToken.None);
+            TrackResourceOperation(releasing);
+        }
+
+        return releasing;
+    }
+
+    private async Task ReleaseCaptureResourcesAsync(IActivatedCapture? current, BlockingAudioStream? stream)
+    {
+        await Task.Yield();
+        try
+        {
+            if (current is not null)
             {
-                return endpoint;
+                try
+                {
+                    await current.ReleaseRecorder();
+                }
+                finally
+                {
+                    await current.DisposeAsync();
+                }
+            }
+        }
+        finally
+        {
+            if (stream is not null)
+            {
+                await stream.DisposeAsync();
+            }
+        }
+    }
+
+    private void TrackResourceOperation(Task operation)
+    {
+        lock (gate)
+        {
+            pendingResourceOperations.Add(operation);
+        }
+
+        _ = ObserveResourceOperationAsync(operation);
+    }
+
+    private async Task ObserveResourceOperationAsync(Task operation)
+    {
+        try
+        {
+#pragma warning disable VSTHRD003 // Every task represents generation-owned native work, independent of the UI dispatcher.
+            await operation;
+#pragma warning restore VSTHRD003
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            lock (gate)
+            {
+                resourceCleanupFailed = true;
             }
 
-            endpoint.Dispose();
+            WindowsLog.Error(logger, exception, "Confirming native capture resource release");
         }
-        catch (COMException exception)
+        finally
         {
-            WindowsLog.Error(logger, exception, "Resolving the selected microphone");
+            lock (gate)
+            {
+                pendingResourceOperations.Remove(operation);
+            }
+        }
+    }
+
+    private async Task WaitForResourceQuiescenceAsync(CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            Task[] pending;
+            lock (gate)
+            {
+                if (resourceCleanupFailed || pendingResourceOperations.Any(task => task.IsFaulted || task.IsCanceled))
+                {
+                    throw new InvalidOperationException("Native capture release could not be confirmed. Restart is required before handoff.");
+                }
+
+                pending = pendingResourceOperations.Where(task => !task.IsCompleted).ToArray();
+            }
+
+            if (pending.Length == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.WhenAll(pending).WaitAsync(RemainingOpenTime(started), cancellationToken);
+            }
+            catch (TimeoutException exception)
+            {
+                throw new InvalidOperationException("Native capture work is still closing; quiescence is not confirmed.", exception);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException and not OutOfMemoryException)
+            {
+                lock (gate)
+                {
+                    resourceCleanupFailed = true;
+                }
+
+                throw new InvalidOperationException("Native capture release failed; quiescence is not confirmed.", exception);
+            }
+        }
+    }
+
+    private void StopCaptureTimers()
+    {
+        maximumCaptureTimer?.Dispose();
+        emptySpeechTimer?.Dispose();
+    }
+
+    private void NotifyCaptureState()
+    {
+        long observedGeneration;
+        bool listening;
+        lock (gate)
+        {
+            observedGeneration = generation;
+            listening = captureAdmitted && acceptingAudio && recordingStarted;
+            if (reportedGeneration == observedGeneration && reportedListening == listening)
+            {
+                return;
+            }
+
+            reportedGeneration = observedGeneration;
+            reportedListening = listening;
         }
 
-        throw new ArgumentOutOfRangeException(
-            nameof(microphone),
-            "The selected microphone is no longer available.");
+        Notify(CaptureStateChanged, new VoiceCaptureStateChangedEventArgs(observedGeneration, listening));
+    }
+
+    private void Notify<T>(EventHandler<T>? handlers, T args) where T : EventArgs
+    {
+        foreach (var callback in handlers?.GetInvocationList() ?? [])
+        {
+            try
+            {
+                ((EventHandler<T>)callback)(this, args);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                WindowsLog.Error(logger, exception, "Notifying an activated recognition consumer");
+            }
+        }
+    }
+
+    private sealed class CaptureCallbacks
+    {
+        private readonly IActivatedCapture capture;
+        private readonly ActivatedAudioAvailable data;
+        private readonly EventHandler<VoiceTranscriptEventArgs> transcript;
+        private readonly EventHandler<VoiceRecognitionFailureEventArgs> failed;
+        private readonly EventHandler speech;
+
+        public CaptureCallbacks(WindowsVoiceRecognitionService service, IActivatedCapture capture, long generation)
+        {
+            this.capture = capture;
+            data = (sender, buffer) => service.OnDataAvailable(sender, buffer, generation);
+            transcript = (sender, args) => service.OnTranscriptRecognized(sender, args, generation);
+            failed = (sender, args) => service.OnRecognitionFailed(sender, args, generation);
+            speech = (sender, args) => service.OnSpeechDetected(sender, args, generation);
+            capture.DataAvailable += data;
+            capture.TranscriptRecognized += transcript;
+            capture.RecognitionFailed += failed;
+            capture.SpeechDetected += speech;
+        }
+
+        public void Unsubscribe()
+        {
+            capture.DataAvailable -= data;
+            capture.TranscriptRecognized -= transcript;
+            capture.RecognitionFailed -= failed;
+            capture.SpeechDetected -= speech;
+        }
     }
 }

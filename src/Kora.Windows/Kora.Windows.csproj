@@ -10,6 +10,7 @@
         ExcludeAssets="build;buildTransitive;contentFiles" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" />
     <PackageReference Include="MisakiSharp" />
     <PackageReference Include="NAudio" />
     <PackageReference Include="System.Speech" />

@@ -30,6 +30,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     private bool isKokoroSynthesis;
     private bool stopRequested;
     private bool disposed;
+    private long outputGeneration;
     private readonly KokoroTextToSpeechProvider? kokoroProvider;
     private readonly ILogger<WindowsTextToSpeechService> logger;
 
@@ -168,13 +169,20 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         AudioOutputDevice outputDevice,
         CancellationToken cancellationToken = default)
     {
+        var generation = Interlocked.Read(ref outputGeneration);
         await speechLock.WaitAsync(cancellationToken);
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (generation != Interlocked.Read(ref outputGeneration))
+            {
+                throw new OperationCanceledException("Speech output was invalidated by a privacy event.");
+            }
             await SpeakCoreAsync(
                 text,
                 voice,
                 outputDevice,
+                generation,
                 cancellationToken);
         }
         finally
@@ -187,6 +195,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         string text,
         SpeechVoice voice,
         AudioOutputDevice outputDevice,
+        long generation,
         CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -205,6 +214,10 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
 
             lock (stateLock)
             {
+                if (generation != Interlocked.Read(ref outputGeneration))
+                {
+                    throw new OperationCanceledException("Speech output was invalidated by a privacy event.");
+                }
                 stopRequested = false;
             }
 
@@ -289,9 +302,9 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         try
         {
             await synthesisTask.WaitAsync(cancellationToken);
-            if (!IsStopRequested())
+            if (!IsStopRequested() && generation == Interlocked.Read(ref outputGeneration))
             {
-                await StartPlaybackAsync(cancellationToken);
+                await StartPlaybackAsync(generation, cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -345,6 +358,17 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         {
             await completionTask.WaitAsync(cancellationToken);
         }
+    }
+
+    public void InvalidateOutput()
+    {
+        lock (stateLock)
+        {
+            Interlocked.Increment(ref outputGeneration);
+            stopRequested = true;
+            playback?.Stop();
+        }
+        synthesizer.SpeakAsyncCancelAll();
     }
 
     public async Task InstallProviderAsync(
@@ -473,13 +497,13 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         }
     }
 
-    private async Task StartPlaybackAsync(CancellationToken cancellationToken)
+    private async Task StartPlaybackAsync(long generation, CancellationToken cancellationToken)
     {
         await lifecycleLock.WaitAsync(cancellationToken);
         Task completionTask;
         try
         {
-            if (IsStopRequested())
+            if (IsStopRequested() || generation != Interlocked.Read(ref outputGeneration))
             {
                 return;
             }
@@ -509,21 +533,21 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                             "No audio output device is selected."));
                 }
 
-                playback = await playbackBuilder.BuildAsync();
-                playback.PlaybackStopped += OnPlaybackStopped;
+                var player = await playbackBuilder.BuildAsync();
                 lock (stateLock)
                 {
+                    playback = player;
+                    playback.PlaybackStopped += OnPlaybackStopped;
                     playbackCompletion = completion;
-                }
-
-                if (IsStopRequested())
-                {
-                    completion.TrySetResult();
-                }
-                else
-                {
-                    playback.Init(audioReader);
-                    playback.Play();
+                    if (stopRequested || generation != Interlocked.Read(ref outputGeneration))
+                    {
+                        completion.TrySetResult();
+                    }
+                    else
+                    {
+                        playback.Init(audioReader);
+                        playback.Play();
+                    }
                 }
             }
             catch (Exception exception) when (
@@ -619,7 +643,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 text,
                 voice.Id,
                 cancellationToken);
-            audioStream = new MemoryStream(audio.Samples, writable: false);
+            audioStream = CreateOutputAudioStream(audio.Samples);
             rawAudioFormat = new WaveFormat(
                 audio.SampleRate,
                 audio.BitsPerSample,
@@ -649,26 +673,38 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         endpoint.AudioEndpointVolume.Mute
         || endpoint.AudioEndpointVolume.MasterVolumeLevelScalar <= 0;
 
+    internal static MemoryStream CreateOutputAudioStream(byte[] samples) =>
+        new(samples, 0, samples.Length, writable: false, publiclyVisible: true);
+
+    internal static void ClearOutputAudio(MemoryStream stream) =>
+        stream.GetBuffer().AsSpan().Clear();
+
     private void DisposePlaybackResources()
     {
-        if (playback is not null)
+        WasapiPlayer? player;
+        lock (stateLock)
         {
-            playback.PlaybackStopped -= OnPlaybackStopped;
-            playback.Dispose();
-            playback = null;
+            player = playback;
+            if (player is not null)
+            {
+                player.PlaybackStopped -= OnPlaybackStopped;
+                playback = null;
+            }
+            playbackCompletion = null;
         }
+        player?.Dispose();
 
         audioReader?.Dispose();
         audioReader = null;
         rawAudioFormat = null;
+        if (audioStream is not null)
+        {
+            ClearOutputAudio(audioStream);
+        }
         audioStream?.Dispose();
         audioStream = null;
         activeOutputDevice?.Dispose();
         activeOutputDevice = null;
         followsSystemDefaultOutput = false;
-        lock (stateLock)
-        {
-            playbackCompletion = null;
-        }
     }
 }

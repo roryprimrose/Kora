@@ -19,6 +19,7 @@ public sealed class SettingsWindowController : IDisposable
         this.logger = logger;
         viewModel.SettingsRequested += OnSettingsRequested;
         viewModel.ReadinessRequested += OnReadinessRequested;
+        viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
     }
 
     public void Dispose()
@@ -32,6 +33,7 @@ public sealed class SettingsWindowController : IDisposable
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
         viewModel.ReadinessRequested -= OnReadinessRequested;
+        viewModel.VoiceRecoveryRequested -= OnVoiceRecoveryRequested;
         if (window is not null)
         {
             window.Closed -= OnWindowClosed;
@@ -42,6 +44,10 @@ public sealed class SettingsWindowController : IDisposable
 
     private void OnSettingsRequested(object? sender, EventArgs eventArgs)
     {
+        if (!viewModel.CanRevealPrivatePresentation)
+        {
+            return;
+        }
         DesktopLog.Information(logger, "Settings window was requested");
         window ??= CreateWindow();
         if (!window.IsVisible)
@@ -55,7 +61,13 @@ public sealed class SettingsWindowController : IDisposable
     private void OnReadinessRequested(object? sender, EventArgs eventArgs)
     {
         OnSettingsRequested(sender, eventArgs);
-        window!.ShowReadiness();
+        window?.ShowReadiness();
+    }
+
+    private void OnVoiceRecoveryRequested(object? sender, EventArgs eventArgs)
+    {
+        OnSettingsRequested(sender, eventArgs);
+        window?.ShowVoiceRecovery();
     }
 
     private SettingsWindow CreateWindow()

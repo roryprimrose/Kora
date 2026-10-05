@@ -28,6 +28,10 @@ public sealed class GrantListWindowController : IDisposable
 
     private void OnGrantDocumentRequested(object? sender, string markdown)
     {
+        if (!viewModel.CanRevealPrivatePresentation)
+        {
+            return;
+        }
         if (window is null)
         {
             window = new GrantListWindow();

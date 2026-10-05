@@ -38,6 +38,10 @@ public sealed class ResponseWindowController : IDisposable
 
     private void OnWindowActionRequested(object? sender, WindowAction action)
     {
+        if (action is WindowAction.Show or WindowAction.ShowPresence && !viewModel.CanRevealPrivatePresentation)
+        {
+            return;
+        }
         switch (action)
         {
             case WindowAction.Show when viewModel.IsVisualResponseVisible:

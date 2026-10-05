@@ -417,6 +417,7 @@
           "Kora.Core": "[1.0.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
           "Microsoft.ML.OnnxRuntime": "[1.30.0, )",
+          "Microsoft.Win32.SystemEvents": "[10.0.0, )",
           "MisakiSharp": "[2.2.0, )",
           "NAudio": "[3.1.0, )",
           "System.Speech": "[10.0.12, )"
@@ -464,6 +465,12 @@
         "dependencies": {
           "Microsoft.ML.OnnxRuntime.Managed": "1.30.0"
         }
+      },
+      "Microsoft.Win32.SystemEvents": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "bYdnhuD0XxcVTrxc8RyBjXo+AXYWJPnda3clhGz2Kakleyun1PyrzYV8RezT7ZYmR9OBSOgvpFQcvHo/K8Y90w=="
       },
       "MisakiSharp": {
         "type": "CentralTransitive",
@@ -541,6 +548,12 @@
           "Microsoft.ML.OnnxRuntime.Managed": "1.30.0"
         }
       },
+      "Microsoft.Win32.SystemEvents": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "bYdnhuD0XxcVTrxc8RyBjXo+AXYWJPnda3clhGz2Kakleyun1PyrzYV8RezT7ZYmR9OBSOgvpFQcvHo/K8Y90w=="
+      },
       "System.Speech": {
         "type": "CentralTransitive",
         "requested": "[10.0.12, )",
@@ -595,6 +608,12 @@
         "dependencies": {
           "Microsoft.ML.OnnxRuntime.Managed": "1.30.0"
         }
+      },
+      "Microsoft.Win32.SystemEvents": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "bYdnhuD0XxcVTrxc8RyBjXo+AXYWJPnda3clhGz2Kakleyun1PyrzYV8RezT7ZYmR9OBSOgvpFQcvHo/K8Y90w=="
       },
       "System.Speech": {
         "type": "CentralTransitive",

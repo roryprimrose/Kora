@@ -4,6 +4,8 @@ public interface ITextToSpeechService : IAsyncDisposable
 {
     bool IsSpeaking { get; }
 
+    void InvalidateOutput();
+
     IReadOnlyList<SpeechProvider> GetProviders();
 
     IReadOnlyList<SpeechVoice> GetVoices();

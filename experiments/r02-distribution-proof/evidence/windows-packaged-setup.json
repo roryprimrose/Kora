@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "artifact": "Kora-R02-7d5e6a352261-342b426b10d7-unsigned-setup.exe",
+  "sha256": "da6035bf89c46747c7679d3fbe05303ebeb86408aa40fc088e60c6abf96000e2",
+  "bytes": 124108282,
+  "payloadManifestSha256": "342b426b10d722fd0567c889172f76676916b712fdea69a91912961156e69747",
+  "revision": "7d5e6a352261dce48f2ca4d3048650ee13f51705",
+  "buildOrigin": "GitHub CI run 37245014084; job 111561063374; ubuntu-24.04; artifact 11319076296; SDK 10.0.401",
+  "packagingOS": "Microsoft Windows 10.0.26300",
+  "packagingTool": "v3.13",
+  "packagingToolSha256": "4ec390d0f96f9728507fbc2f4e91311dd90bfc6c8ddfe2159357b3651ae151c0",
+  "scriptSha256": "b927a463f314fe58828b72bacdda55c0e9f0e94fbb50d9080252407131d513b6",
+  "unsigned": true,
+  "authenticodeCertificateTableBytes": 0,
+  "windowsInstallationAndLaunch": "BLOCKED: approval required on disposable Windows lab.",
+  "linuxPackaging": "NOT PROVEN: this setup was assembled on Windows."
+}

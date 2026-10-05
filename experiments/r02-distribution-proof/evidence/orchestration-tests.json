@@ -1,0 +1,18 @@
+{
+  "tests": [
+    "All proof PowerShell scripts parse without errors",
+    "Exact full revision, dedicated checkout/staging, hash-verified idempotent rerun",
+    "Tracked local edit preserved",
+    "Unknown existing root refused",
+    "Wrong repository identity refused",
+    "Mutable branch selection refused",
+    "Build failure keeps previous output",
+    "Empty output is not promoted",
+    "Successful later revision retains previous deployment and earlier checkout edits",
+    "Tampered output refused on rerun",
+    "Unknown exact revision cannot replace previous output",
+    "Concurrent operator refused"
+  ],
+  "count": 12,
+  "fixtureOnly": true
+}

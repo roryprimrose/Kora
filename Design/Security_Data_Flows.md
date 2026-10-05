@@ -451,6 +451,63 @@ Initial unsigned releases cannot provide Authenticode publisher authentication.
 Their canonical release origin, exact revision, external final-byte hashes/build provenance, and protected installation permissions provide narrower traceability and tamper-detection guarantees that must not be described as equivalent to code signing.
 Do not claim immunity against those excluded threats.
 
+### Protected Deployment Identity and Validation
+
+R02's [worker proof](#r02-windows-containment-outcomes) denies access to scratch
+stand-ins but its host owns those files. It does not prove that the normal
+installed application cannot modify executable content. For R17, the proposed
+versioned x64 Program Files deployment remains an **UNTESTED** protection
+candidate, subject to actual installation/identity/ACL evidence:
+
+- Resolve the x64 Program Files known folder and the host-owned application
+  root/version identity. For a disposable approved lab trial, a distinct
+  `Kora-R02-Proof\<version>` root avoids touching an existing Kora installation.
+  A recipe or NSIS compile is not a tested deployment boundary.
+- Intended ownership is Administrators, with Administrators/SYSTEM Full Control
+  and ordinary Users only required read/execute/traverse rights. Validate
+  effective rights for the actual application and worker tokens, inherited ACEs
+  and other group grants. Neither may have write/append/delete, parent
+  delete-child, ownership or DACL-changing authority over protected content.
+  An interactive-user owner is not acceptable merely because a Users ACE says RX.
+- Validate the application root, version root, payload files and every relevant
+  ancestor permitting replacement, rename or redirection. Protect future
+  version-selection/launch metadata and activation-influencing staging/backups
+  too. Inspect existing Program Files ancestors; do not modify their ACLs as
+  part of an unapproved proof.
+- Include `.deps.json`, `.runtimeconfig.json`, managed/native libraries,
+  adapters and future interpreter/worker assets, not only the EXE. Identify
+  actual selected shared runtime/native prerequisite locations, architecture,
+  ownership and resolver behavior. An SDK-equipped developer machine does not
+  establish runtime-only operation or dependency protection.
+- Launch the application under the actual non-elevated interactive-user token,
+  normally medium integrity, not inherited installer elevation. Installer
+  execution is independently authorized out-of-band; neither model, worker nor
+  running assistant acquires installer/replacement authority.
+- Test future worker/descendant rights under their actual contained tokens,
+  not the medium-integrity host as a proxy. The experimental candidate is a
+  low-integrity AppContainer with the host user SID plus its container SID;
+  installed worker identities and protection remain UNTESTED.
+- Resolve filesystem identities and check hard links, alternate path forms and
+  reparse points in relevant ancestors, destinations and staging. Race target/
+  parent replacement between verification and activation; hold stable handles
+  or demonstrate an equivalent race-resistant mechanism, not hash-then-reopen.
+  Verify that the complete protected version validated is the version launched.
+- Ensure working directories, PATH, runtime overrides/startup hooks and future
+  interpreter profile/module paths cannot redirect executable loading into
+  writable data. LocalAppData/skill/temporary stores remain data locations, not
+  protected executable roots.
+
+Record each property as assumed, inspected, tested or blocked. Later approved
+Windows trials need allowed-data positive controls, actual denied mutation/
+replacement/DACL-change attempts, native errors and before/after identities.
+Absent production workers or embedded skill catalogues cannot pass worker or
+bundled-resource acceptance. A build/inspect-only distribution proof leaves
+all real protected-deployment, launch-token and runtime-only trials blocked;
+it must not perform installation, application launch or registry mutation.
+Distribution outcomes and packaging follow-up belong in
+[Distribution and Updates](Distribution_And_Updates.md); these security
+assumptions do not depend on an unmerged distribution implementation.
+
 ## Work-Management Boundary
 
 Management inference uses a separate session and only the minimum approved request/ledger context.
@@ -572,7 +629,7 @@ run in parallel. These are R02 follow-up gates, not implemented capabilities.
    installation API, and cannot silently replace the existing bundled-script
    contract. Do not weaken the worker to ambient execution to make an action run.
 3. **Prove protected deployment and effective resource identities.** Use the
-   [deployment identity and alias gates](Distribution_And_Updates.md#protected-deployment-identity-and-validation)
+   [deployment identity and alias gates](#protected-deployment-identity-and-validation)
    under actual non-elevated application and prospective worker tokens.
    Independently protected payload ownership is necessary even when a worker
    denies writes. Source/worktree/Git/build roots and remote repository/API

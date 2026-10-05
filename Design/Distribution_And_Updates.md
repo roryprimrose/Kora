@@ -73,58 +73,6 @@ Source builds record their local build trust/provenance and cannot be advertised
 A ZIP extracted to a user-writable directory is not by itself evidence of integrity isolation.
 Establish the required protection or disable affected write/executable capabilities with an explicit explanation.
 
-### Protected Deployment Identity and Validation
-
-R02's [worker proof](Security_Data_Flows.md#r02-windows-containment-outcomes)
-denies access to scratch stand-ins but its host owns those files. It does not
-prove that the normal installed application cannot modify executable content.
-For R17, retain a versioned x64 Program Files deployment as the protection
-candidate, subject to actual installation/identity/ACL evidence:
-
-- Resolve the x64 Program Files known folder and the host-owned application
-  root/version identity. For a disposable approved lab trial, a distinct
-  `Kora-R02-Proof\<version>` root avoids touching an existing Kora installation.
-  A recipe or NSIS compile is not a tested deployment boundary.
-- Intended ownership is Administrators, with Administrators/SYSTEM Full Control
-  and ordinary Users only required read/execute/traverse rights. Validate
-  effective rights for the actual application and worker tokens, inherited ACEs
-  and other group grants. Neither may have write/append/delete, parent
-  delete-child, ownership or DACL-changing authority over protected content.
-  An interactive-user owner is not acceptable merely because a Users ACE says RX.
-- Validate the application root, version root, payload files and every relevant
-  ancestor permitting replacement, rename or redirection. Protect future
-  version-selection/launch metadata and activation-influencing staging/backups
-  too. Inspect existing Program Files ancestors; do not modify their ACLs as
-  part of an unapproved proof.
-- Include `.deps.json`, `.runtimeconfig.json`, managed/native libraries,
-  adapters and future interpreter/worker assets, not only the EXE. Identify
-  actual selected shared runtime/native prerequisite locations, architecture,
-  ownership and resolver behavior. An SDK-equipped developer machine does not
-  establish runtime-only operation or dependency protection.
-- Launch the application under the actual non-elevated interactive-user token,
-  normally medium integrity, not inherited installer elevation. Installer
-  execution is independently authorized out-of-band; neither model, worker nor
-  running assistant acquires installer/replacement authority.
-- Resolve filesystem identities and check hard links, alternate path forms and
-  reparse points in relevant ancestors, destinations and staging. Race target/
-  parent replacement between verification and activation; hold stable handles
-  or demonstrate an equivalent race-resistant mechanism, not hash-then-reopen.
-  Verify that the complete protected version validated is the version launched.
-- Ensure working directories, PATH, runtime overrides/startup hooks and future
-  interpreter profile/module paths cannot redirect executable loading into
-  writable data. LocalAppData/skill/temporary stores remain data locations, not
-  protected executable roots.
-
-Record each property as assumed, inspected, tested or blocked. Later approved
-Windows trials need allowed-data positive controls, actual denied mutation/
-replacement/DACL-change attempts, native errors and before/after identities.
-Absent production workers or embedded skill catalogues cannot pass worker or
-bundled-resource acceptance. A build/inspect-only distribution proof leaves
-all real protected-deployment, launch-token and runtime-only trials blocked;
-it must not perform installation, application launch or registry mutation.
-Linux artifact inspection and Windows setup assembly also do not demonstrate
-Linux packaging. Do not close D-005/R17 from any of those narrower observations.
-
 ## Public GitHub and Linux Release Pipeline
 
 Host source, issues, and public release assets in the configured canonical GitHub repository.

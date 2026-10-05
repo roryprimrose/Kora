@@ -191,7 +191,7 @@ record what this changes technically:
   A typed native broker is an alternative requiring an explicit decision and
   contract reconciliation, not an implicitly selected workaround.
 - Independently validate normal-host and worker deployment rights under
-  [the R17 identity/alias requirements](Distribution_And_Updates.md#protected-deployment-identity-and-validation).
+  [the R17 identity/alias requirements](Security_Data_Flows.md#protected-deployment-identity-and-validation).
   Build/inspect-only distribution work cannot satisfy real installation trials.
 - Preserve Unknown for effects without verifiable receipts; cancellation or
   process termination does not roll back effects or permit automatic replay.

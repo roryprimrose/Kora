@@ -414,7 +414,7 @@ Use disposable protected fixtures and actual deployment identities/ACLs, not onl
 The [R02 snapshot](../experiments/r02-containment-proof/evidence/README.md)
 provides partial denial/lifetime evidence, not a passed gate. The
 [continuation plan](Security_Data_Flows.md#windows-containment-continuation-gates)
-and [R17 deployment checklist](Distribution_And_Updates.md#protected-deployment-identity-and-validation)
+and [R17 deployment checklist](Security_Data_Flows.md#protected-deployment-identity-and-validation)
 define the remaining real-boundary trials.
 
 - Inspect source-build and precompiled publish artifacts: every built-in manifest/instruction/fixture/script is an embedded application resource, with no loose built-in skill files or writable execution extraction.

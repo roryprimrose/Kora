@@ -44,7 +44,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         await using var service = Create(privacy, factory);
         var transcripts = new List<VoiceTranscriptEventArgs>();
         service.TranscriptRecognized += (_, args) => transcripts.Add(args);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
         var generation = service.CaptureGeneration;
         var queuedResult = capture.QueueTranscript("stale");
 
@@ -149,6 +149,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         var results = new List<VoiceTranscriptEventArgs>();
         service.TranscriptRecognized += (_, args) => results.Add(args);
         await service.StartAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
         capture.Transcript("wrong sender", new FakeCapture());
         capture.Transcript("help");
 
@@ -170,7 +171,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         await using var service = Create(privacy, factory);
         var results = new List<VoiceTranscriptEventArgs>();
         service.TranscriptRecognized += (_, args) => results.Add(args);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
 
         capture.Transcript(new string('a', 4097));
 
@@ -181,7 +182,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         var nextCapture = new FakeCapture();
         next.OpenResult.SetResult(nextCapture);
         await using var second = Create(privacy, next);
-        await second.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(second);
         nextCapture.Audio(new byte[64001]);
         second.IsListening.Should().BeFalse();
         next.Stream!.BufferedBytes.Should().Be(0);
@@ -195,7 +196,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         var capture = new FakeCapture();
         factory.OpenResult.SetResult(capture);
         await using var service = Create(privacy, factory);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
 
         privacy.Set(Ready with { ActiveMicrophoneIds = [], DefaultMicrophoneId = null });
         privacy.Set(Ready);
@@ -215,7 +216,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         await using var service = Create(privacy, factory);
         var result = new TaskCompletionSource<VoiceTranscriptEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
         service.TranscriptRecognized += (_, args) => result.TrySetResult(args);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
         var generation = service.CaptureGeneration;
 
         var ending = ((IVoiceRecognitionService)service).EndCaptureAsync(TestContext.Current.CancellationToken);
@@ -243,7 +244,7 @@ public sealed class ActivatedVoiceRecognitionTests(
             ? VoiceCaptureLimits.Default with { EmptySpeechDeadline = TimeSpan.FromMilliseconds(50) }
             : VoiceCaptureLimits.Default with { MaximumCapture = TimeSpan.FromMilliseconds(50) };
         await using var service = Create(privacy, factory, limits);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
         if (!empty)
         {
             capture.DetectSpeech();
@@ -283,7 +284,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         await using var service = Create(privacy, factory);
         var results = new List<VoiceTranscriptEventArgs>();
         service.TranscriptRecognized += (_, args) => results.Add(args);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
         var generation = service.CaptureGeneration;
         capture.Transcript("help");
         capture.Transcript("duplicate");
@@ -308,7 +309,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         await using var service = Create(privacy, factory);
         var results = new List<VoiceTranscriptEventArgs>();
         service.TranscriptRecognized += (_, args) => results.Add(args);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
         privacy.Current = Ready with { MicrophoneAccess = MicrophoneAccessState.Denied };
 
         capture.Audio([1, 2, 3]);
@@ -330,14 +331,14 @@ public sealed class ActivatedVoiceRecognitionTests(
         await using var service = Create(privacy, factory);
         var results = new List<VoiceTranscriptEventArgs>();
         service.TranscriptRecognized += (_, args) => results.Add(args);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
         var oldTranscript = old.QueueTranscript("old");
         var oldAudio = old.QueueAudio([1, 2, 3]);
         await service.StopAsync(TestContext.Current.CancellationToken);
         var current = new FakeCapture();
         factory.OpenResult = new TaskCompletionSource<IActivatedCapture>(TaskCreationOptions.RunContinuationsAsynchronously);
         factory.OpenResult.SetResult(current);
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
 
         oldTranscript();
         oldAudio();
@@ -389,6 +390,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         await using var service = Create(privacy, factory);
         IVoiceRecognitionService contract = service;
         await contract.StartAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
         var generation = contract.Generation;
 
         contract.InvalidateCapture();
@@ -456,7 +458,7 @@ public sealed class ActivatedVoiceRecognitionTests(
                 stopped.TrySetResult(args);
             }
         };
-        await service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await BeginCaptureAsync(service);
         var activeGeneration = service.Generation;
 
         var closed = await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
@@ -489,6 +491,93 @@ public sealed class ActivatedVoiceRecognitionTests(
         service.IsCaptureQuiescent.Should().BeTrue();
         late.StartCount.Should().Be(0);
         late.ReleaseCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task An_early_native_result_stops_recording_but_waits_for_the_hosts_generation_acknowledgement()
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var capture = new FakeCapture();
+        capture.BeforeStart = () =>
+        {
+            capture.Transcript("early command");
+            capture.Completed.TrySetResult();
+        };
+        factory.OpenResult.SetResult(capture);
+        await using var service = Create(privacy, factory);
+        var transcripts = new List<VoiceTranscriptEventArgs>();
+        var completions = new List<VoiceRecognitionCompletedEventArgs>();
+        service.TranscriptRecognized += (_, args) => transcripts.Add(args);
+        service.RecognitionCompleted += (_, args) => completions.Add(args);
+
+        await service.StartAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        var accepted = service.Generation;
+
+        transcripts.Should().BeEmpty();
+        completions.Should().BeEmpty();
+        service.IsListening.Should().BeFalse();
+        capture.ReleaseCount.Should().BeGreaterThan(0);
+        service.AcceptCaptureGeneration(accepted).Should().BeTrue();
+        service.AcceptCaptureGeneration(accepted).Should().BeTrue();
+        transcripts.Should().ContainSingle().Which.Generation.Should().Be(accepted);
+        completions.Should().ContainSingle().Which.Reason.Should().Be(VoiceRecognitionCompletionReason.Recognized);
+        service.Generation.Should().Be(accepted);
+    }
+
+    [Fact]
+    public async Task Privacy_invalidation_discards_an_early_result_before_the_host_can_acknowledge_it()
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var capture = new FakeCapture();
+        capture.BeforeStart = () => capture.Transcript("early command");
+        factory.OpenResult.SetResult(capture);
+        await using var service = Create(privacy, factory);
+        var transcripts = new List<VoiceTranscriptEventArgs>();
+        var completions = new List<VoiceRecognitionCompletedEventArgs>();
+        service.TranscriptRecognized += (_, args) => transcripts.Add(args);
+        service.RecognitionCompleted += (_, args) => completions.Add(args);
+        await service.StartAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        var generation = service.Generation;
+
+        privacy.Set(Ready with { SessionState = WindowsSessionState.Locked });
+
+        service.AcceptCaptureGeneration(generation).Should().BeFalse();
+        transcripts.Should().BeEmpty();
+        completions.Should().ContainSingle().Which.Generation.Should().Be(generation);
+        completions[0].Reason.Should().Be(VoiceRecognitionCompletionReason.Failed);
+    }
+
+    [Fact]
+    public async Task Empty_completion_has_a_retired_generation_and_is_not_a_recognition_failure()
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        factory.OpenResult.SetResult(new FakeCapture());
+        var limits = VoiceCaptureLimits.Default with { EmptySpeechDeadline = TimeSpan.FromMilliseconds(100) };
+        await using var service = Create(privacy, factory, limits);
+        var completion = new TaskCompletionSource<VoiceRecognitionCompletedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failures = new List<VoiceRecognitionFailureEventArgs>();
+        service.RecognitionCompleted += (_, args) => completion.TrySetResult(args);
+        service.RecognitionFailed += (_, args) => failures.Add(args);
+        await BeginCaptureAsync(service);
+        var generation = service.Generation;
+
+        var finished = await completion.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        finished.Generation.Should().Be(generation);
+        finished.Reason.Should().Be(VoiceRecognitionCompletionReason.EmptySpeechTimeout);
+        service.Generation.Should().BeGreaterThan(generation);
+        service.IsListening.Should().BeFalse();
+        failures.Should().BeEmpty();
+    }
+
+    private static async Task BeginCaptureAsync(WindowsVoiceRecognitionService service)
+    {
+        await service.BeginPushToTalkAsync(
+            Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
     }
 
     private WindowsVoiceRecognitionService Create(

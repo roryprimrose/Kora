@@ -6447,6 +6447,8 @@ public sealed partial class MainViewModelTests
 
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
 
+        public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted;
+
         public bool IsListening { get; private set; }
 
         public long Generation { get; private set; }
@@ -6459,6 +6461,24 @@ public sealed partial class MainViewModelTests
 
         public bool PreventQuiescence { get; set; }
 
+        public bool RejectAcknowledgement { get; set; }
+
+        public string? EarlyTranscript { get; set; }
+
+        public bool AcceptCaptureGeneration(long generation)
+        {
+            if (RejectAcknowledgement || generation != Generation)
+            {
+                return false;
+            }
+            if (EarlyTranscript is { } transcript)
+            {
+                EarlyTranscript = null;
+                RaiseTranscript(transcript, 1);
+            }
+            return true;
+        }
+
         public Task BeginPushToTalkAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
             string? assistantName = null, CancellationToken cancellationToken = default) =>
             StartAsync(microphone, phrases, assistantName, cancellationToken);
@@ -6470,6 +6490,9 @@ public sealed partial class MainViewModelTests
             CaptureStateChanged?.Invoke(this, change);
 
         public void CompleteCapture() => IsListening = false;
+
+        public void PublishCompletion(VoiceRecognitionCompletedEventArgs change) =>
+            RecognitionCompleted?.Invoke(this, change);
 
         public void InvalidateCapture()
         {
@@ -6556,6 +6579,10 @@ public sealed partial class MainViewModelTests
             }
 
             IsListening = true;
+            if (EarlyTranscript is not null)
+            {
+                IsListening = false;
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default)

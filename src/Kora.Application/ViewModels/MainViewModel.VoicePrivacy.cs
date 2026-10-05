@@ -109,6 +109,7 @@ public sealed partial class MainViewModel
         voiceRecognition.TranscriptRecognized -= OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed -= OnRecognitionFailed;
         voiceRecognition.CaptureStateChanged -= OnCaptureStateChanged;
+        voiceRecognition.RecognitionCompleted -= OnRecognitionCompleted;
         callStateService.StateChanged -= OnCallStateChanged;
         captureOpenCancellation?.Cancel();
     }
@@ -133,6 +134,33 @@ public sealed partial class MainViewModel
             Interlocked.Exchange(ref pushToTalkHeld, 0);
             IsListening = false;
             NotifyVoiceEnablementChanged();
+        });
+    }
+
+    private void OnRecognitionCompleted(object? sender, VoiceRecognitionCompletedEventArgs eventArgs)
+    {
+        uiDispatcher.Post(() =>
+        {
+            if (eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+                || voiceRecognition.IsListening || !IsHostInputEligible)
+            {
+                return;
+            }
+            switch (eventArgs.Reason)
+            {
+                case VoiceRecognitionCompletionReason.EmptySpeechTimeout:
+                case VoiceRecognitionCompletionReason.NoSpeechRecognized:
+                    Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation);
+                    Interlocked.Exchange(ref pushToTalkHeld, 0);
+                    IsListening = false;
+                    ShowInformation("No command was heard.", "The microphone is closed. Use a new push-to-talk activation to try again.");
+                    break;
+                case VoiceRecognitionCompletionReason.MaximumDuration:
+                    IsListening = false;
+                    ShowInformation("Command capture reached its duration limit.",
+                        "The microphone is closed; any final result still belongs only to this activation.");
+                    break;
+            }
         });
     }
 
@@ -296,6 +324,7 @@ public sealed partial class MainViewModel
         using var opening = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         captureOpenCancellation = opening;
         var ownsBusyState = !IsBusy;
+        long generationToAccept = -1;
         if (ownsBusyState)
         {
             IsBusy = true;
@@ -328,6 +357,7 @@ public sealed partial class MainViewModel
             BeginPushToTalkCommand.NotifyCanExecuteChanged();
             PresentResponse(AssistantState.Listening, "Capturing your command.",
                 "Release Push to talk to finish. Only this explicitly activated command is transcribed locally.");
+            generationToAccept = voiceRecognition.Generation;
         }
         catch (OperationCanceledException) when (opening.IsCancellationRequested)
         {
@@ -355,6 +385,13 @@ public sealed partial class MainViewModel
             {
                 IsBusy = false;
             }
+        }
+        if (generationToAccept >= 0 && !voiceRecognition.AcceptCaptureGeneration(generationToAccept))
+        {
+            HoldVoiceInput("Microphone closed · activation was retired before acknowledgement");
+            await voiceRecognition.StopAsync();
+            ShowInformation("Command activation is no longer current.",
+                "No buffered command was accepted. Use Enable listening and activate push-to-talk again.");
         }
     }
 

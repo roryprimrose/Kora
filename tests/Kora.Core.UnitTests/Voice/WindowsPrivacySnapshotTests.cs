@@ -58,4 +58,13 @@ public sealed class WindowsPrivacySnapshotTests
         state.Generation.Should().Be(42);
         state.IsListening.Should().BeFalse();
     }
+
+    [Fact]
+    public void Completion_reports_the_retired_activation_and_its_non_failure_reason()
+    {
+        var result = new VoiceRecognitionCompletedEventArgs(42, VoiceRecognitionCompletionReason.EmptySpeechTimeout);
+
+        result.Generation.Should().Be(42);
+        result.Reason.Should().Be(VoiceRecognitionCompletionReason.EmptySpeechTimeout);
+    }
 }

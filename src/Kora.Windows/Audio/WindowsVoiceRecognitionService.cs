@@ -43,6 +43,11 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     private bool disposed;
     private bool resourceCleanupFailed;
     private int stopRequests;
+    private long activationGeneration;
+    private long completedGeneration = -1;
+    private bool transcriptPublicationReady;
+    private VoiceTranscriptEventArgs? pendingTranscript;
+    private VoiceRecognitionCompletionReason? completionReason;
 
     public WindowsVoiceRecognitionService(
         ILogger<WindowsVoiceRecognitionService> logger,
@@ -73,6 +78,8 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed;
 
     public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
+
+    public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted;
 
     public bool IsAmbientListeningAvailable => false;
 
@@ -181,6 +188,10 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             }
 
             requestedGeneration = Interlocked.Increment(ref generation);
+            activationGeneration = requestedGeneration;
+            transcriptPublicationReady = false;
+            pendingTranscript = null;
+            completionReason = null;
             pendingBeginGeneration = requestedGeneration;
         }
 
@@ -339,8 +350,18 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
 
     public void InvalidateCapture()
     {
+        long retiredGeneration;
+        VoiceRecognitionCompletionReason reason;
         lock (gate)
         {
+            retiredGeneration = activationGeneration;
+            reason = completionReason switch
+            {
+                VoiceRecognitionCompletionReason.Failed => VoiceRecognitionCompletionReason.Failed,
+                VoiceRecognitionCompletionReason.EmptySpeechTimeout => VoiceRecognitionCompletionReason.EmptySpeechTimeout,
+                VoiceRecognitionCompletionReason.MaximumDuration => VoiceRecognitionCompletionReason.MaximumDuration,
+                _ => VoiceRecognitionCompletionReason.Invalidated,
+            };
             Interlocked.Increment(ref generation);
             captureAdmitted = false;
             acceptingAudio = false;
@@ -349,11 +370,31 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             maximumCaptureTimer?.Dispose();
             emptySpeechTimer?.Dispose();
             audioStream?.ClearAndComplete();
+            pendingTranscript = null;
+            transcriptPublicationReady = false;
             // Initiate native release now; do not wait for UI dispatch or recognition cancellation.
             _ = capture?.ReleaseRecorder();
         }
 
         NotifyCaptureState();
+        NotifyRecognitionCompleted(retiredGeneration, reason);
+    }
+
+    public bool AcceptCaptureGeneration(long generation)
+    {
+        lock (gate)
+        {
+            if (this.generation != generation || activationGeneration != generation ||
+                pendingBeginGeneration.HasValue || disposed)
+            {
+                return false;
+            }
+
+            transcriptPublicationReady = true;
+        }
+
+        PublishPendingTranscript();
+        return true;
     }
 
     public Task EndPushToTalkAsync(CancellationToken cancellationToken = default) =>
@@ -385,6 +426,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             }
 
             currentGeneration = generation;
+            completionReason ??= VoiceRecognitionCompletionReason.PushToTalkReleased;
             acceptingAudio = false;
             recordingStarted = false;
             StopCaptureTimers();
@@ -581,10 +623,13 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
                 _ = capture?.ReleaseRecorder();
                 NotifyCaptureState();
                 WindowsLog.CommandRecognized(logger, eventArgs.Confidence);
-                Notify(TranscriptRecognized,
-                    new VoiceTranscriptEventArgs(eventArgs.Transcript, eventArgs.Confidence, currentGeneration));
+                pendingTranscript = new VoiceTranscriptEventArgs(
+                    eventArgs.Transcript, eventArgs.Confidence, currentGeneration);
+                completionReason = VoiceRecognitionCompletionReason.Recognized;
             }
         }
+
+        PublishPendingTranscript();
     }
 
     private void OnRecognitionFailed(object? sender, VoiceRecognitionFailureEventArgs eventArgs, long expected)
@@ -631,6 +676,11 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     private void FailCapture(string message)
     {
         var failedGeneration = CaptureGeneration;
+        lock (gate)
+        {
+            completionReason = VoiceRecognitionCompletionReason.Failed;
+        }
+
         InvalidateCapture();
         Notify(RecognitionFailed, new VoiceRecognitionFailureEventArgs(message, failedGeneration));
         _ = CleanupAsync(CaptureGeneration);
@@ -677,6 +727,8 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             {
                 return;
             }
+
+            completionReason ??= VoiceRecognitionCompletionReason.MaximumDuration;
         }
 
         _ = EndBoundedCaptureAsync(expected);
@@ -701,6 +753,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         {
             if (generation == expected && captureAdmitted)
             {
+                completionReason = VoiceRecognitionCompletionReason.EmptySpeechTimeout;
                 InvalidateCapture();
                 _ = CleanupAsync(CaptureGeneration);
             }
@@ -775,6 +828,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
 
     private void CompleteGeneration(long expected)
     {
+        VoiceRecognitionCompletionReason? terminalReason = null;
         lock (gate)
         {
             if (generation == expected)
@@ -786,9 +840,18 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
                 emptySpeechTimer?.Dispose();
                 audioStream?.ClearAndComplete();
                 _ = capture?.ReleaseRecorder();
+                if (pendingTranscript is null)
+                {
+                    terminalReason = completionReason ?? VoiceRecognitionCompletionReason.NoSpeechRecognized;
+                }
             }
 
             NotifyCaptureState();
+        }
+
+        if (terminalReason is { } reason)
+        {
+            NotifyRecognitionCompleted(expected, reason);
         }
     }
 
@@ -1005,6 +1068,54 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         }
 
         Notify(CaptureStateChanged, new VoiceCaptureStateChangedEventArgs(observedGeneration, listening));
+    }
+
+    private void PublishPendingTranscript()
+    {
+        lock (gate)
+        {
+            if (!transcriptPublicationReady || pendingTranscript is null ||
+                pendingTranscript.Generation != generation)
+            {
+                return;
+            }
+        }
+
+        var observed = privacy!.Refresh();
+        lock (gate)
+        {
+            if (!transcriptPublicationReady || pendingTranscript is not { } transcript ||
+                transcript.Generation != generation)
+            {
+                return;
+            }
+
+            if (resultMicrophone is null || !observed.CanCaptureFrom(resultMicrophone))
+            {
+                FailCapture("Windows privacy prerequisites changed before transcript admission.");
+                return;
+            }
+
+            pendingTranscript = null;
+            Notify(TranscriptRecognized, transcript);
+            NotifyRecognitionCompleted(transcript.Generation, VoiceRecognitionCompletionReason.Recognized);
+        }
+    }
+
+    private void NotifyRecognitionCompleted(long completedActivation, VoiceRecognitionCompletionReason reason)
+    {
+        lock (gate)
+        {
+            if (completedActivation == 0 || completedActivation != activationGeneration ||
+                completedGeneration == completedActivation)
+            {
+                return;
+            }
+
+            completedGeneration = completedActivation;
+        }
+
+        Notify(RecognitionCompleted, new VoiceRecognitionCompletedEventArgs(completedActivation, reason));
     }
 
     private void Notify<T>(EventHandler<T>? handlers, T args) where T : EventArgs

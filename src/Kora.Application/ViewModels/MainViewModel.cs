@@ -325,6 +325,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         voiceRecognition.TranscriptRecognized += OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed += OnRecognitionFailed;
         voiceRecognition.CaptureStateChanged += OnCaptureStateChanged;
+        voiceRecognition.RecognitionCompleted += OnRecognitionCompleted;
         callStateService.StateChanged += OnCallStateChanged;
         dependencyBootstrapper.Tasks.Changed += (_, _) =>
             uiDispatcher.Post(() => OnPropertyChanged(nameof(SetupTasks)));

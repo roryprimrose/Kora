@@ -535,4 +535,106 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("Handoff could not confirm quiescence.");
     }
+
+    [Fact]
+    public async Task Early_bounded_result_is_released_only_after_application_activation_admission()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.EarlyTranscript = "help";
+
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        await fixture.Dispatcher.LastInvocation;
+
+        fixture.ViewModel.IsBusy.Should().BeFalse();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+        fixture.ViewModel.Transcript.Should().Contain("help");
+    }
+
+    [Fact]
+    public async Task Retired_activation_cannot_be_acknowledged_or_release_buffered_commands()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.EarlyTranscript = "lock the machine";
+        fixture.Voice.RejectAcknowledgement = true;
+
+        await fixture.ViewModel.BeginPushToTalkAsync();
+
+        fixture.Voice.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.ResponseTitle.Should().Be("Command activation is no longer current.");
+    }
+
+    [Theory]
+    [InlineData(VoiceRecognitionCompletionReason.EmptySpeechTimeout)]
+    [InlineData(VoiceRecognitionCompletionReason.NoSpeechRecognized)]
+    public async Task Empty_completion_closes_recording_without_granting_a_late_transcript(
+        VoiceRecognitionCompletionReason reason)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        fixture.Voice.CompleteCapture();
+        fixture.Voice.PublishCompletion(new VoiceRecognitionCompletedEventArgs(
+            generation: fixture.Voice.Generation, reason: reason));
+        await fixture.Voice.RaiseTranscriptAsync("lock the machine", 1);
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.ResponseTitle.Should().Be("No command was heard.");
+    }
+
+    [Fact]
+    public async Task Duration_completion_preserves_only_its_own_final_transcript()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        fixture.Voice.CompleteCapture();
+        fixture.Voice.PublishCompletion(new VoiceRecognitionCompletedEventArgs(
+            generation: fixture.Voice.Generation, reason: VoiceRecognitionCompletionReason.MaximumDuration));
+
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Command capture reached its duration limit.");
+        await fixture.Voice.RaiseTranscriptAsync("help", 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("Built-in commands are ready.");
+    }
+
+    [Fact]
+    public async Task Stale_completion_cannot_change_a_new_activation_or_its_status()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        var oldGeneration = fixture.Voice.Generation;
+        await fixture.ViewModel.EndPushToTalkAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        fixture.Voice.PublishCompletion(new VoiceRecognitionCompletedEventArgs(
+            generation: oldGeneration, reason: VoiceRecognitionCompletionReason.NoSpeechRecognized));
+        fixture.Voice.PublishCompletion(new VoiceRecognitionCompletedEventArgs(
+            generation: fixture.Voice.Generation, reason: VoiceRecognitionCompletionReason.Recognized));
+
+        fixture.ViewModel.IsListening.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Capturing your command.");
+    }
+
+    [Fact]
+    public async Task Empty_timeout_of_a_retired_generation_still_reports_closed_recording()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        var generation = fixture.Voice.Generation;
+        fixture.Voice.InvalidateCapture();
+        fixture.Voice.PublishCompletion(new VoiceRecognitionCompletedEventArgs(
+            generation: generation, reason: VoiceRecognitionCompletionReason.EmptySpeechTimeout));
+
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("No command was heard.");
+    }
 }

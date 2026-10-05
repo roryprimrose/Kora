@@ -96,12 +96,12 @@ Initial publication validation on 2026-10-05, after the second fetch/rebase onto
 - `git diff --check`: passed; generated trial directories cleaned.
 
 Post-integration validation on 2026-10-05, after rebasing onto
-`6cb718cf8c2f5332d3220cccfdc3031cbaa56f92`:
+`7b25d05555ad912a4924cb5214ca8455267a869e`:
 
 - `npm test`: **16 passed, 0 failed, 0 skipped**; strict TypeScript build passed.
 - `npm run proof`: **13 PASS, 1 FAIL, 3 BLOCKED**, readiness exit **2**.
-- Refreshed content-minimized observations at **2026-10-05T05:16:08.962Z**:
-  actual host deadline **15012 ms**, independent management **177 ms**,
+- Refreshed content-minimized observations at **2026-10-05T05:19:55.489Z**:
+  actual host deadline **15011 ms**, independent management **173 ms**,
   denied-tool effects **0**, denied markers forwarded **0**.
 - The same pinned SDK/runtime bytes were verified; no hosted service or
   production adapter was used. The hook-only FAIL and three BLOCKED rows

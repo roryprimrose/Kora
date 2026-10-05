@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-05T05:16:08.962Z",
+  "recordedAt": "2026-10-05T05:19:55.489Z",
   "sdk": "@github/copilot-sdk@1.0.16",
   "bundledRuntime": "1.0.90",
   "executableSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
@@ -114,7 +114,7 @@
       "status": "PASS",
       "detail": "Management completed on a separate provider/session while one execution tool and a second execution inference were blocked; no task context/tool leakage. Three independent SDK conversations, not three production execution slots.",
       "measurements": {
-        "managementMs": 177,
+        "managementMs": 173,
         "executionConversations": 2,
         "executionRequests": 2,
         "managementRequests": 1,
@@ -139,7 +139,7 @@
       "status": "PASS",
       "detail": "Actual SDK streamed output overflow is rejected; real held HTTP inference returns fallback at 15 seconds without awaiting the provider or retrying.",
       "measurements": {
-        "deadlineMs": 15012,
+        "deadlineMs": 15011,
         "deadlineLimitMs": 15000,
         "inputLimitBytes": 32768,
         "outputLimitBytes": 4096,

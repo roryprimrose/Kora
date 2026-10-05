@@ -208,10 +208,10 @@ adapter; users may instead select remote processing or decline inference
 entirely and use the supported deterministic subset. See the
 [optional-dependency setup contract](Environment_Setup.md#optional-dependencies-and-built-in-command-only-operation).
 Binary deployments check the hosted release feed and proactively offer unsigned/manual update notices; installation remains external and Kora has no install-capable updater during the unsigned phase.
-Package format remains a separate decision.
-Source is expected to be public and source-available on GitHub, with Linux GitHub Actions building, packaging, and publishing initially unsigned official Windows releases.
+WiX MSI + Burn is the selected production installer direction; implementation and installed acceptance remain open.
+Source is public and source-available on GitHub. Build/test/cross-publish and release metadata/publication use Linux GitHub Actions wherever feasible, with explicit Windows jobs for WiX packaging and justified Windows-specific work.
 Release and setup surfaces disclose the lack of Authenticode publisher identity and provide final-byte hashes/provenance.
-Windows-specific acceptance evidence comes from an external Windows environment, not an assumed required Windows build job.
+Installed Windows acceptance evidence comes from a separate approved runtime-only environment; a Windows packaging job is not that evidence.
 See [Distribution and Updates](Distribution_And_Updates.md).
 
 ## Dependencies and Decisions to Resolve Before Implementation
@@ -227,7 +227,7 @@ The authoritative owner, due checkpoint, evidence, and status for these items ar
 - MCP SDK transport/authentication support and cancellation behaviour.
 - Supported Windows versions and an acceptance-test reference machine.
 - Protected Kora installation/source identities and a skill-store writer whose effective targets cannot escape into them.
-- A Linux GitHub Actions cross-publish/package/provenance path for unsigned artifacts, external Windows acceptance evidence, runtime-only deployment verification, and protected startup/maintenance registration.
+- A Linux-first GitHub Actions cross-publish/provenance path with Windows WiX MSI/Burn packaging, actual installed lifecycle/runtime-only Windows evidence, and protected startup/maintenance registration.
 - A bounded trusted setup catalogue, safe database migrations, and dependency ownership/health checks.
 - Encrypted persistent session/event/artifact/index storage, journal/backup deletion and restart migration proofs.
 - Provider session isolation/concurrency, enforced resource coordination, shared interaction schemas, and bounded history/routing tools.

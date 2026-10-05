@@ -573,12 +573,12 @@ Verify:
 
 An install-capable updater remains unavailable until independent signed-metadata trust, rollback/freeze protection, key rotation, exact host-owned approval/mandatory OS checks, and separate acceptance evidence are added.
 
-### Public GitHub and Linux Release Gate
+### Public GitHub and Linux-First Release Gate
 
-- Build/package/publish the unsigned Windows reference release on clean Linux Actions runners without required Windows build jobs or hidden Windows-only tools.
+- Build/test/cross-publish and publish release metadata on clean Linux Actions runners wherever feasible; assemble the WiX MSI and single Burn setup EXE in an explicit pinned Windows job. Verify payload digests/revision/provenance across the job boundary; justify other Windows-specific work rather than moving portable stages by default. No Wine or Linux-runtime support claim.
 - Version-tag builds select production candidates from exact protected tag revisions; routine branch/main builds do not become production releases. Exercise an absent version, matching published version, provenance/channel/artifact conflict, draft/prerelease, interrupted candidate, concurrent publication and failed/ambiguous GitHub lookup. Already-published matching versions skip build/publication; no case overwrites released assets or moves a tag, and publication still requires all licence/Windows/approval gates.
 - Verify Windows RID/native dependency completeness, runtime-only packaging, embedded resources, licences, and final-byte hashes/provenance.
-- Close the [R02 distribution follow-ups](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery): recorded Linux cross-publishing does not prove native Linux setup assembly, and a Windows-assembled setup does not replace that evidence. Resolve the project licence and actual third-party redistribution/notices before public distribution; absent nuspec declarations do not establish permission.
+- Close the [distribution follow-ups](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery): retain the NSIS proof as historical evidence, not WiX acceptance or a mandatory Linux-native NSIS gate. Apply the repository licence/NuGet-notice controls and separately clear WiX build-tool terms and external/native/model assets; recorded cross-publishing does not prove installed behavior.
 - Application, maintenance, and setup artifacts contain no Authenticode signature during the initial unsigned phase; release/setup surfaces disclose this and document the expected Unknown Publisher/SmartScreen behavior.
 - Published SHA-256 values match the downloadable final bytes, and the UI/documentation never presents those hashes or build attestations as Windows publisher authentication.
 - Hash each final setup assembly independently and bind its provenance and Windows trial receipts to that digest, even when the source/payload/name is unchanged. A prior assembly's receipt cannot certify later bytes.
@@ -589,7 +589,7 @@ An install-capable updater remains unavailable until independent signed-metadata
 - External Windows integration evidence binds the final artifact digest and covers runtime/native assets, install/UAC/ACLs, unprivileged launch, device/tray/lock, and protected update/recovery.
 - Missing mandatory Windows evidence leaves the candidate draft/unreleased despite successful Linux builds.
 - Static embedded-documentation/resource inventories do not pass future bundled-skill/interpreter/worker gates. Repeat packaging and installed Windows checks when those components exist; blocked or absent components remain explicitly unaccepted.
-- NSIS/Velopack adoption passes Linux packaging and actual protected Windows update tests; a per-user writable install does not pass the no-self-modification gate by itself.
+- WiX MSI/Burn implementation passes fresh install, upgrade, repair, failed/interrupted operations, previous-version recovery and uninstall on approved disposable Windows deployments. Verify prerequisite/bootstrapper closure, optional setup refusal/re-entry, preservation of unrelated/pre-existing dependencies and user data, unprivileged app launch and actual independent protection. Standard MSI behavior or a per-user writable install does not establish the no-self-modification boundary. No separate WiX feasibility project is required, but these implementation acceptance gates remain mandatory.
 - MSIX/App Installer is not an initial unsigned-package option.
 
 ## Environment Setup Gate

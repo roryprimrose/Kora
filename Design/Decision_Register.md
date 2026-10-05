@@ -20,7 +20,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management; loopback host envelope passed | R02-MG1 and management R02-PV1: .NET byte/deadline/no-retry proof; approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost envelope; deterministic fallback independent of inference |
-| D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | Open, release-blocking; R02 Linux cross-publish and Windows-assembled NSIS candidate recorded | Native Linux NSIS packaging, licence/notice clearance, final-byte release provenance, actual runtime/native requirements, Unknown Publisher/SmartScreen UX and protected runtime-only Windows trials remain required; follow R02-D01 through R17-D03 below; no install-capable updater; future signed-metadata root design separately gated |
+| D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | WiX MSI + Burn direction selected; implementation/acceptance open, release-blocking; NSIS proof retained as historical evidence | Linux-first cross-publish with Windows WiX packaging, build-tool/redistribution review, final-byte provenance, MSI/Burn lifecycle, actual runtime/native requirements, Unknown Publisher/SmartScreen UX and protected runtime-only Windows trials remain required; follow R02-D01 through R17-D03 below; no install-capable updater; future signed-metadata root design separately gated |
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes; schema/enforcement proof open, release-blocking; initial model grants only | Single-use consumption, operation-bound durable session grants, perpetual grants without retention/eviction, applicability/provenance after chat deletion, native explicit edit/removal, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
@@ -44,7 +44,7 @@ before ordinary read-only tools or fixed bundled actions.
 |---|---|
 | D-001/D-004 | [R02-RT1/RT2/MG1/PV1](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates) complete .NET, observation and account/budget evidence; R06/R08 integrate mediated local/remote loop, R13 deterministic core then independently gated model-assisted management |
 | D-002/D-003/D-007 | R02 candidate/licence/hardware selection, with [R02-L1-L5](Implementation_Roadmap.md#r02-local-inference-continuation) local-inference qualification and L6 handoff; R03/R07/R09 actual privacy/local-answer/wake trials, R19 integrated acceptance |
-| D-005 | R02/R17 protected Linux-built distribution/installed Windows evidence, R18 notify-only maintenance; no install-capable updater implied |
+| D-005 | R02/R17 protected Linux-first distribution with Windows WiX packaging and installed Windows evidence, R18 notify-only maintenance; no install-capable updater implied |
 | D-006 | Optional R24 only; do not make learning or verification a baseline voice prerequisite |
 | D-008/D-012 | R01 resolved authority/origin rules, R03/R05 common privacy/grant gateway, R11/R15/R16 real containment/call/power enforcement |
 | D-009/D-010 | R02 storage/key native and real Windows admission gates, R04 durable identity/encrypted storage, R12 lifecycle/deletion/queue, R13 isolated scheduler/resource budgets |
@@ -173,7 +173,9 @@ Record provider/version/account tier, terms constraints, concurrency behavior, q
 
 ## D-005 Unsigned Packaging and Maintenance
 
-Prototype NSIS first because it matches the single-setup-EXE and Linux-packaging direction.
+Select WiX MSI + Burn as the production Windows installer direction, using
+Linux builds/cross-publishing wherever feasible and Windows packaging where
+needed. Preserve the completed NSIS prototype as historical evidence.
 The initial application performs notify-only update discovery and cannot download, stage, execute, mutate source, or activate a replacement.
 Compare packaging options against protected installation, unsigned disclosure, and Windows-recovery gates without introducing an updater.
 Any future install-capable updater is a separate decision requiring independently signed metadata with a protected offline/root trust anchor, threshold/key rotation, expiry, rollback/freeze protection, exact host-owned voice/UI approval, and mandatory OS checks.
@@ -182,8 +184,8 @@ Authenticode remains a later separate decision.
 The 2026-10-05 R02 distribution proof records successful Ubuntu win-x64
 cross-publishing, a Windows-assembled unsigned NSIS 3.13 setup, static
 runtime/native/resource/licence inspection, and exact-revision managed-source
-publishing with non-destructive reruns. This is sufficient to continue NSIS
-evaluation, not to accept NSIS or close D-005. The deployed application remains
+publishing with non-destructive reruns. This does not establish WiX
+implementation acceptance or close D-005. The deployed application remains
 Windows-only; portable architecture and Linux build infrastructure do not
 promise another runtime platform.
 
@@ -193,10 +195,11 @@ assumptions. The
 [distribution follow-up roadmap](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery)
 assigns the closure sequence:
 
-- R02-D01: project-licence decision, third-party notices and launch-dependency
-  inventory; no public redistribution before clearance.
-- R02-D02: run NSIS natively on Linux and record the exact Windows setup bytes;
-  no Windows/Wine substitute.
+- R02-D01: apply the repository's chosen licence/NuGet-notice controls, review
+  external/native assets and declare launch inputs; no redistribution before clearance.
+- R02-D02: WiX MSI + Burn direction selected; retire the standalone Linux NSIS
+  gate and hand off packaging/lifecycle implementation to R17. Review/pin
+  build tools and their terms before use; no separate WiX feasibility project.
 - R02-D03: prove the independent deployment boundary on an approved Windows
   lab under actual application identities; coordinate worker requirements
   without treating absent workers as tested.
@@ -205,9 +208,10 @@ assigns the closure sequence:
 - R17-D03: integrated runtime-only Windows acceptance against the exact final
   artifact and implemented resources/workers before first public binary sign-off.
 
-Linux packaging and Windows lab trials are currently blocked by environment/
-approval availability; missing licence decisions and future resources are
-separate blockers, not waived gates. Preserve the independently gated future
+WiX implementation and Windows lab trials remain outstanding; the unexecuted
+Linux NSIS recipe is historical, not a production gate. Build-tool/external
+asset review and future resources remain separate requirements, not waived
+gates. Preserve the independently gated future
 signed-metadata trust design and unsigned-phase notify-only maintenance.
 
 Installer-assisted dependency setup is an optional convenience, independent
@@ -215,8 +219,8 @@ of the packaging choice. The application must retain detection and
 installation/configuration, and users may decline all optional providers and
 use the dependency-qualified deterministic command subset. See the
 [shared optional-dependency contract](Environment_Setup.md#optional-dependencies-and-built-in-command-only-operation).
-This clarification does not select WiX, demonstrate installer assistance, or
-waive required product-level provider/resource acceptance.
+The WiX direction selected above does not demonstrate installer assistance
+or waive required product-level provider/resource acceptance.
 
 ## D-006 Optional Speaker Verification
 

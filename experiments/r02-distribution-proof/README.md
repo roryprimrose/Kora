@@ -10,6 +10,13 @@ record the findings, owners, next actions and closure conditions. This directory
 retains the runnable proof and historical evidence, not the release plan's only
 source of truth.
 
+The subsequent [production direction](../../Design/Distribution_And_Updates.md#selected-windows-installer-direction)
+is **WiX MSI + Burn**, with Linux builds wherever feasible and Windows
+packaging where needed. These NSIS scripts/receipts are retained unchanged as
+historical evidence, not a production installer or WiX acceptance. The
+unexecuted Linux NSIS recipe below is no longer a release gate; no separate
+WiX feasibility project is required before R17 implementation.
+
 Platform scope confirmed by the user: **Windows-only deployed runtime**.
 GitHub builds/packaging should use Linux as far as feasible; that is build
 infrastructure, not Linux application support. Preserve portable domain/
@@ -209,9 +216,11 @@ final setup/payload hashes and actual app/worker identities.
    or logon registration is implemented here; future R18 is notify-only.
    Dispose/reset the approved lab, not a user's installation.
 
-Recommendation: retain **NSIS as a candidate**, not an accepted D-005 choice.
-It assembles the existing bootstrap into one EXE with a native Linux compiler
-path worth testing. Close Linux packaging, licence/provenance, protected
-deployment and external runtime-only Windows blockers first. Do not use MSIX/
-App Installer in the unsigned phase or adopt an install-capable updater.
-Keep this PR draft and auto-merge disabled while those prerequisites remain open.
+Current recommendation: retain this **NSIS proof as historical evidence** and
+implement the selected WiX MSI + Burn direction under R17. Linux remains
+preferred for portable build/cross-publish/release stages; allow Windows
+packaging. Validate the WiX lifecycle, tooling/asset terms, exact-byte provenance,
+protection and runtime-only Windows launch before release acceptance. Do not
+use MSIX/App Installer in the unsigned phase or add an in-app updater.
+The proof/design may merge without closing D-005; actual release candidates
+remain draft/unreleased while their implementation and acceptance gates are open.

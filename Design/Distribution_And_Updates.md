@@ -1,8 +1,8 @@
 # Distribution, Startup, and Application Maintenance
 
-Status: proposed. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
-Installer/package technology remains undecided; R02 has a partial NSIS 3.13 proof and a defined follow-up path below. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
-The expected source host is a public source-available GitHub repository; Linux GitHub Actions runners are the build/package/release baseline.
+Status: WiX MSI + Burn selected as the production direction; implementation and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
+R02's partial NSIS 3.13 proof remains historical evidence, not the production installer. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
+The source host is a public source-available GitHub repository; use Linux GitHub Actions wherever feasible, with Windows jobs for WiX MSI/Burn packaging and other justified Windows-specific work.
 Initial binary and setup artifacts are intentionally unsigned.
 Windows remains the only supported application runtime for the foreseeable future; Linux build runners do not imply Linux releases.
 
@@ -19,21 +19,23 @@ Future builds must inspect their own exact revision and final bytes.
 | Finding | Design / implementation consequence |
 |---|---|
 | Ubuntu 24.04 CI cross-published the existing framework-dependent win-x64 bootstrap with SDK 10.0.401. | Retain normal managed cross-publishing on Linux as the build baseline. Windows is the only deployed runtime; preserve the [platform seams](Architecture.md#platform-boundaries-and-support) for future extensibility without adding other OS releases. |
-| NSIS 3.13 assembled one unsigned EXE on Windows from that Linux-produced payload. Native Linux NSIS execution was unavailable. | Continue with NSIS as the first packaging candidate, using its native POSIX compiler and redistributable Windows stubs/plugins. Prove Linux assembly before selecting it; a Windows compiler or Wine is not a substitute. |
+| NSIS 3.13 assembled one unsigned EXE on Windows from that Linux-produced payload. Native Linux NSIS execution was unavailable. | Preserve the scripts/receipts as historical evidence. WiX MSI + Burn is now the selected production direction for Windows lifecycle management; Linux-native NSIS assembly is no longer a release prerequisite. Prove WiX packaging and installed behavior through R17 implementation acceptance, not another standalone R02 installer proof. |
 | Runtime metadata requires both .NET 10 base and Windows Desktop shared frameworks, and ONNX imports external VC++ runtime DLLs. | Declare the observed [launch prerequisites](#launch-prerequisite-baseline) separately from Kora-led capability setup. Binary users do not need an SDK, Git or source checkout. |
 | Exact-revision managed-source publishing and hash-verified reruns succeeded; fixtures preserve local edits and earlier outputs on failure. | Reuse dedicated detached checkout, versioned staging, explicit ownership and non-destructive reruns. Add protected deployment, interrupted-install reconciliation and actual Windows launch smoke tests before calling it a production source bootstrap. |
 | Repeated setup assembly changed the final EXE digest despite unchanged payload identity and size. | Hash every finished setup, not its filename, revision or input directory alone; bind provenance and Windows results to those exact final bytes. Do not claim bit-identical builds from this experiment. |
-| No project licence was found; three OpenTK prerelease nuspecs lack licence declarations. | Obtain the product owner's project-licence decision and review actual third-party redistribution terms/notices before public distribution. Missing declarations are unresolved evidence, not proof of either permission or prohibition. |
+| At the proof revision, no project licence was found and three OpenTK prerelease nuspecs lacked licence declarations. | The repository now declares PolyForm Shield 1.0.0 and a [NuGet licence/notice gate with version-specific overrides](../DEPENDENCY-LICENSES.md). Preserve the historical finding; apply the current controls to each release and separately review native/model assets and WiX build-tool terms before selection/distribution. A passed NuGet gate is not clearance for every external asset. |
 | Only documentation/Avalonia resources are embedded; the planned skill catalogue, scripts and protected workers are absent. | Keep their R11/R16/R17 gates open. Shipping or testing this bootstrap does not establish resource completeness or worker protection for the designed release. |
 | Windows installation/launch trials were not approved; ACL and runtime-only evidence are absent. | Allocate an approved disposable Windows 11 x64 lab. Keep release candidates draft/unreleased and dependent execution capabilities unavailable until the actual boundaries pass. |
 
 The path forward is staged in the
 [distribution follow-up roadmap](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery).
-First clear redistribution decisions, prove native Linux setup assembly and
-establish the Windows protected-deployment boundary; these investigations can
-run in parallel. Then turn the prototype into the two required R17 delivery
-options, integrate release metadata/provenance, and accept the exact installed
-candidate on Windows after its resource/privacy/worker prerequisites exist.
+Apply the current redistribution controls and establish the Windows
+protected-deployment boundary; these investigations can run in parallel.
+Implement the two required R17 delivery options using the selected WiX
+direction, beginning with a thin MSI/Burn lifecycle slice, then integrate
+release metadata/provenance and accept the exact installed candidate on Windows
+after its resource/privacy/worker prerequisites exist. Do not promote the
+lab-only NSIS prototype or require another standalone packaging proof.
 Do not wait for unrelated R02 provider proofs to run private packaging tests,
 and do not confuse permission to prototype with permission to release.
 
@@ -162,7 +164,7 @@ Source builds record their local build trust/provenance and cannot be advertised
 A ZIP extracted to a user-writable directory is not by itself evidence of integrity isolation.
 Establish the required protection or disable affected write/executable capabilities with an explicit explanation.
 
-## Public GitHub and Linux Release Pipeline
+## Public GitHub and Linux-First Release Pipeline
 
 Host source, issues, and public release assets in the configured canonical GitHub repository.
 Repository owner/name and project licence are selected before publication; forks/custom builds do not become official update publishers by name alone.
@@ -170,12 +172,17 @@ Do not require end users to have a GitHub account, token, Git, or SDK to downloa
 Public update checks use bounded unauthenticated release/manifest requests, conditional caching, and rate-limit/backoff handling.
 A rate-limited or inaccessible feed is Unknown/deferred, not proof that Kora is current.
 
-Required build/package/publish jobs run on Linux GitHub Actions.
+Use Linux GitHub Actions for portable build/test, Windows cross-publishing and
+release metadata/publication wherever feasible. Use an explicit Windows job
+for WiX MSI/Burn assembly and any justified Windows-specific build work.
+Transfer the exact inspected payload between jobs with verified digests and
+source/build provenance; do not silently rebuild or relabel it while packaging.
 Select pinned SDK/dependency/tool versions that cross-publish the supported Windows RID, initially Windows x64.
 Use normal .NET managed publishing; single-file/self-contained options require their own native-asset evidence, and Native AOT is not assumed cross-buildable.
-Every Windows/native dependency must supply redistributable prebuilt assets or a proven Linux-compatible build path.
-Do not quietly add Windows-only build/compiler/MSI toolchain paths or Wine to satisfy an unproven dependency.
-Raise the incompatible requirement before choosing the implementation.
+Every Windows/native dependency needs reviewed redistributable assets or a
+documented build path. Pin and record each job's OS/tool identities; keep
+Windows-only work bounded rather than moving portable stages to Windows by
+default. Do not use Wine or describe Windows packaging as Linux-native evidence.
 
 ### Version Tags and Publication Pre-Check
 
@@ -217,7 +224,7 @@ Proposed release stages:
 1. Validate the protected tag/revision and version/channel, run the exact-version publication pre-check, then validate dependency locks, licences and embedded built-in resource catalogue.
 2. Build and run portable unit/contract tests on Linux; simulated Windows APIs do not count as Windows integration evidence.
 3. Cross-publish Windows binaries and inspect RID/runtime/native asset completeness and resource identity.
-4. Assemble a single user-facing setup EXE with a Linux-capable packaging tool.
+4. Assemble the WiX MSI and single user-facing Burn setup EXE in the Windows packaging job from the exact inspected payload.
 5. Generate hashes, version/runtime/architecture metadata, release notes, unsigned-artifact disclosure, and source/build provenance for the final bytes.
 6. Record the required Windows validation evidence for this exact candidate through an external test environment.
 7. Recheck version publication and publish only the approved exact artifacts to the appropriate GitHub Release/channel without replacing an already published version.
@@ -239,12 +246,15 @@ Publishing is restricted to protected maintainer-approved revisions/environments
 Use least-privilege workflow permissions and short-lived credentials where supported.
 Code signing is a later hardening milestone and requires a separate design update, key/service protection, timestamping, verification, and acceptance evidence before any signed-publisher claims are made.
 
-### Windows Validation Without Windows Build Jobs
+### Installed Windows Validation Separate from Packaging
 
-Linux packaging does not prove Windows installation/runtime correctness.
-Use a Windows test machine/lab outside the required Linux Actions pipeline and attach evidence to the exact artifact digest before marking a release ready.
+Neither Linux cross-publishing nor Windows installer assembly proves installed
+Windows runtime correctness. Use an approved runtime-only Windows test
+machine/lab, separate from build/packaging, and attach evidence to the exact
+artifact digest before marking a release ready.
 Validate installation/UAC, protected ACLs, unprivileged launch, tray/microphone/lock behaviour, bundled-resource execution, native libraries, update/quiescence/recovery, and runtime-only operation.
-No required Windows-hosted GitHub Actions job is introduced.
+The Windows packaging job is not a substitute for clean-machine installation,
+upgrade/repair/uninstall or actual protection/launch evidence.
 Candidate releases stay draft/unreleased when mandatory Windows evidence is missing; passing Linux tests is not a substitute.
 
 ## Running and Logon Startup
@@ -326,24 +336,50 @@ See [Proactive Voice Interaction](Proactive_Interaction.md).
 Manual replacement instructions require the user to exit Kora and preserve skill partitions, credentials, and settings outside deployment directories.
 Kora never replaces executable files underneath active work.
 
-## Technology Decision Still Required
+## Selected Windows Installer Direction
 
-The leading initial proposal remains NSIS for a single setup EXE without an install-capable maintenance coordinator; the R02 Windows-assembled prototype is evidence to continue its evaluation, not a completed technology selection.
-NSIS can generate Windows installers on POSIX/Linux without Windows or Wine; it does not supply a complete release-feed/self-update framework.
-The application handles notify-only release discovery; protected installation/activation remains an external user operation.
+Select **WiX MSI + Burn** for production Windows delivery. MSI supplies the
+standard installation, repair, upgrade and uninstall lifecycle; Burn supplies
+one user-facing setup EXE and reviewed prerequisite chaining. This reduces
+bespoke lifecycle scripting compared with NSIS, at the cost of more authoring
+and a Windows packaging job. Optional dependencies and a branded UI alone are
+not unique WiX benefits. Retain NSIS's runnable proof/receipts as historical
+evidence, not a second supported installer.
 
-Velopack is the alternative for integrated packaging/update machinery and can build Windows packages on Linux.
-Its default per-user writable setup is not sufficient for the current protected-code requirement.
-Any future updater must first prove independent signed-metadata trust, actual updater rights, graceful process handling, exact-origin/digest verification, and no automatic pending-update activation.
-Do not assume Linux cross-packaging also proves a selected MSI/per-machine configuration.
-Its feed packages/manifests are additional release assets even when users initially download one setup EXE.
+Start with a branded standard Burn bootstrapper and clear install/repair/remove
+and unsigned-publisher disclosures. A custom bootstrapper UI is a later UX
+choice if needed; its own runtime/native closure must be explicit and usable
+before Kora's launch prerequisites are installed. No WiX version, additional
+UI framework or prerequisite installer is pinned by this design change.
+Review the selected version's licence, notices and current
+[Open Source Maintenance Fee terms](https://github.com/wixtoolset/wix#open-source-maintenance-fee)
+before admitting the build tools under the [dependency policy](../DEPENDENCY-LICENSES.md).
 
-WiX is not the baseline: avoid its authoring burden and required Windows toolchain paths for this design.
+Burn may offer independently consented optional capability assistance, but
+must retain a Kora-only path and the app's detection/setup/refusal/re-entry
+contract. Required launch prerequisites are distinct from optional Ollama,
+model, speech or future Copilot dependencies. Shared/pre-existing components
+are not automatically removed on Kora uninstall; ownership and data-retention
+decisions must be explicit.
+
+Implement a thin R17 MSI/Burn slice rather than another standalone feasibility
+experiment. Author explicit MSI component/product/upgrade identities and a
+version mapping that preserves release identity and rejects unsupported
+downgrades. Validate fresh install, upgrade, repair, interrupted/failed
+operations and uninstall, with previous-version recovery, local-edit/user-data
+preservation, exact-byte provenance, prerequisite handling and the independent
+protected-deployment boundary. Standard MSI behavior does not by itself prove
+those policies, unprivileged launch or future worker/resource acceptance.
+The app remains notify-only; manual external installer execution is not a
+new in-app updater or permission to bypass release/OS approval.
+
+Velopack's integrated update machinery is not selected; future update authority
+and authenticated metadata/root trust remain separately gated.
 MSIX/App Installer is deferred while initial artifacts remain unsigned because its normal trusted deployment model depends on package signing.
-Select the implementation only after demonstrating the Linux build/package/release path and Windows protection/update gates.
-Installer/activation mechanisms sit behind the platform boundary; NSIS is a Windows candidate, not a universal installer or a commitment to other platform packages.
+Installer/activation mechanisms remain behind the Windows platform boundary;
+this selection does not add Linux/macOS runtime support.
 The bootstrap concept does not commit Kora to Chocolatey as a dependency.
 Future package configuration must preserve per-release exact host-owned approval and mandatory OS checks; do not enable unattended App Installer updates that bypass that policy.
 Do not implement multiple independent update authorities for the same installation.
 
-References: [NSIS portable compiler](https://nsis.sourceforge.io/Features), [Velopack cross-compiling](https://docs.velopack.io/packaging/cross-compiling), [Velopack update controls](https://docs.velopack.io/integrating/overview).
+References: [WiX documentation](https://docs.firegiant.com/wix/), [WiX build integration tutorial](https://docs.firegiant.com/wix/tutorial/), [WiX source and maintenance terms](https://github.com/wixtoolset/wix), [historical NSIS portable compiler](https://nsis.sourceforge.io/Features).

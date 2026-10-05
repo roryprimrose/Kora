@@ -72,6 +72,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly ISessionController sessionController;
     private readonly IApplicationProcessController applicationProcessController;
     private readonly IUiDispatcher uiDispatcher;
+    private readonly ICurrentUserNameProvider currentUserNameProvider;
     private readonly IApplicationInfo applicationInfo;
     private readonly ISecurityAuditLog securityAuditLog;
     private readonly ILogger<MainViewModel> logger;
@@ -194,6 +195,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ISessionController sessionController,
         IApplicationProcessController applicationProcessController,
         IUiDispatcher uiDispatcher,
+        ICurrentUserNameProvider currentUserNameProvider,
         IApplicationInfo applicationInfo,
         ISecurityAuditLog securityAuditLog,
         ILogger<MainViewModel> logger,
@@ -221,6 +223,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.sessionController = sessionController;
         this.applicationProcessController = applicationProcessController;
         this.uiDispatcher = uiDispatcher;
+        this.currentUserNameProvider = currentUserNameProvider;
         this.applicationInfo = applicationInfo;
         this.securityAuditLog = securityAuditLog;
         this.logger = logger;
@@ -428,6 +431,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsModelActionApprovalPending => pendingModelAction is not null;
     public bool IsModelQuestionPending => pendingModelQuestion is not null;
     public bool IsResponseInteractionPending => IsApprovalPending || IsModelQuestionPending;
+    public IReadOnlyList<ResponseAction> ResponseActions { get; private set; } = [];
+    public bool HasResponseActions => ResponseActions.Count > 0;
     public IReadOnlyList<ModelQuestionChoice> ModelQuestionChoices { get; private set; } = [];
     public bool IsGrantChangePending => pendingGrantChange is not null;
     public bool IsApprovalPending => IsModelActionApprovalPending || IsGrantChangePending;
@@ -1580,9 +1585,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         isInitializing = true;
         try
         {
+            var isFirstLaunch = false;
             try
             {
                 voiceConsent = voiceConsentPreferences.Load();
+                isFirstLaunch = voiceConsent is null;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
             {
@@ -1635,10 +1642,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             else if (!HasVoiceConsent)
             {
-                ShowInformation("Voice consent is required.", VoiceConsentDescription);
-                if (NeedsVoiceConsent)
+                if (isFirstLaunch)
                 {
-                    RequestVoiceRecovery();
+                    ShowFirstLaunchGreeting();
+                }
+                else
+                {
+                    ShowInformation("Voice consent is required.", VoiceConsentDescription);
                 }
             }
         }
@@ -1646,6 +1656,74 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             isInitializing = false;
         }
+    }
+
+    private void ShowFirstLaunchGreeting()
+    {
+        var addressName = currentUserNameProvider.GetAddressName();
+        var title = string.IsNullOrWhiteSpace(addressName)
+            ? $"Hi, I'm {AssistantName}."
+            : $"Hi {addressName}, I'm {AssistantName}.";
+        var body = EffectiveMicrophone is null
+            ? "To talk with me, connect a microphone and grant explicit voice consent in Settings > Speech & audio. "
+                + "You can continue without voice and type commands instead."
+            : IsMicrophoneAccessDenied
+                ? "To talk with me, enable Windows microphone access and grant explicit voice consent in Settings > Speech & audio. "
+                    + "The microphone stays closed until you use push-to-talk. You can also continue without voice."
+                : MicrophoneAccessStatus.State == MicrophoneAccessState.Unknown
+                    ? "To talk with me, confirm Windows microphone access and grant explicit voice consent in Settings > Speech & audio. "
+                        + "The microphone stays closed until you use push-to-talk. You can also continue without voice."
+                    : "To talk with me, grant explicit voice consent in Settings > Speech & audio. "
+                        + "The microphone stays closed until you use push-to-talk. You can also continue without voice.";
+        ShowInformation(title, body);
+        SetResponseAction(new ResponseAction(
+            ResponseActionKind.OpenVoiceSettings,
+            "Review voice settings"));
+    }
+
+    public Task ExecuteResponseActionAsync(ResponseAction action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        if (!ResponseActions.Any(candidate => ReferenceEquals(candidate, action)))
+        {
+            return Task.CompletedTask;
+        }
+
+        ClearResponseActions();
+        switch (action.Kind)
+        {
+            case ResponseActionKind.OpenVoiceSettings:
+                RequestVoiceRecovery();
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown response action: {action.Kind}.");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void SetResponseAction(ResponseAction action)
+    {
+        ResponseActions = [action];
+        OnPropertyChanged(nameof(ResponseActions));
+        OnPropertyChanged(nameof(HasResponseActions));
+        forceVisualResponse = true;
+        NotifyOutputPolicyChanged();
+    }
+
+    private void ClearResponseActions()
+    {
+        if (ResponseActions.Count == 0)
+        {
+            return;
+        }
+
+        ResponseActions = [];
+        OnPropertyChanged(nameof(ResponseActions));
+        OnPropertyChanged(nameof(HasResponseActions));
+        forceVisualResponse = ShouldForceVisualResponse(
+            IsGrantEditorVisible, IsResponseInteractionPending, State);
+        NotifyOutputPolicyChanged();
     }
 
     public async Task DetectMicrophonesAsync() => await RefreshAsync();
@@ -1904,6 +1982,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ClearPendingModelQuestion();
         }
 
+        ClearResponseActions();
         IsGrantEditorVisible = false;
         State = AssistantState.Hidden;
         HidePresentation();
@@ -4698,6 +4777,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         string body,
         bool requestWindow = true)
     {
+        ClearResponseActions();
         if (!isInitializing
             && responseState is not (AssistantState.Failure or AssistantState.Listening)
             && EffectiveResponseMode != ResponseOutputMode.VisualOnly

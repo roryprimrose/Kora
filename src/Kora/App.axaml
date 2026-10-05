@@ -68,6 +68,12 @@
       <Setter Property="Foreground" Value="{DynamicResource KoraAccentForegroundBrush}" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <Style Selector="Button.response-link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource KoraAccentBrush}" />
+      <Setter Property="Padding" Value="0,4" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
     <Style Selector="TextBlock.eyebrow">
       <Setter Property="FontSize" Value="10" />
       <Setter Property="FontWeight" Value="SemiBold" />

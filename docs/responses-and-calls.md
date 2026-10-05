@@ -48,6 +48,12 @@ Configure these controls under **Settings > Appearance > Visual feedback**:
 The presence always hides after the visible timeout. **Always show**
 applies only to the response window.
 
+Responses can include underlined action links below their message. These links
+invoke only the specific in-app action attached to the current response, such
+as opening the relevant Settings tab. They are separate from question choices
+and approval controls, disappear when the response is dismissed or replaced,
+and keep the response visible until selected or dismissed.
+
 ## Forced visual output
 
 Kora always displays text when:

@@ -22,6 +22,7 @@ using Kora.Windows.Audio;
 using Kora.Windows.Communication;
 using Kora.Windows.Coordination;
 using Kora.Windows.Dependencies;
+using Kora.Windows.Identity;
 using Kora.Windows.Session;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -258,6 +259,7 @@ internal static class Program
         services.AddSingleton<ITextToSpeechService, WindowsTextToSpeechService>();
         services.AddSingleton<ISessionController, WindowsSessionController>();
         services.AddSingleton<IApplicationProcessController, DesktopApplicationProcessController>();
+        services.AddSingleton<ICurrentUserNameProvider, WindowsCurrentUserNameProvider>();
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         services.AddSingleton<IApplicationInfo, AssemblyApplicationInfo>();
         services.AddSingleton<MainViewModel>();

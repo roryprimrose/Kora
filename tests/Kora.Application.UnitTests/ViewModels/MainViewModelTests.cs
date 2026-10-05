@@ -2551,6 +2551,18 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Open_microphone_privacy_settings_command_routes_unexpected_failures()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.Process.OpenMicrophoneSettingsException = new IOException("Process launch failed.");
+
+        fixture.ViewModel.OpenMicrophonePrivacySettingsCommand.Execute(null);
+
+        fixture.ViewModel.ResponseTitle.Should().Be("The command failed.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Process launch failed.");
+    }
+
+    [Fact]
     public void ShowSettings_is_safe_without_a_subscriber()
     {
         var fixture = new Fixture(subscribeToWindowActions: false);
@@ -5739,6 +5751,7 @@ public sealed partial class MainViewModelTests
         await install;
 
         fixture.ViewModel.ResponseTitle.Should().Be("PowerShell 7 is ready.");
+        fixture.ViewModel.PowerShellSetupStatus.Should().Be("PowerShell verified.");
         fixture.ViewModel.SetupTasks.Single(task =>
                 string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
             .State.Should().Be(SetupTaskState.Completed);
@@ -7625,7 +7638,7 @@ public sealed partial class MainViewModelTests
     {
         public InvalidOperationException? RestartException { get; set; }
 
-        public InvalidOperationException? OpenMicrophoneSettingsException { get; set; }
+        public Exception? OpenMicrophoneSettingsException { get; set; }
 
         public void OpenWindowsMicrophonePrivacySettings()
         {

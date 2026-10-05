@@ -38,6 +38,23 @@ public sealed class LocalPreferenceStoreTests : IDisposable
     }
 
     [Fact]
+    public void Failed_write_removes_the_temporary_file()
+    {
+        var store = CreateStore();
+        var preferencesDirectory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(Path.Combine(preferencesDirectory, "value.txt"));
+
+        var action = () => store.WriteText("value.txt", "value");
+
+        var exception = action.Should().Throw<Exception>().Which;
+        (exception is IOException or UnauthorizedAccessException).Should().BeTrue();
+        Directory.GetFiles(
+            preferencesDirectory,
+            "*.tmp",
+            SearchOption.TopDirectoryOnly).Should().BeEmpty();
+    }
+
+    [Fact]
     public void WriteLines_and_delete_use_the_same_preference_boundary()
     {
         var store = CreateStore();
@@ -75,6 +92,7 @@ public sealed class LocalPreferenceStoreTests : IDisposable
     [InlineData("nested/value.txt")]
     [InlineData(@"nested\value.txt")]
     [InlineData(@"C:value.txt")]
+    [InlineData(".")]
     [InlineData("..")]
     public void Operations_reject_paths_outside_the_preference_directory(string fileName)
     {

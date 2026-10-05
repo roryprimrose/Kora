@@ -66,12 +66,13 @@ public sealed partial class MainViewModel
         }
     }
 
-    private void RefreshOutputEndpoints()
+    private bool RefreshOutputEndpoints()
     {
         try
         {
             var devices = textToSpeech.GetOutputDevices();
             systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
+            var previous = SelectedOutputDevice;
             suppressAudioDevicePreferenceSave = true;
             try
             {
@@ -81,7 +82,7 @@ public sealed partial class MainViewModel
                 {
                     OutputDevices.Add(device);
                 }
-                if (selectedOutputDevice is { } previous)
+                if (previous is not null)
                 {
                     SelectedOutputDevice = OutputDevices.FirstOrDefault(device =>
                         string.Equals(device.Id, previous.Id, StringComparison.Ordinal)) ?? previous;
@@ -93,17 +94,21 @@ public sealed partial class MainViewModel
             }
             UpdateOutputDeviceAvailability(selectedDeviceUnavailable: SelectedOutputDevice is not null
                 && !OutputDevices.Contains(SelectedOutputDevice));
+            PreviewVoiceCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
             if (EffectiveOutputDevice is not { IsMuted: false })
             {
                 InvalidateUnavailableOutput();
             }
+            return true;
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {
             InvalidateUnavailableOutput();
             ApplicationLog.Error(logger, exception, "Refreshing Windows output endpoint availability");
             ShowFailure("Audio output is unavailable.", exception.Message);
+            return false;
         }
     }
 

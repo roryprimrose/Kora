@@ -100,6 +100,14 @@ public sealed partial class ResponseWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsVisualResponseVisible), StringComparison.Ordinal)
+            && !viewModel.IsVisualResponseVisible)
+        {
+            responseTimeoutTimer.Stop();
+            Hide();
+            return;
+        }
+
         if (string.Equals(
                 eventArgs.PropertyName,
                 nameof(MainViewModel.IsResponseAlwaysVisible),

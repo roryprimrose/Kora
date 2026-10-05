@@ -12,6 +12,7 @@ public sealed class LocalResponseOutputPreferences(
 {
     private readonly string preferenceDirectory = Path.Combine(paths.LocalRoot, "Preferences");
     private readonly string preferencePath = Path.Combine(paths.LocalRoot, "Preferences", "response-output-mode.txt");
+    private readonly string mutedOutputFallbackPath = Path.Combine(paths.LocalRoot, "Preferences", "muted-output-visual-fallback.txt");
 
     public ResponseOutputMode? LoadDefaultMode()
     {
@@ -41,5 +42,31 @@ public sealed class LocalResponseOutputPreferences(
         File.WriteAllText(temporaryPath, mode.ToString());
         File.Move(temporaryPath, preferencePath, overwrite: true);
         ApplicationLog.Information(logger, "Saved the default response output mode");
+    }
+
+    public bool? LoadMutedOutputVisualFallback()
+    {
+        if (!File.Exists(mutedOutputFallbackPath))
+        {
+            return null;
+        }
+
+        var enabled = File.ReadAllText(mutedOutputFallbackPath).Trim() switch
+        {
+            "0" => false,
+            "1" => true,
+            var value => throw new InvalidDataException($"The saved muted-output visual fallback '{value}' is invalid."),
+        };
+        ApplicationLog.Debug(logger, "Loaded the muted-output visual fallback");
+        return enabled;
+    }
+
+    public void SaveMutedOutputVisualFallback(bool enabled)
+    {
+        Directory.CreateDirectory(preferenceDirectory);
+        var temporaryPath = Path.Combine(preferenceDirectory, "muted-output-visual-fallback.tmp");
+        File.WriteAllText(temporaryPath, enabled ? "1" : "0");
+        File.Move(temporaryPath, mutedOutputFallbackPath, overwrite: true);
+        ApplicationLog.Information(logger, "Saved the muted-output visual fallback");
     }
 }

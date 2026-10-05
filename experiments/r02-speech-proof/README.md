@@ -228,6 +228,10 @@ serials/account identifiers. Recorded pilot hardware:
 
 ## Outstanding testing checklist
 
+The [shared deferred-validation register](../../Design/Deferred_Validation.md)
+links this acoustic checklist and the independent containment/distribution
+proofs. Their approval scopes and capability acceptance remain separate.
+
 The user explicitly selected **recorded synthetic fixtures only; live trials
 deferred** in this session. No microphone capture or audible output occurred.
 The scripts do not offer a live switch. Do not start Kora as a shortcut to a

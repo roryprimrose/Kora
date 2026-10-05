@@ -411,6 +411,12 @@ Use at least 30 measured trials and concurrent completion/cancellation fixtures.
 
 Use disposable protected fixtures and actual deployment identities/ACLs, not only mocked permission checks.
 
+The [R02 snapshot](../experiments/r02-containment-proof/evidence/README.md)
+provides partial denial/lifetime evidence, not a passed gate. The
+[continuation plan](Security_Data_Flows.md#windows-containment-continuation-gates)
+and [R17 deployment checklist](Security_Data_Flows.md#protected-deployment-identity-and-validation)
+define the remaining real-boundary trials.
+
 - Inspect source-build and precompiled publish artifacts: every built-in manifest/instruction/fixture/script is an embedded application resource, with no loose built-in skill files or writable execution extraction.
 - Test resource catalogue identity/digest validation and missing/corrupt resource failures; reject rather than searching profiles, PATH, other assemblies, or caches for a substitute.
 - Verify explicit built-in manifests identify their Markdown document, entry point, and complete multi-script set; shared helpers have one embedded identity referenced by multiple skills.
@@ -432,6 +438,11 @@ Use disposable protected fixtures and actual deployment identities/ACLs, not onl
 - Development deployments with unknown source/worktree protection disable affected writes/execution explicitly.
 - No model-callable elevation, executable installer/update, or application-maintenance entry point exists.
 - The authorised out-of-band maintenance path is tested separately and does not receive an agent-issued approval token.
+- Record actual non-elevated application and contained worker/descendant tokens, protected payload/parent ownership and effective ACLs; user ownership, inherited write/delete-child or DACL-changing rights fail the boundary even when an individual Users ACE is RX.
+- Verify selected shared runtimes/native dependencies and executable-resolution paths, not merely the main EXE location or an installer recipe. Build/setup assembly without installed Windows trials leaves deployment/runtime-only acceptance blocked.
+- Network-denied profiles require attributable OS enforcement evidence with working uncontained positive controls for applicable address families/protocols and descendants. Unexplained timeouts, absent capability declarations and generic unrelated firewall blocks do not pass.
+- Test undeclared executable/module/script admission separately from ordinary child identity and job breakaway; containment of an allowed descendant is not proof of an executable allowlist.
+- Missing, malformed or uncorrelated effect receipts remain Unknown after cancellation/termination; actual effect-before-receipt-loss fixtures produce no automatic side-effect replay.
 
 Any successful protected-resource mutation fails the release gate; a prompt warning or log entry is not a substitute for enforcement.
 

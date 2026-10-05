@@ -185,6 +185,13 @@ filtering alone are not a security sandbox. Failure of that proof leaves
 the affected action unavailable; it does not justify extraction or ambient
 PowerShell execution.
 
+R02 demonstrated only fixed embedded interpreter input and partial
+filesystem/credential/lifetime isolation. It did not prove the multi-script
+contract above, an executable dependency allowlist, network denial or installed
+host protection. Follow [the containment continuation gates](Security_Data_Flows.md#windows-containment-continuation-gates)
+before R11 admission; a native broker alternative requires an explicit decision,
+not an implicit replacement of these embedded-script requirements.
+
 Embedding prevents ordinary skill-file editing, not patching/replacing an entire binary.
 Protected deployment permissions and release-origin/provenance checks are still required; an embedded checksum alone cannot authenticate an assembly whose code/catalogue was also changed.
 Initial official artifacts are unsigned, so canonical release origin, final-byte hashes, build provenance, and protected installed-file permissions provide traceability and tamper detection rather than Authenticode publisher authentication.

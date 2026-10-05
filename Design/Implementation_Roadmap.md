@@ -3,6 +3,8 @@
 Status: source-backed implementation inventory and proposed delivery order;
 R01 policy reconciliation approved, implementation and acceptance proof open.
 Reviewed on 2026-10-05 against repository revision `e4688c3`.
+Supplemented on 2026-10-05 with the R02 Windows containment snapshot at `a74bb3a`;
+the experiment is not composed into the application.
 Update this baseline and the evidence below when implementation changes.
 
 Related: [MVP Scope](MVP_Scope.md), [Decision Register](Decision_Register.md), [Acceptance Criteria](Acceptance_Criteria.md), [Canonical Tool Catalogue](Internal_Model_Tools.md), [Technical Capability Reference](Tool_And_Skill_Reference.md).
@@ -19,7 +21,10 @@ In particular, verified Ollama setup is not the local-first clipboard slice, ope
 - **Proof outstanding:** implementation or a candidate exists, but the required real-provider, hardware, containment, deployment, or acceptance evidence has not been established.
 - **Optional/deferred:** not a prerequisite for baseline voice or the initial release; a separate capability gate applies.
 
-This review inspected source and test definitions; it did not perform new microphone, audible playback, real model, OS power, installer, or containment trials.
+The original inventory review inspected source and test definitions; it did not
+perform new microphone, audible playback, real model, OS power or installer
+trials. The supplemental R02 evidence below performs narrowly scoped real
+Windows containment trials, not installed-application or full release acceptance.
 Test-project names, mocks, helper truth tables, configured coverage thresholds, and publish jobs are not substitutes for those trials.
 An implemented feature may therefore still have outstanding release proof.
 The [acceptance criteria](Acceptance_Criteria.md), not this inventory, determine release readiness.
@@ -46,6 +51,7 @@ The identifiers in this table are inventory references, not new capability or mo
 | I14 | Partial call support | Call-state contracts, preferences and application output/activation policy exist with fake-state tests. The composed Windows service reports Unavailable and supplies no automatic detector. Manual call state, the new reusable-grant/origin policy and genuine provider/signal integration are outstanding. | [Composed service](../src/Kora/Program.cs), [unavailable adapter](../src/Kora.Windows/Communication/UnavailableCallStateService.cs), [call preferences](../src/Kora.Application/Configuration/LocalCallAwarePreferences.cs), [application tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs) |
 | I15 | Delivered bootstrap; security audit partial | Structured daily JSON logging, a content-minimizing audit bridge and bounded daily-log reader/UI. These are not encrypted session events, tamper-evident operation receipts or model-facing diagnostics tools. | [Logger configuration](../src/Kora/Program.cs), [audit bridge](../src/Kora.Application/Auditing/LoggerSecurityAuditLog.cs), [log reader](../src/Kora.Application/Diagnostics/LocalApplicationLogReader.cs), [reader tests](../tests/Kora.Application.UnitTests/Diagnostics/LocalApplicationLogReaderTests.cs) |
 | I16 | Delivered CI configuration; distribution partial | Linux restore/build/portable tests/coverage enforcement and framework-dependent win-x64/win-x86 publish artifacts; a Windows integration-test job also exists. This review does not assert current CI results or hardware proof. Source-run instructions exist, not the managed source-bootstrap installer, setup EXE, official release provenance/feed or startup registration. | [CI workflow](../.github/workflows/ci.yml), [coverage tooling](../eng/Assert-CodeCoverage.ps1), [source run instructions](../README.md), [required distribution contract](Distribution_And_Updates.md) |
+| I17 | Experimental containment evidence; production admission blocked | Fixed AppContainer/Job Object/PowerShell proof: 63/71 OS assertions met; protected stand-ins/credential denied, descendant identity/lifetime observed, lost/malformed receipts remain Unknown. Eight network-denial assertions unproven; executable dependency allowlisting and normal-host deployment protection not established. No production worker or bundled catalogue. | [Measured snapshot](../experiments/r02-containment-proof/evidence/README.md), [canonical outcomes](Security_Data_Flows.md#r02-windows-containment-outcomes), [continuation gates](Security_Data_Flows.md#windows-containment-continuation-gates) |
 
 ### Most Important Design-to-Code Gaps
 
@@ -104,6 +110,41 @@ R01's required policy decisions are now resolved: R02 feasibility branches and
 R03 ownership/privacy implementation are unblocked at the design dependency.
 Their technical and real-boundary acceptance gates remain outstanding.
 
+### R02 Windows Containment Follow-Up
+
+The [measured worker proof](../experiments/r02-containment-proof/evidence/README.md)
+narrows the next work rather than closing R02: reject Job-only restricted
+execution and retain capability-free AppContainer as a partial candidate.
+[D-013](Decision_Register.md#d-013-windows-worker-and-deployment-containment)
+owns the unresolved mechanism/admission decision; the
+[security contract](Security_Data_Flows.md#windows-containment-continuation-gates)
+defines the exact gates without weakening the existing bundled-script design.
+
+The labels below are follow-up work within the existing packages, not new tool
+IDs or replacements for the R01-R29 dependency graph.
+
+| Follow-up | Package / owner | Current state and next deliverable | Closure criterion |
+|---|---|---|---|
+| W1 - Attribute network denial | R02 / Windows and security leads | Eight timed-out assertions remain unproven. Repeat fixed trials on a supported reference OS with positive controls and attributable OS enforcement observations; cover applicable protocols/address families and descendants. | Required paths are actually denied by the worker boundary. Timeouts/unknown diagnostics do not pass; request approval before privileged/disruptive trials, never substitute global policy changes. |
+| W2 - Resolve fixed-action and dependency mechanism | R02 / Windows and security leads | AppContainer allows ordinary children and does not prove executable/module admission. Demonstrate denial of undeclared dependencies and feasibility of exact fixed controls; otherwise bring an explicit typed-adapter/broker versus unavailable decision. | Selected mechanism and contract changes, if any, reviewed with enforcement evidence. No ambient-shell fallback or implicit replacement of embedded-script requirements. |
+| W3 - Prove identity, protected roots and aliases | R02 deployment feasibility, then R17 installed acceptance / release and security leads | Independently owned payload/parents and actual normal-app/worker tokens UNTESTED. Use [the security identity checklist](Security_Data_Flows.md#protected-deployment-identity-and-validation); distribution packaging/runtime-only follow-up is separate. | Approved Windows fixtures demonstrate effective app/worker denial, protected dependency resolution and alias/TOCTOU handling. Build/inspect-only constraints leave these trials blocked, not waived. |
+| W4 - Integrate and accept only the admitted profile | R11 / application and Windows leads; R16 exact effects; R17 installed launch | No production worker/catalogue. After applicable W1-W3 gates pass, wire immutable snapshots, common grants, bounded supervision/receipts; test host death and effect/cancellation races. | R11 fixed-profile admission, R16 actual approved controls and R17 installed evidence pass separately. General executable imports remain R27 work. |
+
+W1/W2 investigation and W3 build/inspection may proceed independently after
+R01. No R11 restricted dispatch is exposed from partial I17 evidence. Pure
+catalogue/gateway development may remain disabled while proof is outstanding;
+R16 cannot expose new script-backed controls until the applicable R11 gate passes.
+R17 packaging work can proceed without an unmerged worker dependency, but
+absent workers/catalogues and unperformed deployment trials remain explicit
+acceptance blockers. The current bootstrap's direct C# lock behavior is unchanged
+and still lacks the future common content-bound gate.
+
+The [deferred-validation register](Deferred_Validation.md) and
+[containment testing checklist](../experiments/r02-containment-proof/README.md#outstanding-testing-checklist)
+make the remaining W1-W4 interactive/privileged trials runnable as separately
+approved future work. Merging partial research does not close those gates or
+enable the affected profiles.
+
 ### Core Foundations and First Useful Interaction
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
@@ -123,7 +164,7 @@ Their technical and real-boundary acceptance gates remain outstanding.
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
 | R10 - Implement typed configuration and capability-scoped setup | Partial native preferences/setup I03/I04/I08/I11/I14 | P1 - consistent voice/UI controls without unsafe mutations | R04, R05, R06, R09 | Register schemas/defaults/bounds/scopes/revisions for speech/devices/output, queues/deadlines/retention/concurrency, runtimes, grants/calls, appearance/startup and admitted extensions. Supply discovery/get/propose-set/reset, exact previews, safe apply/recovery and audited rollback/conflicts. Keep installation/sign-in/secure workflows host-owned. Preserve device-local choices; later call protection must use host-recorded origin and protected option classifications. |
-| R11 - Deliver registered embedded multi-script skills and containment | Outstanding runner/packages; partial readiness/lock I08/I12 | P0 - finish lock without admitting arbitrary execution | R02 (worker/deployment), R03, R04, R05, R06, R10 | Embed lock manifest/instructions/fixtures, entry script and shared helper; verify `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1` complete framed identities and dependent-grant revocation. Direct/model/skill routes use the same pinned task exactly once with immutable source review. Admit only fixed profiled workers, bounded output/cancellation and real OS filesystem/network/child-process/credential/Kora-resource denial. Prove observed lock outcome. Prepare power packages but do not enable OS power until R16. |
+| R11 - Deliver registered embedded multi-script skills and containment | Outstanding runner/packages; I17 partial proof is not admission; partial readiness/lock I08/I12 | P0 - finish lock without admitting arbitrary execution | R02 (applicable W1-W3 worker/deployment gates, D-013), R03, R04, R05, R06, R10 | Embed lock manifest/instructions/fixtures, entry script and shared helper; verify `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1` complete framed identities and dependent-grant revocation. Direct/model/skill routes use the same pinned task exactly once with immutable source review. Complete W4: admit only fixed profiled workers with enforced dependency admission, attributable network denial, bounded output/cancellation/Unknown receipts and real OS filesystem/child-process/credential/Kora-resource isolation. Prove observed lock outcome. Reject unsupported profiles or an unapproved broker substitution. Prepare power packages but do not enable OS power until R16. |
 | R12 - Complete session lifecycle, history and per-session work/queues | Outstanding beyond bootstrap I07/I13 | P1 - durable, inspectable long-running work | R04, R05, R06, R10, R11 | Implement Active/Done, create/rename/select/resume/mark-done/delete, paged history/search/immutable artifacts and authoritative task state. Add ordered per-session queues, admission/deadlines/user waits/pause/cancel/remove/clear controls and no restart replay. Implement configurable 24-hour archive/30-day deletion on the same meaningful-activity clock, late-append prevention and deletion across journals/caches/indexes/backups. Session eligibility ends appropriately; independent Perpetual records survive session cleanup. |
 | R13 - Add bounded independent management and concurrent execution | Outstanding; current busy rejection in I10 | P1 - remain responsive while useful work runs | R02 (runtime/provider budgets), R05, R08, R10, R12 | Deliver deterministic routing first, then admitted minimal management inference with fixed provider budgets, 32 KiB input/4 KiB output and 15-second deadline. Prove two independent session tasks, one per session, isolated provider/task/question/grant state, fair budgets and canonical shared/exclusive resource leases. Revalidate outside changes and cancellation/unknown-effect races. Management cannot obtain task-source content or execution authority; power exposure follows R01. |
 | R14 - Build the coordinated Sessions workspace and interaction surfaces | Partial compact/native windows I03/I11 | P1 - make sessions, decisions and results understandable | R05, R09, R12, R13 | Deliver compact latest interaction, list-plus-full-conversation/history, work/queue controls and separate immutable detail/script surfaces. Address native/voice questions explicitly; switching windows never retargets approvals. Add typed full-content text/Markdown/source views, bounded navigation/pin/close and grounded progress/status. Wire bounded diagnostics/receipt/audit reads and scoped diagnostics/evidence/artifact export with explicit permitted destinations and model excerpt limits. Do not treat the embedded documentation renderer as a general result/browser renderer. |

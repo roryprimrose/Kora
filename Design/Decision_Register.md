@@ -28,6 +28,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; isolation/budget proof open, release-blocking | Pinned SDK/provider isolation and concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races |
 | D-011 | Shared interaction and session routing/history tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; protocol/integration proof open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact interaction/list-plus-conversation workspace/separate detail surfaces, minimal Active-session routing context, bounded paginated tools, provenance/egress, foreground voice versus addressed UI races |
 | D-012 | Windows-session trust model and accepted voice boundary | Product and security leads | Design acceptance; enforcement before associated capability release | Accepted direction; implementation evidence outstanding | Enabled verbal input trusts the active unlocked profile, not speaker identity; no compulsory biometrics/PTT/UI for ordinary voice; scoped grants, call origin/reuse gates, intent/content separation, containment and truthful recovery tests |
+| D-013 | Windows worker and protected-deployment containment | Security and Windows engineering leads | R11 execution admission; R17 protected-deployment acceptance | Open, release-blocking; partial AppContainer proof, Job-only restriction rejected | Attributable OS network denial, executable dependency admission, effective app/worker identities and protected-root ACLs, aliases/TOCTOU, fixed-control feasibility, truthful receipts and descendant/crash shutdown |
 
 The [Internal Model Tool Catalogue](Internal_Model_Tools.md) is the exposure inventory for D-001/D-008/D-011.
 Registry/schema/lane coverage, unavailable-tool exclusion, and host-only boundaries are release evidence, not implied by an SDK's native tool support.
@@ -48,6 +49,7 @@ before ordinary read-only tools or fixed bundled actions.
 | D-008/D-012 | R01 resolved authority/origin rules, R03/R05 common privacy/grant gateway, R11/R15/R16 real containment/call/power enforcement |
 | D-009/D-010 | R04 durable identity/encrypted storage, R12 lifecycle/deletion/queue, R13 isolated scheduler/resource budgets |
 | D-011 | R05 shared questions/grants, R06 registry, R12/R13 addressing/ledger, R14/R18 coordinated workspace/proactive interaction |
+| D-013 | R02 staged worker/deployment continuation, R11 admitted fixed execution, R16 actual controlled effects and R17 installed identity/ACL/runtime proof; none implied by experiment or package assembly |
 
 R19 and R23 compile the applicable release results; a merged implementation or
 fake-only test does not close a decision that requires real boundary evidence.
@@ -172,6 +174,32 @@ Kora does not secure a computer the user no longer controls. Residual indistingu
 Keep self-output rejection, supported playback discrimination, exact action/scope checks, untrusted-content isolation, safe interruption, and the explicit call-specific restrictions.
 The [accepted controls](Security_Data_Flows.md#accepted-controls-and-verification-boundary) resolve the design-level concerns within this threat model, not all possible risks or runtime implementation.
 Do not mark the corresponding capabilities release-ready until adversarial, race, persistence/restart, call-transition and failure evidence demonstrates the host controls.
+
+## D-013 Windows Worker and Deployment Containment
+
+The [R02 measured proof](../experiments/r02-containment-proof/evidence/README.md)
+met 63/71 OS assertions with eight network-denial assertions unproven.
+The [canonical outcomes and continuation gates](Security_Data_Flows.md#r02-windows-containment-outcomes)
+record what this changes technically:
+
+- Reject same-user PowerShell plus Job Objects as restricted execution.
+- Retain capability-free AppContainer plus a non-breakaway kill-on-close job
+  as a partial filesystem/credential/lifetime candidate, not a production
+  profile or executable allowlist.
+- Next establish attributable network denial on a supported OS and resolve
+  executable-dependency/fixed-control feasibility before R11 dispatch admission.
+  A typed native broker is an alternative requiring an explicit decision and
+  contract reconciliation, not an implicitly selected workaround.
+- Independently validate normal-host and worker deployment rights under
+  [the R17 identity/alias requirements](Security_Data_Flows.md#protected-deployment-identity-and-validation).
+  Build/inspect-only distribution work cannot satisfy real installation trials.
+- Preserve Unknown for effects without verifiable receipts; cancellation or
+  process termination does not roll back effects or permit automatic replay.
+
+Keep this decision open until the accountable owners sign off on the applicable
+real-boundary evidence. Reconsider the mechanism if attributable network denial,
+protected identities/dependencies or required fixed controls cannot be enforced
+without broadening ambient authority. Other R02 branches may close independently.
 
 ## Decision Completion
 

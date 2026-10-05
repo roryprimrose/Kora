@@ -328,9 +328,11 @@ arguments, working directories, privileges, or network access.
 PowerShell is **not a security sandbox**: hashing a top-level `.ps1` does not
 prove what arbitrary commands, modules, network calls, or child processes it
 may run. The runner must restrict what task scripts can invoke and verify all
-permitted dependencies; if that cannot be enforced, present the broader
-execution capability to the user instead of claiming a narrow hash grant
-covers it. Do not trust a writable extracted copy of an embedded script; the
+permitted dependencies; if that cannot be enforced, leave the narrow profile
+unavailable rather than claim a narrow hash grant covers broader execution.
+A broader capability requires its own explicit design/admission decision and
+protected-resource proof; merely disclosing ambient rights is not sufficient.
+Do not trust a writable extracted copy of an embedded script; the
 verified embedded snapshot must be the source of execution.
 
 The local model may propose a registered task and explain it, but it cannot
@@ -339,6 +341,33 @@ unchecked process. Kora must resolve the task and resources, present the
 specific action and scope to the user, enforce the approval gate, and dispatch
 only through its host-owned task runner. These rules also apply when a task is
 invoked through an exact built-in command, not just through the model.
+
+### Windows worker feasibility and next steps
+
+The [R02 proof](../experiments/r02-containment-proof/evidence/README.md)
+demonstrates that a fixed embedded PowerShell input can execute without a loose
+script file under a capability-free AppContainer. It does not implement the
+bundled catalogue, multi-script helper contract or grant gate above.
+
+Same-user PowerShell with only a Job Object is rejected as restricted execution:
+it actually reached protected stand-ins and the host's synthetic credential.
+AppContainer plus a kill-on-close job is the partial filesystem/credential/
+lifetime candidate, not an executable allowlist. Normal children were allowed;
+required network-denial probes timed out and remain Unknown.
+
+The [canonical continuation gates](../Design/Security_Data_Flows.md#windows-containment-continuation-gates)
+and [roadmap W1-W4](../Design/Implementation_Roadmap.md#r02-windows-containment-follow-up)
+require attributable OS network denial, an enforced dependency/fixed-control
+mechanism, and independently protected app/worker deployment before R11
+restricted dispatch. A typed native broker is only an alternative for an
+explicit decision; it is not a selected implementation or permission to replace
+the embedded-script contract silently. The current direct C# lock remains
+bootstrap behavior, not acceptance of the future script-backed path.
+
+Cancellation, deadline, process exit and effect certainty are separate facts.
+Retain Unknown when an effect may have occurred without a valid correlated
+receipt, including worker loss or malformed output; terminating its tree does
+not prove rollback or authorize an automatic retry.
 
 ## Required verification before enabling execution
 

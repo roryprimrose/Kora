@@ -451,6 +451,63 @@ Initial unsigned releases cannot provide Authenticode publisher authentication.
 Their canonical release origin, exact revision, external final-byte hashes/build provenance, and protected installation permissions provide narrower traceability and tamper-detection guarantees that must not be described as equivalent to code signing.
 Do not claim immunity against those excluded threats.
 
+### Protected Deployment Identity and Validation
+
+R02's [worker proof](#r02-windows-containment-outcomes) denies access to scratch
+stand-ins but its host owns those files. It does not prove that the normal
+installed application cannot modify executable content. For R17, the proposed
+versioned x64 Program Files deployment remains an **UNTESTED** protection
+candidate, subject to actual installation/identity/ACL evidence:
+
+- Resolve the x64 Program Files known folder and the host-owned application
+  root/version identity. For a disposable approved lab trial, a distinct
+  `Kora-R02-Proof\<version>` root avoids touching an existing Kora installation.
+  A recipe or NSIS compile is not a tested deployment boundary.
+- Intended ownership is Administrators, with Administrators/SYSTEM Full Control
+  and ordinary Users only required read/execute/traverse rights. Validate
+  effective rights for the actual application and worker tokens, inherited ACEs
+  and other group grants. Neither may have write/append/delete, parent
+  delete-child, ownership or DACL-changing authority over protected content.
+  An interactive-user owner is not acceptable merely because a Users ACE says RX.
+- Validate the application root, version root, payload files and every relevant
+  ancestor permitting replacement, rename or redirection. Protect future
+  version-selection/launch metadata and activation-influencing staging/backups
+  too. Inspect existing Program Files ancestors; do not modify their ACLs as
+  part of an unapproved proof.
+- Include `.deps.json`, `.runtimeconfig.json`, managed/native libraries,
+  adapters and future interpreter/worker assets, not only the EXE. Identify
+  actual selected shared runtime/native prerequisite locations, architecture,
+  ownership and resolver behavior. An SDK-equipped developer machine does not
+  establish runtime-only operation or dependency protection.
+- Launch the application under the actual non-elevated interactive-user token,
+  normally medium integrity, not inherited installer elevation. Installer
+  execution is independently authorized out-of-band; neither model, worker nor
+  running assistant acquires installer/replacement authority.
+- Test future worker/descendant rights under their actual contained tokens,
+  not the medium-integrity host as a proxy. The experimental candidate is a
+  low-integrity AppContainer with the host user SID plus its container SID;
+  installed worker identities and protection remain UNTESTED.
+- Resolve filesystem identities and check hard links, alternate path forms and
+  reparse points in relevant ancestors, destinations and staging. Race target/
+  parent replacement between verification and activation; hold stable handles
+  or demonstrate an equivalent race-resistant mechanism, not hash-then-reopen.
+  Verify that the complete protected version validated is the version launched.
+- Ensure working directories, PATH, runtime overrides/startup hooks and future
+  interpreter profile/module paths cannot redirect executable loading into
+  writable data. LocalAppData/skill/temporary stores remain data locations, not
+  protected executable roots.
+
+Record each property as assumed, inspected, tested or blocked. Later approved
+Windows trials need allowed-data positive controls, actual denied mutation/
+replacement/DACL-change attempts, native errors and before/after identities.
+Absent production workers or embedded skill catalogues cannot pass worker or
+bundled-resource acceptance. A build/inspect-only distribution proof leaves
+all real protected-deployment, launch-token and runtime-only trials blocked;
+it must not perform installation, application launch or registry mutation.
+Distribution outcomes and packaging follow-up belong in
+[Distribution and Updates](Distribution_And_Updates.md); these security
+assumptions do not depend on an unmerged distribution implementation.
+
 ## Work-Management Boundary
 
 Management inference uses a separate session and only the minimum approved request/ledger context.
@@ -514,8 +571,93 @@ The built-in skill validator is not an arbitrary script runner.
 
 Workers use a controlled working directory, allowlisted environment, minimal credential exposure, output limits, deadlines, and tracked process trees.
 Windows Job Objects can support process-tree lifetime management; they are not a filesystem or network sandbox.
-Restricted tokens/AppContainer or equivalent containment are candidates requiring an implementation proof.
+The R02 proof below retains capability-free AppContainer as a partial candidate,
+not an admitted execution profile. Restricted-token/service-identity alternatives
+have not been trialled.
 If containment cannot enforce a requested restriction, reject that profile rather than silently downgrade it.
+
+### R02 Windows Containment Outcomes
+
+The [2026-10-05 Windows proof](../experiments/r02-containment-proof/evidence/README.md)
+tested a fixed worker and embedded PowerShell input using synthetic owned
+resources, not a production runner or installed deployment. The strict proof
+met 63 of 71 OS assertions; all eight unmet assertions concern network denial.
+Its five deterministic receipt tests are supplementary, not OS evidence.
+
+| Observation | Engineering consequence |
+|---|---|
+| Same-user Job-only worker modified protected stand-ins and accessed the host's synthetic credential and local listeners | Reject this combination as restricted execution. Process separation, trusted script bytes and Job Objects do not isolate ambient user rights. |
+| Capability-free AppContainer denied protected read/write/delete/native rename, hard-link/traversal writes and synthetic credential access with Windows error 5 | Retain AppContainer plus a non-breakaway kill-on-close job as the next filesystem/credential/lifetime candidate; this is not a complete filesystem allowlist or deployment proof. |
+| Ordinary children/grandchildren were allowed and retained the container SID; job breakaway returned error 5 | Lifetime/identity containment is useful but does not enforce registered executable dependencies or a no-child-process profile. |
+| Fixed encoded PowerShell ran without script extraction and denied protected writes with `0x80070005` | Controlled interpreter input is feasible for this fixed probe; helper/runspace contracts and denial of undeclared execution remain unproven. |
+| Loopback and owned-interface connections timed out in .NET and PowerShell while baseline connections succeeded | Required network-denied execution remains unavailable. Empty capabilities and lack of a successful connection do not constitute attributable OS denial evidence. |
+| Managed rename reported file-not-found while the separate native rename returned access-denied | Record native results distinctly; absence, timeout and generic I/O failure must not be relabelled Denied. |
+| Job close stopped tracked trees; lost/malformed receipts followed real synthetic effects | Preserve Unknown effect outcomes independently of cancellation/exit. Kill is not rollback and must not authorize automatic retry. |
+
+The candidate worker had the host's user SID plus a separate AppContainer SID,
+low integrity, no capabilities and no elevation; it was not a separately
+provisioned user account. The trusted non-elevated host owned scratch and could
+change its ACLs. Therefore these trials do not establish normal-application
+write denial for installed Kora code. Classic AppContainer access to OS/package
+resources is also not a demonstrated arbitrary filesystem allowlist.
+
+### Windows Containment Continuation Gates
+
+Proceed with bounded investigations in this order; deployment inspection can
+run in parallel. These are R02 follow-up gates, not implemented capabilities.
+
+1. **Attribute network denial on a supported reference OS.** Repeat the fixed
+   no-capability worker with working uncontained positive controls and owned
+   destinations. Collect either actual access-denied results or an independent
+   OS enforcement observation, such as a WFP block attributable to the trial's
+   process/token and endpoint. A generic firewall block unrelated to worker
+   identity does not establish the proposed boundary. Before claiming general
+   network denial, cover applicable loopback, non-loopback, IPv4/IPv6 and
+   TCP/UDP/DNS paths and inherited descendants. Unavailable diagnostics,
+   unexplained timeouts or gaps leave the affected profile disabled. Obtain
+   approval before privileged diagnostics or policy changes; do not change
+   global firewall/security policy as an experimental shortcut.
+2. **Resolve executable dependency admission and fixed computer controls.**
+   Demonstrate denial of undeclared executable/module/script loading under the
+   intended worker, not merely a list in a manifest or PowerShell command
+   filtering. Read-only desktop-handle denial is not a lock/power-action trial.
+   Evaluate whether the contained worker can implement the exact registered
+   actions under their required gates. If it cannot, bring an explicit design
+   decision: a narrowly typed trusted native-adapter/broker boundary with its
+   own authority/implementation/receipt proof, or continued unavailability.
+   Such a broker is not selected by this proof, may not expose a shell/elevation/
+   installation API, and cannot silently replace the existing bundled-script
+   contract. Do not weaken the worker to ambient execution to make an action run.
+3. **Prove protected deployment and effective resource identities.** Use the
+   [deployment identity and alias gates](#protected-deployment-identity-and-validation)
+   under actual non-elevated application and prospective worker tokens.
+   Independently protected payload ownership is necessary even when a worker
+   denies writes. Source/worktree/Git/build roots and remote repository/API
+   identities need their own admission/isolation evidence; Program Files is
+   not protection for an alternate clone or remote connector.
+4. **Admit only the demonstrated fixed profile.** After the preceding choices
+   and applicable deployment evidence pass, R11 integrates registered immutable
+   snapshots, the common gateway, bounded IPC/output/deadlines and supervised
+   descendants. Test malformed/missing/uncorrelated receipts, assignment and
+   identity failures, host death and cancellation/effect races. R16 separately
+   proves approved computer-control effects. Do not reuse this admission for
+   arbitrary scripts, downloaded code, MCP servers or general application
+   execution; R27 remains separately gated.
+
+Workers and descendants must be created with no inherited privileged handles
+or reusable credentials, explicit resource grants and an allowlisted
+environment. For the candidate job-based mechanism, assign a suspended worker
+to a non-breakaway kill-on-close job before resuming it; failed assignment or
+unverifiable identity must prevent execution. Admitted interpreter/native
+dependencies must themselves be protected and must not resolve from writable
+skill, profile, working-directory or temporary paths.
+
+Reconsider the candidate if required denials cannot be attributed on the
+supported OS, an alias or descendant bypasses the boundary, or fixed actions
+need authority the worker cannot safely hold. Record the failed profile and
+alternative decision rather than silently narrowing tests or broadening rights.
+See [D-013](Decision_Register.md#d-013-windows-worker-and-deployment-containment)
+and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follow-up).
 
 ## Identity and Credentials
 

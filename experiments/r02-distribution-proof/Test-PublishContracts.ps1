@@ -136,3 +136,4 @@ $passed.Add('Tampered final bytes rejected before compiler invocation')
 Write-ProofJson ([ordered]@{ tests = @($passed); count = $passed.Count; staticOnly = $true }) `
     (Join-Path $OutputDirectory 'tests.json')
 Write-Host "$($passed.Count) static publish/packaging contract checks passed; no app or installer executed."
+exit 0

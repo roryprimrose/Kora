@@ -46,8 +46,15 @@ function Invoke-ManagedSource {
             $checkoutParent = Split-Path -Parent $checkout
             New-Item -ItemType Directory -Path $checkoutParent -Force | Out-Null
             Assert-NoLinks $checkoutParent
-            Invoke-Checked 'git' @('-c', 'core.hooksPath=', 'clone', '--no-checkout', '--', $Repository, $checkout)
-            Invoke-Checked 'git' @('-C', $checkout, '-c', 'core.hooksPath=', 'checkout', '--detach', $Revision)
+            Invoke-Checked 'git' @(
+                '-c', 'core.hooksPath=', '-c', 'core.longpaths=true',
+                'clone', '--no-checkout', '--', $Repository, $checkout
+            )
+            Invoke-Checked 'git' @('-C', $checkout, 'config', 'core.longpaths', 'true')
+            Invoke-Checked 'git' @(
+                '-C', $checkout, '-c', 'core.hooksPath=', '-c', 'core.longpaths=true',
+                'checkout', '--detach', $Revision
+            )
         }
         Assert-ManagedCheckoutIdentity $checkout $Repository $Revision
         if (Test-Path -LiteralPath $deployment) {

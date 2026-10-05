@@ -43,6 +43,11 @@ Invoke-ManagedSource $root $fixture $revision { throw 'Rerun must not rebuild' }
 if ((Get-FileHash -LiteralPath $receiptPath).Hash -ne $receiptHash) { throw 'Rerun changed receipt.' }
 $passed.Add('Exact full revision, dedicated checkout/staging, hash-verified idempotent rerun')
 $checkout = Join-Path $root "checkouts\$revision"
+$longPaths = (& git -C $checkout config --bool core.longpaths | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $longPaths -cne 'true') {
+    throw 'Managed checkout did not retain Windows long-path support.'
+}
+$passed.Add('Managed checkout retains Windows long-path support')
 'local edit' | Set-Content -LiteralPath (Join-Path $checkout 'input.txt')
 Expect-Failure 'Tracked local edit preserved' { Invoke-ManagedSource $root $fixture $revision $build } 'local edits'
 if ((Get-Content -LiteralPath (Join-Path $checkout 'input.txt') -Raw).Trim() -ne 'local edit') {
@@ -136,3 +141,4 @@ finally { $busyLock.Dispose() }
 Write-ProofJson ([ordered]@{ tests = @($passed); count = $passed.Count; fixtureOnly = $true }) `
     (Join-Path $OutputDirectory 'tests.json')
 Write-Host "$($passed.Count) orchestration checks passed. Not application/runtime/ACL acceptance."
+exit 0

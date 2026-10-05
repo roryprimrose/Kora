@@ -525,6 +525,34 @@ public sealed class ActivatedVoiceRecognitionTests(
     }
 
     [Fact]
+    public async Task Stop_fails_within_the_deadline_when_detached_cleanup_holds_the_lifecycle_lock()
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var capture = new FakeCapture
+        {
+            DisposeGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        factory.OpenResult.SetResult(capture);
+        var limits = VoiceCaptureLimits.Default with { OpenDeadline = TimeSpan.FromMilliseconds(100) };
+        var service = Create(privacy, factory, limits);
+        await BeginCaptureAsync(service);
+        capture.Completed.TrySetResult();
+        await capture.DisposeEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        var stop = () => service.StopAsync(TestContext.Current.CancellationToken);
+
+        (await stop.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*did not finish within its deadline*");
+        service.IsCaptureQuiescent.Should().BeFalse();
+
+        capture.DisposeGate.SetResult();
+        await capture.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        var dispose = () => service.DisposeAsync().AsTask();
+        await dispose.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task An_early_native_result_stops_recording_but_waits_for_the_hosts_generation_acknowledgement()
     {
         using var privacy = new FakePrivacy();
@@ -675,6 +703,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         public event EventHandler? SpeechDetected;
         public TaskCompletionSource Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Released { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource DisposeEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Disposed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource? DisposeGate { get; set; }
         public bool CompleteOnFinish { get; set; } = true;
@@ -706,6 +735,7 @@ public sealed class ActivatedVoiceRecognitionTests(
 
         public async ValueTask DisposeAsync()
         {
+            DisposeEntered.TrySetResult();
             if (DisposeGate is not null)
             {
 #pragma warning disable VSTHRD003 // Synthetic gate has no synchronization-context dependency.

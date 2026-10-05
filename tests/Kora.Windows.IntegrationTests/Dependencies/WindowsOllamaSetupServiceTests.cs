@@ -66,8 +66,13 @@ public sealed class WindowsOllamaSetupServiceTests
                 "/api/version" when processes.Installs == 0 => throw new HttpRequestException(
                     "Connection refused.", new SocketException((int)SocketError.ConnectionRefused)),
                 "/api/version" => Json("""{"version":"0.35.1"}"""),
-                "/api/tags" => Json(++tags == 1 ? """{"models":[]}""" : Tags(WindowsOllamaSetupService.ModelDigest)),
-                "/api/pull" => Json("""{"status":"downloading","total":4,"completed":3}""" + "\n" + """{"status":"success"}""" + "\n"),
+                "/api/tags" => Json(++tags == 1
+                    ? """{"models":[]}"""
+                    : Tags(WindowsOllamaSetupService.ModelDigest["sha256:".Length..])),
+                "/api/pull" => Json(
+                    """{"status":"downloading","total":1359279776,"completed":193040768}""" + "\n"
+                    + """{"status":"downloading","total":1359279776,"completed":1359279776}""" + "\n"
+                    + """{"status":"success"}""" + "\n"),
                 "/api/generate" => Json("""{"model":"qwen3:1.7b","done":true,"response":"OK"}"""),
                 _ => throw new InvalidOperationException("Unexpected request."),
             };
@@ -81,7 +86,49 @@ public sealed class WindowsOllamaSetupServiceTests
         processes.Starts.Should().Be(0);
         calls.Should().ContainInOrder("/api/pull", "/api/tags", "/api/generate");
         progress.Messages.Should().Contain(message => message.Contains("1.36 GB", StringComparison.Ordinal));
-        progress.Updates.Should().Contain(update => update.Percentage == 75);
+        progress.Updates.Should().Contain(update => update.Percentage == 14);
+        progress.Messages.Should().Contain("Downloading qwen3:1.7b: 193.0 MB of 1.36 GB (14%).");
+        progress.Messages.Should().Contain("Downloaded 1.36 GB for qwen3:1.7b. Finalizing the model locally.");
+        progress.Messages.Should().Contain("Verifying the downloaded qwen3:1.7b digest.");
+    }
+
+    [Fact]
+    public async Task InstallAsync_retries_a_transient_timeout_while_the_installed_runtime_starts()
+    {
+        var processes = new FakeProcesses();
+        var versionCalls = 0;
+        using var client = Client(request =>
+        {
+            if (string.Equals(request.RequestUri!.AbsolutePath, "/api/version", StringComparison.Ordinal))
+            {
+                versionCalls++;
+                if (versionCalls <= 2)
+                {
+                    throw new HttpRequestException(
+                        "Connection refused.", new SocketException((int)SocketError.ConnectionRefused));
+                }
+
+                if (versionCalls == 3)
+                {
+                    throw new OperationCanceledException("The runtime is still starting.");
+                }
+
+                return Json("""{"version":"0.35.1"}""");
+            }
+
+            return request.RequestUri.AbsolutePath switch
+            {
+                "/api/tags" => Json(Tags(WindowsOllamaSetupService.ModelDigest)),
+                "/api/generate" => Json("""{"model":"qwen3:1.7b","done":true,"response":"OK"}"""),
+                _ => throw new InvalidOperationException("Unexpected request."),
+            };
+        });
+
+        await new WindowsOllamaSetupService(client, processes)
+            .InstallAsync(new RecordingProgress(), TestContext.Current.CancellationToken);
+
+        versionCalls.Should().Be(5);
+        processes.Installs.Should().Be(1);
     }
 
     [Fact]

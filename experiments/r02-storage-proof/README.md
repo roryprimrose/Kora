@@ -161,6 +161,16 @@ future host types. Detailed requirements belong in those canonical contracts,
 not a second experimental specification. This directory preserves the runnable
 evidence needed to verify or revisit them.
 
+## Proof code lifecycle
+
+Retain this harness through maintained native selection and R04/R12
+integration because it owns the repeatable encryption, interruption,
+migration, recovery and deletion comparison. Move applicable cases into
+production native-load, storage-recovery and lifecycle tests. Candidate-specific
+prototype paths may be removed only after those equivalent production tests
+pass; preserve the reviewed historical receipts. See the shared
+[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+
 ## Licensing, native assets and Windows-only scope
 
 See [the native/licensing assessment](NATIVE-ASSETS.md). RID publication for

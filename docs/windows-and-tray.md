@@ -101,9 +101,18 @@ native blocker rather than deleting it without checking interrupted work.
 
 Developer builds use `%LOCALAPPDATA%\Kora\Development`, separate from installed
 release data and microphone consent. Handoff does not transfer consent,
-approvals, tasks or audio. Same-build activation, real takeover/return,
-crash recovery and cross-architecture trials remain unverified; this R03
-session ran only deterministic and non-disruptive tests.
+approvals, tasks or audio.
+
+The bounded 2026-10-05 interactive trial verified same-build Release x64
+activation, Debug x64 decline, accepted Debug/Release takeover and
+exact-original Release return with one active tray/UI throughout. Exit during
+active speech also completed cleanly after asynchronous provider shutdown was
+made independent of Avalonia's retired UI context. Active-work refusal,
+expiry, candidate death, lock during approval and crash recovery remain
+unverified. A framework-dependent Release x86 candidate was blocked before
+handoff because the x86 .NET Desktop Runtime was not installed; installer
+acceptance must provision and verify that dependency before cross-architecture
+takeover/return can close.
 
 ## Themes
 

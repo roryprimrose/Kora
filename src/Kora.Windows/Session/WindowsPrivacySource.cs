@@ -36,7 +36,6 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
             notifications.DeviceRemoved += OnEndpointChanged;
             notifications.DeviceStateChanged += OnEndpointChanged;
             notifications.DefaultDeviceChanged += OnEndpointChanged;
-            notifications.PropertyValueChanged += OnEndpointChanged;
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
         }
         catch
@@ -86,7 +85,6 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
         notifications.DeviceRemoved -= OnEndpointChanged;
         notifications.DeviceStateChanged -= OnEndpointChanged;
         notifications.DefaultDeviceChanged -= OnEndpointChanged;
-        notifications.PropertyValueChanged -= OnEndpointChanged;
         notifications.Dispose();
         enumerator.Dispose();
         sessionWindow.Dispose();

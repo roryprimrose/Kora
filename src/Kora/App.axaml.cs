@@ -128,10 +128,6 @@ public sealed partial class App : Avalonia.Application
         responseWindow = null;
         grantListWindow?.Dispose();
         grantListWindow = null;
-        Services.DisposeAsync()
-            .AsTask()
-            .GetAwaiter()
-            .GetResult();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

@@ -66,9 +66,10 @@ finished EXE, including on repeated builds on the same host.
 
 ## Reproduce without installing or launching Kora
 
-Use PowerShell 7. Required commands are Git, the reviewed .NET SDK 10.0.401,
-and, for retrieving historical evidence, authenticated `gh`. Restore/build
-executes code: review the exact source and this script before invoking it.
+Use PowerShell 7. Required commands are Git, Windows `curl.exe`, the reviewed
+.NET SDK 10.0.401, and, for retrieving historical evidence, authenticated
+`gh`. Restore/build executes code: review the exact source and this script
+before invoking it.
 Nothing silently installs prerequisites, elevates, launches Kora, or downloads
 Ollama/models. Choose **new** output names on reruns; packaging does not overwrite.
 
@@ -77,9 +78,10 @@ From the repository root:
 ```powershell
 $proof = Join-Path $PWD 'experiments\r02-distribution-proof'
 $revision = '7d5e6a352261dce48f2ca4d3048650ee13f51705'
+$managedRoot = 'C:\KoraR02\managed-reproduction'
 
 # External operator source build. A second identical invocation verifies/reuses.
-& "$proof\Publish-Source.ps1" -Root "$proof\out\managed-reproduction" -Revision $revision
+& "$proof\Publish-Source.ps1" -Root $managedRoot -Revision $revision
 
 # Reacquire the historical Linux publish, not an official public release.
 gh run download 37245014084 --name Kora-win-x64 --dir "$proof\out\ci-reproduction"
@@ -107,6 +109,12 @@ and successful publish job before recording that run as its build origin.
 authenticated provenance. Each setup receipt hashes the exact final EXE, payload
 manifest, NSIS executable and installer script. Reproducible operations do not
 promise bit-identical builds across different toolchains/OSes.
+
+Use a new, dedicated, deliberately short managed root. Git long-path support is
+enabled in the detached checkout, but the Windows SDK/MSBuild toolchain used by
+the historical revision can still fail when its generated intermediate paths
+are nested beneath this already-deep worktree. The root is never cleaned or
+repaired automatically; retain failed roots for review and choose a new path.
 
 ## Linux packaging recipe (not executed here)
 
@@ -149,6 +157,9 @@ its wheel is hash-pinned in [linux-build-requirements.txt](linux-build-requireme
 
 - Each revision gets a dedicated detached checkout and unique staging attempt.
   No arbitrary developer checkout is adopted, pulled, reset, cleaned or switched.
+- Managed checkouts explicitly retain Git for Windows long-path support without
+  requiring a machine-global Git setting. Build roots must still remain short
+  enough for the selected SDK/MSBuild toolchain.
 - Root metadata records source identity and mode; `.git` alone is insufficient.
   Origin, exact HEAD, tracked edits, untracked files and linked paths are checked
   before build/reuse and again immediately before promoting new output.
@@ -245,5 +256,8 @@ preferred for portable build/cross-publish/release stages; allow Windows
 packaging. Validate the WiX lifecycle, tooling/asset terms, exact-byte provenance,
 protection and runtime-only Windows launch before release acceptance. Do not
 use MSIX/App Installer in the unsigned phase or add an in-app updater.
+Once the WiX pipeline has equivalent source-identity, payload-inspection and
+packaging-contract coverage, migrate those generic checks and remove the
+NSIS-specific acquisition/build path while preserving reviewed receipts.
 The proof/design may merge without closing D-005; actual release candidates
 remain draft/unreleased while their implementation and acceptance gates are open.

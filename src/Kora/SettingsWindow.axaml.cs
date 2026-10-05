@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Layout;
 
@@ -11,6 +13,10 @@ namespace Kora;
 
 public sealed partial class SettingsWindow : Window
 {
+    private readonly TabControl settingsTabs;
+    private readonly Button pushToTalkButton;
+    private readonly TabItem readinessTab;
+    private readonly TabItem speechAudioTab;
     private bool isLocalModelReviewOpen;
     private bool isPowerShellReviewOpen;
 
@@ -22,6 +28,36 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow(MainViewModel viewModel)
     {
         AvaloniaXamlLoader.Load(this);
+        settingsTabs = this.FindControl<TabControl>("SettingsTabs")
+            ?? throw new InvalidOperationException("The settings tab control is unavailable.");
+        pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
+            ?? throw new InvalidOperationException("The push-to-talk control is unavailable.");
+        readinessTab = this.FindControl<TabItem>("ReadinessTab")
+            ?? throw new InvalidOperationException("The readiness settings tab is unavailable.");
+        speechAudioTab = this.FindControl<TabItem>("SpeechAudioTab")
+            ?? throw new InvalidOperationException("The speech and audio settings tab is unavailable.");
+#pragma warning disable MA0147 // Avalonia routed events require void event handlers.
+        pushToTalkButton.AddHandler(
+            PointerPressedEvent,
+            OnPushToTalkPressed,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+        pushToTalkButton.AddHandler(
+            PointerReleasedEvent,
+            OnPushToTalkReleased,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+        pushToTalkButton.AddHandler(
+            KeyDownEvent,
+            OnPushToTalkKeyDown,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+        pushToTalkButton.AddHandler(
+            KeyUpEvent,
+            OnPushToTalkKeyUp,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+#pragma warning restore MA0147
         DataContext = viewModel;
         Deactivated += OnCaptureSurfaceUnavailable;
         Closed += OnCaptureSurfaceUnavailable;
@@ -35,9 +71,9 @@ public sealed partial class SettingsWindow : Window
         }
     }
 
-    public void ShowReadiness() => SettingsTabs.SelectedItem = ReadinessTab;
+    public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;
 
-    public void ShowVoiceRecovery() => SettingsTabs.SelectedItem = SpeechAudioTab;
+    public void ShowVoiceRecovery() => settingsTabs.SelectedItem = speechAudioTab;
 
     private void OnPushToTalkFocusLost(object? sender, Avalonia.Input.FocusChangedEventArgs eventArgs) =>
         OnCaptureSurfaceUnavailable(sender, eventArgs);

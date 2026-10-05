@@ -170,7 +170,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         CancellationToken cancellationToken = default)
     {
         var generation = Interlocked.Read(ref outputGeneration);
-        await speechLock.WaitAsync(cancellationToken);
+        await speechLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -183,7 +183,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 voice,
                 outputDevice,
                 generation,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -203,7 +203,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         ArgumentNullException.ThrowIfNull(voice);
         ArgumentNullException.ThrowIfNull(outputDevice);
 
-        await lifecycleLock.WaitAsync(cancellationToken);
+        await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task synthesisTask;
         try
         {
@@ -301,21 +301,21 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
 
         try
         {
-            await synthesisTask.WaitAsync(cancellationToken);
+            await synthesisTask.WaitAsync(cancellationToken).ConfigureAwait(false);
             if (!IsStopRequested() && generation == Interlocked.Read(ref outputGeneration))
             {
-                await StartPlaybackAsync(generation, cancellationToken);
+                await StartPlaybackAsync(generation, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
         {
             WindowsLog.Information(logger, "Speech output was cancelled");
-            await StopAsync(CancellationToken.None);
+            await StopAsync(CancellationToken.None).ConfigureAwait(false);
             throw;
         }
         finally
         {
-            await lifecycleLock.WaitAsync(CancellationToken.None);
+            await lifecycleLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
                 synthesizer.SetOutputToDefaultAudioDevice();
@@ -336,7 +336,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         WindowsLog.Debug(logger, "Stopping speech output");
-        await lifecycleLock.WaitAsync(cancellationToken);
+        await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task? completionTask;
         try
         {
@@ -356,18 +356,20 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
 
         if (completionTask is not null)
         {
-            await completionTask.WaitAsync(cancellationToken);
+            await completionTask.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
     public void InvalidateOutput()
     {
+        WasapiPlayer? player;
         lock (stateLock)
         {
             Interlocked.Increment(ref outputGeneration);
             stopRequested = true;
-            playback?.Stop();
+            player = playback;
         }
+        player?.Stop();
         synthesizer.SpeakAsyncCancelAll();
     }
 
@@ -389,7 +391,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 "The speech provider cannot be installed.");
         }
 
-        await kokoroProvider.InstallAsync(progress, cancellationToken);
+        await kokoroProvider.InstallAsync(progress, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task RemoveProviderAsync(
@@ -415,7 +417,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 "Stop speech playback before removing its provider.");
         }
 
-        await kokoroProvider.RemoveAsync(cancellationToken);
+        await kokoroProvider.RemoveAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
@@ -426,8 +428,8 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             return;
         }
 
-        await StopAsync();
-        await speechLock.WaitAsync();
+        await StopAsync().ConfigureAwait(false);
+        await speechLock.WaitAsync().ConfigureAwait(false);
         disposed = true;
         try
         {
@@ -499,7 +501,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
 
     private async Task StartPlaybackAsync(long generation, CancellationToken cancellationToken)
     {
-        await lifecycleLock.WaitAsync(cancellationToken);
+        await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task completionTask;
         try
         {
@@ -533,7 +535,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                             "No audio output device is selected."));
                 }
 
-                var player = await playbackBuilder.BuildAsync();
+                var player = await playbackBuilder.BuildAsync().ConfigureAwait(false);
                 lock (stateLock)
                 {
                     playback = player;
@@ -566,7 +568,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             lifecycleLock.Release();
         }
 
-        await completionTask.WaitAsync(cancellationToken);
+        await completionTask.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private void OnSpeakCompleted(object? sender, SpeakCompletedEventArgs eventArgs)
@@ -642,7 +644,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             var audio = await provider.SynthesizeAsync(
                 text,
                 voice.Id,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             audioStream = CreateOutputAudioStream(audio.Samples);
             rawAudioFormat = new WaveFormat(
                 audio.SampleRate,

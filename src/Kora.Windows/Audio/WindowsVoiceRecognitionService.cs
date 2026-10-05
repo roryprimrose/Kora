@@ -201,7 +201,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         var started = false;
         try
         {
-            await lifecycleLock.WaitAsync(cancellationToken);
+            await AcquireLifecycleLockAsync(cancellationToken);
             lifecycleAcquired = true;
             ObjectDisposedException.ThrowIf(disposed, this);
             RequireGeneration(requestedGeneration);
@@ -463,7 +463,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         var acquired = false;
         try
         {
-            await lifecycleLock.WaitAsync(cancellationToken);
+            await AcquireLifecycleLockAsync(cancellationToken);
             acquired = true;
             _ = DisposeCaptureAsync();
             await WaitForResourceQuiescenceAsync(cancellationToken);
@@ -683,7 +683,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
 
         InvalidateCapture();
         Notify(RecognitionFailed, new VoiceRecognitionFailureEventArgs(message, failedGeneration));
-        _ = CleanupAsync(CaptureGeneration);
+        _ = ObserveDetachedCleanupAsync(CleanupAsync(CaptureGeneration));
     }
 
     private void InvalidateGeneration(long expected)
@@ -755,7 +755,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             {
                 completionReason = VoiceRecognitionCompletionReason.EmptySpeechTimeout;
                 InvalidateCapture();
-                _ = CleanupAsync(CaptureGeneration);
+                _ = ObserveDetachedCleanupAsync(CleanupAsync(CaptureGeneration));
             }
         }
     }
@@ -775,7 +775,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             InvalidateGeneration(expected);
         }
 
-        await CleanupAsync(expectedCapture: current);
+        await ObserveDetachedCleanupAsync(CleanupAsync(expectedCapture: current));
     }
 
     private async Task AwaitRecognitionAsync(IActivatedCapture current, long expected, CancellationToken cancellationToken)
@@ -807,7 +807,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     {
         // Recorder release has already started; slower native recognition teardown leaves the event thread.
         await Task.Yield();
-        await lifecycleLock.WaitAsync();
+        await AcquireLifecycleLockAsync(CancellationToken.None);
         try
         {
             if ((!expectedGeneration.HasValue || CaptureGeneration == expectedGeneration.Value) &&
@@ -818,7 +818,13 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            lock (gate)
+            {
+                resourceCleanupFailed = true;
+            }
+
             WindowsLog.Error(logger, exception, "Releasing activated speech resources");
+            throw;
         }
         finally
         {
@@ -1042,6 +1048,22 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
                 throw new InvalidOperationException("Native capture release failed; quiescence is not confirmed.", exception);
             }
         }
+    }
+
+    private async Task AcquireLifecycleLockAsync(CancellationToken cancellationToken)
+    {
+        if (await lifecycleLock.WaitAsync(limits.OpenDeadline, cancellationToken))
+        {
+            return;
+        }
+
+        lock (gate)
+        {
+            resourceCleanupFailed = true;
+        }
+
+        throw new InvalidOperationException(
+            "Native capture lifecycle work did not finish within its deadline. Restart is required before using voice again.");
     }
 
     private void StopCaptureTimers()

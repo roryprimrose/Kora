@@ -135,6 +135,13 @@ stage updates.
 - **cancel the download**
 - **stop generating**
 
+While a local model request is generating or any response is being spoken, the
+response window also shows a separate **Cancel task** button. It stops the
+current model request or speech playback; press **Esc** for the same action
+while the button is visible. **Dismiss** hides the response without cancelling
+model work or stopping speech. **Stop speaking** remains the explicit voice
+command for stopping only speech playback.
+
 ### Stop speech playback
 - **stop speaking**
 - **stop talking**

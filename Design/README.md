@@ -34,6 +34,9 @@ handoff for outstanding speech, storage/key, local-inference, runtime/provider,
 containment and distribution validation. It links
 safe reruns and proof-specific checklists while keeping consent/privilege
 requirements and capability blockers distinct from merging partial research.
+Its [proof-code disposition](Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition)
+also records what must migrate into production tests before an experiment can
+be retired.
 
 [R02 Local Inference Qualification and Technical Plan](Local_Inference.md)
 records partial proof outcomes and their technical consequences. Candidate

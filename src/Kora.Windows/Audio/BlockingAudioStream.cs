@@ -23,8 +23,23 @@ internal sealed class BlockingAudioStream(int maximumBufferedBytes = 64000) : St
 
     public override long Position
     {
-        get => position;
-        set => throw new NotSupportedException();
+        get
+        {
+            lock (sync)
+            {
+                return position;
+            }
+        }
+        set
+        {
+            lock (sync)
+            {
+                if (value != position)
+                {
+                    throw new NotSupportedException();
+                }
+            }
+        }
     }
 
     internal int BufferedBytes
@@ -115,34 +130,39 @@ internal sealed class BlockingAudioStream(int maximumBufferedBytes = 64000) : St
                 return 0;
             }
 
-            while (currentBuffer is null)
+            var totalRead = 0;
+            while (totalRead < count)
             {
-                if (buffers.TryDequeue(out currentBuffer))
+                while (currentBuffer is null)
                 {
-                    currentOffset = 0;
-                    break;
+                    if (buffers.TryDequeue(out currentBuffer))
+                    {
+                        currentOffset = 0;
+                        break;
+                    }
+
+                    if (completed || disposed)
+                    {
+                        return totalRead;
+                    }
+
+                    Monitor.Wait(sync);
                 }
 
-                if (completed || disposed)
+                var bytesToCopy = Math.Min(count - totalRead, currentBuffer.Length - currentOffset);
+                Buffer.BlockCopy(currentBuffer, currentOffset, buffer, offset + totalRead, bytesToCopy);
+                CryptographicOperations.ZeroMemory(currentBuffer.AsSpan(currentOffset, bytesToCopy));
+                currentOffset += bytesToCopy;
+                bufferedBytes -= bytesToCopy;
+                position += bytesToCopy;
+                totalRead += bytesToCopy;
+                if (currentOffset == currentBuffer.Length)
                 {
-                    return 0;
+                    currentBuffer = null;
                 }
-
-                Monitor.Wait(sync);
             }
 
-            var bytesToCopy = Math.Min(count, currentBuffer.Length - currentOffset);
-            Buffer.BlockCopy(currentBuffer, currentOffset, buffer, offset, bytesToCopy);
-            CryptographicOperations.ZeroMemory(currentBuffer.AsSpan(currentOffset, bytesToCopy));
-            currentOffset += bytesToCopy;
-            bufferedBytes -= bytesToCopy;
-            position += bytesToCopy;
-            if (currentOffset == currentBuffer.Length)
-            {
-                currentBuffer = null;
-            }
-
-            return bytesToCopy;
+            return totalRead;
         }
     }
 
@@ -150,7 +170,24 @@ internal sealed class BlockingAudioStream(int maximumBufferedBytes = 64000) : St
     {
     }
 
-    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        lock (sync)
+        {
+            var requestedPosition = origin switch
+            {
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => checked(position + offset),
+                _ => throw new NotSupportedException(),
+            };
+            if (requestedPosition != position)
+            {
+                throw new NotSupportedException();
+            }
+
+            return position;
+        }
+    }
 
     public override void SetLength(long value) => throw new NotSupportedException();
 

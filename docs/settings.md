@@ -7,8 +7,10 @@ Open Settings by:
 - saying **"Kora, open settings"**; or
 - entering **open settings** as a typed command.
 
-The Settings window is single-instance. Changes use the same live application
-state as the presence and response surfaces.
+The Settings window is single-instance. Its title includes the running
+application version as a suffix. Source builds default to version `0.1.0`;
+release builds can override that version during publishing. Changes use the
+same live application state as the presence and response surfaces.
 
 ## Approvals
 
@@ -39,12 +41,23 @@ for you.
 
 The setup queue checks local storage, SQLite, PowerShell 7 (`pwsh.exe`), and
 Ollama/model inference on startup and refresh. A missing or unhealthy PowerShell
-runtime shows a PowerShell setup task. **Review PowerShell 7 setup** explains
+runtime shows a PowerShell setup task. The Readiness page displays the detected
+PowerShell and Ollama/model status without requiring an approval prompt; review
+buttons are shown only when the corresponding dependency needs action.
+**Review PowerShell 7 setup** explains
 the per-user winget installation and asks for explicit consent; installation
 and a no-profile health check run only after approval. **Review local model
 setup** separately asks permission to install Ollama and download the pinned
 qwen3:1.7b model; Kora checks its digest and actual inference before using
-it. Missing local inference opens this tab on startup. PowerShell readiness
+it. Setup shows an indeterminate progress bar while Winget and the runtime are
+starting, then a percentage bar with readable MB/GB transfer totals while the
+model downloads. After transfer, the same area explicitly reports local
+finalization, digest verification, inference testing and readiness refresh.
+A newly installed package gets a bounded grace period to start its own runtime;
+transient startup timeouts are retried before Kora starts a fallback owned
+server. Terminal success or failure replaces the current phase in the same
+status area. Missing local
+inference opens this tab on startup. PowerShell readiness
 does not gate local reasoning or the current C# built-ins. Neither setup button
 grants permission to run an arbitrary script.
 The optional Kokoro speech provider is offered separately and is not a
@@ -103,6 +116,10 @@ feedback**:
   Default: on.
 - **Visible timeout** changes the shared 1-60 second timeout used by both the
   response window and presence.
+- Press **Enter** in the typed-command prompt to run the command.
+- **Cancel task** is visible while local model work or response speech is
+  active. Select it or press **Esc** to stop that work. **Dismiss** only hides
+  the response and does not cancel model work or stop speech.
 
 These choices and the window position are stored on this device.
 

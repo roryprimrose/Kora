@@ -84,8 +84,9 @@ When inference is unavailable or budget-limited, an ambiguous request receives n
 Initial per-profile limits:
 
 - At most one management inference request in flight.
-- Input is capped at 32 KiB of minimal approved request/ledger context; output is capped at 4 KiB and must parse as the typed proposal schema.
-- The host deadline is 15 seconds with no automatic provider retry; the user may retry explicitly.
+- Input selection and the complete serialized outbound model body are each capped at 32 KiB UTF-8 bytes, including system/framing/history overhead; the complete typed proposal JSON is capped at 4 KiB UTF-8 bytes. Output overflow or schema failure degrades explicitly, never truncates into a committed proposal.
+- The host inference deadline is 15 seconds from dispatch, independent of SDK send/abort acknowledgement or provider completion. Setup/authentication are separately cancellable host flows, not hidden inside that allowance.
+- No automatic provider retry is admitted. The initial single-inference management profile forwards at most one inference attempt per request, enforced at the final request boundary; an explicit user retry is a new bounded request. Typed management proposals still reach host validation, but a result-to-model continuation would require a separately proved budget/profile.
 - Remote management is capped at 30 calls per rolling hour. Reaching the cap activates deterministic degraded mode and reports when capacity returns.
 - Provider cost/quota/rate-limit responses never consume task approvals, switch providers, or borrow the execution session.
 - Queue/status controls remain responsive while the provider is offline, signed out, throttled, over budget, or prohibited by local-only policy.
@@ -93,6 +94,23 @@ Initial per-profile limits:
 Provider enablement requires evidence that independently schedulable task and management sessions are allowed by the pinned SDK/API behavior, account tier, terms, and rate limits.
 Record the tested version/tier and estimated worst-case management usage; do not claim concurrent management when the provider serialises or forbids it.
 Users can disable model-assisted management, in which case deterministic choices are always used.
+
+R02's loopback proof passed the byte/deadline boundaries and independent
+conversations, but observed SDK retry attempts despite the error-abort hook;
+the final request gate blocked them. These observations support the host
+envelope above, not an approved hosted provider. Start with a fresh isolated
+management conversation per request; cumulative-history reuse requires its
+own budget/isolation evidence. Unconfirmed termination quarantines the
+affected inference request/conversation rather than releasing its slot based
+only on SDK acknowledgement; deterministic controls remain available.
+
+[R02-MG1 and R02-PV1](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
+separate .NET host-envelope proof from account/provider permission, actual
+concurrency, service quotas and billed-cost validation. The
+[technical continuation](Runtime_Provider_Feasibility.md#management-remains-optional-and-host-bounded)
+does not expand the experiment's status-only schema into production approval
+or execution authority. Implement deterministic management first; do not
+make it wait for hosted-model enablement.
 
 ## Authoritative Work Ledger
 

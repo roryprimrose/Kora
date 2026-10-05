@@ -1,0 +1,214 @@
+{
+  "recordedAt": "2026-10-05T05:19:55.489Z",
+  "sdk": "@github/copilot-sdk@1.0.16",
+  "bundledRuntime": "1.0.90",
+  "executableSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+  "payloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+  "node": "v24.16.0",
+  "npm": "11.13.0",
+  "typescript": "5.9.3",
+  "environment": {
+    "platform": "win32",
+    "osRelease": "10.0.26300",
+    "arch": "x64",
+    "cpu": "AMD RYZEN AI MAX 385 w/ Radeon 8050S           "
+  },
+  "data": "synthetic only",
+  "provider": "in-process scripted HTTP/SSE loopback; not a live model",
+  "productionReady": false,
+  "rows": [
+    {
+      "id": "initial-context",
+      "status": "PASS",
+      "detail": "Actual SDK prompt hooks filtered denied context before captured HTTP egress.",
+      "measurements": {
+        "deniedOutbound": 0,
+        "requests": 1,
+        "submittedHooks": 1,
+        "transformedHooks": 1
+      }
+    },
+    {
+      "id": "streaming-and-auth-transport",
+      "status": "PASS",
+      "detail": "Actual SSE deltas and idle event; synthetic auth is present only in a header, absent from model payload.",
+      "measurements": {
+        "deltas": 2,
+        "runtime": "1.0.90",
+        "protocol": 3
+      }
+    },
+    {
+      "id": "collection-and-session-persistence",
+      "status": "PASS",
+      "detail": "No advertised built-ins or discovered instruction canary; session files routed to volatile host FS, with no context markers found in the scoped runtime directory.",
+      "measurements": {
+        "advertisedTools": 0,
+        "deniedCollectionOutbound": 0,
+        "volatileWrites": 2,
+        "diskFiles": [
+          "home\\AppData\\Local\\Microsoft\\PowerShell\\StartupProfileData-NonInteractive",
+          "workspace\\AGENTS.md"
+        ],
+        "diskMarkerFiles": 0
+      }
+    },
+    {
+      "id": "denied-tool",
+      "status": "PASS",
+      "detail": "Actual SDK pre-tool gate denied the proposal before its harmless counter handler.",
+      "measurements": {
+        "deniedEffects": 0,
+        "preToolGates": 1,
+        "requests": 2
+      }
+    },
+    {
+      "id": "subsequent-tool-result",
+      "status": "PASS",
+      "detail": "Actual post-tool hook withheld denied content while retaining a truthful synthetic read receipt.",
+      "measurements": {
+        "admittedReads": 1,
+        "postHooks": 1,
+        "requests": 2,
+        "deniedOutbound": 0
+      }
+    },
+    {
+      "id": "hook-only-failed-result-egress",
+      "status": "FAIL",
+      "detail": "Success post-tool hook does not mediate failure output. Failure hook adds guidance only. The final request boundary blocked the unsafe continuation; hook-only integration must remain disabled.",
+      "measurements": {
+        "successHooks": 0,
+        "failureHooks": 1,
+        "interceptedBlocked": 1,
+        "deniedOutbound": 0,
+        "requests": 1
+      }
+    },
+    {
+      "id": "final-boundary-failed-result-egress",
+      "status": "PASS",
+      "detail": "Supported experimental model request handler observed and rejected the unredacted failed result before forwarding any HTTP payload to the synthetic provider.",
+      "measurements": {
+        "deniedOutbound": 0,
+        "blockedContinuations": 1
+      }
+    },
+    {
+      "id": "authentication-throttling-errors",
+      "status": "PASS",
+      "detail": "Synthetic 401/429/500 produce explicit SDK errors and deterministic fallback; host boundary prevents any second management HTTP attempt.",
+      "measurements": {
+        "outcomes": [
+          "401:provider-error",
+          "429:provider-error",
+          "500:provider-error"
+        ],
+        "forwardedRequests": 3,
+        "blockedRetries": 3
+      }
+    },
+    {
+      "id": "independent-lanes-and-provider-isolation",
+      "status": "PASS",
+      "detail": "Management completed on a separate provider/session while one execution tool and a second execution inference were blocked; no task context/tool leakage. Three independent SDK conversations, not three production execution slots.",
+      "measurements": {
+        "managementMs": 173,
+        "executionConversations": 2,
+        "executionRequests": 2,
+        "managementRequests": 1,
+        "managementTools": 0
+      }
+    },
+    {
+      "id": "truthful-cancellation",
+      "status": "PASS",
+      "detail": "Host cancellation returned immediately, suppressed late egress, and did not claim rollback: already-admitted non-cooperative tool completed after cancellation.",
+      "measurements": {
+        "abortAcknowledged": true,
+        "abortFailed": false,
+        "admittedLateEffects": 1,
+        "lateOutbound": 0,
+        "suppressedLateEvents": 0,
+        "toolOutcomeAtCancel": "unknown"
+      }
+    },
+    {
+      "id": "management-real-deadline-output",
+      "status": "PASS",
+      "detail": "Actual SDK streamed output overflow is rejected; real held HTTP inference returns fallback at 15 seconds without awaiting the provider or retrying.",
+      "measurements": {
+        "deadlineMs": 15011,
+        "deadlineLimitMs": 15000,
+        "inputLimitBytes": 32768,
+        "outputLimitBytes": 4096,
+        "forwardedRequests": 2,
+        "oversizedInputRequests": 0
+      }
+    },
+    {
+      "id": "management-exact-byte-boundaries",
+      "status": "PASS",
+      "detail": "Actual outbound JSON body accepted at 32768 bytes and rejected at 32769 before provider egress. Typed multibyte UTF-8 output accepted at exactly 4096 bytes; overflow covered separately.",
+      "measurements": {
+        "acceptedInputBytes": 32768,
+        "rejectedInputBytes": 32769,
+        "acceptedOutputBytes": 4096,
+        "overLimitForwarded": 0
+      }
+    },
+    {
+      "id": "unadvertised-built-in",
+      "status": "PASS",
+      "detail": "A synthetic model proposal for excluded PowerShell produced a failed tool receipt, not execution. Runtime initialization still writes PowerShell startup metadata, so this is not an OS no-write claim.",
+      "measurements": {
+        "advertisedTools": 0,
+        "failedToolReceipts": 1,
+        "successfulBuiltInResults": 0,
+        "deniedCollectionOutbound": 0,
+        "diskFiles": [
+          "home\\AppData\\Local\\Microsoft\\PowerShell\\StartupProfileData-NonInteractive",
+          "workspace\\AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "management-host-admission",
+      "status": "PASS",
+      "detail": "Deterministic host tests: one in-flight request, 30 calls per rolling hour, exact expiry, local-only denial and fail-closed quarantine after unconfirmed termination. Not provider quota evidence.",
+      "measurements": {
+        "remoteCallsPerHour": 30,
+        "inFlightLimit": 1,
+        "rollingWindowMs": 3600000,
+        "oversizedUtf8InputBytes": 32769
+      }
+    },
+    {
+      "id": "global-egress-and-diagnostics",
+      "status": "BLOCKED",
+      "detail": "Supported handler observes model HTTP only. No OS-level all-network/file trace was performed; background service, crash dump, OS diagnostics and undeclared destinations are not proven absent.",
+      "measurements": {
+        "productionEnabled": false
+      }
+    },
+    {
+      "id": "hosted-auth-account-terms-and-service",
+      "status": "BLOCKED",
+      "detail": "User approved no-account loopback only. No live login, account tier, provider terms eligibility, service quota/rate limit, cost or hosted concurrency was validated.",
+      "measurements": {
+        "liveInferenceCalls": 0,
+        "provisionedResources": 0,
+        "modelChargesUSD": 0
+      }
+    },
+    {
+      "id": "dotnet-adapter-parity",
+      "status": "BLOCKED",
+      "detail": "Node candidate only. Kora's production .NET adapter/composition is deliberately untouched; equivalent .NET control points require separate evidence.",
+      "measurements": {
+        "productionEnabled": false
+      }
+    }
+  ]
+}

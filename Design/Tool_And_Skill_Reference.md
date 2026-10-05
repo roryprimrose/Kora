@@ -36,6 +36,13 @@ R10 consumes measured per-volume requirements and compatibility from the
 [R02 continuation](Implementation_Roadmap.md#r02-local-inference-continuation).
 No new tool or production capability is introduced by that proof.
 
+The [R02 runtime/provider outcomes](Runtime_Provider_Feasibility.md) establish
+an experimental control-point candidate, not new registered tools. Host
+authorization, all-status result sanitization and final serialized-request
+egress checks are required; a success-only SDK tool hook cannot mediate
+failed results. Runtime availability must retain the pending .NET,
+global-observation and account/provider gates.
+
 The **Current host behavior** column means:
 
 - **Current:** the listed host behavior exists through an exact command or UI.
@@ -197,6 +204,10 @@ user waits. Full queues never evict silently. Failed/cancelled/unknown work
 pauses affected dispatch without cancelling unrelated sessions.
 Remote management is independently bounded to one request, 32 KiB input,
 4 KiB output, 15 seconds, and 30 calls per rolling hour per profile.
+These are UTF-8 byte bounds on the complete outbound model body and typed
+proposal JSON, with a host dispatch deadline and at most one forwarded
+inference attempt; SDK retries do not enlarge the allowance. See the
+[management envelope](Work_Management.md#management-operating-envelope-and-degraded-mode).
 
 ## 4. Audio, Listening, Calls, and Notifications
 

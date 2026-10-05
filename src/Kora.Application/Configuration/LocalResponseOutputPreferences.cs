@@ -1,31 +1,51 @@
+using Kora.Application.Diagnostics;
 using Kora.Core.Dependencies;
 using Kora.Core.Voice;
-using Kora.Application.Diagnostics;
 
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Configuration;
 
-public sealed class LocalResponseOutputPreferences(
-    IApplicationDataPaths paths,
-    ILogger<LocalResponseOutputPreferences> logger) : IResponseOutputPreferences
+public sealed class LocalResponseOutputPreferences : IResponseOutputPreferences
 {
-    private readonly string preferenceDirectory = Path.Combine(paths.LocalRoot, "Preferences");
-    private readonly string preferencePath = Path.Combine(paths.LocalRoot, "Preferences", "response-output-mode.txt");
-    private readonly string mutedOutputFallbackPath = Path.Combine(paths.LocalRoot, "Preferences", "muted-output-visual-fallback.txt");
+    private const string DefaultModeFileName = "response-output-mode.txt";
+    private const string MutedOutputFallbackFileName =
+        "muted-output-visual-fallback.txt";
+    private readonly IPreferenceStore store;
+    private readonly ILogger<LocalResponseOutputPreferences> logger;
+
+    public LocalResponseOutputPreferences(
+        IApplicationDataPaths paths,
+        ILogger<LocalResponseOutputPreferences> logger)
+        : this(new LocalPreferenceStore(paths), logger)
+    {
+    }
+
+    internal LocalResponseOutputPreferences(
+        IPreferenceStore store,
+        ILogger<LocalResponseOutputPreferences> logger)
+    {
+        this.store = store;
+        this.logger = logger;
+    }
 
     public ResponseOutputMode? LoadDefaultMode()
     {
-        if (!File.Exists(preferencePath))
+        var contents = store.ReadText(DefaultModeFileName);
+        if (contents is null)
         {
             return null;
         }
 
-        var value = File.ReadAllText(preferencePath).Trim();
-        var result = Enum.TryParse<ResponseOutputMode>(value, ignoreCase: true, out var mode)
-               && Enum.IsDefined(mode)
+        var value = contents.Trim();
+        var result = Enum.TryParse<ResponseOutputMode>(
+                value,
+                ignoreCase: true,
+                out var mode)
+            && Enum.IsDefined(mode)
             ? mode
-            : throw new InvalidDataException($"The saved response output mode '{value}' is invalid.");
+            : throw new InvalidDataException(
+                $"The saved response output mode '{value}' is invalid.");
         ApplicationLog.Debug(logger, "Loaded the default response output mode");
         return result;
     }
@@ -34,28 +54,30 @@ public sealed class LocalResponseOutputPreferences(
     {
         if (!Enum.IsDefined(mode))
         {
-            throw new ArgumentOutOfRangeException(nameof(mode), mode, "The response output mode is invalid.");
+            throw new ArgumentOutOfRangeException(
+                nameof(mode),
+                mode,
+                "The response output mode is invalid.");
         }
 
-        Directory.CreateDirectory(preferenceDirectory);
-        var temporaryPath = Path.Combine(preferenceDirectory, "response-output-mode.tmp");
-        File.WriteAllText(temporaryPath, mode.ToString());
-        File.Move(temporaryPath, preferencePath, overwrite: true);
+        store.WriteText(DefaultModeFileName, mode.ToString());
         ApplicationLog.Information(logger, "Saved the default response output mode");
     }
 
     public bool? LoadMutedOutputVisualFallback()
     {
-        if (!File.Exists(mutedOutputFallbackPath))
+        var contents = store.ReadText(MutedOutputFallbackFileName);
+        if (contents is null)
         {
             return null;
         }
 
-        var enabled = File.ReadAllText(mutedOutputFallbackPath).Trim() switch
+        var enabled = contents.Trim() switch
         {
             "0" => false,
             "1" => true,
-            var value => throw new InvalidDataException($"The saved muted-output visual fallback '{value}' is invalid."),
+            var value => throw new InvalidDataException(
+                $"The saved muted-output visual fallback '{value}' is invalid."),
         };
         ApplicationLog.Debug(logger, "Loaded the muted-output visual fallback");
         return enabled;
@@ -63,10 +85,7 @@ public sealed class LocalResponseOutputPreferences(
 
     public void SaveMutedOutputVisualFallback(bool enabled)
     {
-        Directory.CreateDirectory(preferenceDirectory);
-        var temporaryPath = Path.Combine(preferenceDirectory, "muted-output-visual-fallback.tmp");
-        File.WriteAllText(temporaryPath, enabled ? "1" : "0");
-        File.Move(temporaryPath, mutedOutputFallbackPath, overwrite: true);
+        store.WriteText(MutedOutputFallbackFileName, enabled ? "1" : "0");
         ApplicationLog.Information(logger, "Saved the muted-output visual fallback");
     }
 }

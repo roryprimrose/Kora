@@ -6,20 +6,30 @@ using Kora.Core.Dependencies;
 
 namespace Kora.Application.Configuration;
 
-public sealed class LocalModelApprovalPreferences(IApplicationDataPaths paths)
-    : IModelApprovalPreferences
+public sealed class LocalModelApprovalPreferences : IModelApprovalPreferences
 {
     private const int Version = 1;
     private static readonly JsonSerializerOptions Options = new()
     {
         Converters = { new JsonStringEnumConverter<BuiltInAction>() },
     };
-    private readonly string directory = Path.Combine(paths.LocalRoot, "Preferences");
-    private readonly string path = Path.Combine(paths.LocalRoot, "Preferences", "model-approvals.json");
+    private const string FileName = "model-approvals.json";
+    private readonly IPreferenceStore store;
+
+    public LocalModelApprovalPreferences(IApplicationDataPaths paths)
+        : this(new LocalPreferenceStore(paths))
+    {
+    }
+
+    internal LocalModelApprovalPreferences(IPreferenceStore store)
+    {
+        this.store = store;
+    }
 
     public ModelApprovalPreferences Load()
     {
-        if (!File.Exists(path))
+        var contents = store.ReadText(FileName);
+        if (contents is null)
         {
             return new ModelApprovalPreferences(true, []);
         }
@@ -27,7 +37,7 @@ public sealed class LocalModelApprovalPreferences(IApplicationDataPaths paths)
         JsonDocument document;
         try
         {
-            document = JsonDocument.Parse(File.ReadAllText(path));
+            document = JsonDocument.Parse(contents);
         }
         catch (JsonException exception)
         {
@@ -80,16 +90,15 @@ public sealed class LocalModelApprovalPreferences(IApplicationDataPaths paths)
             throw new ArgumentException("Model approval grants must be unique registered actions.", nameof(preferences));
         }
 
-        Directory.CreateDirectory(directory);
-        var temporaryPath = Path.Combine(directory, "model-approvals.tmp");
-        File.WriteAllText(
-            temporaryPath,
-            JsonSerializer.Serialize(new
-            {
-                Version,
-                preferences.RequireAssistantNameForVoiceApproval,
-                preferences.AlwaysAllowedActions,
-            }, Options));
-        File.Move(temporaryPath, path, overwrite: true);
+        store.WriteText(
+            FileName,
+            JsonSerializer.Serialize(
+                new
+                {
+                    Version,
+                    preferences.RequireAssistantNameForVoiceApproval,
+                    preferences.AlwaysAllowedActions,
+                },
+                Options));
     }
 }

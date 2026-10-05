@@ -6,21 +6,36 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Configuration;
 
-public sealed class LocalVoiceConsentPreferences(
-    IApplicationDataPaths paths,
-    ILogger<LocalVoiceConsentPreferences> logger) : IVoiceConsentPreferences
+public sealed class LocalVoiceConsentPreferences : IVoiceConsentPreferences
 {
-    private readonly string directory = Path.Combine(paths.LocalRoot, "Preferences");
+    private const string FileName = "voice-consent.txt";
+    private readonly IPreferenceStore store;
+    private readonly ILogger<LocalVoiceConsentPreferences> logger;
+
+    public LocalVoiceConsentPreferences(
+        IApplicationDataPaths paths,
+        ILogger<LocalVoiceConsentPreferences> logger)
+        : this(new LocalPreferenceStore(paths), logger)
+    {
+    }
+
+    internal LocalVoiceConsentPreferences(
+        IPreferenceStore store,
+        ILogger<LocalVoiceConsentPreferences> logger)
+    {
+        this.store = store;
+        this.logger = logger;
+    }
 
     public bool? Load()
     {
-        var path = Path.Combine(directory, "voice-consent.txt");
-        if (!File.Exists(path))
+        var contents = store.ReadText(FileName);
+        if (contents is null)
         {
             return null;
         }
 
-        var value = File.ReadAllText(path).Trim();
+        var value = contents.Trim();
         ApplicationLog.Information(logger, "Loaded the device-local ongoing voice consent preference");
         return value switch
         {
@@ -32,10 +47,7 @@ public sealed class LocalVoiceConsentPreferences(
 
     public void Save(bool consent)
     {
-        Directory.CreateDirectory(directory);
-        var temporaryPath = Path.Combine(directory, "voice-consent.tmp");
-        File.WriteAllText(temporaryPath, consent ? "granted-v1" : "declined-v1");
-        File.Move(temporaryPath, Path.Combine(directory, "voice-consent.txt"), overwrite: true);
+        store.WriteText(FileName, consent ? "granted-v1" : "declined-v1");
         ApplicationLog.Information(logger, "Saved the explicit ongoing voice consent preference");
     }
 }

@@ -6,26 +6,38 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Configuration;
 
-public sealed class LocalAssistantNamePreferences(
-    IApplicationDataPaths paths,
-    ILogger<LocalAssistantNamePreferences> logger) : IAssistantNamePreferences
+public sealed class LocalAssistantNamePreferences : IAssistantNamePreferences
 {
     private const string FileName = "assistant-name.txt";
-    private const string TemporaryFileName = "assistant-name.tmp";
+    private readonly IPreferenceStore store;
+    private readonly ILogger<LocalAssistantNamePreferences> logger;
 
-    private readonly string preferenceDirectory = Path.Combine(paths.LocalRoot, "Preferences");
+    public LocalAssistantNamePreferences(
+        IApplicationDataPaths paths,
+        ILogger<LocalAssistantNamePreferences> logger)
+        : this(new LocalPreferenceStore(paths), logger)
+    {
+    }
+
+    internal LocalAssistantNamePreferences(
+        IPreferenceStore store,
+        ILogger<LocalAssistantNamePreferences> logger)
+    {
+        this.store = store;
+        this.logger = logger;
+    }
 
     public string? LoadName()
     {
-        var path = Path.Combine(preferenceDirectory, FileName);
-        if (!File.Exists(path))
+        var contents = store.ReadText(FileName);
+        if (contents is null)
         {
             return null;
         }
 
         try
         {
-            var name = AssistantNameRules.Normalize(File.ReadAllText(path));
+            var name = AssistantNameRules.Normalize(contents);
             ApplicationLog.AssistantNamePreferenceLoaded(logger);
             return name;
         }
@@ -38,13 +50,7 @@ public sealed class LocalAssistantNamePreferences(
     public void SaveName(string name)
     {
         var normalizedName = AssistantNameRules.Normalize(name);
-        Directory.CreateDirectory(preferenceDirectory);
-        var temporaryPath = Path.Combine(preferenceDirectory, TemporaryFileName);
-        File.WriteAllText(temporaryPath, normalizedName);
-        File.Move(
-            temporaryPath,
-            Path.Combine(preferenceDirectory, FileName),
-            overwrite: true);
+        store.WriteText(FileName, normalizedName);
         ApplicationLog.AssistantNamePreferenceSaved(logger);
     }
 }

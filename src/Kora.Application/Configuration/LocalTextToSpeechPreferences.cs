@@ -6,43 +6,49 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Configuration;
 
-public sealed class LocalTextToSpeechPreferences(
-    IApplicationDataPaths paths,
-    ILogger<LocalTextToSpeechPreferences> logger) : ITextToSpeechPreferences
+public sealed class LocalTextToSpeechPreferences : ITextToSpeechPreferences
 {
-    private readonly string preferenceDirectory = Path.Combine(paths.LocalRoot, "Preferences");
-    private readonly string providerPreferencePath =
-        Path.Combine(paths.LocalRoot, "Preferences", "speech-provider.txt");
-    private readonly string preferencePath = Path.Combine(paths.LocalRoot, "Preferences", "speech-voice.txt");
+    private const string ProviderFileName = "speech-provider.txt";
+    private const string VoiceFileName = "speech-voice.txt";
+    private readonly IPreferenceStore store;
+    private readonly ILogger<LocalTextToSpeechPreferences> logger;
+
+    public LocalTextToSpeechPreferences(
+        IApplicationDataPaths paths,
+        ILogger<LocalTextToSpeechPreferences> logger)
+        : this(new LocalPreferenceStore(paths), logger)
+    {
+    }
+
+    internal LocalTextToSpeechPreferences(
+        IPreferenceStore store,
+        ILogger<LocalTextToSpeechPreferences> logger)
+    {
+        this.store = store;
+        this.logger = logger;
+    }
 
     public string? LoadProviderId() =>
-        LoadIdentifier(providerPreferencePath, "speech provider");
+        LoadIdentifier(ProviderFileName, "speech provider");
 
     public void SaveProviderId(string providerId) =>
-        SaveIdentifier(
-            providerPreferencePath,
-            "speech-provider.tmp",
-            providerId,
-            "speech provider");
+        SaveIdentifier(ProviderFileName, providerId, "speech provider");
 
     public string? LoadVoiceId()
-        => LoadIdentifier(preferencePath, "speech voice");
+        => LoadIdentifier(VoiceFileName, "speech voice");
 
     public void SaveVoiceId(string voiceId) =>
-        SaveIdentifier(
-            preferencePath,
-            "speech-voice.tmp",
-            voiceId,
-            "speech voice");
+        SaveIdentifier(VoiceFileName, voiceId, "speech voice");
 
-    private string? LoadIdentifier(string path, string preferenceName)
+    private string? LoadIdentifier(string fileName, string preferenceName)
     {
-        if (!File.Exists(path))
+        var contents = store.ReadText(fileName);
+        if (contents is null)
         {
             return null;
         }
 
-        var identifier = File.ReadAllText(path).Trim();
+        var identifier = contents.Trim();
         var result = string.IsNullOrWhiteSpace(identifier)
             ? throw new InvalidDataException($"The saved {preferenceName} preference is empty.")
             : identifier;
@@ -51,17 +57,13 @@ public sealed class LocalTextToSpeechPreferences(
     }
 
     private void SaveIdentifier(
-        string path,
-        string temporaryFileName,
+        string fileName,
         string identifier,
         string preferenceName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
 
-        Directory.CreateDirectory(preferenceDirectory);
-        var temporaryPath = Path.Combine(preferenceDirectory, temporaryFileName);
-        File.WriteAllText(temporaryPath, identifier);
-        File.Move(temporaryPath, path, overwrite: true);
+        store.WriteText(fileName, identifier);
         ApplicationLog.Information(logger, $"Saved the {preferenceName} preference");
     }
 }

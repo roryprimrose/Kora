@@ -26,7 +26,9 @@ Restore, build, and test with the pinned SDK and locked dependencies:
 dotnet restore .\Kora.slnx --locked-mode
 dotnet tool restore
 dotnet build .\Kora.slnx --configuration Release --no-restore
-dotnet test .\Kora.slnx --configuration Release --no-build
+dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
+dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 
 Run the dependency-license gate before adding or upgrading a package:

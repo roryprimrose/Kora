@@ -285,6 +285,7 @@
                       PointerPressed="OnPushToTalkPressed"
                       PointerReleased="OnPushToTalkReleased"
                       PointerCaptureLost="OnPushToTalkCaptureLost"
+                      LostFocus="OnPushToTalkFocusLost"
                       KeyDown="OnPushToTalkKeyDown"
                       KeyUp="OnPushToTalkKeyUp" />
                 </StackPanel>

@@ -1315,7 +1315,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private AudioOutputDevice? EffectiveOutputDevice =>
         SelectedOutputDevice?.IsSystemDefault == true
             ? systemDefaultOutputDevice
-            : SelectedOutputDevice;
+            : SelectedOutputDevice is not null && OutputDevices.Contains(SelectedOutputDevice)
+                ? SelectedOutputDevice : null;
 
     public bool IsVisualResponseVisible =>
         IsCallVisualOverrideActive
@@ -1582,7 +1583,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 voiceConsent = voiceConsentPreferences.Load();
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 ApplicationLog.Error(logger, exception, "Loading ongoing voice consent");
                 voiceConsent = false;
@@ -4513,7 +4514,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (exception.Reason == AudioOutputFailureReason.Muted
             && SelectedOutputDevice is not null)
         {
-            SelectedOutputDevice = SelectedOutputDevice with { IsMuted = true };
+            var mutedOutput = SelectedOutputDevice with { IsMuted = true };
+            var outputIndex = OutputDevices.IndexOf(SelectedOutputDevice);
+            suppressAudioDevicePreferenceSave = true;
+            try
+            {
+                if (outputIndex >= 0)
+                {
+                    OutputDevices[outputIndex] = mutedOutput;
+                }
+                SelectedOutputDevice = mutedOutput;
+            }
+            finally
+            {
+                suppressAudioDevicePreferenceSave = false;
+            }
             if (preserveResponseOnMute)
             {
                 RevealMutedResponse();

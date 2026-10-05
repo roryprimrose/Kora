@@ -6414,7 +6414,7 @@ public sealed partial class MainViewModelTests
         {
             public bool? Consent { get; set; } = true;
 
-            public IOException? Failure { get; set; }
+            public Exception? Failure { get; set; }
 
             public bool? Load() => Failure is { } error ? throw error : Consent;
 

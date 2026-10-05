@@ -36,16 +36,20 @@ public sealed partial class MainViewModel
         }
         if (Interlocked.Exchange(ref observedTopologyRevision, snapshot.TopologyRevision) != snapshot.TopologyRevision)
         {
-            if (textToSpeech.IsSpeaking)
-            {
-                textToSpeech.InvalidateOutput();
-                privacyClosureTask = StopOutputAfterTopologyChangeAsync();
-            }
             uiDispatcher.Post(() =>
             {
                 _ = RefreshMicrophonesAsync();
                 RefreshOutputEndpoints();
             });
+        }
+    }
+
+    private void InvalidateUnavailableOutput()
+    {
+        if (textToSpeech.IsSpeaking)
+        {
+            textToSpeech.InvalidateOutput();
+            privacyClosureTask = StopOutputAfterTopologyChangeAsync();
         }
     }
 
@@ -93,10 +97,15 @@ public sealed partial class MainViewModel
             PreviewVoiceCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
+            if (EffectiveOutputDevice is not { IsMuted: false })
+            {
+                InvalidateUnavailableOutput();
+            }
             return true;
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException)
         {
+            InvalidateUnavailableOutput();
             ApplicationLog.Error(logger, exception, "Refreshing Windows output endpoint availability");
             ShowFailure("Audio output is unavailable.", exception.Message);
             return false;

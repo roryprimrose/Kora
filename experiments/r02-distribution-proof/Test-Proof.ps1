@@ -55,6 +55,65 @@ Expect-Failure 'Mutable branch selection refused' { Invoke-ManagedSource $root $
 Invoke-Checked 'git' @('-C', $fixture, 'add', 'input.txt')
 Invoke-Checked 'git' @('-C', $fixture, '-c', 'core.hooksPath=', '-c', 'commit.gpgsign=false', 'commit', '-m', 'Second synthetic revision')
 $second = (& git -C $fixture rev-parse HEAD | Out-String).Trim()
+$originalRevision = $revision
+foreach ($change in 'revision', 'origin', 'tracked', 'untracked') {
+    $changedRoot = Join-Path $OutputDirectory "managed-$change-change"
+    Invoke-ManagedSource $changedRoot $fixture $revision $build
+    $previousReceipt = Join-Path $changedRoot "deployments\$revision\deployment.json"
+    $previousHash = (Get-FileHash -LiteralPath $previousReceipt).Hash
+    $message = switch ($change) {
+        'revision' { 'Checkout revision changed' }
+        'origin' { 'Checkout origin changed' }
+        default { 'local edits/untracked files' }
+    }
+    Expect-Failure "Post-build $change change refused before promotion" {
+        Invoke-ManagedSource $changedRoot $fixture $second {
+            param($checkout, $payload, $stage)
+            switch ($change) {
+                'revision' {
+                    Invoke-Checked 'git' @('-C', $checkout, '-c', 'core.hooksPath=', 'checkout', '--detach', $originalRevision)
+                }
+                'origin' { Invoke-Checked 'git' @('-C', $checkout, 'remote', 'set-url', 'origin', 'changed-origin') }
+                'tracked' { 'changed during build' | Set-Content -LiteralPath (Join-Path $checkout 'input.txt') }
+                'untracked' { 'new during build' | Set-Content -LiteralPath (Join-Path $checkout 'untracked.txt') }
+            }
+            & $build $checkout $payload $stage
+        }
+    } $message
+    if (Test-Path -LiteralPath (Join-Path $changedRoot "deployments\$second")) {
+        throw 'Changed source was promoted under the requested revision.'
+    }
+    if ((Get-FileHash -LiteralPath $previousReceipt).Hash -ne $previousHash) {
+        throw 'Post-build source change modified the previous deployment.'
+    }
+    $stages = @(Get-ChildItem -LiteralPath (Join-Path $changedRoot 'staging') -Directory)
+    if ($stages.Count -ne 1 -or !(Test-Path -LiteralPath (Join-Path $stages[0].FullName 'payload\fixture.txt'))) {
+        throw 'Rejected build staging was not retained for operator review.'
+    }
+    $changedCheckout = Join-Path $changedRoot "checkouts\$second"
+    switch ($change) {
+        'revision' {
+            if ((& git -C $changedCheckout rev-parse HEAD | Out-String).Trim() -cne $revision) {
+                throw 'Changed checkout revision was not preserved.'
+            }
+        }
+        'origin' {
+            if ((& git -C $changedCheckout remote get-url origin | Out-String).Trim() -cne 'changed-origin') {
+                throw 'Changed checkout origin was not preserved.'
+            }
+        }
+        'tracked' {
+            if ((Get-Content -LiteralPath (Join-Path $changedCheckout 'input.txt') -Raw).Trim() -cne 'changed during build') {
+                throw 'Post-build tracked edit was not preserved.'
+            }
+        }
+        'untracked' {
+            if (!(Test-Path -LiteralPath (Join-Path $changedCheckout 'untracked.txt'))) {
+                throw 'Post-build untracked file was not preserved.'
+            }
+        }
+    }
+}
 Expect-Failure 'Build failure keeps previous output' {
     Invoke-ManagedSource $root $fixture $second { throw 'synthetic publish failure' }
 } 'synthetic publish failure'

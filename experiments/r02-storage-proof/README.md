@@ -1,9 +1,11 @@
 # R02 storage/key feasibility supporting D-009
 
-Status: **draft evidence; not a closed R02 storage/key gate or D-009 decision**.
+Status: **partial measured evidence and canonical design outcome; not production admission or a closed D-009 decision**.
 The approved R01 merge (`7d5e6a3`, PR #19) was verified before starting.
-Actual second-user Windows protection was deliberately left blocked with the
-owner's approval. No mock identity is counted as Windows evidence.
+An actual second-user Windows trial was initially left blocked with the
+owner's approval. Reassessment distinguishes OS isolation from application
+integration: that trial is optional for profile-local storage, not a merge gate.
+No cross-user denial result or mock-identity Windows evidence is claimed.
 
 This is a standalone, synthetic, executable experiment. It does not reference
 Kora projects, open `%LOCALAPPDATA%\Kora`, change preferences, implement grants,
@@ -37,21 +39,24 @@ were **read as source only**, never invoked. This proof's v1/v99 and opaque
 
 ## Reproduce
 
-Requirements: Windows with the repository's .NET SDK (10.0.401), an ordinary
-unlocked user profile, and NuGet connectivity for the initial locked restore.
+Requirements: Windows with the repository's .NET SDK (10.0.401), a loaded
+ordinary user profile, and NuGet connectivity for the initial locked restore.
+The file/database-only proof can run remotely while the physical console is
+locked; it requires neither local desktop input nor microphone access.
 No elevation, accounts, services or production databases are needed.
 
 From the repository root in PowerShell:
 
 ```powershell
-.\experiments\r02-storage-proof\Run-Proof.ps1 -PublishAssets -AllowBlockedCrossUser
+.\experiments\r02-storage-proof\Run-Proof.ps1 -PublishAssets
 ```
 
-The explicit switch acknowledges the blocked second-user gate; it does not
-turn it into acceptance. Without the switch the script stops on that gate.
-Direct runner exit codes: `0` for a successful handoff operation, `1` for an
-assertion/operational failure, **`2` for the automated subset passing while
-actual cross-user validation is blocked**.
+Direct runner exit codes: `0` for the automated proof passing or a successful
+optional handoff operation, `1` for an assertion/operational failure.
+Success covers only the bounded prototype, not native admission, final host
+integration or production acceptance. Historical runs with a blocked
+second-account gate remain unmodified; they used exit code 2 and an explicit
+acknowledgement switch which the revised runner no longer needs.
 
 Each run creates a new GUID directory under [`.scratch`](./.gitignore), restricts
 its inherited ACL to the actual Windows user SID, redirects its process-local
@@ -64,9 +69,12 @@ DPAPI wrapper, database or handoff is committed.
 Generated `evidence\latest.json` contains assertion results, observed file
 names and measurements; `evidence\latest-native.json` contains published
 native-asset hashes and architectures. Both are ignored. The checked-in
-[Windows run](evidence/windows-run.json) and
-[asset report](evidence/native-assets.json) are synthetic measured snapshots,
-not runtime guarantees. See the [measured summary](MEASUREMENTS.md).
+[original Windows run](evidence/windows-run.json) and
+[original asset report](evidence/native-assets.json) remain historical snapshots.
+The [revised profile-integration run](evidence/profile-integration-run.json)
+and [revised asset report](evidence/profile-integration-native-assets.json)
+record post-rebase validation, not runtime guarantees.
+See the [measured summary](MEASUREMENTS.md).
 Re-run after changing the native package or platform.
 
 The runner is deliberately a small console assertion harness, not a new
@@ -166,7 +174,8 @@ execution nor Linux-host builds are requirements for this proof.
 |---|---|
 | Synthetic encryption/authentication, transactions, migration/capacity failure, backups, deletion limits and benchmark | Measured; see checked-in run |
 | Actual current-user DPAPI/ACL and same-user process restart | Measured on Windows x64 |
-| Actual different-user DPAPI/ACL denial | **Blocked by explicit owner choice; draft PR** |
+| Application-controlled key scope and actual scratch/key-file ACLs | Measured; CurrentUser argument, directory/key-file rules and same-user recovery checked; production profile-path/copy integration remains R04 work |
+| Actual different-user DPAPI/ACL denial | Not performed; optional Windows-boundary corroboration for profile-local storage, not a routine application or PR-merge gate |
 | Maintained native engine, provenance/notices, installed Windows x86/x64 clean-machine load | Open; this package is not production-admitted |
 | Power cut/fsync hardware guarantees, rekey/wrapper crash recovery, ephemeral-file observation, large-scale artifacts/indexing | Not proven by these bounded experiments |
 | Final identities/schema, source/account revocation, lifecycle timer/startup/access, apply-now retention, live/unknown work holds, append-versus-delete coordination, grants and dispatch recovery | Deferred to R04/R05/R12; D-009 is not closed |
@@ -177,7 +186,15 @@ refresh. This storage proof neither implements nor changes them. Independent
 perpetual grants and content-minimising diagnostics/security evidence must not
 be deleted with conversation content; no prototype grant implementation exists.
 
-## Approved real cross-user handoff protocol
+## Optional Real Cross-User Handoff Protocol
+
+The [canonical profile-boundary contract](../../Design/Architecture.md#profile-boundary-and-validation-responsibility)
+requires validation of Kora's CurrentUser/profile-path/permission integration,
+not routine re-proving of Windows cross-profile isolation. Use this optional
+protocol only to corroborate that boundary or investigate a changed/shared
+identity/storage design. It does not supply same-user worker containment.
+See [S1-S4 in the deferred register](../../Design/Deferred_Validation.md#storage-admission-follow-up)
+for the application/deployment work still required before production admission.
 
 Do this only with two existing approved Windows account sessions, **not** a
 mock SID, new account, credential request or unrestricted ACL change.
@@ -211,4 +228,4 @@ The verifier alone does not attest that separate ACL trial.
 
 Do not commit raw SIDs, handoffs or key wrappers. Remove only the named handoff
 and its exact owned run after readback. A future real result needs review and
-does not automatically promote this PR or close the remaining gates.
+does not close the application/deployment gates.

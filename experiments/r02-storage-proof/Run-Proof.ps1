@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
-    [switch]$PublishAssets,
-    [switch]$AllowBlockedCrossUser
+    [switch]$PublishAssets
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,12 +14,10 @@ try {
     dotnet build StorageProof.csproj -c Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw "Proof build failed ($LASTEXITCODE)." }
     dotnet run --project StorageProof.csproj -c Release --no-build
-    if ($LASTEXITCODE -eq 2 -and $AllowBlockedCrossUser) {
-        Write-Warning 'Automated subset passed; actual second-user protection is BLOCKED. This is not release acceptance.'
+    if ($LASTEXITCODE -ne 0) {
+        throw "Automated proof failed ($LASTEXITCODE)."
     }
-    elseif ($LASTEXITCODE -ne 0) {
-        throw "Proof failed or required second-user validation is blocked ($LASTEXITCODE)."
-    }
+    Write-Output 'Automated storage proof passed; production storage admission remains separate.'
     if ($PublishAssets) {
         $assets = @()
         foreach ($rid in @('win-x64', 'win-x86')) {

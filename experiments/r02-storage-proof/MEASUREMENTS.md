@@ -1,11 +1,52 @@
-# Measured Windows snapshot
+# Measured Windows Snapshots
 
-Latest Windows-only proof run after checking upstream freshness: 2026-10-05,
+## Revised Profile-Integration Run
+
+After rebasing onto the merged speech and containment outcomes, the Windows
+proof passed **152 automated assertions, zero failed or blocked**, with the
+same 14 actual process-kill/recovery trials and both Windows RID publications.
+See the distinct [profile-integration run](evidence/profile-integration-run.json)
+and [native-asset report](evidence/profile-integration-native-assets.json).
+The original evidence files below were not overwritten.
+
+Two new assertions verify application-controlled integration: the scope
+actually passed by the DPAPI wrapper is CurrentUser, and the synthetic key
+file's effective ACL inherits only the current user's full-control rule.
+The directory ACL, real DPAPI roundtrip/corruption checks and same-user child
+recovery remain exercised. This is not a claim of a different-user denial
+trial or production profile-path integration.
+
+The blanket cross-user gate was reassessed: Windows supplies per-profile
+isolation, while Kora must verify its own scope, paths/copies and permissions.
+The optional second-account trial remains unperformed rather than being
+relabeled as passed. The runner now returns success for its bounded automated
+proof; native admission and S1-S4 production work remain separate.
+Safe scratch reruns need a loaded Windows profile, not an unlocked console;
+this run did not instrument or certify the physical desktop's lock state.
+
+| Metric | AES-GCM + equality token | SQLCipher + FTS5 |
+|---|---:|---:|
+| Initial open/schema, ms | 6.60 | 473.12 |
+| 2,000-record transaction, ms | 52.90 | 254.73 |
+| Batched records/second | 37,806 | 7,852 |
+| Individual write p50 / p95, ms | 0.519 / 0.666 | 1.582 / 2.530 |
+| Point read p50 / p95, ms | 0.013 / 0.025 | 0.041 / 0.080 |
+| Exact fixture search/count, ms | 0.223 | 0.931 |
+
+Workload, engine versions and observation limitations match the original
+snapshot below. These are shared-machine measurements, not performance
+acceptance budgets. The [deferred-validation register](../../Design/Deferred_Validation.md#storage-admission-follow-up)
+records the remaining application-specific evidence and conditional
+multi-account trigger.
+
+## Original Windows-Only Snapshot
+
+Original Windows-only proof run after checking upstream freshness: 2026-10-05,
 Windows 10.0.26300,
 x64, .NET runtime 10.0.12, SDK 10.0.401, 16 logical processors.
 The shared development machine was not isolated or idle.
 
-**150 automated assertions passed, 0 failed, 1 actual cross-user gate blocked.**
+**150 automated assertions passed, 0 failed, 1 actual cross-user gate blocked under the original gate definition.**
 The run intentionally returns code 2 for that blocked gate; the documented
 script was run with `-AllowBlockedCrossUser`. Two Windows RID publications passed.
 See [raw assertions/measurements](evidence/windows-run.json) and

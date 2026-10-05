@@ -51,7 +51,8 @@ free of vulnerabilities. No exploitable-vulnerability assessment is claimed.
 
 The local runner publishes framework-dependent win-x64 and win-x86
 outputs, checks the native PE machine values, and records byte counts and
-SHA256 in [the asset report](evidence/native-assets.json).
+SHA256 in [the original asset report](evidence/native-assets.json) and the
+distinct [post-rebase report](evidence/profile-integration-native-assets.json).
 Windows x64 native code is actually loaded by the proof; x86 assets are
 publication-only evidence. The runner and full proof intentionally require
 Windows DPAPI and ACLs. Linux is not a supported product OS at this stage.
@@ -92,6 +93,7 @@ directory as shipping composition.
 - [Commercial/trial license distinctions](https://www.zetetic.net/sqlcipher/license/)
 - [SQLite SEE algorithms/build/license](https://www.sqlite.org/see/doc/trunk/www/readme.wiki)
 - [Windows CryptProtectData boundary and roaming-profile exceptions](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)
+- [CurrentUser versus LocalMachine DPAPI scope](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.dataprotectionscope)
 
 Any future redistributed native build must carry the complete applicable
 licenses/notices in user-accessible application/distribution materials.
@@ -99,3 +101,8 @@ Links in this experimental assessment are not a substitute for those notices.
 CurrentUser DPAPI is not a hard device-binding guarantee under all Windows
 profile/domain configurations; explicit device binding, migration, backup and
 profile-loss recovery need their own reviewed contract.
+For profile-local storage, ordinary cross-profile isolation is a trusted
+Windows facility. Application scope/path/effective-ACL checks are required;
+routine second-account OS-denial trials are optional unless the identity or
+storage boundary changes. See the
+[canonical responsibility split](../../Design/Architecture.md#profile-boundary-and-validation-responsibility).

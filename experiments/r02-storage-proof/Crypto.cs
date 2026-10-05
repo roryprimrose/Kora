@@ -34,17 +34,25 @@ internal static class Envelope
 
 internal static class WindowsKey
 {
+    internal static DataProtectionScope Scope
+    {
+        get
+        {
+            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("DPAPI requires Windows.");
+            return DataProtectionScope.CurrentUser;
+        }
+    }
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("Kora-R02-synthetic-proof-v1");
 
     public static byte[] Wrap(byte[] key)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("DPAPI requires Windows.");
-        return ProtectedData.Protect(key, Entropy, DataProtectionScope.CurrentUser);
+        return ProtectedData.Protect(key, Entropy, Scope);
     }
 
     public static byte[] Unwrap(byte[] blob)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("DPAPI requires Windows.");
-        return ProtectedData.Unprotect(blob, Entropy, DataProtectionScope.CurrentUser);
+        return ProtectedData.Unprotect(blob, Entropy, Scope);
     }
 }

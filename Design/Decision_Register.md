@@ -24,7 +24,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance | Open, release-blocking | Windows versions, CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes; schema/enforcement proof open, release-blocking; initial model grants only | Single-use consumption, operation-bound durable session grants, perpetual grants without retention/eviction, applicability/provenance after chat deletion, native explicit edit/removal, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
-| D-009 | Durable session storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Lifecycle and Windows encryption direction recorded; synthetic R02 evidence measured; native/key admission and schema/deletion integration open, release-blocking | Maintained authenticated SQLite and AES-GCM artifacts, real cross-user DPAPI/ACL and installed Windows evidence, event ordering, crash/migration/key/backup recovery, configurable 24-hour/30-day inactivity policies, journal/cache/backup deletion, no action/grant replay |
+| D-009 | Durable session storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Lifecycle and Windows encryption direction recorded; synthetic R02 evidence measured; native/key integration and schema/deletion acceptance open, release-blocking | Maintained authenticated SQLite and AES-GCM artifacts, CurrentUser/profile-path/effective-ACL integration and installed Windows evidence, event ordering, crash/migration/key/backup recovery, configurable 24-hour/30-day inactivity policies, journal/cache/backup deletion, no action/grant replay |
 | D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; isolation/budget proof open, release-blocking | Pinned SDK/provider isolation and concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races |
 | D-011 | Shared interaction and session routing/history tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; protocol/integration proof open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact interaction/list-plus-conversation workspace/separate detail surfaces, minimal Active-session routing context, bounded paginated tools, provenance/egress, foreground voice versus addressed UI races |
 | D-012 | Windows-session trust model and accepted voice boundary | Product and security leads | Design acceptance; enforcement before associated capability release | Accepted direction; implementation evidence outstanding | Enabled verbal input trusts the active unlocked profile, not speaker identity; no compulsory biometrics/PTT/UI for ordinary voice; scoped grants, call origin/reuse gates, intent/content separation, containment and truthful recovery tests |
@@ -156,10 +156,11 @@ No shipping native package or final session/task schema is selected.
 Windows-only product support is confirmed; Linux runtime and local Linux-host validation are not storage-readiness blockers.
 This does not change the existing Linux-hosted Windows build/distribution pipeline.
 
-The [measured R02 snapshot](../experiments/r02-storage-proof/MEASUREMENTS.md) records 150 passing automated assertions, 14 actual process-kill/reopen trials and Windows x64/x86 asset publication.
+The [measured R02 snapshots](../experiments/r02-storage-proof/MEASUREMENTS.md) record passing automated assertions, 14 actual process-kill/reopen trials and Windows x64/x86 asset publication, with historical results preserved.
 It demonstrates synthetic authentication failure, transactional rollback/recovery, source preservation on failed conversion, same-user DPAPI custody and the limits of logical deletion/rekey.
 Point-read/write timings support small-workload feasibility, not product performance thresholds.
-Cross-user Windows protection was explicitly left blocked by the owner; x86 publication is not x86 execution or clean-installed deployment evidence.
+No second-account denial trial was performed. On reassessment, it is optional OS-boundary corroboration for profile-local storage, not an application admission or publication gate.
+Required integration evidence is [CurrentUser scope, profile-local copies and effective ACLs](Architecture.md#profile-boundary-and-validation-responsibility); x86 publication is not x86 execution or clean-installed deployment evidence.
 
 | Choice / finding | Design consequence |
 |---|---|
@@ -170,15 +171,18 @@ Cross-user Windows protection was explicitly left blocked by the owner; x86 publ
 | Rekey/unlink/wrapper deletion leave old backups or copied wrappers recoverable | Coordinate key/backup generations and inventory deletion ownership; do not claim per-session cryptographic or forensic erasure |
 | Valid-record removal and old valid backups are not detected by content authentication | Keep D-008 tamper-evident audit and host recovery/replay controls separate |
 
-Remaining **R02 storage/key admission gates**: maintained native selection, installed Windows x64/x86 loading/protection, and actual approved different-user DPAPI plus ACL denial.
-Do not mark this branch closed or admit production persistence based on synthetic evidence alone.
+Remaining **R02 storage/key admission gates**: maintained native selection and installed Windows x64/x86 loading/protection.
+Publish/merge the documented partial outcome through normal repository checks without claiming these capability gates are closed.
+Do not admit production persistence based on synthetic evidence alone.
 R04 must implement ordered commits, versioned key/backup recovery, verified legacy conversion and artifact reconciliation on the admitted engine; test rekey/wrapper publication interruption and relevant durability/failure boundaries.
+It must verify profile-local managed paths/copies, CurrentUser use without machine-scope fallback and actual directory/key-file permissions. Profile location alone is not evidence of correct integration.
 R12 owns integrated lifecycle, source revocation, append-versus-delete races and managed-copy cleanup.
 Neither the prototype's "intent without receipt" fixture nor absence of a sentinel proves real dispatch recovery or complete absence of plaintext.
 
 Reconsider this strategy if a maintained codec cannot pass Windows admission, key recovery/deletion requirements cannot be met, or representative history/artifact/index workloads miss product budgets.
 Changing the native engine, crypto provider, .NET runtime or backup/key format requires rerunning the affected proof and updating the canonical requirements and evidence together.
 D-009 remains open until the storage/security owners accept its remaining implementation and real-boundary evidence.
+The [deferred-validation register](Deferred_Validation.md#storage-admission-follow-up) separates mergeable research from these application/deployment gates and records when multi-account trials would become relevant.
 
 ### Lifecycle and Integration Closure
 

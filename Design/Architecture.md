@@ -337,7 +337,7 @@ Implementation requirements:
 - Keep content-bearing FTS, summaries and derived indexes inside the keyed store. Require memory-only SQLite temporary storage on every connection; reject an absent codec or incompatible configuration. Backups must be explicitly keyed. Do not trace decrypted SQL parameters, connection passwords or record content into diagnostics.
 - Transactionally commit ordered intent/decision evidence before consequential dispatch and link observed receipts afterward. Use FULL-synchronous durability, then prove recovery on the admitted engine. Recovery restores readable interrupted/unknown evidence, never fresh execution authority or automatic replay.
 - Authenticate artifacts with versioned, identity/role-bound envelopes. Stage, flush and publish before committing the reference; recover staged files, unreferenced published files and missing/corrupt referenced files explicitly. Bound sizes and account for immutable digest/equality disclosure when choosing artifact names.
-- Version key wrappers and coordinate publication, rotation and recovery with all managed backup generations. Missing/invalid keys fail visibly without overwriting existing data, creating replacement keys over it or changing storage location. Prove actual approved different-user Windows DPAPI and ACL denial; a mock SID or same-user process is insufficient. CurrentUser DPAPI is not an unconditional device-binding guarantee for every profile/domain configuration.
+- Version key wrappers and coordinate publication, rotation and recovery with all managed backup generations. Missing/invalid keys fail visibly without overwriting existing data, creating replacement keys over it or changing storage location. Verify CurrentUser scope without LocalMachine fallback, profile-local managed paths and actual restrictive directory/key-file ACLs. CurrentUser DPAPI is not an unconditional device-binding guarantee for every profile/domain configuration.
 - Convert legacy plaintext into a separate encrypted candidate, verify its contents before replacement, and preserve recoverable originals on failure. Applying a key to an existing plaintext SQLite file is not conversion. Track the retained plaintext original and its copies as migration/deletion-owned data, not an undisclosed indefinite backup.
 - Define deletion ownership across rows, indexes, caches, staging, artifacts, journals and every managed backup. Prevent late appends and prove that unrelated content remains readable. A shared database key does not provide per-session cryptographic erasure; checkpoint, VACUUM and `secure_delete` are hygiene, not forensic-erasure guarantees.
 
@@ -350,6 +350,22 @@ Independent tamper-evident security evidence remains D-008 work.
 DPAPI wrapper deletion and live-database rekey do not revoke copied wrappers or old backups; local unlink cannot erase user exports, provider copies, filesystem snapshots, SSD remnants, OS paging or third-party dumps.
 The R02 sentinel scans and process-kill trials do not establish absence of all plaintext or hardware power-loss durability.
 The [acceptance criteria](Acceptance_Criteria.md#persistence-configurable-lifecycle-and-deletion) govern admission and later integration.
+
+### Profile Boundary and Validation Responsibility
+
+Durable content, keys, managed backups and staging belong under the running user's `%LOCALAPPDATA%\Kora`, not shared/machine storage or the roaming declarative-skill directory.
+The [bootstrap path resolver](../src/Kora.Core/Dependencies/ApplicationDataPaths.cs) already resolves LocalApplicationData for the current user; R04 must verify the entire production persistence path rather than assume every copy follows that resolver.
+The storage proof deliberately uses owned synthetic scratch instead of opening that application directory.
+
+For this profile-local architecture, ordinary cross-profile access isolation and CurrentUser DPAPI semantics are trusted Windows facilities.
+A second-account denial trial primarily corroborates that OS boundary and is optional, not a routine R02/R04 completion or PR-merge gate.
+Kora's required evidence is its own integration: select CurrentUser scope, reject machine-scope/shared-path fallback, inspect effective ACLs of actual directories/key files, keep every managed copy scoped, and fail visibly when the expected profile/key/permissions are unavailable.
+Profile location alone is insufficient if the application creates permissive ACLs, unkeyed copies or machine-scoped keys.
+
+Revisit real multi-account testing before introducing shared storage, impersonation/service identities, cross-profile import/migration or custom cross-user authorization, or when observed permissions contradict the supported boundary.
+Any such protection claim requires actual approved identities; neither mock identities nor a same-user roundtrip proves cross-user denial.
+Same-user tools/workers remain a separate D-013 containment boundary; per-profile storage and DPAPI do not protect against all code running as the same user or an administrator.
+The file/database-only proof needs a loaded Windows user profile, not an unlocked physical desktop or local interactive input; it may run through a remote session while the console is locked.
 
 ## Skill Data Versus Application Code
 

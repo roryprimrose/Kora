@@ -177,15 +177,50 @@ Every Windows/native dependency must supply redistributable prebuilt assets or a
 Do not quietly add Windows-only build/compiler/MSI toolchain paths or Wine to satisfy an unproven dependency.
 Raise the incompatible requirement before choosing the implementation.
 
+### Version Tags and Publication Pre-Check
+
+A build of an approved protected version tag, for example `v1.4.0`, produces
+the production-version candidate from that tag's exact immutable source
+revision. The selected tag supplies the production package/release version;
+inconsistent version metadata stops the workflow. Routine branch/main builds
+are development candidates, not production releases or automatically published
+prereleases. A tag-triggered build is not permission to bypass licence, Windows
+validation or protected publication approval gates.
+
+Before restore/build/package/upload, query the canonical GitHub Releases
+record for the exact version tag:
+
+- If that production version is already published with matching immutable
+  source/provenance and complete expected artifacts, report **already published**
+  and skip rebuilding/republishing it. Never overwrite/delete assets, move its
+  tag or reuse the version number for different bytes.
+- If a same-version record conflicts with the source, channel or expected
+  artifact identities, stop for maintainer reconciliation; it is not a no-op
+  success and not permission to repair a published release automatically.
+- A draft or prerelease is not an already published production release. Handle
+  it as an explicit resumable candidate or conflict under maintainer approval;
+  do not silently promote it or assume its evidence applies to rebuilt bytes.
+- Build only after a successful lookup establishes that production publication
+  has not happened. Authentication, network, rate-limit or ambiguous lookup
+  failure blocks publication; do not treat it as an absent version.
+
+Serialise production workflows by canonical repository/version and recheck
+immediately before creating/publishing the release. Surface any competing
+publication or API conflict without replacing assets. An interrupted draft can
+be resumed only after verifying its exact revision, completed assets/digests and
+remaining gates. The pre-check makes publication idempotent; it does not prove
+bit-identical builds or authenticate an unsigned Windows publisher.
+This is R17 release-workflow design, not a workflow implemented by the proof.
+
 Proposed release stages:
 
-1. Validate the selected revision, version/channel, dependency locks, licences, and embedded built-in resource catalogue.
+1. Validate the protected tag/revision and version/channel, run the exact-version publication pre-check, then validate dependency locks, licences and embedded built-in resource catalogue.
 2. Build and run portable unit/contract tests on Linux; simulated Windows APIs do not count as Windows integration evidence.
 3. Cross-publish Windows binaries and inspect RID/runtime/native asset completeness and resource identity.
 4. Assemble a single user-facing setup EXE with a Linux-capable packaging tool.
 5. Generate hashes, version/runtime/architecture metadata, release notes, unsigned-artifact disclosure, and source/build provenance for the final bytes.
 6. Record the required Windows validation evidence for this exact candidate through an external test environment.
-7. Publish only the approved exact artifacts to the appropriate GitHub Release/channel.
+7. Recheck version publication and publish only the approved exact artifacts to the appropriate GitHub Release/channel without replacing an already published version.
 
 One downloadable setup EXE does not mean one installed file or one hosted release asset.
 The pipeline may also publish a standalone/portable payload, authenticated release metadata, checksums, licences/SBOM, and updater packages where required.

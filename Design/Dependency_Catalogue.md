@@ -142,6 +142,9 @@ preview channel may discover published prereleases; drafts remain excluded.
 GitHub CI artifacts, `main` commits and this experiment's setup EXEs are not
 released versions. The [release discovery contract](Distribution_And_Updates.md#hosted-release-feed-and-notify-only-interaction)
 owns exact origin/channel/version/architecture/byte identity and failure handling.
+Production candidates are built from approved protected version tags, with an
+early already-published check and no overwriting released versions; see
+[tag and publication rules](Distribution_And_Updates.md#version-tags-and-publication-pre-check).
 
 Current maintenance is **notify-only**, not an implemented install-capable
 updater or a new skill. A future in-app "Install update" action needs R29 scope

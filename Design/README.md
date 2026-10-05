@@ -18,6 +18,16 @@ R01's initial-release policy reconciliation is
 [approved and recorded](Decision_Register.md#r01-accepted-policy-reconciliation):
 R02 feasibility and R03 ownership/privacy work can start. Runtime acceptance
 remains open; standalone application rollback is deferred R27 work.
+R02's storage/key investigation now informs the
+[Windows durable-storage direction](Architecture.md#windows-durable-storage-direction),
+[D-009 status and remaining gates](Decision_Register.md#d-009-session-persistence-and-retention),
+and [concrete R02/R04/R12 follow-on work](Implementation_Roadmap.md#r02-storagekey-outcome-and-follow-on-work).
+The runnable experiment is supporting evidence, not production admission:
+maintained native selection and installed Windows loading remain open;
+CurrentUser/profile-path/permission integration, the final schema and
+integrated lifecycle/deletion are not delivered. Windows supplies ordinary
+cross-profile isolation; routine second-account OS-denial trials are not
+required for this profile-local application or for merging its research outcome.
 
 [Deferred Proof Validation](Deferred_Validation.md) is the interactive-session
 handoff for outstanding speech, containment and distribution trials. It links

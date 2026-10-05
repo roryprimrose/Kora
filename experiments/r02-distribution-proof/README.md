@@ -12,9 +12,10 @@ source of truth.
 
 The subsequent [production direction](../../Design/Distribution_And_Updates.md#selected-windows-installer-direction)
 is **WiX MSI + Burn**, with Linux builds wherever feasible and Windows
-packaging where needed. These NSIS scripts/receipts are retained unchanged as
-historical evidence, not a production installer or WiX acceptance. The
-unexecuted Linux NSIS recipe below is no longer a release gate; no separate
+packaging where needed. The NSIS prototype and original receipts are retained as
+historical evidence, not a production installer or WiX acceptance. Source and
+inspection scripts receive regression fixes without rewriting those receipts.
+The unexecuted Linux NSIS recipe below is no longer a release gate; no separate
 WiX feasibility project is required before R17 implementation.
 
 Platform scope confirmed by the user: **Windows-only deployed runtime**.
@@ -149,7 +150,10 @@ its wheel is hash-pinned in [linux-build-requirements.txt](linux-build-requireme
 - Each revision gets a dedicated detached checkout and unique staging attempt.
   No arbitrary developer checkout is adopted, pulled, reset, cleaned or switched.
 - Root metadata records source identity and mode; `.git` alone is insufficient.
-  Changed origin/HEAD, tracked edits or untracked files cause explicit failure.
+  Origin, exact HEAD, tracked edits, untracked files and linked paths are checked
+  before build/reuse and again immediately before promoting new output.
+  Post-build identity or source changes fail without promotion; staging,
+  modified checkout state and previous deployments remain for operator review.
   Rerunning never repairs or overwrites a dirty/partial checkout automatically.
 - Exclusive operator locking prevents overlapping builds of one managed root.
   Failure keeps staging for diagnosis and all previous versioned outputs.
@@ -162,6 +166,25 @@ its wheel is hash-pinned in [linux-build-requirements.txt](linux-build-requireme
   metadata, channel/release resolution and interrupted-install reconciliation.
   This external operator prototype deliberately accepts exact revisions only.
   Source builds must remain explicitly local/custom, never called official.
+
+## Current Inspection Receipts
+
+Fresh `Inspect-Publish.ps1` receipts record `licensingEvidence` for `LICENSE`
+and `THIRD-PARTY-NOTICES.md`: observed presence, size and SHA-256, or null
+identities when absent. `releaseBlockers` reports missing licensing files only
+when the inspected payload actually lacks them. Presence and hashes are not
+licence-content validation, complete notices review or redistribution clearance.
+
+Static inspection always leaves per-release redistribution, installed Windows
+protection/runtime-only trials and bundled-resource/worker acceptance unproved.
+`releaseAcceptance` remains Blocked and summarizes those outstanding gates; it
+does not assume every newly inspected revision has the old baseline's missing
+project licence or absent resources.
+
+The historical committed R01 receipts and their missing-licence observations
+remain unchanged. New fixture runs separately cover all four licence/notice
+presence combinations and post-build HEAD/origin/tracked/untracked changes;
+they do not relabel historical results or authorize installation/launch.
 
 ## Protected deployment and containment coordination
 

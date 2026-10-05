@@ -1,5 +1,18 @@
 . (Join-Path $PSScriptRoot 'Common.ps1')
 
+function Assert-ManagedCheckoutIdentity {
+    param([string] $Checkout, [string] $Repository, [string] $Revision)
+    Assert-NoLinks $Checkout
+    $origin = (& git -C $Checkout remote get-url origin | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $origin -cne $Repository) { throw 'Checkout origin changed.' }
+    $head = (& git -C $Checkout rev-parse HEAD | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $head -cne $Revision) { throw 'Checkout revision changed.' }
+    $status = (& git -C $Checkout status --porcelain=v1 --untracked-files=all | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $status) {
+        throw 'Checkout has local edits/untracked files. Preserved; no reset, pull, clean or overwrite permitted.'
+    }
+}
+
 function Invoke-ManagedSource {
     [CmdletBinding()]
     param(
@@ -36,15 +49,7 @@ function Invoke-ManagedSource {
             Invoke-Checked 'git' @('-c', 'core.hooksPath=', 'clone', '--no-checkout', '--', $Repository, $checkout)
             Invoke-Checked 'git' @('-C', $checkout, '-c', 'core.hooksPath=', 'checkout', '--detach', $Revision)
         }
-        Assert-NoLinks $checkout
-        $origin = (& git -C $checkout remote get-url origin | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0 -or $origin -cne $Repository) { throw 'Checkout origin changed.' }
-        $head = (& git -C $checkout rev-parse HEAD | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0 -or $head -cne $Revision) { throw 'Checkout revision changed.' }
-        $status = (& git -C $checkout status --porcelain=v1 --untracked-files=all | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0 -or $status) {
-            throw 'Checkout has local edits/untracked files. Preserved; no reset, pull, clean or overwrite permitted.'
-        }
+        Assert-ManagedCheckoutIdentity $checkout $Repository $Revision
         if (Test-Path -LiteralPath $deployment) {
             $receiptPath = Join-Path $deployment 'deployment.json'
             if (!(Test-Path -LiteralPath $receiptPath)) { throw 'Partial deployment exists; preserved for operator review.' }
@@ -61,8 +66,6 @@ function Invoke-ManagedSource {
         $payload = Join-Path $stage 'payload'
         New-ProofDirectory $payload
         & $BuildAndInspect $checkout $payload $stage
-        $status = (& git -C $checkout status --porcelain=v1 --untracked-files=all | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0 -or $status) { throw 'Build changed source; staging preserved, not promoted.' }
         $files = @(Get-PayloadFiles $payload)
         if ($files.Count -eq 0) { throw 'Empty publish output; previous output preserved.' }
         $receipt = [ordered]@{
@@ -81,6 +84,7 @@ function Invoke-ManagedSource {
         $parent = Split-Path -Parent $deployment
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
         Assert-NoLinks $parent
+        Assert-ManagedCheckoutIdentity $checkout $Repository $Revision
         Move-Item -LiteralPath $stage -Destination $deployment
         Write-Host "Verified output: $deployment. Previous outputs retained; no application launched or installed."
     }

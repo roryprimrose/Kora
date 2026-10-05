@@ -23,6 +23,72 @@ foreach ($name in 'VCRUNTIME140.dll', 'VCRUNTIME140_1.dll', 'MSVCP140.dll', 'MSV
     if ($imports -notcontains $name) { throw "Expected observed ONNX Runtime import: $name" }
 }
 $passed.Add('Observed ONNX Runtime VC++ import requirements retained')
+foreach ($case in @(
+    @{ licence = $true; notice = $true }
+    @{ licence = $true; notice = $false }
+    @{ licence = $false; notice = $true }
+    @{ licence = $false; notice = $false }
+)) {
+    $expectedFiles = [ordered]@{ 'LICENSE' = $case.licence; 'THIRD-PARTY-NOTICES.md' = $case.notice }
+    foreach ($path in $expectedFiles.Keys) {
+        $target = Join-Path $copy $path
+        if ($expectedFiles[$path]) {
+            "Synthetic licensing-presence fixture for $path; not redistribution clearance." |
+                Set-Content -LiteralPath $target -Encoding utf8NoBOM
+        }
+        elseif (Test-Path -LiteralPath $target) {
+            Remove-Item -LiteralPath $target
+        }
+    }
+    $evidence = Join-Path $OutputDirectory "licensing-$($case.licence)-$($case.notice)"
+    & (Join-Path $PSScriptRoot 'Inspect-Publish.ps1') -Payload $copy -Revision $manifest.revision `
+        -EvidenceDirectory $evidence -BuildOrigin 'Synthetic licensing-presence fixture'
+    $observed = Get-Content -LiteralPath (Join-Path $evidence 'payload.json') -Raw | ConvertFrom-Json
+    if ($observed.licensingEvidence.Count -ne 2 -or
+        $observed.releaseAcceptance -notlike 'BLOCKED:*' -or
+        $observed.releaseAcceptance -like '*no project licence*') {
+        throw 'Licensing receipt shape or acceptance boundary is incorrect.'
+    }
+    foreach ($path in $expectedFiles.Keys) {
+        $entry = @($observed.licensingEvidence | Where-Object path -CEQ $path)
+        if ($entry.Count -ne 1 -or $entry[0].present -ne $expectedFiles[$path]) {
+            throw "Incorrect observed licensing-file presence: $path"
+        }
+        $missingBlocker = "Missing distribution licensing file: $path"
+        if (($observed.releaseBlockers -contains $missingBlocker) -eq $expectedFiles[$path]) {
+            throw "Incorrect missing-file release blocker: $path"
+        }
+        if ($expectedFiles[$path]) {
+            $target = Join-Path $copy $path
+            if ($entry[0].sha256 -cne (Get-FileHash -LiteralPath $target).Hash.ToLowerInvariant() -or
+                $entry[0].bytes -ne (Get-Item -LiteralPath $target).Length) {
+                throw "Licensing-file identity was not recorded: $path"
+            }
+        }
+        elseif ($null -ne $entry[0].sha256 -or $null -ne $entry[0].bytes) {
+            throw "Absent licensing file acquired a fabricated identity: $path"
+        }
+    }
+    foreach ($requiredBlocker in
+        'Per-release redistribution clearance is not established by static inspection.',
+        'Installed Windows protection and runtime-only acceptance require separate evidence.',
+        'Bundled-resource and worker acceptance require separate evidence.') {
+        if ($observed.releaseBlockers -notcontains $requiredBlocker) {
+            throw "Static inspection cleared an unproved gate: $requiredBlocker"
+        }
+    }
+    $passed.Add("Licensing receipt reflects licence=$($case.licence), notice=$($case.notice) without clearing release gates")
+}
+foreach ($path in 'LICENSE', 'THIRD-PARTY-NOTICES.md') {
+    $original = Join-Path $Payload $path
+    $target = Join-Path $copy $path
+    if (Test-Path -LiteralPath $original -PathType Leaf) {
+        Copy-Item -LiteralPath $original -Destination $target
+    }
+    elseif (Test-Path -LiteralPath $target) {
+        Remove-Item -LiteralPath $target
+    }
+}
 $file = Join-Path $copy 'Kora.runtimeconfig.json'
 Move-Item -LiteralPath $file -Destination "$file.missing"
 $caught = $false

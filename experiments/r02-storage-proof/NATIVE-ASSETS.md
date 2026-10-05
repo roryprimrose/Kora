@@ -14,7 +14,7 @@ experiment and pinned by [the lock file](packages.lock.json).
 | Native SQLCipher | **4.5.2 community**, actual `PRAGMA cipher_version` | BSD-style SQLCipher terms; wrapper metadata alone does not cover the embedded code |
 | Embedded SQLite | **3.39.2**, actual `sqlite_version()` | SQLite public domain; old baseline, not the current production SQLite choice |
 | Crypto provider | **LibTomCrypt 1.18.2**, actual cipher provider/version | Dual public-domain/WTFPL choice in upstream version's LICENSE; dependency provenance/notice review still required |
-| System.Security.Cryptography.ProtectedData | 10.0.12 | .NET MIT; real Windows DPAPI, not a portable Linux key-store implementation |
+| System.Security.Cryptography.ProtectedData | 10.0.12 | .NET MIT; real Windows DPAPI for this Windows-only proof |
 | AES-GCM / HMAC-SHA256 | .NET 10.0.12 runtime | No additional cryptographic NuGet implementation; platform/runtime crypto remains part of deployment |
 
 SQLCipher uses page authentication (the run checks `cipher_use_hmac=1`), 4096
@@ -49,33 +49,35 @@ free of vulnerabilities. No exploitable-vulnerability assessment is claimed.
 
 ## Publication evidence and limits
 
-The local runner can publish framework-dependent win-x64, win-x86 and linux-x64
-outputs, checks the native PE/ELF machine values, and records byte counts and
+The local runner publishes framework-dependent win-x64 and win-x86
+outputs, checks the native PE machine values, and records byte counts and
 SHA256 in [the asset report](evidence/native-assets.json).
-Windows x64 native code is actually loaded by the proof; x86/Linux assets are
-publication-only evidence. The full proof intentionally refuses Linux execution
-because it requires Windows DPAPI and ACLs.
+Windows x64 native code is actually loaded by the proof; x86 assets are
+publication-only evidence. The runner and full proof intentionally require
+Windows DPAPI and ACLs. Linux is not a supported product OS at this stage.
 
-The restored native package includes Windows x64/x86/ARM64 and multiple
-glibc/musl Linux architectures, among others. Availability is not loadability.
+The restored native package includes other architectures and operating systems
+besides the selected Windows x64/x86 assets. Package availability does not
+imply supported product platforms or proven loadability.
 Avoid shipping every RID from a portable build; select explicit deployment
 RIDs. Bundling a SQLCipher provider alongside production's default SQLite
 provider risks competing global SQLitePCL initialization/native assets; this
 experiment is isolated in its own process and never modifies composition.
 
-Linux-host -> Windows .NET cross-build can select prebuilt Windows native
-assets without compiling those libraries. It **does not** prove how those
-native libraries were built, their CRT/import requirements, signature,
-installer access controls or clean-machine runtime load. A source-native
-Windows cross-build additionally needs a supported cross-toolchain and pinned
-crypto build. Windows DPAPI runtime tests must still run on actual Windows.
-Windows -> Linux publication here is not the reverse Linux-host proof.
+The owner confirmed **Windows-only support on 2026-10-05**. Linux runtime
+support and Linux-host cross-build validation are outside this experiment's
+scope, not readiness blockers. Existing CI uses a Linux build host to publish
+Windows application assets; that does not imply Linux product support. This
+experiment does not change that pipeline or add a requirement to reproduce it
+on a local Linux host.
 
-WSL was queried and is not installed. No host bootstrap, container service,
-account, shared pipeline, or canonical deployment document was changed.
-Linux-host Windows publication and installed Windows x86/x64 native dependency
-resolution remain explicit open gates. Do not bypass existing required CI
-checks/reviews or treat this directory as shipping composition.
+Selecting prebuilt Windows assets is not proof of their source build provenance,
+CRT/import requirements, signatures, installer access controls or clean-machine
+runtime load. Installed Windows x86/x64 native dependency resolution remains
+an open gate, and DPAPI runtime tests require actual Windows. No host bootstrap,
+container service, account, shared pipeline, or canonical deployment document
+was changed. Do not bypass existing required CI checks/reviews or treat this
+directory as shipping composition.
 
 ## Source references (consulted 2026-10-05)
 

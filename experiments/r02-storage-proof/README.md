@@ -12,6 +12,11 @@ versions, lock files, scripts and recommendations live in this directory.
 Production manifests, composition, solution, CI and canonical contracts are
 unchanged.
 
+**Supported OS scope: Windows only**, as confirmed by the owner on 2026-10-05.
+Linux runtime support and Linux-host cross-build validation are outside this
+proof, not blocked acceptance gates. Existing CI running on a Linux build host
+does not imply Linux product support and is unchanged.
+
 ## Contracts and baseline inspected
 
 - [D-009](../../Design/Decision_Register.md#d-009-session-persistence-and-retention)
@@ -178,12 +183,12 @@ history, detects deletion of whole valid records, nor prevents restoring a
 valid older database/backup. D-008 tamper-evident audit is a separate gate;
 this proof does not implement it or any grant store.
 
-## Licensing, native assets and Linux implications
+## Licensing, native assets and Windows-only scope
 
 See [the native/licensing assessment](NATIVE-ASSETS.md). RID publication for
-win-x64, win-x86 and linux-x64 is exercised on Windows. A Linux **host** building
-Windows assets is not proven: WSL is not installed, and no CI was changed to
-pretend otherwise. Published x86/Linux binaries are not execution evidence.
+win-x64 and win-x86 is exercised on Windows. Published x86 binaries are not
+execution evidence. The runner does not publish Linux assets; neither Linux
+execution nor Linux-host builds are requirements for this proof.
 
 ## Remaining gates / D-009 boundary
 
@@ -192,7 +197,7 @@ pretend otherwise. Published x86/Linux binaries are not execution evidence.
 | Synthetic encryption/authentication, transactions, migration/capacity failure, backups, deletion limits and benchmark | Measured; see checked-in run |
 | Actual current-user DPAPI/ACL and same-user process restart | Measured on Windows x64 |
 | Actual different-user DPAPI/ACL denial | **Blocked by explicit owner choice; draft PR** |
-| Maintained native engine, provenance/notices, Linux-host Windows build, installed Windows x86/x64 clean-machine load | Open; this package is not production-admitted |
+| Maintained native engine, provenance/notices, installed Windows x86/x64 clean-machine load | Open; this package is not production-admitted |
 | Power cut/fsync hardware guarantees, rekey/wrapper crash recovery, ephemeral-file observation, large-scale artifacts/indexing | Not proven by these bounded experiments |
 | Final identities/schema, source/account revocation, lifecycle timer/startup/access, apply-now retention, live/unknown work holds, append-versus-delete coordination, grants and dispatch recovery | Deferred to R04/R05/R12; D-009 is not closed |
 

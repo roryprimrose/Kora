@@ -1,5 +1,5 @@
 {
-  "generatedUtc": "2026-10-05T00:11:17.2293676+00:00",
+  "generatedUtc": "2026-10-05T00:19:24.9460607+00:00",
   "buildHost": "Microsoft Windows 10.0.26300",
   "assets": [
     {
@@ -19,16 +19,8 @@
       "sha256": "2B7AD2DA9CA246E1D68BC0762D8AC3AA9BA98F4D071480546B3EBE23D6C6AB21",
       "publish": "passed",
       "execution": "not executed"
-    },
-    {
-      "rid": "linux-x64",
-      "nativeFile": "libe_sqlcipher.so",
-      "bytes": 1368960,
-      "machine": 62,
-      "sha256": "0E948F782BCB68CEAAB4F89F16D57B603AC7377ED24AF71CF047314809F22DC7",
-      "publish": "passed",
-      "execution": "not executed"
     }
   ],
-  "linuxHostToWindowsCrossBuild": "BLOCKED: no Linux host installed; Windows RID cross-publication is not Linux-host evidence."
+  "supportedOperatingSystem": "Windows",
+  "excludedScope": "Linux runtime support and Linux-host cross-build validation are outside this Windows-only proof, not readiness gates."
 }

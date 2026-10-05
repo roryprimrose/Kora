@@ -5,6 +5,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not [System.OperatingSystem]::IsWindows()) {
+    throw 'This proof supports Windows only.'
+}
 Push-Location $PSScriptRoot
 try {
     dotnet restore StorageProof.csproj --locked-mode
@@ -20,25 +23,17 @@ try {
     }
     if ($PublishAssets) {
         $assets = @()
-        foreach ($rid in @('win-x64', 'win-x86', 'linux-x64')) {
+        foreach ($rid in @('win-x64', 'win-x86')) {
             dotnet publish StorageProof.csproj -c Release -r $rid --self-contained false --no-restore
             if ($LASTEXITCODE -ne 0) { throw "$rid asset publish failed ($LASTEXITCODE)." }
-            $name = if ($rid.StartsWith('win-')) { 'e_sqlcipher.dll' } else { 'libe_sqlcipher.so' }
+            $name = 'e_sqlcipher.dll'
             $path = Join-Path $PSScriptRoot "bin\Release\net10.0\$rid\publish\$name"
             $bytes = [System.IO.File]::ReadAllBytes($path)
-            if ($rid.StartsWith('win-')) {
-                $offset = [BitConverter]::ToInt32($bytes, 60)
-                $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
-                $expected = if ($rid -eq 'win-x64') { 0x8664 } else { 0x14c }
-                if ($bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a -or $machine -ne $expected) {
-                    throw "$rid native PE architecture mismatch."
-                }
-            }
-            else {
-                $machine = [BitConverter]::ToUInt16($bytes, 18)
-                if ($bytes[0] -ne 0x7f -or $bytes[1] -ne 0x45 -or $machine -ne 62) {
-                    throw "$rid native ELF architecture mismatch."
-                }
+            $offset = [BitConverter]::ToInt32($bytes, 60)
+            $machine = [BitConverter]::ToUInt16($bytes, $offset + 4)
+            $expected = if ($rid -eq 'win-x64') { 0x8664 } else { 0x14c }
+            if ($bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a -or $machine -ne $expected) {
+                throw "$rid native PE architecture mismatch."
             }
             $assets += [pscustomobject]@{
                 rid = $rid
@@ -54,7 +49,8 @@ try {
             generatedUtc = [DateTimeOffset]::UtcNow
             buildHost = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
             assets = $assets
-            linuxHostToWindowsCrossBuild = 'BLOCKED: no Linux host installed; Windows RID cross-publication is not Linux-host evidence.'
+            supportedOperatingSystem = 'Windows'
+            excludedScope = 'Linux runtime support and Linux-host cross-build validation are outside this Windows-only proof, not readiness gates.'
         } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath 'evidence\latest-native.json'
     }
 }

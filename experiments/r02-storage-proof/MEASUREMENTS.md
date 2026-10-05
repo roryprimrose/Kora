@@ -1,12 +1,13 @@
 # Measured Windows snapshot
 
-Final proof run after the second fetch/rebase: 2026-10-05, Windows 10.0.26300,
+Latest Windows-only proof run after checking upstream freshness: 2026-10-05,
+Windows 10.0.26300,
 x64, .NET runtime 10.0.12, SDK 10.0.401, 16 logical processors.
 The shared development machine was not isolated or idle.
 
 **150 automated assertions passed, 0 failed, 1 actual cross-user gate blocked.**
 The run intentionally returns code 2 for that blocked gate; the documented
-script was run with `-AllowBlockedCrossUser`. Three RID publications passed.
+script was run with `-AllowBlockedCrossUser`. Two Windows RID publications passed.
 See [raw assertions/measurements](evidence/windows-run.json) and
 [native sizes, hashes and architectures](evidence/native-assets.json).
 
@@ -19,12 +20,12 @@ automatic WAL checkpointing is disabled to permit observation.
 
 | Metric | AES-GCM + equality token | SQLCipher + FTS5 |
 |---|---:|---:|
-| Initial open/schema, ms | 8.37 | 547.90 |
-| 2,000-record transaction, ms | 59.75 | 326.24 |
-| Batched records/second | 33,472 | 6,130 |
-| Individual write p50 / p95, ms | 0.645 / 0.812 | 1.978 / 2.989 |
-| Point read p50 / p95, ms | 0.015 / 0.061 | 0.046 / 0.097 |
-| Exact fixture search/count, ms | 0.233 | 1.413 |
+| Initial open/schema, ms | 6.79 | 479.33 |
+| 2,000-record transaction, ms | 46.04 | 268.10 |
+| Batched records/second | 43,440 | 7,460 |
+| Individual write p50 / p95, ms | 0.503 / 0.671 | 1.639 / 2.266 |
+| Point read p50 / p95, ms | 0.012 / 0.017 | 0.043 / 0.082 |
+| Exact fixture search/count, ms | 0.234 | 0.537 |
 | Live WAL bytes | 11,185,832 | 25,164,992 |
 
 Both databases have only 4,096 bytes in the main file at this observation:
@@ -78,8 +79,9 @@ The handoff CLI was separately exercised with real owner DPAPI roundtrip:
 the exact same-SID refusal (`InvalidOperationException`) and a deliberately
 wrong owner-confirmed digest refusal (`InvalidDataException`) were verified.
 Those negative CLI checks are **not** different-user protection evidence.
-WSL is not installed: a Linux host building Windows binaries remains blocked.
-Windows x86/Linux assets were published but not executed; clean installed
+Linux runtime support and Linux-host cross-build validation are outside the
+owner-confirmed Windows-only scope, not readiness blockers.
+Windows x86 assets were published but not executed; clean installed
 native loading, permissions and runtime prerequisites still require trials.
 No conclusions about production persistence, grants, source revocation,
 retention schedulers or final session/task schemas follow from these counts.

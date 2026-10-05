@@ -46,13 +46,6 @@
         }
       }
     },
-    "net10.0/linux-x64": {
-      "SQLitePCLRaw.lib.e_sqlcipher": {
-        "type": "Transitive",
-        "resolved": "2.1.11",
-        "contentHash": "Cg6UPeDbH8jyaOs1vqXYIgeewH0wYrBnmbC5Ml3GYBo+GKzNmyxrWSO52JV68bfB7Addt/PZLMekJV1RH2ftWQ=="
-      }
-    },
     "net10.0/win-x64": {
       "SQLitePCLRaw.lib.e_sqlcipher": {
         "type": "Transitive",

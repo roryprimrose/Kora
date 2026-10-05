@@ -275,6 +275,72 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task First_launch_greets_the_user_and_explains_explicit_voice_consent()
+    {
+        var fixture = new Fixture();
+        fixture.VoiceConsent.Consent = null;
+        fixture.UserName.AddressName = "Rory";
+        fixture.Voice.Microphones = [new MicrophoneDevice("0", "Headset")];
+        fixture.Voice.DefaultMicrophoneId = "0";
+        var settingsRequests = 0;
+        var recoveryRequests = 0;
+        fixture.ViewModel.SettingsRequested += (_, _) => settingsRequests++;
+        fixture.ViewModel.VoiceRecoveryRequested += (_, _) => recoveryRequests++;
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Hi Rory, I'm Kora.");
+        fixture.ViewModel.ResponseBody.Should().Contain("grant explicit voice consent");
+        fixture.ViewModel.ResponseBody.Should().Contain("microphone stays closed");
+        fixture.ViewModel.ResponseBody.Should().Contain("continue without voice");
+        fixture.ViewModel.NeedsVoiceConsent.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        var responseAction = fixture.ViewModel.ResponseActions.Should().ContainSingle().Which;
+        responseAction.Kind.Should().Be(ResponseActionKind.OpenVoiceSettings);
+        responseAction.Label.Should().Be("Review voice settings");
+        fixture.ViewModel.HasResponseActions.Should().BeTrue();
+        settingsRequests.Should().Be(0);
+        recoveryRequests.Should().Be(0);
+        fixture.Voice.StartCalls.Should().Be(0);
+
+        await fixture.ViewModel.ExecuteResponseActionAsync(new ResponseAction(
+            ResponseActionKind.OpenVoiceSettings,
+            responseAction.Label));
+
+        fixture.ViewModel.HasResponseActions.Should().BeTrue();
+        settingsRequests.Should().Be(0);
+        recoveryRequests.Should().Be(0);
+
+        await fixture.ViewModel.ExecuteResponseActionAsync(responseAction);
+
+        fixture.ViewModel.ResponseActions.Should().BeEmpty();
+        fixture.ViewModel.HasResponseActions.Should().BeFalse();
+        settingsRequests.Should().Be(1);
+        recoveryRequests.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task First_launch_greeting_identifies_blocked_Windows_microphone_access()
+    {
+        var fixture = new Fixture();
+        fixture.VoiceConsent.Consent = null;
+        fixture.UserName.AddressName = null;
+        fixture.Voice.Microphones = [new MicrophoneDevice("0", "Headset")];
+        fixture.Voice.DefaultMicrophoneId = "0";
+        fixture.MicrophoneAccess.Status = new MicrophoneAccessStatus(
+            MicrophoneAccessState.Denied,
+            "Windows microphone access is blocked for desktop apps.");
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Hi, I'm Kora.");
+        fixture.ViewModel.ResponseBody.Should().Contain("enable Windows microphone access");
+        fixture.ViewModel.ResponseBody.Should().Contain("grant explicit voice consent");
+        fixture.ViewModel.ResponseActions.Should().ContainSingle()
+            .Which.Kind.Should().Be(ResponseActionKind.OpenVoiceSettings);
+    }
+
+    [Fact]
     public async Task Reinitializing_while_listening_does_not_start_capture_again()
     {
         var fixture = new Fixture();
@@ -6438,6 +6504,7 @@ public sealed partial class MainViewModelTests
                 Session,
                 Process,
                 Dispatcher,
+                UserName,
                 ApplicationInfo,
                 Audit,
                 NullLogger<MainViewModel>.Instance,
@@ -6496,6 +6563,8 @@ public sealed partial class MainViewModelTests
         public FakeModelApprovalPreferences ApprovalPreferences { get; }
 
         public FakeApplicationInfo ApplicationInfo { get; }
+
+        public FakeCurrentUserNameProvider UserName { get; } = new();
 
         public MainViewModel ViewModel { get; }
 
@@ -7671,5 +7740,12 @@ public sealed partial class MainViewModelTests
         public IOException? Failure { get; set; }
 
         public string Version => Failure is { } exception ? throw exception : "1.2.3";
+    }
+
+    public sealed class FakeCurrentUserNameProvider : ICurrentUserNameProvider
+    {
+        public string? AddressName { get; set; } = "Rory";
+
+        public string? GetAddressName() => AddressName;
     }
 }

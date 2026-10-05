@@ -67,6 +67,15 @@ endpoint snapshot. It follows later Windows default-device changes, including
 changes during active capture or playback.
 
 First launch requires explicit saved voice consent before voice can be enabled.
+Kora greets you using the current Windows profile's local display name when it
+is available. This lookup stays on the device and falls back to the local
+account name; if neither yields a usable name, the greeting remains generic.
+The greeting is visual because Kora does not speak or open the microphone
+before consent. It distinguishes Kora's voice-consent choice from Windows
+microphone access and explains either gate when attention is required. Response
+actions appear as links below the message. Select **Review voice settings** to
+open **Settings > Speech & audio** directly; Kora does not open Settings until
+you choose that action.
 With saved consent, safe startup arms push-to-talk even if
 local inference or PowerShell setup still needs attention. It does not open
 ambient capture: production wake is unavailable. If no usable

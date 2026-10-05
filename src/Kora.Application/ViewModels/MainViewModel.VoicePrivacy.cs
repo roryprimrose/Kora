@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
             CloseForObservedPrivacyEvent("Windows session is " + snapshot.SessionState, hidePresentation: true);
         }
         else if (snapshot.MicrophoneAccess != MicrophoneAccessState.Allowed
-            || IsVoiceEnabled && SelectedMicrophone is { } microphone && !snapshot.CanCaptureFrom(microphone))
+            || SelectedMicrophone is { } microphone && IsVoiceEnabled && !snapshot.CanCaptureFrom(microphone))
         {
             CloseForObservedPrivacyEvent("Microphone permission or selected endpoint is unavailable", hidePresentation: false);
         }
@@ -482,7 +482,7 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (lifecycleAdmissionClosed || hostExitRequested || IsBusy || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
+        if (lifecycleAdmissionClosed || IsBusy || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())
         {

@@ -176,25 +176,42 @@ separately. This implementation does not establish that measured target or
 production wake quality. Overall roadmap/decision status is left to integration
 review.
 
+The [shared deferred-validation register](../Design/Deferred_Validation.md#r03-windows-ownership-and-audio-privacy)
+contains R03's individually approved interactive trial plan alongside the R02
+proofs. These unperformed trials remain acceptance/release blockers, not a claim
+of failure or success. The scoped implementation can merge after normal checks
+and reviews without declaring those gates passed or authorizing a live trial.
+
 ### R03 validation evidence
 
-After the final fetch/rebase, the baseline remained the approved R01 commit
-`7d5e6a3`. Validation used .NET SDK 10.0.401 on Windows:
+The initial R03 snapshot on approved R01 `7d5e6a3` passed local suites but failed
+the 100% coverage gate (98.7% line / 97.5% branch). Hosted Windows CI also found
+SID-alias ACL comparison and elevated-runner assumptions. These are historical
+failed checks, not waived or relabeled as passing evidence.
+
+After rebasing onto `ca63f73` (including the merged R02 speech/containment proofs),
+the CI fixes and expanded privacy/race tests were validated with .NET SDK
+10.0.401 on Windows:
 
 | Check | Result |
 | --- | --- |
 | Locked solution restore | Passed |
 | Fresh Debug and Release solution builds | Passed, zero warnings/errors |
 | Release Core unit tests | 251 passed |
-| Release application unit tests | 599 passed |
-| Release Windows tests | 164 passed |
+| Release application unit tests | 651 passed |
+| Release Windows tests | 172 passed |
 | Locked framework-dependent win-x64 and win-x86 publish | Passed; binaries not launched |
-| Merged portable line/branch coverage | 98.7% / 97.5%; **failed** the unchanged 100% / 100% gate |
+| Merged portable line/branch coverage | 100% / 100%; passed the unchanged 100% / 100% gate |
 
-Coverage includes 4,708 of 4,768 lines and 1,778 of 1,823 branches. No coverage
-exclusions or threshold reductions were introduced to hide the remaining gaps.
+Coverage includes 4,767 of 4,767 lines and 1,819 of 1,819 branches. No coverage
+exclusions or threshold reductions were introduced. The added tests exercise
+queued privacy transitions, output/consent failures, endpoint selection,
+approval rechecks and lifecycle admission. Clearing selection now closes armed
+input; protected binary ACL comparison preserves exact SID/rights enforcement,
+and production elevated-process admission still denies.
 The Windows count combines deterministic fakes with non-disruptive native
-object/device enumeration checks; it is not 164 real lifecycle or microphone
+object/device enumeration checks; it is not 172 real lifecycle or microphone
 trials. Debug/Release publishing is not proof of cross-build or cross-architecture
-handoff. The coverage gate and unauthorized real Windows reference trials are
-explicit draft-PR blockers; squash auto-merge remains disabled.
+handoff. Real Windows reference trials remain explicitly outstanding acceptance
+evidence. Interactive trials are deferred under the shared register; hosted CI
+and required reviews still must pass before this scoped implementation can merge.

@@ -4477,9 +4477,15 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("lock this workstation please");
         await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        fixture.TextToSpeech.StopGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
 
         var approving = fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
-        await fixture.RunAsync("show task progress");
+        approving.IsCompleted.Should().BeFalse();
+        var superseding = fixture.RunAsync("show task progress");
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.TextToSpeech.StopGate.SetResult();
+        await superseding.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         await approving.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         fixture.Session.LockCalls.Should().Be(0);
@@ -6157,7 +6163,21 @@ public sealed partial class MainViewModelTests
                 set => snapshotOverride = value;
             }
 
-            public WindowsPrivacySnapshot Refresh() => Current;
+            public Action? BeforeRefresh { get; set; }
+
+            public Exception? RefreshException { get; set; }
+
+            public WindowsPrivacySnapshot Refresh()
+            {
+                var callback = BeforeRefresh;
+                BeforeRefresh = null;
+                callback?.Invoke();
+                if (RefreshException is { } exception)
+                {
+                    throw exception;
+                }
+                return Current;
+            }
 
             public void Publish(WindowsPrivacyChangedEventArgs change) => Changed?.Invoke(this, change);
 
@@ -6423,6 +6443,10 @@ public sealed partial class MainViewModelTests
 
         public InvalidOperationException? InvokeException { get; set; }
 
+        public Action? BeforeInvoke { get; set; }
+
+        public Action? BeforePost { get; set; }
+
         public Task InvokeAsync(Func<Task> action)
         {
             if (InvokeException is not null)
@@ -6430,11 +6454,20 @@ public sealed partial class MainViewModelTests
                 throw InvokeException;
             }
 
+            var callback = BeforeInvoke;
+            BeforeInvoke = null;
+            callback?.Invoke();
             LastInvocation = action();
             return LastInvocation;
         }
 
-        public void Post(Action action) => action();
+        public void Post(Action action)
+        {
+            var callback = BeforePost;
+            BeforePost = null;
+            callback?.Invoke();
+            action();
+        }
     }
 
     private sealed class FakeVoiceRecognitionService(
@@ -6524,6 +6557,12 @@ public sealed partial class MainViewModelTests
 
         public TaskCompletionSource? StartGate { get; set; }
 
+        public bool IgnoreStartCancellation { get; set; }
+
+        public Action? AfterStart { get; set; }
+
+        public void AdvanceGeneration() => Generation++;
+
         public MicrophoneDevice? StartedMicrophone { get; private set; }
 
         public IReadOnlyList<string> StartedPhrases { get; private set; } = [];
@@ -6575,7 +6614,14 @@ public sealed partial class MainViewModelTests
 
             if (StartGate is not null)
             {
-                await StartGate.Task.WaitAsync(cancellationToken);
+                if (IgnoreStartCancellation)
+                {
+                    await StartGate.Task;
+                }
+                else
+                {
+                    await StartGate.Task.WaitAsync(cancellationToken);
+                }
             }
 
             IsListening = true;
@@ -6583,6 +6629,7 @@ public sealed partial class MainViewModelTests
             {
                 IsListening = false;
             }
+            AfterStart?.Invoke();
         }
 
         public Task StopAsync(CancellationToken cancellationToken = default)
@@ -6608,6 +6655,9 @@ public sealed partial class MainViewModelTests
 
         public void RaiseTranscript(string transcript, float confidence) =>
             TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation));
+
+        public void RaiseTranscriptForGeneration(long generation) =>
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs("lock the machine", 1, generation));
 
         public void RaiseFailure(string message) =>
             RecognitionFailed?.Invoke(this, new VoiceRecognitionFailureEventArgs(message, Generation));
@@ -6663,6 +6713,10 @@ public sealed partial class MainViewModelTests
         public Exception? SpeakException { get; set; }
 
         public Exception? StopException { get; set; }
+
+        public Action? BeforeStop { get; set; }
+
+        public IOException? OutputEnumerationException { get; set; }
 
         public TaskCompletionSource? StopGate { get; set; }
 
@@ -6790,6 +6844,7 @@ public sealed partial class MainViewModelTests
             events.Add("tts.stop");
             StopCalls++;
             StopStarted.TrySetResult();
+            BeforeStop?.Invoke();
             if (StopException is not null)
             {
                 throw StopException;
@@ -6812,7 +6867,7 @@ public sealed partial class MainViewModelTests
         }
 
         public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
-            => OutputDevices;
+            => OutputEnumerationException is { } exception ? throw exception : OutputDevices;
 
         public AudioOutputDevice? GetDefaultOutputDevice() =>
             OutputDevices.FirstOrDefault(device => string.Equals(

@@ -51,6 +51,7 @@ public sealed class HandoffTransactionTests
             Candidate with { SessionId = 2 },
             Candidate with { CreationTime = 0 },
             Candidate with { ProcessId = Original.ProcessId },
+            Candidate with { ProcessId = 0 },
             Candidate with { Build = Candidate.Build with { ContentDigest = string.Empty } },
             Candidate with { Build = OriginalBuild },
         })

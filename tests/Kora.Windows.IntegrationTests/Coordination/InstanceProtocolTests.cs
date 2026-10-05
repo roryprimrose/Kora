@@ -83,12 +83,45 @@ public sealed class InstanceProtocolTests
         using var handle = CoordinationNative.OpenProcess(
             CoordinationNative.Synchronize | CoordinationNative.QueryLimitedInformation, false, Environment.ProcessId);
         handle.IsInvalid.Should().BeFalse();
-        var token = CoordinationNative.ReadProcessToken(handle);
+        var token = CoordinationNative.ReadProcessTokenIdentity(handle);
         token.Sid.Should().Be(identity.User!.Value);
         token.SessionId.Should().Be(current.SessionId);
+        var admission = () => CoordinationNative.ReadProcessToken(handle);
+        if (token.IsElevated)
+        {
+            admission.Should().Throw<InvalidOperationException>()
+                .WithMessage("Kora instance ownership requires an unprivileged process.");
+        }
+        else
+        {
+            admission().Should().Be((token.Sid, token.SessionId));
+        }
         CoordinationNative.GetProcessTimes(handle, out var creation, out _, out _, out _).Should().BeTrue();
         creation.Should().BeGreaterThan(0);
         CoordinationNative.WaitForSingleObject(handle, 0).Should().Be(258);
+    }
+
+    [Theory]
+    [InlineData("SY", "S-1-5-18")]
+    [InlineData("BA", "S-1-5-32-544")]
+    public void Mutex_descriptor_verification_accepts_only_equivalent_binary_rights(string alias, string sid)
+    {
+        var expected = $"D:P(A;;0x120001;;;{sid})";
+        var action = () => CoordinationNative.VerifyMutexDescriptor($"D:P(A;;0x120001;;;{alias})", expected);
+        action.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData("D:(A;;0x120001;;;SY)")]
+    [InlineData("D:P")]
+    [InlineData("D:P(A;;GA;;;SY)")]
+    [InlineData("D:P(A;;0x120001;;;WD)")]
+    [InlineData("D:P(A;;0x120001;;;SY)(A;;0x120001;;;BA)")]
+    [InlineData("D:P(D;;0x120001;;;SY)")]
+    public void Mutex_descriptor_verification_denies_weakened_or_different_permissions(string descriptor)
+    {
+        var action = () => CoordinationNative.VerifyMutexDescriptor(descriptor, "D:P(A;;0x120001;;;S-1-5-18)");
+        action.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]

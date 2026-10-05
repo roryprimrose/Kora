@@ -1000,16 +1000,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 selectedMicrophone?.Id,
                 value?.Id,
                 StringComparison.Ordinal);
+            if (selectionChanged && !suppressAudioDevicePreferenceSave)
+            {
+                HoldVoiceInput("Microphone changed · use Enable listening");
+            }
             if (SetProperty(ref selectedMicrophone, value))
             {
                 ToggleListeningCommand.NotifyCanExecuteChanged();
                 UpdateMicrophoneAvailability(selectedMicrophoneUnavailable: false);
                 if (selectionChanged
-                    && !suppressAudioDevicePreferenceSave
-                    && value is not null)
+                    && !suppressAudioDevicePreferenceSave)
                 {
-                    HoldVoiceInput("Microphone changed · use Enable listening");
-                    SaveMicrophonePreference(value);
+                    if (value is not null)
+                    {
+                        SaveMicrophonePreference(value);
+                    }
                 }
             }
         }
@@ -3621,8 +3626,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs)
     {
-        if (!IsVoiceEnabled || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
-            || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
+        if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");

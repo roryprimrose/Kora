@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Security.Principal;
 
 using Microsoft.Win32.SafeHandles;
@@ -68,10 +69,7 @@ internal static partial class CoordinationNative
 
             try
             {
-                if (!string.Equals(Marshal.PtrToStringUni(text), expected, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException("The coordinator object is not restricted to this user.");
-                }
+                VerifyMutexDescriptor(Marshal.PtrToStringUni(text)!, expected);
             }
             finally
             {
@@ -81,6 +79,26 @@ internal static partial class CoordinationNative
         finally
         {
             _ = LocalFree(descriptor);
+        }
+    }
+
+    internal static void VerifyMutexDescriptor(string actual, string expected)
+    {
+        var actualDescriptor = new RawSecurityDescriptor(actual);
+        var expectedDescriptor = new RawSecurityDescriptor(expected);
+        var actualAcl = actualDescriptor.DiscretionaryAcl;
+        var expectedAcl = expectedDescriptor.DiscretionaryAcl!;
+        if ((actualDescriptor.ControlFlags & ControlFlags.DiscretionaryAclProtected) == ControlFlags.None || actualAcl is null)
+        {
+            throw new InvalidOperationException("The coordinator object is not restricted to this user.");
+        }
+        var actualBytes = new byte[actualAcl.BinaryLength];
+        var expectedBytes = new byte[expectedAcl.BinaryLength];
+        actualAcl.GetBinaryForm(actualBytes, 0);
+        expectedAcl.GetBinaryForm(expectedBytes, 0);
+        if (!actualBytes.AsSpan().SequenceEqual(expectedBytes))
+        {
+            throw new InvalidOperationException("The coordinator object is not restricted to this user.");
         }
     }
 
@@ -116,6 +134,16 @@ internal static partial class CoordinationNative
 
     internal static (string Sid, int SessionId) ReadProcessToken(SafeProcessHandle process)
     {
+        var identity = ReadProcessTokenIdentity(process);
+        if (identity.IsElevated)
+        {
+            throw new InvalidOperationException("Kora instance ownership requires an unprivileged process.");
+        }
+        return (identity.Sid, identity.SessionId);
+    }
+
+    internal static (string Sid, int SessionId, bool IsElevated) ReadProcessTokenIdentity(SafeProcessHandle process)
+    {
         if (!OpenProcessToken(process, 8, out var token))
         {
             throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -134,13 +162,8 @@ internal static partial class CoordinationNative
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 }
 
-                if (elevated != 0)
-                {
-                    throw new InvalidOperationException("Kora instance ownership requires an unprivileged process.");
-                }
-
                 var sid = new SecurityIdentifier(Marshal.ReadIntPtr(buffer));
-                return (sid.Value, session);
+                return (sid.Value, session, elevated != 0);
             }
             finally
             {

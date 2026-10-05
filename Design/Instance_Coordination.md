@@ -166,6 +166,16 @@ take over the production coordinator namespace. Actual simultaneous desktop
 activation, lock/takeover/return, worker-crash and deployment/architecture trials
 remain separate user-confirmed validation gates.
 
+The [shared deferred-validation register](Deferred_Validation.md#r03-windows-ownership-and-audio-privacy)
+owns the R03 interactive handoff (A01-A07), including approval prerequisites,
+individual release timings and real process/resource observations. Merging the
+scoped implementation and checklist after normal checks/reviews does not close
+these acceptance/release gates or authorize an interactive trial.
+Mutex ACL verification compares the exact protected binary DACL so Windows SID
+aliases cannot create false identity mismatches; differing rights, trustees,
+extra ACEs or unprotected DACLs still deny. Hosted elevated test processes may
+inspect their own token identity, but production admission still rejects them.
+
 - Simultaneous same-build launches yield one assistant/tray/capture owner and reveal the existing window; only acknowledged secondary processes exit successfully.
 - Different semantic version, debug/release, and changed binary under unchanged version text yield the exact-identity handoff question.
 - Rejection, expiry, lock, missing microphone, incompatible protocol, candidate death, stale/forged tickets, and unreachable owner never create a competing assistant.

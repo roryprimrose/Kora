@@ -23,12 +23,17 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 |---|---|---|---|
 | R02 speech/hardware | [Merged synthetic proof and safe file-only reruns](../experiments/r02-speech-proof/README.md#safe-to-rerun-remotely-including-while-locked) | [Before a live test session](../experiments/r02-speech-proof/README.md#before-a-live-test-session), then [live/instrumented acceptance](../experiments/r02-speech-proof/README.md#live--instrumented-acceptance-work-still-outstanding). Obtain participant/bystander consent and an instrumented host with R03/R09 ownership/privacy controls; the current scripts cannot run live trials. | D-002/D-007; packaged acoustics, playback rejection, latency, reference floor and capture/recovery acceptance |
 | R02 storage/key | [Synthetic storage proof and safe Windows reruns](../experiments/r02-storage-proof/README.md#reproduce); authenticated content, DPAPI/key-file ACLs and transaction/artifact interruption evidence | [Storage admission follow-up](#storage-admission-follow-up): maintained native selection, installed x64/x86 loading, production profile-path/CurrentUser/permission integration, and integrated recovery/deletion. Safe proof reruns require a loaded Windows profile, not an unlocked console. Routine second-account OS-denial trials are optional for profile-local storage. | D-009; R02 native admission, R04 integration and R12 lifecycle/deletion remain open; no production store is enabled |
+| R02 local inference | [Safe deterministic reruns](../experiments/r02-local-inference-proof/README.md#safe-deterministic-reruns); verified public identity/licence/download metadata and real missing-runtime/unavailable behavior, not model quality or performance | [Prepare an interactive inference session](../experiments/r02-local-inference-proof/README.md#before-an-interactive-inference-session), then [LI01-LI07 deferred trials](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials). Assign reference/isolation owners and agree budgets; separately approve exact pinned provisioning, exclusive model residency changes and whole-environment network blocking. Synthetic measurement commands exist; server-cessation/race, attributable egress and integrated-host rows need independent instrumentation or later implementation. | D-003 and inference D-007; [R02-L1-L6](Implementation_Roadmap.md#r02-local-inference-continuation), actual CPU-floor quality/context/cancellation, distribution and offline success; R06/R07/R08/R10 and A2/R19 integration remain gated |
 | R02 Windows containment | [Fixed owned-scratch reproduction](../experiments/r02-containment-proof/README.md#reproduce); partial OS denials and lifetime/Unknown receipts already observed | [Containment outstanding-testing checklist](../experiments/r02-containment-proof/README.md#outstanding-testing-checklist): supported-OS repeat, attributable network denial, dependency/control mechanism, independent deployment and aliases, helper contracts, actual controlled effects and host-death/race recovery. Most rows require a new bounded fixture or instrumented implementation; the current runner is not a general executor. | D-013 and [W1-W4](Implementation_Roadmap.md#r02-windows-containment-follow-up); R11/R16/R17 exposure remains gated |
 | R02 distribution | [Draft proof #24](https://github.com/roryprimrose/Kora/pull/24); separate build/inspection evidence, not an implementation dependency of the containment proof | Its approved scope is build/inspect only. Linux package construction and actual Windows installation, effective ACL/token protection, native/runtime-only launch and recovery require separate validation. Before any real installation/launch/registry/privileged trial, obtain a new scoped approval and use a disposable lab deployment. Follow the distribution proof's checklist when its documentation is integrated. | D-005/R17; no production worker/catalogue acceptance from package inspection or the absence of those components |
 | R03 Windows ownership/audio privacy | [Implementation PR #26](https://github.com/roryprimrose/Kora/pull/26), portable policy/race tests, non-disruptive Windows object/enumeration tests and x64/x86 builds/publishes; not live microphone or lifecycle evidence | [R03 interactive checklist](#r03-windows-ownership-and-audio-privacy). Prepare an instrumented, non-elevated test host and obtain separate approval for each capture/playback, launch/handoff and OS-transition trial. Production wake is not selected or enabled by R03. | R03 real-adapter acceptance; capture release within 500 ms of the observed lock event in every reference trial, takeover/return, hardware/offline ASR, native recovery and cross-architecture evidence remain open |
 
-The speech checklist remains the owner of detailed acoustic procedures; this
-register does not replace it or weaken its consent requirements. The
+Each proof-specific checklist owns its detailed procedures; this register
+does not replace them or weaken their separate consent requirements. Local
+inference isolation proves the answering environment's remote-egress boundary,
+not the containment worker's attributable network denial. Speech, storage,
+containment and distribution receipts cannot qualify an untested inference runtime or
+authorise its provisioning/network changes. The
 distribution entry records coordination with a published draft, not a claim
 that its implementation has landed on main. Preserve both distribution and
 containment roadmap plans when integrating that branch.
@@ -150,6 +155,14 @@ optional OS-boundary corroboration is not relabelled as passed.
 Neither merging its design direction nor a successful synthetic run closes
 S1-S4 or D-009.
 
+Likewise, local inference may merge as a source-linked harness, truthful partial
+results, technical outcomes and an actionable LI01-LI07/R02-L1-L6 handoff after
+normal validation/checks/reviews. Missing runtime, operator/hardware trials and
+independent offline capture remain capability blockers, not prerequisites for
+merging that limited scope. Keep historical observations unchanged and
+D-003/D-007 open; no inference pin, production tool loop or remote fallback is
+enabled by publication.
+
 On 2026-10-05 the user requested rebasing R03 onto main and adding its deferred
 interactive testing alongside the other proofs so the scoped PR can merge.
 The authorized merge scope is implementation plus this actionable evidence
@@ -164,4 +177,6 @@ authorize disruptive testing. Overall roadmap/decision-register acceptance
 consolidation remains with integration review.
 
 No live speech, protected installation, privileged diagnostics or disruptive
-computer-control validation was performed by adding this register.
+computer-control validation was performed by adding this register. Its inference
+entry performs no installation/model download, model-residency change,
+network-policy mutation or successful real-model trial.

@@ -27,6 +27,54 @@ Use synthetic data and test accounts, never real secrets or private enterprise d
 Evidence includes test cases, actual results, timings, action receipts, and redacted diagnostic references.
 Critical policy/cancellation tests require 100% pass; averages must not hide individual unauthorised actions.
 
+### Local Inference Evidence
+
+The [R02 local-inference outcomes](Local_Inference.md) are partial evidence,
+not a waiver of these gates. Public candidate metadata, 31 deterministic proof
+tests and a real missing-endpoint/unavailable response establish neither
+successful answering nor CPU-floor/offline acceptance.
+
+Before D-003/local-inference D-007 qualification, follow
+[R02-L1-L5](Implementation_Roadmap.md#r02-local-inference-continuation):
+
+- Name/approve the supported Windows/reference CPU and isolated environment;
+  test the proposed 8-logical-core/16-GiB/SSD floor with verified CPU-only
+  inference, recorded power profile and UI/local-service contention. A faster
+  development host or a constrained VM alone does not qualify the floor.
+- Agree numeric local-answer latency/resource/cancellation budgets before
+  trials. Record exact installed runtime/model identities, compatibility,
+  licence/notice review, transfer, expanded/peak storage and per-volume needs.
+- Measure at least 30 unloaded-model cold and 30 paired warm trials; retain
+  individual outputs/failures, first generated versus response token and
+  completion timing, p50/p95/max, process memory/CPU and runtime counters.
+  Buffered production and experimental streaming results stay separate.
+- Use expected-answer fixtures plus the
+  [automated/human rubric](../experiments/r02-local-inference-proof/README.md#answer-quality-rubric).
+  Human review must verify meaning, grounding/uncertainty and safety, not just
+  matching keywords. Every critical fixture passes; aggregate scores cannot
+  hide quoted-content authority, invented execution or remote-fallback failures.
+- Verify the effective full-envelope context limit and explicit oversize
+  behavior; advertised model tokens and the 4,096-character bootstrap cap are
+  different bounds. Observe repeated cancellation/completion races, actual
+  timeout, late-output rejection, server cessation/residual work and recovery.
+- Under approved whole-environment remote-network denial with loopback
+  retained, prove successful answering, cancellation/recovery and
+  missing/unhealthy unavailable behavior. Retain independent effective-control
+  and process-correlated egress evidence covering Kora and Ollama/runner;
+  loopback code, connection refusal and client mocks alone are insufficient.
+
+R02 candidate qualification still does not accept A2. R06/R07/R08/R10 apply
+the tested envelope and R19 compiles integrated host, request-triggered
+clipboard, voice/UI and streaming evidence under R02-L6. Changed runtime/model,
+options, context or compatibility claims repeat affected proofs.
+
+Use the [shared deferred-validation register](Deferred_Validation.md) and
+[LI01-LI07](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials)
+when preparing a later separately approved interactive inference session.
+They distinguish runnable synthetic commands from missing server/egress/host
+instrumentation. Unperformed trials block qualification and A2 acceptance,
+not merging the partial research and testing handoff under normal checks/reviews.
+
 ## Platform Boundary Gate
 
 - Shared domain/policy/task/skill/configuration code builds and runs portable tests on Linux without Windows-only API references.
@@ -740,7 +788,7 @@ Required initial-release evidence, not optional post-MVP enhancements:
 
 | Capability | Required checkpoint evidence |
 |---|---|
-| Ollama/inference adapter | A2: shared-loop conformance, network-blocked offline clipboard answering, tool/result mediation, context/egress limits, quality/cancellation and reference-hardware/licence/performance proof |
+| Ollama/inference adapter | A2: [local-inference qualification](#local-inference-evidence), then shared-loop conformance, independently network-blocked offline clipboard answering, tool/result mediation, context/egress limits, quality/cancellation and integrated reference-hardware proof; R02 metadata/harness/unavailable observations alone do not pass |
 | Fixed bundled execution | A3: complete embedded multi-script identity/review, common direct/model/UI/skill grant gate, truthful cancellation/lock receipts, and actual OS filesystem/network/child-process/credential/protected-Kora-resource containment |
 | Concurrent independent session tasks | A3: two-slot baseline on reference hardware, one task per session, resource conflict scheduling, isolated task/approval/provider contexts, per-task cancellation, fair budgets and truthful grounded/aggregated status |
 

@@ -1,0 +1,8 @@
+<Project>
+  <!-- This proof has no package dependencies and does not inherit product analyzers. -->
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

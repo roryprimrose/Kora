@@ -1,0 +1,57 @@
+{
+  "Schema": "Kora.R02.MachineEvidence.v1",
+  "RecordedUtc": "2026-10-05T04:33:36.6724509+00:00",
+  "Revision": "50c90382e855bcc8ac7ac0deefe00df49e077ee2",
+  "WorkingTreeChanges": [
+    " M Design/Acceptance_Criteria.md",
+    " M Design/Decision_Register.md",
+    " M Design/Deferred_Validation.md",
+    " M Design/Implementation_Roadmap.md",
+    " M Design/Local_Inference.md",
+    " M Design/README.md",
+    " M experiments/r02-local-inference-proof/README.md",
+    " M experiments/r02-local-inference-proof/RESULTS.md",
+    "?? experiments/r02-local-inference-proof/results/post-rebase/"
+  ],
+  "OS": {
+    "Caption": "Microsoft Windows 11 Enterprise",
+    "Version": "10.0.26300",
+    "Architecture": "64-bit",
+    "BuildNumber": "26300"
+  },
+  "Cpu": [
+    {
+      "Name": "AMD RYZEN AI MAX 385 w/ Radeon 8050S           ",
+      "NumberOfCores": 8,
+      "NumberOfLogicalProcessors": 16
+    }
+  ],
+  "VisibleRamBytes": 25530408960,
+  "Disks": [
+    {
+      "MediaType": "SSD",
+      "Size": 1024209543168,
+      "BusType": "NVMe"
+    }
+  ],
+  "Volumes": [
+    {
+      "DriveLetter": "Q",
+      "Size": 433682640896,
+      "SizeRemaining": 107342610432
+    },
+    {
+      "DriveLetter": "C",
+      "Size": 588208140288,
+      "SizeRemaining": 351513915392
+    }
+  ],
+  "PowerScheme": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)",
+  "OllamaExecutable": null,
+  "OllamaHostSetting": null,
+  "OllamaModelStorageSetting": "Default %USERPROFILE%\\.ollama\\models",
+  "UIAndContention": "Not a reference trial: Kora UI not launched; normal service contention not controlled or quantified.",
+  "ReferenceFloor": "At least 8 logical CPU cores, 16 GiB RAM, SSD, supported Windows 11 x64; CPU-only inference must be verified separately.",
+  "NetworkBlock": "Not approved or applied on this shared machine.",
+  "InventoryPrivacy": "No clipboard, host name, user name, serial numbers, accounts, network destinations or environment-variable dump collected."
+}

@@ -30,9 +30,22 @@ cross-profile isolation; routine second-account OS-denial trials are not
 required for this profile-local application or for merging its research outcome.
 
 [Deferred Proof Validation](Deferred_Validation.md) is the interactive-session
-handoff for outstanding speech, containment and distribution trials. It links
+handoff for outstanding speech, storage/key, local-inference, containment and
+distribution validation. It links
 safe reruns and proof-specific checklists while keeping consent/privilege
 requirements and capability blockers distinct from merging partial research.
+
+[R02 Local Inference Qualification and Technical Plan](Local_Inference.md)
+records partial proof outcomes and their technical consequences. Candidate
+identity/licence/download metadata and missing-runtime behavior are evidenced;
+real model, CPU-floor and no-egress success are not. The
+[R02-L1-L6 continuation](Implementation_Roadmap.md#r02-local-inference-continuation)
+starts with test-owner/environment/budget approval, then consented provisioning,
+actual trials, candidate disposition and integration. The proof remains
+supporting evidence, not the only place this work is tracked.
+The [LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
+provides the later interactive-session procedures; merging partial research
+does not close the outstanding inference or independent proof gates.
 
 ## Current Bootstrap Boundary
 
@@ -79,6 +92,7 @@ broader approval-policy evidence in D-008.
 21. [Acceptance Criteria](Acceptance_Criteria.md): evidence required before release.
 22. [Internal Model Tool Catalogue](Internal_Model_Tools.md): complete current action/proposal inventory, proposed internal tools, caller lanes, capability gates, and host-only exclusions.
 23. [Session Workspace and Coordinated Windows](UI_Workspace_And_Windows.md): compact interaction, session list plus full conversation workspace, detail/script review, native cards, concurrent work UX, and supporting windows.
+24. [Local Inference Qualification and Technical Plan](Local_Inference.md): R02 outcomes, candidate/compatibility/context/resource consequences and the path to D-003/D-007 qualification and A2 integration.
 
 ## Human Interaction and Sessions
 

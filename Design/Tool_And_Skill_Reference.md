@@ -26,6 +26,16 @@ See the [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 for source/test evidence, delivered-versus-outstanding scope, dependencies and
 the acceptance gates required before these planned contracts are advertised.
 
+For local-runtime availability and setup, the
+[R02 technical outcomes](Local_Inference.md) distinguish identified/ready from
+qualified: public metadata and missing-runtime tests do not prove answer
+quality, CPU-floor resources, usable context or OS-enforced offline operation.
+`runtime.*` queries must describe actual tested capabilities/budgets, not
+advertised model limits or experimental streaming. Setup remains host-only;
+R10 consumes measured per-volume requirements and compatibility from the
+[R02 continuation](Implementation_Roadmap.md#r02-local-inference-continuation).
+No new tool or production capability is introduced by that proof.
+
 The **Current host behavior** column means:
 
 - **Current:** the listed host behavior exists through an exact command or UI.

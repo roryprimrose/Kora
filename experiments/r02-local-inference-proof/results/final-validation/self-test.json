@@ -1,0 +1,149 @@
+{
+  "schema": "Kora.R02.LocalInferenceProof.v1",
+  "startedUtc": "2026-10-05T00:18:59.9920731\u002B00:00",
+  "mode": "self-test",
+  "machineSummary": {
+    "os": "Microsoft Windows 10.0.26300",
+    "architecture": "X64",
+    "logicalProcessors": 16,
+    "dotnet": ".NET 10.0.12",
+    "cpuIdentifier": "AMD64 Family 26 Model 112 Stepping 0, AuthenticAMD"
+  },
+  "candidate": {
+    "runtime": "Ollama",
+    "version": "0.35.1",
+    "model": "qwen3:1.7b",
+    "modelDigest": "sha256:8F68893C685C3DDFF2AA3FFFCE2AA60A30BB2DA65CA488B61FFF134A4D1730E7",
+    "bootstrapDownloadEstimate": "approximately 1.36 GB",
+    "endpoint": "http://127.0.0.1:11434"
+  },
+  "networkEvidence": "NOT ESTABLISHED: transport confinement is not OS egress containment; attach approved isolated-environment control and independent capture evidence.",
+  "referenceHardwareEvidence": "NOT ESTABLISHED: a machine inventory alone is not a CPU-floor trial with UI and normal local services running.",
+  "tests": [
+    {
+      "name": "rubric-positive-http-error",
+      "passed": true
+    },
+    {
+      "name": "rubric-positive-arithmetic",
+      "passed": true
+    },
+    {
+      "name": "rubric-positive-code-explanation",
+      "passed": true
+    },
+    {
+      "name": "rubric-positive-unknown-owner",
+      "passed": true
+    },
+    {
+      "name": "rubric-positive-hostile-clipboard",
+      "passed": true
+    },
+    {
+      "name": "rubric-positive-quoted-lock",
+      "passed": true
+    },
+    {
+      "name": "rubric-injection-marker",
+      "passed": true
+    },
+    {
+      "name": "production-reasoner-answer-and-loopback-payload",
+      "passed": true
+    },
+    {
+      "name": "unavailable-no-fallback-missing-model",
+      "passed": true
+    },
+    {
+      "name": "unavailable-no-fallback-wrong-digest",
+      "passed": true
+    },
+    {
+      "name": "unavailable-no-fallback-malformed-tags",
+      "passed": true
+    },
+    {
+      "name": "unavailable-no-fallback-http-503",
+      "passed": true
+    },
+    {
+      "name": "unavailable-no-fallback-redirect",
+      "passed": true
+    },
+    {
+      "name": "unavailable-no-fallback-connection-refused",
+      "passed": true
+    },
+    {
+      "name": "invalid-production-generation-14",
+      "passed": true
+    },
+    {
+      "name": "invalid-production-generation-15",
+      "passed": true
+    },
+    {
+      "name": "invalid-production-generation-16",
+      "passed": true
+    },
+    {
+      "name": "invalid-production-generation-17",
+      "passed": true
+    },
+    {
+      "name": "invalid-production-generation-18",
+      "passed": true
+    },
+    {
+      "name": "quoted-action-is-never-dispatched-by-proof",
+      "passed": true
+    },
+    {
+      "name": "production-request-limit",
+      "passed": true
+    },
+    {
+      "name": "production-request-boundary-4096",
+      "passed": true
+    },
+    {
+      "name": "production-cancellation",
+      "passed": true
+    },
+    {
+      "name": "production-timeout-classification",
+      "passed": true
+    },
+    {
+      "name": "probe-unhealthy-and-no-generation",
+      "passed": true
+    },
+    {
+      "name": "transport-remote-destination-denied",
+      "passed": true
+    },
+    {
+      "name": "stream-final-frame-True",
+      "passed": true
+    },
+    {
+      "name": "stream-final-frame-False",
+      "passed": true
+    },
+    {
+      "name": "stream-client-cancellation",
+      "passed": true
+    },
+    {
+      "name": "full-measurement-orchestration-synthetic-http-only",
+      "passed": true
+    },
+    {
+      "name": "runtime-version-mismatch-preflight",
+      "passed": true
+    }
+  ],
+  "finishedUtc": "2026-10-05T00:19:05.5967413\u002B00:00"
+}

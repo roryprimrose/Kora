@@ -261,6 +261,33 @@ They are not accepted solely from a self-declared extension manifest.
 
 Automatic provider switching is excluded from the MVP. Changing runtime starts a new task with a new destination/approval assessment.
 
+### Local Inference Qualification
+
+The [R02 technical outcomes and plan](Local_Inference.md) are the qualification
+input for the local adapter, not an implementation of this runtime protocol.
+The pinned Ollama/qwen candidate has public identity/licence/download metadata
+and observed missing-runtime/unavailable behavior; actual answer quality,
+CPU-floor resources, effective context, server cancellation and no-egress
+success remain unproved. Preserve explicit unavailable states and no remote
+fallback while those gates are open.
+
+The bootstrap identifies a responding Ollama version and pins the model digest;
+the experiment additionally requires exact runtime `0.35.1`. R06/R10 must
+record a tested compatibility envelope rather than treating any version string
+as qualification or replacing a pre-existing runtime automatically.
+The host must budget the entire approved request against the tested context
+window: the current 4,096-character cap is not a token limit, and advertised
+32,768-token model capacity is not an accepted Kora envelope.
+
+The current reasoner buffers one JSON response with a 512-token prediction
+bound and a two-minute failure deadline. Experimental streaming/CPU/context
+overrides do not change production capabilities or prove user-visible latency.
+R08 must implement and qualify answer deltas, backpressure, thinking/output
+boundaries, cancellation and late-event rejection under this protocol.
+R06/R07/R08 use the [R02-L5 envelope and L6 handoff](Implementation_Roadmap.md#r02-local-inference-continuation),
+then repeat affected proofs on the actual host. Loopback transport confinement
+is supplementary to independent OS-enforced offline evidence, not its substitute.
+
 ## Tool Gateway
 
 The [Internal Model Tool Catalogue](Internal_Model_Tools.md) owns the complete current/proposed tool inventory, stable names, caller lanes, schema/effect boundaries, and host-only exclusions.

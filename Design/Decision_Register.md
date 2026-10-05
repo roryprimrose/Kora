@@ -18,11 +18,11 @@ An Accepted direction status records the agreed behavior, not completed contract
 |---|---|---|---|---|---|
 | D-001 | Copilot adapter/control-point viability | Runtime engineering lead | Slice A0 implementation | Open, release-blocking | Pinned SDK/version; context/tool/egress interception; streaming; cancellation; independent session behavior; unsupported built-ins disabled |
 | D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
-| D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; bootstrap candidate pinned | Pinned Ollama/runtime versions, selected model, licence, download size, reference hardware floor, answer/cancellation quality, offline proof |
+| D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management | Independent-session permission, SDK/account tier, terms, quota/rate limit, cost estimate, 32 KiB/4 KiB bounds, 15-second deadline, deterministic fallback |
 | D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | Open, release-blocking | NSIS proof, Linux build, final-byte hash/provenance, Unknown Publisher/SmartScreen UX, no install-capable updater, external Windows evidence; future signed-metadata root design separately gated |
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
-| D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance | Open, release-blocking | Windows versions, CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment |
+| D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes; schema/enforcement proof open, release-blocking; initial model grants only | Single-use consumption, operation-bound durable session grants, perpetual grants without retention/eviction, applicability/provenance after chat deletion, native explicit edit/removal, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
 | D-009 | Durable session storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Lifecycle and Windows encryption direction recorded; synthetic R02 evidence measured; native/key integration and schema/deletion acceptance open, release-blocking | Maintained authenticated SQLite and AES-GCM artifacts, CurrentUser/profile-path/effective-ACL integration and installed Windows evidence, event ordering, crash/migration/key/backup recovery, configurable 24-hour/30-day inactivity policies, journal/cache/backup deletion, no action/grant replay |
 | D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; isolation/budget proof open, release-blocking | Pinned SDK/provider isolation and concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races |
@@ -43,7 +43,7 @@ before ordinary read-only tools or fixed bundled actions.
 | Decisions | Primary roadmap packages and closure evidence |
 |---|---|
 | D-001/D-004 | R02 actual SDK/provider control and budget proofs, R06/R08 mediated local/remote loop, R13 independent management/concurrency |
-| D-002/D-003/D-007 | R02 candidate/licence/hardware selection, R03/R07/R09 actual privacy/local-answer/wake trials, R19 integrated acceptance |
+| D-002/D-003/D-007 | R02 candidate/licence/hardware selection, with [R02-L1-L5](Implementation_Roadmap.md#r02-local-inference-continuation) local-inference qualification and L6 handoff; R03/R07/R09 actual privacy/local-answer/wake trials, R19 integrated acceptance |
 | D-005 | R02/R17 protected Linux-built distribution/installed Windows evidence, R18 notify-only maintenance; no install-capable updater implied |
 | D-006 | Optional R24 only; do not make learning or verification a baseline voice prerequisite |
 | D-008/D-012 | R01 resolved authority/origin rules, R03/R05 common privacy/grant gateway, R11/R15/R16 real containment/call/power enforcement |
@@ -106,6 +106,31 @@ PR #13 pins consented per-user Ollama 0.35.1 and `qwen3:1.7b` by digest and
 tests a completed inference response on loopback. This is a bootstrap/readiness
 candidate, not reference-hardware performance, answer-quality, cancellation,
 licence, or network-blocked offline acceptance evidence. Keep D-003 open.
+
+The 2026-10-05 R02 experiment adds verified public candidate identity/licence
+metadata, download-size evidence, 31 passing deterministic proof tests and a
+real missing-endpoint/unavailable response without fallback. It produced no
+real model answers, floor measurements or network-blocked success. Runtime
+absence is a provisioning blocker, not rejection of the candidate.
+
+[Local Inference Qualification and Technical Plan](Local_Inference.md) records
+the outcomes' design consequences: separate total provisioning from the model
+storage guard, test runtime compatibility rather than infer it from readiness,
+budget the full context envelope rather than characters alone, distinguish
+buffered production from experimental streaming, and verify cancellation and
+egress at actual boundaries. Retain the pinned candidate for the first
+consented trial; final selection and numeric UX/resource budgets are unresolved.
+Follow [R02-L1-L5](Implementation_Roadmap.md#r02-local-inference-continuation)
+before qualifying the local runtime; L6 carries evidence into integration.
+Close D-003 only with owner-reviewed applicable proofs, not this document or
+the harness PR.
+
+Future interactive inference trials are recorded in the
+[shared deferred-validation register](Deferred_Validation.md) and
+[LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials).
+Publication of partial evidence is separate from those qualification gates.
+Speech/storage/containment/distribution approvals and observations are not inference
+consent or evidence; their outstanding decisions remain independent.
 
 ## D-004 Management Inference Envelope
 

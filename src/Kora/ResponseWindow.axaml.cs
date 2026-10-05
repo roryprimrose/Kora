@@ -48,7 +48,11 @@ public sealed partial class ResponseWindow : Window
 
     private async void OnDismissClicked(object? sender, RoutedEventArgs eventArgs)
     {
-        await viewModel.RejectPendingModelActionAsync();
+        if (!await viewModel.RejectPendingModelActionAsync())
+        {
+            return;
+        }
+
         await viewModel.RejectPendingGrantChangeAsync();
         await viewModel.CancelModelQuestionAsync();
         viewModel.HideApplication();
@@ -76,7 +80,7 @@ public sealed partial class ResponseWindow : Window
     private async void OnCancelQuestionClicked(object? sender, RoutedEventArgs eventArgs) =>
         await viewModel.CancelModelQuestionAsync();
 
-    private async void OnCommandTextKeyDown(object? sender, KeyEventArgs eventArgs)
+    private void OnCommandTextKeyDown(object? sender, KeyEventArgs eventArgs)
     {
         if (eventArgs.Key != Key.Enter || !viewModel.RunTypedCommand.CanExecute(null))
         {
@@ -85,7 +89,7 @@ public sealed partial class ResponseWindow : Window
 
         eventArgs.Handled = true;
         viewModel.NotifyPresenceInteraction();
-        await viewModel.RunTypedCommand.ExecuteAsync();
+        viewModel.RunTypedCommand.Execute(null);
     }
 
     private async void OnCancelTaskKeyDown(object? sender, KeyEventArgs eventArgs)

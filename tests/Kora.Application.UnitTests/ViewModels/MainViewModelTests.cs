@@ -4947,6 +4947,45 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ActiveReasoningTask!;
     }
 
+    [Fact]
+    public async Task Failed_approval_audio_stop_does_not_dismiss_the_pending_action()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("please lock this workstation");
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        fixture.TextToSpeech.StopException = new IOException("playback cannot stop");
+
+        var dismissed = await fixture.ViewModel.RejectPendingModelActionAsync();
+
+        dismissed.Should().BeFalse();
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Approval prompt could not be stopped.");
+        fixture.ViewModel.ResponseBody.Should().Contain("playback cannot stop");
+
+        fixture.TextToSpeech.StopException = null;
+        (await fixture.ViewModel.RejectPendingModelActionAsync()).Should().BeTrue();
+        await fixture.ViewModel.ActiveReasoningTask!;
+    }
+
+    [Fact]
+    public async Task Rejecting_without_a_pending_model_action_is_a_successful_no_op()
+    {
+        var fixture = new Fixture();
+
+        var rejected = await fixture.ViewModel.RejectPendingModelActionAsync();
+
+        rejected.Should().BeTrue();
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.TextToSpeech.StopCalls.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -6028,7 +6067,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Stopping_speech_during_PowerShell_setup_cancels_installation()
+    public async Task Stopping_speech_during_PowerShell_setup_does_not_cancel_installation()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.PowerShell.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -6036,12 +6075,18 @@ public sealed partial class MainViewModelTests
         await fixture.PowerShell.Started.Task;
 
         await fixture.RunAsync("Kora, stop speaking");
+
+        fixture.ViewModel.SetupTasks.Single(task =>
+                string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
+            .State.Should().Be(SetupTaskState.Running);
+        fixture.ViewModel.IsPowerShellSetupActive.Should().BeTrue();
+
+        await fixture.ViewModel.CancelCurrentTaskAsync();
         await installation;
 
         fixture.ViewModel.SetupTasks.Single(task =>
                 string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
             .State.Should().Be(SetupTaskState.Cancelled);
-        fixture.ViewModel.IsPowerShellSetupActive.Should().BeFalse();
     }
 
     [Fact]

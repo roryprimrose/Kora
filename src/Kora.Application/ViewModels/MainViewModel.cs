@@ -259,7 +259,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                   && (!IsBusy || IsSetupStatusCommand()));
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
-            () => IsSpeechOutputAvailable && !IsBusy && !IsListening && !voiceRecognition.IsListening);
+            () => SelectedVoice is not null && SelectedOutputDevice is not null
+                && EffectiveOutputDevice is { IsMuted: false }
+                && !IsBusy && !IsListening && !voiceRecognition.IsListening);
         StopSpeechCommand = CreateCommand(StopSpeakingAsync, () => IsSpeaking);
         DownloadSpeechProviderCommand = CreateCommand(
             DownloadSpeechProviderAsync,
@@ -3202,10 +3204,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await textToSpeech.StopAsync();
             activeSpokenText = null;
             IsSpeaking = false;
-            if (powerShellSetupCancellation is { } installation)
-            {
-                await installation.CancelAsync();
-            }
             ShowInformation("Speech is stopped.", "No speech playback is active.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -4384,17 +4382,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ShowInformation("Model action declined.", "No action was performed.");
     }
 
-    public async Task RejectPendingModelActionAsync()
+    public async Task<bool> RejectPendingModelActionAsync()
     {
-        if (IsModelActionApprovalPending)
+        if (!IsModelActionApprovalPending)
         {
-            var approval = pendingModelActionAudit;
-            await StopModelApprovalPromptAsync();
-            if (ReferenceEquals(pendingModelActionAudit, approval))
-            {
-                RejectPendingModelAction();
-            }
+            return true;
         }
+
+        var approval = pendingModelActionAudit;
+        try
+        {
+            await StopModelApprovalPromptAsync();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ApplicationLog.Error(logger, exception, "Stopping the model approval prompt");
+            ShowFailure("Approval prompt could not be stopped.", exception.Message);
+            return false;
+        }
+
+        if (ReferenceEquals(pendingModelActionAudit, approval))
+        {
+            RejectPendingModelAction();
+        }
+
+        return true;
     }
 
     private async Task StopModelApprovalPromptAsync()

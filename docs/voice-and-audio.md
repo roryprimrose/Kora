@@ -217,12 +217,12 @@ the CI fixes and expanded privacy/race tests were validated with .NET SDK
 | Locked solution restore | Passed |
 | Fresh Debug and Release solution builds | Passed, zero warnings/errors |
 | Release Core unit tests | 251 passed |
-| Release application unit tests | 684 passed |
-| Release Windows tests | 179 passed |
+| Release application unit tests | 742 passed |
+| Release Windows tests | 188 passed |
 | Locked framework-dependent win-x64 and win-x86 publish | Passed; binaries not launched |
 | Merged portable line/branch coverage | 100% / 100%; passed the unchanged 100% / 100% gate |
 
-Coverage includes 4,884 of 4,884 lines and 1,859 of 1,859 branches. No coverage
+Coverage includes 4,982 of 4,982 lines and 1,943 of 1,943 branches. No coverage
 exclusions or threshold reductions were introduced. The added tests exercise
 queued privacy transitions, output/consent failures, endpoint selection,
 approval rechecks, lifecycle admission, SAPI stream compatibility, bounded
@@ -231,7 +231,7 @@ Clearing selection now closes armed input; protected binary ACL comparison
 preserves exact SID/rights enforcement, and production elevated-process
 admission still denies.
 The Windows count combines deterministic fakes with non-disruptive native
-object/device enumeration checks; it is not 179 real lifecycle or microphone
+object/device enumeration checks; it is not 188 real lifecycle or microphone
 trials. Debug/Release publishing is not proof of cross-build or cross-architecture
 handoff. Real Windows reference trials remain explicitly outstanding acceptance
 evidence. The shared register records the bounded interactive subset and the

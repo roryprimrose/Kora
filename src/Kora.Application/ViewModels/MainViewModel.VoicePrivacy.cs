@@ -1,7 +1,7 @@
 using Kora.Application.Diagnostics;
 using Kora.Core;
-using Kora.Core.Voice;
 using Kora.Core.Platform;
+using Kora.Core.Voice;
 
 namespace Kora.Application.ViewModels;
 

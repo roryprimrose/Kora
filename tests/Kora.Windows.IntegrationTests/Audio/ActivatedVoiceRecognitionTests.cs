@@ -462,6 +462,7 @@ public sealed class ActivatedVoiceRecognitionTests(
             capture.ReleaseCount.Should().BeGreaterThan(0);
             release.Set();
             await exited.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await WaitForCaptureQuiescenceAsync(service);
             capture.Transcript("late");
             service.Generation.Should().Be(invalidated);
             service.IsListening.Should().BeFalse();
@@ -637,6 +638,16 @@ public sealed class ActivatedVoiceRecognitionTests(
         await service.BeginPushToTalkAsync(
             Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
         service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+    }
+
+    private static async Task WaitForCaptureQuiescenceAsync(WindowsVoiceRecognitionService service)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(2));
+        while (!service.IsCaptureQuiescent)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
+        }
     }
 
     private WindowsVoiceRecognitionService Create(

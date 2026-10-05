@@ -1,0 +1,49 @@
+{
+  "Schema": "Kora.R02.MachineEvidence.v1",
+  "RecordedUtc": "2026-10-05T00:19:14.2588938+00:00",
+  "Revision": "bf44a7d55c9eb9f041d78ac24cba51d778342317",
+  "WorkingTreeChanges": [
+    "?? experiments/r02-local-inference-proof/results/final-validation/"
+  ],
+  "OS": {
+    "Version": "10.0.26300",
+    "Architecture": "64-bit",
+    "BuildNumber": "26300",
+    "Caption": "Microsoft Windows 11 Enterprise"
+  },
+  "Cpu": [
+    {
+      "Name": "AMD RYZEN AI MAX 385 w/ Radeon 8050S           ",
+      "NumberOfCores": 8,
+      "NumberOfLogicalProcessors": 16
+    }
+  ],
+  "VisibleRamBytes": 25530408960,
+  "Disks": [
+    {
+      "MediaType": "SSD",
+      "Size": 1024209543168,
+      "BusType": "NVMe"
+    }
+  ],
+  "Volumes": [
+    {
+      "DriveLetter": "Q",
+      "Size": 433682640896,
+      "SizeRemaining": 112453451776
+    },
+    {
+      "DriveLetter": "C",
+      "Size": 588208140288,
+      "SizeRemaining": 351527706624
+    }
+  ],
+  "PowerScheme": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)",
+  "OllamaExecutable": null,
+  "OllamaHostSetting": null,
+  "OllamaModelStorageSetting": "Default %USERPROFILE%\\.ollama\\models",
+  "UIAndContention": "Not a reference trial: Kora UI not launched; normal service contention not controlled or quantified.",
+  "ReferenceFloor": "At least 8 logical CPU cores, 16 GiB RAM, SSD, supported Windows 11 x64; CPU-only inference must be verified separately.",
+  "NetworkBlock": "Not approved or applied on this shared machine.",
+  "InventoryPrivacy": "No clipboard, host name, user name, serial numbers, accounts, network destinations or environment-variable dump collected."
+}

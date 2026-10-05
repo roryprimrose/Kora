@@ -45,6 +45,11 @@ signature, a build attestation, or an official release record. Download used
 maintainer tooling (`gh`); token-free public release acquisition is not proven.
 Committed receipts retain measured historical artifacts when later main
 revisions are validated; never relabel old bytes with a new source revision.
+The post-rebase assembly is recorded separately in the
+[post-rebase setup receipt](evidence/post-rebase-setup.json). It has the same
+payload and size but a different final EXE digest from the earlier assembly.
+Do not infer a setup digest from its payload identity or filename: hash each
+finished EXE, including on repeated builds on the same host.
 
 ## Reproduce without installing or launching Kora
 

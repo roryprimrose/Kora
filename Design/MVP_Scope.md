@@ -209,7 +209,7 @@ entirely and use the supported deterministic subset. See the
 [optional-dependency setup contract](Environment_Setup.md#optional-dependencies-and-built-in-command-only-operation).
 Binary deployments check the hosted release feed and proactively offer unsigned/manual update notices; installation remains external and Kora has no install-capable updater during the unsigned phase.
 Package format remains a separate decision.
-Source is expected to be public/open-source on GitHub, with Linux GitHub Actions building, packaging, and publishing initially unsigned official Windows releases.
+Source is expected to be public and source-available on GitHub, with Linux GitHub Actions building, packaging, and publishing initially unsigned official Windows releases.
 Release and setup surfaces disclose the lack of Authenticode publisher identity and provide final-byte hashes/provenance.
 Windows-specific acceptance evidence comes from an external Windows environment, not an assumed required Windows build job.
 See [Distribution and Updates](Distribution_And_Updates.md).

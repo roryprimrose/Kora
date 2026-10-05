@@ -30,8 +30,8 @@ cross-profile isolation; routine second-account OS-denial trials are not
 required for this profile-local application or for merging its research outcome.
 
 [Deferred Proof Validation](Deferred_Validation.md) is the interactive-session
-handoff for outstanding speech, storage/key, local-inference, containment and
-distribution validation. It links
+handoff for outstanding speech, storage/key, local-inference, runtime/provider,
+containment and distribution validation. It links
 safe reruns and proof-specific checklists while keeping consent/privilege
 requirements and capability blockers distinct from merging partial research.
 
@@ -46,6 +46,14 @@ supporting evidence, not the only place this work is tracked.
 The [LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
 provides the later interactive-session procedures; merging partial research
 does not close the outstanding inference or independent proof gates.
+
+R02's [runtime/provider outcomes and technical path](Runtime_Provider_Feasibility.md)
+now record actual Node candidate evidence, reject hook-only failed-result
+mediation and require a .NET final-request/storage proof next.
+The [runtime follow-up gates](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
+separate SDK parity, full lifecycle observation, the host management envelope
+and approved-account trials. D-001/D-004 remain open; deterministic local
+work is not held behind unapproved hosted-model tests.
 
 ## Current Bootstrap Boundary
 
@@ -155,7 +163,7 @@ is an offline design mockup, not an implemented application or a change to relea
 - Built-in skill manifests, Markdown, and all required scripts are embedded resources in the protected application binary, without loose-file overrides or writable extraction. Scripts may be shared; grants bind a deterministic combined-content hash and the exact skill definition/invocation. Microphone use is prohibited while Windows is locked.
 - Shared profile skills are read-only references; Kora-specific skills and reviewed edited copies live in `%APPDATA%\Kora\Skills`, with device-local enablement.
 - Source-bootstrap and precompiled runtime-only binary deployment are both supported; package format is not yet selected.
-- The expected repository is public/open-source on GitHub; Linux Actions build/package/publish initially unsigned Windows releases, with explicit unsigned-artifact disclosure, final-byte hashes/provenance, and Windows validation outside the required build pipeline.
+- The expected repository is public and source-available on GitHub; Linux Actions build/package/publish initially unsigned Windows releases, with explicit unsigned-artifact disclosure, final-byte hashes/provenance, and Windows validation outside the required build pipeline.
 - Delivery installs Kora; the running application sets up its stores and approved requirements for selected capabilities, reusing existing installations.
 - Kora initiates eligible conversations, including unsigned/manual update notices; initial update handling is notify-only and cannot download, stage, execute, or install replacement code.
 - Automatic speech defaults to visual-only during calls or uncertain enabled-detector state; users configure this verbally and can request a single spoken response.

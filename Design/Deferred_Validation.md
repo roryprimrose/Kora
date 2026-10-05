@@ -24,6 +24,7 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 | R02 speech/hardware | [Merged synthetic proof and safe file-only reruns](../experiments/r02-speech-proof/README.md#safe-to-rerun-remotely-including-while-locked) | [Before a live test session](../experiments/r02-speech-proof/README.md#before-a-live-test-session), then [live/instrumented acceptance](../experiments/r02-speech-proof/README.md#live--instrumented-acceptance-work-still-outstanding). Obtain participant/bystander consent and an instrumented host with R03/R09 ownership/privacy controls; the current scripts cannot run live trials. | D-002/D-007; packaged acoustics, playback rejection, latency, reference floor and capture/recovery acceptance |
 | R02 storage/key | [Synthetic storage proof and safe Windows reruns](../experiments/r02-storage-proof/README.md#reproduce); authenticated content, DPAPI/key-file ACLs and transaction/artifact interruption evidence | [Storage admission follow-up](#storage-admission-follow-up): maintained native selection, installed x64/x86 loading, production profile-path/CurrentUser/permission integration, and integrated recovery/deletion. Safe proof reruns require a loaded Windows profile, not an unlocked console. Routine second-account OS-denial trials are optional for profile-local storage. | D-009; R02 native admission, R04 integration and R12 lifecycle/deletion remain open; no production store is enabled |
 | R02 local inference | [Safe deterministic reruns](../experiments/r02-local-inference-proof/README.md#safe-deterministic-reruns); verified public identity/licence/download metadata and real missing-runtime/unavailable behavior, not model quality or performance | [Prepare an interactive inference session](../experiments/r02-local-inference-proof/README.md#before-an-interactive-inference-session), then [LI01-LI07 deferred trials](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials). Assign reference/isolation owners and agree budgets; separately approve exact pinned provisioning, exclusive model residency changes and whole-environment network blocking. Synthetic measurement commands exist; server-cessation/race, attributable egress and integrated-host rows need independent instrumentation or later implementation. | D-003 and inference D-007; [R02-L1-L6](Implementation_Roadmap.md#r02-local-inference-continuation), actual CPU-floor quality/context/cancellation, distribution and offline success; R06/R07/R08/R10 and A2/R19 integration remain gated |
+| R02 runtime/provider | [Pinned no-account Node SDK/runtime checks](../experiments/r02-runtime-proof/README.md#reproduce-on-windows); actual loopback mediation, streaming/errors/cancellation, byte/deadline and conversation-isolation evidence; hook-only failure retained | [Runtime/provider follow-up](#runtimeprovider-follow-up): first implement a pinned isolated .NET fixture; then instrument lifecycle paths and reproduce the host envelope. Prepare separately approved account/usage trials for a later interactive session. Existing commands cannot establish .NET parity, full process observation or live service eligibility. | D-001/D-004/D-010; [RT1/RT2/MG1/PV1](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates), R08 exposure and model-assisted R13 remain gated; deterministic local management does not wait for hosted trials |
 | R02 Windows containment | [Fixed owned-scratch reproduction](../experiments/r02-containment-proof/README.md#reproduce); partial OS denials and lifetime/Unknown receipts already observed | [Containment outstanding-testing checklist](../experiments/r02-containment-proof/README.md#outstanding-testing-checklist): supported-OS repeat, attributable network denial, dependency/control mechanism, independent deployment and aliases, helper contracts, actual controlled effects and host-death/race recovery. Most rows require a new bounded fixture or instrumented implementation; the current runner is not a general executor. | D-013 and [W1-W4](Implementation_Roadmap.md#r02-windows-containment-follow-up); R11/R16/R17 exposure remains gated |
 | R02 distribution | [Draft proof #24](https://github.com/roryprimrose/Kora/pull/24); separate build/inspection evidence, not an implementation dependency of the containment proof | Its approved scope is build/inspect only. Linux package construction and actual Windows installation, effective ACL/token protection, native/runtime-only launch and recovery require separate validation. Before any real installation/launch/registry/privileged trial, obtain a new scoped approval and use a disposable lab deployment. Follow the distribution proof's checklist when its documentation is integrated. | D-005/R17; no production worker/catalogue acceptance from package inspection or the absence of those components |
 | R03 Windows ownership/audio privacy | [Implementation PR #26](https://github.com/roryprimrose/Kora/pull/26), portable policy/race tests, non-disruptive Windows object/enumeration tests and x64/x86 builds/publishes; not live microphone or lifecycle evidence | [R03 interactive checklist](#r03-windows-ownership-and-audio-privacy). Prepare an instrumented, non-elevated test host and obtain separate approval for each capture/playback, launch/handoff and OS-transition trial. Production wake is not selected or enabled by R03. | R03 real-adapter acceptance; capture release within 500 ms of the observed lock event in every reference trial, takeover/return, hardware/offline ASR, native recovery and cross-architecture evidence remain open |
@@ -61,6 +62,57 @@ Such trials need approved real accounts and explicit fixture/effect scope;
 the retained [optional handoff protocol](../experiments/r02-storage-proof/README.md#optional-real-cross-user-handoff-protocol)
 does not create an account or grant authority to test another profile.
 Per-user DPAPI is not same-user worker containment; D-013/W1-W4 remain separate.
+
+## Runtime/Provider Follow-Up
+
+Status: **RT1/RT2/MG1/PV1 remain open**. The Node experiment has 13 PASS,
+1 FAIL and 3 BLOCKED outcomes, not production acceptance. Hook-only
+failed-result mediation is rejected; the final-request-gated candidate
+continues only through the [technical plan](Runtime_Provider_Feasibility.md).
+Merging the experiment and its documented outcomes closes none of these gates.
+
+### Preparation and Approval
+
+- Start with the existing [no-account reproduction](../experiments/r02-runtime-proof/README.md#reproduce-on-windows)
+  on the exact pinned Windows/Node/runtime versions. Use only synthetic context,
+  credential sentinels and harmless tools. These checks do not need hosted
+  credentials or an unlocked interactive console; they are not proof of global
+  runtime network/storage containment.
+- An interactive session alone cannot run the remaining .NET proofs: RT1
+  requires a new isolated .NET fixture and pinned supported APIs first.
+  RT2 additionally needs attributable network/file/diagnostic observation;
+  MG1 needs the corresponding .NET host envelope. Do not treat the Node
+  fixture or its status-only schema as those implementations.
+- Record source, SDK/native-runtime hashes, Windows version and fixture/
+  instrumentation identity. Agree operator, reference environment, scope,
+  deadline tolerances and stop/cleanup procedures before a trial. Obtain
+  separate approval for installs, elevation, policy/network changes or
+  protected setup; never disrupt unrelated processes or global policy.
+- Before live provider inference, name the intended service/model/region,
+  supported user authentication, plan/organization restrictions, permitted
+  assistant/SDK use, concurrency and enforceable usage/spending budget.
+  Obtain explicit account and potentially paid-usage approval. Merge approval
+  and an unlocked console authorize neither sign-in nor billable calls.
+  Never borrow ambient developer credentials or include tokens, account names,
+  raw sensitive payloads or credential-bearing diagnostics in evidence.
+
+### Deferred Trials and Closure Evidence
+
+| Trial / owner | Current state and prerequisite | Required trial and evidence |
+|---|---|---|
+| RT1 - .NET public control points / runtime lead | Not run; .NET fixture absent | Pin the actual .NET SDK and compatible runtime; prove supported pre-effect tool denial, initial context and every tool-result status/exception at the final serialized-request gate. Observe zero denied-tool effects and zero denied markers forwarded, disabled unmediated tools/collection/persistence, streaming, auth/error behavior, truthful cancellation and execution/management/provider isolation. Missing or ignored APIs stop the candidate and require an explicit D-001 decision, not private patches or a silent Node bridge. |
+| RT2 - Full runtime lifecycle / runtime and security leads | Not run; RT1 and attributable instrumentation required | Observe startup/session/auth/error/shutdown network, storage and diagnostics, including runtime initialization metadata and non-model transports. Inventory every destination and content-bearing path; demonstrate prevention/mediation and no denied-marker egress or unauthorized recoverable persistence. Repeat account-specific paths during PV1. An unobservable or uncontrollable path is Failed/Blocked, not assumed compliant. |
+| MG1 - .NET management envelope / runtime lead | Not run; RT1; may run alongside RT2 | Prove complete serialized UTF-8 input at 32768/32769 bytes and complete typed output at 4096/4097 bytes, counting framing/history and multi-byte text. Hold real inference across the host 15000 ms dispatch deadline and stall SDK acknowledgements; record actual elapsed timing without extending the configured deadline. Verify one in-flight request, 30 attempts/rolling hour including failures, at most one forwarded inference/no SDK retries, manager responsiveness with two execution conversations held, no lane/context leakage, uncertain-termination quarantine and deterministic fallback. Cancellation acknowledgement must not certify rollback or release an uncertain inference slot. |
+| PV1 - Live account/provider / runtime lead, account owner and security/legal review | Not run; no hosted account/usage approval; RT1/RT2, plus MG1 for management | Use the intended user's supported secure authentication; test expiry/denial/throttling/errors, exact destination/content isolation and truthful cancellation. Record approved terms/plan/model scope, actual concurrency/quotas/rates, billed-cost assumptions and hard spending controls. Execution eligibility feeds D-001/R08; management additionally needs actual two-execution-plus-manager capacity/budget evidence for D-004/R13. Incompatible/unapproved or unbounded service stays disabled; do not infer hosted allowance from three loopback conversations or byte counts. |
+
+Keep the hook-only FAIL as a regression witness; accepting a different proved
+profile does not require making that rejected approach pass. For each deferred
+trial record Pass/Fail/Blocked/Not run, exact tested profile, UTC timestamp,
+observer, synthetic counters/receipts and unresolved limitations. Do not replace
+failure with a timeout or a successful fake. Retest affected paths whenever the
+SDK/runtime, endpoint/model/auth, transport, storage or admitted feature changes.
+R08/R13 still need their own integrated host, scheduler and installed-app
+acceptance; this checklist does not enable production adapters or tools.
 
 ## R03 Windows Ownership and Audio Privacy
 

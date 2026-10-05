@@ -101,6 +101,29 @@ Test the actual pinned SDK, not only a fake adapter.
 Mocks are supplementary for deterministic negative-path coverage.
 An unobservable or uncontrollable outbound path is a failed gate, not an assumption of safety.
 
+The [R02 evidence and continuation](Runtime_Provider_Feasibility.md) are a
+partial candidate result, not Gate 0 acceptance. Candidate/integrated tests
+must now explicitly cover:
+
+- Final serialized-request mediation after success, failure, denied, timeout,
+  cancelled and unknown tool results, including thrown exceptions and
+  runtime-added history/context; do not rely on the success-only post-tool hook.
+- Equivalent supported controls in the pinned production-language SDK;
+  Node-only proof does not accept Kora's .NET adapter.
+- Runtime startup/session/auth/error/shutdown destinations and
+  storage/diagnostic paths under actual observation, not just model HTTP.
+- Management input at 32768/32769 serialized UTF-8 bytes and typed output at
+  4096/4097 bytes; actual 15-second deadline independent of stalled SDK
+  acknowledgement; no forwarded automatic retry despite SDK retry attempts.
+- Independent admitted execution/management identities, tools and context on
+  the approved account/provider, with its verified concurrency/cost envelope.
+- Cancellation that blocks new dispatch/egress and late presentation but
+  reports admitted unconfirmed effects as unknown, never as rolled back.
+
+Unperformed or blocked trials keep the relevant capability disabled and
+D-001/D-004 open. Deterministic local management does not depend on hosted
+model-assisted management acceptance.
+
 ## Command, Tool, and Skill Interaction Gate
 
 Apply [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)

@@ -20,6 +20,16 @@
 - Dispose owned native, stream, timer, cancellation, and synchronization resources deterministically.
 - Keep comments for non-obvious invariants, privacy guarantees, concurrency rules, or platform constraints; prefer clear names for ordinary behavior.
 
+## Instrumentation and activity correlation
+
+- Use structured `ILogger<T>` templates and typed named properties; do not use string interpolation or rendered-message parsing for query, correlation, outcome, or authorization data. Keep events compatible with both the daily JSON and SQLite providers.
+- Emit security audit events through the trusted typed audit path. `SecurityAudit=true` routes to the dedicated authoritative audit table as well as the file sink; an arbitrary property or lookalike message must never acquire audit authority. Preserve correlated request and terminal outcomes around consequential operations.
+- Use the layer's versioned `System.Diagnostics.ActivitySource` and W3C IDs at meaningful request, policy, runtime, tool, storage, presentation, evidence, retention, and recovery boundaries. Use stable low-cardinality activity names, end activities with truthful status, and do not instrument every method.
+- Activities represent causal operations, not durable business identity. A session spans many traces. Add host-owned session, task, invocation, approval, and audit correlation IDs to admitted activity tags and logging scopes; never put user text, paths, titles, model output, credentials, or secrets in activity names or tags, and do not propagate Kora identities or content through `Activity.Baggage`.
+- Preserve normal parentage through asynchronous calls. Capture admitted context when queueing work and use `ActivityLink` for deferred work, fan-out, reconciliation, restart-related work, or multiple causes rather than reusing a completed activity or fabricating a parent. Logging providers must capture `Activity.Current` when the log call occurs, before asynchronous sink buffering.
+- Treat incoming trace headers and model/provider correlation fields as untrusted correlation only. They cannot select a Kora session or establish identity, intent, permission, approval, or authority. Session-bound work and audit commits require valid host-resolved activity/session context; only explicitly classified pre-host bootstrap diagnostics may be uncorrelated.
+- Add focused tests for trace propagation and termination, queue/link behavior, cross-session isolation, hostile incoming context, structured log/audit correlation, and missing or expired trace segments.
+
 ## Persistence and configuration
 
 - Store device-local preferences under the application data paths supplied by `IApplicationDataPaths`; never hard-code user profile paths.

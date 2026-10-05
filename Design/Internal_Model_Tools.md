@@ -188,8 +188,21 @@ All mutating entries below are host-validated proposals or admitted invocations,
 | `approvals.propose_edit`, `approvals.revoke` | Exact grant IDs/revisions and scoped edit/remove preview; trusted decision-required/result | M/E | Proposed A3; user action required, no arbitrary expiry or bulk retention deletion |
 | `settings.list`, `settings.get` | Category/option ID and scope; registered choices, current/effective value and blockers | M/E | Proposed A3; includes session retention, concurrency, normal/session/in-call feedback, and default-On in-call grant-ignore |
 | `settings.propose_change`, `settings.reset`, `settings.undo` | Typed option/value/scope/revision or identified prior change, trusted initiating-channel lineage; reviewed atomic proposal/result or rejected voice-origin request | M/E | Proposed A3; enforce protected-call option classification at request/apply; no file/JSON patch, consent bypass, restored grants or replayed side effects |
-| `evidence.get_receipt`, `evidence.list_audit` | Exact invocation/session/action filter and cursor; permitted content-minimising observed outcomes | E; M minimal status | Proposed A3; read-only, no rewriting observed outcomes or secret parameters |
+| `evidence.list` | Required source kind (`log`, `audit`, `session`, `span`, or `all`), bounded time/trace/session/task/invocation/approval/correlation filters and cursor; ordered permitted summaries plus retention/source/gap status | E; M minimal status | Proposed A3; deterministic app capability, at most 50 records/64 KiB, no model required |
+| `evidence.get`, `evidence.get_receipt` | Stable evidence ID or exact trace/session/invocation/action identity; one permitted content-minimising log, audit, span, session or receipt record with typed structured fields/properties and related evidence references | E; M minimal status | Proposed A3; read-only, preserves source kind/authority/value kinds and never exposes secret parameters |
+| `evidence.search` | Bounded time/source/trace/span/severity/event/category/correlation/session/task/invocation/approval/action/outcome/admitted-property/safe-text filters and cursor; cited log, audit, span and session matches plus source/gap status | E; M minimal status | Proposed A3; typed filters use structured columns/properties, safe text uses the rendered projection; at most 50 records/64 KiB, no arbitrary SQL |
+| `evidence.read_trace` | Trace ID, optional root/span and cursor; bounded parent/child and explicit link graph with cited log/audit/span records | E; M minimal status | Proposed A3; expired segments are gaps, trace context is never authority |
+| `evidence.list_audit` | Audit-specific compatibility view over `evidence.list` with typed category/action/outcome/initiator filters | E; M minimal status | Proposed A3; does not read ordinary logs or grant additional authority |
 | `evidence.export` | Exact selected permitted evidence and user destination; preview/scoped export outcome | E | Proposed A3; export is a separate write, not an uncontrolled log dump |
+
+The application-level **Ask Evidence** flow is not another recursive model tool.
+It creates a user-visible read-only reasoning request, uses the context broker
+to call `evidence.list`/`evidence.search`/`evidence.get` against the explicit
+source selection, and supplies only the bounded cited results to the chosen
+eligible runtime. Returned claims distinguish observation from inference and
+retain stable evidence references. The model cannot widen the source/time
+scope, approve remote egress, treat record text as instructions, or mutate,
+retry or authorize an evidenced operation.
 
 ### Context and Artifact Operations
 
@@ -233,8 +246,8 @@ An E designation does not require inference to execute an exact local control.
 
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
-| `diagnostics.list`, `diagnostics.read` | Host-enumerated Kora daily-log ID, bounded range; content-minimising metadata | E | Proposed A; reader maximum 1,000,000 characters, model excerpts at most 64 KiB; no arbitrary paths |
-| `diagnostics.export` | Selected permitted log IDs and explicit user destination; preview/export receipt | E | Proposed A; no silent upload or credential/crash-dump harvesting |
+| `diagnostics.list`, `diagnostics.read` | Host-enumerated Kora daily-log ID, bounded range; content-minimising file metadata | E | Daily files retain the full permitted `ILogger` stream alongside the SQLite projection. Reader maximum 1,000,000 characters, model excerpts at most 64 KiB; no arbitrary paths |
+| `diagnostics.export` | Selected permitted daily-log IDs and explicit user destination; preview/export receipt | E | Proposed A; structured cross-source records use `evidence.export`; no silent upload or credential/crash-dump harvesting |
 | `content.preview`, `content.navigate`, `content.load_assets` | Exact immutable HTML/Markdown/artifact or approved destination/finite assets; isolated viewer/proposal/result | E | Text/Markdown in A4; browser/static HTML/diagrams after renderer gates; display is not scrape/automation |
 | `connectors.list`, `connectors.inspect`, `connectors.discover_tools` | Registered connector/account/tool IDs; admitted schemas, health and capabilities | E; M minimal status | Proposed B; no arbitrary MCP-server installation or credential exposure |
 | `connectors.propose_configuration` | Registered connector/config schema and user-selected identity reference; trusted setup proposal | E | Proposed B; supported secure sign-in remains host-only |

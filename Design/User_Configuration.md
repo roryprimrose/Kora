@@ -226,14 +226,22 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 | Shared skill sources | User-selected bounded read-only roots | "Use skills from my Copilot profile" |
 | Skill enablement/default source binding | Reviewed digest/device-local binding | "Use the Kora-specific deployment skill when I say deployment" |
 | Source refresh preference | Revalidate before dispatch; optional bounded discovery refresh | "Refresh shared skill discovery every hour" |
-| Audit retention | 30 days maximum; may reduce to 1-30 days | "Keep audit metadata for seven days" |
+| Diagnostic database retention | 30 days by default; independently configurable within the registered bounded schema; daily JSON remains limited to 30 files/30 days | "Keep diagnostic events for fourteen days" |
+| Audit retention | 90 days by default; configurable from 30-365 days | "Keep audit metadata for six months" |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
 Do not require typing a path, but do not infer one from unrelated context.
 The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
 Permitted conversation history is encrypted and durable under session retention. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports, and secret logging remain unsupported.
-Reducing audit retention or removing source enablement explains any immediate destructive/invalidation effect before confirmation.
+Diagnostic, audit and session retention are independent. Session deletion does
+not remove content-minimising audit records, while audit expiry does not remove
+perpetual grants. Browsing/search/reasoning never refreshes either diagnostic or
+audit retention. Reducing audit retention previews affected records and requires
+separate apply-now confirmation before reducing existing due dates; otherwise
+the new 30-365-day policy applies to new audit records. Removing source
+enablement explains any immediate destructive/invalidation effect before
+confirmation.
 
 ## 7. Startup and Updates
 

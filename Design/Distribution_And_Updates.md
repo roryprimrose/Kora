@@ -80,6 +80,15 @@ The bootstrap script is a convenience installer, not a requirement to run a bina
 Framework-dependent means compiled/published application binaries, not source compiled on first launch.
 Self-contained is distinct from Native AOT and does not automatically eliminate every native dependency.
 
+SQLite is part of those launch-critical application assets. The managed
+provider and architecture-matched admitted native encrypted engine ship inside
+every binary release and installer payload; they are not an installer checkbox,
+Burn prerequisite package, first-run download, or separately installed SQLite
+server/runtime. Source bootstrap restores the pinned build packages before
+publication, but the published application never resolves SQLite from NuGet or
+the machine at runtime. Packaging acceptance treats a missing, wrong-architecture
+or ambient-system SQLite load as a broken release.
+
 ## Source Bootstrap
 
 Provide a documented, versioned script with a short invocation and a downloadable/reviewable form.

@@ -700,8 +700,8 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 | Session messages, answers, questions, decisions, scripts/artifacts, and permitted tool content | Durable encrypted session-linked history; restored for reading, never automatic execution or unreviewed egress |
 | Queue requests, labels, context references, and content-bearing work ledger | Persist as session evidence; pending execution eligibility expires after 30 minutes by default; readable evidence is not fresh context/approval |
 | Session inactivity lifecycle | Archive after 24 hours and delete after 30 days from last meaningful activity; both configurable; browsing/search do not reset the clock; live/uncertain work is protected |
-| Task/action/approval audit metadata | Local SQLite, at most 30-day expiry; stable IDs, canonical action/resource/destination identifiers, parameter/content hashes, scope, creator channel, presence/confirmation class, policy/schema revision, creation/expiry/use/revocation events, outcome, and error codes; no raw parameters/content |
-| Application diagnostic logs | Daily structured JSON under `%LOCALAPPDATA%\Kora\Logs`, at most 30 files and 30 days; lifecycle, readiness, state, counts, and failures only; no transcripts, response bodies, synthesized speech text, raw audio, credentials, or secrets |
+| Task/action/approval audit metadata | Typed `SecurityAudit=true` events flow through `ILogger` to the daily JSON stream and a dedicated authoritative `security_audit_events` table in encrypted local SQLite. Database retention defaults to 90 days and is configurable from 30 through 365 days. The table preserves the common structured logging envelope, W3C activity fields, host-owned session/task/invocation/approval identities and fixed typed audit columns for stable correlation, canonical action/resource/destination identifiers, parameter/content hashes, scope, creator channel, presence/confirmation class, policy/schema revision, creation/expiry/use/revocation events, outcome, and error codes; no raw parameters/content |
+| Application diagnostic events and spans | Every permitted `ILogger` event flows to daily structured JSON under `%LOCALAPPDATA%\Kora\Logs` and encrypted local SQLite. Database diagnostic retention defaults to 30 days under its independent bounded setting. Non-audit records use structured `application_log_events`; completed activity metadata/links use `activity_spans`/`activity_links`. They preserve W3C trace/span/parent or link context, activity source/name/kind, event ID/name, level/category, original template, typed properties/scopes and promoted host-owned session/task/invocation/approval/correlation fields independently of optional rendered text. The file sink retains at most 30 files and 30 days and remains available for bootstrap/database/evidence-pipeline failure, fatal crash and recovery. Neither sink contains transcripts, response bodies, synthesized speech text, raw audio, credentials, or secrets |
 | Configuration and grants | Single-use grants are consumed and session grants end with their session; perpetual grants have no expiry/retention/eviction and remain independently until explicitly removed/edited, with minimal provenance surviving originating session deletion; no secrets in configuration |
 | Kora-specific skill definitions/revisions | Persist in `%APPDATA%\Kora\Skills` until explicitly removed; not cleared with conversation history |
 | Shared profile skill snapshots | Approved in-memory revision snapshots; re-read/revalidate on restart; source files remain untouched |
@@ -722,10 +722,47 @@ Do not describe shared-key deletion as per-session cryptographic erasure or cont
 Source revocation may remove restricted content before normal session expiry. Mark omissions/redactions explicitly.
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.
 Approval/audit records are writable only through the host security service, denied to models/skills/tools/workers, and use append-only sequencing or equivalent tamper evidence so deletion/rewrite is detectable within the supported non-administrator threat model.
+Audit retention is independent of diagnostic, daily-file and session retention.
+Deleting a session does not delete its content-minimising audit rows, extend
+their lifetime or retain deleted session content inside them. Perpetual grant
+records and their minimal provenance remain governed by the separate grant
+contract; consumed/ended grant-use audit events follow audit retention.
+Browsing, searching, exporting or reasoning over audit records never refreshes
+their retention clock.
+Each audit row receives its effective `retention_due_utc` transactionally when
+committed. The 90-day default may be configured only from 30 through 365 days.
+Shortening the policy previews the affected count/range and requires explicit
+apply-now confirmation before existing due dates are reduced; otherwise it
+applies to new records. Extending retention does not resurrect purged rows.
+Expected audit-retention pruning must emit a verifiable continuation/checkpoint
+under the selected tamper-evidence scheme so expiry is distinguishable from
+removal inside the retained window. Preserve the latest minimal chain anchor
+outside ordinary audit-event expiry; it contains no action/content payload and
+cannot reconstruct expired records.
 Crash reports and diagnostics omit raw context, speech, tool arguments, credentials, and answer content by default.
-Future model-assisted diagnostics may access application logs only through a
-host-owned reader that validates Kora daily-log names, rejects arbitrary paths,
-and bounds each tail read to 1,000,000 characters.
+Normal diagnostic events, audit records and permitted session evidence are
+viewed through one host-owned evidence query service with bounded time, source,
+severity, event/category, correlation, session/task/invocation/action and text
+filters. Results preserve source kind, stable event identity and citations so a
+user or local model can distinguish observed records from inference. Search
+reports unavailable sources, expired ranges, redactions and known ingestion
+gaps rather than presenting an incomplete result as complete.
+Database queries and returned evidence operate on admitted typed columns and
+structured properties. Rendered message text is a bounded display/full-text
+projection, never the only stored representation or the source of a typed
+filter, correlation, audit outcome or authorization decision.
+Trace/span relationships and stable Kora IDs are correlation metadata only.
+They cannot satisfy user intent, authentication, approval, grant or policy
+checks. Session-bound rows carry the host-resolved `SessionId`; model/provider
+labels, incoming trace headers and selected-window state cannot assign or change
+it. After session deletion, independently retained audit rows may keep the
+opaque session ID and a deleted-session marker, but no title, request text or
+other deleted session content.
+The same service may read the complete daily application files only through an
+adapter that validates Kora daily-log names, rejects arbitrary paths, and bounds
+each tail read to 1,000,000 characters. File audit copies remain operational
+evidence only and cannot satisfy the required `security_audit_events` commit,
+approval or receipt requirement.
 Content-bearing diagnostic export requires explicit preview/consent; OS or third-party crash dumps remain a deployment concern.
 In-memory disposal is best-effort, not a guarantee of forensic erasure from OS paging.
 
@@ -743,6 +780,7 @@ execution, cancellation, and expiry events.
 
 Audit events contain only:
 
+- Stable event identity, UTC observation time and append sequence.
 - Category and stable canonical action ID.
 - Stable canonical target identity or content digest, never a raw path.
 - Initiator class such as local UI, typed command, voice command, or system.
@@ -762,7 +800,12 @@ tamper-evident approval/audit store required before general write,
 application/script execution, or security approval is enabled. A log entry,
 including a claimed success, never substitutes for policy enforcement,
 immediate pre-execution revalidation, an action receipt, or authoritative
-effect observation.
+effect observation. The target design keeps the same typed `ILogger` audit
+contract and adds two providers: the existing complete daily JSON stream and an
+encrypted SQLite provider that routes `SecurityAudit=true` state directly into
+the dedicated `security_audit_events` table. Other permitted `ILogger` records
+enter `application_log_events`. This dual-write behavior is planned, not a
+claim about the current bootstrap.
 
 ## Future Knowledge Indexing
 

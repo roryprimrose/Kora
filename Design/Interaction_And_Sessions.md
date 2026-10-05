@@ -35,7 +35,7 @@ Kora neither bypasses these requirements nor dictates credentials into a model.
 ## Three Connected UI Surfaces
 
 1. **Compact session interaction:** evolve the response window into the latest interaction for the selected session, with its name, actual work state, concise answer/progress, structured question or approval, Details/History, and typed composer.
-2. **Sessions workspace:** reachable from tray, keyboard, compact UI, and verbal commands; Active/Done list and search beside the selected session's full conversation/history, pending cards, and work/queue. Shows unread/attention, meaningful activity/due dates, and actual work state, with rename/Done/resume/delete and an All work view.
+2. **Sessions workspace:** reachable from tray, keyboard, compact UI, and verbal commands; Active/Done list and search beside the selected session's full conversation/history, pending cards, and work/queue. A bounded Evidence mode searches and correlates permitted session, diagnostic and audit records without making diagnostics part of the conversation. Shows unread/attention, meaningful activity/due dates, and actual work state, with rename/Done/resume/delete and All work/evidence views.
 3. **Detail/artifact viewer:** expands immutable Markdown, static HTML, plain text, diffs, `.ps1` source and task evidence without losing the workspace conversation/current question. Explicitly opened items retain their own session/artifact identity when selection changes; viewing is not execution.
 
 [Session Workspace and Coordinated Window Design](UI_Workspace_And_Windows.md) owns concrete layouts, window roles/navigation, structured cards, focus/drafts, concurrent-session UX, supporting settings/grant/setup surfaces, and original-requirement coverage.
@@ -245,14 +245,29 @@ Preserved readable content is not permanent authorization to use or transmit it.
 
 The [Internal Model Tool Catalogue](Internal_Model_Tools.md) owns the complete inventory, including current bootstrap actions versus proposed/deferred tools, typed inputs/results, caller lanes, bounds, and host-only exclusions.
 Session/history/artifact, structured interaction/presentation, grant, work, and configuration tools use those canonical IDs; this document owns their session behavior, not a second partial tool list.
-History pages contain at most 50 events within the 64 KiB model-bound limit, with continuation/range references and explicit omissions.
+History and evidence pages contain at most 50 events within the 64 KiB model-bound limit, with continuation/range references and explicit omissions.
 
 Answer submission and approval consumption are trusted host input events, not model-callable self-answer/self-grant tools.
 Models propose mutations; the host checks direct user intent, scope, revision, and required confirmation.
-Session-history retrieval is a context-broker operation subject to source/account access, secret filtering, local-only mode, and exact remote-egress review.
+Session-history and cross-source evidence retrieval are context-broker operations subject to source/account access, secret filtering, local-only mode, and exact remote-egress review.
 Remote-enabled mode is not consent to upload all sessions, even to classify relatedness.
 Retrieved scripts/chats/tool results are historical untrusted data, never current instructions.
-Questions spanning sessions return citations to session/event/artifact and separate confirmed facts from model inference.
+Questions spanning sessions, diagnostics and audit records return citations to source/event/artifact and separate confirmed facts from model inference.
+The Evidence workspace exposes model-independent list/read/search for both log
+and audit records. A user-requested Ask Evidence interaction creates a visible
+read-only reasoning request over the selected source filters/records; local
+reasoning is preferred, remote use previews the exact payload, and every answer
+links claims to stable evidence IDs. Follow-ups cannot silently widen the
+selection, refresh retention, execute an evidenced action or treat record text
+as current intent.
+Each durable session exposes a direct Evidence view filtered by its stable
+host-owned session ID. It includes every retained diagnostic event, activity
+span/link and audit record across all traces associated with that session, with
+pivots to trace, task, invocation, approval and audit correlation. Session
+selection is navigation only; the host stamps session identity when accepting
+or dispatching work. Deleting session content leaves only independently
+retained content-minimising audit/session-reference metadata under its own
+retention and never reconstructs the conversation.
 
 ## Implementation Discussion and Gates
 

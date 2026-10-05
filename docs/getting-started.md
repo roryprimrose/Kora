@@ -22,7 +22,8 @@ Kora performs a readiness check and discovers:
 - active Windows audio outputs;
 - the Windows multimedia-default audio output;
 - local application-data storage;
-- the local SQLite database (created and checked on each startup);
+- built-in local SQLite storage (the bundled engine and Kora database are
+  initialized and checked on each startup; there is no separate SQLite install);
 - PowerShell 7 (`pwsh.exe`) in a supported installation location, verified in
   a no-profile process;
 - a loopback Ollama endpoint and its model catalogue; and
@@ -32,7 +33,10 @@ The Readiness tab lists setup tasks and their current results. The built-in
 **what are you currently working on** and **what do you have left to do**
 commands report blockers without requiring a language model. Kora initializes
 its own SQLite schema automatically, but preserves an existing database if an
-integrity check fails. If local inference is not ready at startup, Kora opens
+integrity check fails. SQLite is part of Kora rather than an optional setup
+choice. If its packaged native component cannot load, the installation is
+reported as broken; Kora does not download SQLite or use an arbitrary
+machine-installed copy. If local inference is not ready at startup, Kora opens
 Settings on the Readiness tab so you can inspect the problem and decide whether
 to run setup. Ollama is never installed
 automatically: select **Review local model setup** on the Readiness tab,

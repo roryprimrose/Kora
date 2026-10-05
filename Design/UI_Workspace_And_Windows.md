@@ -25,7 +25,7 @@ Shared native question/approval components can be hosted in compact or workspace
 |---|---|---|
 | Tray and ambient Presence | Actual listening state, aggregate activity/attention, Show Kora, Sessions, Questions, mute/stop, Settings, Exit | Always reachable without model/audio; Presence is optional presentation, not the work registry |
 | Compact session interaction | Selected session identity/state, concise latest interaction, pending native cards, Details/History, session switcher, typed composer | One lightweight selected-session view; showing/hiding/pinning never stops work or marks Done |
-| Sessions workspace | Active/Done session list and search beside full selected conversation; per-session work/queue, questions, history, and management controls | Primary multi-session UI; responsive while independent sessions run |
+| Sessions workspace | Active/Done session list and search beside full selected conversation; per-session work/queue, questions, history, Evidence mode, and management controls | Primary multi-session and retained-evidence UI; responsive while independent sessions run |
 | Detail/artifact viewer | Exact answer, Markdown/static HTML, citations, script/diff source, provenance/revision; search/copy/export/source controls | Bound to an immutable session/artifact reference; stays on that item when workspace selection changes |
 | Permissions and Approvals | Native grant inventory by scope/applicability; inspect, request/edit/remove, linked use evidence | Global inventory with exact session/operation references; not deleted with a conversation's perpetual grants |
 | Settings and setup/recovery | Typed preferences, output/call modes, retention/concurrency, devices/providers/readiness, consent and recovery | Shared application state; optional session scope is explicit; usable without voice/model |
@@ -119,6 +119,70 @@ Keep pending interactions reachable via a dedicated attention region even when t
 History approval/question entries show past outcome in read-only form, not live replayable buttons.
 A current native card uses the host's current ID/revision; historical copies link to that current item only if it still exists and remains actionable.
 Done-session conversation is readable without resume. Sending new work requires explicit Resume or New session; no silent lifecycle transition.
+
+### Evidence Mode
+
+Evidence mode provides a bounded local timeline/search over permitted session,
+diagnostic and security-audit records. It supports time range, source kind,
+severity, event/category, correlation, session, task, invocation, approval,
+action/outcome and safe-text filters. Each result shows source kind, timestamp,
+stable event identity, relevant correlation links and whether it is an
+authoritative audit/receipt, an ordinary diagnostic observation, or retained
+session content. Selecting a result opens its session/history or immutable
+detail without changing session lifecycle or executing anything.
+
+The mode has **Logs**, **Audit**, and **All Evidence** source views. Each view
+supports deterministic paginated List, Read and Search without a model:
+
+- Logs lists/searches `application_log_events` and can open the corresponding
+  retained daily-file record or range when available.
+- Audit lists/searches typed `security_audit_events` and reads one immutable
+  audit record with its request/terminal, approval, invocation and target links.
+- All Evidence correlates permitted session, log and audit records by stable
+  IDs and time while preserving their source/authority labels.
+
+Log and Audit details show the event ID/name, level, category, original message
+template, typed property names/values and scopes in addition to any rendered
+message. Typed filters operate on those fields and preserve value kinds;
+rendered text is clearly a display/search projection and is never used to infer
+an audit outcome or reconstruct missing structure.
+
+Every record exposes **View trace** and, when session-bound, **View session
+evidence**. View trace presents the W3C parent/child tree plus explicit linked
+activities, interleaving logs and audits by observation time while retaining
+their source/authority labels. View session evidence applies the stable
+host-owned session ID and shows Logs, Audit, or All Evidence across every trace
+for that session. The selected session's History/Evidence action opens the same
+filter directly. A session can have many traces; trace selection never limits
+the session to one request.
+
+If the session still exists, evidence links back to its conversation/task
+timeline. If session content has expired or was deleted, independently retained
+audit rows show an opaque deleted-session reference without a recovered title
+or content. Expired diagnostic spans/logs appear as explicit gaps while retained
+audit relationships remain navigable by trace, correlation and session ID.
+
+An explicit **Ask Evidence** action accepts the current filters, selected
+records, a bounded time range and the user's question. Before reasoning, show
+the sources and estimated bounded payload; remote processing additionally uses
+the normal exact egress preview/approval. The answer cites every supporting
+record, separates observed facts from inference, identifies conflicting or
+missing evidence, and links back to each source row. Follow-up questions retain
+the evidence selection/revision, not an invisible unbounded database context.
+Expired/deleted sources remain visibly unavailable rather than being replaced
+with an uncited cached assertion.
+
+Cross-source grouping may explain a sequence such as request, policy decision,
+dispatch, diagnostic failure and observed receipt, but the UI must not upgrade
+a diagnostic message into proof of authorization or success. Search shows
+retention boundaries, redactions, unavailable sources and known ingestion gaps.
+Log/audit text and rendered messages are untrusted historical data, never
+instructions, approvals or tool arguments. Ask Evidence is read-only and cannot
+execute, retry, approve, revoke or alter retention. It remains usable without a
+model for list/read/search; unavailable reasoning reports that limitation
+without hiding the matching records. Sending selected evidence to a remote
+provider or exporting it requires the normal explicit preview and
+destination/egress controls.
 
 ### Work and Queue Pane
 

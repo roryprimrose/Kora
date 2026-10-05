@@ -124,6 +124,50 @@ Configuration writes, application and script execution categories, approvals,
 protected operations, and their outcomes use typed audit events without raw
 sensitive content.
 
+The current bootstrap writes both ordinary diagnostics and typed audit events
+to those files. The planned durable design continues writing every permitted
+`ILogger` event to the daily JSON files and also writes it to encrypted SQLite.
+Ordinary records use a dedicated `application_log_events` table. Typed events
+marked `SecurityAudit=true` use a separate authoritative
+`security_audit_events` table and remain present in the JSON stream. This keeps
+startup, database/key/migration failure, fatal crash, and storage recovery
+diagnosable when the database is unavailable. Unified viewing/search preserves
+stable source citations, reports retention or ingestion gaps, and never treats
+an ordinary diagnostic event or file audit copy as proof that an action was
+authorized or succeeded.
+
+Both database tables preserve structured logging fields independently of the
+human-readable message: event ID/name, level, logger category, original message
+template, typed named properties, structured scopes and admitted correlation
+identities. Audit rows add fixed typed audit fields. Rendered text is retained
+only as a bounded display/search projection; Kora does not parse it to recover
+properties, outcomes or authorization evidence.
+
+The planned implementation also records local W3C activity trace/span
+relationships and host-owned session/task/invocation/approval identifiers on
+diagnostic and audit entries. A session may contain many traces. From a session,
+you can review its retained Logs, Audit, or combined evidence; from an entry,
+you can inspect its parent/linked trace. Trace and session identifiers are
+correlation only, never permission or authentication, and no remote telemetry
+export is enabled by this design.
+
+Diagnostic database retention defaults to 30 days under its independent
+configurable setting. Audit database retention defaults to 90 days and can be
+set from 30 through 365 days. Audit records are content-minimising and remain
+independent of session deletion; they do not retain deleted chat or argument
+content. Audit expiry does not delete perpetual grants. Reading, searching,
+exporting or asking questions over evidence never extends its retention.
+Reducing audit retention previews the affected range and requires confirmation
+before existing due dates are shortened.
+
+The planned Evidence workspace can list, read and search Logs, Audit, or both
+without using a model. An explicit Ask Evidence action can reason over a
+bounded selected set, with links to every supporting record and observed facts
+separated from inference. Local reasoning is preferred; sending selected
+evidence to a remote runtime requires preview and approval of that exact
+payload. Log and audit text is historical untrusted data, never an instruction
+or permission.
+
 ## Local preferences
 
 Preferences are stored under:

@@ -261,9 +261,46 @@ service must use this contract at its policy/execution boundary.
 
 The daily JSON stream is operational audit evidence, not a tamper-evident
 security ledger and not proof that an action was authorized. Before Kora
-enables general write, process, script, or approval execution, the same events
-must also be committed to the host-owned append-only audit store described by
-the security design.
+enables general write, process, script, or approval execution, the same typed
+`ILogger` event must also be committed to the dedicated host-owned
+`security_audit_events` table described by the security design.
+
+The target instrumentation design does not make SQLite the only failure
+diagnostic path. Every permitted `ILogger` event goes to both the retained
+daily JSON files and encrypted SQLite. Ordinary records use
+`application_log_events`; records marked `SecurityAudit=true` use the separate
+authoritative `security_audit_events` table and also appear in the JSON file.
+Both tables preserve structured `ILogger` data: event identity, level/category,
+original message template, typed named properties and scopes. Audit rows add
+fixed typed audit columns. Rendered text is only a display/full-text projection,
+not the database record model or a source of audit authority.
+The target codebase uses versioned `System.Diagnostics.ActivitySource`
+instrumentation with W3C trace/span IDs throughout request, session/task,
+approval, runtime/tool, storage and evidence boundaries. Every diagnostic and
+audit row captures its activity plus host-owned session/task/invocation/
+approval/correlation IDs. Sessions span many traces; session evidence can show
+all related Logs and Audit entries, while any row can open its parent/linked
+trace graph.
+Diagnostic database retention defaults to 30 days under its independent
+configurable setting. Audit retention defaults to 90 days and can be configured
+from 30 through 365 days. Session deletion does not remove content-minimising
+audit rows, audit expiry does not remove perpetual grants, and viewing/searching
+evidence does not extend either retention clock.
+The file sink remains independent for bootstrap, database/key/migration
+failure, fatal crash, and evidence-store recovery. The planned Evidence mode
+has Logs, Audit and All Evidence views that list, read and search retained
+records without a model. Its Ask Evidence flow reasons over an explicit bounded
+selection, cites exact records and separates observations from inference;
+remote reasoning requires preview/approval of the selected payload. Ordinary
+diagnostics, file audit copies and retrieved record text never become
+authorization, instructions or receipt evidence.
+
+SQLite itself is built-in application infrastructure, not an optional external
+dependency. Binary releases must include Kora's pinned managed provider and
+architecture-matched admitted native encrypted engine; the startup probe checks
+that packaged storage and schema rather than offering a SQLite installation.
+Kora does not require a SQLite server, download SQLite at runtime, use an
+ambient machine installation, or silently fall back to plaintext storage.
 
 ## Build and test
 

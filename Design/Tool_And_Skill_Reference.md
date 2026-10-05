@@ -305,7 +305,17 @@ checks where required. Broadening/restoring grants requires a new exact approval
 | `approvals.inspect` | Grant ID | Scope, origin, applicability/use history and exact resources/digests; no perpetual expiry | M/E | Partial: action-name inventory only; detailed resource receipts planned |
 | `approvals.explain` | Capability and resolved resource/provider/skill | Matching grant/reason or required new approval | M/E | Planned |
 | `approvals.propose_edit` | Exact grant/action/resource set, revision and permitted scope edit | Separate host proposal; never execute named action, add perpetual expiry or commit silently | M/E | Partial: `ManageGrants`/model grant proposals support confirmed Add/Remove/Move for action-name grants |
+| `evidence.list` | Required log/audit/session/span/all source, bounded metadata/time/trace/session/task/invocation/approval/correlation filters and cursor | Ordered source-labelled records with authority/retention/gap status | E; M minimal status | Planned; deterministic app capability |
+| `evidence.search` | Bounded source/time/trace/span/correlation/session/task/invocation/approval/action/admitted-property/safe-text filters and cursor | Cited log, audit, span and session records with typed fields/properties and source/authority/gap status; no arbitrary SQL | E; M minimal status | Planned; deterministic app capability |
+| `evidence.get`, `evidence.get_receipt`, `evidence.list_audit` | Stable evidence ID or exact trace/invocation/session/action filter | Content-minimising log/audit/span/session record preserving structured value kinds, or observed outcome with stable citation | E; M minimal status | Planned |
+| `evidence.read_trace` | Trace ID, optional root/span and cursor | Bounded parent/child and explicit-link graph with cited log/audit/span records and visible expired segments | E; M minimal status | Planned; trace metadata grants no authority |
 | `evidence.export` | Selected metadata set and explicit destination | Preview and separately approved content-minimising export | E | Planned |
+
+The app's planned **Ask Evidence** experience orchestrates these read-only
+operations from a visible source/filter/record selection. It is not a
+model-callable recursive tool: the context broker supplies only the selected
+bounded evidence to the chosen eligible runtime, applies remote-egress review,
+and requires cited answers that distinguish observed records from inference.
 
 Bulk revocation resolves provider/account/resource/skill-revision/capability
 to a displayed exact set. Revocation blocks new dispatch immediately; report
@@ -385,7 +395,7 @@ See [Information Display](Information_Display.md).
 |---|---|---|---|---|
 | `connectors.inspect` | Registered provider/connector ID | Health, supported capabilities, selected identity reference, limitations | E; M minimal status | Partial: local inference/dependency readiness only |
 | `connectors.discover_tools` | Admitted connector ID | Reviewed tool/schema metadata; no implicit trust or installation | E; M minimal status | Planned: read-only MCP in Slice B |
-| `diagnostics.read` | Host-validated Kora daily-log identity, bounded tail request | Content-minimising log excerpt; reject arbitrary paths | E | Planned: daily logs exist, model-reader contract does not |
+| `diagnostics.read` | Host-validated Kora daily-log identity, bounded tail request | Content-minimising file excerpt; reject arbitrary paths | E | Planned: current daily logs contain the full `ILogger` stream; model-reader contract does not exist |
 
 The future diagnostic reader permits at most 1,000,000 characters per tail.
 Normal model-bound result limits and egress controls still apply; the larger
@@ -541,7 +551,10 @@ descriptors and host gates; they do not introduce generic executors.
 | `interaction.present` | Session/task IDs, summary and typed full-content items/provenance | Response/artifact identity under shared presentation policy; M cannot expose task source content | M/E |
 | `work.propose_steps` | Task ID/revision and intended steps | Labelled plan revision, not evidence of completed effects | E |
 | `work.reconcile` | Exact unknown invocation/receipt | Supported read-only reconciliation; no write retry or invented rollback | E |
-| `evidence.get_receipt`, `evidence.list_audit` | Invocation/session/action filter and cursor | Permitted observed outcomes; M receives minimal status, not secret arguments | E; M minimal status |
+| `evidence.list` | Required log/audit/session/span/all source, bounded metadata/time/trace/session/task/invocation/approval/correlation filters and cursor | Ordered permitted records plus source/authority/retention/gap status | E; M minimal status |
+| `evidence.search` | Bounded source/time/trace/span/correlation/session/task/invocation/approval/action/admitted-property/safe-text filters and cursor | Cited log, audit, span and session matches with typed fields/properties plus source/retention/gap status; no arbitrary SQL | E; M minimal status |
+| `evidence.get`, `evidence.get_receipt`, `evidence.list_audit` | Stable evidence ID or trace/invocation/session/action filter and cursor | Permitted structured log/audit/span/session record preserving value kinds, or observed outcome; M receives minimal status, not secret arguments | E; M minimal status |
+| `evidence.read_trace` | Trace ID, optional root/span and cursor | Bounded parent/child and explicit-link graph with cited log/audit/span records and visible expired segments; no authority | E; M minimal status |
 
 Work sessions are durable Active/Done streams, not execution slots. Ordinary
 voice and UI can ask, choose/deselect options, edit a shared draft, review,
@@ -579,7 +592,7 @@ Restart recovers history/selection and Interrupted/Unknown work, not dispatch.
 | `execution.prepare`, `execution.invoke` | Registered implementation, complete digests, typed invocation/resources | Deferred for general scripts/apps: review proposal/admitted receipt; fixed computer actions use dedicated tools | E |
 | `execution.status`, `execution.cancel` | Exact Kora-owned invocation ID | Available only with admitted execution: observed receipt/cancellation certainty; no arbitrary PID killing | E |
 | `maintenance.get_status`, `maintenance.get_release` | Host-published check/selected release ID | Read-only trusted maintenance snapshot and untrusted release notes; no check, navigation or updater authority | M/E |
-| `diagnostics.list`, `diagnostics.export` | Host-enumerated daily-log IDs; explicit destination for export | Content-minimising metadata or separately approved export; no silent upload | E |
+| `diagnostics.list`, `diagnostics.export` | Host-enumerated daily-log IDs; explicit destination for export | File metadata or separately approved export; structured retained evidence uses `evidence.search`/`evidence.export`; no silent upload | E |
 | `connectors.list`, `connectors.propose_configuration` | Registered connector/config schema and selected identity reference | Proposed B: admitted metadata or trusted setup proposal; secure sign-in stays host-only | E; M minimal status for list |
 | `knowledge.search`, `knowledge.read` | Explicit admitted source/query or document/range | Deferred: permission-checked bounded citations/content with freshness/deletion gates | E |
 

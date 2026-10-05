@@ -99,6 +99,7 @@ Avalonia Shell
   |-- Compact Session UI / Session Manager / History and Detail Viewer
   |-- Structured Interaction Service -- Shared Voice/UI Questions / Recovery / Approval Input
   |-- Session Registry / Event and Artifact Store / Retention Controller
+  |-- Evidence Query / Ask Evidence -- Session / Log / Audit Projections / Daily-File Adapter
   |-- Reserved Intent Registry -- App Lifecycle / Fixed Computer Controls / Exact Local Management
   |-- Work Manager -- Management Model Adapter
   |       `-- Per-Session Ledger / Bounded Scheduler / Shared-Resource Leases
@@ -142,6 +143,7 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Content viewer/rendering service | Bounded Markdown/diagram/static HTML rendering, browser provenance/navigation/isolation | Browser automation, implicit context capture, arbitrary renderer plugins or host bridges |
 | Proactive interaction broker | Event eligibility, speech timing, deduplication, prompt identity, trusted maintenance dialogue routing | Autonomous tool execution or treating untrusted content as system events |
 | Security audit service | Correlated content-minimizing request/outcome events for writes, process/script execution, protected operations, and approvals | Authorizing an action, storing raw content/arguments, or treating diagnostics as tamper-evident evidence |
+| Evidence query/reasoning service | Deterministic list/read/search over permitted log and audit records, bounded cross-source correlation/citations, and orchestration of user-requested evidence reasoning through the context broker; explicit retention/gap/source status | Arbitrary SQL/path access, changing source records, treating evidence as instructions/authority, uncited conclusions, or sending an unreviewed cross-source result to a remote model |
 | Speech policy service | Central playback eligibility, call-state freshness, voice-configurable preferences, one-shot overrides | Claiming universal call detection or allowing lock/mute bypass |
 | Speaker confidence service | Separately consented local per-SID frequent-speaker adaptation, protected learned/enrolled profiles, quality/verification observations, optional privacy-policy signal | Authenticating a learned frequent speaker, granting actions, satisfying approvals, ambient/history training, exposing scores/templates, or silently replacing enrollment |
 | Reserved intent/lifecycle controller | Exact local control routing, target disambiguation, named confirmations, serialised app/power/maintenance lifecycle | Arbitrary shell commands or user-skill shadowing of privileged controls |
@@ -158,6 +160,60 @@ The [window design](UI_Workspace_And_Windows.md) defines shell roles and shared 
 This is not shared provider conversation state or permission to dispatch; the registry/interaction/scheduler remain authoritative.
 Rich presentation follows [Information Display](Information_Display.md); native approvals and trust indicators remain outside rendered content.
 Native questions and first-run/device-loss recovery follow [Interaction Fallback](Interaction_Fallback.md) and require no working microphone, model, or rich renderer.
+
+## Activity Tracing and Evidence Correlation
+
+Use `System.Diagnostics.ActivitySource` throughout Kora's host-owned code. The
+stable sources are `Kora.Core`, `Kora.Application`, `Kora.Windows`, and
+`Kora.Desktop`, versioned with their assemblies. Configure W3C IDs before
+application composition. Activity names are stable low-cardinality operation
+names such as `session.request`, `task.dispatch`, `approval.decide`,
+`tool.invoke`, `storage.commit`, and `evidence.query`; never place user text,
+paths, session titles, targets, or model output in an activity name.
+
+Activities describe causal operations, not durable business identity:
+
+- Create a root activity for each accepted UI/voice/system request, startup or
+  recovery operation, scheduled dispatch, retention run, and explicit evidence
+  query/reasoning request. Use child activities around meaningful policy,
+  runtime/provider, tool, storage and presentation boundaries rather than every
+  method.
+- Do not keep one activity open for the lifetime of a Kora session. A session
+  spans many traces and restarts. Stamp the stable host-owned `SessionId` on
+  every session-bound activity and logging scope, with `TaskId`, `InvocationId`,
+  `ApprovalId`, and audit `CorrelationId` where applicable.
+- Use parent/child context for nested work. Capture context at enqueue/admission
+  and use `ActivityLink` for deferred work, fan-out, reconciliation, or work
+  caused by multiple prior operations; do not fabricate a parent or keep a
+  completed activity open. Restart creates a new trace linked through durable
+  Kora IDs, never by reviving an old span.
+- `Activity.Current` flows through ordinary async calls. Queue/IPC/runtime
+  adapters must capture and restore or link the admitted context explicitly.
+  Propagate W3C context outside the process only through an admitted adapter and
+  normal destination/egress policy. Incoming trace data is correlation only,
+  never identity, intent, permission or authority.
+- Do not use `Activity.Baggage` for Kora/session identities or content because
+  baggage may cross provider boundaries. The host stamps allowlisted typed tags
+  and `ILogger` scopes from trusted context at each boundary.
+
+Every diagnostic and audit `ILogger` call captures the current activity at call
+time, before asynchronous sink buffering. Both database tables and daily JSON
+contain `TraceId`, `SpanId`, optional `ParentSpanId`, trace flags, activity
+source/name/kind, and host-owned session/task/invocation/approval/correlation
+IDs where applicable. `CorrelationId` remains the durable domain identity that
+pairs audit request/terminal records; it does not replace W3C trace identity.
+
+Persist completed local span metadata in encrypted `activity_spans` and
+`activity_links` projections under diagnostic retention: trace/span/parent,
+source/name/kind, start/end, status, allowlisted typed tags and durable Kora
+IDs. Evidence records retain their own trace/span/session fields even if the
+span projection expires. The UI then reports an expired/missing trace segment
+rather than inventing it. No remote telemetry exporter is enabled by this
+contract; adding one requires a separate destination/privacy decision.
+
+The current bootstrap does not implement this contract. It has typed audit
+`CorrelationId` values but no repository `ActivitySource` instrumentation,
+persisted span graph, or automatic trace/session fields in every log.
 
 ## Independent Management and Concurrent Sessions
 
@@ -354,6 +410,17 @@ composed and no typed native broker is selected by the experiment.
 The R02 storage/key investigation selects **maintained, authenticated whole-database encryption for content-bearing SQLite events, metadata and indexes, plus AES-256-GCM for managed out-of-database artifacts**.
 Use random keys wrapped by Windows CurrentUser DPAPI and user-restricted local filesystem ACLs.
 This is an implementation direction, not a selected shipping package or a completed R04/R05 schema.
+SQLite is a required application component, not an optional provider, external
+server, user-installed prerequisite, or capability that can be disabled. Every
+supported binary package must carry its admitted managed provider and native
+encrypted engine for the package architecture. Source builds acquire the pinned
+packages during restore; end users are never asked to locate or install SQLite.
+The startup storage probe validates the bundled component, keys, database and
+schema. It is a health/migration gate, not an optional dependency setup task.
+Missing or unloadable native SQLite assets are a broken installation and fail
+durable session/evidence capabilities explicitly; Kora never downloads a
+replacement at runtime, searches the machine for an ambient SQLite library, or
+falls back to an unencrypted/system engine.
 Windows is the only supported product OS; Linux runtime support and local Linux-host validation are outside this storage proof.
 Existing Linux-hosted CI building Windows artifacts remains unchanged and does not imply Linux product support.
 [D-009](Decision_Register.md#d-009-session-persistence-and-retention) owns selection status and remaining gates; the [reproducible R02 evidence](../experiments/r02-storage-proof/README.md) supports, rather than replaces, this contract.
@@ -361,7 +428,44 @@ Existing Linux-hosted CI building Windows artifacts remains unchanged and does n
 Implementation requirements:
 
 - Admit only a maintained native engine with reviewed provenance/licences, authenticated encryption configuration and installed Windows x64/x86 loading evidence. The measured unofficial package reports SQLCipher 4.5.2, SQLite 3.39.2 and LibTomCrypt 1.18.2 and is not admitted for production.
+- Pin the managed provider, native engine and initialization mode as one release-owned dependency closure. Publish and installer manifests must include the exact native asset for each offered architecture; package restore/build tools are development inputs, not runtime acquisition paths.
 - Keep content-bearing FTS, summaries and derived indexes inside the keyed store. Require memory-only SQLite temporary storage on every connection; reject an absent codec or incompatible configuration. Backups must be explicitly keyed. Do not trace decrypted SQL parameters, connection passwords or record content into diagnostics.
+- Fan every content-minimising `ILogger` event to two independent providers: the retained daily JSON file sink and the encrypted SQLite logging provider. The file stream remains complete enough for startup, database open/migration/key/commit failure, fatal crash and recovery diagnosis; the database projection supplies structured local query. Failure or backpressure in one provider must not recursively invoke it or silently suppress delivery to the other.
+- Both SQLite tables are structured logging stores, not rendered-line archives.
+  Preserve a common formatter-independent `ILogger` envelope: stable evidence
+  ID, UTC observation time, numeric/name event ID, level, logger category,
+  original message template, bounded typed property object, bounded structured
+  scopes, W3C trace/span/parent context, activity source/name/kind, host-owned
+  session/task/invocation/approval/correlation IDs, and optional approved
+  exception type/code fields. Preserve property
+  kinds such as null, Boolean, integer, real, string, GUID and timestamp rather
+  than coercing every value to text. A rendered message may be retained for
+  display/full-text search, but it is derived and never replaces the template
+  or typed values.
+- Route ordinary `ILogger` records into a dedicated `application_log_events`
+  table with promoted/indexed correlation, session, task, invocation and other
+  admitted high-value fields in addition to the structured envelope. Route
+  records carrying the host-owned `SecurityAudit=true` marker into a separate
+  `security_audit_events` table, not the ordinary log table. Audit rows preserve
+  the same structured logging envelope and add fixed typed columns for append
+  sequence, correlation/category/action/outcome/initiator/target, optional
+  approval ID and bounded reason code. Do not reconstruct properties or
+  authoritative audit columns by parsing rendered message text.
+- Canonical structured-property serialization is schema-versioned, bounded and
+  culture-invariant. Unsupported values fail or use an explicitly registered
+  safe projection; they are not silently stringified. Apply the same
+  content-minimisation/redaction policy before either file or database
+  serialization, and never persist duplicate raw objects outside that policy.
+- Use common W3C activity and durable Kora identity projections across
+  `application_log_events`, `security_audit_events`, `activity_spans`,
+  `activity_links` and session records so queries can join causally related
+  observations and all evidence for one session without collapsing schemas or
+  authority. Preserve source-specific payloads, indexes, access rules and
+  retention rather than flattening every record into one generic table.
+- Apply independent database retention policies: diagnostics default to 30 days under their configurable bounded schema; audits default to 90 days and permit 30-365 days. Persist each row's effective due time. Session deletion, search and reasoning do not refresh or collapse these policies; perpetual grants remain independently retained.
+- Query the retained database tables and daily files through one host-owned evidence service. It provides source-specific list, read and search operations for logs and audits, plus an All Evidence correlation view. It returns stable source/event citations, bounded pages and explicit source-unavailable, retention-expired, sink-failure and diagnostic-loss markers; it never exposes arbitrary SQL or file paths. Cross-source search uses only permitted indexed fields and encrypted FTS content.
+- “Ask Evidence” is an application workflow over that service, not unrestricted database access. It retrieves a bounded, reviewable set of permitted log/audit/session records through the context broker, invokes the selected eligible reasoning runtime, and returns claims with exact evidence citations and explicit inference/uncertainty. Local reasoning is the default. A remote runtime requires preview and approval of the exact selected records under normal egress policy. Missing reasoning does not disable deterministic list/read/search.
+- The security audit `ILogger` provider commits `security_audit_events` synchronously at the policy boundary and reports failure to the host-owned audit service; a daily-file copy alone cannot permit consequential dispatch. Ordinary `application_log_events` ingestion may batch asynchronously, but bounded-buffer exhaustion, write failure or recovery must produce an explicit loss marker in the file stream and later database gap evidence rather than silent loss or pressure that prevents audit commits.
 - Transactionally commit ordered intent/decision evidence before consequential dispatch and link observed receipts afterward. Use FULL-synchronous durability, then prove recovery on the admitted engine. Recovery restores readable interrupted/unknown evidence, never fresh execution authority or automatic replay.
 - Authenticate artifacts with versioned, identity/role-bound envelopes. Stage, flush and publish before committing the reference; recover staged files, unreferenced published files and missing/corrupt referenced files explicitly. Bound sizes and account for immutable digest/equality disclosure when choosing artifact names.
 - Version key wrappers and coordinate publication, rotation and recovery with all managed backup generations. Missing/invalid keys fail visibly without overwriting existing data, creating replacement keys over it or changing storage location. Verify CurrentUser scope without LocalMachine fallback, profile-local managed paths and actual restrictive directory/key-file ACLs. CurrentUser DPAPI is not an unconditional device-binding guarantee for every profile/domain configuration.

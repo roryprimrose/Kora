@@ -1,0 +1,23 @@
+[
+  {
+    "Id": "OpenTK.Audio.OpenAL",
+    "Version": "5.0.0-pre.13",
+    "License": "MIT",
+    "ProjectUrl": "https://github.com/opentk/opentk",
+    "LicenseUrl": "https://github.com/opentk/opentk/blob/5.0-pre.13/LICENSE.md"
+  },
+  {
+    "Id": "OpenTK.Core",
+    "Version": "5.0.0-pre.13",
+    "License": "MIT",
+    "ProjectUrl": "https://github.com/opentk/opentk",
+    "LicenseUrl": "https://github.com/opentk/opentk/blob/5.0-pre.13/LICENSE.md"
+  },
+  {
+    "Id": "OpenTK.Mathematics",
+    "Version": "5.0.0-pre.13",
+    "License": "MIT",
+    "ProjectUrl": "https://github.com/opentk/opentk",
+    "LicenseUrl": "https://github.com/opentk/opentk/blob/5.0-pre.13/LICENSE.md"
+  }
+]

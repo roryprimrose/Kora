@@ -198,7 +198,7 @@ Initial official artifacts are unsigned, so canonical release origin, final-byte
 Modified or mismatched application provenance must be rejected by the trusted deployment/launch mechanism where it can be established, not merely checked by code inside an already compromised binary.
 Source builds identify their separately trusted local build provenance and never claim to be official release binaries.
 A user deliberately changing source and building another application, or an administrator bypassing deployment trust, is outside the integrity guarantee.
-Kora must not claim that a locally owned open-source application is impossible for its owner to modify.
+Kora must not claim that a locally owned source-available application is impossible for its owner to modify.
 
 ## Deterministic Script-Set Hash
 

@@ -284,6 +284,11 @@ lock files with:
 dotnet restore .\Kora.slnx --force-evaluate
 ```
 
+Every direct and transitive NuGet dependency is checked against the reviewed
+license policy in [`DEPENDENCY-LICENSES.md`](DEPENDENCY-LICENSES.md). Run
+`.\eng\Test-DependencyLicenses.ps1` after restoring local tools and before
+proposing a package change.
+
 Builds treat compiler and analyzer warnings as errors. The baseline combines
 the latest recommended .NET analyzers, enforced code-style diagnostics,
 Meziantou.Analyzer, Visual Studio threading analyzers, and the xUnit analyzers
@@ -305,3 +310,21 @@ The automated test boundary is:
 - `tests/Kora.Core.UnitTests` and `tests/Kora.Application.UnitTests` — portable unit tests and CI coverage.
 - `tests/Kora.Windows.IntegrationTests` — non-destructive Windows integration tests.
 - `Design` — product, architecture, safety, and interaction specifications.
+
+## Contributing
+
+Issues and contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md)
+for development checks and the terms that apply to submitted contributions.
+
+## License
+
+Kora is **source-available**, not OSI-approved open source. It is licensed
+under the [`PolyForm Shield License 1.0.0`](LICENSE). The license allows use,
+modification, and distribution for permitted purposes, including personal and
+internal commercial use, but does not permit providing a product that competes
+with Kora. That restriction applies to competing products whether they are
+sold or provided free of charge.
+
+Third-party components remain under their own terms. See
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) and
+[`DEPENDENCY-LICENSES.md`](DEPENDENCY-LICENSES.md).

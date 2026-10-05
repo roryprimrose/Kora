@@ -235,6 +235,12 @@ gates remain R03/R04/R05/R06/R07/R08 work.
 
 ## Results, recommendation and merge gate
 
+The [canonical technical outcomes and plan](../../Design/Local_Inference.md)
+and [R02-L1-L6 roadmap](../../Design/Implementation_Roadmap.md#r02-local-inference-continuation)
+own the design consequences, accountable next steps and integration gates.
+This experiment remains the reproducibility/evidence source, not a separate
+delivery plan or production capability contract.
+
 See [measured results and limitations](RESULTS.md) and
 [public candidate metadata](results/candidate-metadata.json).
 The [final validation evidence](results/final-validation/validation.json)

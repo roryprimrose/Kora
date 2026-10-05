@@ -111,6 +111,13 @@ run's base commit cannot itself contain its newly generated results.
 
 ## Recommendation and reconsideration triggers
 
+The [canonical local-inference technical plan](../../Design/Local_Inference.md)
+maps these observations to compatibility, context, resource, setup and offline
+requirements. The [R02-L1-L6 continuation](../../Design/Implementation_Roadmap.md#r02-local-inference-continuation)
+assigns owners/dependencies and starts with environment/budget approval, then
+consented provisioning and actual qualification trials before integration.
+These documentation outcomes do not change the measurements recorded above.
+
 **Retain Ollama 0.35.1 / the existing digest-pinned qwen3:1.7b as the first
 candidate to benchmark; no selected/qualified production recommendation yet.**
 Its exact registry identity and model licence are reproducible, and its

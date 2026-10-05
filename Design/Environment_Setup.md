@@ -91,6 +91,40 @@ see [D-003](Decision_Register.md#d-003-local-inference-baseline).
 
 CPU-only support and hardware limits must be communicated; installing a large model does not prove that it will perform acceptably.
 
+### Local Inference Provisioning Budget
+
+The [R02 outcomes](Local_Inference.md#outcomes-and-their-consequences) require
+setup to distinguish transfer size, persistent storage, peak staging and
+runtime RAM. Public metadata collected on 2026-10-05 records:
+
+- Ollama 0.35.1 Windows setup: **1,580,352,416 download bytes**.
+- Pinned qwen model blobs: **1,359,293,444 download bytes**, approximately
+  1.36 GB; blob-plus-manifest storage is a lower bound, not peak pull storage.
+- Fresh setup plus model transfer: **2,939,645,860 bytes**, before
+  protocol/retry/additional-asset overhead. Already verified assets may be reused.
+
+The bootstrap's existing **2,000,000,000-byte** free-space check applies to
+the model volume only. It is not proof of sufficient space for the runtime,
+installer, staging, KV cache or the complete setup. Expanded runtime and peak
+provisioning/storage requirements are still unmeasured; do not present them as
+a known minimum or change the guard based solely on compressed download size.
+
+[R02-L2](Implementation_Roadmap.md#r02-local-inference-continuation) must measure
+installation/staging/model needs on their actual volumes and verify installed
+identities and distribution notices. R10 then presents a per-volume plan with
+measured headroom, sources/licences, ownership and consent before acquisition.
+Until qualified, label total-install resource estimates unresolved rather than
+implying hardware suitability from a readiness check.
+
+Runtime compatibility is also a qualification input: the current probe
+accepts an identified responding runtime, whereas the R02 measurement preflight
+requires the exact candidate version. R10 must use the tested envelope from
+R02-L5, preserving healthy existing components and explaining unsupported
+versions without automatic replacement. Nothing in this plan authorises asset
+installation, runtime startup or firewall changes on a shared development host.
+
+### Optional Speech Personalization
+
 Frequent-speaker learning and speaker verification are optional, separate from wake listening and general speech recognition.
 Offer separately explained local **Learn my voice** consent; declining/failing it does not block general voice or imply consent from microphone setup.
 After consent, the non-authorizing learning capability uses only new deliberately activated commands under [its privacy/quality contract](Security_Data_Flows.md#optional-local-frequent-speaker-learning); no ambient/history training or retained recording archive.

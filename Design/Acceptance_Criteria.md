@@ -68,6 +68,13 @@ the tested envelope and R19 compiles integrated host, request-triggered
 clipboard, voice/UI and streaming evidence under R02-L6. Changed runtime/model,
 options, context or compatibility claims repeat affected proofs.
 
+Use the [shared deferred-validation register](Deferred_Validation.md) and
+[LI01-LI07](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials)
+when preparing a later separately approved interactive inference session.
+They distinguish runnable synthetic commands from missing server/egress/host
+instrumentation. Unperformed trials block qualification and A2 acceptance,
+not merging the partial research and testing handoff under normal checks/reviews.
+
 ## Platform Boundary Gate
 
 - Shared domain/policy/task/skill/configuration code builds and runs portable tests on Linux without Windows-only API references.

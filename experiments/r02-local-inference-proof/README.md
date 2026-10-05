@@ -1,7 +1,7 @@
 # R02 local-inference feasibility proof
 
 **Status: reproducible harness and unavailable-path evidence; D-003 and the
-inference portion of D-007 remain open. Draft, not A2 acceptance.**
+inference portion of D-007 remain open. Partial research, not A2 acceptance.**
 
 Scope: the already pinned Ollama `0.35.1` / `qwen3:1.7b` candidate, selected
 synthetic clipboard-shaped text, answer quality, performance, context,
@@ -15,7 +15,8 @@ explicit exclusive-test-runtime consent.
 
 The clean session branch was fetched and rebased onto `origin/main`.
 Approved R01 reconciliation commit `7d5e6a3` is an ancestor; its accepted policy
-is present. These contracts were read, not edited:
+is present. These contracts informed the initial proof; follow-up documentation
+records its technical outcomes and deferred validation without changing production:
 
 - [Local runtime architecture](../../Design/Architecture.md).
 - [Setup and existing-installation ownership](../../Design/Environment_Setup.md).
@@ -259,10 +260,123 @@ CPU-only trial; do not change pins, assert the 16 GiB floor is sufficient,
 close D-003/D-007 or advertise A2 yet. Do not substitute another runtime/model
 without a new consented comparison and identity/licence/storage review.
 
-The PR stays draft until missing real-model, floor, licence-distribution and
-OS-enforced offline evidence is reviewed. Approved R01 has already landed;
-other R02 branches are independent. Relevant R03-R08 foundations are
-prerequisites to product exposure, not proof delivered here.
-Only when ready and applicable prerequisites/checks/reviews have landed,
-mark ready and enable **squash auto-merge** using normal repository protection.
-Never bypass checks/reviews or force-push a rebased published branch.
+### Merge Versus Acceptance
+
+The publication scope is the harness, truthful partial evidence, canonical
+technical outcomes and the deferred-testing handoff below. Unperformed
+interactive/hardware/licence-distribution/offline trials are capability
+blockers, **not prerequisites for merging this limited research scope**.
+Approved R01 is present; the merged speech/containment proofs and independent
+distribution work do not qualify this runtime or authorise any new trial.
+Normal build/hygiene, repository checks and reviews still apply; when this
+limited scope is ready, squash auto-merge may use those ordinary protections.
+
+Keep D-003/D-007 and A2 acceptance open until the applicable real evidence
+passes. Relevant R03-R08/R10 foundations are prerequisites to product exposure,
+not capabilities delivered by this experiment. Publication neither changes the
+measurements nor installs a runtime/model, alters a production pin or enables a
+production tool loop. Historical draft/blocked receipts remain historical,
+not a current merge gate. Never bypass checks/reviews or rewrite published
+history without explicit approval.
+
+## Outstanding Testing Checklist
+
+The [shared deferred-validation register](../../Design/Deferred_Validation.md)
+is the entry point when the operator returns to an interactive session.
+The rows below implement the [R02-L1-L6 handoff](../../Design/Implementation_Roadmap.md#r02-local-inference-continuation);
+they do not reuse speech/containment approvals or waive unperformed tests.
+All real-model and integrated-host rows remain outstanding. The current
+commands cover synthetic inference only; returning to the machine is not
+permission to install assets, change network policy, capture audio/clipboard
+or start production execution.
+
+### Safe Deterministic Reruns
+
+These checks require neither an unlocked desktop nor a real model. They do
+not open the clipboard/microphone, emit speech, call Ollama or change model
+residency. Use the existing repository-pinned SDK and a new evidence directory
+outside the checkout, or ignored `artifacts` under this experiment:
+
+```powershell
+# From the repository root; use a new run identifier.
+$run = Join-Path $PWD 'experiments\r02-local-inference-proof\artifacts\interactive-preflight-01'
+New-Item -ItemType Directory -Path $run -ErrorAction Stop | Out-Null
+dotnet restore experiments\r02-local-inference-proof\Proof.csproj `
+  --configfile experiments\r02-local-inference-proof\NuGet.Config -p:NuGetAudit=false
+if ($LASTEXITCODE -ne 0) { throw 'Local proof restore failed.' }
+dotnet build experiments\r02-local-inference-proof\Proof.csproj -c Release --no-restore
+if ($LASTEXITCODE -ne 0) { throw 'Local proof build failed.' }
+dotnet run --project experiments\r02-local-inference-proof\Proof.csproj `
+  -c Release --no-build -- self-test --output (Join-Path $run 'self-test.json')
+if ($LASTEXITCODE -ne 0) { throw 'Deterministic proof checks failed.' }
+```
+
+- [ ] Retain build output, self-test receipt, source revision/hashes and machine
+  inventory. Missing SDK/packs remain Blocked; no implicit installation.
+- [ ] Preserve committed observations; a synthetic 60-trial orchestration is
+  not 60 real generations. Do not overwrite earlier evidence or label it live.
+- [ ] Keep `Record-CandidateMetadata.ps1` outside any offline test interval:
+  it fetches public network metadata, although not models/installers.
+- [ ] Treat `observe` and `Run-Validation.ps1` separately from deterministic
+  checks: they contact the real endpoint and **can generate** if it is healthy.
+  Use `-ExpectUnavailable` only when the approved endpoint is actually missing;
+  it is not a general safe/no-generation switch.
+
+### Before an Interactive Inference Session
+
+- [ ] Select the exact LI row and name its operator, environment owner and
+  reviewer. Record current revision, supported Windows release/build, named
+  reference CPU, logical cores/RAM/SSD, power profile and measured contention.
+  Define numerical latency/resource/cancellation budgets before seeing results.
+- [ ] Obtain separate scoped provisioning/startup consent if the exact pinned
+  runtime/model is missing. The proof installs/starts/pulls nothing. Verify
+  installed version/digests and licence/native notices; never replace another
+  user's runtime/model or start a candidate with changed pins as a shortcut.
+- [ ] Approve an exclusive owned runtime before `measure --exclusive-runtime`:
+  it unloads/reloads the model, forces experimental CPU inference and may
+  consume substantial CPU/RAM/time. Record ownership and ensure no unrelated
+  request uses it. Plan a visible stop control and recovery.
+- [ ] Approve the disposable offline environment and exact isolation/capture
+  plan separately, including any privilege requirement. Pre-provision/verify
+  assets before isolation. Do not change the shared developer host's firewall,
+  adapters or unrelated processes. Keep inference isolation separate from
+  attributing containment-worker enforcement.
+- [ ] Prepare the row's required instrumentation. The supplied sampler/HTTP
+  trace is not independent egress capture, exact tokenizer accounting, server
+  computation-stop proof or an instrumented production UI/tool loop. If hooks
+  or privacy/recovery controls are missing, record Blocked instead of improvising.
+- [ ] Use only owned synthetic snapshots. Do not read the real clipboard,
+  enable microphone/TTS or launch the current bootstrap as a contention/UI
+  shortcut. LI07 needs the later instrumented host and R03/R09 privacy controls;
+  no standalone result substitutes for UI-open/voice acceptance.
+
+### Deferred Inference Trials
+
+| ID / gate | Current status | Required procedure and completion evidence |
+|---|---|---|
+| LI01 - Environment, floor and budgets / R02-L1, D-007 | Not selected/approved; development inventory is not qualification | Name supported reference and isolation environments and operators. Record exact CPU/8-logical-core/16-GiB/SSD floor, power/OS, contention and CPU-only verification plan; agree numerical latency/resource/cancellation budgets. A faster development host or constrained VM alone is not physical-floor proof. Obtain the row's provisioning/residency/isolation approvals, not blanket consent for every proof. |
+| LI02 - Installed baseline and storage/licences / R02-L2 | Blocked: no runtime/model provisioned in the recorded run | Under separate provisioning consent, reuse or acquire only exact Ollama 0.35.1 / pinned qwen3:1.7b. Verify installed executable/weight identities, licence/native notices, actual runtime/model locations, transfer and expanded/peak staging/free-space requirements per volume. `Record-Machine.ps1`, endpoint metadata and separately approved storage observations supply receipts; published hashes and the 2 GB model guard alone do not pass. |
+| LI03 - Actual CPU-floor answer quality/performance / R02-L3, D-003/D-007 | Not run; simulated orchestration is supplementary only | With LI01/LI02 satisfied and exclusive-runtime approval, run the [measurement command](#provisioned-exclusive-cpu-only-performance-run) into new evidence with at least 30 cold + 30 paired warm trials. Retain CPU-only residency, raw timings/counters/process resources and separate production-default results. Human-score every answer against fixed fixtures/rubric; compare individual failures and p50/p95/max to pre-agreed budgets. Label standalone/UI contention limits; LI07 owns integrated acceptance. |
+| LI04 - Effective context and output budgets / R02-L3 | Not run; advertised window and character cap are different bounds | Inspect current context/overflow trials and extend bounded instrumentation where needed to count the full prompt/system/catalogue/output/thinking envelope and detect truncation. Prove selected-context retention and explicit oversize behavior at the production boundary; capture options, token counts, marker results and output limits. A successful large standalone request does not increase the production cap or prove the entire advertised window. |
+| LI05 - Cancellation, timeout, races and recovery / R02-L3 | Blocked: real server and additional instrumentation absent | Use scheduled streaming/production cancellation and recovery as a starting fixture, then prepare repeated completion/cancel race and actual-timeout tests with server/runner observations. Record cancellation timing, computation cessation or bounded residual work, rejected late outputs, recovery quality and explicit terminal states. The single 200 ms HTTP cancellation, residency metadata or simulated internal timeout alone does not pass. Stop only owned test resources; never kill unrelated Ollama instances. |
+| LI06 - Independent offline success and unavailable behavior / R02-L4 | Blocked: no approved isolation/capture or successful real answer | Follow the [approved offline procedure](#approved-network-blocked-proof-procedure). Keep whole-environment IPv4/IPv6/proxy/NAT denial active for successful synthetic answering, cancellation/recovery and missing/unhealthy/missing-model/changed-digest/timeout fixtures. Retain controls, interval and independent process-correlated egress evidence for proof/host and Ollama/runner, plus positive controls for working loopback/local inference. Unload/stop only owned resources; prepare an owned bounded fault fixture where needed. No asset acquisition, metadata fetch or remote fallback during the interval. |
+| LI07 - Disposition and integrated-host repeat / R02-L5/L6, R06/R07/R08/R10/R19 | Blocked: qualification and instrumented production foundations absent | After applicable LI01-LI06 pass, record owner-reviewed candidate/compatibility/context/resource/hardware disposition and reconsideration triggers. Carry it into R06/R07/R08/R10, then repeat relevant synthetic workflow/privacy/oversize/streaming/cancellation/offline trials on the actual admitted host with safe UI/service contention and R03/R09 controls. Clipboard/voice/UI acceptance needs later separately consented instrumentation; do not modify this harness to read the clipboard or dispatch tools. Close D-003/D-007/A2 only on the required reviewed evidence, not the experiment's merge. |
+
+### Evidence and Completion
+
+For each LI row, retain revision/date/operator, machine and actual runtime/model
+identities, exact approvals, test parameters/budgets, expected/actual individual
+results, timings/counters, human quality review, independent capture/controller
+references and cleanup/recovery. Label Pass, Fail, Blocked or Not run.
+Write each later run separately; commit only reviewed/redacted evidence.
+The earlier missing-endpoint latency, historical draft disposition and zero
+model resources remain historical observations, not generation/hardware passes.
+
+Attach later evidence to the owning row, update the
+[shared register](../../Design/Deferred_Validation.md),
+[technical plan](../../Design/Local_Inference.md),
+[D-003/D-007](../../Design/Decision_Register.md) and
+[R02-L1-L6](../../Design/Implementation_Roadmap.md#r02-local-inference-continuation)
+only as the applicable gates actually pass. Failed qualification requests a
+consented comparison or explicit hardware/scope decision, never silent pin,
+provider or authority substitution. No LI row is waived by merging partial work.

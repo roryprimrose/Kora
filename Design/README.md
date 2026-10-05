@@ -30,7 +30,7 @@ cross-profile isolation; routine second-account OS-denial trials are not
 required for this profile-local application or for merging its research outcome.
 
 [Deferred Proof Validation](Deferred_Validation.md) is the interactive-session
-handoff for outstanding speech, containment and distribution trials. It links
+handoff for outstanding speech, local-inference, containment and distribution trials. It links
 safe reruns and proof-specific checklists while keeping consent/privilege
 requirements and capability blockers distinct from merging partial research.
 
@@ -42,6 +42,9 @@ real model, CPU-floor and no-egress success are not. The
 starts with test-owner/environment/budget approval, then consented provisioning,
 actual trials, candidate disposition and integration. The proof remains
 supporting evidence, not the only place this work is tracked.
+The [LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
+provides the later interactive-session procedures; merging partial research
+does not close the outstanding inference or independent proof gates.
 
 ## Current Bootstrap Boundary
 

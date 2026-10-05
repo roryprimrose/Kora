@@ -25,9 +25,20 @@ network-policy change was approved or performed.
 Initial unavailable observations are retained in
 [unavailable.initial.json](results/unavailable.initial.json) and the blocked
 measurement in [measurement-blocked.initial.json](results/measurement-blocked.initial.json).
-Post-rebase repetition is in [observed-workflow.json](results/final-validation/observed-workflow.json).
+The original pre-publication repetition is in
+[observed-workflow.json](results/final-validation/observed-workflow.json).
 Individual timings are failure-detection latencies, **not** inference speed.
 No first token or completed answer was produced.
+
+After rebasing onto the merged speech/deferred-validation (#25) and containment
+(#21) work at `ca63f73`, the
+[new validation receipt](results/post-rebase/validation.json) records another
+zero-warning/error Release build and 31 passing deterministic tests.
+All 46 original proof-input hashes still match; historical evidence is unchanged.
+The [new endpoint observation](results/post-rebase/observed-workflow.json)
+again reports `Missing`/`Unavailable`, with failure detection of 2,075.8832 ms /
+2,099.4621 ms and only the same two loopback GET attempts. This adds no
+real-model, reference-hardware or independent offline qualification.
 
 ## Machine actually inspected
 
@@ -132,7 +143,13 @@ floor run fails quality, context, cancellation or an agreed UX/resource budget,
 request approval for a scoped candidate comparison or a product/hardware
 decision rather than silently choosing cloud inference.
 
-Promote this draft only after the relevant hardware, human-quality,
-distribution and network-blocked evidence is reviewed, applicable
-prerequisites have landed, and ordinary required checks/reviews pass.
-Squash auto-merge is intentionally **not enabled while this proof is incomplete**.
+This partial-evidence package may merge after its runnable checks,
+documentation/hygiene and normal required checks/reviews pass. Later
+interactive validation is tracked by
+[LI01-LI07](README.md#deferred-inference-trials) and the
+[shared deferred-validation register](../../Design/Deferred_Validation.md).
+Real hardware, human-quality, distribution and independently network-blocked
+results remain qualification/exposure gates, not prerequisites for publishing
+the harness and truthful handoff. Historical draft/blocked receipts are not a
+current merge restriction. Publication does not close D-003/D-007 or A2 and must
+not bypass checks/reviews, change pins or turn an unrun trial into a pass.

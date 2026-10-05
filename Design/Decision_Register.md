@@ -125,6 +125,13 @@ before qualifying the local runtime; L6 carries evidence into integration.
 Close D-003 only with owner-reviewed applicable proofs, not this document or
 the harness PR.
 
+Future interactive inference trials are recorded in the
+[shared deferred-validation register](Deferred_Validation.md) and
+[LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials).
+Publication of partial evidence is separate from those qualification gates.
+Speech/containment/distribution approvals and observations are not inference
+consent or evidence; their outstanding decisions remain independent.
+
 ## D-004 Management Inference Envelope
 
 Model-assisted management is enabled only where the pinned provider permits and can sustain an independent management session.

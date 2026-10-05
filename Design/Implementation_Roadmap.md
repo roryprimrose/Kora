@@ -226,6 +226,15 @@ implementation and integrated acceptance. R03 and independent R02 branches can
 continue while this branch is blocked. Draft proof/documentation review does
 not change decision or capability acceptance status.
 
+The [shared deferred-validation register](Deferred_Validation.md) and
+[LI01-LI07 interactive checklist](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
+track each unperformed inference trial's prerequisites, approvals, instruments
+and completion evidence alongside the independent speech/containment/distribution
+proofs. The harness/outcomes/handoff may merge as partial research; L1-L6 and
+dependent capability acceptance remain outstanding. Do not hold publication of
+that limited scope for live validation or inherit qualification from another
+proof's measurements.
+
 ### Complete the Required Slice A Product
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |

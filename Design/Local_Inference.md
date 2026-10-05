@@ -8,7 +8,8 @@ Related: [Decision Register](Decision_Register.md#d-003-local-inference-baseline
 [Architecture](Architecture.md#local-inference-qualification),
 [Setup](Environment_Setup.md#local-inference-provisioning-budget),
 [Acceptance](Acceptance_Criteria.md#local-inference-evidence),
-[Roadmap](Implementation_Roadmap.md#r02-local-inference-continuation).
+[Roadmap](Implementation_Roadmap.md#r02-local-inference-continuation),
+[Deferred Validation](Deferred_Validation.md).
 
 This is the canonical technical interpretation and path forward for the R02
 local-inference branch. The [experiment](../experiments/r02-local-inference-proof/README.md)
@@ -137,6 +138,21 @@ L1-L5 qualify the candidate, not the production tool loop or A2 clipboard
 workflow. L6 is the integration handoff, completed by the dependent packages.
 R03 ownership/privacy and unrelated R02 branches may continue independently;
 local runtime exposure cannot inherit approval from harness tests.
+
+The [shared deferred-validation register](Deferred_Validation.md) and
+[LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
+are the interactive-session handoff. They separate deterministic reruns from
+real endpoint generation, separately approved provisioning/residency/isolation,
+and rows requiring independent instrumentation or later host implementation.
+The merged speech/containment proofs do not qualify inference or supply consent
+for it; whole-environment inference isolation does not resolve the worker's
+attributable network-denial gate. Safe standalone inference measurements remain
+distinct from UI/voice acceptance with the required R03/R09 controls.
+
+Partial research, truthful outcomes and this continuation plan may merge under
+normal checks/reviews while the interactive trials remain outstanding. They
+are qualification/capability blockers, not merge prerequisites for that scope.
+Historical snapshots retain their original revision, draft status and results.
 
 If the candidate fails agreed quality, resource, context, cancellation or
 offline gates, retain failed evidence and request a consented alternative

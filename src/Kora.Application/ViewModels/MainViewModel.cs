@@ -4,8 +4,9 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-using Kora.Application.Infrastructure;
+using Kora.Application.Dependencies;
 using Kora.Application.Diagnostics;
+using Kora.Application.Infrastructure;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -54,8 +55,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly BuiltInCommandCatalog commandCatalog;
     private readonly BuiltInCommandRouter commandRouter;
     private readonly DependencyBootstrapper dependencyBootstrapper;
-    private readonly ILocalModelSetup localModelSetup;
-    private readonly IPowerShellSetup powerShellSetup;
+    private readonly DependencySetupWorkflow dependencySetup;
     private readonly ILocalModelReasoner localModelReasoner;
     private readonly IModelApprovalPreferences modelApprovalPreferences;
     private readonly IMicrophoneAccessService microphoneAccessService;
@@ -177,8 +177,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         BuiltInCommandCatalog commandCatalog,
         BuiltInCommandRouter commandRouter,
         DependencyBootstrapper dependencyBootstrapper,
-        ILocalModelSetup localModelSetup,
-        IPowerShellSetup powerShellSetup,
+        DependencySetupWorkflow dependencySetup,
         ILocalModelReasoner localModelReasoner,
         IModelApprovalPreferences modelApprovalPreferences,
         IMicrophoneAccessService microphoneAccessService,
@@ -204,8 +203,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
-        this.localModelSetup = localModelSetup;
-        this.powerShellSetup = powerShellSetup;
+        this.dependencySetup = dependencySetup;
         this.localModelReasoner = localModelReasoner;
         this.modelApprovalPreferences = modelApprovalPreferences;
         this.microphoneAccessService = microphoneAccessService;
@@ -229,59 +227,62 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.voiceConsentPreferences = voiceConsentPreferences;
         this.privacyObservation = privacyObservation;
 
-        ToggleListeningCommand = new AsyncCommand(
+        AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
+            new(execute, HandleCommandException, canExecute);
+
+        ToggleListeningCommand = CreateCommand(
             ToggleListeningAsync,
             () => !lifecycleAdmissionClosed && !IsBusy
                   && (IsVoiceEnabled
                       || (HasVoiceConsent && EffectiveMicrophone is not null
                       && IsVoiceActivationAvailable && !IsMicrophoneAccessDenied)));
-        BeginPushToTalkCommand = new AsyncCommand(
+        BeginPushToTalkCommand = CreateCommand(
             BeginPushToTalkAsync,
             () => IsVoiceEnabled && !IsListening && (!IsBusy || IsSpeaking) && !lifecycleAdmissionClosed);
-        EndPushToTalkCommand = new AsyncCommand(EndPushToTalkAsync);
-        WithdrawVoiceConsentCommand = new AsyncCommand(() => SetVoiceConsentAsync(false));
-        EnableVoiceConsentCommand = new AsyncCommand(() => SetVoiceConsentAsync(true));
-        RefreshMicrophonesCommand = new AsyncCommand(RefreshMicrophonesAsync);
-        RefreshCommand = new AsyncCommand(
+        EndPushToTalkCommand = CreateCommand(EndPushToTalkAsync);
+        WithdrawVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(false));
+        EnableVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(true));
+        RefreshMicrophonesCommand = CreateCommand(RefreshMicrophonesAsync);
+        RefreshCommand = CreateCommand(
             RefreshAsync,
             () => !IsBusy && !IsLocalModelSetupActive && !IsPowerShellSetupActive
                 && activeReasoningCancellation is null);
-        RunTypedCommand = new AsyncCommand(
+        RunTypedCommand = CreateCommand(
             RunTypedCommandAsync,
             () => !string.IsNullOrWhiteSpace(CommandText)
                   && (!IsBusy || IsSetupStatusCommand()));
-        PreviewVoiceCommand = new AsyncCommand(
+        PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => IsSpeechOutputAvailable && !IsBusy && !IsListening && !voiceRecognition.IsListening);
-        StopSpeechCommand = new AsyncCommand(StopSpeakingAsync, () => IsSpeaking);
-        DownloadSpeechProviderCommand = new AsyncCommand(
+        StopSpeechCommand = CreateCommand(StopSpeakingAsync, () => IsSpeaking);
+        DownloadSpeechProviderCommand = CreateCommand(
             DownloadSpeechProviderAsync,
             () => CanDownloadSpeechProvider);
-        RemoveSpeechProviderCommand = new AsyncCommand(
+        RemoveSpeechProviderCommand = CreateCommand(
             RemoveSpeechProviderAsync,
             () => CanRemoveSpeechProvider);
-        ToggleCallVisualOverrideCommand = new AsyncCommand(ToggleCallVisualOverrideAsync);
-        ToggleCallVoiceActivationCommand = new AsyncCommand(ToggleCallVoiceActivationAsync);
-        OpenMicrophonePrivacySettingsCommand = new AsyncCommand(OpenMicrophonePrivacySettingsAsync);
-        ApplyAssistantNameCommand = new AsyncCommand(
+        ToggleCallVisualOverrideCommand = CreateCommand(ToggleCallVisualOverrideAsync);
+        ToggleCallVoiceActivationCommand = CreateCommand(ToggleCallVoiceActivationAsync);
+        OpenMicrophonePrivacySettingsCommand = CreateCommand(OpenMicrophonePrivacySettingsAsync);
+        ApplyAssistantNameCommand = CreateCommand(
             () => SetAssistantNameAsync(AssistantNameInput),
             CanApplyAssistantName);
-        ApproveModelActionCommand = new AsyncCommand(
+        ApproveModelActionCommand = CreateCommand(
             () => ApproveModelActionAsync(ModelApprovalScope.Once),
             () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
                 && !IsPowerShellSetupActive);
-        ApproveModelActionForSessionCommand = new AsyncCommand(
+        ApproveModelActionForSessionCommand = CreateCommand(
             () => ApproveModelActionAsync(ModelApprovalScope.Session),
             () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
                 && !IsPowerShellSetupActive);
-        ApproveModelActionAlwaysCommand = new AsyncCommand(
+        ApproveModelActionAlwaysCommand = CreateCommand(
             () => ApproveModelActionAsync(ModelApprovalScope.Always),
             () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
                 && !IsPowerShellSetupActive);
-        RejectModelActionCommand = new AsyncCommand(
+        RejectModelActionCommand = CreateCommand(
             RejectPendingModelActionAsync,
             () => IsModelActionApprovalPending);
-        PrepareGrantChangeCommand = new AsyncCommand(
+        PrepareGrantChangeCommand = CreateCommand(
             async () =>
             {
                 if (SelectedGrantAction is { } command)
@@ -317,10 +318,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
             },
             () => IsGrantEditorVisible && SelectedGrantAction is not null);
-        ConfirmGrantChangeCommand = new AsyncCommand(
+        ConfirmGrantChangeCommand = CreateCommand(
             () => ConfirmGrantChangeAsync(SecurityAuditInitiator.LocalUser),
             () => IsGrantChangePending);
-        RejectGrantChangeCommand = new AsyncCommand(
+        RejectGrantChangeCommand = CreateCommand(
             RejectPendingGrantChangeAsync,
             () => IsGrantChangePending);
 
@@ -873,11 +874,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         if (!suppressPresenceAppearancePreferenceSave
-            && !SavePresencePreference(
+            && !SavePreference(
                 () => appearancePreferences.SavePresenceSizePixels(value),
                 PresenceSizeConfigurationAction,
-                "presence size",
-                initiator))
+                initiator,
+                "presence size"))
         {
             OnPropertyChanged(nameof(PresenceSizePixels));
             return false;
@@ -905,11 +906,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         if (!suppressPresenceAppearancePreferenceSave
-            && !SavePresencePreference(
+            && !SavePreference(
                 () => appearancePreferences.SavePresenceDotSizePercent(value),
                 PresenceDotSizeConfigurationAction,
-                "presence dot size",
-                initiator))
+                initiator,
+                "presence dot size"))
         {
             OnPropertyChanged(nameof(PresenceDotSizePercent));
             return false;
@@ -940,11 +941,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         if (!suppressPresenceAppearancePreferenceSave
-            && !SavePresencePreference(
+            && !SavePreference(
                 () => appearancePreferences.SavePresenceMovementSpeedPercent(value),
                 PresenceMovementSpeedConfigurationAction,
-                "presence movement speed",
-                initiator))
+                initiator,
+                "presence movement speed"))
         {
             OnPropertyChanged(nameof(PresenceMovementSpeedPercent));
             return false;
@@ -971,11 +972,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         if (!suppressPresenceAppearancePreferenceSave
-            && !SavePresencePreference(
+            && !SavePreference(
                 () => appearancePreferences.SavePresencePosition(value),
                 PresencePositionConfigurationAction,
-                "presence position",
-                initiator))
+                initiator,
+                "presence position"))
         {
             OnPropertyChanged(nameof(PresencePosition));
             return false;
@@ -1756,8 +1757,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ClearPendingModelQuestion();
         }
 
-        var tasks = dependencyBootstrapper.Tasks;
-        tasks.Start("local.inference", "Local model inference (Ollama)", "Preparing approved Ollama and model installation.");
         using var cancellation = new CancellationTokenSource();
         localModelCancellation = cancellation;
         IsLocalModelSetupActive = true;
@@ -1771,50 +1770,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var progress = new DispatcherProgress<LocalModelSetupProgress>(uiDispatcher, update =>
             {
                 if (!string.Equals(
-                    tasks.ActiveTask?.Id,
-                    "local.inference",
+                    dependencyBootstrapper.Tasks.ActiveTask?.Id,
+                    DependencySetupWorkflow.LocalModelTaskId,
                     StringComparison.Ordinal))
                 {
                     return;
                 }
 
                 LocalModelSetupStatus = update.Detail;
-                tasks.Update(
-                    "local.inference",
+                dependencyBootstrapper.Tasks.Update(
+                    DependencySetupWorkflow.LocalModelTaskId,
                     SetupTaskState.Running,
                     update.Detail,
                     update.Percentage);
             });
-            await localModelSetup.InstallAsync(progress, cancellation.Token);
-            tasks.Update("local.inference", SetupTaskState.Completed, "Validating local inference readiness.");
-            var statuses = await dependencyBootstrapper.ProbeAsync(cancellation.Token);
+            var result = await dependencySetup.InstallLocalModelAsync(
+                progress,
+                cancellation.Token);
             Dependencies.Clear();
-            foreach (var status in statuses)
+            foreach (var status in result.Statuses)
             {
                 Dependencies.Add(status);
             }
 
-            var inference = statuses.Single(status =>
-                string.Equals(status.Id, "local.inference", StringComparison.Ordinal));
-            if (inference.Readiness != DependencyReadiness.Ready)
-            {
-                throw new InvalidOperationException($"Local inference did not pass the readiness check: {inference.Detail}");
-            }
-
-            tasks.Update("local.inference", SetupTaskState.Completed, inference.Detail);
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-            ShowInformation("Local model is ready.", inference.Detail);
+            ShowInformation("Local model is ready.", result.Inference.Detail);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            tasks.Update("local.inference", SetupTaskState.Cancelled, "Local model setup was cancelled.");
             CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "user-cancelled");
             ShowInformation("Setup cancelled.", "Local model installation was stopped; refresh readiness to check partial progress.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or InvalidOperationException or HttpRequestException or JsonException or Win32Exception)
         {
-            tasks.Update("local.inference", SetupTaskState.Failed, exception.Message);
             CompleteAudit(audit, SecurityAuditOutcome.Failed, "setup-failed");
             ApplicationLog.Error(logger, exception, "Installing local model dependencies");
             ShowFailure("Local model setup failed.", exception.Message);
@@ -1840,9 +1829,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ClearPendingModelQuestion();
         }
 
-        var tasks = dependencyBootstrapper.Tasks;
-        tasks.Start(powerShellSetup.TaskId, powerShellSetup.TaskName,
-            "Checking the approved PowerShell 7 installation.");
         using var cancellation = new CancellationTokenSource();
         powerShellSetupCancellation = cancellation;
         IsPowerShellSetupActive = true;
@@ -1850,20 +1836,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SecurityAuditCategory.ResourceWrite,
             PowerShellInstallAction,
             SecurityAuditInitiator.LocalUser,
-            powerShellSetup.TaskId);
+            dependencySetup.PowerShellTaskId);
         try
         {
-            PowerShellSetupStatus = "Installing or reusing PowerShell 7 for this Windows user.";
-            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Running, PowerShellSetupStatus);
-            await powerShellSetup.InstallAsync(cancellation.Token);
-            PowerShellSetupStatus = "Verifying PowerShell 7 without a user profile.";
-            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Running, PowerShellSetupStatus);
-            var status = await powerShellSetup.ProbeAsync(cancellation.Token);
-            if (status.Readiness != DependencyReadiness.Ready)
-            {
-                throw new InvalidOperationException(
-                    $"PowerShell setup did not pass readiness verification: {status.Detail}");
-            }
+            var progress = new DispatcherProgress<string>(
+                uiDispatcher,
+                value => PowerShellSetupStatus = value);
+            var status = await dependencySetup.InstallPowerShellAsync(
+                progress,
+                cancellation.Token);
 
             var previous = Dependencies.FirstOrDefault(item =>
                 string.Equals(item.Id, status.Id, StringComparison.Ordinal));
@@ -1875,23 +1856,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 Dependencies[Dependencies.IndexOf(previous)] = status;
             }
-            PowerShellSetupStatus = status.Detail;
-            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Completed, status.Detail);
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             ShowInformation("PowerShell 7 is ready.", status.Detail);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            PowerShellSetupStatus = "PowerShell installation was cancelled.";
-            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Cancelled, PowerShellSetupStatus);
             CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "user-cancelled");
             ShowInformation("PowerShell setup cancelled.", "Refresh readiness to check partial installation.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or InvalidOperationException or TimeoutException or System.ComponentModel.Win32Exception)
         {
-            PowerShellSetupStatus = exception.Message;
-            tasks.Update(powerShellSetup.TaskId, SetupTaskState.Failed, exception.Message);
             CompleteAudit(audit, SecurityAuditOutcome.Failed, "setup-failed");
             ApplicationLog.Error(logger, exception, "Installing PowerShell 7");
             ShowFailure("PowerShell setup failed.", exception.Message);
@@ -3173,148 +3148,67 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SaveMicrophonePreference(MicrophoneDevice microphone)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        _ = SavePreference(
+            () =>
+            {
+                if (microphone.IsSystemDefault)
+                {
+                    audioDevicePreferences.ClearMicrophoneId();
+                }
+                else
+                {
+                    audioDevicePreferences.SaveMicrophoneId(microphone.Id);
+                }
+            },
             MicrophoneConfigurationAction,
             SecurityAuditInitiator.LocalUser,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            if (microphone.IsSystemDefault)
-            {
-                audioDevicePreferences.ClearMicrophoneId();
-            }
-            else
-            {
-                audioDevicePreferences.SaveMicrophoneId(microphone.Id);
-            }
-
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the microphone preference because access was denied");
-            ShowFailure("The microphone preference could not be saved.", exception.Message);
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the microphone preference due to an I/O error");
-            ShowFailure("The microphone preference could not be saved.", exception.Message);
-        }
+            "microphone preference");
     }
 
     private void SaveOutputDevicePreference(AudioOutputDevice outputDevice)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        _ = SavePreference(
+            () =>
+            {
+                if (outputDevice.IsSystemDefault)
+                {
+                    audioDevicePreferences.ClearOutputDeviceId();
+                }
+                else
+                {
+                    audioDevicePreferences.SaveOutputDeviceId(outputDevice.Id);
+                }
+            },
             OutputDeviceConfigurationAction,
             SecurityAuditInitiator.LocalUser,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            if (outputDevice.IsSystemDefault)
-            {
-                audioDevicePreferences.ClearOutputDeviceId();
-            }
-            else
-            {
-                audioDevicePreferences.SaveOutputDeviceId(outputDevice.Id);
-            }
-
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the audio output preference because access was denied");
-            ShowFailure("The audio output preference could not be saved.", exception.Message);
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the audio output preference due to an I/O error");
-            ShowFailure("The audio output preference could not be saved.", exception.Message);
-        }
+            "audio output preference");
     }
 
     private void SaveSpeechProviderPreference(string providerId)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        _ = SavePreference(
+            () => textToSpeechPreferences.SaveProviderId(providerId),
             SpeechProviderSelectionConfigurationAction,
             SecurityAuditInitiator.LocalUser,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            textToSpeechPreferences.SaveProviderId(providerId);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the speech provider preference because access was denied");
-            ShowFailure("The speech provider preference could not be saved.", exception.Message);
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the speech provider preference due to an I/O error");
-            ShowFailure("The speech provider preference could not be saved.", exception.Message);
-        }
+            "speech provider preference");
     }
 
     private void SaveVoicePreference(string voiceId)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        _ = SavePreference(
+            () => textToSpeechPreferences.SaveVoiceId(voiceId),
             VoiceSelectionConfigurationAction,
             SecurityAuditInitiator.LocalUser,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            textToSpeechPreferences.SaveVoiceId(voiceId);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the speech voice preference because access was denied");
-            ShowFailure("The speech voice preference could not be saved.", exception.Message);
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the speech voice preference due to an I/O error");
-            ShowFailure("The speech voice preference could not be saved.", exception.Message);
-        }
+            "speech voice preference");
     }
 
     private void SaveResponseOutputPreference(ResponseOutputMode value)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        _ = SavePreference(
+            () => responseOutputPreferences.SaveDefaultMode(value),
             ResponseOutputConfigurationAction,
             SecurityAuditInitiator.LocalUser,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            responseOutputPreferences.SaveDefaultMode(value);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the default response mode because access was denied");
-            ShowFailure("The default response mode could not be saved.", exception.Message);
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the default response mode due to an I/O error");
-            ShowFailure("The default response mode could not be saved.", exception.Message);
-        }
+            "default response mode");
     }
 
     private bool SaveMutedOutputFallbackPreference(bool value)
@@ -3350,63 +3244,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplicationThemeMode value,
         SecurityAuditInitiator initiator)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        return SavePreference(
+            () => appearancePreferences.SaveThemeMode(value),
             AppearanceThemeConfigurationAction,
             initiator,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            appearancePreferences.SaveThemeMode(value);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-            return true;
-        }
-
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the appearance theme because access was denied");
-            ShowFailure("The appearance theme could not be saved.", exception.Message);
-            return false;
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the appearance theme due to an I/O error");
-            ShowFailure("The appearance theme could not be saved.", exception.Message);
-            return false;
-        }
+            "appearance theme");
     }
 
     private bool SavePresenceTimeoutPreference(
         int value,
         SecurityAuditInitiator initiator)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        return SavePreference(
+            () => appearancePreferences.SavePresenceTimeoutSeconds(value),
             PresenceTimeoutConfigurationAction,
             initiator,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            appearancePreferences.SavePresenceTimeoutSeconds(value);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-            return true;
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the presence timeout because access was denied");
-            ShowFailure("The presence timeout could not be saved.", exception.Message);
-            return false;
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the presence timeout due to an I/O error");
-            ShowFailure("The presence timeout could not be saved.", exception.Message);
-            return false;
-        }
+            "presence timeout");
     }
 
     private bool SetResponseWindowSettings(
@@ -3438,44 +3291,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ResponseWindowSettings value,
         SecurityAuditInitiator initiator)
     {
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        return SavePreference(
+            () => appearancePreferences.SaveResponseWindowSettings(value),
             ResponseWindowConfigurationAction,
             initiator,
-            DeviceLocalPreferencesTarget);
-        try
-        {
-            appearancePreferences.SaveResponseWindowSettings(value);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-            return true;
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(
-                logger,
-                exception,
-                "Saving the response window settings because access was denied");
-            ShowFailure("The response window settings could not be saved.", exception.Message);
-            return false;
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(
-                logger,
-                exception,
-                "Saving the response window settings due to an I/O error");
-            ShowFailure("The response window settings could not be saved.", exception.Message);
-            return false;
-        }
+            "response window settings");
     }
 
-    private bool SavePresencePreference(
+    private bool SavePreference(
         Action savePreference,
         string actionId,
-        string settingName,
-        SecurityAuditInitiator initiator)
+        SecurityAuditInitiator initiator,
+        string settingName)
     {
         var audit = StartAudit(
             SecurityAuditCategory.ConfigurationWrite,
@@ -3488,23 +3315,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             return true;
         }
-        catch (UnauthorizedAccessException exception)
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
         {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
+            var reasonCode = exception is UnauthorizedAccessException
+                ? "access-denied"
+                : "io-error";
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, reasonCode);
             ApplicationLog.Error(
                 logger,
                 exception,
-                $"Saving the {settingName} because access was denied");
-            ShowFailure($"The {settingName} could not be saved.", exception.Message);
-            return false;
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(
-                logger,
-                exception,
-                $"Saving the {settingName} due to an I/O error");
+                $"Saving the {settingName}");
             ShowFailure($"The {settingName} could not be saved.", exception.Message);
             return false;
         }
@@ -3517,30 +3337,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
+        if (SavePreference(
+            () => callAwarePreferences.Save(new CallAwareSettings(
+                ShowVisualTextDuringCalls,
+                AllowVoiceActivationDuringCalls)),
             CallAwareConfigurationAction,
             SecurityAuditInitiator.LocalUser,
-            DeviceLocalPreferencesTarget);
-        try
+            "call-aware settings"))
         {
-            callAwarePreferences.Save(new CallAwareSettings(
-                ShowVisualTextDuringCalls,
-                AllowVoiceActivationDuringCalls));
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             ApplicationLog.Information(logger, "Call-aware preferences were updated");
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving call-aware preferences because access was denied");
-            ShowFailure("The call-aware settings could not be saved.", exception.Message);
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving call-aware preferences due to an I/O error");
-            ShowFailure("The call-aware settings could not be saved.", exception.Message);
         }
     }
 
@@ -4879,6 +4684,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void ShowFailure(string title, string body)
     {
         PresentResponse(AssistantState.Failure, title, body);
+    }
+
+    private void HandleCommandException(Exception exception)
+    {
+        ApplicationLog.Error(logger, exception, "Executing an asynchronous UI command");
+        ShowFailure("The command failed.", exception.Message);
     }
 
     private void PresentResponse(

@@ -2,7 +2,10 @@ using System.Windows.Input;
 
 namespace Kora.Application.Infrastructure;
 
-public sealed class AsyncCommand(Func<Task> execute, Func<bool>? canExecute = null) : ICommand
+public sealed class AsyncCommand(
+    Func<Task> execute,
+    Action<Exception> handleException,
+    Func<bool>? canExecute = null) : ICommand
 {
     private bool isExecuting;
 
@@ -10,7 +13,17 @@ public sealed class AsyncCommand(Func<Task> execute, Func<bool>? canExecute = nu
 
     public bool CanExecute(object? parameter) => !isExecuting && (canExecute?.Invoke() ?? true);
 
-    public async void Execute(object? parameter) => await ExecuteAsync();
+    public async void Execute(object? parameter)
+    {
+        try
+        {
+            await ExecuteAsync();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            handleException(exception);
+        }
+    }
 
     public async Task ExecuteAsync()
     {

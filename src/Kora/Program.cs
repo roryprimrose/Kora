@@ -6,11 +6,12 @@ using Kora.Application;
 using Kora.Application.Auditing;
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
+using Kora.Application.Dependencies;
 using Kora.Application.Documentation;
 using Kora.Application.ViewModels;
+using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
-using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Coordination;
 using Kora.Core.Dependencies;
@@ -191,6 +192,7 @@ internal static class Program
         services.AddSingleton<IDependencyProbe, WindowsTextToSpeechDependencyProbe>();
         services.AddSingleton<DependencyBootstrapper>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
+        services.AddSingleton<DependencySetupWorkflow>();
         services.AddKeyedSingleton(
             "ollama-reasoner",
             (_, _) => new HttpClient(new HttpClientHandler
@@ -205,15 +207,41 @@ internal static class Program
             new WindowsOllamaReasoner(
                 provider.GetRequiredKeyedService<HttpClient>("ollama-reasoner"),
                 provider.GetRequiredService<BuiltInCommandCatalog>()));
-        services.AddSingleton<IModelApprovalPreferences, LocalModelApprovalPreferences>();
-        services.AddSingleton<IAssistantNamePreferences, LocalAssistantNamePreferences>();
-        services.AddSingleton<IAppearancePreferences, LocalAppearancePreferences>();
-        services.AddSingleton<ITextToSpeechPreferences, LocalTextToSpeechPreferences>();
-        services.AddSingleton<IOptionalSpeechOfferPreferences, LocalOptionalSpeechOfferPreferences>();
-        services.AddSingleton<IAudioDevicePreferences, LocalAudioDevicePreferences>();
-        services.AddSingleton<IResponseOutputPreferences, LocalResponseOutputPreferences>();
-        services.AddSingleton<ICallAwarePreferences, LocalCallAwarePreferences>();
-        services.AddSingleton<IVoiceConsentPreferences, LocalVoiceConsentPreferences>();
+        services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
+        services.AddSingleton<IModelApprovalPreferences>(provider =>
+            new LocalModelApprovalPreferences(
+                provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<IAssistantNamePreferences>(provider =>
+            new LocalAssistantNamePreferences(
+                provider.GetRequiredService<IPreferenceStore>(),
+                provider.GetRequiredService<ILogger<LocalAssistantNamePreferences>>()));
+        services.AddSingleton<IAppearancePreferences>(provider =>
+            new LocalAppearancePreferences(
+                provider.GetRequiredService<IPreferenceStore>(),
+                provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
+        services.AddSingleton<ITextToSpeechPreferences>(provider =>
+            new LocalTextToSpeechPreferences(
+                provider.GetRequiredService<IPreferenceStore>(),
+                provider.GetRequiredService<ILogger<LocalTextToSpeechPreferences>>()));
+        services.AddSingleton<IOptionalSpeechOfferPreferences>(provider =>
+            new LocalOptionalSpeechOfferPreferences(
+                provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<IAudioDevicePreferences>(provider =>
+            new LocalAudioDevicePreferences(
+                provider.GetRequiredService<IPreferenceStore>(),
+                provider.GetRequiredService<ILogger<LocalAudioDevicePreferences>>()));
+        services.AddSingleton<IResponseOutputPreferences>(provider =>
+            new LocalResponseOutputPreferences(
+                provider.GetRequiredService<IPreferenceStore>(),
+                provider.GetRequiredService<ILogger<LocalResponseOutputPreferences>>()));
+        services.AddSingleton<ICallAwarePreferences>(provider =>
+            new LocalCallAwarePreferences(
+                provider.GetRequiredService<IPreferenceStore>(),
+                provider.GetRequiredService<ILogger<LocalCallAwarePreferences>>()));
+        services.AddSingleton<IVoiceConsentPreferences>(provider =>
+            new LocalVoiceConsentPreferences(
+                provider.GetRequiredService<IPreferenceStore>(),
+                provider.GetRequiredService<ILogger<LocalVoiceConsentPreferences>>()));
         services.AddSingleton<ICallStateService, UnavailableCallStateService>();
         services.AddSingleton<IMicrophoneAccessService, WindowsMicrophoneAccessService>();
         services.AddSingleton<IWindowsPrivacyObservationService, WindowsPrivacyObservationService>();

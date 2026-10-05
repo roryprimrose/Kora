@@ -5,20 +5,29 @@ using Kora.Core.Voice;
 
 namespace Kora.Application.Configuration;
 
-public sealed class LocalOptionalSpeechOfferPreferences(IApplicationDataPaths paths)
-    : IOptionalSpeechOfferPreferences
+public sealed class LocalOptionalSpeechOfferPreferences : IOptionalSpeechOfferPreferences
 {
-    private readonly string directory = Path.Combine(paths.LocalRoot, "Preferences");
-    private readonly string path = Path.Combine(paths.LocalRoot, "Preferences", "optional-speech-offer.json");
+    private const string FileName = "optional-speech-offer.json";
+    private readonly IPreferenceStore store;
+
+    public LocalOptionalSpeechOfferPreferences(IApplicationDataPaths paths)
+        : this(new LocalPreferenceStore(paths))
+    {
+    }
+
+    internal LocalOptionalSpeechOfferPreferences(IPreferenceStore store)
+    {
+        this.store = store;
+    }
 
     public OptionalSpeechOfferState Load()
     {
-        if (!File.Exists(path))
+        var contents = store.ReadText(FileName);
+        if (contents is null)
         {
             return new OptionalSpeechOfferState(false, null);
         }
 
-        var contents = File.ReadAllText(path);
         using var document = JsonDocument.Parse(contents);
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object
@@ -38,9 +47,6 @@ public sealed class LocalOptionalSpeechOfferPreferences(IApplicationDataPaths pa
     public void Save(OptionalSpeechOfferState state)
     {
         ArgumentNullException.ThrowIfNull(state);
-        Directory.CreateDirectory(directory);
-        var temporaryPath = Path.Combine(directory, "optional-speech-offer.tmp");
-        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(state));
-        File.Move(temporaryPath, path, overwrite: true);
+        store.WriteText(FileName, JsonSerializer.Serialize(state));
     }
 }

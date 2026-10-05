@@ -12,7 +12,7 @@ public sealed class AsyncCommandTests
     public async Task ExecuteAsync_disables_command_until_work_completes()
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var command = new AsyncCommand(() => completion.Task);
+        var command = new AsyncCommand(() => completion.Task, _ => { });
         var notifications = 0;
         command.CanExecuteChanged += (_, _) => notifications++;
 
@@ -38,6 +38,7 @@ public sealed class AsyncCommandTests
                 executions++;
                 return Task.CompletedTask;
             },
+            _ => { },
             () => false);
 
         await command.ExecuteAsync();
@@ -48,7 +49,9 @@ public sealed class AsyncCommandTests
     [Fact]
     public async Task ExecuteAsync_restores_availability_when_work_fails()
     {
-        var command = new AsyncCommand(() => Task.FromException(new IOException("failed")));
+        var command = new AsyncCommand(
+            () => Task.FromException(new IOException("failed")),
+            _ => { });
 
         var action = command.ExecuteAsync;
 
@@ -60,11 +63,13 @@ public sealed class AsyncCommandTests
     public async Task ICommand_Execute_starts_the_asynchronous_operation()
     {
         var invoked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        ICommand command = new AsyncCommand(() =>
-        {
-            invoked.SetResult();
-            return Task.CompletedTask;
-        });
+        ICommand command = new AsyncCommand(
+            () =>
+            {
+                invoked.SetResult();
+                return Task.CompletedTask;
+            },
+            _ => { });
 
         command.Execute(null);
 
@@ -76,7 +81,7 @@ public sealed class AsyncCommandTests
     [Fact]
     public void NotifyCanExecuteChanged_works_with_and_without_subscribers()
     {
-        var command = new AsyncCommand(() => Task.CompletedTask);
+        var command = new AsyncCommand(() => Task.CompletedTask, _ => { });
 
         command.NotifyCanExecuteChanged();
         var notifications = 0;
@@ -84,5 +89,23 @@ public sealed class AsyncCommandTests
         command.NotifyCanExecuteChanged();
 
         notifications.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ICommand_Execute_routes_failures_to_the_exception_handler()
+    {
+        var handled = new TaskCompletionSource<Exception>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        ICommand command = new AsyncCommand(
+            () => Task.FromException(new IOException("failed")),
+            handled.SetResult);
+
+        command.Execute(null);
+
+        var exception = await handled.Task.WaitAsync(
+            TimeSpan.FromSeconds(1),
+            TestContext.Current.CancellationToken);
+        exception.Should().BeOfType<IOException>()
+            .Which.Message.Should().Be("failed");
     }
 }

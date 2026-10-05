@@ -3,6 +3,7 @@ using System.Globalization;
 using AwesomeAssertions;
 
 using Kora.Application;
+using Kora.Application.Dependencies;
 using Kora.Application.ViewModels;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -6404,8 +6405,10 @@ public sealed partial class MainViewModelTests
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
                 bootstrapper,
-                LocalModel,
-                PowerShell,
+                new DependencySetupWorkflow(
+                    bootstrapper,
+                    LocalModel,
+                    PowerShell),
                 Reasoner,
                 ApprovalPreferences,
                 MicrophoneAccess,

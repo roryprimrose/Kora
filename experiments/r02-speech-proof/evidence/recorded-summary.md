@@ -1,7 +1,7 @@
 # Recorded synthetic-audio results
 
 Generated from [recorded-results.json](recorded-results.json). Not acoustic or release proof.
-Source revision: `7d5e6a352261dce48f2ca4d3048650ee13f51705`; main baseline: `7d5e6a352261dce48f2ca4d3048650ee13f51705`.
+Source revision: `d4a4cf832b619251633178e758a36c40f856aff2`; main baseline: `7d5e6a352261dce48f2ca4d3048650ee13f51705`.
 Source-file hashes in the JSON identify the measured experiment even if evidence changes later.
 
 | Threshold | Wake | Spliced immediate | Continuous | Paused | White noise 10 dB | White noise 0 dB | Raw TTS events |
@@ -19,11 +19,11 @@ No user commands or tools were dispatched.
 
 | Threshold | Cold construction ms | Accelerated frame p95 ms | Clip processing p95 ms | Incremental observed RSS MiB |
 |---|---|---|---|---|
-| 0.1 | 1133.70 | 7.12 | 98.45 | 52.01 |
-| 0.25 | 1074.25 | 7.27 | 87.08 | 51.86 |
-| 0.5 | 1081.55 | 7.04 | 87.27 | 52.13 |
+| 0.1 | 1245.69 | 7.42 | 86.30 | 52.00 |
+| 0.25 | 1086.35 | 7.16 | 82.20 | 52.61 |
+| 0.5 | 1034.83 | 7.40 | 87.24 | 51.12 |
 
-Paced default-threshold run: 60.00 seconds, 2.508% of total CPU capacity, 49.26 MiB incremental observed RSS, 8.76 ms frame-processing p95.
+Paced default-threshold run: 60.00 seconds, 2.554% of total CPU capacity, 49.21 MiB incremental observed RSS, 8.78 ms frame-processing p95.
 Python imported/fixture-loaded idle is the memory baseline, not muted Kora.
 RSS is sampled between frames, not a guaranteed transient peak.
 Cold construction excludes Python startup/import time. These metrics are not end-to-end feedback latency.

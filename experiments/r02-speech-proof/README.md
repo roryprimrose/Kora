@@ -10,8 +10,12 @@ Use a draft PR; do not enable auto-merge while the proof is incomplete.
 The session worktree was clean before `git fetch origin` and
 `git rebase origin/main`. Merged R01 PR #19, commit
 `7d5e6a352261dce48f2ca4d3048650ee13f51705`, was verified in ancestry and the
-approved contract text before work began. A second fetch/rebase is required
-after the scoped code commit, before final validation and first push.
+approved contract text before work began. After the scoped code commit, a
+second fetch/rebase onto `origin/main` completed without conflicts, still at
+that R01 baseline, before final validation and first push. The full asset/
+fixture regeneration, compilation, 15 tests and threshold benchmark were
+repeated after rebasing. Fixture regeneration was bit-identical on this
+machine; see [final validation](evidence/validation.json).
 
 Read contracts:
 [activation](../../Design/Activation_Name.md),

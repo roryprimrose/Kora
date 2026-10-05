@@ -15,6 +15,6 @@ test_pcm_round_trip (test_benchmark.MeasurementTests.test_pcm_round_trip) ... ok
 test_summary_preserves_failed_capture_and_actual_trial_counts (test_benchmark.MeasurementTests.test_summary_preserves_failed_capture_and_actual_trial_counts) ... ok
 
 ----------------------------------------------------------------------
-Ran 15 tests in 0.151s
+Ran 15 tests in 0.131s
 
 OK

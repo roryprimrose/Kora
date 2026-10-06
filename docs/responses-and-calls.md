@@ -58,6 +58,12 @@ as opening the relevant Settings tab. They are separate from question choices
 and approval controls, disappear when the response is dismissed or replaced,
 and keep the response visible until selected or dismissed.
 
+The bounded passive **Open details** viewer is currently available from
+Documentation for an exact embedded page. It is not yet general compact
+response routing or durable response history. Model prose cannot open/focus
+that viewer, and viewer close does not cancel or approve the current request.
+See [passive document details](windows-and-tray.md#passive-document-details).
+
 ## Forced visual output
 
 Kora always displays text when:

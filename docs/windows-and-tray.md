@@ -89,7 +89,42 @@ never implicitly activate capture. Windows privacy events hide sensitive
 Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
 launcher/tray to return to native status and recovery.
 
-Closing Settings, Documentation, or the visual response closes or hides only
+## Passive document details
+
+Choose **Documentation**, select a guide page, then **Open details** to read
+that exact page in a separate native window. Its host-owned title, provenance,
+revision, digest and sensitivity stay outside the document. Opening the same
+page again activates its existing viewer; it does not regenerate the page or
+silently replace an older revision.
+
+Use the native Rendered/Source and search controls to inspect the complete
+admitted item. Native headings and code are styled; emphasis is plain text,
+and tables, images, HTML and diagrams use labelled exact-source fallback.
+Use **Continuous text** for cross-block selection/search. **Ctrl+F** finds,
+**F3** / **Shift+F3** navigates matches, **Ctrl+U** switches source, and
+**Escape** closes only the viewer. **Ctrl+A** selects current continuous
+content. **Copy selection** / **Ctrl+C** copies just the selected nonempty
+range after the same access/disclosure checks; cut/paste are unavailable.
+**Copy exact source** deliberately copies Unicode plain text
+with the original Markdown, whitespace and line breaks. It is not rich HTML
+copy. Copying discloses the text to other applications and possibly clipboard
+history/sync. No page can initiate copy, fetch images, follow external links,
+approve an operation or capture model context.
+
+The native-text-v1 source limit is **256 KiB UTF-8**, with **512 blocks**,
+**4,096 nodes**, **32 nesting levels**, and **8 open viewers**. Unsupported
+content, missing rendering or structural limits show labelled exact-source
+fallback; oversized/invalid input reports rejection without truncating it.
+Search accepts at most **256 characters**. Closing/hiding details is
+presentation only; it does not stop work, finish a session or delete source.
+Privacy closure clears and closes details rather than restoring them on unlock.
+
+This is an embedded-document reader, not durable conversation history or
+general response routing. Sessions/history, verbal detail offers, rich HTML,
+diagrams, export and full script/diff review remain planned. Native visual and
+assistive-technology trials remain pending.
+
+Closing Settings, Documentation, details, or the visual response closes or hides only
 that surface. Kora remains available in the background until you choose
 **Exit Kora** or use the supported exit command.
 

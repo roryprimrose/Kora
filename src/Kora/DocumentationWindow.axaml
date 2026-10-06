@@ -15,7 +15,7 @@
         BorderBrush="{DynamicResource KoraHeaderBorderBrush}"
         BorderThickness="0,0,0,1"
         Padding="30,0">
-      <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
         <Border
             Width="34"
             Height="34"
@@ -36,6 +36,8 @@
               Classes="muted"
               FontSize="11" />
         </StackPanel>
+        <Button x:Name="OpenDetails" Grid.Column="2" Content="Open details (native)"
+                AutomationProperties.Name="Open native details for the current embedded page" />
       </Grid>
     </Border>
 
@@ -52,17 +54,14 @@
         </ScrollViewer>
       </Border>
 
-      <ScrollViewer
-          x:Name="DocumentScrollViewer"
-          Grid.Column="1"
-          VerticalScrollBarVisibility="Auto">
-        <StackPanel
-            x:Name="DocumentPanel"
-            Margin="44,36,54,60"
-            MaxWidth="760"
-            HorizontalAlignment="Left"
-            Spacing="4" />
-      </ScrollViewer>
+      <Grid Grid.Column="1" RowDefinitions="Auto,*">
+        <TextBlock x:Name="DetailOpenStatus" Margin="20,8" TextWrapping="Wrap"
+                   AutomationProperties.Name="Native detail open status" />
+        <ScrollViewer x:Name="DocumentScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+          <StackPanel x:Name="DocumentPanel" Margin="44,36,54,60" MaxWidth="760"
+                      HorizontalAlignment="Left" Spacing="4" />
+        </ScrollViewer>
+      </Grid>
     </Grid>
   </Grid>
 </Window>

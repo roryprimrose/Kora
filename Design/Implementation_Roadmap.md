@@ -88,6 +88,94 @@ Test-project names, mocks, helper truth tables, configured coverage thresholds, 
 An implemented feature may therefore still have outstanding release proof.
 The [acceptance criteria](Acceptance_Criteria.md), not this inventory, determine release readiness.
 
+## R14 Native Passive Detail Slice - 2026-10-06
+
+Implemented on isolated `agents/kora-r14-native-details-20261006`, based on
+`c5dffabf8f4fa767147be06dd8b296238ea97da0` (main including #41-46 and #44's
+detail design). The source checkout and completed sibling trees were not
+edited, built, restored or reused. This remains an uncommitted handoff; no
+commit, push, PR, merge or native real-effect trial was authorized.
+
+**Delivered narrow path:** Documentation > selected embedded page > native
+Open details. The exact page opens in an immutable reference/revision-bound
+native passive viewer with provenance/sensitivity/digest chrome, source,
+search and Unicode exact-source copy. Same-reference opens activate the
+existing viewer; new revisions are distinct and conflicting same-reference
+content is rejected. The guide, grants and viewer share one bounded local
+Markdig/Avalonia pipeline. Native-text-v1 bounds are 256 KiB UTF-8 / 512 blocks /
+4,096 nodes / depth 32 / 8 open viewers / 256 search characters; no silent
+truncation or unbounded rendered tree.
+
+**Stable handoff:** Core owns portable immutable classification/reference
+validation; Application owns deduplication, search, generation-bound state and
+privacy cleanup; desktop owns native presentation and explicit routing.
+Finalized-response admission requires existing host session/request/task IDs.
+No persisted interaction/question/grant schema, authority composition or
+`MainViewModel` action dispatcher was changed. Embedded page references remain
+process-local and explicitly not durable session authority.
+
+**Still outstanding:** Sessions list/full conversation/history, work/queue and
+Evidence workspace, durable response/artifact access/revocation, automatic
+offers and verbal question targeting, shared native approvals, skill/script/diff
+review, rich clipboard serializer, syntax grammars, HTML/browser/diagrams/assets
+and scoped export. Closing, viewing and copying cannot approve/cancel/delete,
+mark Done or refresh session activity. The compact response, pin/timeout and
+privacy holds remain unchanged.
+
+Validation is recorded with the final local receipt below; native visual,
+screen-reader, contrast/text-scale, DPI, multimonitor, clipboard-platform and
+live Kora/audio observations remain **pending separate scoped approval**.
+See the [exact delivered profile](Information_Display.md#delivered-native-profile---2026-10-06)
+and [window boundary](UI_Workspace_And_Windows.md#delivered-passive-details-boundary).
+This does not complete R14 or accept A4.
+
+### R14 Local Validation Receipt
+
+Verified on 2026-10-07 local time in the same isolated uncommitted tree:
+
+| Check | Actual result |
+|---|---|
+| Locked restore and root Release | Passed; 0 warnings / 0 errors |
+| Core suite | 365 passed, 0 skipped |
+| Application suite | 1,071 passed, 0 skipped |
+| Windows integration suite | 559 passed, 0 skipped |
+| Latest-only portable coverage | 100% line / 100% branch, Core + Application; only the fresh `native-details-qualified` pair aggregated |
+| Native-detail targeted tests | 64 passed; actual parser/native-control/fake controller and keyboard/XAML contract evidence, not native visual acceptance |
+| Dependency licences | Passed; existing notices current, no runtime package/grammar/renderer acquisition |
+| Static win-x64 / win-x86 publish and payload checks | Passed; 201 / 197 exact files with reviewed licence texts. Existing Markdig/Avalonia present; no browser/diagram/generated-content or test runtime assets introduced |
+| Diff whitespace | Passed |
+
+The payload manifests explicitly label the source as
+`c5dffabf8f4fa767147be06dd8b296238ea97da0+uncommitted-native-details`,
+not a committed exact-revision release or official publication.
+Portable TRX/coverage and Windows TRX are retained under the ignored
+`.net-test-artifacts/native-details-qualified` directory; payloads/licence
+evidence are under ignored `artifacts/native-details-*` directories.
+An initial broad asset scan also matched the scanner's reviewed HTML licence
+texts; the corrected runtime scan excludes only the canonical licence-text
+directories, not executable application assets.
+
+Tests cover immutable reference/revision conflicts, bounded capacity,
+generation/late-render rejection, privacy cleanup, complete UTF-8 source,
+native selection versus whole-source copy, disclosure/access races and platform
+failure through a fake clipboard. Parser cases include exact/exceeded
+byte/block/node/depth limits, hostile HTML/images/URI/diagram content, unknown
+nodes, unavailable renderer, definition-only empty projection, and repeated
+reference-link expansion bounded during projection building.
+The existing host shutdown test fake was extended to hold final speech
+completion, deterministically verifying that a real host exit still waits for
+response/approval work; no `MainViewModel` production dispatch was edited.
+
+Adding the existing desktop project as a Windows-test reference updated only
+that test lock's transitive graph. The installer theme test uses its explicitly
+qualified existing theme type to avoid the resulting namespace ambiguity;
+installer/release/bootstrap production files were not modified.
+
+No application/audio launch, OS/account/privileged operation, real clipboard
+write, installation, sibling merge or publication occurred. The native visual,
+assistive-technology/DPI/multimonitor and real platform-copy gates above remain
+pending.
+
 ## Delivered and Partial Implementation
 
 The identifiers in this table are inventory references, not new capability or model-tool IDs.

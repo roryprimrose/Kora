@@ -8322,6 +8322,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public TaskCompletionSource? SpeakGate { get; set; }
 
+        public bool HoldSpeechCompletionOnStop { get; set; }
+
         public TaskCompletionSource SpeakStarted { get; } = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -8448,7 +8450,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 throw StopException;
             }
             IsSpeaking = false;
-            SpeakGate?.TrySetResult();
+            if (!HoldSpeechCompletionOnStop)
+            {
+                SpeakGate?.TrySetResult();
+            }
             if (StopGate is not null)
             {
                 await StopGate.Task.WaitAsync(cancellationToken);

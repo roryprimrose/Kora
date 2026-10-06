@@ -21,12 +21,14 @@ public sealed partial class App : Avalonia.Application
     private SystemTrayController? systemTray;
     private SettingsWindowController? settingsWindow;
     private DocumentationWindowController? documentationWindow;
+    private DetailWindowController? detailWindow;
     private ResponseWindowController? responseWindow;
     private GrantListWindowController? grantListWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
     internal static ServiceProvider Services { get; set; } = null!;
+    internal DetailWindowController? Details => detailWindow;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -48,10 +50,17 @@ public sealed partial class App : Avalonia.Application
             settingsWindow = new SettingsWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SettingsWindowController>>());
+            MarkdownDocumentRenderer.Renderer = new NativeDetailRenderer(
+                Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
+            detailWindow = new DetailWindowController(
+                Services.GetRequiredService<IUserDocumentationProvider>(), viewModel,
+                Services.GetRequiredService<ILogger<DetailWindowController>>(),
+                Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
             documentationWindow = new DocumentationWindowController(
                 Services.GetRequiredService<IUserDocumentationProvider>(),
                 viewModel,
-                Services.GetRequiredService<ILogger<DocumentationWindowController>>());
+                Services.GetRequiredService<ILogger<DocumentationWindowController>>(),
+                detailWindow);
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>());
@@ -124,6 +133,8 @@ public sealed partial class App : Avalonia.Application
         settingsWindow = null;
         documentationWindow?.Dispose();
         documentationWindow = null;
+        detailWindow?.Dispose();
+        detailWindow = null;
         responseWindow?.Dispose();
         responseWindow = null;
         grantListWindow?.Dispose();

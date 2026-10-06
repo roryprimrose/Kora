@@ -10,18 +10,22 @@ public sealed class DocumentationWindowController : IDisposable
     private readonly IUserDocumentationProvider documentation;
     private readonly MainViewModel viewModel;
     private readonly ILogger<DocumentationWindowController> logger;
+    private readonly DetailWindowController? details;
     private DocumentationWindow? window;
     private bool disposed;
 
     public DocumentationWindowController(
         IUserDocumentationProvider documentation,
         MainViewModel viewModel,
-        ILogger<DocumentationWindowController> logger)
+        ILogger<DocumentationWindowController> logger,
+        DetailWindowController? details = null)
     {
         this.documentation = documentation;
         this.viewModel = viewModel;
         this.logger = logger;
+        this.details = details;
         viewModel.DocumentationRequested += OnDocumentationRequested;
+        viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
     }
 
     public void Dispose()
@@ -34,6 +38,7 @@ public sealed class DocumentationWindowController : IDisposable
         disposed = true;
         DesktopLog.Debug(logger, "Disposing the documentation window controller");
         viewModel.DocumentationRequested -= OnDocumentationRequested;
+        viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
         if (window is not null)
         {
             window.Closed -= OnWindowClosed;
@@ -60,7 +65,7 @@ public sealed class DocumentationWindowController : IDisposable
 
     private DocumentationWindow CreateWindow()
     {
-        var documentationWindow = new DocumentationWindow(documentation, viewModel);
+        var documentationWindow = new DocumentationWindow(documentation, viewModel, details);
         documentationWindow.Closed += OnWindowClosed;
         return documentationWindow;
     }
@@ -72,5 +77,8 @@ public sealed class DocumentationWindowController : IDisposable
             DesktopLog.Debug(logger, "Documentation window closed");
             window = null;
         }
+
     }
+
+    private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs) => window?.Close();
 }

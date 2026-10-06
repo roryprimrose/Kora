@@ -243,6 +243,25 @@ See [Call-Aware Speech](Call_Aware_Speech.md).
 ## Context Flow
 
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
+The delivered `native-text-v1` viewer is passive native text/Markdown, entered
+only through the explicit Documentation **Open details** action for a host
+admitted immutable embedded page. Host reference/revision/digest, origin,
+sensitivity and title are separate chrome, not parsed content. Existing host
+session/request/task IDs are required by the finalized-response contract, but
+general response/durable-history admission is not composed; process-local page
+identity confers no session, question or grant authority.
+The shared parser/presenter enforces 256 KiB UTF-8, 512 blocks, 4,096 nodes and
+32-level nesting bounds; unsupported or structural-limit content has labelled
+exact-source fallback. Raw HTML, scripts, forms, images, diagrams and links
+cannot fetch resources, access files or trigger navigation/host controls.
+There is no HTML/browser renderer, renderer acquisition, export, context
+capture or implicit clipboard operation in this profile.
+Only native explicit copy writes exact Unicode source/selection after current
+access/privacy and required disclosure checks. Rich clipboard formats remain
+gated; the multi-format contract below is not an implemented claim.
+Privacy closure clears source, selection and pending render generation.
+Close/search/copy do not refresh meaningful session activity or mutate work,
+retained content, approvals or session lifecycle.
 Optional speech text inherits spoken-content classification and lock/retention rules.
 Markdown/HTML/SVG cannot replace native approval controls or access tools, credentials, microphone, or local files.
 User-initiated Copy selection/Copy all is a host-owned multi-format disclosure

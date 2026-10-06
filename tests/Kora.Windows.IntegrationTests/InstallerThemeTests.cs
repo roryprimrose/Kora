@@ -1,8 +1,10 @@
+extern alias setup;
+
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
 using AwesomeAssertions;
-using Kora.Theming;
+using ThemeResources = setup::Kora.Theming.ThemeResources;
 
 namespace Kora.Windows.IntegrationTests;
 

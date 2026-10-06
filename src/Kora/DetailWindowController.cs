@@ -1,0 +1,192 @@
+using System.Runtime.InteropServices;
+
+using Avalonia.Controls;
+
+using Kora.Application.Documentation;
+using Kora.Application.Presentation;
+using Kora.Application.ViewModels;
+using Kora.Core.Hosting;
+using Kora.Core.Presentation;
+
+using Microsoft.Extensions.Logging;
+
+namespace Kora;
+
+public sealed partial class DetailWindowController : IDisposable
+{
+    private readonly MainViewModel? viewModel;
+    private readonly IUserDocumentationProvider documentation;
+    private readonly Func<bool> canAccess;
+    private readonly NativeDetailRenderer renderer;
+    private readonly IDetailClipboard clipboard;
+    private readonly Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView;
+    private readonly ILogger<DetailWindowController> logger;
+    private readonly DetailViewerRegistry registry = new();
+    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View)> windows = [];
+    private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
+        new(StringComparer.Ordinal);
+    private bool disposed;
+
+    internal DetailWindowController(
+        IUserDocumentationProvider documentation, MainViewModel viewModel,
+        ILogger<DetailWindowController> logger, ILogger<NativeDetailRenderer> rendererLogger)
+        : this(documentation, () => viewModel.CanRevealPrivatePresentation,
+            new NativeDetailRenderer(rendererLogger), new NativeDetailClipboard(),
+            (state, result, copy) => new DetailWindow(state, result, copy), logger)
+    {
+        this.viewModel = viewModel;
+        viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
+    }
+
+    internal DetailWindowController(
+        IUserDocumentationProvider documentation, Func<bool> canAccess, NativeDetailRenderer renderer,
+        IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView,
+        ILogger<DetailWindowController> logger)
+    {
+        this.documentation = documentation;
+        this.canAccess = canAccess;
+        this.renderer = renderer;
+        this.clipboard = clipboard;
+        this.createView = createView;
+        this.logger = logger;
+    }
+
+    // This is a host-only route from the guide's explicit button, never an action/schema/model route.
+    internal string OpenEmbeddedPage(UserDocumentationPage page, Window? owner)
+    {
+        if (disposed || !canAccess()) { return "Details unavailable: the privacy/input gate is closed."; }
+        if (!documentation.GetPages().Contains(page))
+        {
+            return "Details unavailable: this is not the current immutable embedded page.";
+        }
+        AdmittedDetailContent content;
+        DetailViewerState state;
+        try
+        {
+            content = Admit(page);
+            state = registry.Open(content, canAccess());
+        }
+        catch (InvalidDataException) { return "Embedded page admission failed; nothing was truncated or opened."; }
+        catch (ArgumentException) { return "Embedded page labels or Unicode source are invalid; nothing was opened."; }
+        catch (InvalidOperationException) { return "Details unavailable: close a viewer or check the privacy/input gate."; }
+        if (windows.TryGetValue(content.Reference, out var existing))
+        {
+            existing.View.Activate();
+            return "Activated the existing immutable detail revision.";
+        }
+        var generation = state.Generation;
+        var result = renderer.Render(content.Source, content.Kind, content.Reference);
+        if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !canAccess())
+        {
+            registry.Close(content.Reference);
+            return "Details unavailable: the privacy/input gate closed.";
+        }
+        var reference = content.Reference;
+        var view = createView(state, result,
+            (confirmed, selectionStart, selectionLength) => CopyAsync(reference, generation, confirmed, selectionStart, selectionLength));
+        view.Closed += (_, _) =>
+        {
+            windows.Remove(reference);
+            registry.Close(reference);
+        };
+        windows.Add(reference, (state, view));
+        try
+        {
+            view.ShowOwned(owner);
+            view.Activate();
+        }
+        catch (InvalidOperationException)
+        {
+            registry.Close(reference);
+            windows.Remove(reference);
+            view.ClearAndClose();
+            return "Native detail window unavailable; no viewer or private render state was retained.";
+        }
+        return result.Status;
+    }
+
+    private AdmittedDetailContent Admit(UserDocumentationPage page)
+    {
+        var item = pages.GetValueOrDefault(page.Id);
+        if (item.Id.Value == Guid.Empty) { item = (new(Guid.NewGuid()), 1, string.Empty, string.Empty); }
+        var candidate = new AdmittedDetailContent(new(item.Id, item.Revision), DetailContentKind.Markdown,
+            DetailContentOrigin.EmbeddedDocument, DetailSensitivity.Public, page.Title,
+            "Immutable embedded Kora documentation; not a session/task result.", page.Markdown);
+        if (item.Digest.Length != 0 && (!string.Equals(item.Digest, candidate.Digest, StringComparison.Ordinal)
+            || !string.Equals(item.Title, candidate.Title, StringComparison.Ordinal)))
+        {
+            item.Revision++;
+            candidate = new(new(item.Id, item.Revision), candidate.Kind, candidate.Origin, candidate.Sensitivity,
+                candidate.Title, candidate.Provenance, candidate.Source);
+        }
+        pages[page.Id] = (item.Id, item.Revision, candidate.Digest, candidate.Title);
+        return candidate;
+    }
+
+    internal async Task CopyAsync(DetailContentReference reference, long generation, bool confirmed,
+        int? selectionStart = null, int selectionLength = 0)
+    {
+        if (disposed || !windows.TryGetValue(reference, out var entry)) { return; }
+        var state = entry.State;
+        if (state.Generation != generation || state.Reference != reference)
+        {
+            state.ReportStatus("Copy blocked: the requested immutable revision or generation is stale.");
+            return;
+        }
+        string? source;
+        var allowed = selectionStart is { } start
+            ? state.TryGetCopySelection(canAccess(), confirmed, start, selectionLength, out source)
+            : state.TryGetCopySource(canAccess(), confirmed, out source);
+        if (!allowed) { return; }
+        try
+        {
+            // Revalidate the exact live state immediately before invoking the platform write.
+            if (disposed || !canAccess() || state.Generation != generation || state.Content is null
+                || !windows.TryGetValue(reference, out var current) || !ReferenceEquals(current.State, state))
+            {
+                state.ReportStatus("Copy blocked: revision/access/privacy changed.");
+                return;
+            }
+            await clipboard.WritePlainTextAsync(entry.View, source!);
+            if (state.Generation == generation && canAccess() && state.Content is not null)
+            {
+                state.ReportStatus(selectionStart is null
+                    ? "Exact source copied as Unicode plain text outside Kora."
+                    : "Selected text copied as Unicode plain text outside Kora.");
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException
+            or IOException or ExternalException)
+        {
+            // No exception message or source text enters logs.
+            ClipboardFailure(logger, reference.ItemId.Value, reference.Revision, NativeDetailProfile.Name);
+            if (state.Generation == generation && state.Content is not null)
+            {
+                state.ReportStatus("Clipboard write failed; no successful copy is claimed.");
+            }
+        }
+    }
+
+    private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs) => ClearForPrivacy();
+
+    internal void ClearForPrivacy()
+    {
+        registry.ClearForPrivacy();
+        var owned = windows.Values.Select(entry => entry.View).ToArray();
+        windows.Clear();
+        pages.Clear();
+        foreach (var view in owned) { view.ClearAndClose(); }
+    }
+
+    public void Dispose()
+    {
+        if (disposed) { return; }
+        disposed = true;
+        if (viewModel is not null) { viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested; }
+        ClearForPrivacy();
+    }
+
+    [LoggerMessage(311, LogLevel.Warning,
+        "Native detail clipboard write failed for ItemId {ItemId}, Revision {Revision}, Profile {Profile}.")]
+    private static partial void ClipboardFailure(ILogger logger, Guid itemId, long revision, string profile);
+}

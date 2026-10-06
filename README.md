@@ -87,7 +87,12 @@ so mouse events reach the window underneath. Hold **Ctrl**, then left-click
 and drag the visible presence to reposition it; release the mouse button and
 Ctrl to restore click-through. Its device-local position is restored across restarts.
 Documentation opens the embedded end-user guide from [`docs/readme.md`](docs/readme.md)
-in a single themed Markdown window. Settings opens a single
+in a single themed Markdown window. Its explicit **Open details** action opens
+the exact page in a separate bounded native viewer with source/search and
+exact-source Unicode copy. This is not durable conversation history or general
+response routing; see the
+[delivered passive profile](Design/Information_Display.md#delivered-native-profile---2026-10-06).
+Settings opens a single
 settings window covering the assistant name, speech
 and audio devices, listening, local voice, response output defaults and
 overrides, detected-call behavior, model-action approvals, and dependency readiness. Detecting

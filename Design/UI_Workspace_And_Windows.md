@@ -1,6 +1,7 @@
 # Session Workspace and Coordinated Window Design
 
-Status: agreed window structure; proposed interaction layouts and behavior, not implemented UI.
+Status: agreed window structure; bounded native-text-v1 document details
+implemented, while coordinated Sessions/history/question layouts remain proposed.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
 
@@ -15,6 +16,34 @@ Security controls constrain these workflows; they are not a substitute for desig
 
 Voice-only, UI-only, and mixed operation use the same services and retained state, subject to explicit call-origin/secure-workflow exceptions.
 Every session/task/question/artifact control names its actual target; ambient animation, window focus, and selected session never supply execution authority.
+
+### Delivered Passive Details Boundary
+
+Documentation now offers **Open details** for the explicitly selected embedded
+page. The separate native window is bound to one host-admitted immutable
+item/revision/digest, with trusted provenance and sensitivity outside its
+content viewport. Rendered/Source, native search and exact-source Unicode
+copy are passive controls. Reopening activates the exact reference's window;
+a new revision never silently refreshes an existing viewer. At most eight
+viewers are open.
+
+The [delivered profile](Information_Display.md#delivered-native-profile---2026-10-06)
+owns byte/block/node/nesting bounds and unsupported/error fallback.
+The guide and grant document reuse that native pipeline. These viewers inherit
+the shared theme, introduce no animation/topmost preference, and clear their
+private content/selection on privacy closure. Closing one only releases its
+presentation; it never delegates to response Dismiss, task cancellation,
+session Done/delete or approval. Reading/search/copy do not call meaningful
+session-activity notification.
+
+The useful production entry is **Documentation > Open details**, not compact
+response History. Its process-local page identity must not be portrayed as a
+durable conversation. The typed finalized-response handoff exists, but its
+durable resolver, native response dispatch, shared question/offer targeting and
+Sessions workspace remain separately owned and uncomposed. Rich clipboard,
+HTML, diagrams, source/diff language highlighting and export are not delivered.
+Native visual/accessibility/DPI/multimonitor observations remain pending
+separate approval.
 
 ## Window and Surface Map
 

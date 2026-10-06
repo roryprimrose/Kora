@@ -12,8 +12,8 @@
     </Property>
     <Launch Condition="REMOVE = &quot;ALL&quot; OR (VersionNT64 AND KORA_WINDOWS_BUILD &gt;= 22000)"
             Message="Kora requires Windows 11 x64 or later." />
-    <Icon Id="KoraIcon" SourceFile="..\..\src\Kora\Assets\Kora.ico" />
-    <Property Id="ARPPRODUCTICON" Value="KoraIcon" />
+    <Icon Id="KoraIcon.exe" SourceFile="..\..\src\Kora\Assets\Kora.ico" />
+    <Property Id="ARPPRODUCTICON" Value="KoraIcon.exe" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="REBOOT" Value="ReallySuppress" />
     <Property Id="KORA_START_AT_LOGIN" Value="0" Secure="yes" />
@@ -30,16 +30,21 @@
                  Guid="B6FBBAD7-AC0F-475A-953D-2E588331FEA9"
                  Condition="KORA_START_AT_LOGIN = 1" Transitive="yes">
         <RegistryValue Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-                       Name="Kora" Type="string" Value="&quot;[#KoraExecutable]&quot;" KeyPath="yes" />
+                       Name="Kora" Type="string" Value="&quot;[INSTALLFOLDER]Kora.exe&quot;" KeyPath="yes" />
       </Component>
       <Files Include="$(ApplicationPayload)\**" Directory="INSTALLFOLDER">
         <Exclude Files="$(ApplicationPayload)\Kora.exe" />
+        <Exclude Files="$(ApplicationPayload)\e_sqlite3.dll" />
         <Exclude Files="$(ApplicationPayload)\payload-manifest.json" />
       </Files>
+      <Component Id="KoraBootstrapSqliteComponent" Directory="INSTALLFOLDER">
+        <File Id="KoraBootstrapSqlite" Source="$(ApplicationPayload)\e_sqlite3.dll"
+              KeyPath="yes" DefaultLanguage="0" />
+      </Component>
       <Component Id="KoraExecutableComponent" Directory="INSTALLFOLDER">
         <File Id="KoraExecutable" Source="$(ApplicationPayload)\Kora.exe" KeyPath="yes">
           <Shortcut Id="KoraShortcut" Name="Kora" Directory="KoraStartMenu"
-                    Advertise="yes" WorkingDirectory="INSTALLFOLDER" Icon="KoraIcon" />
+                    Advertise="yes" WorkingDirectory="INSTALLFOLDER" Icon="KoraIcon.exe" />
         </File>
         <RemoveFolder Id="RemoveStartMenuFolder" Directory="KoraStartMenu" On="uninstall" />
       </Component>

@@ -117,6 +117,11 @@ if (-not $package.SelectSingleNode("//w:Shortcut[@Id='KoraShortcut' and @Adverti
     -not $package.SelectSingleNode("//w:StandardDirectory[@Id='ProgramMenuFolder']/w:Directory[@Id='KoraStartMenu']", $namespaces)) {
     throw 'MSI must create an advertised shortcut in the context-redirected Start menu.'
 }
+if ($package.SelectSingleNode("//w:Shortcut[@Id='KoraShortcut']", $namespaces).Icon -cne 'KoraIcon.exe' -or
+    $package.SelectSingleNode("//w:Property[@Id='ARPPRODUCTICON']", $namespaces).Value -cne 'KoraIcon.exe' -or
+    $null -eq $package.SelectSingleNode("//w:Icon[@Id='KoraIcon.exe']", $namespaces)) {
+    throw 'MSI shortcut and product icons must use an icon-table name matching the executable extension.'
+}
 if ($package.SelectSingleNode("//w:Directory[@Id='INSTALLFOLDER']", $namespaces).Name -cne $ProductVersion) {
     throw 'MSI version directory differs from the selected product version.'
 }
@@ -129,7 +134,7 @@ if ($startupComponent.Condition -cne 'KORA_START_AT_LOGIN = 1' -or $startupCompo
     [Guid]::Parse($startupComponent.Guid) -ne [Guid]::Parse('B6FBBAD7-AC0F-475A-953D-2E588331FEA9') -or
     $startupRegistry.Root -cne 'HKMU' -or
     $startupRegistry.Key -cne 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -or
-    $startupRegistry.Name -cne 'Kora' -or $startupRegistry.Value -cne '"[#KoraExecutable]"' -or
+    $startupRegistry.Name -cne 'Kora' -or $startupRegistry.Value -cne '"[INSTALLFOLDER]Kora.exe"' -or
     $startupRegistry.Type -cne 'string' -or $startupRegistry.KeyPath -cne 'yes') {
     throw 'Startup must be a conditional, scope-matched, MSI-owned quoted installed-executable value.'
 }
@@ -148,6 +153,23 @@ if ($platformCondition -cne 'REMOVE = "ALL" OR (VersionNT64 AND KORA_WINDOWS_BUI
     throw 'MSI must enforce Windows 11 x64 for installation while permitting removal.'
 }
 Add-Type -Path (Join-Path $packageRoot 'wixtoolset.sdk\7.0.0\tools\net8.0\WixToolset.Dtf.WindowsInstaller.dll')
+$database = [WixToolset.Dtf.WindowsInstaller.Database]::new($msi, [WixToolset.Dtf.WindowsInstaller.DatabaseOpenMode]::ReadOnly)
+try {
+    $view = $database.OpenView('SELECT `Language` FROM `File` WHERE `File` = ''KoraBootstrapSqlite''')
+    try {
+        $view.Execute()
+        $record = $view.Fetch()
+        if ($null -eq $record) { throw 'MSI must include the explicit bootstrap SQLite native file.' }
+        try {
+            if ($record.GetString(1) -cne '0') {
+                throw 'Bootstrap SQLite must retain language-neutral MSI metadata.'
+            }
+        }
+        finally { $record.Dispose() }
+    }
+    finally { $view.Dispose() }
+}
+finally { $database.Dispose() }
 $platformSession = [WixToolset.Dtf.WindowsInstaller.Installer]::OpenPackage($msi, $true)
 try {
     # AppSearch only reads metadata; no install, execute or custom actions are run.
@@ -193,25 +215,30 @@ try {
     }
 }
 finally { $platformSession.Dispose() }
-foreach ($choice in @('0', '1')) {
-    $costSession = [WixToolset.Dtf.WindowsInstaller.Installer]::OpenPackage($msi, $true)
-    try {
-        $costSession['KORA_START_AT_LOGIN'] = $choice
-        foreach ($action in @('AppSearch', 'CostInitialize', 'FileCost', 'CostFinalize')) {
-            $costSession.DoAction($action)
+foreach ($perUser in @('1', '')) {
+    foreach ($choice in @('0', '1')) {
+        $costSession = [WixToolset.Dtf.WindowsInstaller.Installer]::OpenPackage($msi, $true)
+        try {
+            $costSession['ALLUSERS'] = '2'
+            $costSession['MSIINSTALLPERUSER'] = $perUser
+            $costSession['KORA_START_AT_LOGIN'] = $choice
+            foreach ($action in @('AppSearch', 'CostInitialize', 'FileCost', 'CostFinalize')) {
+                $costSession.DoAction($action)
+            }
+            $state = $costSession.Components['KoraStartupComponent'].RequestState
+            if (($choice -eq '1' -and $state -ne [WixToolset.Dtf.WindowsInstaller.InstallState]::Local) -or
+                ($choice -eq '0' -and $state -eq [WixToolset.Dtf.WindowsInstaller.InstallState]::Local)) {
+                throw 'Native MSI costing did not honor the explicit startup choice.'
+            }
+            $command = $costSession.Format($startupRegistry.Value)
+            $executable = $costSession.Format('[#KoraExecutable]')
+            if ($command -cne "`"$executable`"" -or
+                -not $command.EndsWith("\Kora\$ProductVersion\Kora.exe`"", [StringComparison]::Ordinal)) {
+                throw 'Startup command did not resolve to the exact quoted installed application in the selected scope.'
+            }
         }
-        $state = $costSession.Components['KoraStartupComponent'].RequestState
-        if (($choice -eq '1' -and $state -ne [WixToolset.Dtf.WindowsInstaller.InstallState]::Local) -or
-            ($choice -eq '0' -and $state -eq [WixToolset.Dtf.WindowsInstaller.InstallState]::Local)) {
-            throw 'Native MSI costing did not honor the explicit startup choice.'
-        }
-        $command = $costSession.Format($startupRegistry.Value)
-        if (-not $command.EndsWith("\Kora\$ProductVersion\Kora.exe`"", [StringComparison]::Ordinal) -or
-            -not $command.StartsWith('"', [StringComparison]::Ordinal)) {
-            throw 'Startup command did not resolve to the quoted installed application.'
-        }
+        finally { $costSession.Dispose() }
     }
-    finally { $costSession.Dispose() }
 }
 $actualFiles = @($package.SelectNodes('//w:File', $namespaces) | ForEach-Object {
     $segments = [Collections.Generic.List[string]]::new()

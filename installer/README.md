@@ -446,10 +446,20 @@ portable coverage, Windows tests and full MSI ICE.
 
 Each packaging run extracts Burn, decompiles MSI and checks versions, scope,
 quoted startup registration/conditions/costing, actual Windows-build detection,
+executable-compatible icon-table names, language-neutral bootstrap SQLite metadata,
 required prerequisite chain/cache/download pins, the embedded MSI and every
 bootstrapper digest, and complete application paths. `installer-build.json`
 records that candidate's source, dirty state, final hashes and ICE outcome.
 These checks never run install/apply.
+
+The vendor bootstrap `e_sqlite3.dll` has version metadata without a language.
+It is packaged unchanged with an explicit neutral (`0`) language fallback,
+retaining its independent component key path and version-based repair rules.
+The MSI project acknowledges only binder warning 1101 about that authored
+fallback; package inspection verifies the resulting language. No ICE check
+is suppressed. Startup registration uses the quoted, costed `INSTALLFOLDER`
+path, avoiding a cross-component file reference while retaining its separate
+conditional/transitive scope-matched component and consent rules.
 
 Installed validation is front-loaded and revisited ad hoc for lifecycle,
 native and security-sensitive changes, not an exhaustive manual trial of every

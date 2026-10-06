@@ -517,6 +517,39 @@ with an **absolute** payload path, `-Version 0.1.0`,
 `-WriteManifest` and then verification. The base revision plus dirty-worktree
 qualification is intentional; no commit/push/PR/merge is authorized or performed.
 
+#### Composed Milestone PR Rebase Receipt - 2026-10-06
+
+The user subsequently authorized commit, push, PR creation, squash auto-merge,
+and synchronization with main. [PR #45](https://github.com/roryprimrose/Kora/pull/45)
+publishes this bounded milestone; it does not close the broader R04 gates.
+Initial commit `abe6197d1f0cca1744836f3dde012506cc0a6fa2` matched all 33
+hashed delivery files. It was cleanly rebased onto main
+`d6545a483a8e9612e0685250dc2ebe4cadd3d92d` (#43, #44 and #42), producing
+validated code checkpoint `57c136bb748622059f7c238481d37a3709ae9d5d`.
+`git range-diff` reports the milestone commit unchanged by the rebase.
+This receipt is a subsequent documentation-only update, not a claim that the
+earlier uncommitted payloads were built from the new checkpoint.
+
+| Check | Actual rebased result |
+|---|---|
+| Root eight-project Release build | Zero warnings/errors; existing locked assets remained sufficient, no dependency-manifest changes or new restore required. |
+| Core / Application suites | **312 / 989 passed**, zero failed/skipped. |
+| Windows suite | First attempt **493 passed, 1 failed**, zero skipped: unrelated native-window hit-testing assertion. After explicit approval, one full rerun **494 passed**, zero failed/skipped; no test/product change or disabled test. Both TRX files retained. |
+| Latest completed full-suite total | **1,795 passed**, zero failed/skipped on the completed set; the first-attempt Windows failure is not erased or counted as first-attempt success. |
+| Fresh portable coverage | **5,893/5,893 lines; 2,393/2,393 branches; 686/686 methods**, all 100%. Only fresh PR Core/Application reports were merged; the initial timestamped-filename selector was corrected before merging. |
+| Licence/version/fake-release/payload policy | All passed; release tests use fake GitHub and owned fixtures, not publication. |
+| Locked framework-dependent publishes | x64/x86 passed; exact manifests verify **201/197 files** at validated code checkpoint `57c136b`. |
+| Actual native inspection | x64 **7 PE files/10 declarations**, x86 **5/6**; expected machines/imports and pinned package SHA-256 equality passed. Static only, no installed/dynamic loading claim. |
+| Effects/ownership | Original orchestration checkout untouched; no sibling branch merged. Only approved Git/PR mutations and existing automated fixtures; no installer execution, elevation, live app/audio/model, real-user migration or machine-policy effects. |
+
+Fresh evidence is retained under `.net-test-artifacts\r04-pr-core`,
+`r04-pr-application`, `r04-pr-windows`, `r04-pr-windows-retry` and
+`r04-pr-coverage`. Published payloads are retained under
+`artifacts\r04-pr-win-x64` and `artifacts\r04-pr-win-x86`; their manifests
+identify the validated code checkpoint. The earlier receipt and artifacts
+remain historical evidence. Auto-merge remains subject to normal up-to-date
+branch and required CI gates, without administrative bypass.
+
 #### Remaining R04 Gates
 
 | Boundary | Explicitly still open |

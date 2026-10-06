@@ -18,6 +18,16 @@ controller. User stores are initialised by Kora, not populated by the installer.
 Source delivery still requires build prerequisites; framework-dependent binary delivery still requires the declared .NET runtime before Kora can run.
 Kora cannot install a prerequisite for its own process before that process can launch.
 
+The external [managed-source bootstrap](Distribution_And_Updates.md#source-bootstrap)
+now implements read-only preview and explicitly trusted build/staging verification
+only. It reports Git/PowerShell/exact-SDK requirements and manual remediation;
+it never installs prerequisites or elevates. Its local-source receipts are not
+first-run readiness or protected installation authority. Actual activation and
+launch remain unavailable pending separate approved D01/D03 scope. No provider,
+model, microphone, startup or capability configuration is performed by the
+build tool. Standard SQLite remains a pinned launch-critical managed/native
+publish payload, not a setup checkbox or post-launch acquisition.
+
 R02 inspection established concrete pre-launch requirements for the current
 framework-dependent win-x64 bootstrap: a supported patched .NET 10 x64 Desktop
 Runtime providing both declared .NET shared frameworks, plus external VC++ v14

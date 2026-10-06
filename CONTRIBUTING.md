@@ -42,6 +42,13 @@ dependencies require separate recorded review and cannot enter production or
 publish archives without the admission steps in the
 [dependency license policy](DEPENDENCY-LICENSES.md#experimental-dependencies).
 
+For changes to source delivery, also run the
+[managed-source ownership/failure and stage-inspection tests](Design/Distribution_And_Updates.md#verification-snapshot-2026-10-06)
+with fresh dedicated scratch directories outside all repositories. These
+script checks do not install or launch Kora; a real exact-revision source
+publish/static verification is a separate permitted build check, not
+protected/installed acceptance.
+
 If an intentional dependency change alters the notice report, review the new
 license and provenance first. Add an approved license identifier or a
 version-specific metadata override only with evidence, then regenerate:

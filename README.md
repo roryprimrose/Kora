@@ -21,6 +21,13 @@ Typed built-in commands and visual responses work without speech hardware. No
 model, cloud account, or network connection is required for exact built-in
 commands. Unmatched requests require a verified local Ollama model.
 
+The requirements and commands here describe developer source use. Precompiled
+framework-dependent binary users do not need Git or an SDK; see the
+[distribution/runtime contract](Design/Distribution_And_Updates.md).
+The external [managed-source bootstrap](Design/Distribution_And_Updates.md#source-bootstrap)
+offers reviewable preview and explicitly trusted exact-revision build/staging
+verification. It does not install, activate, register or launch Kora.
+
 ## Run
 
 ```powershell

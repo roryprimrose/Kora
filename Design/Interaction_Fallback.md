@@ -2,6 +2,15 @@
 
 Status: required host capability from Slice A. Voice-first must not mean voice-only.
 
+R05 now supplies an uncomposed, portable
+[typed question service](../src/Kora.Application/Interaction/HostQuestionService.cs)
+with matching host IDs/revisions, bounded single/multiple-choice/text answers,
+mixed-channel draft edits, explicit submit/cancel and expiry rejection.
+This is not a delivered native prompt card, onboarding/recovery UI or
+microphone workflow. Generic voice focus, trusted input/presentation,
+accessibility, secure forms and the durable R04 adapter remain pending;
+the foundation opens no microphone and executes no application/action.
+
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Environment Setup](Environment_Setup.md), [Task Lifecycle](Task_Lifecycle.md), [User Configuration](User_Configuration.md), [Information Display](Information_Display.md).
 
 ## Product Requirement

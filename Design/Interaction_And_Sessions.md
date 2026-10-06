@@ -1,6 +1,7 @@
 # Human Interaction and Persistent Sessions
 
-Status: agreed product direction; proposed contracts, not implemented capabilities.
+Status: agreed product direction; bounded R05 core/application question and
+authorization foundation implemented, full interaction/session integration proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -16,8 +17,52 @@ These named model-action preferences are not the future executable/script digest
 The compact surface has a text field, Run, and Dismiss, with positioning and auto-hide preferences.
 The separate Documentation window renders trusted embedded documentation, not arbitrary session artifacts.
 
-There is no implemented durable multi-work-session store, session selection/history, general typed multi-choice/form question service, concurrent task scheduler, or model-facing session tool API.
+The uncomposed R05 [question service](../src/Kora.Application/Interaction/HostQuestionService.cs)
+now implements bounded single/multiple-choice and text questions, explicit
+draft/submit/cancel, host owner/revision checks and expiry. Its
+[authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs)
+uses exact host-resolved proposals and a separate atomic storage/audit seam;
+it does not use legacy action-name preferences.
+There is no production durable question/grant adapter, native shared question
+presenter, typed form service, session selection/history, concurrent task
+scheduler, or model-facing session tool API.
 Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
+
+### Bounded R05 Foundation Boundary
+
+Questions, answers and drafts use existing host session/request/task/question
+IDs and a positive revision. Every accepted draft edit advances that revision;
+submission of an earlier draft conflicts instead of overwriting newer input.
+The service accepts explicitly addressed UI or activated-voice replies against
+the same key. It does not implement generic spoken-reply focus or a speech/UI
+parser/presenter; trusted channel acquisition, focus targeting and native
+readback remain integration gates.
+
+Clarification submission never creates a grant, including when text, purpose,
+source labels or option labels claim approval. Only the authorization service
+can bind a question to the transaction's current host operation and accept the
+exact scope decision. Nothing calls an action handler or dispatches an effect.
+Expired/closed questions and changed question/proposal/session generations
+reject late replies; explicit cancellation never approves anything.
+
+The [atomic seam](../src/Kora.Core/Storage/IHostInteractionStore.cs) requires
+committed matching intent, Active durable work-session identity, live host
+activity, authoritative current policy/operation snapshots, and atomic typed
+audit plus question/grant commits. A nonterminal task's root intent may omit
+invocation ID; exact proposals/questions carry their own host invocation while
+preserving root request/session/task/origin. A supplied intent invocation must
+match, and terminal/cancelled task records cannot admit new decisions.
+Tests exercise this seam with a test-only
+serialized adapter, not production SQLite persistence. Done/delete/resume
+must advance the session authorization generation; restart of an Active
+persisted session preserves it. Pending questions and Once/Session grants
+cannot regain eligibility after resume. Perpetual records are independent
+and have no expiry/retention/eviction field.
+
+The verified R04 composition handoff, agreed durable adapter/schema ownership,
+native trusted review/input and immediate pre-effect dispatch revalidation
+are still required. This foundation does not alter bootstrap dispatch,
+microphone capture, direct lock, power operations, execution or UI composition.
 
 ## Interaction Principle
 

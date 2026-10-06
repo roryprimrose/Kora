@@ -337,6 +337,16 @@ The host-owned grant key binds at least:
 Once, session, and always describe duration, not trust in future script
 versions. Markdown-only or manifest-only edits leave the script-set hash
 unchanged but invalidate the definition-bound grant and require review.
+The bounded R05 [exact binding](../src/Kora.Core/Authorization/ExactOperationBinding.cs)
+and [authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs)
+now test these equality/revocation rules against host-resolved snapshots.
+The declared-resource digest must bind the complete declared set, resource
+mappings and per-file identities/digests, not just the entry point.
+Tracked-content identity describes the observed best-effort inventory, not
+a claim of complete transitive discovery or an exact executable allowlist.
+Catalogue/byte verification, actual script-set encoding, immutable native
+review and execution remain unimplemented production gates; these services
+run no scripts and do not weaken W2's separate containment/privacy boundaries.
 These scopes follow the [work-session grant contract](Security_Data_Flows.md#grant-types-and-inheritance):
 Session binds the identified Kora work session, not the process lifetime.
 Revocation removes authorization, not the independently retained perpetual

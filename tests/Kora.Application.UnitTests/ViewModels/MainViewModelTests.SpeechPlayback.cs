@@ -64,6 +64,36 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Silent_playback_transitions_notify_activity_without_notifying_an_unchanged_level()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        var changes = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) => changes.Add(args.PropertyName);
+
+        fixture.TextToSpeech.PlaybackFrame = new SpeechPlaybackFrame(true, 0);
+        fixture.ViewModel.RefreshSpeechPlaybackFrame();
+
+        fixture.ViewModel.IsSpeechPlaybackActive.Should().BeTrue();
+        fixture.ViewModel.SpeechOutputLevel.Should().Be(0);
+        changes.Should().Equal(nameof(MainViewModel.IsSpeechPlaybackActive));
+
+        changes.Clear();
+        fixture.TextToSpeech.PlaybackFrame = SpeechPlaybackFrame.Inactive;
+        fixture.ViewModel.RefreshSpeechPlaybackFrame();
+
+        fixture.ViewModel.IsSpeechPlaybackActive.Should().BeFalse();
+        fixture.ViewModel.SpeechOutputLevel.Should().Be(0);
+        changes.Should().Equal(nameof(MainViewModel.IsSpeechPlaybackActive));
+
+        fixture.TextToSpeech.SpeakGate.SetResult();
+        await preview;
+    }
+
+    [Fact]
     public async Task Stopping_speech_clears_presence_even_if_the_last_sample_was_loud()
     {
         var fixture = await Fixture.CreateInitializedAsync();

@@ -6,6 +6,25 @@ namespace Kora.Application.UnitTests.Visuals;
 
 public sealed class PresentationInactivityTimeoutTests
 {
+    [Fact]
+    public void Default_clock_constructor_starts_without_a_deadline()
+    {
+        var timeout = new PresentationInactivityTimeout();
+
+        timeout.IsScheduled.Should().BeFalse();
+        timeout.Remaining.Should().Be(TimeSpan.Zero);
+        timeout.TryExpire().Should().BeFalse();
+    }
+
+    [Fact]
+    public void Constructor_rejects_a_missing_time_provider()
+    {
+        TimeProvider timeProvider = null!;
+        var action = () => new PresentationInactivityTimeout(timeProvider);
+
+        action.Should().Throw<ArgumentNullException>().WithParameterName(nameof(timeProvider));
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(5)]
@@ -108,9 +127,11 @@ public sealed class PresentationInactivityTimeoutTests
     public void Unscheduled_or_stopped_timeouts_never_expire()
     {
         var timeout = new PresentationInactivityTimeout(new FakeTimeProvider());
+        timeout.Remaining.Should().Be(TimeSpan.Zero);
         timeout.TryExpire().Should().BeFalse();
         timeout.Restart(10);
         timeout.Stop();
+        timeout.Remaining.Should().Be(TimeSpan.Zero);
         timeout.TryExpire().Should().BeFalse();
     }
 

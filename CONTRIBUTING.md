@@ -31,6 +31,13 @@ dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTe
 dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 
+Tests that install process-wide activity listeners belong to the nonparallel
+`Host tracing` collection. Its collection definition prevents unrelated host
+requests in other test collections from entering a test's evidence sink or
+changing its sampling assumptions. Other collections remain parallel.
+Portable CI retains a generated coverage report even when the unchanged
+100% line/branch gate fails, so uncovered branches can be diagnosed.
+
 Run the dependency-license gate before adding or upgrading a package:
 
 ```powershell

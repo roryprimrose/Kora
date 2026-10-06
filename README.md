@@ -66,13 +66,19 @@ is interacting with Kora or when Kora has information/results to provide.
 Visual text uses a separate compact response surface; configuration remains in
 Settings. Closing visible surfaces returns to the background state, while only
 **Exit** stops the process.
-The presence and unpinned response window automatically hide after 5
-seconds without interaction by default. Settings or the pinned response-window
-controls can change this shared device-local timeout from 1 to 60 seconds
-without restarting Kora. Drag the response title area to reposition it; its
+The presence automatically hides after **10 seconds** of inactivity while idle
+or listening, when no prompt needs attention. Active work, speech, approval or
+question prompts, recovery actions, and unacknowledged failures keep it visible.
+The unpinned response window has its own timeout, default **5 seconds**.
+Change **Presence timeout** and **Response timeout** independently under
+Settings > Appearance; each accepts 1-60 seconds and applies without restarting.
+Hiding the presence does not stop listening or ongoing work.
+Drag the response title area to reposition it; its
 controls can keep the current response visible until dismissed and can disable
-the default stay-on-top behavior. The visible presence can also be dragged
-to a device-local position that is restored across restarts.
+the default stay-on-top behavior. The presence is click-through by default,
+so mouse events reach the window underneath. Hold **Ctrl**, then left-click
+and drag the visible presence to reposition it; release the mouse button and
+Ctrl to restore click-through. Its device-local position is restored across restarts.
 Documentation opens the embedded end-user guide from [`docs/readme.md`](docs/readme.md)
 in a single themed Markdown window. Settings opens a single
 settings window covering the assistant name, speech
@@ -107,9 +113,13 @@ overrides. The selection is stored at
 `%LOCALAPPDATA%\Kora\Preferences\appearance-theme.txt`.
 
 Appearance settings also provide live sliders for the presence's overall
-size (240-600 px), dot size (50-200%), and dot movement speed (25-200%).
-The defaults are 360 px, 100%, and 100%. These device-local settings are stored
-under `%LOCALAPPDATA%\Kora\Preferences`.
+size (240-600 px), dot size (50-200%), dot density (25-200%, or 38-300 dots),
+and dot movement speed (25-200%). The defaults are 360 px and 100% for each
+particle setting (150 dots). Speech sizing follows Kora's actual playback
+rhythm, with an on/off toggle and an amount slider (0-200%, default 100%).
+At the default amount, the presence contracts to 90% and expands to 112%
+of its resting size; switching it off leaves colours and dot motion unchanged.
+These device-local settings are stored under `%LOCALAPPDATA%\Kora\Preferences`.
 
 Presence is the feature name; particle cloud describes its current visual
 treatment.

@@ -13,6 +13,7 @@ using Kora.Application.ViewModels;
 using Kora.Application.Visuals;
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
+using Kora.Windows.Presentation;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,7 +25,12 @@ public sealed partial class MainWindow : Window
     private readonly MainViewModel viewModel;
     private readonly ILogger<MainWindow> logger;
     private readonly DispatcherTimer presenceTimeoutTimer;
+    private readonly PresentationInactivityTimeout presenceInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
+    private readonly DispatcherTimer presenceInputTimer;
+    private WindowsPresenceWindowInput? presenceInput;
+    private bool presenceInputFailed;
+    private bool isOptionalSpeechOfferVisible;
     private CancellationTokenSource? pendingHide;
     private bool initialized;
     private bool positionInitialized;
@@ -45,6 +51,14 @@ public sealed partial class MainWindow : Window
         DataContext = viewModel;
         ShowInTaskbar = false;
         Opacity = 0;
+        Win32Properties.AddWindowStylesCallback(this, ConfigurePresenceWindowStyles);
+        presenceInput = new WindowsPresenceWindowInput(
+            TryGetPlatformHandle()?.Handle
+            ?? throw new InvalidOperationException("The presence window has no Windows handle."));
+        presenceInputTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(16),
+            DispatcherPriority.Input,
+            OnPresenceInputTick);
         presenceTimeoutTimer = new DispatcherTimer();
         presenceTimeoutTimer.Tick += OnPresenceTimeout;
         positionSaveTimer = new DispatcherTimer
@@ -58,6 +72,66 @@ public sealed partial class MainWindow : Window
         PositionChanged += OnPositionChanged;
         Loaded += OnLoaded;
         Closing += OnClosing;
+        Closed += OnClosed;
+    }
+
+    private (uint Style, uint ExtendedStyle) ConfigurePresenceWindowStyles(uint style, uint extendedStyle) =>
+        (style, WindowsPresenceWindowInput.GetExtendedStyle(extendedStyle, presenceInput?.InterceptsMouse == true));
+
+    private void OnPresenceInputTick(object? sender, EventArgs eventArgs) => RefreshPresenceInput();
+
+    private void RefreshPresenceInput()
+    {
+        if (presenceInputFailed || presenceInput is null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsHitTestVisible = presenceInput.Refresh(
+                IsVisible && viewModel.CanRevealPrivatePresentation);
+        }
+        catch (Win32Exception exception)
+        {
+            presenceInputFailed = true;
+            presenceInputTimer.Stop();
+            IsHitTestVisible = false;
+            DesktopLog.Error(logger, exception, "Updating presence mouse routing");
+            Hide();
+            viewModel.ReportPresenceInputFailure(exception.Message);
+        }
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsVisibleProperty && presenceInput is not null)
+        {
+            RefreshPresenceInput();
+            if (IsVisible && !presenceInputFailed)
+            {
+                presenceInputTimer.Start();
+            }
+            else
+            {
+                presenceInputTimer.Stop();
+            }
+            UpdatePresenceTimeoutEligibility();
+        }
+    }
+
+    private void OnClosed(object? sender, EventArgs eventArgs)
+    {
+        presenceInputTimer.Stop();
+        presenceTimeoutTimer.Stop();
+        presenceInactivity.Stop();
+        positionSaveTimer.Stop();
+        CancelPendingHide();
+        Win32Properties.RemoveWindowStylesCallback(this, ConfigurePresenceWindowStyles);
+        viewModel.WindowActionRequested -= OnWindowActionRequested;
+        viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        presenceInput = null;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs eventArgs)
@@ -106,6 +180,9 @@ public sealed partial class MainWindow : Window
         Opacity = 1;
     }
 
+    private void OnPresenceFrameUpdating(object? sender, EventArgs eventArgs) =>
+        viewModel.RefreshSpeechPlaybackFrame();
+
     private async Task<bool> ShowOptionalSpeechOfferAsync(OptionalSpeechProviderOffer offer)
     {
         var review = new Button { Content = "Review in Settings" };
@@ -138,12 +215,23 @@ public sealed partial class MainWindow : Window
         };
         review.Click += (_, _) => dialog.Close(true);
         decline.Click += (_, _) => dialog.Close(false);
-        return await dialog.ShowDialog<bool>(this);
+        isOptionalSpeechOfferVisible = true;
+        UpdatePresenceTimeoutEligibility();
+        try
+        {
+            return await dialog.ShowDialog<bool>(this);
+        }
+        finally
+        {
+            isOptionalSpeechOfferVisible = false;
+            UpdatePresenceTimeoutEligibility();
+        }
     }
 
     private async void OnWindowActionRequested(object? sender, WindowAction action)
     {
-        if (action is WindowAction.Show or WindowAction.ShowPresence && !viewModel.CanRevealPrivatePresentation)
+        if (action is WindowAction.Show or WindowAction.ShowPresence
+            && (presenceInputFailed || !viewModel.CanRevealPrivatePresentation))
         {
             return;
         }
@@ -161,6 +249,7 @@ public sealed partial class MainWindow : Window
                 DesktopLog.Debug(logger, "Hiding the main window after its transition");
                 CancelPendingHide();
                 presenceTimeoutTimer.Stop();
+                presenceInactivity.Stop();
                 var hideRequest = new CancellationTokenSource();
                 pendingHide = hideRequest;
                 try
@@ -187,6 +276,7 @@ public sealed partial class MainWindow : Window
                 DesktopLog.Information(logger, "Shutting down the desktop application");
                 CancelPendingHide();
                 presenceTimeoutTimer.Stop();
+                presenceInactivity.Stop();
                 shutdownRequested = true;
                 if (Avalonia.Application.Current?.ApplicationLifetime
                     is IClassicDesktopStyleApplicationLifetime desktop)
@@ -233,10 +323,22 @@ public sealed partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
-        if (eventArgs.PropertyName is nameof(MainViewModel.IsListening)
-            or nameof(MainViewModel.PresenceTimeoutSeconds))
+        if (eventArgs.PropertyName is nameof(MainViewModel.PresenceTimeoutSeconds))
         {
             SchedulePresenceTimeout();
+        }
+        else if (eventArgs.PropertyName is nameof(MainViewModel.IsListening)
+            or nameof(MainViewModel.State)
+            or nameof(MainViewModel.IsBusy)
+            or nameof(MainViewModel.IsSpeaking)
+            or nameof(MainViewModel.IsCancelTaskVisible)
+            or nameof(MainViewModel.IsLocalModelSetupActive)
+            or nameof(MainViewModel.IsPowerShellSetupActive)
+            or nameof(MainViewModel.IsResponseInteractionPending)
+            or nameof(MainViewModel.HasResponseActions)
+            or nameof(MainViewModel.IsGrantEditorVisible))
+        {
+            UpdatePresenceTimeoutEligibility();
         }
         else if (eventArgs.PropertyName is nameof(MainViewModel.PresenceSizePixels))
         {
@@ -246,8 +348,12 @@ public sealed partial class MainWindow : Window
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
-        if (eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if (presenceInput?.InterceptsMouse == true
+            && viewModel.CanRevealPrivatePresentation
+            && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control)
+            && eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
+            eventArgs.Handled = true;
             viewModel.NotifyPresenceInteraction();
             BeginMoveDrag(eventArgs);
         }
@@ -262,6 +368,10 @@ public sealed partial class MainWindow : Window
 
         positionSaveTimer.Stop();
         positionSaveTimer.Start();
+        if (presenceInput?.InterceptsMouse == true)
+        {
+            SchedulePresenceTimeout();
+        }
     }
 
     private void OnPositionSaveTimer(object? sender, EventArgs eventArgs)
@@ -274,25 +384,50 @@ public sealed partial class MainWindow : Window
     private void OnPresenceTimeout(object? sender, EventArgs eventArgs)
     {
         presenceTimeoutTimer.Stop();
-        if (!viewModel.IsListening || !IsVisible)
+        if (!CanSchedulePresenceTimeout || !presenceInactivity.IsScheduled)
         {
+            presenceInactivity.Stop();
             return;
         }
 
-        DesktopLog.Debug(logger, "Hiding the inactive presence after its listening timeout");
+        if (!presenceInactivity.TryExpire())
+        {
+            presenceTimeoutTimer.Interval = presenceInactivity.Remaining;
+            presenceTimeoutTimer.Start();
+            return;
+        }
+
+        DesktopLog.Debug(logger, "Hiding the presence after its inactivity timeout");
         Hide();
+    }
+
+    private bool CanSchedulePresenceTimeout =>
+        IsVisible && !isOptionalSpeechOfferVisible && viewModel.CanAutoHidePresence;
+
+    private void UpdatePresenceTimeoutEligibility()
+    {
+        if (!CanSchedulePresenceTimeout)
+        {
+            presenceTimeoutTimer.Stop();
+            presenceInactivity.Stop();
+        }
+        else if (!presenceInactivity.IsScheduled)
+        {
+            SchedulePresenceTimeout();
+        }
     }
 
     private void SchedulePresenceTimeout()
     {
         presenceTimeoutTimer.Stop();
-        if (!viewModel.IsListening || !IsVisible)
+        presenceInactivity.Stop();
+        if (!CanSchedulePresenceTimeout)
         {
             return;
         }
 
-        presenceTimeoutTimer.Interval =
-            TimeSpan.FromSeconds(viewModel.PresenceTimeoutSeconds);
+        presenceInactivity.Restart(viewModel.PresenceTimeoutSeconds);
+        presenceTimeoutTimer.Interval = presenceInactivity.Remaining;
         presenceTimeoutTimer.Start();
     }
 

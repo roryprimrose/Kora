@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -6,6 +8,7 @@ using Avalonia.Threading;
 
 using Kora.Application.Visuals;
 using Kora.Core;
+using Kora.Core.Configuration;
 
 namespace Kora.Controls;
 
@@ -23,14 +26,29 @@ public sealed class PresenceControl : Control
         AvaloniaProperty.Register<PresenceControl, double>(nameof(SpeechOutputLevel));
 
     public static readonly StyledProperty<int> DotSizePercentProperty =
-        AvaloniaProperty.Register<PresenceControl, int>(nameof(DotSizePercent), 100);
+        AvaloniaProperty.Register<PresenceControl, int>(
+            nameof(DotSizePercent), PresenceSettings.DefaultDotSizePercent);
+
+    public static readonly StyledProperty<int> DotDensityPercentProperty =
+        AvaloniaProperty.Register<PresenceControl, int>(
+            nameof(DotDensityPercent), PresenceSettings.DefaultDotDensityPercent);
+
+    public static readonly StyledProperty<bool> IsSpeechScalingEnabledProperty =
+        AvaloniaProperty.Register<PresenceControl, bool>(
+            nameof(IsSpeechScalingEnabled), PresenceSettings.DefaultSpeechScalingEnabled);
+
+    public static readonly StyledProperty<int> SpeechScaleAmountPercentProperty =
+        AvaloniaProperty.Register<PresenceControl, int>(
+            nameof(SpeechScaleAmountPercent), PresenceSettings.DefaultSpeechScaleAmountPercent);
 
     public static readonly StyledProperty<int> MovementSpeedPercentProperty =
-        AvaloniaProperty.Register<PresenceControl, int>(nameof(MovementSpeedPercent), 100);
+        AvaloniaProperty.Register<PresenceControl, int>(
+            nameof(MovementSpeedPercent), PresenceSettings.DefaultMovementSpeedPercent);
 
     private readonly PresenceAnimation animation = new(AssistantState.Information);
     private readonly Particle[] particles;
     private readonly DispatcherTimer timer;
+    private long previousFrameTimestamp;
 
     static PresenceControl()
     {
@@ -38,13 +56,16 @@ public sealed class PresenceControl : Control
             StateProperty,
             IsSpeakingProperty,
             SpeechOutputLevelProperty,
-            DotSizePercentProperty);
+            DotSizePercentProperty,
+            DotDensityPercentProperty,
+            IsSpeechScalingEnabledProperty,
+            SpeechScaleAmountPercentProperty);
     }
 
     public PresenceControl()
     {
         var random = new Random(104729);
-        particles = Enumerable.Range(0, 150)
+        particles = Enumerable.Range(0, PresenceSettings.GetParticleCount(PresenceSettings.MaximumDotDensityPercent))
             .Select(_ => new Particle(
                 random.NextDouble() * 2 - 1,
                 random.NextDouble() * 2 - 1,
@@ -87,6 +108,26 @@ public sealed class PresenceControl : Control
         set => SetValue(MovementSpeedPercentProperty, value);
     }
 
+    public int DotDensityPercent
+    {
+        get => GetValue(DotDensityPercentProperty);
+        set => SetValue(DotDensityPercentProperty, value);
+    }
+
+    public bool IsSpeechScalingEnabled
+    {
+        get => GetValue(IsSpeechScalingEnabledProperty);
+        set => SetValue(IsSpeechScalingEnabledProperty, value);
+    }
+
+    public int SpeechScaleAmountPercent
+    {
+        get => GetValue(SpeechScaleAmountPercentProperty);
+        set => SetValue(SpeechScaleAmountPercentProperty, value);
+    }
+
+    public event EventHandler? FrameUpdating;
+
     public override void Render(DrawingContext context)
     {
         base.Render(context);
@@ -108,7 +149,9 @@ public sealed class PresenceControl : Control
         var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
         var scale = Math.Min(Bounds.Width, Bounds.Height) * 0.36 * frame.Scale;
 
-        foreach (var particle in particles.OrderBy(item => item.Z))
+        foreach (var particle in particles
+            .Take(PresenceSettings.GetParticleCount(DotDensityPercent))
+            .OrderBy(item => item.Z))
         {
             var perspective = 0.72 + ((particle.Z + 1) * 0.18);
             var x = center.X + particle.X * scale * perspective;
@@ -124,6 +167,7 @@ public sealed class PresenceControl : Control
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        previousFrameTimestamp = Stopwatch.GetTimestamp();
         timer.Start();
     }
 
@@ -147,11 +191,17 @@ public sealed class PresenceControl : Control
 
     private void OnTick(object? sender, EventArgs eventArgs)
     {
+        FrameUpdating?.Invoke(this, EventArgs.Empty);
+        var timestamp = Stopwatch.GetTimestamp();
+        var elapsed = Stopwatch.GetElapsedTime(previousFrameTimestamp, timestamp);
+        previousFrameTimestamp = timestamp;
         var visualChanged = animation.Advance(
             State,
             IsSpeaking,
             SpeechOutputLevel,
-            PresenceAnimation.FrameInterval);
+            elapsed,
+            IsSpeechScalingEnabled,
+            SpeechScaleAmountPercent);
         var activity = State switch
         {
             AssistantState.Listening => 0.8,
@@ -167,8 +217,10 @@ public sealed class PresenceControl : Control
 
         if (activity > 0)
         {
-            foreach (var particle in particles)
+            var particleCount = PresenceSettings.GetParticleCount(DotDensityPercent);
+            for (var index = 0; index < particleCount; index++)
             {
+                var particle = particles[index];
                 particle.X += particle.Dx * activity;
                 particle.Y += particle.Dy * activity;
 

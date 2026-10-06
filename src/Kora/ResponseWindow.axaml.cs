@@ -8,6 +8,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 
 using Kora.Application.ViewModels;
+using Kora.Application.Visuals;
 using Kora.Core.Configuration;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,7 @@ public sealed partial class ResponseWindow : Window
 {
     private readonly MainViewModel viewModel;
     private readonly DispatcherTimer responseTimeoutTimer;
+    private readonly PresentationInactivityTimeout responseInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
     private bool positionInitialized;
 
@@ -133,6 +135,7 @@ public sealed partial class ResponseWindow : Window
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
         responseTimeoutTimer.Stop();
+        responseInactivity.Stop();
         positionSaveTimer.Stop();
         viewModel.PropertyChanged -= OnViewModelPropertyChanged;
     }
@@ -143,6 +146,7 @@ public sealed partial class ResponseWindow : Window
             && !viewModel.IsVisualResponseVisible)
         {
             responseTimeoutTimer.Stop();
+            responseInactivity.Stop();
             Hide();
             return;
         }
@@ -153,7 +157,7 @@ public sealed partial class ResponseWindow : Window
                 StringComparison.Ordinal)
             || string.Equals(
                 eventArgs.PropertyName,
-                nameof(MainViewModel.PresenceTimeoutSeconds),
+                nameof(MainViewModel.ResponseTimeoutSeconds),
                 StringComparison.Ordinal)
             || string.Equals(
                 eventArgs.PropertyName,
@@ -171,10 +175,25 @@ public sealed partial class ResponseWindow : Window
     private void OnResponseTimeout(object? sender, EventArgs eventArgs)
     {
         responseTimeoutTimer.Stop();
+        if (!IsVisible || !responseInactivity.IsScheduled)
+        {
+            responseInactivity.Stop();
+            return;
+        }
         if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
             && !viewModel.HasResponseActions)
         {
+            if (!responseInactivity.TryExpire())
+            {
+                responseTimeoutTimer.Interval = responseInactivity.Remaining;
+                responseTimeoutTimer.Start();
+                return;
+            }
             Hide();
+        }
+        else
+        {
+            responseInactivity.Stop();
         }
     }
 
@@ -209,12 +228,14 @@ public sealed partial class ResponseWindow : Window
     internal void HideResponse()
     {
         responseTimeoutTimer.Stop();
+        responseInactivity.Stop();
         Hide();
     }
 
     private void RestartResponseTimeout()
     {
         responseTimeoutTimer.Stop();
+        responseInactivity.Stop();
         if (!IsVisible || viewModel.IsResponseAlwaysVisible
             || viewModel.IsResponseInteractionPending
             || viewModel.HasResponseActions)
@@ -222,8 +243,8 @@ public sealed partial class ResponseWindow : Window
             return;
         }
 
-        responseTimeoutTimer.Interval =
-            TimeSpan.FromSeconds(viewModel.PresenceTimeoutSeconds);
+        responseInactivity.Restart(viewModel.ResponseTimeoutSeconds);
+        responseTimeoutTimer.Interval = responseInactivity.Remaining;
         responseTimeoutTimer.Start();
     }
 

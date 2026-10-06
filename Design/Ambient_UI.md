@@ -45,6 +45,17 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
 - A small transparent, undecorated, topmost presence surface. No rectangular
   background behind the animation. Results/decisions may unfold into a readable
   translucent surface; purely transparent text over arbitrary content is unreliable.
+- The presence HWND is mouse click-through by default, including the visible
+  dots. Either Ctrl key temporarily makes it interactive, even while another
+  application has focus; Ctrl + left-drag repositions it without activating it.
+  While interactive, hovering over the presence uses the four-way move cursor;
+  pressing Ctrl updates it even without a pointer move, never over another window.
+  Releasing Ctrl returns to click-through after any in-progress mouse gesture
+  finishes. Gestures beginning underneath must not transfer to Kora mid-press.
+  Only Ctrl and mouse-button states are polled; no global keyboard hook or
+  input forwarding is used. Hidden or privacy-ineligible presence stays
+  non-interactive regardless of Ctrl. Native routing failures hide the presence
+  and surface recovery through the separate response UI.
 - Hidden means no animation, input region, focus capture, or invisible hot corner.
   Summon primarily by saying an active name ("Kora" by default) while local wake listening is available.
   Optional push-to-talk, a keyboard shortcut, or a tray command provide alternatives.
@@ -61,7 +72,8 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
 - Passive status never steals focus. Only explicit interaction opens interactive
   detail; expose context, cancellation, and approvals through equivalent visual
   controls. A real approval must not be satisfied by the push-to-talk key.
-- Transparent/hidden regions are always non-hit-testable. Native approval controls
+- Hidden regions are always non-hit-testable. The presence's transparent footprint
+  is interactive only during explicit Ctrl interaction. Native approval controls
   accept input only inside their visible bounds, remain unarmed for at least 500 ms
   after presentation, and ignore mouse/key gestures that began before the approval
   appeared. Focus may describe the proposal but never lands on an armed affirmative
@@ -94,18 +106,48 @@ listening; the separate tray/status indicator communicates local wake listening.
 Native state changes cross-fade between the current and target state colours rather
 than replacing the palette in one frame. Showing and hiding the presence also
 fades over a short interval; a request to show it again cancels a pending hide.
+Native presence also automatically hides after 10 seconds of inactivity when
+idle, listening, or showing a completed result without required attention.
+The timer does not depend on microphone capture being active. Busy or executing
+work, speech, pending approvals/questions, response actions, grant editing, and
+unacknowledged failures suspend auto-hide; clearing them starts a fresh period.
+Hiding is presentation-only and never cancels work, closes capture, dismisses a
+prompt, or asks the user for confirmation.
+Presence timeout (default 10 seconds) and response timeout (default 5 seconds)
+are separate device-local settings, each adjustable from 1 to 60 seconds.
+Showing or interacting with a surface restarts its deadline; repeated status
+notifications alone do not extend an existing presence deadline. Response
+**Always show** does not pin presence. Legacy shared timeout values are
+retained for the response window, while the new presence setting defaults to 10.
 
-During Kora speech playback, the presence may contract and expand between 90%
-and 112% of its resting size from a normalized output-level signal. This is a speech
-playback dimension, not task progress or microphone input. The bootstrap exposes the
-visual `IsSpeaking` and `SpeechOutputLevel` contract, but keeps both inactive until a
-real TTS service can provide playback timing and output levels.
+During Kora speech playback, the presence contracts and expands between 90%
+and 112% of its resting size at the default speech scale amount. A normalized
+20-ms RMS envelope from Kora's synthesized output follows the audio device's
+playback position, so the motion reflects the speech rhythm rather than a
+synthetic pulse. Both Windows and Kokoro output use this path. Synthesis alone
+does not animate the presence, and stopping, cancelling, or invalidating playback
+returns it to its resting size. This is a speech playback dimension, not task
+progress, phoneme recognition, microphone input, or audio from other applications.
+The state-driven colour palette remains independent of speech sizing.
+Speech sizing uses two cascaded low-pass stages with a 35-ms time constant.
+This eases both the size and its velocity through speech edges instead of
+snapping to small level changes, without overshooting the configured range.
+It responds by more than 90% within 150 ms, retaining the syllable rhythm;
+stopping speech or switching sizing off smoothly settles back to normal.
+Animation uses measured elapsed time so delayed UI frames do not accumulate lag.
 
 The native Settings surface provides device-local sliders for the overall
 presence footprint (240-600 px, default 360), particle diameter (50-200%,
-default 100%), and particle movement speed (25-200%, default 100%). Changes apply
-live. Resizing preserves the bottom-right working-area anchor; movement speed
-scales state-driven velocity without changing lifecycle state or particle count.
+default 100%), dot density (25-200%, default 100%, or 150 particles), and particle
+movement speed (25-200%, default 100%). Density changes the particle count
+independently of dot size: 25% gives 38 particles and 200% gives 300.
+Speech sizing has an enabled-by-default toggle and an amount slider (0-200%,
+default 100%). The amount scales the deviation from resting size: 0% holds
+normal size, 100% uses 90-112%, and 200% uses 80-124%. Turning it off disables
+only speech-driven sizing, not speech playback, colour transitions, or dot motion;
+the amount is retained for re-enabling. Changes apply live and persist on this device.
+Resizing preserves the bottom-right working-area anchor; movement speed scales
+state-driven velocity without changing lifecycle state or particle count.
 
 Keep the normal presence entirely abstract: no letters, symbols, or visible status
 caption in or beneath the presence. Colour and motion convey state; voice

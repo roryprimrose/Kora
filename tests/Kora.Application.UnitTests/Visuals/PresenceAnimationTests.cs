@@ -81,21 +81,21 @@ public sealed class PresenceAnimationTests
             AssistantState.Information,
             isSpeaking: true,
             speechOutputLevel: -1,
-            PresenceAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
+            TimeSpan.FromSeconds(1)).Should().BeTrue();
         animation.Current.Scale.Should().Be(0.9);
 
         animation.Advance(
             AssistantState.Information,
             isSpeaking: true,
             speechOutputLevel: 2,
-            PresenceAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
+            TimeSpan.FromSeconds(1)).Should().BeTrue();
         animation.Current.Scale.Should().Be(1.12);
 
         animation.Advance(
             AssistantState.Information,
             isSpeaking: false,
             speechOutputLevel: double.NaN,
-            PresenceAnimation.SpeechScaleTransitionDuration).Should().BeTrue();
+            TimeSpan.FromSeconds(1)).Should().BeTrue();
         animation.Current.Scale.Should().Be(1);
     }
 
@@ -109,6 +109,215 @@ public sealed class PresenceAnimationTests
             isSpeaking: false,
             speechOutputLevel: 0,
             TimeSpan.Zero).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(0, 0, 1)]
+    [InlineData(0, 1, 1)]
+    [InlineData(50, 0, 0.95)]
+    [InlineData(50, 1, 1.06)]
+    [InlineData(100, 0, 0.9)]
+    [InlineData(100, 1, 1.12)]
+    [InlineData(200, 0, 0.8)]
+    [InlineData(200, 1, 1.24)]
+    public void Speech_scale_amount_controls_distance_from_resting_size(
+        int amount,
+        double level,
+        double expectedScale)
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+
+        animation.Advance(
+            AssistantState.Information,
+            isSpeaking: true,
+            level,
+            TimeSpan.FromSeconds(1),
+            isSpeechScalingEnabled: true,
+            amount);
+
+        animation.Current.Scale.Should().BeApproximately(expectedScale, 0.000001);
+    }
+
+    [Theory]
+    [InlineData(false, 100)]
+    [InlineData(true, 0)]
+    public void Disabling_speech_scaling_or_setting_zero_returns_to_rest_without_changing_colour(
+        bool enabled,
+        int amount)
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+        animation.Advance(
+            AssistantState.Information, true, 1, TimeSpan.FromSeconds(1));
+        animation.Current.Scale.Should().Be(1.12);
+
+        animation.Advance(
+            AssistantState.Executing,
+            true,
+            1,
+            TimeSpan.FromSeconds(1),
+            enabled,
+            amount);
+
+        animation.Current.Scale.Should().Be(1);
+        animation.Current.Color.Should().Be(new PresenceColor(0x80, 0xB7, 0xFF));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(201)]
+    public void Advance_rejects_invalid_speech_scale_amount(int amount)
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+        var action = () => animation.Advance(
+            AssistantState.Information, false, 0, TimeSpan.Zero, true, amount);
+
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData(0, 0.9)]
+    [InlineData(1, 1.12)]
+    public void Speech_edges_ease_in_instead_of_jumping_to_the_target(double level, double target)
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+
+        animation.Advance(
+            AssistantState.Information, true, level, PresenceAnimation.FrameInterval);
+
+        var response = (animation.Current.Scale - 1) / (target - 1);
+        response.Should().BeInRange(0.2, 0.3);
+    }
+
+    [Theory]
+    [InlineData(0, 0.9)]
+    [InlineData(1, 1.12)]
+    public void Speech_smoothing_tracks_a_syllable_within_150_milliseconds(double level, double target)
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+
+        animation.Advance(
+            AssistantState.Information, true, level, TimeSpan.FromMilliseconds(150));
+
+        var response = (animation.Current.Scale - 1) / (target - 1);
+        response.Should().BeInRange(0.9, 1);
+    }
+
+    [Fact]
+    public void Small_speech_fluctuations_are_filtered_instead_of_snapping_each_frame()
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+        animation.Advance(AssistantState.Information, true, 5d / 11, TimeSpan.FromSeconds(1));
+        var previousScale = animation.Current.Scale;
+        for (var index = 0; index < 60; index++)
+        {
+            var level = (5d / 11) + (index % 2 == 0 ? 0.04 : -0.04);
+            animation.Advance(AssistantState.Information, true, level, PresenceAnimation.FrameInterval);
+
+            Math.Abs(animation.Current.Scale - previousScale).Should().BeLessThan(0.005);
+            previousScale = animation.Current.Scale;
+        }
+    }
+
+    [Fact]
+    public void Short_syllables_remain_distinct_with_less_than_one_frame_of_peak_lag()
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+        for (var syllable = 0; syllable < 3; syllable++)
+        {
+            for (var frame = 0; frame < 6; frame++)
+            {
+                animation.Advance(AssistantState.Information, true, 1, TimeSpan.FromMilliseconds(10));
+            }
+
+            var peak = animation.Current.Scale;
+            var peakDelayMilliseconds = 0;
+            for (var frame = 1; frame <= 20; frame++)
+            {
+                animation.Advance(AssistantState.Information, true, 5d / 11, TimeSpan.FromMilliseconds(10));
+                if (animation.Current.Scale > peak)
+                {
+                    peak = animation.Current.Scale;
+                    peakDelayMilliseconds = frame * 10;
+                }
+            }
+
+            peak.Should().BeGreaterThan(1.05);
+            peakDelayMilliseconds.Should().BeLessThanOrEqualTo(30);
+            animation.Current.Scale.Should().BeInRange(1, 1.003);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Speech_smoothing_is_independent_of_frame_partitioning(double level)
+    {
+        var singleFrame = new PresenceAnimation(AssistantState.Information);
+        var regularFrames = new PresenceAnimation(AssistantState.Information);
+        var irregularFrames = new PresenceAnimation(AssistantState.Information);
+
+        singleFrame.Advance(AssistantState.Information, true, level, TimeSpan.FromMilliseconds(150));
+        for (var index = 0; index < 15; index++)
+        {
+            regularFrames.Advance(AssistantState.Information, true, level, TimeSpan.FromMilliseconds(10));
+        }
+        foreach (var milliseconds in new[] { 17, 33, 50, 9, 41 })
+        {
+            irregularFrames.Advance(AssistantState.Information, true, level, TimeSpan.FromMilliseconds(milliseconds));
+        }
+
+        regularFrames.Current.Scale.Should().BeApproximately(singleFrame.Current.Scale, 0.000000000001);
+        irregularFrames.Current.Scale.Should().BeApproximately(singleFrame.Current.Scale, 0.000000000001);
+    }
+
+    [Fact]
+    public void Rapid_speech_reversals_do_not_overshoot_the_configured_range()
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+        for (var index = 0; index < 120; index++)
+        {
+            animation.Advance(
+                AssistantState.Information, true, index % 2, PresenceAnimation.FrameInterval, true, 200);
+
+            animation.Current.Scale.Should().BeInRange(0.8, 1.24);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, true, 100)]
+    [InlineData(true, false, 100)]
+    [InlineData(true, true, 0)]
+    public void Ending_or_disabling_speech_smoothly_settles_at_exact_resting_size(
+        bool speaking,
+        bool enabled,
+        int amount)
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+        animation.Advance(AssistantState.Information, true, 1, TimeSpan.FromSeconds(1));
+
+        animation.Advance(
+            AssistantState.Information, speaking, 1, PresenceAnimation.FrameInterval, enabled, amount);
+
+        animation.Current.Scale.Should().BeInRange(1.08, 1.12);
+        animation.Advance(
+            AssistantState.Information, speaking, 1, TimeSpan.FromSeconds(1), enabled, amount);
+        animation.Current.Scale.Should().Be(1);
+        animation.Advance(
+            AssistantState.Information, speaking, 1, PresenceAnimation.FrameInterval, enabled, amount)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void Zero_elapsed_time_does_not_change_the_smoothing_history()
+    {
+        var baseline = new PresenceAnimation(AssistantState.Information);
+        var animation = new PresenceAnimation(AssistantState.Information);
+
+        animation.Advance(AssistantState.Information, true, 0, TimeSpan.Zero).Should().BeFalse();
+        animation.Advance(AssistantState.Information, true, 1, PresenceAnimation.FrameInterval);
+        baseline.Advance(AssistantState.Information, true, 1, PresenceAnimation.FrameInterval);
+
+        animation.Current.Should().Be(baseline.Current);
     }
 
     [Fact]

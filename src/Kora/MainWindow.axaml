@@ -8,7 +8,8 @@
     Height="{Binding PresenceSizePixels}"
     Background="Transparent"
     CanResize="False"
-    IsHitTestVisible="True"
+    Cursor="SizeAll"
+    IsHitTestVisible="False"
     ShowActivated="False"
     ShowInTaskbar="False"
     WindowDecorations="None"
@@ -17,9 +18,13 @@
     WindowStartupLocation="Manual">
   <controls:PresenceControl
       State="{Binding State}"
-      IsSpeaking="{Binding IsSpeaking}"
+      IsSpeaking="{Binding IsSpeechPlaybackActive}"
+      SpeechOutputLevel="{Binding SpeechOutputLevel}"
       DotSizePercent="{Binding PresenceDotSizePercent}"
+      DotDensityPercent="{Binding PresenceDotDensityPercent}"
       MovementSpeedPercent="{Binding PresenceMovementSpeedPercent}"
-      Cursor="SizeAll"
+      IsSpeechScalingEnabled="{Binding IsPresenceSpeechScalingEnabled}"
+      SpeechScaleAmountPercent="{Binding PresenceSpeechScaleAmountPercent}"
+      FrameUpdating="OnPresenceFrameUpdating"
       IsHitTestVisible="True" />
 </Window>

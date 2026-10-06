@@ -64,9 +64,11 @@ tracked MSI project/authoring/lockfile presence, tampered/hidden/missing/extra
 files and invalid build identity. The source directory has an explicit Git
 ignore exception because Windows' case-insensitive `*.msi` rule otherwise
 hides `Kora.Msi`; generated MSI binaries and `obj` output remain ignored. NSIS-only
-acquisition/build code has been retired; the retained
-[source/native inspection checks and receipts](../experiments/r02-distribution-proof/README.md)
-do not supply installed acceptance.
+acquisition/build code has been retired. Maintained
+[source delivery](../eng/Invoke-SourceBootstrap.ps1) and
+[native/runtime inspection](../eng/Inspect-Publish.ps1) supersede the remaining
+distribution-only proof executables; [archived receipts](../experiments/r02-distribution-proof/README.md)
+retain their original revision/profile and do not supply installed acceptance.
 
 ## UI and branding
 

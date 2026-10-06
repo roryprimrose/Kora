@@ -28,7 +28,7 @@ function Expect-InspectionFailure {
 Write-ProofJson $originalInspection $inspectionPath
 Assert-SourceInspection $payload $inspectionPath $receipt.revision $receipt.build.version
 $passed.Add('Actual final output has coherent first-party versions, embedded resources and standard pinned SQLite')
-foreach ($field in 'schema', 'repository', 'revision', 'rid') {
+foreach ($field in 'schema', 'inspectorVersion', 'inspectionProfile', 'repository', 'revision', 'rid') {
     $inspection = Read-SourceJson $inspectionPath
     $inspection[$field] = 'invalid'
     Write-ProofJson $inspection $inspectionPath
@@ -37,6 +37,12 @@ foreach ($field in 'schema', 'repository', 'revision', 'rid') {
     } 'mismatch'
     Write-ProofJson $originalInspection $inspectionPath
 }
+$inspection = Read-SourceJson $inspectionPath
+$sqlite = @($inspection.nativeAssets | Where-Object { $_.published -ceq 'e_sqlite3.dll' })[0]
+$sqlite.package = 'SQLitePCLRaw.lib.e_sqlite3/99.99.99'
+Expect-InspectionFailure 'Pinned SQLite declaration must match selected checkout lock on initial build and rerun' {
+    Assert-SourceSqliteLock $receipt.checkout $inspection
+} 'selected revision dependency lock'
 Expect-InspectionFailure 'Wrong published assembly version refused without loading assemblies' {
     Assert-SourceInspection $payload $inspectionPath $receipt.revision '9.9.9'
 } 'Published version mismatch'

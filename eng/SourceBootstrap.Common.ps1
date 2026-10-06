@@ -1,7 +1,7 @@
-# Retained R02 helpers are shared read-only until native inspection is migrated.
-. (Join-Path $PSScriptRoot '..\experiments\r02-distribution-proof\ManagedSource.ps1')
+. (Join-Path $PSScriptRoot 'SourceCheckout.Common.ps1')
+. (Join-Path $PSScriptRoot 'NativeInspection.Common.ps1')
 
-$script:SourceBootstrapVersion = '1.0.0'
+$script:SourceBootstrapVersion = '1.1.0'
 $script:SourceRepository = 'https://github.com/roryprimrose/Kora.git'
 $script:SourceMaintenance = 'External operator; build-only, no updater or registration.'
 $script:SourceActivation = 'Unavailable: requires separate approved protected-deployment and installed gates.'
@@ -32,9 +32,8 @@ function Get-SourceToolFiles {
     @(
         foreach ($relative in 'eng\Invoke-SourceBootstrap.ps1', 'eng\SourceBootstrap.Common.ps1',
             'eng\Test-SourceStage.ps1', 'eng\Get-BuildVersion.ps1',
-            'experiments\r02-distribution-proof\ManagedSource.ps1',
-            'experiments\r02-distribution-proof\Common.ps1',
-            'experiments\r02-distribution-proof\Inspect-Publish.ps1') {
+            'eng\SourceCheckout.Common.ps1', 'eng\Distribution.Common.ps1',
+            'eng\NativeInspection.Common.ps1', 'eng\Inspect-Publish.ps1') {
             [ordered]@{ path = $relative; sha256 = (Get-FileHash -LiteralPath (Join-Path $base $relative)).Hash.ToLowerInvariant() }
         }
     )
@@ -148,7 +147,8 @@ function Assert-SourceInspection {
     param([string] $Payload, [string] $InspectionPath, [string] $Revision, [string] $Version)
     $inspection = Read-SourceJson $InspectionPath
     Assert-SourceFields $inspection ([ordered]@{
-        schema = 1; repository = 'https://github.com/roryprimrose/Kora'; revision = $Revision; rid = 'win-x64'
+        schema = 2; inspectorVersion = $script:PublishInspectionVersion; inspectionProfile = $script:PublishInspectionProfile
+        repository = 'https://github.com/roryprimrose/Kora'; revision = $Revision; rid = 'win-x64'
     })
     Assert-Payload $Payload $inspection
     foreach ($file in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'Microsoft.Data.Sqlite.dll',
@@ -170,13 +170,17 @@ function Assert-SourceInspection {
 
 function Invoke-SourceInspect {
     param([string] $Checkout, [string] $Payload, [string] $Stage, [string] $Revision, $Build)
-    & (Join-Path $PSScriptRoot '..\experiments\r02-distribution-proof\Inspect-Publish.ps1') `
+    & (Join-Path $PSScriptRoot 'Inspect-Publish.ps1') `
         -Payload $Payload -Revision $Revision -EvidenceDirectory (Join-Path $Stage 'inspection') `
         -BuildOrigin "$($Build.origin) SDK $($Build.sdk); $($Build.os)"
     Assert-SourceInspection $Payload (Join-Path $Stage 'inspection\payload.json') $Revision $Build.version
+    Assert-SourceSqliteLock $Checkout (Read-SourceJson (Join-Path $Stage 'inspection\payload.json'))
+}
+
+function Assert-SourceSqliteLock {
+    param([string] $Checkout, $Inspection)
     $lock = Read-SourceJson (Join-Path $Checkout 'src\Kora.Windows\packages.lock.json')
-    $inspection = Read-SourceJson (Join-Path $Stage 'inspection\payload.json')
-    $sqlite = @($inspection.nativeAssets | Where-Object { $_.published -ceq 'e_sqlite3.dll' })[0]
+    $sqlite = @($Inspection.nativeAssets | Where-Object { $_.published -ceq 'e_sqlite3.dll' })[0]
     $versions = @($lock.dependencies.Values | ForEach-Object {
         if ($_.ContainsKey('SQLitePCLRaw.lib.e_sqlite3')) { $_['SQLitePCLRaw.lib.e_sqlite3'].resolved }
     } | Sort-Object -Unique)
@@ -216,6 +220,7 @@ function Assert-SourceStage {
     Assert-Payload (Join-Path $Stage 'payload') $receipt
     Assert-Payload (Join-Path $Stage 'inspection') $receipt.evidence
     Assert-SourceInspection (Join-Path $Stage 'payload') (Join-Path $Stage 'inspection\payload.json') $Revision $receipt.build.version
+    Assert-SourceSqliteLock $Checkout (Read-SourceJson (Join-Path $Stage 'inspection\payload.json'))
     if ($RequireSmoke) {
         Assert-SourceFields $receipt.smoke ([ordered]@{
             status = 'passed'; kind = 'bounded-static-child'; applicationLaunched = $false; timeoutSeconds = 60
@@ -322,6 +327,7 @@ function Invoke-SourceBootstrap {
         $inputs = @(Get-SourceInputs $checkout)
         try {
             $build = Invoke-SourceCompile $checkout $payload $stage $Revision
+            if (@(Get-PayloadFiles $payload).Count -eq 0) { throw 'Empty publish output; previous output preserved.' }
             Invoke-SourceInspect $checkout $payload $stage $Revision $build
             $receipt = [ordered]@{
                 schema = 1; bootstrapVersion = $script:SourceBootstrapVersion; mode = 'managed-source-build-only'

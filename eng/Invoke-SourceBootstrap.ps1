@@ -3,7 +3,7 @@
 .SYNOPSIS
 Preview or build exact canonical Kora source into owned, verified local staging.
 .DESCRIPTION
-Version 1.0.0. Review this script, its sibling helpers and selected source/dependency
+Version 1.1.0. Review this script, its sibling helpers and selected source/dependency
 code before Build with -TrustBuildCode. Local-source channel only: never official
 release provenance or protected activation. Preview is read-only and the default.
 #>

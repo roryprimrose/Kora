@@ -71,10 +71,10 @@
     "explicitIceSkippedInspection": "Pass, not release validation"
   },
   "postRebaseValidation": {
-    "mainRevision": "90d8f4862c96f963f89890447848a9dbb9696fe8",
-    "rootTestsPassed": 1572,
+    "mainRevision": "790c4aa688333f2c5cb1553cb73955bb54049d36",
+    "rootTestsPassed": 1685,
     "fixtureTestsPassed": 83,
-    "combinedTestsPassed": 1655,
+    "combinedTestsPassed": 1768,
     "coreApplicationLineAndBranchCoverage": 100,
     "note": "Earlier validation above records dependency-batch checkpoint before upstream presence tests; current receipts in repository-validation.json"
   },

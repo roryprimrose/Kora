@@ -2,6 +2,9 @@
 
 Final fixture run: **2026-10-06 08:47:31 UTC**, after the compatible dependency
 refresh, rebase onto main `90d8f48` (#37/#38/#36) and monotonic timer-wake fix.
+Main then advanced to `790c4aa` (#39 R04); root gates were rerun on that
+base. All 18 isolated fixture source/script/lock hashes remain identical,
+so the 83 actual fixture results still apply without importing R04 tests.
 [Disposition](evidence/disposition.json), [actual runtime rows](evidence/runtime-results.json),
 [released RT1 regressions](evidence/rt1-released-regression.json),
 [input identities](evidence/input-verification.json) and
@@ -98,9 +101,9 @@ licenses and registry-independent locks were regenerated and checked.
 | MG1 host tests | Pass | **22/22**, including negative/hostile/exact-byte/admission/race, forward/backward UTC jumps and actual 31-request loopback forwarding. Rolling-hour admission uses monotonic timestamps, independent of wall-clock changes. These are not counted as SDK/native runtime cases. |
 | MG1 actual SDK/native cases | Pass | **16/16**, zero skips/failures, with exact byte/deadline/window/isolation/effect evidence above. |
 | Complete root Release solution | Pass | Includes managed setup; **0 warnings / 0 errors**, analyzers enabled. |
-| Core | Pass | **289/289** |
-| Application | Pass | **905/905** |
-| Windows integration | Pass | **378/378** |
+| Core | Pass | **307/307** |
+| Application | Pass | **941/941** |
+| Windows integration | Pass | **437/437** |
 | Core/Application coverage | Pass | **100% line / 100% branch**, configured minimum 100/100. Only fresh final-run reports included. |
 | Root dependency licenses / notices | Pass | Approved changed package versions reviewed and production notices regenerated; experiment excluded and separately reviewed. |
 | Experimental closure | Pass | Management 23 packages (13 MIT / 10 Apache-2.0); host 19 (9 MIT / 10 Apache-2.0); exact locks and SDK/native review separate. |
@@ -109,7 +112,7 @@ licenses and registry-independent locks were regenerated and checked.
 | Full local MSI ICE validation | **Blocked** | **WIX1105: system policy**. No elevation or policy change performed. |
 | Explicitly ICE-skipped MSI/Burn build/inspection | Pass, inspection only | Exact MSI/UI/application digests, dual-scope/runtime/startup contracts and 201 application paths inspected. Not full release validation; no installation or app launch. NSIS not used. |
 
-Total actual tests: **1572 root + 83 fixture = 1655**, zero final failures/skips.
+Total actual tests: **1685 root + 83 fixture = 1768**, zero final failures/skips.
 The earlier dependency-batch checkpoint had 1348 root tests; the upstream
 presence changes add tests, not sibling runtime counts imported as MG1 proof.
 No Node, sibling or zero-test counts contribute.
@@ -167,8 +170,8 @@ No Node, sibling or zero-test counts contribute.
   global policy change or sibling checkout mutation occurred.
 
 This worktree initially matched main `3e8558f` with merged #33/#34/#35.
-The user later requested publication and rebase; main `90d8f48` now includes
-#37 RT2, #38 W2 and #36 presence. Canonical conflict resolution preserves
+The user later requested publication and rebase; main `790c4aa` now includes
+#37 RT2, #38 W2, #36 presence and #39 R04 foundation. Canonical conflict resolution preserves
 RT2's bounded observations/all-path Blocked gate, W2's approved best-effort
 policy and MG1's separately pinned Pass. Full rebased root/fixture gates
 were rerun; no sibling or historical fixture changes occur in this branch.

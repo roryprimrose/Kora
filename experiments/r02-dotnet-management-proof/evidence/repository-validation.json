@@ -1,7 +1,9 @@
 {
-  "observedAtUtc": "2026-10-06T08:48:42.2090923+00:00",
+  "observedAtUtc": "2026-10-06T08:58:41.4754968+00:00",
   "fixtureValidatedAtUtc": "2026-10-06T08:47:31.5461750+00:00",
-  "baseRevision": "90d8f4862c96f963f89890447848a9dbb9696fe8",
+  "baseRevision": "790c4aa688333f2c5cb1553cb73955bb54049d36",
+  "validatedCodeRevision": "a2c37fec5c85e6fd254e8f1dd2666481c7b82f07",
+  "fixtureReuseAfterLatestRebase": "All18 actual fixture source/script/lock hashes unchanged; no root production references.83 actual fixture tests remain exact, root1685 rerun on latest R04 main.",
   "fixtureSnapshotBaseRevision": "3e8558fbff07943d39721b230599b02062d90d57",
   "sdk": "10.0.401",
   "os": "Microsoft Windows NT 10.0.26300.0",
@@ -16,40 +18,40 @@
   "rootSuites": [
     {
       "suite": "Core",
-      "total": 289,
-      "passed": 289,
+      "total": 307,
+      "passed": 307,
       "failed": 0,
       "skipped": 0,
-      "finishedUtc": "2026-10-06T08:38:58.992804Z",
-      "trxSha256": "7a7539f50d7e46096d3faf95b4a0db56a37e11e20d14b1d1f9ad225c3e42cf1e"
+      "finishedUtc": "2026-10-06T08:54:50.5879139Z",
+      "trxSha256": "9e271eaaa5895acd27a233dd06049cdc2c1241dd847b6bac4ae8e6cbea2cfa6a"
     },
     {
       "suite": "Application",
-      "total": 905,
-      "passed": 905,
+      "total": 941,
+      "passed": 941,
       "failed": 0,
       "skipped": 0,
-      "finishedUtc": "2026-10-06T08:39:03.2989385Z",
-      "trxSha256": "4c1794d00492fc0e5c5915c9c1492e792696da68eac32d83d5143e053dce7705"
+      "finishedUtc": "2026-10-06T08:54:54.9855489Z",
+      "trxSha256": "8944eda3aa7b44c2e9d5d20997b8f85cbf8afada5a7497f57ebe738652fd045d"
     },
     {
       "suite": "Windows",
-      "total": 378,
-      "passed": 378,
+      "total": 437,
+      "passed": 437,
       "failed": 0,
       "skipped": 0,
-      "finishedUtc": "2026-10-06T08:39:07.4617624Z",
-      "trxSha256": "a8c68e0fdab749f45f576d1bb0760be4f7eab519b2adee13cd63ce1e6b232cd8"
+      "finishedUtc": "2026-10-06T08:54:59.1573946Z",
+      "trxSha256": "cc220ce0e41c5bac2b6bed242f5416e5c8fdbdc044ca422b832c94ccf103d8a5"
     }
   ],
-  "rootTestTotal": 1572,
+  "rootTestTotal": 1685,
   "coverage": {
     "actualBranch": 100.0,
     "latestOnly": true,
     "minimumLine": 100,
     "minimumBranch": 100,
     "status": "Pass",
-    "reportSha256": "f1ea26376a35a4ed49df10bef2b9c66193eaad670953088beca42bafe5494097",
+    "reportSha256": "766cdaceb9374b0f28a13d389e67134123e374c24489b2ac7f4209b8061697bb",
     "freshInputReports": 2,
     "actualLine": 100.0
   },
@@ -106,7 +108,7 @@
   "installer": {
     "prerequisiteInstallations": 0,
     "explicitIceSkippedInspection": "Pass: WiX MSI/Burn exact 201 application paths; no installation",
-    "buildDirectory": "artifacts/installer/build-53440ce717ac470693e0a6e6ff297259",
+    "buildDirectory": "artifacts/installer/build-432acf17cd404584b13a0269a0e9b240",
     "fullIceAttemptDirectory": "artifacts/installer/build-86d94385001c4d89b459fdf8bb51777f",
     "fullIce": "Blocked: WIX1105 system policy; no elevation requested/performed"
   },
@@ -156,5 +158,5 @@
     }
   },
   "fixtureTestTotal": 83,
-  "combinedActualTestTotal": 1655
+  "combinedActualTestTotal": 1768
 }

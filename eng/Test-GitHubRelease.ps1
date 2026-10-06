@@ -4,12 +4,14 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tests\GitHubRelease.Fixture.ps1')
+. (Join-Path $PSScriptRoot 'SourceTools.Common.ps1')
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "KoraReleaseTests-$([guid]::NewGuid().ToString('N'))"
 $saved = @{}
 foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name)
 }
-$source = 'a' * 40
+$source = (& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the publication fixture tooling source.' }
 $version = '0.1.0-beta4'
 $global:KoraReleaseTestState = New-ReleaseFixtureState
 $assertions = 0
@@ -37,6 +39,11 @@ function Copy-State {
     return ($State | ConvertTo-Json -Depth 15 | ConvertFrom-Json -AsHashtable)
 }
 function New-Candidate {
+    $toolDirectory = Join-Path $fixture 'source-tools'
+    if (!(Test-Path -LiteralPath $toolDirectory)) { New-ProofDirectory $toolDirectory }
+    $tree = @(Get-LocalSourceToolTree (Join-Path $PSScriptRoot '..') $source)
+    New-SourceToolArchive (Join-Path $PSScriptRoot '..') $source $version `
+        (Join-Path $toolDirectory "Kora-$version-source-tools.zip") $tree
     foreach ($rid in @('win-x64', 'win-x86')) {
         $path = Join-Path $fixture "Kora-$rid"
         New-Item -ItemType Directory -Path $path -Force | Out-Null
@@ -176,12 +183,43 @@ try {
     Reject { Invoke-Release Publish } 'full ICE'
     Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Invalid candidate performed a release write.'
     [IO.File]::WriteAllBytes($receiptPath, $receiptBytes)
+    $toolPath = Join-Path $fixture "source-tools\Kora-$version-source-tools.zip"
+    $toolBytes = [IO.File]::ReadAllBytes($toolPath)
+    Remove-Item -LiteralPath $toolPath
+    Reject { Invoke-Release Publish }
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Missing source tools performed a release write.'
+    [IO.File]::WriteAllText($toolPath, 'corrupt source tools')
+    Reject { Invoke-Release Publish }
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Corrupt source tools performed a release write.'
+    [IO.File]::WriteAllBytes($toolPath, $toolBytes)
     Invoke-Release Publish | Out-Null
     $complete = Copy-State $global:KoraReleaseTestState
-    Assert (($complete.Writes -join ',') -eq "create,$((@('upload') * 8) -join ','),tag,publish") 'Incorrect mutation ordering.'
+    Assert (($complete.Writes -join ',') -eq "create,$((@('upload') * 9) -join ','),tag,publish") 'Incorrect mutation ordering.'
     Assert ((Invoke-Release).AlreadyPublished) 'Exact published release is not idempotent.'
     Invoke-Release Publish | Out-Null
     Assert ($global:KoraReleaseTestState.Writes.Count -eq $complete.Writes.Count) 'No-op publication changed assets.'
+
+    $historical = Copy-State $complete
+    $historical.Releases[0].assets = @($historical.Releases[0].assets | Where-Object name -CNE "Kora-$version-source-tools.zip")
+    $historicalManifest = [Text.Encoding]::UTF8.GetString([byte[]] $historical.Content['8']) | ConvertFrom-Json
+    $historicalManifest.assets = @($historicalManifest.assets | Where-Object name -CNE "Kora-$version-source-tools.zip")
+    $historical.Content['8'] = [Text.Encoding]::UTF8.GetBytes(($historicalManifest | ConvertTo-Json -Depth 6))
+    $manifestAsset = @($historical.Releases[0].assets | Where-Object name -CEQ 'release-manifest.json')[0]
+    $manifestAsset.size = $historical.Content['8'].Length
+    $manifestAsset.digest = 'sha256:' + [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([byte[]] $historical.Content['8']))
+    $historical.Content['7'] = [Text.Encoding]::UTF8.GetBytes((@($historical.Releases[0].assets |
+        Where-Object name -CNE 'SHA256SUMS.txt' | ForEach-Object { "$($_.digest.Substring(7))  $($_.name)" }) -join "`n"))
+    $checksumAsset = @($historical.Releases[0].assets | Where-Object name -CEQ 'SHA256SUMS.txt')[0]
+    $checksumAsset.size = $historical.Content['7'].Length
+    $checksumAsset.digest = 'sha256:' + [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([byte[]] $historical.Content['7']))
+    $global:KoraReleaseTestState = Copy-State $historical
+    Assert ((Invoke-Release).AlreadyPublished) 'Historical eight-asset release was not retained as a read-only no-op.'
+    Invoke-Release Publish | Out-Null
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq $complete.Writes.Count) 'Historical publication was extended or changed.'
+    $global:KoraReleaseTestState = Copy-State $historical
+    $global:KoraReleaseTestState.Releases[0].draft = $true
+    Reject { Invoke-Release Publish } 'provenance'
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq $complete.Writes.Count) 'Historical draft provenance was overwritten to add tools.'
 
     foreach ($field in @('target_commitish', 'body', 'prerelease', 'digest', 'size', 'name', 'state', 'tag')) {
         $global:KoraReleaseTestState = Copy-State $complete
@@ -310,9 +348,9 @@ try {
     Assert (@($global:KoraReleaseTestState.Calls | Where-Object { ($_ -join ' ') -like '*page=2*' }).Count -gt 0) 'Lookup omitted the second page.'
     $global:KoraReleaseTestState = Copy-State $complete
     $global:KoraReleaseTestState.Tag = @{ object = @{ type = 'tag'; sha = 'c' * 40 } }
-    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ object = @{ type = 'commit'; sha = $source } }
+    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ sha = 'c' * 40; object = @{ type = 'commit'; sha = $source } }
     Assert ((Invoke-Release).AlreadyPublished) 'Annotated exact-source tag was rejected.'
-    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ object = @{ type = 'tag'; sha = 'c' * 40 } }
+    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ sha = 'c' * 40; object = @{ type = 'tag'; sha = 'c' * 40 } }
     Reject { Invoke-Release } 'exact source revision'
 
     Test-RunnerExit

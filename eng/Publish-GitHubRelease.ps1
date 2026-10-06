@@ -11,9 +11,8 @@ param(
     [string] $ArtifactPath
 )
 
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-$repository = 'roryprimrose/Kora'
+. (Join-Path $PSScriptRoot 'SourceTools.Common.ps1')
+$repository = $script:KoraRepository
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne $repository -or
     $env:GITHUB_EVENT_NAME -notin @('push', 'workflow_dispatch')) {
     throw 'Release operations require the canonical repository main/tag workflow, never a local, fork or PR run.'
@@ -26,58 +25,13 @@ $tag = "v$Version"
 $prerelease = $Version -like '*-beta*'
 $names = @("Kora-$Version-win-x64.zip", "Kora-$Version-win-x86.zip",
     "Kora-$Version-win-x64.msi", "Kora-Setup-$Version-win-x64.exe",
-    'installer-build.json', 'payload-manifest.json', 'SHA256SUMS.txt', 'release-manifest.json')
-
-function Invoke-Gh {
-    param([string[]] $Arguments)
-    $output = @(& gh @Arguments 2>&1 | ForEach-Object { $_.ToString() })
-    if ($LASTEXITCODE -ne 0) { throw "GitHub operation failed: $($Arguments[0]). $($output -join "`n")" }
-    return $output
-}
-
-function Get-GitHubRecord {
-    param([string] $Path)
-    $response = @(& gh api --include $Path 2>&1)
-    $exit = $LASTEXITCODE
-    $text = ($response | ForEach-Object { $_.ToString() }) -join "`n"
-    $status = [regex]::Match($text, '(?m)^HTTP/\S+ (\d{3})')
-    if ($status.Success -and $status.Groups[1].Value -eq '404' -and $exit -ne 0) {
-        # Actions' pwsh epilogue must not treat an explicitly accepted absence as failure.
-        $global:LASTEXITCODE = 0
-        return $null
-    }
-    if ($exit -ne 0 -or -not $status.Success -or $status.Groups[1].Value -ne '200') {
-        throw "Cannot establish GitHub publication state. $text"
-    }
-    $body = [regex]::Match($text, '(?s)\r?\n\r?\n(.*)$')
-    if (-not $body.Success) { throw 'GitHub response has no JSON body.' }
-    return $body.Groups[1].Value | ConvertFrom-Json
-}
-
-function Assert-TagSource {
-    param($Reference)
-    $target = $Reference.object
-    $depth = 0
-    while ($target.type -eq 'tag' -and $depth -lt 8) {
-        $annotated = (Invoke-Gh -Arguments @('api', "repos/$repository/git/tags/$($target.sha)")) -join "`n" | ConvertFrom-Json
-        $target = $annotated.object
-        $depth++
-    }
-    if ($target.type -ne 'commit' -or $target.sha -ne $SourceRevision) {
-        throw 'Published tag does not resolve to the exact source revision.'
-    }
-}
+    'installer-build.json', 'payload-manifest.json', 'SHA256SUMS.txt', 'release-manifest.json',
+    "Kora-$Version-source-tools.zip")
 
 function Get-ReleaseState {
     # The tag endpoint excludes drafts. List all pages as well, and reject ambiguous pending tags.
     $published = Get-GitHubRecord "repos/$repository/releases/tags/$tag"
-    $matches = @()
-    for ($page = 1; ; $page++) {
-        $records = @(((Invoke-Gh -Arguments @('api', "repos/$repository/releases?per_page=100&page=$page")) -join "`n") |
-            ConvertFrom-Json)
-        $matches += @($records | Where-Object tag_name -eq $tag)
-        if ($records.Count -lt 100) { break }
-    }
+    $matches = @(Get-CanonicalReleases | Where-Object tag_name -eq $tag)
     if ($null -ne $published -and $published.id -notin @($matches | ForEach-Object id)) { $matches += $published }
     if ($matches.Count -gt 1) { throw 'Multiple releases claim this version; manual reconciliation is required.' }
     if ($matches.Count -eq 0) { return $null }
@@ -88,17 +42,12 @@ function Get-ReleaseState {
 
 function Assert-ReleaseIdentity {
     param($Release)
-    $markers = [regex]::Matches($Release.body, '<!-- kora-source: ([a-f0-9]{40}) -->')
-    if ($Release.draft -isnot [bool] -or $Release.prerelease -isnot [bool] -or
-        $Release.prerelease -ne $prerelease -or $Release.tag_name -cne $tag -or
-        $Release.target_commitish -cne $SourceRevision -or $markers.Count -ne 1 -or
-        $markers[0].Groups[1].Value -cne $SourceRevision) {
-        throw 'Release conflicts with exact source/channel; no promotion or overwrite is permitted.'
-    }
+    Assert-CanonicalReleaseIdentity $Release $Version $SourceRevision
     $seen = @()
     foreach ($asset in $Release.assets) {
         if ($asset.name -cnotin $names -or $asset.name -cin $seen -or $asset.state -ne 'uploaded' -or
-            $asset.size -le 0 -or $asset.digest -cnotmatch '^sha256:[A-Fa-f0-9]{64}$') {
+            $asset.size -le 0 -or $asset.digest -cnotmatch '^sha256:[A-Fa-f0-9]{64}$' -or
+            ($asset.name -ceq "Kora-$Version-source-tools.zip" -and $asset.size -gt 16777216)) {
             throw 'Release has unknown, duplicate or incomplete assets; manual reconciliation is required.'
         }
         $seen += $asset.name
@@ -134,7 +83,7 @@ function Assert-PublishedRelease {
     $reference = Get-GitHubRecord "repos/$repository/git/ref/tags/$tag"
     if ($null -eq $reference) {
         if (-not $AllowDraft) { throw 'Published release has no tag.' }
-    } else { Assert-TagSource $reference }
+    } else { Assert-TagSource $reference $SourceRevision }
     $actualNames = @($Release.assets.name | Sort-Object)
     if (($actualNames -join '|') -ne (($names | Sort-Object) -join '|')) {
         throw 'Published release has missing or unexpected assets.'
@@ -161,6 +110,19 @@ function Assert-PublishedRelease {
         $published = @($Release.assets | Where-Object name -eq $name)[0]
         if ($published.digest -ine "sha256:$digest") { throw "Published checksum differs from GitHub digest: $name" }
         $checked += $name
+    }
+    $toolName = "Kora-$Version-source-tools.zip"
+    if (-not $AllowDraft -and $toolName -cin $names) {
+        $verification = Join-Path ([IO.Path]::GetTempPath()) "KoraSourceRelease-$([guid]::NewGuid().ToString('N'))"
+        New-ProofDirectory $verification
+        try {
+            Save-DraftAsset $Release $toolName $verification | Out-Null
+            $tree = @(Get-CanonicalSourceToolTree $SourceRevision)
+            Test-SourceToolArchive (Join-Path $verification $toolName) $SourceRevision $Version $tree | Out-Null
+            $reference = Get-GitHubRecord "repos/$repository/git/ref/tags/$tag"
+            if ($null -eq $reference) { throw 'Published release tag disappeared.' }
+            Assert-TagSource $reference $SourceRevision
+        } finally { Remove-Item -LiteralPath $verification -Recurse -Force }
     }
 }
 
@@ -238,6 +200,10 @@ function Assert-StagedAssets {
 
 $existing = Get-ReleaseState
 if ($null -ne $existing) {
+    # Old published eight-asset releases are immutable historical no-ops, not source-tool releases.
+    if (-not $existing.draft -and "Kora-$Version-source-tools.zip" -cnotin @($existing.assets.name)) {
+        $names = @($names | Where-Object { $_ -cne "Kora-$Version-source-tools.zip" })
+    }
     Assert-ReleaseIdentity $existing
     if (-not $existing.draft) {
         Assert-PublishedRelease $existing
@@ -246,7 +212,7 @@ if ($null -ne $existing) {
     }
 }
 $reference = Get-GitHubRecord "repos/$repository/git/ref/tags/$tag"
-if ($null -ne $reference) { Assert-TagSource $reference }
+if ($null -ne $reference) { Assert-TagSource $reference $SourceRevision }
 if ($Action -eq 'Check') { return [pscustomobject] @{ AlreadyPublished = $false } }
 if (-not $ArtifactPath) { throw 'Publication requires the exact downloaded build artifacts.' }
 $ArtifactPath = [IO.Path]::GetFullPath($ArtifactPath)
@@ -298,6 +264,13 @@ try {
     foreach ($name in @("Kora-Setup-$Version-win-x64.exe", 'installer-build.json', 'payload-manifest.json')) {
         Copy-Item -LiteralPath (Join-Path $installer $name) -Destination $output
     }
+    $toolName = "Kora-$Version-source-tools.zip"
+    $toolPath = Join-Path $output $toolName
+    $sourceTree = Get-LocalSourceToolTree -RepositoryPath (Join-Path $PSScriptRoot '..') -Revision $SourceRevision
+    if ($null -eq $existing -or -not (Save-DraftAsset $existing $toolName $output)) {
+        Copy-Item -LiteralPath (Join-Path $ArtifactPath "source-tools\$toolName") -Destination $toolPath
+    }
+    Test-SourceToolArchive -Path $toolPath -Revision $SourceRevision -Version $Version -Tree $sourceTree | Out-Null
     $digests = @(Get-ChildItem -LiteralPath $output -File | Sort-Object Name | ForEach-Object {
         [ordered] @{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
     })
@@ -339,6 +312,9 @@ SHA256SUMS.txt and the exact-source release manifest; these are not independent 
 - Windows 11 x64: use Kora-Setup-$Version-win-x64.exe for dependency-aware setup.
 - Application ZIPs are framework-dependent compiled binaries, not source bootstrap.
   x86 is a static publish candidate, not an accepted x86 installer/runtime commitment.
+- Kora-$Version-source-tools.zip is the complete source-bootstrap v1.1.0 tool closure.
+  Acquire/review with the maintained static resolver; building exact source requires explicit trust.
+  No source activation, installation, elevation, registration or launch is available.
 - MSI uses the numeric $($receipt.productVersion) version; beta builds sharing it are not upgrade-ordered.
 - Silent related-bundle upgrades are unsupported. Use explicit external uninstall/reinstall
   retaining user data until that lifecycle path is implemented and validated.
@@ -398,7 +374,7 @@ $($generated.body)
         $reference = Get-GitHubRecord "repos/$repository/git/ref/tags/$tag"
         if ($null -eq $reference) { throw 'Exact-source tag creation was not established; draft remains unpublished.' }
     }
-    Assert-TagSource $reference
+    Assert-TagSource $reference $SourceRevision
     # Recheck both identities after the last write and before removing the draft boundary.
     $draft = Get-ReleaseState
     if ($null -eq $draft -or $draft.id -ne $draftId) { throw 'Draft identity changed before publication.' }

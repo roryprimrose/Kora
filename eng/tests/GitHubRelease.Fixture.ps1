@@ -73,6 +73,14 @@ function gh {
     if ($path -like '*/git/tags/*') {
         return $state.Annotated[$path.Split('/')[-1]] | ConvertTo-Json -Depth 4
     }
+    if ($path -like '*/git/commits/*') {
+        return @{ sha = $path.Split('/')[-1]; tree = @{ sha = 'd' * 40 } } | ConvertTo-Json
+    }
+    if ($path -like '*/git/trees/*') {
+        $source = $state.Releases[0].target_commitish
+        $tree = @(Get-LocalSourceToolTree (Join-Path $PSScriptRoot '..\..') $source)
+        return @{ sha = 'd' * 40; truncated = $false; tree = $tree } | ConvertTo-Json -Depth 6
+    }
     if ($path -like '*/releases/assets/*') {
         if ($state.ContentStatus -ne 200) { $global:LASTEXITCODE = 1; return "Synthetic asset API failure $($state.ContentStatus)" }
         return [Text.Encoding]::UTF8.GetString([byte[]] $state.Content[$path.Split('/')[-1]])
@@ -124,7 +132,7 @@ function gh {
         'publish' {
             $release = @($state.Releases | Where-Object id -eq $path.Split('/')[-1])[0]
             if ($null -eq $state.Tag -or $state.Tag.object.sha -ne $release.target_commitish -or
-                $release.assets.Count -ne 8 -or $arguments -notcontains "target_commitish=$($release.target_commitish)") {
+                $release.assets.Count -ne 9 -or $arguments -notcontains "target_commitish=$($release.target_commitish)") {
                 throw 'Fixture forbids unverified publication.'
             }
             $release.draft = $false

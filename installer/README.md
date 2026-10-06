@@ -70,6 +70,36 @@ acquisition/build code has been retired. Maintained
 distribution-only proof executables; [archived receipts](../experiments/r02-distribution-proof/README.md)
 retain their original revision/profile and do not supply installed acceptance.
 
+## Source-tool acquisition (build-only)
+
+The maintained [static resolver](../eng/Resolve-SourceTools.ps1) acquires
+`Kora-<version>-source-tools.zip` from canonical published releases without
+executing downloaded scripts. Run it from an independently reviewed checkout;
+PowerShell 7, GitHub CLI and GitHub API access are required. Default
+`-Action Preview -Channel production` is metadata-only and excludes
+drafts/prereleases. Explicit `-Channel preview` admits published prereleases,
+never drafts. Optional `-Revision <full-lowercase-40-character-SHA>` binds
+selection to exact canonical source; mutable branches/tags are not build identity.
+
+Use `-Action Acquire -OutputDirectory <new-dedicated-directory>` to download
+by asset ID, verify final ZIP size/digest and every declared tool against that
+commit's canonical Git tree, then safely extract the complete eight-tool
+v1.1.0 closure plus manifest. Complete unchanged reruns verify without
+overwrite/redownload; partial, hostile or altered output is retained/refused.
+Review the extracted manifest/helpers, exact source and dependencies before
+invoking [Invoke-SourceBootstrap.ps1](../eng/Invoke-SourceBootstrap.ps1) with
+the acquired revision and explicit `-Action Build -TrustBuildCode`.
+Building also requires Git and the exact source-pinned .NET SDK; binary users
+need neither. Tool-manifest revision/byte mismatches fail before a build.
+
+The [usable commands and trust limits](../Design/Distribution_And_Updates.md#immutable-tool-acquisition-and-channel-resolution)
+are authoritative. No source installer, activation, elevation, registration,
+app/native launch or independently signed publisher is implied. Source output
+remains local-source staging, not an official/protected binary deployment.
+The acquisition **production** channel is a stable selection policy, not
+D-005 acceptance. Earlier published releases without the tool asset fail
+acquisition visibly and remain immutable; use a release that contains it.
+
 ## UI and branding
 
 The custom out-of-process Burn bootstrapper uses the same Avalonia packages as
@@ -388,7 +418,11 @@ Canonical main builds and stable main-tag builds upload application/installer
 Actions artifacts and automatically create GitHub Releases after all CI gates
 pass. Beta versions are prereleases, never `latest`; stable tags create normal
 releases. Assets include x64/x86 compiled application ZIPs, x64 MSI/Burn,
-SHA-256 checksums and exact-source payload/installer/release manifests.
+SHA-256 checksums, exact-source payload/installer/release manifests and the
+complete immutable source-tool ZIP. Portable CI statically verifies/packages
+the source tools; the same non-overwriting draft/tag/retry publisher verifies
+all nine final assets. Published older eight-asset releases are historical
+read-only no-ops, not source-tool candidates.
 The x86 publish is not an accepted x86 installer/runtime commitment.
 
 Release notes combine generated PR changes using [.github/release.yml](../.github/release.yml)

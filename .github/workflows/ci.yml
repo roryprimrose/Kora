@@ -180,6 +180,25 @@ jobs:
             ./eng/Test-InstallerPayload.ps1 -PayloadPath "artifacts/Kora-$rid" -Version "$env:Version" -SourceRevision "$env:GITHUB_SHA" -WriteManifest
           }
 
+      - name: Inspect approved Windows native and runtime payloads
+        shell: pwsh
+        run: |
+          foreach ($rid in @('win-x64', 'win-x86')) {
+            $evidence = "artifacts/publish-inspection/$rid"
+            ./eng/Inspect-Publish.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Revision "$env:GITHUB_SHA" -EvidenceDirectory $evidence -BuildOrigin "GitHub Actions $env:GITHUB_RUN_ID/$env:GITHUB_RUN_ATTEMPT; Linux cross-publish; static-only"
+            $tests = Join-Path $env:RUNNER_TEMP "kora-publish-contracts-$rid"
+            ./eng/Test-PublishContracts.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Inspection "$evidence/payload.json" -OutputDirectory $tests
+            Copy-Item -LiteralPath (Join-Path $tests 'tests.json') -Destination "$evidence/contract-tests.json"
+          }
+
+      - name: Upload static publish inspection
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: publish-inspection
+          path: artifacts/publish-inspection
+          if-no-files-found: error
+
       - name: Upload dependency license audit
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -253,6 +272,18 @@ jobs:
       - name: Test payload rejection before packaging
         shell: pwsh
         run: .\eng\Test-InstallerPayloadContracts.ps1
+
+      - name: Test build-only source ownership and recovery
+        shell: pwsh
+        run: .\eng\Test-SourceBootstrap.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'kora-source-bootstrap-contracts')
+
+      - name: Upload source bootstrap fixture results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: source-bootstrap-contracts
+          path: ${{ runner.temp }}/kora-source-bootstrap-contracts/tests.json
+          if-no-files-found: error
 
       - name: Run Windows integration tests
         run: >

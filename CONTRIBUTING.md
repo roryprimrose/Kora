@@ -55,6 +55,11 @@ with fresh dedicated scratch directories outside all repositories. These
 script checks do not install or launch Kora; a real exact-revision source
 publish/static verification is a separate permitted build check, not
 protected/installed acceptance.
+Distribution tooling and static native/runtime/import/resource checks now live
+under `eng`, including the [both-RID publish contracts](eng/Test-PublishContracts.ps1).
+Use fresh inspection evidence outside the payload and fresh fixture outputs
+outside all repositories. Source interface 1.1.0 does not adopt/relabel older
+owner/tool-path receipts; historical experiment evidence is archived unchanged.
 
 If an intentional dependency change alters the notice report, review the new
 license and provenance first. Add an approved license identifier or a

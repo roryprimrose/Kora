@@ -119,7 +119,7 @@ or ambient-system SQLite load as a broken release.
 ### Implemented Preview / Build-Only Interface
 
 [Invoke-SourceBootstrap.ps1](../eng/Invoke-SourceBootstrap.ps1), interface version
-**1.0.0**, is an external operator tool, not an in-app setup action or updater.
+**1.1.0**, is an external operator tool, not an in-app setup action or updater.
 Its default `Preview` returns a reviewable plan without creating directories,
 cloning, restoring, building, installing or launching. `Build` requires
 `-TrustBuildCode`: installation-time trust in the reviewed bootstrap, exact
@@ -142,7 +142,7 @@ confers activation authority.
 Review the script and its complete helper set from an independently selected
 immutable repository snapshot or source archive that contains this tooling.
 The entry point is reviewable/downloadable source, not a standalone installer;
-it needs its relative `eng` and retained distribution-helper files. Verify
+it needs its relative `eng` helper files, not executable experiment files. Verify
 acquired bytes against the selected trusted snapshot before executing.
 Do not pipe a mutable URL to PowerShell, download/execute a helper on demand,
 or infer publisher authentication from a self-supplied checksum. This
@@ -169,12 +169,24 @@ prerequisite setup, accounts, security settings or models are changed.
 
 ### Ownership, Verification and Recovery
 
-The [orchestrator](../eng/SourceBootstrap.Common.ps1) reuses retained R02
-exact-checkout, no-links, payload inventory/hash and
-[native/resource/runtime inspection](../experiments/r02-distribution-proof/Inspect-Publish.ps1)
-helpers **read-only**. This is not a second installer feasibility project.
-Their migration into shared maintained release tooling remains coordinated
-D02 work; historical experiment receipts are unchanged.
+The [orchestrator](../eng/SourceBootstrap.Common.ps1) now owns source delivery
+with maintained [detached-checkout checks](../eng/SourceCheckout.Common.ps1),
+[path/ownership and payload-hash helpers](../eng/Distribution.Common.ps1),
+[native/runtime/import/resource helpers](../eng/NativeInspection.Common.ps1)
+and [publish inspection](../eng/Inspect-Publish.ps1). There is no executable
+dependency on the distribution experiment. This is not a second installer
+feasibility project. The [archived receipts and disposition](../experiments/r02-distribution-proof/README.md)
+retain their original source/profile meaning and bytes.
+
+Interface 1.1.0 binds eight maintained tool paths and their actual SHA-256
+digests in `bootstrapFiles`; the [tool closure](../eng/SourceBootstrap.Common.ps1)
+includes the entry point, orchestrator, static child, version resolver and
+four inspection/checkout helpers. Old 1.0.0 owners or experiment-path receipts
+are refused, not automatically adopted, migrated or relabelled. Use a fresh
+dedicated root for a newly reviewed tool snapshot; retain older outputs and
+receipts for review. Inspector **schema 2**, version **1.0.0**, profile
+`windows-framework-dependent-v1` records the admitted RID and current observed
+assets. Historical schema-1 receipts are not new reproductions of that profile.
 
 - Only a new dedicated root or a root with a matching, versioned
   `source-owner.json` can be used. Existing repositories, nested worktree
@@ -195,6 +207,16 @@ D02 work; historical experiment receipts are unchanged.
   match the local build. Licence/notice files and standard SQLite managed/native
   payloads are required; the SQLite package identity must match the selected
   dependency lock. SQLite is not an optional setup/download package.
+- Standalone maintained inspection admits only **win-x64 / win-x86**, checks
+  the selected dependency target and each declared native asset's RID/path,
+  requires AMD64 / I386 native PEs respectively and rejects missing native
+  assets or launch-critical SQLite/runtime metadata. Managed AnyCPU assemblies
+  are not misclassified as native x86 libraries. Declared PDB/import-library
+  entries remain inventoried and hashed as `symbols-or-import-library`;
+  their inclusion still needs per-release justification, not silent removal
+  or an invented runtime-architecture claim. Evidence must be fresh and outside
+  the payload; inspection cannot overwrite earlier evidence or change payload
+  bytes. Source bootstrap still builds **win-x64 only**.
 - A **60-second bounded static PowerShell child** revalidates stage identity,
   source inputs, tooling digests, evidence and payload hashes. It never loads
   Kora assemblies/native libraries or launches the app. This is structural
@@ -263,10 +285,63 @@ For fresh owned test directories **outside every source repository**:
     -OutputDirectory 'C:\KoraSourceTests\fresh-inspection'
 ```
 
-CI ownership remains separate: these new script gates must be wired into the
-appropriate job alongside CI repair, without importing sibling code or
-changing release prechecks. Installed/protected/runtime-only acceptance and
-immutable source-tool distribution are still open, not inferred from tests.
+That snapshot describes #43's tooling and original receipt, not the migration
+below. Its hashes and counts have not been rewritten.
+
+### Maintained Proof Migration Verification (2026-10-07)
+
+R17's distribution-only migration was validated in clean isolated
+`agents/kora-r17-proof-migration-20261006`, based on
+`c5dffabf8f4fa767147be06dd8b296238ea97da0` (tree
+`ce31623ffbcb555b5a940fe2389221c480e97c0d`). Tooling changes remained uncommitted;
+the actual application build used a separate clean canonical detached checkout
+at that exact committed revision, not uncommitted application code.
+
+| Check | Observed result / boundary |
+|---|---|
+| Locked root restore / Release | Passed; zero warnings/errors. |
+| Root suites | 338 Core, 1,049 Application, 495 Windows; **1,882 passed**, zero failed/skipped. |
+| Fresh portable coverage | **6,246/6,246 lines; 2,685/2,685 branches (100%)**; only the one fresh report per Core/Application suite was merged, including the final post-retirement rerun. |
+| Maintained source ownership/failure contracts | **80** passed, including exact eight maintained paths/hashes, detached checkout, long paths, empty output, obsolete version/path receipts, local edits, changed origin/HEAD, lock contention, partial retention, SDK/locked restore and child failure/timeout. |
+| Actual canonical source build / rerun | SDK **10.0.401**, locked restore, Release win-x64 publish, schema-2 inspection and bounded static child passed. Rerun reused without rebuilding or rewriting its receipt. |
+| Final source receipt | SHA-256 `ce9c168e632bd52ef08a2486e2e13f677a22e5d8d4442cd5473557ba02fbd0d8`; local scratch identity only, not a release/signature or bit-reproduction guarantee. |
+| Stage inspection contracts | **18** passed against owned copies of actual output, including exact source/profile/version/resources/licensing/SQLite and selected-lock mismatch refusal. |
+| Both approved RID inspections | Locked exact-source win-x64: **83 files / 258,004,806 bytes / 7 native PEs / 10 declared assets**; win-x86: **79 files / 241,153,463 bytes / 5 native PEs / 6 declared assets**. **27 contracts per RID** passed before and after retirement, also against separate installer-manifest-bearing transfer copies. Wrong architecture, target/asset RID, missing declared assets/SQLite/runtime metadata, changed frameworks and tampered transferred bytes fail closed. |
+| Static equivalence | On identical final x64 bytes, the old and maintained inspectors matched complete payload hashes, frameworks, PE machines/imports/resources, declared native assets, package/licensing metadata and release blockers. New schema/profile/RID identity, deterministic ordering and auxiliary-native kinds are explicit additions, not changed historical evidence. |
+| Older output/evidence | Changed helper hashes refused reuse of an earlier actual output; its receipt and failed staging were retained, not relabelled. All seven committed R02 receipts/inventories retain their original bytes and SHA-256 values. |
+| Existing policy gates | Version, fake-CLI release-state, transferred-payload rejection and dependency-licence/notice parity passed. Fake publication output is not an actual GitHub release. |
+
+The x86 payload currently has **no ONNX Runtime native payload** despite
+declared ONNX packages. Schema-2 inspection records that capability gap and a
+release blocker explicitly. x86 static SQLite/apphost/native inspection is
+not x86 inference, installed runtime, or x86 installer acceptance. The x64
+normal ONNX imports still require the observed VC++ v14 runtime; import
+inventory is not delay/dynamic-loader qualification. Raw OpenTK nuspec
+warnings remain separate from the passed solution licence gate's reviewed
+version-specific overrides.
+
+CI now configures source ownership/failure fixtures in the Windows integration
+job and both-RID inspection/contracts after portable publication, with separate
+inspection/test artifacts. Release-state scripts, publication prechecks and
+installer payload contracts are unchanged. This is configured CI, not a new
+live Actions receipt; actual source build/stage contracts remain an explicitly
+trusted operator check.
+
+To inspect a newly reviewed payload without loading it:
+
+```powershell
+.\eng\Inspect-Publish.ps1 -Payload '.\artifacts\Kora-win-x64' -Rid win-x64 `
+    -Revision $revision -EvidenceDirectory '.\artifacts\fresh-inspection-x64' `
+    -BuildOrigin 'Describe the actual exact source, build environment and input provenance'
+.\eng\Test-PublishContracts.ps1 -Payload '.\artifacts\Kora-win-x64' -Rid win-x64 `
+    -Inspection '.\artifacts\fresh-inspection-x64\payload.json' `
+    -OutputDirectory 'C:\KoraSourceTests\fresh-publish-contracts'
+```
+
+Use `win-x86` and its own exact payload/evidence for the other approved static
+profile; do not relabel x64 receipts. Build-origin text is operator metadata,
+not authenticated provenance. Installed/protected/native-loading/runtime-only
+acceptance, immutable source-tool distribution and **D-005 remain open**.
 
 ## Precompiled Build Artifacts
 

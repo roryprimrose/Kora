@@ -16,13 +16,25 @@ function Expect-SourceFailure {
     if (!$caught) { throw "Expected rejection: $Name" }
     $passed.Add($Name)
 }
-foreach ($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*Source*.ps1') {
+foreach ($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1') {
     $tokens = $null
     $errors = $null
     [Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
     if ($errors.Count) { throw ($errors | Out-String) }
 }
-$passed.Add('All source scripts parse')
+$passed.Add('All maintained eng scripts parse')
+$expectedTools = @('eng\Invoke-SourceBootstrap.ps1', 'eng\SourceBootstrap.Common.ps1',
+    'eng\Test-SourceStage.ps1', 'eng\Get-BuildVersion.ps1', 'eng\SourceCheckout.Common.ps1',
+    'eng\Distribution.Common.ps1', 'eng\NativeInspection.Common.ps1', 'eng\Inspect-Publish.ps1')
+$tools = @(Get-SourceToolFiles)
+if (($tools.path -join '|') -cne ($expectedTools -join '|')) { throw 'Maintained bootstrap tool closure changed.' }
+foreach ($tool in $tools) {
+    $path = Join-Path (Join-Path $PSScriptRoot '..') $tool.path
+    if ($tool.sha256 -cne (Get-FileHash -LiteralPath $path).Hash.ToLowerInvariant()) {
+        throw "Tool identity does not describe maintained bytes: $($tool.path)"
+    }
+}
+$passed.Add('Exact eight maintained helper paths and actual SHA-256 tool closure; no experiment ownership')
 $repository = Join-Path $OutputDirectory 'fixture-repository'
 New-ProofDirectory $repository
 Invoke-Checked 'git' @('init', $repository)
@@ -81,6 +93,7 @@ function Invoke-SourceCompile {
         $phase | Set-Content -LiteralPath (Join-Path $Stage "$phase.log")
         if ($script:failure -ceq $phase) { throw "fixture $phase failure" }
     }
+    if ($script:failure -ceq 'empty') { return @{} }
     Copy-Item -LiteralPath (Join-Path $Checkout 'input.txt') -Destination (Join-Path $Payload 'fixture.txt')
     switch ($script:change) {
         'tracked' { 'operator edit' | Set-Content -LiteralPath (Join-Path $Checkout 'input.txt') }
@@ -104,6 +117,7 @@ function Assert-SourceInspection {
     Assert-SourceFields $inspection @{ schema = 1; revision = $Revision }
     Assert-Payload $Payload $inspection
 }
+function Assert-SourceSqliteLock { }
 $originalSmoke = ${function:Invoke-SourceSmoke}
 function Invoke-SourceSmoke {
     if ($script:failure -ceq 'smoke') { throw 'fixture smoke failure' }
@@ -163,6 +177,16 @@ Write-ProofJson $receipt $receiptPath
 Expect-SourceFailure 'Bootstrap tooling hash mismatch refused' { Build-Fixture $root $revision } 'tooling hashes changed'
 $originalReceipt | Set-Content -LiteralPath $receiptPath -NoNewline
 $receipt = Read-SourceJson $receiptPath
+$receipt.bootstrapFiles[-1].path = 'experiments\r02-distribution-proof\Inspect-Publish.ps1'
+Write-ProofJson $receipt $receiptPath
+Expect-SourceFailure 'Old experiment tool-path receipt refused, never relabelled' { Build-Fixture $root $revision } 'tooling hashes changed'
+$originalReceipt | Set-Content -LiteralPath $receiptPath -NoNewline
+$receipt = Read-SourceJson $receiptPath
+$receipt.bootstrapVersion = '1.0.0'
+Write-ProofJson $receipt $receiptPath
+Expect-SourceFailure 'Historical bootstrap version refused without migration/adoption' { Build-Fixture $root $revision } 'mismatch'
+$originalReceipt | Set-Content -LiteralPath $receiptPath -NoNewline
+$receipt = Read-SourceJson $receiptPath
 $receipt.inputs[0].sha256 = '0' * 64
 Write-ProofJson $receipt $receiptPath
 Expect-SourceFailure 'Input hash mismatch refused' { Build-Fixture $root $revision } 'inputs changed'
@@ -189,6 +213,12 @@ $inspectionBytes = [IO.File]::ReadAllBytes($inspectionPath)
 Expect-SourceFailure 'Inspection hash mismatch refused' { Build-Fixture $root $revision } 'Payload identity'
 [IO.File]::WriteAllBytes($inspectionPath, $inspectionBytes)
 $checkout = Join-Path $root "checkouts\$revision"
+$longPaths = (& git -C $checkout config --bool core.longpaths | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $longPaths -cne 'true') { throw 'Managed checkout lost long-path support.' }
+$passed.Add('Checkout retains checkout-local Windows long-path support')
+Invoke-Checked 'git' @('-C', $checkout, '-c', 'core.hooksPath=', 'switch', '-c', 'fixture-attached')
+Expect-SourceFailure 'Attached checkout refused even at exact clean revision' { Build-Fixture $root $revision } 'remain detached'
+Invoke-Checked 'git' @('-C', $checkout, '-c', 'core.hooksPath=', 'checkout', '--detach', $revision)
 'local edit' | Set-Content -LiteralPath (Join-Path $checkout 'input.txt')
 Expect-SourceFailure 'Tracked local edit preserved' { Build-Fixture $root $revision } 'local edits'
 if ((Get-Content -LiteralPath (Join-Path $checkout 'input.txt') -Raw).Trim() -cne 'local edit') { throw 'Edit lost.' }
@@ -200,18 +230,19 @@ $second = (& git -C $repository rev-parse HEAD | Out-String).Trim()
 $sentinel = Join-Path $root 'previous-runnable-sentinel.txt'
 'previous deployment/user data stand-in' | Set-Content -LiteralPath $sentinel
 $sentinelHash = (Get-FileHash -LiteralPath $sentinel).Hash
-foreach ($phase in 'restore', 'build', 'publish', 'inspection', 'smoke') {
+foreach ($phase in 'restore', 'build', 'publish', 'inspection', 'smoke', 'empty') {
     $script:failure = $phase
-    Expect-SourceFailure "Partial $phase failure retains stage and previous output" { Build-Fixture $root $second } "fixture $phase failure"
+    $message = if ($phase -ceq 'empty') { 'Empty publish output' } else { "fixture $phase failure" }
+    Expect-SourceFailure "Partial $phase failure retains stage and previous output" { Build-Fixture $root $second } $message
     if (Test-Path -LiteralPath (Join-Path $root "outputs\$second")) { throw 'Partial output promoted.' }
 }
 $script:failure = ''
 $failedStages = @(Get-ChildItem -LiteralPath (Join-Path $root 'staging') -Filter failure.json -Recurse)
-if ($failedStages.Count -ne 5) { throw 'Failure evidence missing.' }
+if ($failedStages.Count -ne 6) { throw 'Failure evidence missing.' }
 Build-Fixture $root $second | Out-Null
 if ((Get-FileHash -LiteralPath $receiptPath).Hash -cne $receiptHash -or
     (Get-FileHash -LiteralPath $sentinel).Hash -cne $sentinelHash -or
-    @(Get-ChildItem -LiteralPath (Join-Path $root 'staging') -Filter failure.json -Recurse).Count -ne 5) {
+    @(Get-ChildItem -LiteralPath (Join-Path $root 'staging') -Filter failure.json -Recurse).Count -ne 6) {
     throw 'Retry modified earlier output, failure evidence or user-data stand-in.'
 }
 $passed.Add('Non-destructive fresh-stage retry succeeds; previous output, edits and user-data stand-in retained')

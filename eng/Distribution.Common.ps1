@@ -4,16 +4,11 @@ $ErrorActionPreference = 'Stop'
 function Invoke-Checked {
     param([string] $Command, [string[]] $Arguments)
     & $Command @Arguments | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Command failed with exit code $LASTEXITCODE."
-    }
+    if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE." }
 }
 
 function Assert-NoLinks {
-    param(
-        [string] $Path,
-        [switch] $AncestorsOnly
-    )
+    param([string] $Path, [switch] $AncestorsOnly)
     $item = Get-Item -LiteralPath $Path -Force
     while ($null -ne $item) {
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
@@ -40,27 +35,8 @@ function New-ProofDirectory {
     if (!(Test-Path -LiteralPath $parent)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
-
     Assert-NoLinks $parent -AncestorsOnly
     New-Item -ItemType Directory -Path $Path | Out-Null
-}
-
-function Get-NativeImports {
-    param([System.Reflection.PortableExecutable.PEReader] $Reader)
-    $rva = $Reader.PEHeaders.PEHeader.ImportTableDirectory.RelativeVirtualAddress
-    if ($rva -eq 0) { return @() }
-    [byte[]]$descriptors = $Reader.GetSectionData($rva).GetContent()
-    $imports = @(
-        for ($offset = 0; $offset + 20 -le $descriptors.Length; $offset += 20) {
-            $nameRva = [BitConverter]::ToInt32($descriptors, $offset + 12)
-            if ($nameRva -eq 0) { break }
-            [byte[]]$name = $Reader.GetSectionData($nameRva).GetContent()
-            $length = 0
-            while ($length -lt $name.Length -and $name[$length] -ne 0) { $length++ }
-            [Text.Encoding]::ASCII.GetString($name, 0, $length)
-        }
-    )
-    @($imports | Sort-Object -Unique)
 }
 
 function Write-ProofJson {

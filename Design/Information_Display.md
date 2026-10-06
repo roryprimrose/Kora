@@ -1,13 +1,123 @@
 # Information Display and Rich Content
 
-Status: accepted design direction for detailed information; general
-model/result admission and isolated HTML rendering remain proposed and gated.
-The trusted embedded end-user guide and host-generated bootstrap grant list now
-use a bounded native Markdig/Avalonia renderer. They are not the general
-artifact contract or the target permission-management experience described
-below.
+Status: accepted design direction; bounded native-text-v1 passive viewer
+implemented for explicitly opened embedded guide pages. General model/result
+routing, durable history/artifact resolution and isolated HTML remain gated.
+The guide, bootstrap grant document and passive viewer share the bounded
+native Markdig/Avalonia pipeline. This is a partial R14 delivery, not the
+general artifact or permission-management experience described below.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Ambient UI](Ambient_UI.md), [User Configuration](User_Configuration.md), [Security](Security_Data_Flows.md), [Extensibility](Extensibility.md).
+
+## Delivered Native Profile - 2026-10-06
+
+The existing Documentation page has an explicit native **Open details**
+action. It opens a separate passive native window for the exact embedded page
+snapshot, not the latest response, a website, or a newly inferred answer.
+The host assigns an opaque typed item reference, positive revision, SHA-256
+digest, title, provenance and sensitivity. Embedded pages explicitly have
+**no durable session authority**; their viewer identity is process-local.
+Reopening the same reference activates its viewer. A different revision opens
+separately, and conflicting source or chrome under the same reference is
+rejected instead of replacing what the user was reading.
+
+The owner approved these initial bounds after finding that #44 specified
+measured native bounds but numeric limits only for the still-gated Mermaid
+renderer. `native-text-v1` has one authoritative
+[profile](../src/Kora.Core/Presentation/NativeDetailProfile.cs):
+
+| Resource | Enforced bound / outcome |
+|---|---|
+| Complete admitted source | 256 KiB UTF-8, strict encoding; over-limit/invalid text is rejected visibly, never truncated |
+| Parsed blocks | 512, including nested blocks |
+| Parsed nodes | 4,096, including inline/container nodes |
+| Nesting | 32 levels, with pre-parse protection as well as tree validation |
+| Native content controls | At most 4,096; a structural violation uses labelled exact-source fallback rather than an unbounded visual tree |
+| Open viewers | 8; existing-reference activation still works at capacity |
+| Search query | 256 characters; over-limit input is rejected, not shortened |
+
+There is no paging/download promise for rejected oversized content. Structural
+and unsupported-feature failures retain the complete within-byte-bound source
+and identity in a single bounded native source reader. Missing renderer and
+render failure are explicit source-fallback outcomes, not empty success.
+Supported native Markdown is CommonMark headings, paragraphs, lists, block
+quotes, thematic breaks, inline/code-fence text, emphasis projected as plain
+semantic text, and links (including reference links) with inert visible
+destinations. Headings and code use native text styling; a continuous semantic
+reader supports selection/search across blocks. This is not Markdig's
+unrestricted advanced-extension set. Tables, strikethrough, task lists,
+footnotes, raw HTML, images, unknown extensions and Mermaid show labelled exact
+source rather than a partial rich result. No content can load resources or
+acquire a renderer; links are inert display text, not arbitrary navigation.
+Semantic expansion is UTF-8-budgeted while building, including repeated
+reference-link destinations, before any control or joined projection is
+published.
+
+Native chrome contains provenance, revision/digest, sensitivity, renderer
+status, Rendered/Source, continuous text, search, selection/exact-source copy
+and close controls, outside
+the passive content viewport. Native keyboard actions and selectable text
+do not establish intent, grant authority or session activity. Closure releases
+the window's source, selection and renderer state but does not mutate retained
+content, cancel work, mark Done, approve anything or change compact response
+pin/timeout behavior. The existing privacy/input gate is rechecked for open
+and copy; privacy closure clears and closes viewers, and an old render
+generation cannot restore denied content.
+
+### Stable R04/R05 Handoff
+
+[AdmittedDetailContent](../src/Kora.Core/Presentation/AdmittedDetailContent.cs)
+is constructed only by an explicit trusted host resolver, not deserialized
+from model prose. It accepts plain text or Markdown with a validated
+[DetailContentReference](../src/Kora.Core/Presentation/DetailContentReference.cs),
+immutable complete source and host-owned classification/chrome.
+`FinalizedResponse` additionally requires existing host session/request/task
+IDs through
+[DetailSessionSource](../src/Kora.Core/Presentation/DetailSessionSource.cs).
+Those IDs describe the admitted source; window identity is not durable session
+authority and does not validate grants or operations.
+
+[DetailViewerRegistry](../src/Kora.Application/Presentation/DetailViewerRegistry.cs)
+owns bounded reference deduplication and privacy cleanup;
+[DetailViewerState](../src/Kora.Application/Presentation/DetailViewerState.cs)
+owns immutable generation-bound presentation, exact-source copy eligibility
+and search. It has no effect dispatcher, task cancellation, session lifecycle,
+question/grant store, model/context capture, filesystem or network service.
+The durable interaction owner must resolve finalization, retention, revocation
+and access before admitting a response and revoke the associated viewer when
+its source becomes unavailable. The bootstrap `MainViewModel` response strings
+are not silently upgraded into retained history. This delivery does not wire
+general response Details, automatic offers/preferences, verbal viewer commands
+or a Back-to-conversation route before that handoff exists.
+
+### Bounded Copy Exception and Remaining Gates
+
+This slice deliberately provides **Copy exact source** as Unicode plain text,
+and native text selection, not generated HTML or a rich clipboard serializer.
+It copies the complete admitted original text (including tabs/line endings),
+independent of viewport/search, after native access/disclosure checks. A
+platform failure is visible; success is reported only after the write.
+Private copy warns that other applications and clipboard history/sync can read
+the disclosed text; additional-confirmation items require native confirmation.
+No clipboard reads, automatic context acquisition or clipboard clearing occur.
+The richer multi-format clipboard behavior specified below remains a separate
+serializer/platform gate; do not advertise it from these controls.
+**Copy selection** / `Ctrl+C` copies only the selected nonempty range from
+the current continuous semantic reader or exact-source reader, with the same
+access/disclosure gate. It never substitutes the whole source. `Ctrl+A`
+selects the continuous current content. `Ctrl+F`, `F3` / `Shift+F3`, `Ctrl+U`
+and `Escape` target native find, match navigation, exact source and close.
+Cut/paste and automatic TextBox/context clipboard paths are blocked; a query
+over 256 characters is rejected visibly rather than silently shortened.
+
+Remaining R14 gates include Sessions list/full conversation, durable
+history/artifact resolution, exact response offers and voice targeting,
+shared questions/approvals, skill/script/diff review and export. HTML/browser,
+diagrams, images/assets and syntax grammar acquisition remain independent
+gates; this delivery adds none. Automated tests are not native visual,
+screen-reader, contrast, text-scale, DPI, multimonitor, focus-restoration or
+clipboard-platform trials. Those observations require separate scoped
+approval and remain pending.
 
 ## Recommended Surfaces
 

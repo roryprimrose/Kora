@@ -87,6 +87,27 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void Embedded_details_guide_names_actual_entry_limits_copy_and_pending_history_gates()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var windows = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal));
+        windows.Markdown.Should().Contain("**Open details**");
+        windows.Markdown.Should().Contain("**256 KiB UTF-8**");
+        windows.Markdown.Should().Contain("**512 blocks**");
+        windows.Markdown.Should().Contain("**4,096 nodes**");
+        windows.Markdown.Should().Contain("**32 nesting levels**");
+        windows.Markdown.Should().Contain("**8 open viewers**");
+        windows.Markdown.Should().Contain("**Copy exact source**");
+        windows.Markdown.Should().Contain("not durable conversation history");
+        windows.Markdown.Should().Contain("Privacy closure clears and closes details");
+        windows.Markdown.Should().Contain("assistive-technology trials remain pending");
+        var responses = pages.Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal));
+        responses.Markdown.Should().Contain("not yet general compact");
+        responses.Markdown.Should().Contain("Model prose cannot open/focus");
+        responses.Markdown.Should().Contain("default **5 seconds**");
+    }
+
+    [Fact]
     public void Unknown_pages_follow_known_pages_in_title_order()
     {
         var provider = CreateProvider(

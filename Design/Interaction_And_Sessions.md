@@ -16,6 +16,14 @@ The updated bootstrap also handles unmatched requests with a verified local mode
 These named model-action preferences are not the future executable/script digest-bound grants; direct exact lock is still ungated while model-suggested lock asks for approval.
 The compact surface has a text field, Run, and Dismiss, with positioning and auto-hide preferences.
 The separate Documentation window renders trusted embedded documentation, not arbitrary session artifacts.
+Its explicit **Open details** action now opens a bounded passive native viewer
+for the selected immutable embedded page. The viewer's process-local reference
+is not a durable session/history identity. A typed finalized-response handoff
+uses existing session/request/task IDs but is not composed into bootstrap
+response dispatch. See the
+[delivered native profile and authority handoff](Information_Display.md#delivered-native-profile---2026-10-06).
+Viewing/search/copy/close never changes session activity, lifecycle, pending
+questions or grants; privacy closure clears the viewer independently.
 
 The uncomposed R05 [question service](../src/Kora.Application/Interaction/HostQuestionService.cs)
 now implements bounded single/multiple-choice and text questions, explicit

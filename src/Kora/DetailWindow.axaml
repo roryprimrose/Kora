@@ -1,0 +1,64 @@
+<Window
+    x:Class="Kora.DetailWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Icon="/Assets/Kora.ico"
+    Width="960" Height="760" MinWidth="640" MinHeight="500"
+    Topmost="False" WindowStartupLocation="CenterOwner"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}">
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20" RowSpacing="12">
+    <!-- Trusted native chrome never enters the content viewport. -->
+    <StackPanel Grid.Row="0" Spacing="4">
+      <TextBlock x:Name="DetailTitle" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock x:Name="ProvenanceLabel" TextWrapping="Wrap" />
+      <TextBlock x:Name="ReferenceLabel" FontSize="11" TextWrapping="Wrap" />
+      <TextBlock x:Name="DigestLabel" FontSize="11" TextWrapping="Wrap" />
+      <TextBlock x:Name="RendererStatus" TextWrapping="Wrap"
+                 AutomationProperties.Name="Native renderer and source fallback status" />
+      <TextBlock Text="native-text-v1 · 256 KiB UTF-8 · 512 blocks · 4096 nodes/controls · depth 32 · 8 viewers · search 256"
+                 FontSize="11" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Grid.Row="1" Spacing="8">
+      <WrapPanel>
+        <CheckBox x:Name="SourceToggle" Content="Exact source (Ctrl+U)" TabIndex="0"
+                  AutomationProperties.Name="Show exact immutable source" Margin="0,0,12,0" />
+        <CheckBox x:Name="ReadingTextToggle" Content="Continuous text (selection/search)" TabIndex="1"
+                  AutomationProperties.Name="Read and select continuous semantic text" Margin="0,0,12,0" />
+        <TextBlock Text="Find:" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <TextBox x:Name="SearchInput" Width="220" TabIndex="2" IsUndoEnabled="False"
+                 ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+                 PlaceholderText="Find (Ctrl+F)" AutomationProperties.Name="Find in current text" />
+        <Button x:Name="PreviousMatch" Content="Previous (Shift+F3)" TabIndex="3"
+                AutomationProperties.Name="Previous search match" Margin="6,0" />
+        <Button x:Name="NextMatch" Content="Next (F3)" TabIndex="4"
+                AutomationProperties.Name="Next search match" />
+      </WrapPanel>
+      <TextBlock Text="Copy exact source as Unicode plain text only. Clipboard content leaves Kora's boundary and may be read by other apps. Rich HTML copy is not supported."
+                 TextWrapping="Wrap" />
+      <CheckBox x:Name="DisclosureConfirmation" TabIndex="5"
+                Content="I confirm disclosure of this private source outside Kora."
+                AutomationProperties.Name="Confirm private source disclosure outside Kora" />
+      <WrapPanel>
+        <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="6"
+                AutomationProperties.Name="Copy selected text from the continuous reader" />
+        <Button x:Name="CopySource" Content="Copy exact source (plain text)" TabIndex="7" Margin="8,0,0,0"
+                AutomationProperties.Name="Copy exact source as plain text" />
+        <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="8" Margin="8,0,0,0"
+                AutomationProperties.Name="Close passive details" />
+      </WrapPanel>
+    </StackPanel>
+    <ScrollViewer x:Name="RenderedViewport" Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                  AutomationProperties.Name="Passive native Markdown structure">
+      <StackPanel x:Name="RenderedDocument" Spacing="4" Margin="12" />
+    </ScrollViewer>
+    <TextBox x:Name="ContentReader" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" IsUndoEnabled="False"
+             TextWrapping="Wrap" TabIndex="9" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+             AutomationProperties.Name="Passive immutable detail text"
+             Background="{DynamicResource KoraSurfaceAltBrush}"
+             Foreground="{DynamicResource KoraForegroundBrush}"
+             ScrollViewer.VerticalScrollBarVisibility="Auto" />
+    <TextBlock x:Name="RenderStatus" Grid.Row="3" TextWrapping="Wrap"
+               AutomationProperties.Name="Detail rendering and clipboard status" />
+  </Grid>
+</Window>

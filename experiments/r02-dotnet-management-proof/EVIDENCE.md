@@ -1,7 +1,7 @@
 # MG1 measured evidence and disposition
 
-Final fixture run: **2026-10-06 08:19:52 UTC**, after the separately approved
-compatible dependency refresh.
+Final fixture run: **2026-10-06 08:47:31 UTC**, after the compatible dependency
+refresh, rebase onto main `90d8f48` (#37/#38/#36) and monotonic timer-wake fix.
 [Disposition](evidence/disposition.json), [actual runtime rows](evidence/runtime-results.json),
 [released RT1 regressions](evidence/rt1-released-regression.json),
 [input identities](evidence/input-verification.json) and
@@ -22,14 +22,14 @@ termination acceptance follows.
 | Complete actual runtime request | Pass | 32768 bytes forwarded once; 32769 forwarded zero times. Both public final receipts contain system/history and raw multibyte UTF-8. Calibration is non-forwarding; final request uses a fresh conversation and actual runtime framing, not an edited model body. |
 | Complete typed output | Pass | Full JSON with framing and multibyte text: 4096 accepted; 4097 explicitly degraded with no proposal. Streaming remains provisional; no truncated proposal or ledger mutation. |
 | Schema / hostile fields | Pass | Missing/malformed/duplicate/unknown fields, operation/target/revision/type errors rejected in host tests. Actual runtime/model approval, identity/correlation and foreign-target outputs degrade; effects zero. |
-| Held inference deadline | Pass | Host returns at **15001 ms** from dispatch, configured 15000 ms with 1000-ms scheduling tolerance. Actual provider inference request is held. Abort request, acknowledgement and connection observations remain distinct; computation termination Unknown. |
-| Stalled public send acknowledgement | Pass | Actual public HTTP callback is held; host returns at **15010 ms**. Provider arrivals zero; request quarantined. No acknowledgement wait extends the deadline. |
-| Stalled native abort acknowledgement | Pass | Real inference held; only verified direct owned native child suspended using retained handle. Host returns at **15000 ms**, native abort receipt absent and connection still open. Child resumed in finally; actual SDK acknowledgement then observed, but quarantine retained. |
+| Held inference deadline | Pass | Host returns at **15012 ms** from dispatch, configured 15000 ms with 1000-ms scheduling tolerance. Actual provider inference request is held. Abort request, acknowledgement and connection observations remain distinct; computation termination Unknown. |
+| Stalled public send acknowledgement | Pass | Actual public HTTP callback is held; host returns at **15008 ms**. Provider arrivals zero; request quarantined. No acknowledgement wait extends the deadline. |
+| Stalled native abort acknowledgement | Pass | Real inference held; only verified direct owned native child suspended using retained handle. Host returns at **15006 ms**, native abort receipt absent and connection still open. Child resumed in finally; actual SDK acknowledgement then observed, but quarantine retained. |
 | Rolling hour including failures | Pass | **30 actual SDK/native 401/429/500 failures**, 30 provider arrivals, 61 final receipts overall: automatic subsequent attempts blocked. Attempt 31 denied at 3599999 ms; new explicit request allowed at 3600000 ms. Final arrivals **31**, all in distinct fresh management conversations. Deterministic time seam, real forwarding counters. |
-| Single admission / cancel/retry races | Pass | 64 simultaneous host contenders admit exactly one in component test. Actual held management cancellation races 64 retry admissions: new admissions **zero**, provider request **one**, cancellation outcome at **126 ms**. Acknowledgement does not reopen the quarantined slot. |
-| Deadline/cancel/retry race | Pass | Real held request; 64 contenders near deadline; new admissions zero. One terminal outcome **Cancelled at 14979 ms**, not a successful late proposal; one provider arrival. |
+| Single admission / cancel/retry races | Pass | 64 simultaneous host contenders admit exactly one in component test. Actual held management cancellation races 64 retry admissions: new admissions **zero**, provider request **one**, cancellation outcome at **107 ms**. Acknowledgement does not reopen the quarantined slot. |
+| Deadline/cancel/retry race | Pass | Real held request; 64 contenders near deadline; new admissions zero. One terminal outcome **Cancelled at 14980 ms**, not a successful late proposal; one provider arrival. |
 | Retry / tool continuation | Pass | Two distinct actual admitted requests forward exactly one each; four final receipts. Retry and forced tool continuation attempts blocked; management effects zero. |
-| Two held executions + independent manager | Pass | Execution requests remain held while independent manager completes in **57 ms**. No execution markers/context/tools in manager or management context in execution; separate sessions/destinations. Not task slots, leases, account capacity or a reference SLO. |
+| Two held executions + independent manager | Pass | Execution requests remain held while independent manager completes in **67 ms**. No execution markers/context/tools in manager or management context in execution; separate sessions/destinations. Not task slots, leases, account capacity or a reference SLO. |
 | Admitted noncooperative effect | Pass | Execution-only owned scratch effect is Unknown at cancellation; abort acknowledged before write, then exactly **one** write observed. No second inference forwarded. No rollback/physical-stop inference or management tool authority. |
 | Cleanup | Pass | Every final actual runtime row and all 45 regression rows report owned cleanup complete. Volatile stores cleared, owned listeners/SDK stopped, suspended child resumed and exact runtime scratch removed. Earlier failed-trial scratch separately cleaned by exact inspected paths. |
 
@@ -98,9 +98,9 @@ licenses and registry-independent locks were regenerated and checked.
 | MG1 host tests | Pass | **22/22**, including negative/hostile/exact-byte/admission/race, forward/backward UTC jumps and actual 31-request loopback forwarding. Rolling-hour admission uses monotonic timestamps, independent of wall-clock changes. These are not counted as SDK/native runtime cases. |
 | MG1 actual SDK/native cases | Pass | **16/16**, zero skips/failures, with exact byte/deadline/window/isolation/effect evidence above. |
 | Complete root Release solution | Pass | Includes managed setup; **0 warnings / 0 errors**, analyzers enabled. |
-| Core | Pass | **251/251** |
-| Application | Pass | **744/744** |
-| Windows integration | Pass | **353/353** |
+| Core | Pass | **289/289** |
+| Application | Pass | **905/905** |
+| Windows integration | Pass | **378/378** |
 | Core/Application coverage | Pass | **100% line / 100% branch**, configured minimum 100/100. Only fresh final-run reports included. |
 | Root dependency licenses / notices | Pass | Approved changed package versions reviewed and production notices regenerated; experiment excluded and separately reviewed. |
 | Experimental closure | Pass | Management 23 packages (13 MIT / 10 Apache-2.0); host 19 (9 MIT / 10 Apache-2.0); exact locks and SDK/native review separate. |
@@ -109,7 +109,9 @@ licenses and registry-independent locks were regenerated and checked.
 | Full local MSI ICE validation | **Blocked** | **WIX1105: system policy**. No elevation or policy change performed. |
 | Explicitly ICE-skipped MSI/Burn build/inspection | Pass, inspection only | Exact MSI/UI/application digests, dual-scope/runtime/startup contracts and 201 application paths inspected. Not full release validation; no installation or app launch. NSIS not used. |
 
-Total actual tests: **1348 root + 83 fixture = 1431**, zero final failures/skips.
+Total actual tests: **1572 root + 83 fixture = 1655**, zero final failures/skips.
+The earlier dependency-batch checkpoint had 1348 root tests; the upstream
+presence changes add tests, not sibling runtime counts imported as MG1 proof.
 No Node, sibling or zero-test counts contribute.
 
 ## Failures retained, not reclassified
@@ -135,6 +137,12 @@ No Node, sibling or zero-test counts contribute.
 6. Final inspection found that wall-clock jumps could advance the rolling
    attempt window. Admission now uses monotonic timestamps; added forward/
    backward wall-time tests and reran all 45/22/16 fixture tests successfully.
+7. First post-rebase run passed all root/coverage and 45/22 controls, but one
+   of 16 runtime cases failed: stalled-send timer returned at **14999 ms**.
+   `Task.Delay` can wake early relative to Stopwatch. The host now rechecks
+   its monotonic dispatch elapsed time and waits only the remaining duration;
+   configured 15000 ms and 1000-ms upper tolerance are unchanged. Full
+   45/22/16 rerun passes, including all three actual held/stalled cases.
 
 ## Handoffs and not-run gates
 
@@ -158,11 +166,16 @@ No Node, sibling or zero-test counts contribute.
   full RT2 observation, production app/installer launch, install/elevation,
   global policy change or sibling checkout mutation occurred.
 
-This worktree was verified at main `3e8558f` with merged #33/#34/#35 and
-zero divergence; stale session metadata did not require branch rewriting.
+This worktree initially matched main `3e8558f` with merged #33/#34/#35.
+The user later requested publication and rebase; main `90d8f48` now includes
+#37 RT2, #38 W2 and #36 presence. Canonical conflict resolution preserves
+RT2's bounded observations/all-path Blocked gate, W2's approved best-effort
+policy and MG1's separately pinned Pass. Full rebased root/fixture gates
+were rerun; no sibling or historical fixture changes occur in this branch.
 Coordinator/RT2/R04 message attempts were refused by the session messaging
 service's message-limit error; this written handoff does not claim delivery.
 Owned acquisition-probe/configuration and compile/repack scratch were removed
 by exact inspected paths; reproducibility inputs/regression caches remain.
-The worktree and ignored reproducibility inputs remain; no commit, push, PR,
-merge or worktree removal was performed.
+The worktree and ignored reproducibility inputs remain. The later explicit
+publication request authorizes own-branch commit/rebase, lease-protected push
+and a checks-gated auto-merge PR; no worktree removal or bypass is authorized.

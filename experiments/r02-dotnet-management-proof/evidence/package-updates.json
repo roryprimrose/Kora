@@ -70,5 +70,13 @@
     "fullMsiIce": "Blocked WIX1105 system policy, reconfirmed",
     "explicitIceSkippedInspection": "Pass, not release validation"
   },
-  "lifecycle": "No commit, push, PR, merge, worktree removal, application/installer launch, installation, elevation or policy change"
+  "postRebaseValidation": {
+    "mainRevision": "90d8f4862c96f963f89890447848a9dbb9696fe8",
+    "rootTestsPassed": 1572,
+    "fixtureTestsPassed": 83,
+    "combinedTestsPassed": 1655,
+    "coreApplicationLineAndBranchCoverage": 100,
+    "note": "Earlier validation above records dependency-batch checkpoint before upstream presence tests; current receipts in repository-validation.json"
+  },
+  "lifecycle": "Dependency-batch checkpoint had no commit/push/PR. User subsequently explicitly authorized own-branch commit/rebase, force-with-lease push and conditional auto-merge PR. No worktree removal, application/installer launch, installation, elevation or policy change"
 }

@@ -127,7 +127,7 @@ internal sealed class Runtime : IAsyncDisposable
     {
         var start = Stopwatch.StartNew();
         Envelope.Select(prompt, "");
-        var deadline = Task.Delay(Envelope.DeadlineMs, CancellationToken.None);
+        var deadline = WaitForDispatchDeadlineAsync(start);
         // The host races dispatch independently; an already-cancelled request must not cancel the abort receipt.
         var inference = session.SendAndWaitAsync(prompt, TimeSpan.FromSeconds(35), observationLifetime.Token);
         var cancelled = Task.Delay(Timeout.Infinite, cancellation);
@@ -163,6 +163,18 @@ internal sealed class Runtime : IAsyncDisposable
         observers.Add(ObserveInferenceAsync(inference));
         return new Outcome(cancellation.IsCancellationRequested ? "Cancelled" : "Deadline", null, start.ElapsedMilliseconds,
             true, false, provider.ConnectionsTerminated > 0, "Unknown");
+    }
+
+    private static async Task WaitForDispatchDeadlineAsync(Stopwatch start)
+    {
+        var duration = TimeSpan.FromMilliseconds(Envelope.DeadlineMs);
+        while (true)
+        {
+            var remaining = duration - start.Elapsed;
+            if (remaining <= TimeSpan.Zero) return;
+            // Timers can wake early relative to Stopwatch; never relax the dispatch deadline.
+            await Task.Delay(TimeSpan.FromMilliseconds(Math.Ceiling(remaining.TotalMilliseconds)), CancellationToken.None);
+        }
     }
 
     internal bool AbortAcknowledged { get; private set; }

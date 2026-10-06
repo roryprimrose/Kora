@@ -1,7 +1,8 @@
 {
-  "observedAtUtc": "2026-10-06T08:26:45.2157170+00:00",
-  "fixtureValidatedAtUtc": "2026-10-06T08:19:52.0244503+00:00",
-  "baseRevision": "3e8558fbff07943d39721b230599b02062d90d57",
+  "observedAtUtc": "2026-10-06T08:48:42.2090923+00:00",
+  "fixtureValidatedAtUtc": "2026-10-06T08:47:31.5461750+00:00",
+  "baseRevision": "90d8f4862c96f963f89890447848a9dbb9696fe8",
+  "fixtureSnapshotBaseRevision": "3e8558fbff07943d39721b230599b02062d90d57",
   "sdk": "10.0.401",
   "os": "Microsoft Windows NT 10.0.26300.0",
   "architecture": "X64",
@@ -15,40 +16,40 @@
   "rootSuites": [
     {
       "suite": "Core",
-      "total": 251,
-      "passed": 251,
+      "total": 289,
+      "passed": 289,
       "failed": 0,
       "skipped": 0,
-      "finishedUtc": "2026-10-06T08:16:33.0737012Z",
-      "trxSha256": "129debffdd366fe171ebc87c2e8fd65fdf208519b57cab76e6198c518084067d"
+      "finishedUtc": "2026-10-06T08:38:58.992804Z",
+      "trxSha256": "7a7539f50d7e46096d3faf95b4a0db56a37e11e20d14b1d1f9ad225c3e42cf1e"
     },
     {
       "suite": "Application",
-      "total": 744,
-      "passed": 744,
+      "total": 905,
+      "passed": 905,
       "failed": 0,
       "skipped": 0,
-      "finishedUtc": "2026-10-06T08:16:37.2785389Z",
-      "trxSha256": "c90f9506e30d3d5f1d376bf8986039a2b930d883506446c51123ca58be5b1262"
+      "finishedUtc": "2026-10-06T08:39:03.2989385Z",
+      "trxSha256": "4c1794d00492fc0e5c5915c9c1492e792696da68eac32d83d5143e053dce7705"
     },
     {
       "suite": "Windows",
-      "total": 353,
-      "passed": 353,
+      "total": 378,
+      "passed": 378,
       "failed": 0,
       "skipped": 0,
-      "finishedUtc": "2026-10-06T08:16:41.4638964Z",
-      "trxSha256": "0929ce8159e8491440c377ba1928c042c52d8de4bc562d96c7ea7909c15b4c2f"
+      "finishedUtc": "2026-10-06T08:39:07.4617624Z",
+      "trxSha256": "a8c68e0fdab749f45f576d1bb0760be4f7eab519b2adee13cd63ce1e6b232cd8"
     }
   ],
-  "rootTestTotal": 1348.0,
+  "rootTestTotal": 1572,
   "coverage": {
     "actualBranch": 100.0,
     "latestOnly": true,
     "minimumLine": 100,
     "minimumBranch": 100,
     "status": "Pass",
-    "reportSha256": "e46e2af3eefd10cac118df3376e6cce82fee48c4f911f177d9cee5e8845d327d",
+    "reportSha256": "f1ea26376a35a4ed49df10bef2b9c66193eaad670953088beca42bafe5494097",
     "freshInputReports": 2,
     "actualLine": 100.0
   },
@@ -105,7 +106,7 @@
   "installer": {
     "prerequisiteInstallations": 0,
     "explicitIceSkippedInspection": "Pass: WiX MSI/Burn exact 201 application paths; no installation",
-    "buildDirectory": "artifacts/installer/build-772e060dd99b460ab0236a65c4ade770",
+    "buildDirectory": "artifacts/installer/build-53440ce717ac470693e0a6e6ff297259",
     "fullIceAttemptDirectory": "artifacts/installer/build-86d94385001c4d89b459fdf8bb51777f",
     "fullIce": "Blocked: WIX1105 system policy; no elevation requested/performed"
   },
@@ -125,7 +126,8 @@
     "Initial source-built SDK reproduction NU1403; original hashes preserved; separate released profile approved",
     "Initial host assertion used exact JsonException type instead of subclass; corrected",
     "Initial two MG1 teardown joins timed out waiting for SDK observer; added owned observation cancellation and reran all trials",
-    "Full MSI ICE WIX1105; separate explicit skipped build is inspection only"
+    "Full MSI ICE WIX1105; separate explicit skipped build is inspection only",
+    "First post-rebase runtime run 15/16: Task.Delay woke at14999ms; monotonic remaining-duration guard added without changing thresholds, all83 rerun passed"
   ],
   "commands": [
     "dotnet restore Kora.slnx --locked-mode with external machine-local configuration",
@@ -154,5 +156,5 @@
     }
   },
   "fixtureTestTotal": 83,
-  "combinedActualTestTotal": 1431.0
+  "combinedActualTestTotal": 1655
 }

@@ -1,5 +1,5 @@
 {
-  "recordedAtUtc": "2026-10-06T08:19:51.5623607+00:00",
+  "recordedAtUtc": "2026-10-06T08:47:31.099624+00:00",
   "profile": "Separately approved released NuGet 1.0.16, Windows x64 .NET 10.0.12 minimal HTTP/stdio; original RT1 native bytes",
   "sdk": "1.0.16",
   "sourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
@@ -25,7 +25,7 @@
   "protocol": 3,
   "nativeLauncherSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
   "nativePayloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
-  "fixtureAssemblySha256": "c9a7d2c5f457e8588918c90e929fd1e31f77012d3f1508c64255cc399fd674f2",
+  "fixtureAssemblySha256": "c7cd08b7d3ed2035c96b70b5b458d5ebe7a0a1804973f2de7cbb5a127fa08237",
   "sdkPackageSha256": "c5518980b71d0ef0abd39ecdec7834898878222290c7fd1099a9040c8c5bf2ef",
   "dotnetRuntime": ".NET 10.0.12",
   "architecture": "X64",
@@ -85,7 +85,7 @@
     },
     {
       "file": "Runtime.cs",
-      "sha256": "9d1216709d8fadcb7adee323a49b9c362294e72e2a334f9dd21856b744688303"
+      "sha256": "435946eb95702052c5ec818cb0def3d3d61b8cdfd76bb0823e7fd3d4fae3e9f0"
     },
     {
       "file": "RuntimeTests.cs",
@@ -117,10 +117,10 @@
     {
       "id": "held-dispatch-deadline",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:19:19.1655343+00:00",
+      "observedAtUtc": "2026-10-06T08:46:59.0121467+00:00",
       "counts": {
         "localControlMs": 0,
-        "deadlineMs": 15001,
+        "deadlineMs": 15012,
         "abortAcknowledgedAtDeadline": 0,
         "connectionTerminationAtDeadline": 0,
         "providerRequests": 0,
@@ -137,7 +137,7 @@
     {
       "id": "hostile-approval",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:55.3161949+00:00",
+      "observedAtUtc": "2026-10-06T08:46:35.3335324+00:00",
       "counts": {
         "providerRequests": 0,
         "managerRequests": 1,
@@ -151,7 +151,7 @@
     {
       "id": "hostile-identity",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:56.4890529+00:00",
+      "observedAtUtc": "2026-10-06T08:46:36.5072357+00:00",
       "counts": {
         "providerRequests": 0,
         "managerRequests": 1,
@@ -165,7 +165,7 @@
     {
       "id": "hostile-target",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:54.1197339+00:00",
+      "observedAtUtc": "2026-10-06T08:46:34.1926272+00:00",
       "counts": {
         "providerRequests": 0,
         "managerRequests": 1,
@@ -179,7 +179,7 @@
     {
       "id": "noncooperative-effect",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:19:01.9454143+00:00",
+      "observedAtUtc": "2026-10-06T08:46:41.802098+00:00",
       "counts": {
         "abortAcknowledgedBeforeEffect": 1,
         "providerRequests": 1,
@@ -196,7 +196,7 @@
     {
       "id": "output-4096",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:04.5869931+00:00",
+      "observedAtUtc": "2026-10-06T08:45:44.6756778+00:00",
       "counts": {
         "completeOutputBytes": 4096,
         "providerRequests": 0,
@@ -211,7 +211,7 @@
     {
       "id": "output-4097",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:02.2540563+00:00",
+      "observedAtUtc": "2026-10-06T08:45:42.7244354+00:00",
       "counts": {
         "completeOutputBytes": 4097,
         "providerRequests": 0,
@@ -226,7 +226,7 @@
     {
       "id": "request-32768",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:57.7152555+00:00",
+      "observedAtUtc": "2026-10-06T08:46:37.7343316+00:00",
       "counts": {
         "completeRequestBytes": 32768,
         "multibyteRawUtf8": 1,
@@ -245,7 +245,7 @@
     {
       "id": "request-32769",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:58.9080199+00:00",
+      "observedAtUtc": "2026-10-06T08:46:38.9150269+00:00",
       "counts": {
         "completeRequestBytes": 32769,
         "multibyteRawUtf8": 1,
@@ -264,7 +264,7 @@
     {
       "id": "retry-and-tools",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:19:00.7119285+00:00",
+      "observedAtUtc": "2026-10-06T08:46:40.5942414+00:00",
       "counts": {
         "admittedRequests": 2,
         "providerRequests": 0,
@@ -279,11 +279,11 @@
     {
       "id": "runtime-cancel-retry-race",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:19:03.1187068+00:00",
+      "observedAtUtc": "2026-10-06T08:46:42.9509147+00:00",
       "counts": {
         "racingAdmissionAttempts": 64,
         "admittedNewRequests": 0,
-        "cancellationReturnMs": 126,
+        "cancellationReturnMs": 107,
         "providerRequests": 0,
         "managerRequests": 1,
         "finalRequestReceipts": 1,
@@ -298,10 +298,10 @@
     {
       "id": "runtime-deadline-cancel-retry-race",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:52.9471761+00:00",
+      "observedAtUtc": "2026-10-06T08:46:33.0188221+00:00",
       "counts": {
         "racingAdmissionAttempts": 64,
-        "terminalOutcomeMs": 14979,
+        "terminalOutcomeMs": 14980,
         "admittedNewRequests": 0,
         "providerRequests": 0,
         "managerRequests": 1,
@@ -317,7 +317,7 @@
     {
       "id": "runtime-rolling-hour",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:36.8704742+00:00",
+      "observedAtUtc": "2026-10-06T08:46:17.0101383+00:00",
       "counts": {
         "failuresCounted": 30,
         "requestsBeforeHourBoundary": 30,
@@ -337,10 +337,10 @@
     {
       "id": "stalled-native-abort-acknowledgement",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:19:35.1962635+00:00",
+      "observedAtUtc": "2026-10-06T08:47:15.0604573+00:00",
       "counts": {
         "localControlMs": 0,
-        "deadlineMs": 15000,
+        "deadlineMs": 15006,
         "nativeAbortReceiptAtDeadline": 0,
         "providerRequests": 0,
         "managerRequests": 1,
@@ -357,9 +357,9 @@
     {
       "id": "stalled-send-acknowledgement",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:19:51.5623573+00:00",
+      "observedAtUtc": "2026-10-06T08:47:31.0996208+00:00",
       "counts": {
-        "deadlineMs": 15010,
+        "deadlineMs": 15008,
         "providerRequests": 0,
         "managerRequests": 0,
         "finalRequestReceipts": 1,
@@ -374,9 +374,9 @@
     {
       "id": "two-executions-manager",
       "status": "Pass",
-      "observedAtUtc": "2026-10-06T08:18:00.5454799+00:00",
+      "observedAtUtc": "2026-10-06T08:45:40.7462678+00:00",
       "counts": {
-        "managerMs": 57,
+        "managerMs": 67,
         "providerRequests": 2,
         "managerRequests": 1,
         "finalRequestReceipts": 3,

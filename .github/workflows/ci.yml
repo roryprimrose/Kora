@@ -29,7 +29,7 @@ jobs:
       already-published: ${{ steps.publication.outputs.already-published }}
     steps:
       - name: Check out complete version history
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Install .NET SDK
@@ -73,7 +73,7 @@ jobs:
       # Pin third-party actions to immutable commits to prevent a moved tag from changing trusted CI code.
       # Dependabot still tracks the version comments and proposes reviewed commit updates.
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -253,7 +253,7 @@ jobs:
     steps:
       # Keep the Windows job on the same reviewed action revisions as the portable job.
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -310,7 +310,7 @@ jobs:
     needs: [version, portable, windows-integration]
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -370,7 +370,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Check out trusted main/tag source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download x64 application
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5

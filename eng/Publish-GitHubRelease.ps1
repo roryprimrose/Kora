@@ -41,7 +41,11 @@ function Get-GitHubRecord {
     $exit = $LASTEXITCODE
     $text = ($response | ForEach-Object { $_.ToString() }) -join "`n"
     $status = [regex]::Match($text, '(?m)^HTTP/\S+ (\d{3})')
-    if ($status.Success -and $status.Groups[1].Value -eq '404' -and $exit -ne 0) { return $null }
+    if ($status.Success -and $status.Groups[1].Value -eq '404' -and $exit -ne 0) {
+        # Actions' pwsh epilogue must not treat an explicitly accepted absence as failure.
+        $global:LASTEXITCODE = 0
+        return $null
+    }
     if ($exit -ne 0 -or -not $status.Success -or $status.Groups[1].Value -ne '200') {
         throw "Cannot establish GitHub publication state. $text"
     }

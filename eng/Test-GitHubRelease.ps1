@@ -86,6 +86,64 @@ function Reject {
     Assert $rejected 'Expected publication to fail closed.'
 }
 
+function Test-RunnerExit {
+    $runner = Join-Path $fixture 'runner.ps1'
+    [IO.File]::WriteAllText($runner, @'
+param(
+    [string] $PublicationScript,
+    [string] $Version,
+    [string] $SourceRevision,
+    [int] $ReleaseStatus,
+    [int] $TagStatus
+)
+$ErrorActionPreference = 'Stop'
+$pwsh = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source
+function gh {
+    if ($args.Count -ne 3 -or $args[0] -ne 'api' -or $args[1] -ne '--include') {
+        throw 'Runner fixture permits only read-only publication lookups.'
+    }
+    $status = switch -Wildcard ($args[2]) {
+        '*/releases/tags/*' { $ReleaseStatus; break }
+        '*/git/ref/tags/*' { $TagStatus; break }
+        default { throw 'Unexpected publication lookup.' }
+    }
+    $body = if ($status -eq 200) {
+        @{ object = @{ type = 'commit'; sha = $SourceRevision } } | ConvertTo-Json -Compress
+    } else { '{}' }
+    "HTTP/2.0 $status Test`ncontent-type: application/json`n`n$body"
+    # Exercise native failure status in the child, not just the returned state.
+    & $pwsh -NoProfile -NonInteractive -Command "exit $(if ($status -eq 200) { 0 } else { 1 })"
+    $global:LASTEXITCODE = $LASTEXITCODE
+}
+$state = & $PublicationScript -Action Check -Version $Version -SourceRevision $SourceRevision
+"already-published=$($state.AlreadyPublished.ToString().ToLowerInvariant())"
+if (Test-Path variable:\LASTEXITCODE) { exit $LASTEXITCODE }
+'@)
+    $pwsh = (Get-Command pwsh -CommandType Application | Select-Object -First 1).Source
+    $cases = @(
+        @{ Release = 404; Tag = 404; Exit = 0 }
+        @{ Release = 404; Tag = 200; Exit = 0 }
+    )
+    foreach ($status in @(401, 403, 429, 500)) {
+        $cases += @{ Release = $status; Tag = 404; Exit = 1 }
+        $cases += @{ Release = 404; Tag = $status; Exit = 1 }
+    }
+    foreach ($case in $cases) {
+        $output = @(& $pwsh -NoProfile -NonInteractive -File $runner `
+            -PublicationScript (Join-Path $PSScriptRoot 'Publish-GitHubRelease.ps1') `
+            -Version $version -SourceRevision $source -ReleaseStatus $case.Release -TagStatus $case.Tag 2>&1)
+        $exit = $LASTEXITCODE
+        Assert ($exit -eq $case.Exit) "Runner release/tag $($case.Release)/$($case.Tag): expected exit $($case.Exit), got $exit. $output"
+        if ($case.Exit -eq 0) {
+            Assert ($output -contains 'already-published=false') 'Runner did not report an absent release.'
+        } else {
+            Assert (($output -join "`n") -like '*Cannot establish GitHub publication state*') 'Runner failure lost the lookup diagnostic.'
+            Assert ($output -notcontains 'already-published=false') 'Failed lookup returned success-shaped publication state.'
+        }
+    }
+    Write-Host "Runner process tests passed: $($cases.Count) cases; missing release/tag exit 0, non-404 release/tag failures exit 1."
+}
+
 try {
     $env:GITHUB_ACTIONS = 'true'
     $env:GITHUB_EVENT_NAME = 'push'
@@ -94,6 +152,7 @@ try {
     $env:GITHUB_SHA = $source
     $env:GITHUB_RUN_ID = '123'
     New-Item -ItemType Directory -Path $fixture | Out-Null
+    Test-RunnerExit
     Assert (-not (Invoke-Release).AlreadyPublished) 'Known 404 was not absent.'
     foreach ($status in @(401, 403, 429, 500)) {
         $global:KoraReleaseTestState.Status = $status

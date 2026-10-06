@@ -197,6 +197,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload coverage report
+        if: always() && hashFiles('.net-test-artifacts/coverage-report/Cobertura.xml') != ''
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: coverage-report

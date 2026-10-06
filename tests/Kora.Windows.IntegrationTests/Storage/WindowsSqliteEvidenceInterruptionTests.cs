@@ -76,6 +76,7 @@ public sealed class WindowsSqliteEvidenceInterruptionTests
             }
             child.Kill(entireProcessTree: true);
             await child.WaitForExitAsync(deadline.Token);
+            await OwnedStorageChildProcess.WaitForReleasedDatabaseAsync(paths.LocalRoot, database, deadline.Token);
             if (mode is not ("uncommitted" or "committed"))
             {
                 AssertRefusedReopen(paths, mode);

@@ -72,4 +72,30 @@ internal static class OwnedStorageChildProcess
             throw new TimeoutException("The parent failed to terminate its owned child.");
         }
     }
+
+    internal static async Task WaitForReleasedDatabaseAsync(string root, string databasePath, CancellationToken cancellationToken)
+    {
+        RequireOwnedRoot(root);
+        if (!Path.GetFullPath(databasePath).StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("A release probe may only open its exact owned fixture files.");
+        }
+        var leasePath = Path.Combine(Path.GetDirectoryName(databasePath)!, "operation.lock");
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                // Process exit alone is not evidence that all terminated-process file handles are quiescent.
+                using var lease = new FileStream(leasePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                using var database = new FileStream(databasePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                using var journal = new FileStream(databasePath + "-journal", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                return;
+            }
+            catch (IOException exception) when ((exception.HResult & 0xffff) is 32 or 33)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
+            }
+        }
+    }
 }

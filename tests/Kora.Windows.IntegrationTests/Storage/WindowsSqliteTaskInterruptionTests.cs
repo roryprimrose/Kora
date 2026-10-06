@@ -82,6 +82,8 @@ public sealed class WindowsSqliteTaskInterruptionTests
             // The only process killed is the exact child just created by this synthetic fixture.
             child.Kill(entireProcessTree: true);
             await child.WaitForExitAsync(deadline.Token);
+            await OwnedStorageChildProcess.WaitForReleasedDatabaseAsync(fixture.LocalRoot,
+                Path.Combine(fixture.LocalRoot, "HostStorageV1", "host.db"), deadline.Token);
             var reopened = new WindowsSqliteHostTaskStore(fixture);
             await reopened.InitializeAsync(TestContext.Current.CancellationToken);
             new FileInfo(journalPath).GetAccessControl().GetSecurityDescriptorBinaryForm().Should().Equal(journalPermissions);

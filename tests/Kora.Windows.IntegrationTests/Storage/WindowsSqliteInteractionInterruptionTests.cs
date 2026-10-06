@@ -80,6 +80,7 @@ public sealed class WindowsSqliteInteractionInterruptionTests
             }
             child.Kill(entireProcessTree: true);
             await child.WaitForExitAsync(deadline.Token);
+            await OwnedStorageChildProcess.WaitForReleasedDatabaseAsync(fixture.Paths.LocalRoot, fixture.DatabasePath, deadline.Token);
             fixture.Reopen();
             await fixture.Store.InitializeAsync(fixture.Token);
             new FileInfo(journal).GetAccessControl().GetSecurityDescriptorBinaryForm().Should().Equal(acl);

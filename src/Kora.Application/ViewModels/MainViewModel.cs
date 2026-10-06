@@ -7,6 +7,7 @@ using System.Text.Json;
 using Kora.Application.Dependencies;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Hosting;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -84,6 +85,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly ILogger<MainViewModel> logger;
     private readonly IVoiceConsentPreferences voiceConsentPreferences;
     private readonly IWindowsPrivacyObservationService privacyObservation;
+    private readonly DurableVersionQuery durableVersionQuery;
+    public string LocalStorageDisclosure => DurableVersionQuery.StorageDisclosure;
     private bool? voiceConsent;
     private int voiceEnabled;
     private long voiceRecoveryRevision;
@@ -217,7 +220,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ISecurityAuditLog securityAuditLog,
         ILogger<MainViewModel> logger,
         IVoiceConsentPreferences voiceConsentPreferences,
-        IWindowsPrivacyObservationService privacyObservation)
+        IWindowsPrivacyObservationService privacyObservation,
+        DurableVersionQuery durableVersionQuery)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -247,6 +251,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.logger = logger;
         this.voiceConsentPreferences = voiceConsentPreferences;
         this.privacyObservation = privacyObservation;
+        this.durableVersionQuery = durableVersionQuery;
 
         AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
             new(execute, HandleCommandException, canExecute);
@@ -1981,7 +1986,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         + "The microphone stays closed until you use push-to-talk. You can also continue without voice."
                     : "To talk with me, grant explicit voice consent in Settings > Speech & audio. "
                         + "The microphone stays closed until you use push-to-talk. You can also continue without voice.";
-        ShowInformation(title, body);
+        ShowInformation(title, body + Environment.NewLine + Environment.NewLine + LocalStorageDisclosure);
         SetResponseAction(new ResponseAction(
             ResponseActionKind.OpenVoiceSettings,
             "Review voice settings"));
@@ -4051,10 +4056,46 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
-        await Kora.Application.Hosting.HostRequestRunner.RunAsync(
-            initiator == SecurityAuditInitiator.VoiceCommand
-                ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi,
+        var origin = initiator == SecurityAuditInitiator.VoiceCommand
+            ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
+        var admittedCommand = commandRouter.Match(spokenText, AssistantName).Command;
+        if (IsDurableVersionQueryEligible(true, pendingModelQuestion is not null, IsGrantChangePending, IsModelActionApprovalPending)
+            && admittedCommand?.Action == BuiltInAction.ShowVersion)
+        {
+            await durableVersionQuery.RunAsync(origin,
+                async () =>
+                {
+                    if (!IsDurableVersionQueryEligible(IsHostInputEligible, pendingModelQuestion is not null,
+                        IsGrantChangePending, IsModelActionApprovalPending))
+                    {
+                        throw new InvalidOperationException("Version-query admission changed before local dispatch.");
+                    }
+                    BeginTranscriptPresentation(spokenText, confidence, initiator);
+                    await ExecuteAsync(admittedCommand, initiator);
+                }, CancellationToken.None);
+            if (ShouldSpeakResponse(BuiltInAction.ShowVersion))
+            {
+                await SpeakCurrentResponseAsync();
+            }
+            return;
+        }
+        await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
             () => RouteTranscriptAsync(spokenText, confidence, initiator));
+    }
+
+    internal static bool IsDurableVersionQueryEligible(
+        bool hostEligible, bool questionPending, bool grantChangePending, bool actionApprovalPending) =>
+        hostEligible && !questionPending && !grantChangePending && !actionApprovalPending;
+
+    private void BeginTranscriptPresentation(string spokenText, float confidence, SecurityAuditInitiator initiator)
+    {
+        IsGrantEditorVisible = false;
+        Transcript = $"“{spokenText}” · {confidence:P0} confidence";
+        State = AssistantState.Calculating;
+        if (initiator == SecurityAuditInitiator.VoiceCommand)
+        {
+            WindowActionRequested?.Invoke(this, WindowAction.ShowPresence);
+        }
     }
 
     private async Task RouteTranscriptAsync(
@@ -4165,13 +4206,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ClearPendingModelAction("superseded");
         }
 
-        IsGrantEditorVisible = false;
-        Transcript = $"“{spokenText}” · {confidence:P0} confidence";
-        State = AssistantState.Calculating;
-        if (initiator == SecurityAuditInitiator.VoiceCommand)
-        {
-            WindowActionRequested?.Invoke(this, WindowAction.ShowPresence);
-        }
+        BeginTranscriptPresentation(spokenText, confidence, initiator);
 
         var match = commandRouter.Match(spokenText, AssistantName);
         if (!match.IsMatch || match.Command is null)
@@ -5041,7 +5076,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
                         ? "local model ready"
-                        : "local reasoning unavailable"));
+                        : "local reasoning unavailable")
+                    + Environment.NewLine + Environment.NewLine + DurableVersionQuery.StorageDisclosure);
                 break;
             case BuiltInAction.ShowStatus:
                 var outstanding = SetupTasks
@@ -5297,8 +5333,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void HandleCommandException(Exception exception)
     {
-        ApplicationLog.Error(logger, exception, "Executing an asynchronous UI command");
-        ShowFailure("The command failed.", exception.Message);
+        try
+        {
+            ApplicationLog.Error(logger, exception, "Executing an asynchronous UI command");
+        }
+        finally
+        {
+            ShowFailure("The command failed.", exception.Message);
+        }
     }
 
     private void PresentResponse(

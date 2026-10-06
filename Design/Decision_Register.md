@@ -334,9 +334,17 @@ journal/backup coverage. No provider is selected or newly admitted now.
 The current bounded [SQLite task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs)
 implements private-folder/file checks, a distinct version-1 host schema,
 FULL-synchronous transactions and revision-checked event/state commits.
-It has no database key or automatic schema/data replacement. It is not yet
-composed into transcript dispatch or the authoritative evidence sink.
-The complete identified request/audit/recovery milestone remains partial.
+It has no database key or automatic schema/data replacement. The next bounded
+R04 milestone composes exact typed/activated-voice version queries with the
+private task store and independent typed SQLite diagnostic/audit/span/link
+projections. Required evidence admission failures prevent dispatch or terminal
+success; startup recovery commits intent-only Interrupted and dispatched/
+unverified Unknown without replay. First-use greeting, settings and version
+response disclose that removed/copied files are readable and same-user/admin
+access is not prevented. This is not complete R04/D-009 acceptance: managed
+backups/artifact publication, content/session lifecycle and deletion, audit
+checkpoints/pruning, broader migrations and installed/power-loss evidence
+remain open under the R04 inventory and deferred register.
 
 ### R02 Windows Storage Outcome - 2026-10-05
 

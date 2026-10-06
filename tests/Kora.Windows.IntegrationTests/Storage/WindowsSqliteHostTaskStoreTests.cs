@@ -16,6 +16,99 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteHostTaskStoreTests
 {
     [WindowsFact]
+    public async Task Startup_and_bounded_receipt_lookup_need_no_host_context_and_preserve_terminal_receipts()
+    {
+        using var fixture = new OwnedStorageFixture();
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+        (await store.ReadTaskAsync(new(Guid.NewGuid()), TestContext.Current.CancellationToken)).Should().BeNull();
+        using var listener = Listen();
+        var request = Request();
+        var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+        var receipt = intent.Next(HostTaskState.Succeeded);
+        using (var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await store.CommitAsync(intent, 0, TestContext.Current.CancellationToken);
+            await store.CommitAsync(receipt, 1, TestContext.Current.CancellationToken);
+        }
+        (await new WindowsSqliteHostTaskStore(fixture).ReadTaskAsync(request.TaskId,
+            TestContext.Current.CancellationToken)).Should().Be(receipt);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        var read = () => store.ReadTaskAsync(request.TaskId, cancelled.Token).AsTask();
+        await read.Should().ThrowAsync<OperationCanceledException>();
+        var invalid = () => store.ReadTaskAsync(default, TestContext.Current.CancellationToken);
+        invalid.Should().Throw<InvalidDataException>();
+    }
+
+    [WindowsFact]
+    public async Task Concurrent_revision_commits_publish_exactly_one_atomic_projection_and_ledger_event()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var request = Request();
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+        await store.CommitAsync(intent, 0, TestContext.Current.CancellationToken);
+        var dispatch = intent.Next(HostTaskState.DispatchRecorded);
+        var commits = Enumerable.Range(0, 8).Select(async _ =>
+        {
+            try
+            {
+                await new WindowsSqliteHostTaskStore(fixture).CommitAsync(dispatch, 1, TestContext.Current.CancellationToken);
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }).ToArray();
+        (await Task.WhenAll(commits)).Count(success => success).Should().Be(1);
+        (await store.ReadTaskAsync(request.TaskId, TestContext.Current.CancellationToken)).Should().Be(dispatch);
+        using var connection = Open(fixture);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) FROM host_task_events;";
+        command.ExecuteScalar().Should().Be(2L);
+    }
+
+    [Theory]
+    [InlineData("DROP TABLE host_task_events; CREATE TABLE host_task_events(task_id TEXT,revision INTEGER,state INTEGER);")]
+    [InlineData("CREATE INDEX unexpected_index ON host_tasks(state);")]
+    [InlineData("CREATE TRIGGER hidden_rewrite AFTER INSERT ON host_tasks BEGIN DELETE FROM host_tasks; END;")]
+    public async Task Claimed_v1_database_with_changed_semantic_schema_is_rejected_before_mutation(string mutation)
+    {
+        using var fixture = new OwnedStorageFixture();
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+        Mutate(fixture, mutation);
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+        var initialize = () => store.InitializeAsync(TestContext.Current.CancellationToken).AsTask();
+        await initialize.Should().ThrowAsync<InvalidDataException>();
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+    }
+
+    [Theory]
+    [InlineData("DELETE FROM host_task_events WHERE revision=1;")]
+    [InlineData("UPDATE host_tasks SET request_id='not-an-id';")]
+    [InlineData("UPDATE host_task_events SET state=7 WHERE revision=1;")]
+    [InlineData("INSERT INTO host_task_events(task_id,revision,state) VALUES('orphan',1,0);")]
+    public async Task Integrity_checks_cover_terminal_tasks_complete_ledger_and_orphan_events(string mutation)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var request = Request();
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+        await store.CommitAsync(intent, 0, TestContext.Current.CancellationToken);
+        await store.CommitAsync(intent.Next(HostTaskState.Succeeded), 1, TestContext.Current.CancellationToken);
+        Mutate(fixture, mutation);
+        var read = () => store.ReadIncompleteAsync(1, TestContext.Current.CancellationToken).AsTask();
+        await read.Should().ThrowAsync<InvalidDataException>();
+    }
+
+    [WindowsFact]
     public async Task Actual_private_sqlite_commits_and_reopens_ordered_intent_dispatch_and_receipt()
     {
         using var fixture = new OwnedStorageFixture();

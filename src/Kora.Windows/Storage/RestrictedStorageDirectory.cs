@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -14,7 +15,7 @@ internal sealed partial class RestrictedStorageDirectory
     private readonly string localRoot;
     private readonly bool includeKeys;
 
-    internal RestrictedStorageDirectory(IApplicationDataPaths paths, bool includeKeys = true)
+    internal RestrictedStorageDirectory(IApplicationDataPaths paths, bool includeKeys = true, string? partitionName = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         if (!OperatingSystem.IsWindows())
@@ -42,7 +43,13 @@ internal sealed partial class RestrictedStorageDirectory
         }
 
         this.includeKeys = includeKeys;
-        Root = Path.Combine(localRoot, includeKeys ? PartitionName : "HostStorageV1");
+        var partition = partitionName ?? (includeKeys ? PartitionName : "HostStorageV1");
+        if (string.IsNullOrWhiteSpace(partition) || partition is "." or ".."
+            || partition.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            throw new ArgumentException("A partition must be a single local directory name.", nameof(partitionName));
+        }
+        Root = Path.Combine(localRoot, partition);
         Keys = Path.Combine(Root, "Keys");
         Artifacts = Path.Combine(Root, "Artifacts");
     }
@@ -75,11 +82,42 @@ internal sealed partial class RestrictedStorageDirectory
         VerifyDirectory(Artifacts);
     }
 
-    internal FileStream AcquireLease()
+    internal FileStream AcquireLease() => AcquireBoundedLease(requireExisting: false, CancellationToken.None);
+
+    internal FileStream AcquireBoundedLease(bool requireExisting, CancellationToken cancellationToken)
     {
         Verify();
         var path = Path.Combine(Root, "operation.lock");
+        var started = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                return OpenLease(path, requireExisting);
+            }
+            catch (IOException exception) when ((exception.HResult & 0xffff) is 32 or 33)
+            {
+                if (Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(5))
+                {
+                    throw new IOException("The private storage admission lease timed out.", exception);
+                }
+                // This is bounded blocking admission, not a queued background writer.
+                if (cancellationToken.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(20)))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+            }
+        }
+    }
+
+    private FileStream OpenLease(string path, bool requireExisting)
+    {
         var exists = EntryExists(path);
+        if (!exists && requireExisting)
+        {
+            throw new InvalidDataException("An existing storage partition is missing its admission lease.");
+        }
         if (exists)
         {
             VerifyFile(path);
@@ -113,7 +151,7 @@ internal sealed partial class RestrictedStorageDirectory
             throw new InvalidDataException("A managed storage file is a directory.");
         }
         VerifyPermissions(info.GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner),
-            requireProtected: false, allowSystemAdministrators: false);
+            requireProtected: true, allowSystemAdministrators: false);
     }
 
     internal FileStream CreateNewFile(string path, FileOptions options = FileOptions.None)

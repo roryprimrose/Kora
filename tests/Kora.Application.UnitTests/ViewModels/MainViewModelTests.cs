@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Reflection;
+using System.Diagnostics;
 
 using AwesomeAssertions;
 
 using Kora.Application;
 using Kora.Application.Dependencies;
 using Kora.Application.ViewModels;
+using Kora.Application.Hosting;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -14,13 +16,81 @@ using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
+using Kora.Core.Hosting;
+using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
-public sealed partial class MainViewModelTests
+[Collection("Host tracing")]
+public sealed partial class MainViewModelTests : IDisposable
 {
+    private readonly ActivityListener hostListener = new()
+    {
+        ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+        Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+    };
+
+    public MainViewModelTests() => ActivitySource.AddActivityListener(hostListener);
+
+    public void Dispose() => hostListener.Dispose();
+
+    [Fact]
+    public void Command_failure_remains_visible_when_required_error_logging_itself_fails()
+    {
+        var failedLogger = new FailedEvidenceLogger();
+        var fixture = new Fixture(logger: failedLogger);
+        failedLogger.Fail = true;
+        var handler = typeof(MainViewModel).GetMethod("HandleCommandException", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var invoke = () => handler.Invoke(fixture.ViewModel, [new IOException("fixture command failure")]);
+        invoke.Should().Throw<TargetInvocationException>().Which.InnerException.Should().BeOfType<IOException>();
+        fixture.ViewModel.ResponseTitle.Should().Be("The command failed.");
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+    }
+
+    [Fact]
+    public void Durable_version_admission_requires_each_current_host_and_interaction_boundary()
+    {
+        foreach (var host in new[] { false, true })
+        foreach (var question in new[] { false, true })
+        foreach (var grant in new[] { false, true })
+        foreach (var approval in new[] { false, true })
+        {
+            MainViewModel.IsDurableVersionQueryEligible(host, question, grant, approval)
+                .Should().Be(host && !question && !grant && !approval);
+        }
+    }
+
+    [Fact]
+    public async Task Exact_version_request_has_durable_receipt_and_readable_copy_disclosure()
+    {
+        var fixture = new Fixture();
+        await fixture.RunAsync("Kora, what version are you running");
+        fixture.HostStore.Records.Select(record => record.State).Should().Equal(
+            HostTaskState.IntentRecorded, HostTaskState.DispatchRecorded, HostTaskState.Succeeded);
+        fixture.ViewModel.LocalStorageDisclosure.Should().Be(DurableVersionQuery.StorageDisclosure);
+        fixture.ViewModel.ResponseBody.Should().Contain(DurableVersionQuery.StorageDisclosure);
+    }
+
+    [Fact]
+    public async Task Changed_privacy_before_durable_query_dispatch_cannot_record_success()
+    {
+        var fixture = new Fixture();
+        fixture.HostStore.BeforeCommit = record =>
+        {
+            if (record.State == HostTaskState.DispatchRecorded)
+            {
+                fixture.Session.IsUnlocked = false;
+            }
+        };
+        var run = () => fixture.RunAsync("Kora, what version are you running");
+        await run.Should().ThrowAsync<InvalidOperationException>();
+        fixture.HostStore.Records.Last().State.Should().Be(HostTaskState.Failed);
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Kora version");
+    }
+
     [Fact]
     public void Grant_editor_visual_policy_covers_each_independent_reason_to_show_the_response()
     {
@@ -7474,9 +7544,41 @@ public sealed partial class MainViewModelTests
         SpeechScaleAmount,
     }
 
+    private sealed class FailedEvidenceLogger : ILogger<MainViewModel>
+    {
+        public bool Fail { get; set; }
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (Fail)
+            {
+                throw new IOException("fixture logging failure");
+            }
+        }
+    }
+
+    private sealed class QueryTaskStore : IHostTaskStore
+    {
+        public List<HostTaskRecord> Records { get; } = [];
+        public Action<HostTaskRecord>? BeforeCommit { get; set; }
+
+        public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            BeforeCommit?.Invoke(record);
+            Records.Add(record);
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<IReadOnlyList<HostTaskRecord>> ReadIncompleteAsync(int limit, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<IReadOnlyList<HostTaskRecord>>([]);
+    }
+
     private sealed class Fixture
     {
-        public Fixture(bool subscribeToWindowActions = true)
+        public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7541,9 +7643,11 @@ public sealed partial class MainViewModelTests
                 UserName,
                 ApplicationInfo,
                 Audit,
-                NullLogger<MainViewModel>.Instance,
+                logger ?? NullLogger<MainViewModel>.Instance,
                 VoiceConsent,
-                PrivacyObservation);
+                PrivacyObservation,
+                new DurableVersionQuery(new HostTaskCoordinator(HostStore), Audit,
+                    NullLogger<DurableVersionQuery>.Instance));
             if (subscribeToWindowActions)
             {
                 ViewModel.WindowActionRequested += (_, action) =>
@@ -7555,6 +7659,8 @@ public sealed partial class MainViewModelTests
         }
 
         public BuiltInCommandCatalog Catalog { get; }
+
+        public QueryTaskStore HostStore { get; } = new();
 
         public ImmediateDispatcher Dispatcher { get; }
 

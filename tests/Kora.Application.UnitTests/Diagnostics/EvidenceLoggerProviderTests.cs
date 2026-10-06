@@ -16,6 +16,43 @@ namespace Kora.Application.UnitTests.Diagnostics;
 public sealed class EvidenceLoggerProviderTests
 {
     [Fact]
+    public void Missing_context_is_an_explicit_diagnostic_gap_not_bootstrap_or_caller_claimed_authority()
+    {
+        var sink = new RecordingSink();
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        var properties = State();
+        properties["kora.bootstrap"] = true;
+        properties["kora.evidence.gap"] = "caller-claim";
+        Log(provider.CreateLogger("fixture"), properties);
+        var row = sink.Diagnostics.Should().ContainSingle().Which;
+        row.Host.Should().BeNull();
+        row.Trace.Should().BeNull();
+        row.AuditCorrelationId.Should().BeNull();
+        row.ApprovalId.Should().BeNull();
+        row.Properties["kora.bootstrap"].Should().Be(new EvidenceValue(EvidenceValueKind.Boolean, "false"));
+        row.Properties["kora.evidence.gap"].Should().Be(new EvidenceValue(EvidenceValueKind.Text, "MissingHostContext"));
+        sink.Gaps.Should().ContainSingle().Which.Reason.Should().Be(EvidenceGapReason.MissingHostContext);
+        sink.Audits.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Reserved_capture_markers_are_not_claimed_by_host_bound_caller_properties()
+    {
+        var sink = new RecordingSink();
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        var state = State();
+        state["kora.bootstrap"] = true;
+        state["kora.evidence.gap"] = "caller-claim";
+        Log(provider.CreateLogger("fixture"), state);
+        var row = sink.Diagnostics.Should().ContainSingle().Which;
+        row.Host.Should().Be(root.Request);
+        row.Properties.Should().NotContainKey("kora.bootstrap").And.NotContainKey("kora.evidence.gap");
+        sink.Gaps.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Envelope_preserves_template_kinds_scopes_and_call_time_context_without_formatter()
     {
         var sink = new RecordingSink();
@@ -132,7 +169,8 @@ public sealed class EvidenceLoggerProviderTests
         using var provider = new EvidenceLoggerProvider([failed, healthy], healthy);
         using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
             HostActivityLayer.Application, HostOperation.Request);
-        Log(provider.CreateLogger("fixture"), State());
+        var log = () => Log(provider.CreateLogger("fixture"), State());
+        log.Should().Throw<IOException>();
         healthy.Diagnostics.Should().ContainSingle();
         healthy.Gaps.Should().ContainSingle().Which.Reason.Should().Be(EvidenceGapReason.SinkFailure);
         failed.Diagnostics.Should().BeEmpty();
@@ -143,11 +181,15 @@ public sealed class EvidenceLoggerProviderTests
     {
         var file = new RecordingSink();
         using var provider = new EvidenceLoggerProvider([file, new UnavailableEvidenceSink()], file);
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+        var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
             HostActivityLayer.Application, HostOperation.Request);
-        Log(provider.CreateLogger("fixture"), State());
+        var log = () => Log(provider.CreateLogger("fixture"), State());
+        log.Should().Throw<IOException>();
         file.Diagnostics.Should().ContainSingle();
         file.Gaps.Should().ContainSingle().Which.Reason.Should().Be(EvidenceGapReason.StorageNotAdmitted);
+        var finish = () => activity.Dispose();
+        finish.Should().Throw<IOException>();
+        HostActivity.Current.Should().BeNull();
     }
 
     [Fact]
@@ -158,9 +200,10 @@ public sealed class EvidenceLoggerProviderTests
         var logger = provider.CreateLogger("fixture");
         var state = State();
         state["Unexpected"] = new UnsafeValue();
-        Log(logger, state);
+        var log = () => Log(logger, state);
+        log.Should().Throw<InvalidDataException>();
         state["Unexpected"] = new string('x', 1025);
-        Log(logger, state);
+        log.Should().Throw<InvalidDataException>();
         sink.Diagnostics.Should().BeEmpty();
         sink.Gaps.Should().HaveCount(2);
         sink.Gaps.Should().OnlyContain(gap => gap.Reason == EvidenceGapReason.InvalidStructuredState);
@@ -389,7 +432,8 @@ public sealed class EvidenceLoggerProviderTests
         var file = new RecordingSink();
         using var provider = new EvidenceLoggerProvider([file, new UnavailableEvidenceSink()], file);
         using var factory = LoggerFactory.Create(builder => builder.AddProvider(provider));
-        new LoggerSecurityAuditLog(factory.CreateLogger<LoggerSecurityAuditLog>()).Write(CreateAudit());
+        var write = () => new LoggerSecurityAuditLog(factory.CreateLogger<LoggerSecurityAuditLog>()).Write(CreateAudit());
+        write.Should().Throw<IOException>();
         file.Audits.Should().ContainSingle();
         file.Gaps.Should().Contain(gap => gap.Reason == EvidenceGapReason.StorageNotAdmitted);
     }
@@ -407,7 +451,8 @@ public sealed class EvidenceLoggerProviderTests
             {
                 scopes.Push(logger.BeginScope(State()));
             }
-            Log(logger, State());
+            var log = () => Log(logger, State());
+            log.Should().Throw<InvalidDataException>();
         }
         finally
         {

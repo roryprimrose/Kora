@@ -892,10 +892,20 @@ audit-routing discriminator; arbitrary `SecurityAudit=true`, model/provider
 session fields and activity tags remain diagnostic data. Envelopes capture
 host/trace state at the call, minimize known sensitive properties and omit
 exception messages. Daily JSON copies are non-authoritative. The evidence
-sink remains unavailable and reports gaps; the actual standard task store is
-not yet composed into transcript dispatch. No new consequential capability
-is enabled. Log producers still own
-content minimisation; bounded strings are not a universal secret detector.
+sink is now the private standard-SQLite typed sink. Exact typed or activated-
+voice version queries compose task intent/dispatch/terminal commits and
+correlated required evidence; other bootstrap routes are not thereby admitted
+as durable effect executors. Required evidence failures propagate after both
+independent sink attempts. Intent-only recovery is Interrupted; dispatched
+without a verified receipt is Unknown. No new consequential capability
+is enabled, no request is automatically replayed, and no transcript/response
+body is newly persisted. First-use greeting, settings and the version response
+include readable-copy and same-user/admin-access disclosure.
+Ordinary hostless diagnostics carry capture-owned `MissingHostContext` and
+`kora.bootstrap=false`, retain null trusted host/W3C/business columns and
+report the gap independently. They are not silently promoted to bootstrap,
+audit, span or receipt authority. Invalid host-bearing data is never downgraded.
+Log producers still own content minimisation; bounded strings are not a universal secret detector.
 Persistence must verify supplied profile-local managed paths/copies and effective restrictive folder/file ACLs, without shared-path fallback or silent permission repair.
 Windows provides ordinary cross-profile isolation; a second-account trial is optional corroboration for this profile-local architecture, not a mandatory application gate.
 Follow [the profile-boundary contract](Architecture.md#profile-boundary-and-validation-responsibility) before changing storage/identity scope; any new cross-user protection claim needs actual identity evidence, not mock SIDs.

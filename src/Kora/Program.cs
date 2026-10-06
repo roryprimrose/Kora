@@ -8,6 +8,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Dependencies;
 using Kora.Application.Documentation;
+using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -26,6 +27,7 @@ using Kora.Windows.Coordination;
 using Kora.Windows.Dependencies;
 using Kora.Windows.Identity;
 using Kora.Windows.Session;
+using Kora.Windows.Storage;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -76,10 +78,11 @@ internal static class Program
                     try
                     {
                         var paths = new ApplicationDataPaths(coordinator.BuildIdentity.IsDebug);
-                        var fileLogger = CreateFileLogger(paths);
+                        var fileHealth = new FileEvidenceHealth();
+                        var fileLogger = CreateFileLogger(paths, fileHealth);
                         Log.Logger = fileLogger;
                         var services = new ServiceCollection();
-                        ConfigureServices(services, paths, fileLogger, ownershipBridge, coordinator);
+                        ConfigureServices(services, paths, fileLogger, fileHealth, ownershipBridge, coordinator);
                         using (var startup = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
                             HostActivityLayer.Desktop, HostOperation.Startup))
                         {
@@ -87,6 +90,8 @@ internal static class Program
                             App.Services = provider;
                             var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
                             DesktopLog.Information(startupLogger, "Starting Kora desktop host");
+                            Task.Run(() => provider.GetRequiredService<DurableHostRecovery>()
+                                .RecoverAsync(CancellationToken.None)).GetAwaiter().GetResult();
                             startup.Complete(HostOperationOutcome.Completed);
                         }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -97,6 +102,8 @@ internal static class Program
                         failure = ExceptionDispatchInfo.Capture(exception);
                         Log.Fatal("Kora terminated unexpectedly. BootstrapDiagnostic: {BootstrapDiagnostic}; ExceptionType: {ExceptionType}.",
                             true, exception.GetType().FullName);
+                        WindowsInstanceCoordinator.ReportStartupFailure(
+                            "Kora could not complete durable host startup or execution. No automatic task replay is permitted.");
                     }
                     finally
                     {
@@ -164,16 +171,21 @@ internal static class Program
         IServiceCollection services,
         ApplicationDataPaths paths,
         Serilog.Core.Logger fileLogger,
+        FileEvidenceHealth fileHealth,
         DesktopInstanceOwnershipBridge ownershipBridge,
         WindowsInstanceCoordinator coordinator)
     {
+        var evidence = new WindowsSqliteEvidenceSink(paths);
+        evidence.Initialize();
+        var tasks = new WindowsSqliteHostTaskStore(paths);
+        Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
             builder.SetMinimumLevel(LogLevel.Debug);
-            var fileSink = new FileEvidenceSink(fileLogger);
+            var fileSink = new FileEvidenceSink(fileLogger, fileHealth);
             builder.AddProvider(new EvidenceLoggerProvider(
-                [fileSink, new UnavailableEvidenceSink()], fileSink));
+                [fileSink, evidence], fileSink));
         });
         services.AddSingleton(ownershipBridge);
         services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);
@@ -181,7 +193,10 @@ internal static class Program
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
-        services.AddSingleton<IHostTaskStore, UnavailableHostTaskStore>();
+        services.AddSingleton<IHostTaskStore>(tasks);
+        services.AddSingleton<HostTaskCoordinator>();
+        services.AddSingleton<DurableVersionQuery>();
+        services.AddSingleton<DurableHostRecovery>();
         services.AddSingleton<IApplicationLogReader, LocalApplicationLogReader>();
         services.AddSingleton<IUserDocumentationProvider, EmbeddedUserDocumentationProvider>();
         services.AddSingleton<ISecurityAuditLog, LoggerSecurityAuditLog>();
@@ -281,12 +296,15 @@ internal static class Program
         services.AddSingleton<MainViewModel>();
     }
 
-    private static Serilog.Core.Logger CreateFileLogger(ApplicationDataPaths paths)
+    private static Serilog.Core.Logger CreateFileLogger(ApplicationDataPaths paths, FileEvidenceHealth health)
     {
         var logDirectory = Path.Combine(paths.LocalRoot, "Logs");
         Directory.CreateDirectory(logDirectory);
 
-        return new LoggerConfiguration()
+        // Serilog normally self-reports file errors instead of throwing. A sticky admission
+        // latch makes those failures observable without recursively invoking the failed sink.
+        Serilog.Debugging.SelfLog.Enable(_ => health.Fail());
+        var logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
             .Enrich.FromLogContext()
@@ -297,8 +315,9 @@ internal static class Program
                 retainedFileCountLimit: 30,
                 retainedFileTimeLimit: TimeSpan.FromDays(30),
                 rollOnFileSizeLimit: false,
-                shared: false,
-                flushToDiskInterval: TimeSpan.FromSeconds(1))
+                shared: false)
             .CreateLogger();
+        health.RequireHealthy();
+        return logger;
     }
 }

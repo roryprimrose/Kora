@@ -228,9 +228,21 @@ host columns or the typed audit route. Missing context is reported as an
 explicit gap, not silently promoted to a bootstrap classification. Completed
 spans/links have separate contracts and daily-file copies.
 
-This is not the complete instrumentation or persisted graph. The SQLite
-evidence sink and transcript-bound store remain unavailable pending composition;
-the bounded task-store implementation alone enables no evidence tables or session registry.
+This is not the complete instrumentation or persisted graph. R04 now composes
+the private standard-SQLite task and evidence partitions for exact local
+`ShowVersion` requests from typed or activated-voice input. Independent typed
+log/audit/span/link records retain call-time host/W3C context and independent
+due dates. The daily-file provider remains independent. Required capture,
+file or database delivery failures report gaps and propagate rather than
+allowing dispatch or a success receipt with missing terminal audit evidence.
+There is still no session registry, history UI or general durable executor.
+Ordinary diagnostics that lack host context are retained only with an explicit
+capture-owned `MissingHostContext` gap and `kora.bootstrap=false`; their trusted
+host/W3C/business columns remain null. This preserves existing content-free
+startup/UI/audio diagnostics without fabricating a request or bootstrap
+classification. Caller marker properties cannot choose this classification.
+They cannot produce an audit, span or task receipt. Host-bearing mismatches and
+required audit/task admission still fail; they are never downgraded to gaps.
 The [R04 delivery inventory](Implementation_Roadmap.md#r04-foundation-delivery)
 tracks actual source/tests and downstream boundaries. File audit copies
 remain diagnostic evidence, never authorization or durable receipt proof.
@@ -476,17 +488,30 @@ than recreating it with a different default owner. A missing managed journal
 requires explicit recovery, not automatic replacement. This is not hot-journal/
 process-kill acceptance, and earlier uncomposed prototype databases without
 this journal are not silently migrated.
-The store is not yet composed into transcript dispatch/evidence. Earlier
+The store is composed for the bounded exact local version-query milestone,
+not for arbitrary model/skill/OS effects. Earlier
 internal key/artifact primitives remain uncomposed and are not database prerequisites.
-The [unavailable store](../src/Kora.Core/Storage/UnavailableHostTaskStore.cs)
-fails explicitly; it does not replace missing/corrupt existing data, use application
+The production composition does not use the unavailable store. The actual
+task and evidence stores fail explicitly; they do not replace missing/corrupt existing data, use application
 envelopes as a SQLite substitute, or open/migrate the user's legacy database.
 The bootstrap setup probe remains unchanged and must not receive content or
 authoritative host evidence. Ordered intent/dispatch/receipt and bounded
 Interrupted/Unknown recovery are defined by
 [HostTaskCoordinator](../src/Kora.Application/Hosting/HostTaskCoordinator.cs);
 store commits require a live matching host request and there is no replay/
-executor callback. These contracts are not on-disk durability acceptance.
+executor callback. [DurableVersionQuery](../src/Kora.Application/Hosting/DurableVersionQuery.cs)
+orders intent, required request evidence, dispatch, local query return,
+required terminal evidence and receipt. This proves only the bounded local
+query returned, not an OS effect or completion of subsequent speech playback.
+[DurableHostRecovery](../src/Kora.Application/Hosting/DurableHostRecovery.cs)
+admits correlated recovery evidence before committing Interrupted/Unknown,
+uses fresh traces joined by durable host IDs and never invokes an executor.
+Startup processes at most 100 incomplete records; remaining work fails startup
+explicitly rather than silently ignoring the excess.
+First-use greeting, settings and version response disclose the readable-copy,
+same-user/admin and independent 30/90-day due dates, explicitly disclosing that
+database pruning/deletion is not yet implemented. The new
+records contain no transcript or answer body.
 
 Implementation requirements:
 

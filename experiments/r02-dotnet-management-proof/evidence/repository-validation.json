@@ -1,0 +1,162 @@
+{
+  "observedAtUtc": "2026-10-06T08:58:41.4754968+00:00",
+  "fixtureValidatedAtUtc": "2026-10-06T08:47:31.5461750+00:00",
+  "baseRevision": "790c4aa688333f2c5cb1553cb73955bb54049d36",
+  "validatedCodeRevision": "a2c37fec5c85e6fd254e8f1dd2666481c7b82f07",
+  "fixtureReuseAfterLatestRebase": "All18 actual fixture source/script/lock hashes unchanged; no root production references.83 actual fixture tests remain exact, root1685 rerun on latest R04 main.",
+  "fixtureSnapshotBaseRevision": "3e8558fbff07943d39721b230599b02062d90d57",
+  "sdk": "10.0.401",
+  "os": "Microsoft Windows NT 10.0.26300.0",
+  "architecture": "X64",
+  "rootBuild": {
+    "warnings": 0,
+    "status": "Pass",
+    "includesSetup": true,
+    "configuration": "Release",
+    "errors": 0
+  },
+  "rootSuites": [
+    {
+      "suite": "Core",
+      "total": 307,
+      "passed": 307,
+      "failed": 0,
+      "skipped": 0,
+      "finishedUtc": "2026-10-06T08:54:50.5879139Z",
+      "trxSha256": "9e271eaaa5895acd27a233dd06049cdc2c1241dd847b6bac4ae8e6cbea2cfa6a"
+    },
+    {
+      "suite": "Application",
+      "total": 941,
+      "passed": 941,
+      "failed": 0,
+      "skipped": 0,
+      "finishedUtc": "2026-10-06T08:54:54.9855489Z",
+      "trxSha256": "8944eda3aa7b44c2e9d5d20997b8f85cbf8afada5a7497f57ebe738652fd045d"
+    },
+    {
+      "suite": "Windows",
+      "total": 437,
+      "passed": 437,
+      "failed": 0,
+      "skipped": 0,
+      "finishedUtc": "2026-10-06T08:54:59.1573946Z",
+      "trxSha256": "cc220ce0e41c5bac2b6bed242f5416e5c8fdbdc044ca422b832c94ccf103d8a5"
+    }
+  ],
+  "rootTestTotal": 1685,
+  "coverage": {
+    "actualBranch": 100.0,
+    "latestOnly": true,
+    "minimumLine": 100,
+    "minimumBranch": 100,
+    "status": "Pass",
+    "reportSha256": "766cdaceb9374b0f28a13d389e67134123e374c24489b2ac7f4209b8061697bb",
+    "freshInputReports": 2,
+    "actualLine": 100.0
+  },
+  "licenseAndNotices": "Pass: refreshed root license gate; changed versions reviewed and production notices regenerated",
+  "packageRefresh": "User-approved compatible root/MG1/local-tool updates; see package-updates.json; SDK/native/historical pins unchanged",
+  "experimentalLicensePackages": {
+    "approved": [
+      "MIT",
+      "Apache-2.0"
+    ],
+    "status": "Pass",
+    "native": "Separate GitHub Copilot CLI License review; not MIT/production admission",
+    "management": 23,
+    "host": 19
+  },
+  "ciPolicyChecks": {
+    "payloadContracts": "Pass",
+    "publication": "Pass: isolated stub, no remote release",
+    "buildVersion": "Pass"
+  },
+  "publishes": {
+    "x64Files": 201,
+    "x86Files": 197,
+    "nativeArtifacts": [
+      {
+        "rid": "win-x64",
+        "file": "Kora.exe",
+        "peMachine": "0x8664",
+        "sha256": "15433a49d281c2dd91f877d604533496bdc2fecaecfdde6c0200d9e39fc7e234"
+      },
+      {
+        "rid": "win-x64",
+        "file": "e_sqlite3.dll",
+        "peMachine": "0x8664",
+        "sha256": "b7385d722c83fb52142a00477a726723745916d22a555711ee89834c1111fb2e"
+      },
+      {
+        "rid": "win-x86",
+        "file": "Kora.exe",
+        "peMachine": "0x014c",
+        "sha256": "2a21f95f0ee40c9568c4aad489ebda1b8040a56edf649029c1e6ae08583eb982"
+      },
+      {
+        "rid": "win-x86",
+        "file": "e_sqlite3.dll",
+        "peMachine": "0x014c",
+        "sha256": "d13eb819d1353d98c684c88672868bbfcc6a52eb5987bdf2557ec02fabce4ea7"
+      }
+    ],
+    "status": "Pass",
+    "applicationLaunches": 0,
+    "experimentalAssets": 0
+  },
+  "installer": {
+    "prerequisiteInstallations": 0,
+    "explicitIceSkippedInspection": "Pass: WiX MSI/Burn exact 201 application paths; no installation",
+    "buildDirectory": "artifacts/installer/build-432acf17cd404584b13a0269a0e9b240",
+    "fullIceAttemptDirectory": "artifacts/installer/build-86d94385001c4d89b459fdf8bb51777f",
+    "fullIce": "Blocked: WIX1105 system policy; no elevation requested/performed"
+  },
+  "cleanup": {
+    "historicalRt1AndNodeUnchanged": true,
+    "earlierFailedTrialScratch": "Two exact owned paths inspected/reparse-checked and removed",
+    "currentRuntimeScratchDirectories": 0,
+    "temporaryAcquisitionAndRepackScratch": "Exact inspected owned paths removed; reproducibility inputs and regression caches retained"
+  },
+  "notRun": [
+    "Live provider/auth/account/paid usage",
+    "Full RT2 native lifecycle observation",
+    "Production scheduler/ledger/authority/storage admission",
+    "Installed application/installer acceptance"
+  ],
+  "failures": [
+    "Initial source-built SDK reproduction NU1403; original hashes preserved; separate released profile approved",
+    "Initial host assertion used exact JsonException type instead of subclass; corrected",
+    "Initial two MG1 teardown joins timed out waiting for SDK observer; added owned observation cancellation and reran all trials",
+    "Full MSI ICE WIX1105; separate explicit skipped build is inspection only",
+    "First post-rebase runtime run 15/16: Task.Delay woke at14999ms; monotonic remaining-duration guard added without changing thresholds, all83 rerun passed"
+  ],
+  "commands": [
+    "dotnet restore Kora.slnx --locked-mode with external machine-local configuration",
+    "dotnet build Kora.slnx --configuration Release --no-restore",
+    "All root test projects; Core/Application coverlet; final-only reportgenerator and Assert-CodeCoverage 100/100",
+    "Prepare-Fixture.ps1 and Run-Proof.ps1 with external configuration",
+    "Test-DependencyLicenses.ps1; Test-BuildVersion.ps1; Test-GitHubRelease.ps1; Test-InstallerPayloadContracts.ps1",
+    "Windows x64/x86 locked publish and payload manifests",
+    "Build-Installer.ps1 full ICE blocked; explicit -SkipMsiValidation inspection passed"
+  ],
+  "fixtureTests": {
+    "actualRuntime": {
+      "total": 16,
+      "passed": 16,
+      "failed": 0
+    },
+    "rt1ReleasedRegression": {
+      "total": 45,
+      "passed": 45,
+      "failed": 0
+    },
+    "hostComponents": {
+      "total": 22,
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  "fixtureTestTotal": 83,
+  "combinedActualTestTotal": 1768
+}

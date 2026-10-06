@@ -1,0 +1,396 @@
+{
+  "recordedAtUtc": "2026-10-06T08:47:31.099624+00:00",
+  "profile": "Separately approved released NuGet 1.0.16, Windows x64 .NET 10.0.12 minimal HTTP/stdio; original RT1 native bytes",
+  "sdk": "1.0.16",
+  "sourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+  "sdkAssemblySha256": "6ed0b19fd2f9cf525074830784bb255245f15b8f08a3d6aa78fb116be5ba668b",
+  "runtimeManagedDependencies": [
+    {
+      "id": "Microsoft.Extensions.AI.Abstractions",
+      "version": "10.10.1\u002B59e1741f6fb45cf7ae08e2df088aef71537a7bc4",
+      "sha256": "869943128c2b7c7ecc94b7a2e631d472942b67fe267ede78106f8ad9101e631c"
+    },
+    {
+      "id": "Microsoft.Extensions.Logging.Abstractions",
+      "version": "10.0.12\u002B95017c711e6afc1085133d440e42b4bd78155701",
+      "sha256": "7c242f8ca612fa1acc61f78efd5f8c89e01bd0bd47dc4ecc65e0e6e24f1a1668"
+    },
+    {
+      "id": "Microsoft.Extensions.DependencyInjection.Abstractions",
+      "version": "10.0.12\u002B95017c711e6afc1085133d440e42b4bd78155701",
+      "sha256": "da04edc338d5aa0f38a1f5fa5ff3ee7e36affe9c961daf3ea724a428bd746bc6"
+    }
+  ],
+  "runtime": "1.0.90",
+  "protocol": 3,
+  "nativeLauncherSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+  "nativePayloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+  "fixtureAssemblySha256": "c7cd08b7d3ed2035c96b70b5b458d5ebe7a0a1804973f2de7cbb5a127fa08237",
+  "sdkPackageSha256": "c5518980b71d0ef0abd39ecdec7834898878222290c7fd1099a9040c8c5bf2ef",
+  "dotnetRuntime": ".NET 10.0.12",
+  "architecture": "X64",
+  "os": "Microsoft Windows NT 10.0.26300.0",
+  "fixtureSources": [
+    {
+      "file": "Boundary.cs",
+      "sha256": "64a4a23ad0435fbb91965411c9ecef3996e0ac1bb5759efea46f830058d26a22"
+    },
+    {
+      "file": "Directory.Build.props",
+      "sha256": "9c60fb2417f8c45af24ae6af9df01cdf1e08a31df95b02b9b2a9ce372092d89f"
+    },
+    {
+      "file": "Directory.Packages.props",
+      "sha256": "82634024c507980746eb51f22c12fd64eaf0b252f4872b435865b8c1ba310db5"
+    },
+    {
+      "file": "Envelope.cs",
+      "sha256": "3b1912281a178b8d95c9c866bc3b331d6ec1d13e3e2f2beec9e3b832fa7bdd82"
+    },
+    {
+      "file": "HostTests.cs",
+      "sha256": "48af2ada60c2e2c705fd5b596519428dddc1f0bbe1bf91233f39a6b522577710"
+    },
+    {
+      "file": "HostTests.csproj",
+      "sha256": "c1c41f90e5b3b877c76c8790bd2ebc353506dc16acc1fc02a28e80583d28a1da"
+    },
+    {
+      "file": "LoopbackProvider.cs",
+      "sha256": "8c71f2ec20b0742c7be1ccadc905de99b7fa2bcdb31d41686e64289b16a67e2c"
+    },
+    {
+      "file": "ManagementProof.csproj",
+      "sha256": "f570052c4ab3c37d1d301426dc775808b263710b9296376617e13c0bdcbfcf01"
+    },
+    {
+      "file": "OwnedRuntimePause.cs",
+      "sha256": "1f796e077523f703dae70715bb3d163601bfa12937a1c2e10ce15cd2b508643f"
+    },
+    {
+      "file": "Prepare-Fixture.ps1",
+      "sha256": "1afb6455c4ba78e2d5e39570b4ae605a7fd528604bada4c6a8ed657db3cbf63b"
+    },
+    {
+      "file": "ProofEvidence.cs",
+      "sha256": "aa45443936e087121f6cb44c535b6bb79734e0f232416646e69228c078fa561f"
+    },
+    {
+      "file": "ReleasedCandidate.cs",
+      "sha256": "91972da7771b6f4acb76cc48b110d41c68964453395c695ce761c4e89db21114"
+    },
+    {
+      "file": "Run-Proof.ps1",
+      "sha256": "c0df2214609516549d9ae83d8a90fff636bade3d28709da069a85a008afbdc4c"
+    },
+    {
+      "file": "Runtime.cs",
+      "sha256": "435946eb95702052c5ec818cb0def3d3d61b8cdfd76bb0823e7fd3d4fae3e9f0"
+    },
+    {
+      "file": "RuntimeTests.cs",
+      "sha256": "c96ae1324f1e224e68ee648e55123762424e348a40119869407421720d17d455"
+    },
+    {
+      "file": "Test-Inputs.ps1",
+      "sha256": "f4a5c256d443433ea3b1b9e1d107aca0270cf631c7a38386bd9ca214cd73f2e8"
+    },
+    {
+      "file": "host.packages.lock.json",
+      "sha256": "12ca0f459a3be72557416ab4fad364c6bb46f2620b308bc7983b0bc88081fcde"
+    },
+    {
+      "file": "packages.lock.json",
+      "sha256": "d3bd660282c76a1f26195c0ba2747e801c0227f25cc9d23f92083603959ac669"
+    }
+  ],
+  "thresholds": {
+    "selectedContextBytes": 32768,
+    "completeRequestBytes": 32768,
+    "completeOutputBytes": 4096,
+    "dispatchDeadlineMs": 15000,
+    "deadlineToleranceMs": 1000,
+    "inFlight": 1,
+    "attemptsPerRollingHourPerProfile": 30
+  },
+  "rows": [
+    {
+      "id": "held-dispatch-deadline",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:59.0121467+00:00",
+      "counts": {
+        "localControlMs": 0,
+        "deadlineMs": 15012,
+        "abortAcknowledgedAtDeadline": 0,
+        "connectionTerminationAtDeadline": 0,
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 1
+      },
+      "facts": {
+        "computationTermination": "Unknown"
+      }
+    },
+    {
+      "id": "hostile-approval",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:35.3335324+00:00",
+      "counts": {
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "hostile-identity",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:36.5072357+00:00",
+      "counts": {
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "hostile-target",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:34.1926272+00:00",
+      "counts": {
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "noncooperative-effect",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:41.802098+00:00",
+      "counts": {
+        "abortAcknowledgedBeforeEffect": 1,
+        "providerRequests": 1,
+        "managerRequests": 0,
+        "finalRequestReceipts": 1,
+        "effects": 1,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {
+        "effectAtCancellation": "Unknown; acknowledgement did not roll back the admitted owned-file effect."
+      }
+    },
+    {
+      "id": "output-4096",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:45:44.6756778+00:00",
+      "counts": {
+        "completeOutputBytes": 4096,
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "output-4097",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:45:42.7244354+00:00",
+      "counts": {
+        "completeOutputBytes": 4097,
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "request-32768",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:37.7343316+00:00",
+      "counts": {
+        "completeRequestBytes": 32768,
+        "multibyteRawUtf8": 1,
+        "providerRequests": 1,
+        "managerRequests": 0,
+        "finalRequestReceipts": 2,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {
+        "unicodeAccounting": "Full wire bytes counted; raw multibyte vs JSON escaping recorded, never character/token proxy.",
+        "historySource": "Host-selected prior synthetic user/assistant context injected into fresh conversation; not cumulative conversation reuse."
+      }
+    },
+    {
+      "id": "request-32769",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:38.9150269+00:00",
+      "counts": {
+        "completeRequestBytes": 32769,
+        "multibyteRawUtf8": 1,
+        "providerRequests": 0,
+        "managerRequests": 0,
+        "finalRequestReceipts": 2,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {
+        "unicodeAccounting": "Full wire bytes counted; raw multibyte vs JSON escaping recorded, never character/token proxy.",
+        "historySource": "Host-selected prior synthetic user/assistant context injected into fresh conversation; not cumulative conversation reuse."
+      }
+    },
+    {
+      "id": "retry-and-tools",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:40.5942414+00:00",
+      "counts": {
+        "admittedRequests": 2,
+        "providerRequests": 0,
+        "managerRequests": 2,
+        "finalRequestReceipts": 4,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "runtime-cancel-retry-race",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:42.9509147+00:00",
+      "counts": {
+        "racingAdmissionAttempts": 64,
+        "admittedNewRequests": 0,
+        "cancellationReturnMs": 107,
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 1
+      },
+      "facts": {
+        "quarantine": "Abort acknowledgement observed; no effect/computation termination receipt inferred, no retry or execution lane borrowed."
+      }
+    },
+    {
+      "id": "runtime-deadline-cancel-retry-race",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:33.0188221+00:00",
+      "counts": {
+        "racingAdmissionAttempts": 64,
+        "terminalOutcomeMs": 14980,
+        "admittedNewRequests": 0,
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 1
+      },
+      "facts": {
+        "terminalOutcome": "Cancelled"
+      }
+    },
+    {
+      "id": "runtime-rolling-hour",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:46:17.0101383+00:00",
+      "counts": {
+        "failuresCounted": 30,
+        "requestsBeforeHourBoundary": 30,
+        "requestsAfterExactHourBoundary": 31,
+        "distinctManagementConversations": 31,
+        "providerRequests": 0,
+        "managerRequests": 31,
+        "finalRequestReceipts": 61,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 0
+      },
+      "facts": {
+        "window": "Deterministic monotonic timestamp seam: 3599999 ms denied; 3600000 ms new explicit request admitted. All forwarding counters from actual SDK/native requests."
+      }
+    },
+    {
+      "id": "stalled-native-abort-acknowledgement",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:47:15.0604573+00:00",
+      "counts": {
+        "localControlMs": 0,
+        "deadlineMs": 15006,
+        "nativeAbortReceiptAtDeadline": 0,
+        "providerRequests": 0,
+        "managerRequests": 1,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 1
+      },
+      "facts": {
+        "stall": "Only verified direct owned native child suspended via retained handle; always resumed in finally. Real loopback inference held and real SDK abort RPC pending at deadline.",
+        "termination": "Native abort acknowledgement is not physical computation termination or rollback."
+      }
+    },
+    {
+      "id": "stalled-send-acknowledgement",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:47:31.0996208+00:00",
+      "counts": {
+        "deadlineMs": 15008,
+        "providerRequests": 0,
+        "managerRequests": 0,
+        "finalRequestReceipts": 1,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 1
+      },
+      "facts": {
+        "acknowledgementScope": "Actual public HTTP handler stalled; native abort acknowledgement is tested separately."
+      }
+    },
+    {
+      "id": "two-executions-manager",
+      "status": "Pass",
+      "observedAtUtc": "2026-10-06T08:45:40.7462678+00:00",
+      "counts": {
+        "managerMs": 67,
+        "providerRequests": 2,
+        "managerRequests": 1,
+        "finalRequestReceipts": 3,
+        "effects": 0,
+        "ownedCleanupCompleted": 1,
+        "requestCancellationObserved": 2
+      },
+      "facts": {}
+    }
+  ],
+  "physicalComputationTermination": "Unknown; socket closure is not physical computation evidence",
+  "productionProtocol": "Not established",
+  "sourceBuildByteEquivalence": "Not claimed",
+  "rt2": "Independent lifecycle gate",
+  "pv1": "Blocked: no account/usage approval",
+  "productionEnabled": false
+}

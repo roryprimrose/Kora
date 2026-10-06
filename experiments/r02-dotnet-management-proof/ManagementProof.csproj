@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RuntimeFrameworkVersion>10.0.12</RuntimeFrameworkVersion>
+    <RollForward>Disable</RollForward>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="obj\**;HostTests.cs" />
+    <PackageReference Include="GitHub.Copilot.SDK" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+    <Using Include="Xunit" />
+    <Compile Include="..\r02-dotnet-control-proof\VolatileSessionFs.cs" Link="Rt1Inputs\VolatileSessionFs.cs" />
+  </ItemGroup>
+</Project>

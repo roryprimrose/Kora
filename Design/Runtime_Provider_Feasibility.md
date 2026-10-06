@@ -208,6 +208,26 @@ the host-owned loop. These are decision options, not authorized fallbacks.
 
 ### Management remains optional and host bounded
 
+The [independent .NET MG1 fixture](../experiments/r02-dotnet-management-proof/README.md)
+records **Pass for a separately approved released NuGet 1.0.16 profile**,
+not a relabelling of the historical source-built RT1 evidence. Its initial
+source-build reproduction failed the approved package/assembly hashes.
+Following explicit user approval, released SDK package
+`c5518980b71d0ef0abd39ecdec7834898878222290c7fd1099a9040c8c5bf2ef`
+and assembly
+`6ed0b19fd2f9cf525074830784bb255245f15b8f08a3d6aa78fb116be5ba668b`
+were independently pinned; informational version identifies source
+`f8ae645902b74b62cd47aac1fd9b29adaec3aff2`. Native launcher/payload remain
+RT1's exact 1.0.90 bytes. All 45 RT1 regressions were rerun in an MG1-owned
+copy, preserving the rejected hook-only witness and original source/evidence.
+The 22 host component tests and 16 actual SDK/native MG1 cases then pass.
+The subsequent user-approved compatible dependency refresh is separately
+[recorded](../experiments/r02-dotnet-management-proof/evidence/package-updates.json);
+all 45 controls and 22/16 MG1 tests repeated on the refreshed managed closure.
+Loaded managed versions/hashes and central locks are retained with the
+receipts; approved SDK/native bytes and historical closures remain unchanged.
+No source-built/released byte equivalence or lifecycle/account parity follows.
+
 Implement deterministic ledger/status/choice/cancellation services without
 model-assisted management. In the isolated .NET envelope proof:
 
@@ -247,9 +267,13 @@ assign owners, prerequisites and exit evidence. Execute in this order:
    mediation handoff above. Any unexplained or uncontrollable content path
    keeps the runtime unavailable; do not weaken this gate to W2 best-effort
    script dependency discovery.
-3. **R02-MG1:** reproduce the envelope/concurrency/cancellation tests in .NET.
-   This can run alongside RT2 after RT1. Passing allows a management-provider
-   trial proposal; it does not prove a hosted budget.
+3. **R02-MG1:** released 1.0.16 / unchanged RT1 native minimal profile passes
+   its complete UTF-8, dispatch deadline, native stalled acknowledgement,
+   admission/window/race, no-retry, topology and Unknown-quarantine tests.
+   Preserve the [actual receipts](../experiments/r02-dotnet-management-proof/evidence/runtime-results.json).
+   RT2 must qualify the applicable released profile's lifecycle paths before
+   live trials; MG1 allows only a management-provider trial proposal, not a
+   hosted budget, entitlement or production scheduler.
 4. **R02-PV1:** prepare account/terms/model/region/cost evidence, then obtain
    explicit account and usage-budget approval before live inference or
    provisioning. Test execution eligibility for R08; additionally test the

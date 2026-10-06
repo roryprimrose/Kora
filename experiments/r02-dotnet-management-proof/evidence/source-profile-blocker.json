@@ -1,0 +1,50 @@
+{
+  "observedAtUtc": "2026-10-06T06:49:20.9269388+00:00",
+  "baseRevision": "3e8558fbff07943d39721b230599b02062d90d57",
+  "sdkToolchain": "10.0.401",
+  "sdkSourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+  "sdkVersion": "1.0.16-rt1.source.f8ae645.1",
+  "expectedAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+  "status": "Blocked",
+  "profile": "Historical source-built reproduction blocker; superseded only by explicit separate released-profile approval, not equivalence",
+  "checks": [
+    {
+      "name": "source-archive",
+      "expectedSha256": "a73f4f2d8cb1eb9fd5353d3867707094e1efb7581599669afb55c2dcf48a53c3",
+      "actualSha256": "a73f4f2d8cb1eb9fd5353d3867707094e1efb7581599669afb55c2dcf48a53c3",
+      "status": "Pass"
+    },
+    {
+      "name": "runtime-archive",
+      "expectedSha256": "2b2c23816461f7616eb16c7836af7701d6683367029405d51054c4366d1d41c0",
+      "actualSha256": "2b2c23816461f7616eb16c7836af7701d6683367029405d51054c4366d1d41c0",
+      "status": "Pass"
+    },
+    {
+      "name": "sdk-package",
+      "expectedSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+      "actualSha256": "3aff6e89b2335043d75d1a90986de947689cba0bcb2fdc25d210fdfd4583e74d",
+      "status": "Blocked"
+    },
+    {
+      "name": "native-launcher",
+      "expectedSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+      "actualSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+      "status": "Pass"
+    },
+    {
+      "name": "native-payload",
+      "expectedSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+      "actualSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+      "status": "Pass"
+    },
+    {
+      "name": "historical-node-witness",
+      "expectedSha256": "c1a40817bf37a125c08abe1eaa1dd31f5ec04fb959cc8ce3890cbfe95b9f0331",
+      "actualSha256": "c1a40817bf37a125c08abe1eaa1dd31f5ec04fb959cc8ce3890cbfe95b9f0331",
+      "status": "Pass"
+    }
+  ],
+  "runtimeTrialsStarted": 0,
+  "releasedNugetByteParity": "Blocked; not inferred from source build"
+}

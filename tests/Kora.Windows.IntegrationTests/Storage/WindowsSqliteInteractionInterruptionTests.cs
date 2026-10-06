@@ -71,8 +71,11 @@ public sealed class WindowsSqliteInteractionInterruptionTests
             if (!committed)
             {
                 OwnedStorageChildProcess.AssertHotJournal(journal);
-                var taskLease = () => new FileStream(Path.Combine(fixture.Paths.LocalRoot, "HostStorageV1", "operation.lock"),
-                    FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                var taskLease = () =>
+                {
+                    using var lease = new FileStream(Path.Combine(fixture.Paths.LocalRoot, "HostStorageV1", "operation.lock"),
+                        FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                };
                 taskLease.Should().Throw<IOException>();
             }
             child.Kill(entireProcessTree: true);

@@ -7,4 +7,5 @@ public enum SecurityAuditOutcome
     Failed,
     Denied,
     Cancelled,
+    Unknown,
 }

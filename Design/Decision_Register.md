@@ -24,7 +24,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes; schema/enforcement proof open, release-blocking; initial model grants only | Single-use consumption, operation-bound durable session grants, perpetual grants without retention/eviction, applicability/provenance after chat deletion, native explicit edit/removal, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
-| D-009 | Durable session/evidence storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Lifecycle, W3C Activity correlation, searchable instrumentation, independent 30-day diagnostic/90-day audit defaults and Windows encryption direction recorded; synthetic R02 evidence measured; native/key integration and schema/deletion acceptance open, release-blocking | Versioned `Kora.*` ActivitySources, span/link/session correlation, maintained authenticated SQLite and AES-GCM artifacts, dual `ILogger` file/database providers, dedicated log/audit/span tables, 30-365-day audit configuration and pruning anchors, CurrentUser/profile-path/effective-ACL integration, event ordering, cross-source query/gap semantics, crash/migration/key/backup recovery, session lifecycle/deletion and no replay |
+| D-009 | Durable session/evidence storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Owner-approved standard SQLite/private profile baseline; encryption/key/rekey prerequisites superseded; bounded actual task store delivered, composed evidence/schema/lifecycle acceptance partial | Supplied LocalApplicationData and effective ACLs, pinned standard SQLite, versioned schemas, ordered durable events, W3C/call-time correlation, independent log/audit/span/link persistence and retention, explicit recovery/gaps, copy disclosure, lifecycle/deletion and no replay; D-008 audit authority remains separate |
 | D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; Node and scoped .NET RT1 conversation topology measured, production isolation/budget proof open | Approved provider concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races; loopback conversations are not execution-slot proof |
 | D-011 | Shared interaction, session routing/history and evidence tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; protocol/integration proof open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact interaction/list-plus-conversation workspace/separate detail surfaces, minimal Active-session routing context, per-session Logs/Audit/All Evidence across traces, trace-tree/link navigation, bounded cited search/reasoning and gap status, provenance/egress, foreground voice versus addressed UI races |
 | D-012 | Windows-session trust model and accepted voice boundary | Product and security leads | Design acceptance; enforcement before associated capability release | Accepted direction; implementation evidence outstanding | Enabled verbal input trusts the active unlocked profile, not speaker identity; no compulsory biometrics/PTT/UI for ordinary voice; scoped grants, call origin/reuse gates, intent/content separation, containment and truthful recovery tests |
@@ -47,7 +47,7 @@ before ordinary read-only tools or fixed bundled actions.
 | D-005 | R02/R17 protected Linux-first distribution with Windows WiX packaging and installed Windows evidence, R18 notify-only maintenance; no install-capable updater implied |
 | D-006 | Optional R24 only; do not make learning or verification a baseline voice prerequisite |
 | D-008/D-012 | R01 resolved authority/origin rules, R03/R05 common privacy/grant gateway, R11/R15/R16 real containment/call/power enforcement |
-| D-009/D-010 | R02 storage/key native and real Windows admission gates, R04 durable identity/encrypted storage, R12 lifecycle/deletion/queue, R13 isolated scheduler/resource budgets |
+| D-009/D-010 | Approved standard SQLite/private-profile integration, R04 durable identities/evidence, R17 ordinary packaged loading, R12 lifecycle/deletion/queue and R13 isolated scheduler/resource budgets; encrypted-key/native admission superseded |
 | D-011 | R05 shared questions/grants, R06 registry, R12/R13 addressing/ledger, R14/R18 coordinated workspace/proactive interaction |
 | D-013 | R02 staged worker/deployment continuation, R11 admitted fixed execution, R16 actual controlled effects and R17 installed identity/ACL/runtime proof; none implied by experiment or package assembly |
 
@@ -275,9 +275,50 @@ and script review remain separate from the exact task execution grant.
 
 ## D-009 Session Persistence and Retention
 
+### Approved Profile-Secured SQLite Baseline - 2026-10-06
+
+The owner explicitly approved **standard SQLite under the supplied
+LocalApplicationData path with verified private profile permissions**.
+This supersedes the mandatory page-encryption, database DPAPI-key,
+encrypted-native admission and rekey requirements in the historical R02
+outcome below. No SQLCipher/SQLite3MC package, commercial codec or owned
+native build is required. Use the existing pinned Microsoft.Data.Sqlite /
+SQLitePCLRaw `e_sqlite3` distribution; SQLite remains bundled infrastructure,
+not an optional download or an ambient system-library dependency.
+
+This is an account-boundary threat model, not protection against same-user
+malware, administrators or offline/copied-file access. Database, journal,
+artifact, staging and managed backup files remain inside a verified private
+local partition. Copies exported or removed from that boundary are readable;
+first-use/export disclosure must say so. Credentials/secrets remain in
+Windows-protected credential storage and are not ordinary database content.
+Profile location alone does not establish correct permissions.
+
+Transactions, versioned schema validation, corruption/access failure,
+ordered intent/receipts, truthful Interrupted/Unknown recovery, no automatic
+replay, retention and managed-copy deletion remain required. D-008 audit
+authority/tamper evidence and D-013 worker containment are separate gates;
+ordinary SQLite or ACLs do not close them. Existing crypto primitives and
+experiments are historical/optional evidence, not prerequisites for this store.
+
+The owner also requested **optional database encryption as a future enhancement
+if a suitable supported provider becomes available**. Track this as
+[R30](Implementation_Roadmap.md#optional-and-deferred-work), not a restored
+R04/initial-release prerequisite. Revisit a maintained, compatible,
+redistributable packaged provider without assuming a custom native build;
+any eventual opt-in feature needs safe migration/key recovery and accurate
+journal/backup coverage. No provider is selected or newly admitted now.
+
+The current bounded [SQLite task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs)
+implements private-folder/file checks, a distinct version-1 host schema,
+FULL-synchronous transactions and revision-checked event/state commits.
+It has no database key or automatic schema/data replacement. It is not yet
+composed into transcript dispatch or the authoritative evidence sink.
+The complete identified request/audit/recovery milestone remains partial.
+
 ### R02 Windows Storage Outcome - 2026-10-05
 
-The investigation now drives the [canonical Windows storage direction](Architecture.md#windows-durable-storage-direction):
+**Historical, superseded encryption direction:** the investigation proposed:
 maintained authenticated whole-database encryption for content-bearing session,
 diagnostic and audit events/metadata/indexes, AES-GCM managed artifacts, and
 random keys wrapped by CurrentUser DPAPI with restricted local ACLs.
@@ -319,6 +360,80 @@ D-009 remains open until the storage/security owners accept its remaining implem
 The [deferred-validation register](Deferred_Validation.md#storage-admission-follow-up) separates mergeable research from these application/deployment gates and records when multi-account trials would become relevant.
 
 ### Lifecycle and Integration Closure
+
+The encrypted-route findings below are retained history, not current
+standard-SQLite prerequisites; the approved baseline above owns current scope.
+
+R04's 2026-10-06 isolated implementation is **partial, not D-009 closure**.
+The [delivery inventory](Implementation_Roadmap.md#r04-foundation-delivery)
+records portable host identities, ordered state/recovery contracts, versioned
+W3C sources, bounded structured diagnostic/typed audit envelopes, independent
+sink failure/gap handling and retention calculations. Content persistence and
+the encrypted evidence projection remain unavailable. No unapproved native
+engine, commercial dependency, plaintext fallback or envelope-based SQLite
+substitute is admitted. Daily-file typed audit copies and in-memory recovery
+tests cannot establish authoritative durable receipts, audit tamper evidence
+or installed protection. Native selection and S1-S4 gates remain open.
+
+On 2026-10-06 the owner approved **evaluation, not production admission**, of
+maintainer-owned
+[SQLite3MC.PCLRaw 2.4.0](https://github.com/utelle/SQLite3MultipleCiphers-NuGet/tree/v2.4.0)
+as a noncommercial route. Its tagged source declares SQLite3MC 2.4.0 /
+SQLite 3.53.4, a netstandard2.0 provider using SQLitePCLRaw.core 3.0.2,
+and both Windows native RIDs. The
+[authenticated ChaCha20-Poly1305 page configuration](https://utelle.github.io/SQLite3MultipleCiphers/docs/ciphers/cipher_chacha20/)
+requires authentication checking to remain enabled; selecting an
+unauthenticated cipher or disabling `hmac_check` is not admitted.
+MIT engine/wrapper metadata does not discharge embedded-component notice
+requirements (including SHA2 BSD and the applicable Argon2/Aegis notices).
+
+Public research found active upstream maintenance but a NuGet/native release
+lag (packaged 2.4.0 versus observed native 2.5.1). Certificate-validated
+acquisition of the exact provider/lib packages failed with Schannel
+`SEC_E_ILLEGAL_MESSAGE` and PowerShell TLS errors; one bundle receipt was
+observed, but payloads were not retained and exact package closure is not
+verified. Actual nuspec/RID/signature/native-byte/notice inspection, servicing
+ownership, .NET 10 authentication/WAL/recovery tests and installed x64/x86
+acceptance remain S1 requirements. No production dependency or notice was
+changed. Official SQLCipher commercial binaries were not approved; an owned
+SQLCipher Community build remains a possible separately owned alternative,
+not an implicitly selected fallback.
+
+The subsequent 2026-10-06 continuation resolved package acquisition through
+the certificate-validated official NuGet v2 endpoint. Bundle/provider/lib
+2.4.0 and SQLitePCLRaw.core 3.0.2 were retained, and `dotnet nuget verify
+--all` passed NuGet.org **repository**, not publisher/author, signatures.
+Actual x64/x86 native hashes match the maintainer's cross-builder checksum
+metadata; both DLLs are Authenticode-unsigned and import only KERNEL32.dll.
+The cross-builder variants are not byte-identical to the separately built/
+signed main-project release DLLs. An owned synthetic x64/.NET 10 fixture
+passed 44 assertions covering exact native identity/version, authenticated
+ChaCha20 with `hmac_check=1`, encrypted database/WAL, reopen and missing-key,
+wrong-key and page-tamper rejection. This is not installed acceptance or
+complete wrapper/recovery qualification; a separate ADO wrapper probe was
+blocked at temporary compilation by CS1701 framework-reference warnings.
+
+**SQLite3MC 2.4.0 is not suitable for production admission despite those
+basic passes.** Its source and packaged cross-builder amalgamation contain
+the read-error handling defect corrected by
+[upstream PR 272](https://github.com/utelle/SQLite3MultipleCiphers/pull/272)
+(`b4a88cfcd0bb50fee1c477c45a0f638d8b1b2372`): failed statement-journal reads
+can be overwritten with successful-looking outcomes and cause silent
+corruption during rollback. Upstream's
+[temporary-file fix](https://github.com/utelle/SQLite3MultipleCiphers/commit/f25f25aad60b59209b95be80a481268e0eae6ee5)
+also identifies previously plaintext temporary/statement-journal paths;
+these changes postdate the evaluated release. A happy-path encrypted
+database/WAL test cannot waive either defect.
+
+The package's MIT expression also does not describe all compiled obligations:
+the generated provider/Core require Apache-2.0/NOTICE attribution, SHA2
+requires BSD-3-Clause binary notices, and the native source has unresolved
+Rijndael documentation and enabled extension-permission ambiguities.
+No production manifests, native binaries or redistribution notices were
+changed. Choosing an owned official-release SQLCipher Community build or
+a reviewed patched/reduced SQLite3MC build requires an explicit owner
+decision about candidate, build provenance, licences and servicing; neither
+is silently selected. Production persistence remains unavailable.
 
 Prove atomic intent/decision/event recording, readable recovery with interrupted/unknown work, key protection, source-revocation handling, and full permitted history without raw audio/secrets.
 Both archive and deletion durations are configurable; the same meaningful-activity clock controls them and passive browsing does not refresh it.

@@ -765,12 +765,12 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 | Ambient wake audio | Memory-only rolling buffer of at most 2 seconds; overwritten continuously and cleared when listening stops |
 | Activated command audio | Memory only; released after transcription/cancellation |
 | Consented frequent-speaker learning / explicit verification profiles | Minimum protected local SID/device-bound derived features until explicit reset/deletion; learning Off stops updates, not implicit erasure; no raw training archive or model/remote/roaming/log access; independent of session history and grants |
-| Selected context snapshots and command transcripts | Encrypted session history when source/security policy permits; no background clipboard history; raw command audio remains ephemeral |
-| Session messages, answers, questions, decisions, scripts/artifacts, and permitted tool content | Durable encrypted session-linked history; restored for reading, never automatic execution or unreviewed egress |
+| Selected context snapshots and command transcripts | Private-profile session history when source/security policy permits; no background clipboard history; raw command audio remains ephemeral |
+| Session messages, answers, questions, decisions, scripts/artifacts, and permitted tool content | Durable private-profile session-linked history; readable copies outside that boundary, never automatic execution or unreviewed egress |
 | Queue requests, labels, context references, and content-bearing work ledger | Persist as session evidence; pending execution eligibility expires after 30 minutes by default; readable evidence is not fresh context/approval |
 | Session inactivity lifecycle | Archive after 24 hours and delete after 30 days from last meaningful activity; both configurable; browsing/search do not reset the clock; live/uncertain work is protected |
-| Task/action/approval audit metadata | Typed `SecurityAudit=true` events flow through `ILogger` to the daily JSON stream and a dedicated authoritative `security_audit_events` table in encrypted local SQLite. Database retention defaults to 90 days and is configurable from 30 through 365 days. The table preserves the common structured logging envelope, W3C activity fields, host-owned session/task/invocation/approval identities and fixed typed audit columns for stable correlation, canonical action/resource/destination identifiers, parameter/content hashes, scope, creator channel, presence/confirmation class, policy/schema revision, creation/expiry/use/revocation events, outcome, and error codes; no raw parameters/content |
-| Application diagnostic events and spans | Every permitted `ILogger` event flows to daily structured JSON under `%LOCALAPPDATA%\Kora\Logs` and encrypted local SQLite. Database diagnostic retention defaults to 30 days under its independent bounded setting. Non-audit records use structured `application_log_events`; completed activity metadata/links use `activity_spans`/`activity_links`. They preserve W3C trace/span/parent or link context, activity source/name/kind, event ID/name, level/category, original template, typed properties/scopes and promoted host-owned session/task/invocation/approval/correlation fields independently of optional rendered text. The file sink retains at most 30 files and 30 days and remains available for bootstrap/database/evidence-pipeline failure, fatal crash and recovery. Neither sink contains transcripts, response bodies, synthesized speech text, raw audio, credentials, or secrets |
+| Task/action/approval audit metadata | Trusted typed audit events flow through `ILogger` to daily JSON and dedicated `security_audit_events` in private local SQLite. Audit authority/tamper evidence remains separate D-008 work, not a property of encryption or ACLs. Retention defaults to 90 days, configurable 30-365. Preserve structured envelope, W3C/host identities and typed correlation/action/resource/hash/scope/policy/outcome/error fields; never raw parameters/content. Arbitrary `SecurityAudit=true` properties confer no authority. |
+| Application diagnostic events and spans | Permitted `ILogger` events independently flow to daily JSON and private local SQLite; database diagnostics default to 30 days. Separate `application_log_events`, `activity_spans` and `activity_links` preserve original templates, typed properties/scopes, W3C causal context and trusted host IDs independently of rendered text. Files retain at most 30 files/30 days and remain available for database/pipeline failure and recovery. Neither sink contains transcripts, response bodies, speech text, audio, credentials or secrets. |
 | Configuration and grants | Single-use grants are consumed and session grants end with their session; perpetual grants have no expiry/retention/eviction and remain independently until explicitly removed/edited, with minimal provenance surviving originating session deletion; no secrets in configuration |
 | Kora-specific skill definitions/revisions | Persist in `%APPDATA%\Kora\Skills` until explicitly removed; not cleared with conversation history |
 | Shared profile skill snapshots | Approved in-memory revision snapshots; re-read/revalidate on restart; source files remain untouched |
@@ -778,9 +778,19 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.
-Encrypt history, artifacts, and indexes with OS-protected keys; deletion must cover caches, indexes, blobs, journals/recoverable copies, and outstanding session dispatch authority, not independently stored perpetual grants.
-The [Windows durable-storage direction](Architecture.md#windows-durable-storage-direction) requires maintained authenticated page encryption, authenticated managed artifacts, CurrentUser DPAPI key wrapping and restricted local ACLs; the R02 native candidate is not production-admitted.
-Key custody must verify the application's CurrentUser scope, profile-local managed paths/copies and effective restrictive directory/key-file ACLs, without LocalMachine or shared-path fallback.
+Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.
+The [approved storage baseline](Architecture.md#windows-durable-storage-direction) uses pinned standard SQLite, not mandatory page encryption or database DPAPI keys. Copies outside the private location are readable; same-user/admin access is not prevented. Credentials remain in Windows-protected credential storage.
+R04's partial [host evidence foundation](Implementation_Roadmap.md#r04-foundation-delivery)
+does not close all persistence/audit gates. The internal typed audit state is the only
+audit-routing discriminator; arbitrary `SecurityAudit=true`, model/provider
+session fields and activity tags remain diagnostic data. Envelopes capture
+host/trace state at the call, minimize known sensitive properties and omit
+exception messages. Daily JSON copies are non-authoritative. The evidence
+sink remains unavailable and reports gaps; the actual standard task store is
+not yet composed into transcript dispatch. No new consequential capability
+is enabled. Log producers still own
+content minimisation; bounded strings are not a universal secret detector.
+Persistence must verify supplied profile-local managed paths/copies and effective restrictive folder/file ACLs, without shared-path fallback or silent permission repair.
 Windows provides ordinary cross-profile isolation; a second-account trial is optional corroboration for this profile-local architecture, not a mandatory application gate.
 Follow [the profile-boundary contract](Architecture.md#profile-boundary-and-validation-responsibility) before changing storage/identity scope; any new cross-user protection claim needs actual identity evidence, not mock SIDs.
 Per-user storage does not replace the separately required same-user worker/Kora-resource containment controls.
@@ -871,7 +881,7 @@ including a claimed success, never substitutes for policy enforcement,
 immediate pre-execution revalidation, an action receipt, or authoritative
 effect observation. The target design keeps the same typed `ILogger` audit
 contract and adds two providers: the existing complete daily JSON stream and an
-encrypted SQLite provider that routes `SecurityAudit=true` state directly into
+private SQLite provider that routes trusted typed audit state directly into
 the dedicated `security_audit_events` table. Other permitted `ILogger` records
 enter `application_log_events`. This dual-write behavior is planned, not a
 claim about the current bootstrap.

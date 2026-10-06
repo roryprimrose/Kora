@@ -73,7 +73,7 @@ An explicit New request entry from tray/compact/workspace offers an untargeted c
 Its draft is isolated from named-session drafts. Explicit New session bypasses relatedness matching; a named-session composer never silently auto-routes elsewhere.
 Unsent text and answer drafts belong to their session/question, not one global text box; switching away preserves them and switching back restores them.
 Clear the composer only after the host has durably accepted the input; persistence/admission failure leaves the draft recoverable with an error.
-Permitted non-secret drafts use the encrypted session/draft store; draft saving is not submission, approval, queue dispatch, or a synthetic retention heartbeat.
+Permitted non-secret drafts use the private-profile session/draft store; draft saving is not submission, approval, queue dispatch or a synthetic retention heartbeat. Copies outside that boundary are readable.
 
 ## Sessions Workspace
 

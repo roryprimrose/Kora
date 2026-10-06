@@ -3936,6 +3936,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        await Kora.Application.Hosting.HostRequestRunner.RunAsync(
+            initiator == SecurityAuditInitiator.VoiceCommand
+                ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi,
+            () => RouteTranscriptAsync(spokenText, confidence, initiator));
+    }
+
+    private async Task RouteTranscriptAsync(
+        string spokenText,
+        float confidence,
+        SecurityAuditInitiator initiator)
+    {
         if (pendingModelQuestion is { } question)
         {
             if (initiator != SecurityAuditInitiator.VoiceCommand

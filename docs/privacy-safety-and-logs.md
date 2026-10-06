@@ -126,15 +126,21 @@ sensitive content.
 
 The current bootstrap writes both ordinary diagnostics and typed audit events
 to those files. The planned durable design continues writing every permitted
-`ILogger` event to the daily JSON files and also writes it to encrypted SQLite.
+`ILogger` event to daily JSON files and private-profile standard SQLite.
 Ordinary records use a dedicated `application_log_events` table. Typed events
 marked `SecurityAudit=true` use a separate authoritative
 `security_audit_events` table and remain present in the JSON stream. This keeps
-startup, database/key/migration failure, fatal crash, and storage recovery
+startup, database/permission/migration failure, fatal crash and storage recovery
 diagnosable when the database is unavailable. Unified viewing/search preserves
 stable source citations, reports retention or ingestion gaps, and never treats
 an ordinary diagnostic event or file audit copy as proof that an action was
 authorized or succeeded.
+
+Database encryption is not mandatory. The planned store verifies private
+permissions under the supplied local application-data path. It does not
+protect against code running as you or an administrator; database/artifact/
+backup copies outside that private location are readable. Credentials remain
+in Windows-protected storage, not ordinary SQLite fields.
 
 Both database tables preserve structured logging fields independently of the
 human-readable message: event ID/name, level, logger category, original message

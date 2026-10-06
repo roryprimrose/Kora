@@ -180,7 +180,7 @@ deny-by-default permissions, disabled discovery/memory/export/spill and
 host-owned session I/O. Prefer the tested child-process stdio transport for
 the next proof: the Node in-process transport does not honor the same
 per-client environment controls. Process separation is not a sandbox.
-Kora's own permitted durable history remains under its encrypted store; SDK
+Kora's own permitted durable history remains under its private-profile store; SDK
 transcript files are not a replacement or an additional unreviewed copy.
 
 Keep WebSockets, attachments, runtime-built-in tools, MCP, runtime skills,

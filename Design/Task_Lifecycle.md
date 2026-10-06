@@ -57,6 +57,21 @@ late calls and responses from resuming the task.
 Exact local commands can query or control the same host services without
 inference; effect-specific approval still applies.
 
+The bounded R05 [question](../src/Kora.Application/Interaction/HostQuestionService.cs)
+and [authorization](../src/Kora.Application/Interaction/HostAuthorizationService.cs)
+services now commit answers/approvals/consumption against exact host
+request/session/task/question/proposal revisions through an atomic
+storage/audit abstraction. They have no dispatch callback and do not advance
+an actual task to Running. A foundation approval/use receipt is neither an
+execution token nor evidence of an observed effect.
+The R04-owned durable adapter/composition must serialize task cancellation,
+session end/resume, policy and content changes with these transactions and
+block new admission before dispatch. Failed audit/storage commits produce no
+admitted receipt; OperationCanceledException means rolled back, while lost
+commit certainty throws a storage error and prohibits blind retry.
+Real effect cancellation, interrupted-run reconciliation, native review and
+immediate pre-effect revalidation remain production integration gates.
+
 ## Wake Listening and Command Capture
 
 Voice states are Muted, Wake Listening, Awaiting Conversational Reply,

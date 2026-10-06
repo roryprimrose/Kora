@@ -196,14 +196,31 @@ public sealed partial class WindowsPresenceWindowInputTests
     }
 
     [WindowsFact]
-    public async Task Native_hit_testing_reaches_the_underlying_window_except_during_Ctrl_interaction()
+    public Task Native_hit_testing_reaches_the_underlying_window_except_during_Ctrl_interaction() =>
+        RunNativeHitTestingAsync(iterations: 1);
+
+    [WindowsFact]
+    public Task Native_hit_testing_repeatedly_restores_and_releases_private_desktops() =>
+        RunNativeHitTestingAsync(iterations: 16);
+
+    private static async Task RunNativeHitTestingAsync(int iterations)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
             try
             {
-                VerifyNativeHitTesting();
+                // Disable IME only on this disposable thread, before any native window creates hidden text-service resources.
+                if (!ImmDisableIME(GetCurrentThreadId()))
+                {
+                    throw new InvalidOperationException("The native hit-test thread could not disable IME initialization.");
+                }
+                var originalDesktop = GetThreadDesktop(GetCurrentThreadId());
+                for (var iteration = 0; iteration < iterations; iteration++)
+                {
+                    VerifyNativeHitTesting();
+                    GetThreadDesktop(GetCurrentThreadId()).Should().Be(originalDesktop);
+                }
                 completion.SetResult();
             }
             catch (Exception exception)
@@ -212,7 +229,15 @@ public sealed partial class WindowsPresenceWindowInputTests
             }
         }) { IsBackground = true };
         thread.Start();
-        await completion.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        try
+        {
+            await completion.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            var exited = await Task.Run(() => thread.Join(TimeSpan.FromSeconds(10)), CancellationToken.None);
+            exited.Should().BeTrue("the native test thread must finish its cleanup before the test returns");
+        }
     }
 
     private static void VerifyNativeHitTesting()
@@ -225,7 +250,8 @@ public sealed partial class WindowsPresenceWindowInputTests
         nint presence = 0;
         try
         {
-            SetThreadDesktop(desktop).Should().BeTrue();
+            SetThreadDesktop(desktop).Should().BeTrue("the native thread must use the private desktop (Win32 error {0})",
+                Marshal.GetLastPInvokeError());
             underlying = CreateWindowEx(0, "STATIC", string.Empty, 0x90000104,
                 10, 10, 100, 100, 0, 0, 0, 0);
             presence = CreateWindowEx(8, "STATIC", string.Empty, 0x90000104,
@@ -247,16 +273,24 @@ public sealed partial class WindowsPresenceWindowInputTests
         }
         finally
         {
-            if (presence != 0)
+            try
             {
-                DestroyWindow(presence).Should().BeTrue();
+                if (presence != 0)
+                {
+                    DestroyWindow(presence).Should().BeTrue();
+                }
             }
-            if (underlying != 0)
+            finally
             {
-                DestroyWindow(underlying).Should().BeTrue();
+                if (underlying != 0)
+                {
+                    DestroyWindow(underlying).Should().BeTrue();
+                }
             }
-            SetThreadDesktop(previousDesktop).Should().BeTrue();
-            CloseDesktop(desktop).Should().BeTrue();
+            SetThreadDesktop(previousDesktop).Should().BeTrue("the native thread must restore its desktop (Win32 error {0})",
+                Marshal.GetLastPInvokeError());
+            CloseDesktop(desktop).Should().BeTrue("the private desktop must be released (Win32 error {0})",
+                Marshal.GetLastPInvokeError());
         }
     }
 
@@ -306,11 +340,11 @@ public sealed partial class WindowsPresenceWindowInputTests
     [StructLayout(LayoutKind.Sequential)]
     private readonly record struct NativePoint(int X, int Y);
 
-    [LibraryImport("user32.dll", EntryPoint = "CreateWindowExW", StringMarshalling = StringMarshalling.Utf16)]
+    [LibraryImport("user32.dll", EntryPoint = "CreateWindowExW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     private static partial nint CreateWindowEx(uint extendedStyle, string className, string title, uint style,
         int x, int y, int width, int height, nint parent, nint menu, nint instance, nint parameter);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool DestroyWindow(nint window);
 
@@ -322,19 +356,23 @@ public sealed partial class WindowsPresenceWindowInputTests
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetWindowRect(nint window, out Rectangle rectangle);
 
-    [LibraryImport("user32.dll", EntryPoint = "CreateDesktopW", StringMarshalling = StringMarshalling.Utf16)]
+    [LibraryImport("user32.dll", EntryPoint = "CreateDesktopW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     private static partial nint CreateDesktop(string name, nint device, nint mode, uint flags, uint access, nint security);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetThreadDesktop(nint desktop);
 
-    [LibraryImport("user32.dll")]
+    [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseDesktop(nint desktop);
 
     [LibraryImport("user32.dll")]
     private static partial nint GetThreadDesktop(uint thread);
+
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ImmDisableIME(uint threadId);
 
     [LibraryImport("kernel32.dll")]
     private static partial uint GetCurrentThreadId();

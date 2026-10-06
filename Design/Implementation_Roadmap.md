@@ -666,6 +666,65 @@ speech/hardware, worker containment, deployment or R04 private-profile
 storage integration/recovery/lifecycle gates. D-009 supersedes mandatory
 encrypted-storage admission; R30 remains optional.
 
+### R05 Bounded Authorization/Question Foundation
+
+**Partial, foundation only - 2026-10-06.** New portable core/application
+services are implemented and tested against the merged R04 host contracts.
+This parallel partition changes no MainViewModel dispatch, action handler,
+UI composition or production storage schema. It enables no new execution.
+
+| Delivered boundary | Source and test evidence | Remaining integration gate |
+|---|---|---|
+| Host-owned typed questions | [Question service](../src/Kora.Application/Interaction/HostQuestionService.cs), bounded single/multiple-choice/text [specification](../src/Kora.Core/Interaction/QuestionSpec.cs), existing HostId/HostRequest/HostRevision; [contract tests](../tests/Kora.Core.UnitTests/Interaction/InteractionContractTests.cs) and [service tests](../tests/Kora.Application.UnitTests/Interaction/HostQuestionServiceTests.cs) | Durable questions/drafts/answers, native exact review/readback, trusted UI/voice input and foreground spoken-target ownership; typed forms/secure flows are not added. |
+| Exact host operation and grant applicability | [Binding/proposal contracts](../src/Kora.Core/Authorization/ExactOperationBinding.cs), [authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [tests](../tests/Kora.Application.UnitTests/Interaction/HostAuthorizationServiceTests.cs); exact source/content/implementation/invocation/resource/identity/destination/transformation/policy/effect checks, origin preservation and unknown/prohibited denial | Admitted registry/catalogue, actual canonical byte/resource snapshots, immutable review and action-specific ownership/privacy/containment/deployment proofs; no named-action preference migration. |
+| Scope, lifecycle and retention separation | Once consumed atomically; Session bound to durable work-session ID/generation; Perpetual record has no expiry/retention/eviction. Tests reject ended/resumed/cross-session authority and preserve independent records across history removal/recreated services. | R04/R12 adapter must advance lifecycle generations, preserve Active-session generations on restart and retain Perpetual records outside session deletion. Synthetic history removal/recreated services are not disk restart/deletion acceptance. |
+| Race/revoke/change and audit certainty | [Atomic store seam](../src/Kora.Core/Storage/IHostInteractionStore.cs), matching live HostActivity and typed SecurityAuditEvent; concurrent duplicate approval/Once consumption, revoke/use, stale revisions, observed-content permanent revocation and [storage/audit/cancellation tests](../tests/Kora.Application.UnitTests/Interaction/InteractionCommitTests.cs) | Verified R04 durable task/evidence handoff and agreed adapter/schema ownership; atomic authoritative audit failures must block consequential dispatch. A use receipt is not a reusable dispatch token or effect receipt. |
+
+**Validation receipt:** root Release build passed with zero warnings/errors;
+Core 333/333 and Application 1001/1001 passed. Fresh-only combined portable
+coverage passed the exact 100% line/branch gate, including named transition
+methods (not only callback wrappers). No coverage exclusions or thresholds
+were changed. Dependency manifests, native payloads and installer/bootstrap
+tooling are unchanged.
+
+Earlier full Windows runs and a user-approved rerun exposed intermittent
+private-desktop cleanup failure in the
+[native presence hit-testing test](../tests/Kora.Windows.IntegrationTests/Presentation/WindowsPresenceWindowInputTests.cs)
+at `SetThreadDesktop`, not the subsequent `CloseDesktop`. The user-authorized
+test-only fix disables IME initialization on its disposable native thread
+before creating windows, preventing hidden text-service resources from
+blocking desktop restoration. It preserves the actual click-through/Ctrl
+assertions, checks cleanup errors, waits for worker completion and adds a
+16-cycle private-desktop restoration/release regression. Six fresh targeted
+runs passed both tests; three fresh full Windows runs each passed 438/438,
+with no skips or exclusions. Final root Release and fresh-only portable
+coverage also passed again. Failure and passing TRX evidence is retained
+under `.net-test-artifacts/r05-native-test-fix`; the final portable report is
+under `.net-test-artifacts/r05-coverage-final`. Production Windows/UI code and
+system-wide input settings are unchanged. **The automated all-suite gate now
+passes; production integration remains pending the handoff below.**
+
+**Required handoff before production wiring:**
+
+1. R04 supplies verified admitted intent/task/evidence composition. Agree the
+   durable interaction/grant adapter partition and schema ownership before
+   persistence changes; do not alter its dispatch or store schemas in parallel.
+2. Resolve current host operation bytes, source access, identity/account,
+   destination and mandatory policy inside the atomic admission boundary.
+   Complete declared identity remains exact; W2 transitive tracking is best
+   effort and neither a containment profile nor broader authority.
+3. Serialize task cancellation, session Done/delete/resume, grant revoke/edit,
+   observed content changes and policy generations with use. Successful
+   intent/approval/audit commits are mandatory before any consequential effect.
+4. Compose trusted native review/input, exact foreground voice targeting and
+   immediate pre-effect revalidation; repeat real durable restart/deletion/
+   interruption and action-specific receipt/containment trials.
+
+This does not close all R05, D-008/D-009/D-013 or A0-A4. General script/worker/
+tool/remote adapters, real lock/power, install/account/credential/security
+policy changes and microphone/app execution remain unexposed by this slice.
+No dependency/profile architecture or sibling merge is introduced.
+
 ### Core Foundations and First Useful Interaction
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
@@ -674,7 +733,7 @@ encrypted-storage admission; R30 remains optional.
 | R02 - Run release-blocking feasibility proofs | Partial candidates in I01/I06/I09/I16; storage/inference/distribution outcomes recorded; containment I17/runtime I18 retain open gates | P0 - discover runtime/hardware/containment limits | R01 | Complete runtime RT1/RT2/MG1/PV1 as applicable, retaining rejected hook-only and blocked account/global paths as unavailable. Qualify local model/licence/CPU floor, wake, worker containment and deployment. D-009 now selects standard SQLite/private profile permissions; encrypted-native/key admission is superseded. Complete [local L1-L5/L6](#r02-local-inference-continuation), W1-W3 and R02-D01/D02/D03 evidence; historical NSIS assembly is not D-005 closure. Use actual SDK/provider/OS evidence, not aggregate R02 success; preserve unrelated proof gates. |
 | R03 - Establish Windows/audio ownership and privacy foundation | PTT/cross-build ownership and privacy closure implemented; bounded x64/audio trials pass; full native acceptance open in I03-I06/I12/I13 | P0 - stop unauthorized capture and overlapping owners | R01 | Complete acceptance of cross-build single-owner activation/handoff/return, consent/enablement generations, explicit PTT, bounded audio/transcript buffers and stale-callback rejection. Enforce wake-only versus activated-transcription separation; never label activated grammar capture as production wake. Prove native lock/disconnect/suspend/permission-polling/device observation and capture/audio/output closure on every required event. Release capture within 500 ms of observed lock in every reference trial. Provide native/tray recovery without model/network/speech. |
 | R04 - Introduce durable identities, Activity tracing and authoritative host contracts | **Partial; encrypted-admission blocker superseded.** Host/state/evidence/tracing contracts, no-replay coordinator and actual private standard-SQLite v1 task store have source/tests; [inventory](#r04-foundation-delivery) and [continuation](#r04-approved-standard-sqlite-continuation---2026-10-06). | P0 - stable attribution and crash-safe intent | R01, R03; approved D-009 standard SQLite/profile baseline | Compose actual request/task/terminal/recovery with correlated independent diagnostic/audit/span/link persistence, truthful outcomes, supported migrations, backup/artifact publication and process interruption. Complete audit checkpoints, retention/query-gap semantics and relevant runtime/tool boundaries. No database key/rekey/encrypted-native prerequisite, history/queue UI, automatic replay or proof-fixture schema promotion. R04 is not complete until the integrated milestone and all its criteria are met. |
-| R05 - Build the shared authorization/question gateway | Partial I11/I12 | P0 - one authority path for direct/UI/model/skill requests | R03, R04 | Implement host-owned typed questions, exact proposals, native trusted input, single-use atomic consumption, operation-bound durable Session grants and independently retained Perpetual grants without expiry/retention/eviction. Add complete implementation/invocation/resource identity, immutable review, explicit grant edit/removal, audit/receipt certainty and immediate dispatch revalidation. Apply the resolved standalone-lock rule. Legacy action-name preferences confer no new executable authority without explicit review/approval. |
+| R05 - Build the shared authorization/question gateway | **Partial foundation delivered**, in addition to I11/I12: [typed services/contracts and tests](#r05-bounded-authorizationquestion-foundation). Durable adapter/native input/production wiring pending verified R04 handoff. | P0 - one authority path for direct/UI/model/skill requests | R03, R04 | Compose host-owned typed questions, exact proposals and trusted native input; integrate atomic use/audit, operation-bound durable Session and independent Perpetual records. Prove actual immutable bytes/review, durable lifecycle/deletion, edit/removal, audit/receipt certainty and immediate pre-effect revalidation. Apply standalone-lock binding only after its durable host identity is committed/shown. Legacy action-name preferences confer no new executable authority without explicit review/approval. No new execution is enabled by the bounded foundation. |
 | R06 - Implement the admitted tool registry and local tool/result loop | Partial JSON selector in I02/I09/I10; R02 harness is not adapter qualification | P1 - natural requests can discover and use Kora capabilities | R02 (local runtime: L1-L5 qualification), R04, R05 | Expose versioned admitted schemas/skill summaries per lane; implement bounded validated proposals, host execution and correlated approved results followed by continued reasoning. Use the R02-L5 tested compatibility/context/resource envelope, preserve digest checks and rerun affected proofs on integration. First deliver discovery/application/readiness/runtime/status tools, deterministic status presenters and typed success/denied/unknown/unavailable behavior. Preserve exact offline safety routes. Add registry/catalogue coverage and hostile-result/unknown-ID/late-cancellation tests; do not expose unimplemented session tools. |
 | R07 - Deliver explicit clipboard context and local-first explanation | Outstanding context path; partial inference I09/I10; no R02 real answer/offline-success proof | P1 - first useful private vertical slice | R03, R04, R05, R06; R02 local L5 evidence carried through L6 | Implement request-triggered plain-text clipboard snapshot/preview, immutable context/source IDs, purpose/secret/destination classification, bounded excerpts and explicit reuse/revocation. Fit the complete approved envelope to the qualified context budget or reject explicitly. Reuse R02 fixtures/rubric and isolation evidence, then repeat actual quality/cancellation/no-egress proof on the integrated host; synthetic payload injection is not clipboard-broker acceptance. Local inference missing/unhealthy remains unavailable with no remote fallback. Unsupported clipboard formats are explicit. |
 | R08 - Integrate the controlled remote runtime and streaming path | Outstanding production adapter; I18 candidate only; RT2 all-path admission BLOCKED despite passing bounded tests; hook-only path rejected; local production inference remains buffered | P1 - complete A0 and provider-neutral interaction | R02-RT1/RT2 and execution R02-PV1; local L5 envelope for local streaming; R04, R05, R06, R07 | Carry the [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs), resolve native observation/prevention before exposure, and integrate the proved .NET/runtime profile through pre-effect authorization, all-status host result sanitization and a final serialized-request egress gate. Disable unverified built-ins/collection/storage/transports; keep credentials host-only and cancellation truthful. Pass Gate 0 including actual account/destination/diagnostic evidence, streamed output/backpressure and zero denied effects/markers. Reuse host contracts and the qualified local envelope for local streaming/iteration; measure user-visible first output and cancellation, not experimental token timing alone. No production Node bridge or alternate provider without an explicit D-001 decision. |

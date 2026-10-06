@@ -283,6 +283,18 @@ The same evidence must cover UI task invocations and skill workflows, not just
 exact phrases and model proposals. Skill enablement/selection, clarification,
 and script review remain separate from the exact task execution grant.
 
+**2026-10-06 bounded R05 foundation:** portable typed questions and exact
+operation proposals, revision/scope checks, atomic Once use, explicit
+remove/edit and permanent observed-content revocation now have concrete
+core/application services and tests. Original caller origin and protected-call
+reusable-grant rules remain enforced; legacy action-name preferences are not
+authority for these bindings. See [R05 delivery/pending gates](Implementation_Roadmap.md#r05-bounded-authorizationquestion-foundation).
+The adapter is an explicit atomic storage/audit contract with a test-only
+implementation. Production durable approval storage, native trusted input/
+review, actual dispatch composition and the verified R04 handoff remain
+pending. D-008 stays open; D-009's standard SQLite baseline and D-013's
+exact-declared/best-effort-transitive and containment requirements are unchanged.
+
 ## D-009 Session Persistence and Retention
 
 ### Approved Profile-Secured SQLite Baseline - 2026-10-06

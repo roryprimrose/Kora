@@ -4,6 +4,9 @@ Status: proposed full security contract. The current bootstrap implements host-v
 model proposals and once/session/always model-action approvals, not the
 complete grant taxonomy or script/executable execution gate below. Controls
 must be demonstrated before the associated capability is enabled.
+R05 additionally has tested, uncomposed core/application question and exact
+authorization services; their durable adapter and production integration are
+not delivered. See [the foundation boundary](#r05-authorization-foundation).
 
 Related: [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -331,6 +334,59 @@ all-path lifecycle observation, account eligibility and production resource
 admission are still independent gates.
 
 ## Grants and Approvals
+
+### R05 Authorization Foundation
+
+The [exact operation binding](../src/Kora.Core/Authorization/ExactOperationBinding.cs)
+binds action/source partition/skill, exact definition and complete declared
+resource identity, observed tracked content, required implementation, typed
+invocation, resolved resources, identity/account, destination, transformation
+and policy revision. The admitted host supplies SHA-256 identities from
+immutable canonical snapshots, never provider checksums, source comments,
+display text or trace IDs. This foundation validates binding shape and
+equality; it does not implement the catalogue, byte resolver, script-set
+encoder, containment or runtime adapter.
+
+[HostAuthorizationService](../src/Kora.Application/Interaction/HostAuthorizationService.cs)
+presents only the current host proposal, rejects unknown/prohibited effects,
+checks exact proposal/question revisions and records explicit Once/Session/
+Perpetual decisions. Every use rechecks current operation/effect, scope,
+session generation, proposal deadline and mandatory host policy. A changed
+invocation/resource/identity/destination/policy is inapplicable; observed
+definition/declared/tracked/implementation content changes permanently revoke
+affected authorization. `ObserveContentAsync` commits revocation before the
+host publishes changed content; restoring old bytes never restores it.
+Explicit remove/edit revokes the old record; a replacement requires fresh
+exact review and approval, not in-place widening.
+
+The original request origin remains part of the proposal. UI may answer an
+allowed voice-originated proposal, but a protected-call voice/in-call-settings
+mutation remains denied after a UI confirmation. In-call reusable-grant-ignore
+temporarily denies Session/Perpetual use while allowing a fresh exact Once
+decision; it never deletes reusable records. Changed known effects cannot
+reuse a grant for a different effect.
+
+The [storage contract](../src/Kora.Core/Storage/IHostInteractionStore.cs)
+serializes lifecycle/content/policy/revoke/use changes and atomically commits
+question/grant changes with a typed security audit. Once use increments the
+revision/count and consumes authority in the same commit. Storage/audit
+failure returns no successful receipt. Cancellation certifies rollback only;
+uncertain commits surface a storage error and cannot be automatically replayed.
+These are tested application/core guarantees against an explicit test adapter,
+not a claim of production durable approvals or R04 audit integration.
+
+Session authorization follows the durable work-session lifecycle, not Windows,
+provider, process or selected-window identity. Perpetual records are retained
+independently, without expiry/retention/eviction or session archive/delete/
+restart removal. Actual durable adapter/lifecycle/deletion acceptance remains
+R04/R12 work. No legacy named-action preference is imported or migrated to
+these version-bound grants.
+
+Successful admitted intent/approval/audit commits are prerequisites, not
+permission to expose execution. Native exact review/input, verified R04
+handoff/durable integration and the action's ownership/privacy/containment/
+deployment gates must pass before consequential production dispatch.
+The bootstrap's existing action routes are unchanged.
 
 Permissions combine capability, canonical resource scope, identity, destination where relevant, and current applicability; proposal/dispatch deadlines are separate from perpetual grant lifetime.
 Examples:

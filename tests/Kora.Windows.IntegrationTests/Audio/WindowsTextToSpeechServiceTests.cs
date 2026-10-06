@@ -44,6 +44,7 @@ public sealed class WindowsTextToSpeechServiceTests(
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         service.IsSpeaking.Should().BeFalse();
+        service.PlaybackFrame.Should().Be(SpeechPlaybackFrame.Inactive);
     }
 
     [Fact]
@@ -55,6 +56,7 @@ public sealed class WindowsTextToSpeechServiceTests(
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         service.IsSpeaking.Should().BeFalse();
+        service.PlaybackFrame.Should().Be(SpeechPlaybackFrame.Inactive);
     }
 
     [Theory]

@@ -74,34 +74,58 @@ required queued setup task.
 The theme applies immediately to Settings, the presence, response surface,
 documentation, and other Kora-owned visual surfaces.
 
-### Visible timeout
+### Independent visibility timeouts
 
-- Default: **5 seconds**
-- Range: **1 to 60 seconds**
+- **Presence timeout** - default **10 seconds**; range **1 to 60 seconds**,
+  under **Appearance > Presence appearance**.
+- **Response timeout** - default **5 seconds**; range **1 to 60 seconds**,
+  under **Appearance > Visual feedback**.
 
-The shared timer restarts whenever voice, typed, pointer, or keyboard
-interaction occurs. If no further interaction occurs before the timeout, Kora
-hides the presence and any response window that is not set to **Always
-show**. **Always show** affects only the response window; the presence
-continues to use this timeout.
+Presence hides automatically and without asking when it is idle or listening
+and no prompt needs attention. New Kora interaction restarts its timer.
+Active work, speech, approval/question prompts, recovery actions, grant editing,
+and unacknowledged failures prevent presence auto-hide. Once these finish,
+a fresh inactivity period starts. Listening/capture is not required for the
+timer to run, and hiding presence does not stop listening or work.
+
+The response window uses its own timer. **Always show** disables only response
+auto-hide; it does not pin presence. Question/approval prompts and response
+action links keep the response visible until resolved or dismissed.
+Changing one timeout does not change the other. Previously saved response
+timeout values are retained when upgrading.
 
 ### Presence appearance
 
 The presence is the animated group of dots that communicates Kora's current
-state. Under **Settings > Appearance > Presence appearance**, the three sliders
+state. Under **Settings > Appearance > Presence appearance**, the controls
 apply immediately and are stored on this device:
 
 - **Presence size** - default **360 px**; range **240-600 px**.
 - **Dot size** - default **100%**; range **50-200%**.
+- **Dot density** - default **100%** (150 dots); range **25-200%** (38-300 dots).
 - **Movement speed** - default **100%**; range **25-200%**.
+- **Speech sizing** - on by default; grows and shrinks the presence to follow
+  the rhythm of Kora's actual speaker output.
+- **Speech scale amount** - default **100%**; range **0-200%**. This controls
+  the deviation from normal size: 100% uses 90-112% of normal size, 200% uses
+  80-124%, and 0% holds normal size. The slider is disabled while speech sizing
+  is off, but its value is retained.
 
 Changing the overall size keeps the presence anchored to the bottom-right
-of the active display's working area until you move it. Drag the visible
-presence to reposition it. Kora restores its last position when that
+of the active display's working area until you move it. Hold **Ctrl**, then
+left-click and drag the visible presence to reposition it. Without Ctrl,
+mouse events pass through to the window underneath. Release the mouse button
+and Ctrl when finished; ongoing gestures keep their original recipient.
+Kora restores its last position when that
 position remains on a connected display and otherwise falls back to the
 bottom-right working area. Dot size changes particle diameter without changing
 the number of particles. Movement speed scales the motion associated with each
 assistant state without changing the state itself.
+Dot density changes only how many dots are shown. Speech sizing does not change
+the state colours, dot motion, speech volume, or playback policy. It follows the
+audio playback envelope rather than microphone input or a simulated pulse, and
+smooths rapid changes without losing the syllable rhythm. It eases back to
+normal size when playback stops or speech sizing is switched off.
 
 ### Response window
 
@@ -114,8 +138,8 @@ feedback**:
   selected. Default: off.
 - **Stay on top** controls whether the response remains above other windows.
   Default: on.
-- **Visible timeout** changes the shared 1-60 second timeout used by both the
-  response window and presence.
+- **Response timeout** changes only the response window's 1-60 second inactivity
+  interval. Presence uses the separate **Presence timeout** setting.
 - Press **Enter** in the typed-command prompt to run the command.
 - **Cancel task** is visible while local model work or response speech is
   active. Select it or press **Esc** to stop that work. **Dismiss** only hides

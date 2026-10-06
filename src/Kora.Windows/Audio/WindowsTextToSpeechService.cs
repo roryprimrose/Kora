@@ -23,6 +23,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     private Prompt? activePrompt;
     private MemoryStream? audioStream;
     private WaveStream? audioReader;
+    private SpeechOutputEnvelope? outputEnvelope;
     private WaveFormat? rawAudioFormat;
     private WasapiPlayer? playback;
     private MMDevice? activeOutputDevice;
@@ -57,6 +58,39 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 return activePrompt is not null
                     || isKokoroSynthesis
                     || playback is not null;
+            }
+        }
+    }
+
+    public SpeechPlaybackFrame PlaybackFrame
+    {
+        get
+        {
+            lock (stateLock)
+            {
+                if (stopRequested
+                    || playback is null
+                    || playbackCompletion is null
+                    || playback.PlaybackState != PlaybackState.Playing
+                    || outputEnvelope is null)
+                {
+                    return SpeechPlaybackFrame.Inactive;
+                }
+
+                try
+                {
+                    // Device position, not reader position, keeps the envelope behind buffered audio.
+                    var position = TimeSpan.FromSeconds(
+                        playback.GetPosition() / (double)playback.OutputWaveFormat.AverageBytesPerSecond);
+                    return new SpeechPlaybackFrame(true, outputEnvelope.GetLevel(position));
+                }
+                catch (COMException exception)
+                {
+                    throw new AudioOutputDeviceUnavailableException(
+                        AudioOutputFailureReason.PlaybackFailed,
+                        "Windows could not read the speech playback position.",
+                        exception);
+                }
             }
         }
     }
@@ -516,6 +550,11 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             audioReader = rawAudioFormat is null
                 ? new WaveFileReader(stream)
                 : new RawSourceWaveStream(stream, rawAudioFormat);
+            var envelope = SpeechOutputEnvelope.Create(audioReader, cancellationToken);
+            lock (stateLock)
+            {
+                outputEnvelope = envelope;
+            }
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
@@ -604,6 +643,8 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         {
             completion = playbackCompletion;
             playbackCompletion = null;
+            outputEnvelope?.Clear();
+            outputEnvelope = null;
         }
 
         if (eventArgs.Exception is not null)
@@ -693,6 +734,8 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 playback = null;
             }
             playbackCompletion = null;
+            outputEnvelope?.Clear();
+            outputEnvelope = null;
         }
         player?.Dispose();
 

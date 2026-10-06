@@ -124,7 +124,8 @@ All voice-profile settings and management changes obey the protected-call origin
 | Visual detail level | Concise by default; detailed on request | "Show detailed results by default" |
 | Speech text / rich display | Independent optional captions, source/rendered Markdown, diagram and viewer preferences | "Show the words you're saying" |
 | Theme | System by default; System follows live Windows appearance, while Light/Dark override every Kora visual surface | "Use the dark theme" |
-| Visible timeout | 5 seconds; 1-60 seconds; reset by voice, typed, pointer, or keyboard interaction; hides the presence and unpinned response window | "Hide your presence after ten seconds without interaction" |
+| Presence timeout | 10 seconds; 1-60 seconds; reset by Kora interaction; automatically hides idle/listening presence without prompts, never work, speech, or required attention | "Hide your presence after ten seconds without interaction" |
+| Response timeout | 5 seconds; 1-60 seconds; independent device-local setting for unpinned response-window inactivity; pending prompts/actions retain the response | "Hide your response after fifteen seconds without interaction" |
 | Presence size | 360 px; 240-600 px; applies immediately and preserves bottom-right anchoring | "Make your presence 400 pixels wide" |
 | Presence dot size | 100%; 50-200%; changes particle diameter without changing particle count | "Make the presence dots 120 percent" |
 | Presence movement speed | 100%; 25-200%; scales state-driven particle movement | "Set presence movement speed to 75 percent" |

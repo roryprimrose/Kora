@@ -43,10 +43,14 @@ Configure these controls under **Settings > Appearance > Visual feedback**:
 
 - **Always show** - bypass the response timeout until **Dismiss** is selected;
 - **Stay on top** - keep the response above other windows; on by default;
-- **Visible timeout** - set the shared 1-60 second inactivity interval.
+- **Response timeout** - set the response window's 1-60 second inactivity
+  interval, default **5 seconds**.
 
-The presence always hides after the visible timeout. **Always show**
-applies only to the response window.
+Presence has a separate **Presence timeout** setting under **Appearance >
+Presence appearance**, default **10 seconds**. It automatically hides after
+inactivity while idle or listening without a pending prompt, but remains
+visible for work, speech, and required attention. **Always show** applies only
+to the response window.
 
 Responses can include underlined action links below their message. These links
 invoke only the specific in-app action attached to the current response, such

@@ -156,8 +156,13 @@ running. Use the tray icon to show Kora again. Choose **Exit Kora** from the
 tray to stop the application and release audio resources.
 
 Drag the response title area to place it where you want it. Its pinned controls
-can keep the current response visible until dismissed, change the shared visible
-timeout, or disable the default stay-on-top behavior.
+can keep the current response visible until dismissed or disable the default
+stay-on-top behavior. Settings > Appearance provides separate **Response timeout**
+(default 5 seconds) and **Presence timeout** (default 10 seconds) controls.
+Idle or listening presence hides automatically without asking when no prompt
+needs attention; active work, speech, and required attention keep it visible.
 
-You can also drag the visible presence itself. Its position is retained
+The presence lets mouse events pass through to the window underneath by default.
+To move it, **hold Ctrl, then left-click and drag the visible presence**.
+Release the mouse button and Ctrl when finished. Its position is retained
 across restarts while the selected display remains connected.

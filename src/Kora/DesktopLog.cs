@@ -9,4 +9,7 @@ internal static partial class DesktopLog
 
     [LoggerMessage(301, LogLevel.Information, "{Operation}.")]
     public static partial void Information(ILogger logger, string operation);
+
+    [LoggerMessage(302, LogLevel.Error, "{Operation} failed.")]
+    public static partial void Error(ILogger logger, Exception exception, string operation);
 }

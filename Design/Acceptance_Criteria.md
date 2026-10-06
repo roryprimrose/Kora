@@ -257,8 +257,41 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Rejecting transmission sends none of the rejected context.
 - Secret-risk fixtures block transmission pending reviewed redaction.
 - Raw audio/secrets are absent from all history/log stores. Clipboard/tool/answer content is absent from diagnostics and content-minimising audit, while permitted session content is retained under verified private profile permissions.
-- Before activation, synthetic ambient audio reaches neither transcription nor any model, tool, persisted store, or network destination.
+- Outside an activated command or eligible host-opened conversational reply
+  generation, synthetic ambient audio reaches neither transcription nor any
+  model, tool, persisted store, or network destination.
 - Wake pre-roll never exceeds 2 seconds and is overwritten; unrelated pre-activation audio is excluded from command transcription.
+- After Kora speaks a unique ordinary yes/no question, `Yes` and `No` without
+  the activation name are accepted only within the configured 15-second
+  default conversational reply window and bind to that exact question/revision.
+  The activation name remains optional within the turn.
+- Exercise conversational reply speech-start waits at 5, 15, and 60 seconds
+  and just beyond each bound. Timeout captures nothing further, returns to Wake
+  Listening, leaves the question answerable, and requires a fresh activation
+  or explicit Answer by voice to answer later.
+- One accepted reply, cancel, mute, lock, call-policy loss, endpoint loss,
+  target/session change, question expiry, or replacement invalidates the
+  capture/transcript generation and clears buffered audio. Late speech or
+  callbacks cannot answer the old, newly selected, or latest question.
+- Prefix-free input is parsed only against the foreground question schema.
+  Invalid/free speech cannot become a new command or tool request; multiple or
+  background questions cannot receive generic replies. A fresh host
+  clarification gets a new bounded turn rather than silently extending the
+  previous one.
+- Detail offers accept prefix-free `Yes`/`No`; high-risk confirmation fixtures
+  still require their exact action/target wording and reject generic `Yes`.
+  Conversational routing never weakens policy, grant, speaker, OS, provider,
+  call, or privacy checks.
+- During TTS, Kora playback and activation cues produce zero conversational
+  answers. Prefix-free barge-in is enabled only with verified playback
+  rejection; otherwise capture starts after TTS completes.
+- Disabling conversational replies requires the activation name/PTT for every
+  answer without disabling ordinary wake listening. First-run consent and live
+  state explain and distinguish Wake Listening, Awaiting Reply, and Capturing
+  Reply.
+- Frequent-speaker learning fixtures exclude conversational reply audio even
+  when learning is enabled; only separately consented newly wake-activated
+  command samples remain eligible under the initial learning policy.
 - Mute/lock/sign-out/suspend close capture and clear buffers; unlock/resume
   require explicit current-run re-enabling. Ordinary restart may auto-enable
   only with saved ongoing consent and fresh gates under the microphone matrix.
@@ -768,16 +801,49 @@ Validate the production invocation's flags and actual restricted worker admissio
 - Passive captions/details do not steal focus or intercept desktop input; verify contrast, keyboard/screen-reader access, reduced motion, multiple displays, DPI and working-area changes.
 - Lock/disconnect clears sensitive host surfaces and closes/suspends owned browsing; external browser behaviour is explicitly outside host control.
 - Typed content updates preserve task/provenance/revision identity; late renders and content styling cannot overwrite native approval panels.
+- Exercise the versioned detail-routing policy at, below, and above every initial threshold: required content kind; 5 versus 6 code lines; 8 versus 9 list items; 3 versus 4 citations; one versus two titled sections; 120 versus 121 words; 3 versus 4 paragraphs; accessibility/layout constraint; and exact/provenance-bearing representation. Provider/model hints cannot force or suppress a detail window.
+- Classification waits for finalization: streamed structural changes do not repeatedly open, focus, or prompt. Corrected/replaced output gets a new item/revision/offer and stale callbacks cannot open the previous or latest unrelated response.
+- Every detail-recommended compact result exposes a native keyboard/screen-reader Open details action bound to its exact session/item/revision. Click/Enter/Space opens or activates it without rerunning work; later compact updates and duplicate titles cannot retarget it.
+- Under default Offer, a voice-origin request with no subsequent request/session UI interaction and a voice-first/voice-only request receive one permitted spoken offer after the concise summary. UI-origin or already UI-interacted requests retain the link without a redundant spoken question.
+- Accepting the unique bound offer by voice or UI opens and focuses that item with no model round trip. Not now, silence, dismissal, or expiry opens nothing and leaves History/Open details available. Speech unavailable/suppressed/private-policy cases do not claim an offer was spoken.
+- Detail offers are lower priority than approvals, required clarification, errors, and device recovery. They cannot steal a generic yes target; conflicting/multiple offers require an exact session/item command and never open whichever result happens to be selected/latest.
+- Verify Offer, Open automatically, and Link only through typed settings and equivalent verbal changes. One offer answer never mutates the preference; automatic mode does not open background results or bypass lock, access, privacy, renderer fallback, or trusted approval UI.
+- Detail admission is exercised for embedded documentation, host-generated reports, model/tool/skill output, immutable skill files, an explicitly selected local document, and a remote URL; each receives its declared profile and no source is promoted to trusted controls.
+- Reopening one immutable detail reference activates the existing viewer, explicit comparison preserves distinct item identities, and a new revision never silently replaces the open item.
+- Long admitted content uses measured virtualization/paging/source fallback and reports renderer limits without silent truncation, unbounded native control creation, focus loss, or queue starvation.
+- Markdown uses the native bounded presenter rather than an implicit Markdown-to-WebView conversion; selecting the separate static-HTML adapter requires an admitted static-HTML item.
 - Markdown tables/code/task lists render without execution; raw HTML, unsafe schemes, remote images and incomplete streamed fences remain inert.
+- Markdown fences, standalone scripts/source, manifests/configuration, generated code, diffs, and code in skill/evidence review use one bundled versioned highlighter. Inline code remains readable monospace without requiring tokenization.
+- Verify deterministic language resolution precedence for host metadata, immutable filename/extension, allowlisted fence alias, and plain-text fallback. Conflicting, unknown, spoofed, and unsupported identifiers cannot load a grammar or change execution/approval policy.
+- Exercise the initial PowerShell, C#, JSON, YAML, XML/XAML, Markdown, SQL, JavaScript, TypeScript, HTML, CSS, shell, batch, INI/properties, and unified-diff grammars in Light and Dark themes with highlighting enabled and disabled.
+- Highlighted selection/copy/export/search/digest and line numbers preserve the exact admitted source, whitespace, Unicode, and required line-ending identity. Diff highlighting retains added/removed/context semantics without relying on color.
+- Grammar assets work offline and cannot be supplied by documents, skills, models, selected files, packages, CDNs, or renderer plugins. Highlighting never executes, compiles, formats, validates, invokes a language server, or sends code to a model.
+- Exercise highlighter byte/line/token/nesting/time/memory limits, cancellation, rapid tab/revision changes, pathological grammar input, invalid encoding, binary input, and renderer exceptions. The UI remains responsive and exposes selectable plain-text/hex fallback without stale spans or source loss.
+- Syntax themes meet applicable contrast targets; keyboard selection, focus, search matches, diagnostics, whitespace, punctuation, line numbers, and diff markers remain understandable without color. Screen readers receive original code and a useful language label rather than token-by-token noise.
+- Detailed responses and textual skill files expose keyboard/screen-reader reachable Copy all. It copies the complete current immutable item or selected file, including non-visible/virtualized content, and never silently truncates or concatenates sibling skill files.
+- In rendered Markdown/static HTML, Copy all atomically publishes complete semantic Unicode plain text plus sanitized HTML Clipboard Format for the same immutable revision. Supported structure and safe syntax styling survive rich paste without active content, hidden text, trusted chrome, or controls; admitted Markdown also exposes its exact source through the registered format.
+- Source/code/diff copy always preserves admitted Unicode characters, tabs, line breaks, and required source identity without line numbers, search decorations, or soft wraps. An additional sanitized rich fragment may preserve syntax/diff styling but cannot alter the canonical plain source.
+- Partial mouse/keyboard selection supports `Ctrl+C` and Copy selection across rendered blocks and virtualized source lines. `Ctrl+A` targets content rather than window chrome. Empty/stale/revoked/redacted selections cannot copy a previous range.
+- Switching Rendered/Source makes the Copy all representation explicit; Copy source remains separately named when applicable. Successful feedback identifies the representation/revision without logging content.
+- Clipboard writes always include Unicode plain text and publish every rich/source format as one logical update for the same revision. They revalidate item/file revision, access, unlocked Windows session, and privacy state, and report platform/size/format failure without changing the previous clipboard. Private-content disclosure explains clipboard history/sync/other-application exposure.
+- Rich clipboard HTML is host-serialized from the admitted semantic model with valid fragment boundaries and allowlisted self-contained markup/style. Tests reject scripts, handlers, forms, frames, objects, hidden content, beacons, external/local resources, CSS URLs/imports, sensitive paths/IDs, privileged schemes, and paste-triggered network retrieval.
+- Static HTML/browser content cannot call clipboard APIs, initiate copy, provide or mutate formats, read the previous clipboard, or observe write results. The host mediates bounded selection/semantic extraction, format serialization, and the atomic OS write.
+- Copy selection/all does not approve, execute, enable, save, refresh inactivity, or authorize model/tool/skill clipboard access or later clipboard capture. Lock/revocation/deletion blocks new copy and invalidates current selection.
 - Mermaid uses pinned offline assets; hostile directives, HTML labels, links, script/event/foreignObject SVG payloads and external resources are blocked.
 - Exercise document/diagram byte bounds, 500-node/1,000-edge limits and the 2-second diagram budget at/over each boundary; controls remain responsive during cancelled/failed rendering.
 - Static HTML blocks scripts, handlers, forms, frames, CSS network URLs, plugins, file/UNC references, arbitrary loopback access, and storage/host bridges.
+- Static HTML cannot acquire script through local origin, a skill, a model result, an "enable scripts" preference, encoded CSS URLs, redirects, popovers/fullscreen/dialogs, or a renderer fallback; dynamic sites remain separately labelled browser content.
 - Local asset snapshots cannot escape selected roots through traversal/reparse points; generated HTML never receives neighbouring-file access.
 - Browser adapter tests cover redirects/subresources/service workers/popups/downloads/protocol handlers, permissions, profile isolation, background activity and renderer crashes, not just top-level URL filtering.
 - Local-only/offline operation generates no renderer/browser remote traffic; unavailable enforcement disables embedded capability rather than pretending to be safe.
 - External browser launch requires an explicit validated destination/target; no silent fallback or shell invocation, and no claim to manage its identity/network permissions.
 - Missing renderer/runtime, invalid source and resource-limit failure produce labelled source/plain-text fallback without hidden downloads.
 - Web/Markdown content cannot invoke a skill, approve an action, open the microphone, access credentials, or automatically become outbound model context.
+- Sessions, Skills, and Permissions surfaces work with rich rendering unavailable. They reuse passive presenters only for read-only item/file/evidence content; native lifecycle, revision/file-set, save/enable, grant edit/revoke, validation, conflict, and confirmation controls retain authority.
+- Multi-file skill review preserves the complete immutable revision, manifest-listed file set, digests, dependencies and unresolved references while tabs change; viewing/editing/testing/saving remains distinct from enablement and execution approval.
+- Permission edits target stable grant identity/revision and reject or re-resolve stale concurrent use/revocation. Rendered explanations, links, rows, and checkboxes never submit or approve a grant.
+- Admission/render activities correlate by safe host IDs/profile/generation and end with truthful status without logging content, titles, paths, sensitive URLs, or rendered text. Rendering diagnostics cannot masquerade as security audit.
+- Close, replacement, revocation, lock, renderer crash, and shutdown cancel stale generations and dispose snapshots/browser resources; no hidden renderer retains file/network access.
 - Every top-level `/docs/*.md` page is embedded in the application, `/docs/readme.md` is the required start page, and the same single-instance themed Documentation window opens from the tray or the exact built-in voice/typed documentation phrases without filesystem or network dependency.
 
 ## Human Interaction and Persistent Session Gate
@@ -791,6 +857,7 @@ Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contra
 - Validate required fields, min/max selection, custom-answer permission, cancelled/expired questions, duplicate submissions, stale revisions, and simultaneous voice/UI input; exactly one accepted decision/event.
 - Two sessions can await answers with identical option labels. Background output, switching, generic "yes", and delayed callbacks cannot answer/approve the wrong question; explicit valid UI cards remain usable while only one voice prompt is foreground.
 - The compact selected-session view shows its latest interaction and truthful state, retains Details/History links, and never loses a pending question to feedback auto-hide or a passive completion.
+- Detail offers and Open details links survive ordinary compact auto-hide/history navigation without extending session inactivity. Explicit opening may focus the viewer; classification/background completion never does.
 - Concise/full Markdown, static HTML, and `.ps1` source views retain immutable artifact/digest/provenance; expanding/copying/history navigation never executes scripts or reruns tools.
 - Every finalized message, correction, question/answer, decision, reviewed artifact, action/receipt, grant transition, error, and cancellation/unknown outcome is retrievable in order, subject to explicitly reported redaction/source restrictions.
 - A click is not represented as reauthentication, a voice match is not represented as guaranteed authentication, and either channel can deliberately approve a permitted high-risk proposal.

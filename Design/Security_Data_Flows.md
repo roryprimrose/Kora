@@ -69,11 +69,16 @@ The UI always shows the effective processing mode and runtime.
 It is the default name, not a permanently enabled alias: users explicitly choose custom-only or default-plus-custom under [Custom Activation Names](Activation_Name.md).
 Name changes never authenticate a speaker, modify embedded skills/code, expand ambient capture, or bypass output/action policy.
 Setup requires explicit microphone/wake-listening consent; once enabled, verbal activation requires no click or keypress.
-Distinguish Wake Listening, Capturing Command, Muted, and Unavailable visibly, including when the app is in the background.
+Distinguish Wake Listening, Awaiting Conversational Reply, Capturing
+Command/Reply, Muted, and Unavailable visibly, including when the app is in the
+background.
 
 Ambient audio goes only to the local wake detector and a rolling in-memory buffer of at most 2 seconds.
 It is not continuously transcribed, logged, persisted, transmitted, or exposed to skills, MCP servers, or model adapters.
-Only activated command audio reaches local transcription; exclude the wake word and unrelated pre-activation audio.
+Only activated command audio or audio captured during a host-opened bounded
+conversational reply turn reaches local transcription. Exclude the wake word,
+unrelated pre-activation audio, audio before/after the reply generation, and
+known Kora/device playback.
 Empty activations expire locally without acquiring clipboard or other context.
 
 Mute, lock, sign-out, suspend, and app exit close microphone capture and clear buffered audio.
@@ -87,7 +92,8 @@ Playback echo rejection must prevent spoken answers and activation cues from bec
 Ongoing voice consent is a saved, explicit Windows-profile/device-local choice,
 separate from transient capture enablement, endpoint selection, OS permission,
 microphone testing, learning consent, and verification enrollment.
-First launch must explain local wake processing and activated transcription,
+First launch must explain local wake processing, activated transcription, and
+the default bounded prefix-free capture after Kora asks a question,
 then obtain consent before ongoing capture. Declining or withdrawing that
 consent keeps capture closed across restart until renewed explicitly.
 The bootstrap currently auto-starts its grammar recognizer without this full
@@ -108,6 +114,14 @@ Revalidate these gates and the audio generation immediately before acquisition.
 | Permission loss, endpoint loss, capture failure, or unavailable voice assets | Close capture, clear audio and invalidate its generation; retain the requested endpoint and consent, not recording authority | Restored permission, hot-plug, repaired assets or replacement selection alone cannot reopen; explicit native Enable listening is required |
 | Live Windows default change while System capture is already enabled | Revalidate the live route; permit supported default routing without choosing a Kora endpoint override | This is not recovery or new consent; if routing fails, use the loss row; a pinned endpoint never switches silently |
 | Consent withdrawal | Close capture, clear audio and persist the withdrawn choice | Renew ongoing consent explicitly; restart, logon, reset/undo, or handoff cannot renew it |
+
+Awaiting Conversational Reply is transient capture enablement under the same
+ongoing consent and all current gates, not a second consent or ambient
+transcription mode. It requires a unique host-presented question/revision,
+expires after the configured speech-start wait, captures at most one answer,
+and cannot survive a target/generation change. Disabling conversational replies
+keeps ordinary wake activation available; it does not withdraw overall voice
+consent.
 
 Manual disablement and recovery holds are run-scoped: a later ordinary restart
 uses saved consent and fresh gates, even after lock/resume/loss in the previous
@@ -147,7 +161,12 @@ A frequent speaker is not an authenticated owner, a named real-world identity, o
 Do not automatically grant permissions, relax call protection, enable owner-only output, or require a match for ordinary commands.
 Verification enrollment remains separate; a learned candidate cannot silently replace an enrolled verification identity.
 
-Use only bounded, deliberately activated command audio collected after consent. Do not learn from ambient wake audio, session history, archived recordings, Kora TTS, or known playback-origin/mixed/uncertain samples.
+Use only bounded, deliberately activated command audio collected after
+learning consent. Conversational reply audio is excluded from learning in the
+initial design because Kora opened that capture turn; adding it requires a
+separate disclosed learning-policy decision. Do not learn from ambient wake
+audio, session history, archived recordings, Kora TTS, or known
+playback-origin/mixed/uncertain samples.
 Derive the minimum local features and discard raw learning audio after processing within the existing command-buffer lifecycle; do not create a training-recording archive.
 Protect the learned profile locally under the Windows SID and device binding, separately from conversations and grants; do not roam it or expose features/templates, match scores, samples, or inferred identities to models, skills, tools, logs, telemetry, or remote providers.
 Session retention/deletion cannot cause historical audio to be replayed for learning; profile reset/deletion is an explicit separate operation.
@@ -223,6 +242,16 @@ See [Call-Aware Speech](Call_Aware_Speech.md).
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
 Optional speech text inherits spoken-content classification and lock/retention rules.
 Markdown/HTML/SVG cannot replace native approval controls or access tools, credentials, microphone, or local files.
+User-initiated Copy selection/Copy all is a host-owned multi-format disclosure
+of the exact currently authorized immutable item/file revision. Every payload
+contains canonical Unicode plain text; rich formats are independently
+serialized from the admitted semantic model, sanitized, self-contained, and
+published atomically for the same revision. It revalidates access and
+unlocked/privacy state, never accepts page-authored clipboard data or exposes
+clipboard APIs to rendered content, and does not authorize model/tool/skill
+clipboard writes or subsequent clipboard capture. Sensitive
+clipboard-history/sync exposure is disclosed under the content policy; write
+failure leaves the prior clipboard unchanged.
 Local-only/offline mode blocks Kora-initiated internet navigation and remote render assets; generated previews and bundled Markdown/Mermaid renderers require no network.
 Approved remote viewing is a distinct browser operation, never automatic model-context capture.
 Embedded network/file enforcement must be proven; external browsers are explicitly user-managed, not claimed to be sandboxed by Kora.
@@ -784,7 +813,7 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 | Data | Default |
 |---|---|
 | Ambient wake audio | Memory-only rolling buffer of at most 2 seconds; overwritten continuously and cleared when listening stops |
-| Activated command audio | Memory only; released after transcription/cancellation |
+| Activated command and conversational reply audio | Memory only; released after transcription/cancellation; reply audio remains bound to one question generation and is not a frequent-speaker learning sample |
 | Consented frequent-speaker learning / explicit verification profiles | Minimum protected local SID/device-bound derived features until explicit reset/deletion; learning Off stops updates, not implicit erasure; no raw training archive or model/remote/roaming/log access; independent of session history and grants |
 | Selected context snapshots and command transcripts | Private-profile session history when source/security policy permits; no background clipboard history; raw command audio remains ephemeral |
 | Session messages, answers, questions, decisions, scripts/artifacts, and permitted tool content | Durable private-profile session-linked history; readable copies outside that boundary, never automatic execution or unreviewed egress |

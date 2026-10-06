@@ -73,6 +73,8 @@ consent withdrawal does. See the
 | Optional PTT shortcut | Unassigned until selected; validate conflicts | "Set push-to-talk to Control Shift Space" |
 | Activation feedback | Visual always; non-speech cue when output policy permits | "Turn off the activation sound" |
 | Command speech-start wait | 5 seconds; 2-10 seconds | "Wait seven seconds after I say Kora" |
+| Conversational replies | On after ongoing listening consent; allows prefix-free answers only to the unique question Kora just presented | "Require me to say Kora for every answer" |
+| Conversational reply speech-start wait | 15 seconds; 5-60 seconds; expiry returns to wake listening without dismissing the question | "Wait twenty seconds for my answer" |
 | Trailing-silence endpoint | 1 second; 0.5-3 seconds | "Allow two seconds of silence before finishing my command" |
 | Maximum utterance | 60 seconds; 10-120 seconds | "Limit commands to forty-five seconds" |
 | Recognition language/model | Initial supported local English configuration; choose only delivered/ready assets | "Use the more accurate installed recognition model" |
@@ -121,7 +123,7 @@ All voice-profile settings and management changes obey the protected-call origin
 | Speech rate | Engine normal; advertised supported range | "Speak twenty percent slower" |
 | Kora playback volume | Normal configured level; 0-100%, affects only Kora | "Set your volume to thirty percent" |
 | Spoken summary length | At most 3 sentences/80 words; user may lower either limit | "Keep spoken summaries under forty words" |
-| Visual detail level | Concise by default; detailed on request | "Show detailed results by default" |
+| Detail presentation | Offer by default / Open automatically / Link only; applies to host-classified detail-recommended finalized foreground responses | "Always open detailed results" / "Stop asking about details" |
 | Speech text / rich display | Independent optional captions, source/rendered Markdown, diagram and viewer preferences | "Show the words you're saying" |
 | Theme | System by default; System follows live Windows appearance, while Light/Dark override every Kora visual surface | "Use the dark theme" |
 | Presence timeout | 10 seconds; 1-60 seconds; reset by Kora interaction; automatically hides idle/listening presence without prompts, never work, speech, or required attention | "Hide your presence after ten seconds without interaction" |

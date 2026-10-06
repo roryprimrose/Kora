@@ -27,6 +27,7 @@ Shared native question/approval components can be hosted in compact or workspace
 | Compact session interaction | Selected session identity/state, concise latest interaction, pending native cards, Details/History, session switcher, typed composer | One lightweight selected-session view; showing/hiding/pinning never stops work or marks Done |
 | Sessions workspace | Active/Done session list and search beside full selected conversation; per-session work/queue, questions, history, Evidence mode, and management controls | Primary multi-session and retained-evidence UI; responsive while independent sessions run |
 | Detail/artifact viewer | Exact answer, Markdown/static HTML, citations, script/diff source, provenance/revision; search/copy/export/source controls | Bound to an immutable session/artifact reference; stays on that item when workspace selection changes |
+| Skills management and review | Source-qualified skill catalogue, metadata/capabilities/dependencies, immutable revision/file tree, rendered instructions and exact source/diff tabs, enablement state | Purpose-built management surface; file content reuses passive detail renderers, while save/enable/test/revision actions stay native and revision-bound |
 | Permissions and Approvals | Native grant inventory by scope/applicability; inspect, request/edit/remove, linked use evidence | Global inventory with exact session/operation references; not deleted with a conversation's perpetual grants |
 | Settings and setup/recovery | Typed preferences, output/call modes, retention/concurrency, devices/providers/readiness, consent and recovery | Shared application state; optional session scope is explicit; usable without voice/model |
 | Documentation | Trusted embedded guide, help, feature availability | Existing guide stays distinct from generated conversation/artifact content |
@@ -36,6 +37,14 @@ Use existing single-instance settings/guide behavior and activate an existing su
 The default conversation experience has one Sessions workspace and one compact view sharing selection.
 Opening a retained detail activates the viewer for that reference; multiple explicit detail views may compare items, with distinct session/item titles and no composer or approval authority.
 Do not open a new chat window automatically for each concurrent task.
+
+Share passive content presenters, provenance headers, source tabs, search, copy,
+and accessible renderer status across detail, documentation, skill review, and
+evidence detail. Do not force their surrounding workflows into one generic
+window: Sessions owns routing/lifecycle/queues, Skills owns revision/file-set
+selection and save/enable state, and Permissions owns grant validation and
+mutation. Rendered Markdown/HTML can explain those records but cannot provide
+their authoritative buttons, forms, selection, or dirty state.
 
 ## Compact Session Interaction
 
@@ -47,8 +56,8 @@ Illustrative layout, not pixel dimensions or final styling:
 | Voice: listening          2 running / 1 needs attention |
 |-------------------------------------------------------|
 | Latest interaction / concise summary                  |
-| "The draft is ready; two destinations need choosing."  |
-| [Details] [History]       Task: Prepare release notes   |
+| "The draft is ready; the full result includes a table." |
+| [Open details] [History]  Task: Prepare release notes   |
 |-------------------------------------------------------|
 | Question 1 of 2 - Choose destinations                 |
 | [x] Team wiki     [ ] Email     [x] Release page        |
@@ -63,7 +72,12 @@ Illustrative layout, not pixel dimensions or final styling:
 The session picker lists a bounded recent/active set plus All sessions; it is not an opaque task queue.
 The checkmarks above illustrate a user-edited draft, not preselected consequential answers.
 The header clearly distinguishes lifecycle, actual work state, listening/output state, and aggregate attention.
-The latest response is concise, with retained full content behind Details; do not stuff the entire transcript into this window.
+The latest response is concise, with retained full content behind a native Open
+details action when the host presentation policy recommends detail; do not
+stuff the entire transcript into this window. The action identifies and opens
+the exact immutable item/revision, not whichever response is newest when it is
+clicked. In a hands-free request, the same item can own one host question
+asking whether to open it, without turning generated content into a control.
 Question/approval cards have a dedicated interaction region that ordinary streaming/progress cannot overwrite.
 Multiple pending cards expose count and explicit Next/Previous or a list, retaining each draft separately.
 No presented approval or edited question disappears under the ordinary feedback auto-hide timer.
@@ -200,7 +214,7 @@ Do not invent remaining steps, completion percentages, or an ETA when the runtim
 ```text
 +----------------------------------------------------------+
 | Deployment notes / release.ps1 / revision and provenance  |
-| [Back to conversation] [Rendered | Source] [Copy] [Export] |
+| [Back] [Rendered | Source] [Copy all] [Export]            |
 |----------------------------------------------------------|
 | Full answer, Markdown, static HTML or exact script/diff   |
 | source; citations and immutable artifact identity         |
@@ -213,8 +227,20 @@ Do not invent remaining steps, completion percentages, or an ETA when the runtim
 
 History lives in the workspace; this viewer expands a particular retained item or task evidence bundle.
 Header/chrome carries session, item type, origin, revision/digest, and unavailable/redacted-source explanations.
-Markdown/HTML rendering follows the bounded safe profiles; PowerShell is read-only exact source with highlighting when supported and a readable source fallback otherwise.
+Markdown/HTML rendering follows the bounded safe profiles. Scripts, code
+fences, manifests, configuration, and diffs use the shared language-aware
+highlighter when their host-resolved language is supported, with visible
+language status and readable exact-source fallback otherwise.
 Opening, expanding, copying, scrolling, or closing a script never runs it or approves it.
+Copy all targets the complete current immutable answer/artifact or selected
+skill file, including content outside the viewport. Rendered views place their
+sanitized rich fragment and semantic Unicode plain-text fallback on the
+clipboard together; admitted Markdown can also include its registered source
+format. Source views always copy original admitted text and may additionally
+provide host-generated safe syntax/diff formatting.
+Partial selection supports native `Ctrl+C` and Copy selection across rendered
+blocks and virtualized source lines. Copy never includes native chrome, line
+numbers, syntax tokens, search decoration, or hidden adjacent files.
 Review script from a current approval opens the exact reviewed revision; changed source invalidates the proposal rather than silently refreshing execution authority.
 For bundled skills, expose every manifest-listed file through named read-only
 tabs, including a separate exact-source tab for each entry script/shared helper.
@@ -226,6 +252,41 @@ A global selection change leaves an explicitly opened item attached to its origi
 Export is an explicit scoped write with preview; retention/deletion does not claim to remove user exports.
 If a source/session is deleted or access is revoked while open, show unavailable and clear denied content under the store/access contract; no invisible stale copy remains model-readable.
 Missing renderers disclose source fallback/unavailable capability without losing basic text or installing dependencies automatically.
+
+## Skills and Permission Management
+
+The Skills surface lists source-qualified skills and revisions without reading
+arbitrary profile paths. Selecting a revision shows host-resolved identity,
+origin, compatibility, enablement, requested capabilities, registered
+tools/tasks, dependencies, validation findings, and immutable digest. A
+host-owned file tree exposes every admitted manifest/instruction/source file;
+the selected file uses the shared passive Markdown or language-highlighted
+exact-source presenter. Switching files cancels stale tokenization; highlighted
+spans never replace the bytes/digest bound to review.
+Multi-file review always keeps complete revision/file-set identity and
+unresolved dependency status visible. Selecting a file, reading instructions,
+running a data-only simulation, or viewing a diff does not enable the skill,
+approve execution, or grant its capabilities.
+Copy all in this surface copies only the complete selected file, never a
+concatenation of sibling files or the whole package. A separate future package
+export must preserve file boundaries and receive its own explicit action.
+
+Editing a Kora-owned declarative skill uses native editor/diff, validation,
+dirty-state, conflict, save, and enablement controls. Shared-profile and bundled
+revisions remain read-only; creating a fork is an explicit separate proposal.
+Save and enable are separately confirmed revision-bound operations. Closing
+with unsaved changes follows an explicit save/discard/cancel workflow and never
+silently publishes a draft.
+
+The Permissions & Approvals surface is a native filterable inventory and
+editor over typed grant records. Its list and detail show scope, applicability,
+identity/destination/resource, creation/edit/use history, policy revision, and
+inapplicability/revocation reason. Read-only explanations and evidence may use
+the passive detail presenter, but narrowing, revoke, bulk revoke, export,
+scope-change, and new/broadened grant requests use native validated controls.
+A displayed row, checkbox, Markdown link, or HTML element is not submission or
+approval. Concurrent use/revocation and stale revisions surface a conflict and
+re-resolve policy rather than applying an edit to a different grant.
 
 ## Shared Native Interaction Cards
 

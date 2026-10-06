@@ -261,7 +261,7 @@ public sealed class WindowsOllamaReasoner(HttpClient client, BuiltInCommandCatal
             {
                 if (model.TryGetProperty("digest", out var digest)
                     && digest.ValueKind == JsonValueKind.String
-                    && WindowsOllamaSetupService.IsPinnedModelDigest(digest.GetString()))
+                    && OllamaModelIdentity.HasPinnedDigest(digest.GetString()))
                 {
                     return;
                 }

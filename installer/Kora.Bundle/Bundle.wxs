@@ -1,0 +1,51 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Bundle Name="Kora Setup" Manufacturer="Kora" Version="$(ProductVersion)"
+          UpgradeCode="3D730D46-EA2D-42CB-9E84-EFE59FD10316"
+          IconSourceFile="..\..\src\Kora\Assets\Kora.ico">
+    <Variable Name="KoraDisplayVersion" Type="string" Value="$(DisplayVersion)" />
+    <Variable Name="KoraProductVersion" Type="string" Value="$(ProductVersion)" />
+    <Variable Name="KoraStartAtLogin" Type="numeric" Value="0" />
+    <Variable Name="KoraApplicationExeHash" Type="string" Value="$(ApplicationExeHash)" />
+    <Variable Name="KoraApplicationAssemblyHash" Type="string" Value="$(ApplicationAssemblyHash)" />
+    <netfx:DotNetCoreSearch Id="DesktopRuntimeSearch" Variable="DesktopRuntimeVersion"
+                          RuntimeType="desktop" Platform="x64" MajorVersion="10" />
+    <netfx:DotNetCoreSearch Id="CoreRuntimeSearch" Variable="CoreRuntimeVersion"
+                          RuntimeType="core" Platform="x64" MajorVersion="10" />
+    <util:RegistrySearch Id="VCRuntimeSearch" Variable="VCRuntimeVersion"
+                         Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+                         Value="Version" Result="value" Bitness="always64" />
+    <util:RegistrySearch Id="VCRuntimeInstalledSearch" Variable="VCRuntimeInstalled"
+                         Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+                         Value="Installed" Result="value" Bitness="always64" />
+    <BootstrapperApplication SourceFile="$(BootstrapperPayload)\Kora.Setup.exe">
+      <PayloadGroupRef Id="BootstrapperDependencies" />
+    </BootstrapperApplication>
+    <Chain>
+      <ExePackage Id="DesktopRuntime" DisplayName=".NET 10 x64 Desktop Runtime"
+                  PerMachine="yes" Permanent="yes" Vital="yes" Cache="remove"
+                  DetectCondition="DesktopRuntimeVersion &gt;= v10.0.12 AND CoreRuntimeVersion &gt;= v10.0.12"
+                  InstallArguments="/install /quiet /norestart" Protocol="burn">
+        <ExePackagePayload Name="windowsdesktop-runtime-10.0.12-win-x64.exe"
+                           DownloadUrl="https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.12/windowsdesktop-runtime-10.0.12-win-x64.exe"
+                           Size="60032984"
+                           Hash="0B907E9312867172A4EB82F4B5AB3F7C2D25E27D8349546D77EEB5D5B8CBECAB9EBEBFED189B13E9669DC578D892756C548366DA539D47B3DDAC5EFCB7AE72FE"
+                           Version="10.0.12.0" ProductName=".NET Desktop Runtime" />
+      </ExePackage>
+      <ExePackage Id="VCRuntime" DisplayName="Microsoft Visual C++ v14 x64 Runtime"
+                  PerMachine="yes" Permanent="yes" Vital="yes" Cache="remove"
+                  DetectCondition="VCRuntimeInstalled = 1 AND VCRuntimeVersion &gt;= v14.51.36247.0"
+                  InstallArguments="/install /quiet /norestart" Protocol="burn">
+        <ExePackagePayload Name="VC_redist.x64.exe"
+                           DownloadUrl="https://download.visualstudio.microsoft.com/download/pr/ebdab8e5-1d7b-4d9f-a11b-cbb1720c3b12/843068991DAAA1F73AD9F6239BCE4D0F6A07A51F18C37EA2A867E9BECA71295C/VC_redist.x64.exe"
+                           Size="18731856"
+                           Hash="C42C82CFD5EAA2165B600F6109CB14FF4308CDF4CFF656A1375B4A933F1630BFE54C99C4D0FB9ED3BEA4DC4E4FDAA3DB8E7C58356CCA07C2954F4C297757D62D"
+                           Version="14.51.36247.0" ProductName="Microsoft Visual C++ Runtime" />
+      </ExePackage>
+      <MsiPackage Id="KoraMsi" SourceFile="$(MsiPath)" Vital="yes">
+        <MsiProperty Name="KORA_START_AT_LOGIN" Value="[KoraStartAtLogin]" />
+      </MsiPackage>
+    </Chain>
+  </Bundle>
+</Wix>

@@ -1,0 +1,11 @@
+<Project>
+  <Import Project="..\Directory.Build.props" />
+  <PropertyGroup>
+    <!-- Repository maintainer selected WiX 7 for this non-revenue-generating proof. -->
+    <AcceptEula>wix7</AcceptEula>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.1.0</ProductVersion>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.wixproj'">
+    <PackageReference Remove="Meziantou.Analyzer;Microsoft.VisualStudio.Threading.Analyzers" />
+  </ItemGroup>
+</Project>

@@ -304,6 +304,10 @@ ambient machine installation, or silently fall back to plaintext storage.
 
 ## Build and test
 
+Developer builds require the pinned .NET SDK, Git and PowerShell 7 (`pwsh`).
+On main, restore the pinned local GitVersion tool with `dotnet tool restore`
+before building. Feature builds do not invoke GitVersion.
+
 ```powershell
 dotnet restore .\Kora.slnx --locked-mode
 dotnet build .\Kora.slnx --configuration Release --no-restore
@@ -315,6 +319,17 @@ Tests that exercise logging use Neovolve.Logging.Xunit so `ILogger` output is
 included in xUnit diagnostics. The GitHub Actions workflow restores locked
 dependencies, builds and tests on Linux, and cross-publishes
 framework-dependent Windows x64 and x86 artifacts.
+
+An unsigned [WiX MSI/custom Burn proof](installer/README.md) packages the x64
+application with an animated, reduced-motion-aware Avalonia setup UI.
+Run `.\eng\Build-Installer.ps1` on Windows; local feature builds use `0.1.0`.
+Feature/PR CI builds setup without uploading it. Main uses GitVersion:
+untagged builds are `<major>.<minor>.<patch>-beta<increment>`, stable-tagged
+builds are `<major>.<minor>.<patch>`, consistently across binaries and setup.
+Main CI publishes application/installer artifacts and unsigned POC GitHub
+releases with notes and checksums (beta prereleases or stable-tag releases).
+See the [versioning and validation policy](installer/README.md#versioning-and-github-actions);
+publication does not imply installed/protected/native-storage acceptance.
 
 NuGet versions are owned centrally by `Directory.Packages.props`. Central package
 management also enables transitive version pinning and rejects project-level

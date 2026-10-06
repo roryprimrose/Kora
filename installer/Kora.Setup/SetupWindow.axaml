@@ -1,0 +1,136 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:setup="using:Kora.Setup"
+        x:Class="Kora.Setup.SetupWindow"
+        Title="Kora Setup" Width="880" Height="760" CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource KoraWindowBackgroundBrush}"
+        Foreground="{DynamicResource KoraForegroundBrush}"
+        Icon="/Assets/Kora.ico">
+  <Grid Margin="32" RowDefinitions="Auto,*,Auto">
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <StackPanel Spacing="2">
+        <TextBlock Text="Kora" FontSize="32" FontWeight="SemiBold" />
+        <TextBlock x:Name="VersionLabel" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+      </StackPanel>
+      <TextBlock Text="UNSIGNED PROOF OF CONCEPT" VerticalAlignment="Center"
+                 Foreground="{DynamicResource KoraWarningBrush}" FontSize="11" />
+    </StackPanel>
+    <Grid Grid.Row="1" ColumnDefinitions="180,*" Margin="0,24">
+      <StackPanel Spacing="16" VerticalAlignment="Center">
+        <setup:AnimatedMark x:Name="BrandMark" Width="150" Height="190"
+                            AutomationProperties.Name="Kora vertical infinity brand mark" />
+      </StackPanel>
+      <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="10">
+        <TextBlock x:Name="ActionHeading" Text="Your local Windows assistant" FontSize="24" TextWrapping="Wrap" />
+        <StackPanel x:Name="ScopeOptions" Orientation="Horizontal" Spacing="24">
+          <RadioButton x:Name="CurrentUserScope" GroupName="InstallScope" IsChecked="True"
+                       Content="Just for me (default)" />
+          <RadioButton x:Name="AllUsersScope" GroupName="InstallScope"
+                       Content="All users (requires administrator)" />
+        </StackPanel>
+        <TextBlock x:Name="ScopeDescription" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+        <StackPanel x:Name="StartupPanel" Spacing="10">
+        <CheckBox x:Name="StartupOption" Content="Start Kora when I sign in" IsChecked="False" />
+        <TextBlock x:Name="StartupStatus" IsVisible="False" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{DynamicResource KoraWarningBrush}" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
+        <StackPanel x:Name="RuntimePanel" Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="Required runtimes - up to 79 MB if needed" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <ToggleButton x:Name="RuntimeDisclosure" Grid.Column="1" Content="Details" IsChecked="False"
+                          FontSize="12" Padding="8,3" MinHeight="24"
+                          AutomationProperties.Name="Required runtime details" />
+          </Grid>
+          <TextBlock x:Name="DotNetStatus" TextWrapping="Wrap" FontSize="12" />
+          <TextBlock x:Name="VCStatus" TextWrapping="Wrap" FontSize="12" />
+          <Border x:Name="RuntimeDetailsPanel" IsVisible="False">
+          <StackPanel Spacing="8" Margin="12,8">
+            <TextBlock x:Name="RuntimeDetails" TextWrapping="Wrap" FontSize="12" />
+            <TextBlock Text="Windows 11 x64; .NET 10.0.12+ x64 Desktop/base runtimes; Visual C++ 14.51.36247+ x64. Missing or older runtimes are obtained from Microsoft under Microsoft licence terms and retained on uninstall."
+                       TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+          </StackPanel>
+          </Border>
+        </StackPanel>
+        <StackPanel x:Name="OptionalPanel" Spacing="10">
+        <TextBlock Text="Optional components" FontWeight="SemiBold" />
+        <TextBlock Text="Prepared only for this Windows user. Select an option to see details."
+                   FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="4">
+              <CheckBox x:Name="PowerShellOption" Content="PowerShell 7" IsChecked="False" />
+              <TextBlock x:Name="PowerShellAvailable" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="False" />
+              <TextBlock x:Name="PowerShellStatus" FontSize="12" TextWrapping="Wrap" />
+            </StackPanel>
+            <ToggleButton x:Name="PowerShellDisclosure" Grid.Column="1" Content="Details" IsChecked="False"
+                          FontSize="12" Padding="8,3" MinHeight="24" VerticalAlignment="Top"
+                          AutomationProperties.Name="PowerShell details" />
+          </Grid>
+          <Border x:Name="PowerShellDetails" IsVisible="False">
+          <StackPanel Spacing="8" Margin="12,8">
+            <TextBlock x:Name="PowerShellDetail" FontSize="12" TextWrapping="Wrap" />
+            <TextBlock Text="Microsoft.PowerShell via winget; MIT. Compatible installs are reused. Requires Windows Package Manager. Does not grant permission to run scripts."
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+          </StackPanel>
+          </Border>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="4">
+              <CheckBox x:Name="InferenceOption" Content="Local inference" IsChecked="False" />
+              <TextBlock x:Name="InferenceAvailable" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="False" />
+              <TextBlock x:Name="InferenceStatus" FontSize="12" TextWrapping="Wrap" />
+            </StackPanel>
+            <ToggleButton x:Name="InferenceDisclosure" Grid.Column="1" Content="Details" IsChecked="False"
+                          FontSize="12" Padding="8,3" MinHeight="24" VerticalAlignment="Top"
+                          AutomationProperties.Name="Local inference details" />
+          </Grid>
+          <Border x:Name="InferenceDetails" IsVisible="False">
+          <StackPanel Spacing="8" Margin="12,8">
+            <TextBlock x:Name="InferenceDetail" FontSize="12" TextWrapping="Wrap" />
+            <TextBlock Text="Ollama 0.35.1 via winget (MIT); Qwen model (Apache-2.0), pinned digest. A fresh install downloads about 2.94 GB; extra staging/disk space is needed. Compatible existing installs are reused; verification runs a local inference check."
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+          </StackPanel>
+          </Border>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="4">
+              <CheckBox x:Name="KokoroOption" Content="Neural speech" IsChecked="False" />
+              <TextBlock x:Name="KokoroAvailable" FontWeight="SemiBold" TextWrapping="Wrap" IsVisible="False" />
+              <TextBlock x:Name="KokoroStatus" FontSize="12" TextWrapping="Wrap" />
+            </StackPanel>
+            <ToggleButton x:Name="KokoroDisclosure" Grid.Column="1" Content="Details" IsChecked="False"
+                          FontSize="12" Padding="8,3" MinHeight="24" VerticalAlignment="Top"
+                          AutomationProperties.Name="Neural speech details" />
+          </Grid>
+          <Border x:Name="KokoroDetails" IsVisible="False">
+          <StackPanel Spacing="8" Margin="12,8">
+            <TextBlock x:Name="KokoroDetail" FontSize="12" TextWrapping="Wrap" />
+            <TextBlock Text="KokoroSharpBinaries v2.0.0 via GitHub; about 229 MB; SHA-256 verified during preparation. Kokoro model: Apache-2.0; voice-asset redistribution review remains open. Uses Kora's per-user speech store."
+                       FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+          </StackPanel>
+          </Border>
+        </StackPanel>
+        </StackPanel>
+      </StackPanel>
+      </ScrollViewer>
+    </Grid>
+    <StackPanel Grid.Row="2" Spacing="12">
+      <CheckBox x:Name="LaunchOption" Content="Start Kora when setup closes" IsChecked="True" IsVisible="False" />
+      <TextBlock x:Name="ConsentLabel"
+                 FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+      <TextBlock x:Name="StatusLabel" TextWrapping="Wrap" Foreground="{DynamicResource KoraStatusBrush}"
+                 AutomationProperties.LiveSetting="Polite" />
+      <ProgressBar x:Name="SetupProgress" Minimum="0" Maximum="100" Height="8" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+        <Button x:Name="RetryDetectionButton" Content="Check dependencies again" />
+        <Button x:Name="RepairButton" Content="Repair" />
+        <Button x:Name="ActionButton" Content="Install" />
+        <Button x:Name="CloseButton" Content="Cancel" />
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</Window>

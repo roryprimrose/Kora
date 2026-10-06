@@ -63,6 +63,17 @@ version and link to authoritative evidence because it substitutes for missing
 or defective NuGet metadata. A package upgrade will not inherit an old
 override.
 
+The WiX 7 bootstrapper API supplies `OSMFEULA.txt`, which is not a standard SPDX
+licence. The gate maps only the SHA-256-pinned file identified in
+`eng/licenses/license-file-identities.json` to `LicenseRef-WiX-7-OSMF`, retaining
+the actual EULA text rather than substituting a permissive licence. A changed
+file fails before scanning. The maintainer selected this non-revenue-generating
+proof; other users must assess the EULA's revenue/fee applicability themselves.
+See the [installer terms and open redistribution gates](installer/README.md#wix-terms),
+including WiX's MS-RL source-provision obligations and self-contained runtime
+notice review. The WiX SDK projects are built separately on Windows and are
+not themselves members of the solution's NuGet report.
+
 Dependencies outside NuGet, including downloaded executables, models, fonts,
 media, and datasets, require separate review before selection or distribution.
 Record the exact identity, version or digest, source, license, required notices,

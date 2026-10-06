@@ -130,6 +130,9 @@ public sealed class KokoroTextToSpeechProvider : IDisposable
         voicesHashPath = Path.Combine(providerDirectory, VoicesHashFileName);
     }
 
+    public bool HasLocalAssets => Directory.Exists(providerDirectory)
+        && Directory.EnumerateFileSystemEntries(providerDirectory).Any();
+
     public bool IsInstalled =>
         File.Exists(modelPath)
         && new FileInfo(modelPath).Length == expectedModelSize

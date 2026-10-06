@@ -8,6 +8,31 @@ Windows remains the only supported application runtime for the foreseeable futur
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Application Integrity](Security_Data_Flows.md#application-integrity-and-no-self-modification), [Acceptance Criteria](Acceptance_Criteria.md).
 
+The [WiX MSI/custom Burn proof](../installer/README.md) now implements an
+unsigned x64 packaging/UI slice. Local feature builds use `0.1.0`; untagged
+main uses GitVersion `<major>.<minor>.<patch>-beta<increment>`, stable-tagged
+main uses `<major>.<minor>.<patch>` across binaries and setup. Feature/PR CI
+builds but does not upload the installer. Canonical main/tag CI publishes
+application/installer artifacts and explicitly non-production POC GitHub
+releases with notes, checksums and provenance; beta versions are prereleases.
+The proof neither establishes protected deployment nor closes installed
+acceptance, source-bootstrap, prerequisite-health, or redistribution gates.
+It now detects/reuses or obtains and installs pinned required runtimes through
+Burn, and offers unchecked PowerShell, Ollama/Qwen, and Kokoro preparation
+using non-elevated per-user app setup services.
+The proof defaults to **Just for me** and also offers **All users**.
+Windows Installer's dual-purpose package redirects application/shortcut
+locations to the selected user/machine context. Shared prerequisites retain
+their machine-wide scope and can still require elevation; the per-user option
+is not a fully elevation-free clean-machine distribution. User-writable
+per-user executable locations do not satisfy the protected-deployment
+candidate below or weaken any application/worker admission checks.
+Successful install/repair offers a default-on **Start Kora when setup closes**
+option. This requests an ordinary non-elevated launch after quiescent closure,
+with candidate EXE/DLL coherence checks; it is suppressed on failure,
+cancellation, uninstall, previews or required restart. Process creation is
+not host, protected-loading, native-storage or encrypted-evidence admission.
+
 ## R02 Distribution Outcomes and Direction
 
 The 2026-10-05 [distribution proof](../experiments/r02-distribution-proof/README.md)
@@ -193,29 +218,38 @@ documented build path. Pin and record each job's OS/tool identities; keep
 Windows-only work bounded rather than moving portable stages to Windows by
 default. Do not use Wine or describe Windows packaging as Linux-native evidence.
 
-### Version Tags and Publication Pre-Check
+### Build Versions and Publication Pre-Check
 
-A build of an approved protected version tag, for example `v1.4.0`, produces
-the production-version candidate from that tag's exact immutable source
-revision. The selected tag supplies the production package/release version;
-inconsistent version metadata stops the workflow. Routine branch/main builds
-are development candidates, not production releases or automatically published
-prereleases. A tag-triggered build is not permission to bypass licence, Windows
-validation or protected publication approval gates.
+The shared resolver uses pinned GitVersion for local and CI main builds.
+Untagged main produces `<major>.<minor>.<patch>-beta<increment>` and CI publishes
+a beta prerelease. A stable `v<major>.<minor>.<patch>` tag on main produces that
+numeric GitVersion version and CI publishes a normal release. Tagged revisions
+must belong to main; conflicting tags, checkout SHA or GitVersion values fail.
+Local feature and feature/PR CI versions remain `0.1.0`, without publication
+authority. Numeric MSI/Burn metadata cannot encode beta ordering; repeated
+betas with the same major/minor/patch are not independently upgrade-ordered.
+
+The maintainer explicitly approved automated **unsigned/non-production POC**
+publication, not production readiness. Stable GitHub channel classification
+does not close installed/protection/storage or redistribution-review gates.
+Portable/Windows tests, locked licence checks, exact-payload inspection and
+full MSI ICE remain required per build. Manual installed validation is
+front-loaded and ad hoc/risk-based, revisited when related boundaries change;
+there is no exhaustive per-MSI manual laboratory gate in this POC workflow.
 
 Before restore/build/package/upload, query the canonical GitHub Releases
 record for the exact version tag:
 
-- If that production version is already published with matching immutable
+- If that beta/stable version is already published with matching immutable
   source/provenance and complete expected artifacts, report **already published**
   and skip rebuilding/republishing it. Never overwrite/delete assets, move its
   tag or reuse the version number for different bytes.
 - If a same-version record conflicts with the source, channel or expected
   artifact identities, stop for maintainer reconciliation; it is not a no-op
   success and not permission to repair a published release automatically.
-- A draft or prerelease is not an already published production release. Handle
-  it as an explicit resumable candidate or conflict under maintainer approval;
-  do not silently promote it or assume its evidence applies to rebuilt bytes.
+- A draft is not an already published version; a prerelease must match the
+  requested beta channel. Interrupted drafts and source/channel/digest conflicts
+  stop for manual reconciliation; never silently promote or replace them.
 - Build only after a successful lookup establishes that production publication
   has not happened. Authentication, network, rate-limit or ambiguous lookup
   failure blocks publication; do not treat it as an absent version.
@@ -226,7 +260,9 @@ publication or API conflict without replacing assets. An interrupted draft can
 be resumed only after verifying its exact revision, completed assets/digests and
 remaining gates. The pre-check makes publication idempotent; it does not prove
 bit-identical builds or authenticate an unsigned Windows publisher.
-This is R17 release-workflow design, not a workflow implemented by the proof.
+The POC implements this pre-check and serialized publication for its stated
+non-production scope. The stronger production acceptance stages below remain
+R17 work; public POC assets do not supply their evidence.
 
 Proposed release stages:
 
@@ -264,12 +300,27 @@ artifact digest before marking a release ready.
 Validate installation/UAC, protected ACLs, unprivileged launch, tray/microphone/lock behaviour, bundled-resource execution, native libraries, update/quiescence/recovery, and runtime-only operation.
 The Windows packaging job is not a substitute for clean-machine installation,
 upgrade/repair/uninstall or actual protection/launch evidence.
-Candidate releases stay draft/unreleased when mandatory Windows evidence is missing; passing Linux tests is not a substitute.
+Production-acceptance candidates stay draft/unreleased when mandatory initial
+Windows evidence is missing; passing Linux tests is not a substitute. The
+explicitly approved public POC beta/stable releases above carry unsigned and
+non-production disclosures rather than claiming that acceptance. Installed
+validation is front-loaded and risk-based, not exhaustive manual testing of
+every release MSI. Repeatable Windows-image smoke/lifecycle trials can become
+Actions gates once implemented; the current Windows tests and native packaging
+inspection do not install the MSI.
 
 ## Running and Logon Startup
 
 Launch published binaries, not a build command.
 After either installation option, Kora's setup offers start-at-logon registration with explicit consent and an accessible disable option.
+The [WiX/Burn POC](../installer/README.md#start-at-login) now presents that
+choice before Install/Repair, defaulting on for an absent entry and reflecting
+matching registry configuration. Registration matches the explicitly chosen
+installation scope (HKCU/current user or HKLM/all users), is owned by a native
+MSI component, and is recorded in the installation transaction. Windows-disabled
+or conflicting configuration is surfaced rather than silently overridden.
+This installer authoring does not establish installed logon, protected loading,
+repair/uninstall or upgrade acceptance.
 Use a stable registered launcher/package identity that survives version changes; the startup entry must not point to a transient checkout or staging directory.
 The application runs as the interactive user, without elevation or a pre-logon microphone service.
 Enforce a single desktop instance and avoid duplicate startup registrations.

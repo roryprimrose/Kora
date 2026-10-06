@@ -28,6 +28,9 @@
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="System.Speech" Version="10.0.12" />
+    <PackageVersion Include="WixToolset.BootstrapperApplicationApi" Version="7.0.0" />
+    <PackageVersion Include="WixToolset.Netfx.wixext" Version="7.0.0" />
+    <PackageVersion Include="WixToolset.Util.wixext" Version="7.0.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
   </ItemGroup>
 </Project>

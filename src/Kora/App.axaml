@@ -4,52 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Application.Resources>
     <ResourceDictionary>
-      <ResourceDictionary.ThemeDictionaries>
-        <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="KoraWindowBackgroundBrush" Color="#F4F5F8" />
-          <SolidColorBrush x:Key="KoraForegroundBrush" Color="#24202F" />
-          <SolidColorBrush x:Key="KoraMutedForegroundBrush" Color="#5E6470" />
-          <SolidColorBrush x:Key="KoraAccentBrush" Color="#6653B5" />
-          <SolidColorBrush x:Key="KoraPrimaryBrush" Color="#7663C7" />
-          <SolidColorBrush x:Key="KoraAccentForegroundBrush" Color="#FFFFFF" />
-          <SolidColorBrush x:Key="KoraStatusBrush" Color="#147D78" />
-          <SolidColorBrush x:Key="KoraSurfaceBrush" Color="#FFFFFF" />
-          <SolidColorBrush x:Key="KoraSurfaceAltBrush" Color="#EEF0F5" />
-          <SolidColorBrush x:Key="KoraPresencePanelBrush" Color="#F2FFFFFF" />
-          <SolidColorBrush x:Key="KoraBorderBrush" Color="#D7DAE2" />
-          <SolidColorBrush x:Key="KoraHeaderBorderBrush" Color="#DDE0E7" />
-          <SolidColorBrush x:Key="KoraDividerBrush" Color="#C3C7D0" />
-          <RadialGradientBrush
-              x:Key="KoraPresenceBackgroundBrush"
-              Center="50%,48%"
-              GradientOrigin="50%,48%">
-            <GradientStop Color="#E1D9FF" Offset="0" />
-            <GradientStop Color="#F1EFF8" Offset="1" />
-          </RadialGradientBrush>
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="KoraWindowBackgroundBrush" Color="#101216" />
-          <SolidColorBrush x:Key="KoraForegroundBrush" Color="#E8ECF2" />
-          <SolidColorBrush x:Key="KoraMutedForegroundBrush" Color="#929BA9" />
-          <SolidColorBrush x:Key="KoraAccentBrush" Color="#B6A6F1" />
-          <SolidColorBrush x:Key="KoraPrimaryBrush" Color="#AF9BFF" />
-          <SolidColorBrush x:Key="KoraAccentForegroundBrush" Color="#191525" />
-          <SolidColorBrush x:Key="KoraStatusBrush" Color="#6AE1DA" />
-          <SolidColorBrush x:Key="KoraSurfaceBrush" Color="#181C23" />
-          <SolidColorBrush x:Key="KoraSurfaceAltBrush" Color="#171A24" />
-          <SolidColorBrush x:Key="KoraPresencePanelBrush" Color="#F2181C23" />
-          <SolidColorBrush x:Key="KoraBorderBrush" Color="#303640" />
-          <SolidColorBrush x:Key="KoraHeaderBorderBrush" Color="#292E37" />
-          <SolidColorBrush x:Key="KoraDividerBrush" Color="#41454E" />
-          <RadialGradientBrush
-              x:Key="KoraPresenceBackgroundBrush"
-              Center="50%,48%"
-              GradientOrigin="50%,48%">
-            <GradientStop Color="#2C2A3B" Offset="0" />
-            <GradientStop Color="#151922" Offset="1" />
-          </RadialGradientBrush>
-        </ResourceDictionary>
-      </ResourceDictionary.ThemeDictionaries>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Assets/ThemeResources.axaml" />
+      </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>
   <Application.Styles>

@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\installer\Kora.Setup\Kora.Setup.csproj" />
     <ProjectReference Include="..\..\src\Kora.Windows\Kora.Windows.csproj" />
   </ItemGroup>
 

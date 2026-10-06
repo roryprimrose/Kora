@@ -1,0 +1,16 @@
+<Project>
+  <Target Name="ResolveKoraBuildVersion" BeforeTargets="PrepareForBuild;GetAssemblyVersion"
+          Condition="'$(KoraResolveBuildVersion)' == 'true'">
+    <PropertyGroup>
+      <_KoraVersionFile>$(MSBuildProjectExtensionsPath)kora-build-version.txt</_KoraVersionFile>
+      <KoraVersionRepositoryPath Condition="'$(KoraVersionRepositoryPath)' == ''">$(MSBuildThisFileDirectory)</KoraVersionRepositoryPath>
+    </PropertyGroup>
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)eng/Get-BuildVersion.ps1&quot; -RepositoryPath &quot;$(KoraVersionRepositoryPath).&quot; -OutputFile &quot;$(_KoraVersionFile)&quot;" />
+    <ReadLinesFromFile File="$(_KoraVersionFile)">
+      <Output TaskParameter="Lines" ItemName="_KoraResolvedVersion" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <Version>@(_KoraResolvedVersion)</Version>
+    </PropertyGroup>
+  </Target>
+</Project>

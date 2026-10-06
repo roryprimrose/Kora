@@ -107,3 +107,15 @@ an approved geometry or palette change:
 ```powershell
 .\eng\Generate-WindowsIcon.ps1
 ```
+
+The [custom Burn installer proof](../installer/README.md) reuses that static
+icon. Its Avalonia UI progressively enhances the free-standing ribbon with
+eight-second path-following colour travel, respects the initial Windows
+animation preference, and renders continuously without a motion checkbox. Separate accessible
+text and progress communicate installation state; the mark is not a progress
+indicator.
+The proof follows the Windows app light/dark preference through Avalonia,
+including theme updates, and shares the desktop app's authoritative
+[theme resources](../src/Kora/Assets/ThemeResources.axaml). The ribbon retains
+its complete seven-colour palette in either mode; text/background/status
+resources change with the theme.

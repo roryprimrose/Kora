@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
+    <KoraResolveBuildVersion Condition="'$(Version)' == ''">true</KoraResolveBuildVersion>
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>

@@ -4,12 +4,15 @@ namespace Kora.Application.UnitTests;
 
 public sealed class ApplicationInfoTests
 {
-    [Fact]
-    public void Version_uses_three_part_entry_assembly_version()
+    [Theory]
+    [InlineData("4.5.6")]
+    [InlineData("0.1.0")]
+    [InlineData("0.1.0-beta12")]
+    public void Version_preserves_the_entry_assembly_informational_version(string version)
     {
-        var info = new AssemblyApplicationInfo(() => new Version(4, 5, 6, 7));
+        var info = new AssemblyApplicationInfo(() => version);
 
-        info.Version.Should().Be("4.5.6");
+        info.Version.Should().Be(version);
     }
 
     [Fact]

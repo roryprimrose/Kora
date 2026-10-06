@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/installer/">
+    <Project Path="installer/Kora.Setup/Kora.Setup.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Kora.Application/Kora.Application.csproj" />
     <Project Path="src/Kora.Core/Kora.Core.csproj" />

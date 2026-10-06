@@ -60,6 +60,9 @@ under `eng`, including the [both-RID publish contracts](eng/Test-PublishContract
 Use fresh inspection evidence outside the payload and fresh fixture outputs
 outside all repositories. Source interface 1.1.0 does not adopt/relabel older
 owner/tool-path receipts; historical experiment evidence is archived unchanged.
+The synthetic source-bootstrap fixtures temporarily isolate `GITHUB_ACTIONS`
+and restore it afterward, so their scratch revisions do not inherit the
+calling workflow's source identity. Production revision checks remain enforced.
 
 If an intentional dependency change alters the notice report, review the new
 license and provenance first. Add an approved license identifier or a

@@ -1,6 +1,9 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param([Parameter(Mandatory)][string] $OutputDirectory)
+$savedActions = $env:GITHUB_ACTIONS
+$env:GITHUB_ACTIONS = $null
+try {
 . (Join-Path $PSScriptRoot 'SourceBootstrap.Common.ps1')
 New-ProofDirectory $OutputDirectory
 $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
@@ -46,6 +49,18 @@ Write-ProofJson @{ version = 2; dependencies = @{} } (Join-Path $repository 'pac
 Invoke-Checked 'git' @('-C', $repository, 'add', '.')
 Invoke-Checked 'git' @('-C', $repository, '-c', 'core.hooksPath=', '-c', 'commit.gpgsign=false', 'commit', '-m', 'Owned scratch fixture only')
 $revision = (& git -C $repository rev-parse HEAD | Out-String).Trim()
+$savedSha = $env:GITHUB_SHA
+try {
+    $env:GITHUB_ACTIONS = 'true'
+    $env:GITHUB_SHA = '0' * 40
+    Expect-SourceFailure 'Production version resolver still rejects a mismatched workflow revision' {
+        & (Join-Path $PSScriptRoot 'Get-BuildVersion.ps1') -RepositoryPath $repository
+    } 'Checkout revision differs from the workflow source revision'
+}
+finally {
+    $env:GITHUB_ACTIONS = $null
+    $env:GITHUB_SHA = $savedSha
+}
 $root = Join-Path $OutputDirectory 'managed'
 $preview = Invoke-SourceBootstrap $root $revision -Repository $repository
 if ((Test-Path -LiteralPath $root) -or $preview.channel -cne 'local-source' -or $preview.activation -cne $script:SourceActivation) {
@@ -134,6 +149,7 @@ $calls = $script:compileCalls
 Build-Fixture $root $revision | Out-Null
 if ($calls -ne $script:compileCalls -or (Get-FileHash -LiteralPath $receiptPath).Hash -cne $receiptHash) { throw 'Rerun rebuilt/rewrote output.' }
 $passed.Add('Exact detached checkout, pinned inputs, owned root and hash-verified no-build rerun')
+$passed.Add('Synthetic checkout versioning is isolated from the caller workflow identity')
 $ownerPath = Join-Path $root 'source-owner.json'
 $originalOwner = Get-Content -LiteralPath $ownerPath -Raw
 foreach ($field in 'schema', 'root', 'repository', 'mode', 'channel', 'bootstrapVersion', 'protected', 'activation') {
@@ -345,4 +361,8 @@ Write-ProofJson ([ordered]@{ schema = 1; tests = @($passed); count = $passed.Cou
     scope = 'Orchestration/failure fixtures, not installed/native/runtime acceptance. No installer or Kora process executed.' }) `
     (Join-Path $OutputDirectory 'tests.json')
 Write-Host "$($passed.Count) source-bootstrap fixture checks passed."
+}
+finally {
+    $env:GITHUB_ACTIONS = $savedActions
+}
 exit 0

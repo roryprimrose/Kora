@@ -64,9 +64,16 @@ request/session/task/question/proposal revisions through an atomic
 storage/audit abstraction. They have no dispatch callback and do not advance
 an actual task to Running. A foundation approval/use receipt is neither an
 execution token nor evidence of an observed effect.
-The R04-owned durable adapter/composition must serialize task cancellation,
-session end/resume, policy and content changes with these transactions and
-block new admission before dispatch. Failed audit/storage commits produce no
+The [R04/R05 durable adapter](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)
+now serializes task cancellation using the existing task lease, held from
+committed-intent validation through interaction COMMIT. Questions/grants,
+typed audit, lifecycle generations and current host observations commit in a
+single interaction database. Done/resume/authority removal invalidate old
+scoped authority; Active restart preserves generation, but previous-run
+snapshots must be freshly host-resolved. Perpetual records remain independent.
+This is not the general task queue or pre-effect gateway: native immutable
+review, live source resolution and adapter/worker immediate revalidation
+must still block new admission before actual dispatch. Failed audit/storage commits produce no
 admitted receipt; OperationCanceledException means rolled back, while lost
 commit certainty throws a storage error and prohibits blind retry.
 Real effect cancellation, interrupted-run reconciliation, native review and
@@ -304,8 +311,11 @@ committing intent-only Interrupted or dispatched/unverified Unknown, in a
 fresh trace retaining the durable host IDs. A cancellation acknowledgment or
 late callback cannot produce a success receipt. The batch is limited to 100;
 additional incomplete work produces an explicit startup/recovery failure.
-This is not the proposed general session/task queue, durable grant service or
-automatic retention/deletion implementation.
+The subsequent durable interaction slice supplies a bounded grant/question
+store and minimal session authority; it still supplies no general session/task
+queue or automatic retention/deletion implementation. Readable pending history
+does not bypass recovered Interrupted/Unknown task state, and reopening a
+store cannot dispatch or consume anything.
 
 Restart does not resume actions or replay approval tokens.
 Session history, artifacts, requests, and content-bearing ledger evidence are restored for reading on restart, not automatically dispatched.

@@ -346,6 +346,19 @@ backups/artifact publication, content/session lifecycle and deletion, audit
 checkpoints/pruning, broader migrations and installed/power-loss evidence
 remain open under the R04 inventory and deferred register.
 
+The next [R04/R05 interaction slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+uses this same baseline, not a new provider decision. Its private version-1
+interaction schema atomically persists typed question/grant/session authority
+and its own typed audit. Matching committed task intent is validated while
+holding the task lease through the interaction commit; independent diagnostic
+projections cannot substitute for admission. Active generation survives restart,
+ended/resumed scope never revives, and independent Perpetual records survive
+authority removal. No encrypted-native/key prerequisite, legacy grant
+migration, general content store or effect dispatch is introduced. Authority
+row removal is not recoverable-copy deletion; full R12 retention/deletion,
+audit anchors/pruning/whole-store rollback and installed/power-loss acceptance
+remain open.
+
 ### R02 Windows Storage Outcome - 2026-10-05
 
 **Historical, superseded encryption direction:** the investigation proposed:

@@ -511,7 +511,37 @@ explicitly rather than silently ignoring the excess.
 First-use greeting, settings and version response disclose the readable-copy,
 same-user/admin and independent 30/90-day due dates, explicitly disclosing that
 database pruning/deletion is not yet implemented. The new
-records contain no transcript or answer body.
+version-query records contain no transcript or answer body.
+
+The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/
+reparse, PERSIST/FULL and exact-schema checks. It stores only host-admitted
+typed questions/options/drafts/answers, exact proposals/grants and minimal
+session authority, not general conversation/context content. Production
+registration binds the existing R05 services to
+[WindowsSqliteHostInteractionStore](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs).
+No native input route, generic dispatcher or OS effect is activated.
+
+Task intent is a committed prerequisite, not an eventual diagnostic: the
+interaction transaction holds the existing task admission lease while
+reading matching nonterminal intent and until its own COMMIT completes.
+All task mutations use that lease. Interaction state and its authoritative
+typed security audit commit in one database, with ordered hashes/head and
+record-digest bindings. There is no attached multi-database write, fallback
+receipt or authority inferred from the independent evidence/file projections.
+Lock order is task then interaction; passive reads never acquire the task
+lease. Fresh host snapshots are admitted under both leases, with optimistic
+revision checks and transactional content revocation. Previous adapter-run
+observations confer no restart authority.
+
+Session generation persists across Active restart and advances on Done,
+resume and authority removal. Perpetual records are a separate table without
+a session foreign key or grant due/retention field. Removed session identities
+remain tombstoned; this is not full recoverable-copy content deletion.
+Audit due times use the existing independent audit policy; pruning/anchors,
+whole-store rollback detection, installed/power-loss acceptance and broader
+R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit
+or private permissions fail explicitly without replacement or repair.
 
 Implementation requirements:
 

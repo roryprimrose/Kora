@@ -920,6 +920,25 @@ without a verified receipt is Unknown. No new consequential capability
 is enabled, no request is automatically replayed, and no transcript/response
 body is newly persisted. First-use greeting, settings and the version response
 include readable-copy and same-user/admin-access disclosure.
+The bounded [durable interaction authority](Interaction_And_Sessions.md#durable-authority-and-typed-presenter-handoff)
+also persists host-admitted typed questions/options/drafts/answers and exact
+proposal/grant metadata in a distinct private SQLite partition. It adds no
+transcript, audio, credential, arbitrary model-content or hosted-adapter store.
+The existing question/authorization services use the real production adapter.
+Their decision/state changes and typed audit/hash head are one atomic commit,
+with state digests binding each projection to its audit. The task admission
+lease protects matching committed nonterminal intent until that commit ends;
+task cancellation cannot race past the prerequisite check.
+Only fresh trusted host snapshots establish current policy/content/identity;
+persisted previous-run observations, copied audit files, provider labels and
+viewer text do not. Changed observed content invalidates grants before its
+new snapshot is published. Independent Perpetual records have no session
+foreign key or expiry/retention/eviction. Done/resume/authority removal advance
+generation; Active restart does not. Authority removal does not claim journal/
+free-page/backup erasure or complete R12 session deletion. Native immutable
+review, trusted UI/foreground voice targeting, worker/adapter immediate
+pre-effect revalidation and full audit pruning/anchor/rollback evidence remain
+later gates. Direct lock/power routing is unchanged and not promoted to admission.
 Ordinary hostless diagnostics carry capture-owned `MissingHostContext` and
 `kora.bootstrap=false`, retain null trusted host/W3C/business columns and
 report the gap independently. They are not silently promoted to bootstrap,

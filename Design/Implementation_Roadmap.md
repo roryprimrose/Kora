@@ -577,6 +577,33 @@ licence texts. Fresh GitHub checks on the pushed correction are separate from
 this local receipt; the earlier failures are not called green or rerun evidence.
 R04 remains partial and R30 optional encryption remains deferred.
 
+#### Current-Main Refresh After CI Correction - 2026-10-06
+
+The correction `7795674` passed fresh push CI `37436375408` (Windows 412)
+and PR CI `37436381184` (Windows 437), including portable coverage/packaging
+and WiX jobs. The differing counts reflect GitHub's merge candidate including
+new main, not different test selection or skipped failures. Main advanced to
+`90d8f48` (presence PR #36); strict up-to-date protection still marked #39
+BEHIND. Merge `8be4f9d` incorporates that approved upstream work cleanly
+without rewriting the published correction or changing other worktrees.
+The transcript tracing wrapper and upstream presentation changes both remain.
+
+Full local validation at **`8be4f9d`, main base `90d8f48`** uses the same
+SDK 10.0.401/runtime 10.0.12, Windows build 26300/x64 and exact commands
+above, with result/coverage prefixes `r04-ci-main-*` and publish directories
+`artifacts\R04-ci-main-win-x64` / `artifacts\R04-ci-main-win-x86`.
+Release has zero warnings/errors; Core **307**, Application **941** and
+Windows **437** all pass: **1,685 total**, zero failed/skipped.
+Fresh latest-only coverage is **5,633/5,633 lines**, **2,285/2,285 branches**
+and **664/664 methods**, all 100%. Licence/notices, version, fake-release and
+payload-contract gates pass. Both fresh publishes verify **201/197 files**
+including licence texts with source revision
+`8be4f9dc26c961d5f0b1b413a2a8729239cfe10d`; all **7/5 native PE files**
+retain the prior exact hashes and expected architecture. No new dependencies,
+native bytes, privilege/token changes, real app/installer launch or expanded
+storage/interruption acceptance are implied. Fresh checks after publishing
+this refresh remain distinct from the earlier green runs.
+
 ## R02 Runtime/Provider Follow-Up Gates
 
 These are sub-gates of R02, not new acceptance milestones or a claim that

@@ -1,0 +1,154 @@
+{
+  "sourceRevision": "3e8558fbff07943d39721b230599b02062d90d57",
+  "sdk": "10.0.401",
+  "utc": "2026-10-06T06:39:48.4026594+00:00",
+  "sourceDirty": true,
+  "files": [
+    {
+      "sha256": "AD98A44FAAD41A5FD42A335724AB9CA393B5317465AAB197B7949A4BAE3D8C62",
+      "name": "Directory.Build.targets"
+    },
+    {
+      "sha256": "17489712C78887BFF86780E86FADB748E1D5DD4D15D3B3FE587C781CAD66DED7",
+      "name": "Directory.Packages.props"
+    },
+    {
+      "sha256": "2779AD976AAE0A2734D03791A9000EF8D50604E257C23AFB53DFD0663EBBAE50",
+      "name": "experiments\\r02-containment-proof\\Model.cs"
+    },
+    {
+      "sha256": "86521DE533605F7A84C8EC4DEF4A12777A83FA43EFA3E21704DF1E86BD296F2C",
+      "name": "experiments\\r02-containment-proof\\Native.cs"
+    },
+    {
+      "sha256": "4FF531604BD71CFCBD33A8C176EBD6426E66D2479DB00870E0A67C0431E4285E",
+      "name": "experiments\\r02-containment-proof\\NativeProcessHandle.cs"
+    },
+    {
+      "sha256": "47A9A55AA170D6C5BF3B728E3EC0D4D75457A91C0137C5BFC81040BF2F57BC15",
+      "name": "experiments\\r02-w2-dependency-proof\\Admission.cs"
+    },
+    {
+      "sha256": "37A53A1AF5513842F6B28B1E538B273528E80B2969F48F624D170BC72BF46B18",
+      "name": "experiments\\r02-w2-dependency-proof\\Compile-Native.ps1"
+    },
+    {
+      "sha256": "C71D5EE362BC2FFC6E0ACC47F2B4DB8C64D4EB47D491D79DB2F88BC2E8328A6A",
+      "name": "experiments\\r02-w2-dependency-proof\\Directory.Build.props"
+    },
+    {
+      "sha256": "E45074BDACCC89CBAD1F3B7381F71F51552DA9F761633F747CB4A30778392A9F",
+      "name": "experiments\\r02-w2-dependency-proof\\Host.cs"
+    },
+    {
+      "sha256": "42D8D8967D1E8C844CECEC3644B3E87F8EA86F9F895729A1EA7AC0AB8EAFF5B8",
+      "name": "experiments\\r02-w2-dependency-proof\\Images.cs"
+    },
+    {
+      "sha256": "4CA46FCAF802C850861F1D4C0CB2D623794BDB0FCA742C815D531A30087B90A0",
+      "name": "experiments\\r02-w2-dependency-proof\\instructions.txt"
+    },
+    {
+      "sha256": "264CD9D7A9D4A9C5F7D4E4E50F865CA3ABBBEE4B5E60C8B418A03C03B2D9A017",
+      "name": "experiments\\r02-w2-dependency-proof\\Invoke-Proof.ps1"
+    },
+    {
+      "sha256": "9703B65AEDE8F3CF375F0B354173E8553A9700FAE560F356FAF90BDD4166280D",
+      "name": "experiments\\r02-w2-dependency-proof\\native\\payload.c"
+    },
+    {
+      "sha256": "F354F75E5DF37E9EE25C9D9CE242EF5F8D27D41846658BB3D9647128A52E9E3A",
+      "name": "experiments\\r02-w2-dependency-proof\\NativePolicy.cs"
+    },
+    {
+      "sha256": "3ADCA8EE913405BBFC61802308086157370BED623CC0DC4D20883AAC4495A442",
+      "name": "experiments\\r02-w2-dependency-proof\\packages.lock.json"
+    },
+    {
+      "sha256": "3ADCA8EE913405BBFC61802308086157370BED623CC0DC4D20883AAC4495A442",
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\packages.lock.json"
+    },
+    {
+      "sha256": "868A3EB37EAE56F0438CC5991B34CA93BE1F86D2A1560125BA1CEA7046EDBD55",
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\Payload.cs"
+    },
+    {
+      "sha256": "B5B1AE5F939AA30502E0DF9FB0B0D0076CE4CC152985BB2FE189BD8486B4B0CE",
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\Payload.csproj"
+    },
+    {
+      "sha256": "05028DB86C70968E29657300A8CC51CC821FDE096BA8DD8A24C70A4721EBDF0C",
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\Program.cs"
+    },
+    {
+      "sha256": "8AF38A19912820FFC9C15CC63E03A85CD5296FC9AEF0602E19323A4D34936976",
+      "name": "experiments\\r02-w2-dependency-proof\\Program.cs"
+    },
+    {
+      "sha256": "F1BFC60070872887C3862A517C93CEB644BECD298B9B6FE593027AB7E0E837DC",
+      "name": "experiments\\r02-w2-dependency-proof\\README.md"
+    },
+    {
+      "sha256": "81E9A19D02E7659FD3CCD76474E35CB7E7E3161293FF24F10B26EEBE115E5E98",
+      "name": "experiments\\r02-w2-dependency-proof\\scripts\\entry.ps1"
+    },
+    {
+      "sha256": "CF8AB6A087C38102C2677A31F5FF8A1BF92BD307CE4512463C094C8D4DD03B20",
+      "name": "experiments\\r02-w2-dependency-proof\\scripts\\helper.ps1"
+    },
+    {
+      "sha256": "7BD2B7B1A20178123188FC6190FF26639F58D26E78E544F534A2424719F463E1",
+      "name": "experiments\\r02-w2-dependency-proof\\scripts\\probe.ps1"
+    },
+    {
+      "sha256": "681D65389DFE72F9D7F6DB29AF20487EAEB0408D5B074BCB119FC65A30E73867",
+      "name": "experiments\\r02-w2-dependency-proof\\skill.json"
+    },
+    {
+      "sha256": "6BCC64E0ADCD610FF94C5E3E7331ED38E8CBCB94D1593B67BB443AD80702DA2B",
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\AdmissionTests.cs"
+    },
+    {
+      "sha256": "E9547BB1FCCFF71D4903393B7DC4D980D3C0D9185C0B50BB6BE164F9A28BAAA8",
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\packages.lock.json"
+    },
+    {
+      "sha256": "84F37A137FEDBF7A3B25F4BEB3DAAA0C9DB233EF2D8910B40D36BCCEE37C2176",
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\W2Tests.csproj"
+    },
+    {
+      "sha256": "E366EF64990C0C748BFC398381A0179EA2E39EB37502F4D0AE816CAD6965E07B",
+      "name": "experiments\\r02-w2-dependency-proof\\W2Proof.csproj"
+    },
+    {
+      "sha256": "77E1DE2DB3EECBDEE4916ED42D93A814FB3950CE27B25D73693D01AA8597099A",
+      "name": "experiments\\r02-w2-dependency-proof\\Worker.cs"
+    },
+    {
+      "sha256": "4977AE364D92D2679ACC93FCB364EB2D7C990A320EDEBF034B01B9ED14098D84",
+      "name": "global.json"
+    }
+  ],
+  "systemNativeInputs": [
+    {
+      "name": "kernel32.dll",
+      "sha256": "8F8629741558B5DF71DEF4E1DD8EF9645D4F806B949762C47757C50FEA1A9E6D",
+      "version": "10.0.26100.9278 (WinBuild.160101.0800)"
+    },
+    {
+      "name": "advapi32.dll",
+      "sha256": "E036C9BAECD170D7EF4759A5A7EB76036158CACC4CD9E3F697DBF410A3457224",
+      "version": "10.0.26100.3624 (WinBuild.160101.0800)"
+    },
+    {
+      "name": "userenv.dll",
+      "sha256": "E5E77885CBAC08AC247FA45916ECA36D2FDE292A8527AC2C428F36A691827FEA",
+      "version": "10.0.26100.7920 (WinBuild.160101.0800)"
+    },
+    {
+      "name": "ntdll.dll",
+      "sha256": "A74F7482085EAB125CCC09152AB7E0B5994BCB13E1A7B29880BDBB24179ECB8B",
+      "version": "10.0.26100.9278 (WinBuild.160101.0800)"
+    }
+  ]
+}

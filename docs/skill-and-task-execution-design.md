@@ -164,7 +164,8 @@ silently transfer it to the replacement content.
 ## Skill management
 
 A skill must have a stable source-qualified identity and a host-validated
-descriptor of its tasks and complete executable resource set. For built-ins,
+descriptor of its tasks and complete declared executable resource set, with
+best-effort tracked transitive dependencies and discovery gaps. For built-ins,
 an embedded manifest explicitly identifies the Markdown resource, entry point,
 all required `.ps1` resources, and admitted dependencies; shared scripts are
 embedded once and referenced by each dependent manifest. For future
@@ -177,9 +178,11 @@ content. A skill document or model suggestion cannot grant itself permission.
 
 For each executable resource, record the canonical location, its role (program,
 script, or interpreter), and a SHA-256 digest of the **bytes to be executed**.
-For a task that uses several files, include every directly or transitively
-executed script, launcher, interpreter, and executable in the task's approved
-resource set. A changed manifest or task definition also requires a fresh
+Include every manifest-listed script and required launcher/interpreter/adapter
+in the task's approved resource set. Track other scripts/modules/binaries best
+effort; do not claim the declared set includes every runtime-transitive action.
+Show known identities and unresolved references for informed user approval.
+A changed manifest or task definition also requires a fresh
 review of the affected task, even if its script bytes did not change. Do not
 accept a skill-provided digest as proof: Kora must calculate it from the local
 files itself. Skill identity, task identity, resource identity, digest, and
@@ -189,7 +192,7 @@ visible to the user before approval.
 ### Combined script identity
 
 A script-backed skill's grants bind the combined content of **all** declared
-`.ps1` files, including transitive and shared helpers, not just its entry
+`.ps1` files, including explicitly declared transitive and shared helpers, not just its entry
 point. Keep individual digests as well. All script-backed tasks in a skill
 bind that complete set even when an invocation uses only some of its scripts.
 Hashing order is independent of helper execution order.
@@ -232,19 +235,24 @@ literal/constant paths without executing code. An external helper requires
 explicit approval of its bounded source scope. Include each canonical file
 once; use stable source-qualified logical names for external dependencies.
 
-Missing files, cycles unsupported by the runner, computed paths, dynamic
-evaluation, unsupported imports, and unregistered child-script launches block
-execution with an explanation; they cannot produce a success-shaped partial
-hash. Static parsing cannot prove arbitrary PowerShell behaviour, so the
-runner must also deny undeclared script/module/process access. Recheck folder
-membership, references, current bytes, and physical targets before each
-dispatch. This feature does not make executable user skills available in the
-current release or through the declarative authoring workflow.
+Missing required declared/tracked files or unverifiable approved identities
+block dispatch. Computed paths, dynamic evaluation, unsupported imports and
+unresolved launches are disclosed discovery gaps, not an empty or complete
+dependency list. Under the owner-approved
+[best-effort tracking rule](../Design/Built_In_Skills.md#best-effort-transitive-dependency-tracking),
+the granting user accepts responsibility for the script's overall actions
+within its admitted scope; Kora cannot promise to detect every transitive
+change. Recheck declared folder membership and tracked identities/bytes before
+dispatch. This does not admit user scripts in the current release or through
+declarative authoring, and cannot fall back to ambient-rights execution.
 
 ## Execution grants
 
-Grant keys must identify the precise task, invocation, and executable resource
-set, including the SHA-256 digest for **each** executable or script.
+Grant keys identify the precise task, invocation, complete declared script
+set, required runtime/adapter identities and best-effort tracked dependencies.
+Each declared or tracked code file has its own SHA-256; undiscovered code is
+not represented as covered by that hash. Bundled review provides read-only
+tabs for every manifest-listed file, including all scripts and shared helpers.
 Scopes are **Once** (one exact invocation), **Session** (that operation within
 the identified Kora work session), and **Always/Perpetual** (until explicitly
 removed/edited or revoked by a changed approved content identity).
@@ -298,8 +306,9 @@ authorize execution; require fresh single-use approval for each exact invocation
 Revalidate call/setting policy generation at dispatch, including every queued
 or background step; changing feedback/speech preferences does not bypass it.
 
-Before each execution, the host resolves and validates the complete target
-set, computes current hashes, and compares them with the approved grant.
+Before each execution, the host resolves and validates the complete declared
+target set and required/tracked identities, computes current hashes, and
+compares them with the approved grant.
 Checks must happen at execution time, not just when the skill is loaded, the
 grant is created, or a file watcher reports a change. Missing, unreadable,
 invalid, or changed resources fail closed: do not start any part of the task;
@@ -318,20 +327,24 @@ Bundled scripts must instead run from their verified embedded-resource
 snapshot through a controlled interpreter input mechanism: do not extract
 editable copies for execution. If the selected interpreter requires a loose
 script file, leave that task unavailable until a safe execution mechanism is
-demonstrated. For interpreted scripts, verify included and invoked resources
-as well; no unchecked relative imports, child scripts, or process launches
-may bypass the gate. If a task can dynamically select an unlisted executable
-resource, stop and require a new review rather than assuming its old grant
-covers it. An executable's digest alone does not authorize arbitrary
+demonstrated. For interpreted scripts, verify the complete declared set and identified
+approval-relevant dependencies. Transitive discovery/tracking is best effort,
+not a promise to deny every runtime-selected dependency. Observed changes
+invalidate applicable grants; disclose unresolved references and the user's
+responsibility for transitive script actions. This is not permission to select
+a different top-level task or bypass host capability/resource controls.
+An executable's digest alone does not authorize arbitrary
 arguments, working directories, privileges, or network access.
 
-PowerShell is **not a security sandbox**: hashing a top-level `.ps1` does not
-prove what arbitrary commands, modules, network calls, or child processes it
-may run. The runner must restrict what task scripts can invoke and verify all
-permitted dependencies; if that cannot be enforced, leave the narrow profile
-unavailable rather than claim a narrow hash grant covers broader execution.
-A broader capability requires its own explicit design/admission decision and
-protected-resource proof; merely disclosing ambient rights is not sufficient.
+PowerShell is **not a security sandbox**: hashing even the complete declared
+script set does not prove all commands, modules, network calls or children it
+may run. The 2026-10-06 decision accepts best-effort dependency tracking, not
+universal exact-dependency enforcement, for both bundled and future user
+scripts. The runner must still enforce its separately required OS/resource/
+privacy boundaries. If those cannot be enforced, leave the affected profile
+unavailable; acknowledgement of script responsibility is not a substitute.
+An explicitly exact-dependency profile needs real additional enforcement
+proof and may not describe these best-effort grants as its admission evidence.
 Do not trust a writable extracted copy of an embedded script; the
 verified embedded snapshot must be the source of execution.
 
@@ -357,12 +370,20 @@ required network-denial probes timed out and remain Unknown.
 
 The [canonical continuation gates](../Design/Security_Data_Flows.md#windows-containment-continuation-gates)
 and [roadmap W1-W4](../Design/Implementation_Roadmap.md#r02-windows-containment-follow-up)
-require attributable OS network denial, an enforced dependency/fixed-control
-mechanism, and independently protected app/worker deployment before R11
+require attributable OS network denial, a reviewed fixed-control mechanism,
+protected required runtime resolution and independently protected app/worker deployment before R11
 restricted dispatch. A typed native broker is only an alternative for an
 explicit decision; it is not a selected implementation or permission to replace
 the embedded-script contract silently. The current direct C# lock remains
 bootstrap behavior, not acceptance of the future script-backed path.
+
+The [W2 fixture](../experiments/r02-w2-dependency-proof/README.md) separately
+demonstrates fixed embedded helper/entry execution and an owned marker, while
+rejecting ACL/no-child policies as exact transitive dependency controls.
+The owner-approved best-effort tracking rule applies to both bundled and
+future scripts; complete manifest resources remain exact, but discovery gaps
+and possibly undetected changes are disclosed. This amendment does not pass
+network, installed protection, real Windows effects or complete runner admission.
 
 Cancellation, deadline, process exit and effect certainty are separate facts.
 Retain Unknown when an effect may have occurred without a valid correlated
@@ -396,8 +417,10 @@ not prove rollback or authorize an automatic retry.
   model-mediated results are returned only after the applicable egress checks.
 - Skill selection and tool/task dispatch cannot execute an effect twice;
   cancellation, denial, and unknown outcomes never trigger an automatic write retry.
-- The review window shows the exact script to be run with syntax highlighting,
-  does not modify it, and never confirms an approval simply by opening.
+- The review window exposes every manifest-listed file in named read-only
+  tabs, with a separate syntax-highlighted tab per script/shared helper.
+  It never modifies source or confirms approval merely by opening. Show
+  best-effort transitive inventory/gaps and user responsibility.
 - Updating an embedded script revokes authorization for every grant bound
   to its old script set, without deleting perpetual records; unrelated grants
   remain unaffected. Reverting the bytes never restores a revoked grant.
@@ -413,5 +436,6 @@ not prove rollback or authorize an automatic retry.
 - Combined hashes are stable under enumeration/list-order changes and differ
   for file additions/removals/renames or byte changes; length-framing and
   exact-byte test vectors agree across implementations.
-- Future folder imports prove transitive discovery, source-scope checks,
-  dynamic-reference denial, and race-free snapshot execution before enablement.
+- Future folder imports prove best-effort transitive discovery, source-scope
+  checks, honest dynamic-reference gaps, observed-change revocation and
+  race-resistant declared/tracked snapshot execution before enablement.

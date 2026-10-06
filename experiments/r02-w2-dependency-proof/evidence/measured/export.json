@@ -1,0 +1,68 @@
+{
+  "rawRun": "final-03",
+  "files": [
+    {
+      "sha256": "7CE319B52949C237408721CEF9F759BF397D8287C27E03D7299C2B966F344974",
+      "name": "acl-inputs.json"
+    },
+    {
+      "sha256": "C9B8D86634FC7ECFA8388BCD6801A6726E4CE94032566755822FAC9C36399398",
+      "name": "acl.json"
+    },
+    {
+      "sha256": "3B21FFE0343862943E7BC83D19395A5EE7E3D38B8DC8DB35F9FA2B27CFBA65CD",
+      "name": "baseline.json"
+    },
+    {
+      "sha256": "E5357E1211F5F52F08821497D940980F686BC5BA6E8427F5369F882C14F2DA68",
+      "name": "cleanup.json"
+    },
+    {
+      "sha256": "34F04EAE54BB4CE9022A8921DD899F4B6FA24A2D3252D9977F9BA100CA452D23",
+      "name": "environment.json"
+    },
+    {
+      "sha256": "E95557F95010D4E17CDD570FE08583AFC651AB16AAB588511B29067D2ED15D3A",
+      "name": "inputs.json"
+    },
+    {
+      "sha256": "3477AB2A9C67A70CBB150D82F8A06505E800C78C4CE9923013D87376B94BEC7C",
+      "name": "no-child.json"
+    },
+    {
+      "sha256": "370B2B7074394B0A3DDF25402C526221BF9C7025BD3178480D031496DF3BAC62",
+      "name": "scripts-baseline.json"
+    },
+    {
+      "sha256": "33A4AC2A17BC39EC61F93001F3F97915BCE8441182C9A08D7EA1CFB85D317DF5",
+      "name": "scripts-cancel.json"
+    },
+    {
+      "sha256": "E61E8E9F92CBC7D899FF93E70E5CA79FBDBAD7B5278DBB6CCC02CA990AFC172E",
+      "name": "scripts-complete.json"
+    },
+    {
+      "sha256": "EC20E0711D96A4757C68F54BD65BFEB1AF5350B938E4DD44EE818F2870484096",
+      "name": "scripts-lost.json"
+    },
+    {
+      "sha256": "05F7DB00D2F81B0C7C4E7486507A4AE7694F74650616BF09D3C5490AB62C7387",
+      "name": "scripts-malformed.json"
+    },
+    {
+      "sha256": "479E2D51A61368B3E1E212BE5FE9FE5FE9423B5D64951C3AB486CDD1B15DE1A0",
+      "name": "source.json"
+    },
+    {
+      "sha256": "1BBCE50AD8DDC962CEC825BCE2DD9813B81C93DCFE83A1147F09D80F2D9E9198",
+      "name": "verification.json"
+    }
+  ],
+  "syntheticContainerSidPreserved": true,
+  "utc": "2026-10-06T06:45:35.2527492+00:00",
+  "sourceAndNativeByteHashesPreserved": true,
+  "redactions": [
+    "Owned scratch absolute path",
+    "Real host user SID"
+  ]
+}

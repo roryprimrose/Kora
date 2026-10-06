@@ -1,0 +1,17 @@
+{
+  "Assertions": 62,
+  "Passed": 62,
+  "HarnessErrors": [],
+  "Disposition": "Rejected: ACL/no-child exact dependency profiles",
+  "FailedAdmissionGates": [
+    "Undeclared readable managed/script/module code executes",
+    "RX undeclared children/grandchildren execute",
+    "No-child policy denies declared children too",
+    "Handle probe may be Unknown; bInheritHandles=false is inspected, not object-identity proof",
+    "No W1 network or W3 installed protection proof",
+    "Fixed-control admission still blocked; no broker selected",
+    "Native load trial blocked: reviewed compiled fixture unavailable"
+  ],
+  "DefaultGrantPolicy": "Owner-approved best-effort transitive tracking; exact declared script bytes",
+  "ProductionProfileCertified": false
+}

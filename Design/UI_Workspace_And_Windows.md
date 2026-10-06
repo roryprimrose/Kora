@@ -216,6 +216,12 @@ Header/chrome carries session, item type, origin, revision/digest, and unavailab
 Markdown/HTML rendering follows the bounded safe profiles; PowerShell is read-only exact source with highlighting when supported and a readable source fallback otherwise.
 Opening, expanding, copying, scrolling, or closing a script never runs it or approves it.
 Review script from a current approval opens the exact reviewed revision; changed source invalidates the proposal rather than silently refreshing execution authority.
+For bundled skills, expose every manifest-listed file through named read-only
+tabs, including a separate exact-source tab for each entry script/shared helper.
+Show definition/script-set identity, tracked dependencies and unresolved
+transitive references alongside the approval. Explain best-effort tracking and
+the granting user's responsibility; tab selection/display does not approve code
+or imply that every runtime dependency was discovered.
 A global selection change leaves an explicitly opened item attached to its original session; Back to conversation explicitly selects/navigates to that session/event.
 Export is an explicit scoped write with preview; retention/deletion does not claim to remove user exports.
 If a source/session is deleted or access is revoked while open, show unavailable and clear denied content under the store/access contract; no invisible stale copy remains model-readable.

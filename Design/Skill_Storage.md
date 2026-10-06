@@ -117,35 +117,40 @@ search or evaluation of the script. Attempt to resolve references including:
 Only literal paths and explicitly supported constant path forms, such as
 `$PSScriptRoot` relative to the referencing file, may resolve automatically.
 Relative paths must use the approved execution contract's base directory;
-if the runtime base is ambiguous or cannot be reproduced, block rather than
+if the runtime base is ambiguous, report an unresolved reference rather than
 assuming the skill folder. Do not run `Join-Path`, variable assignments,
 module initialisers, or any other code to discover a target.
 
 Canonicalise and verify each resolved file identity within approved source
 scope. Reject traversal/link escapes, ambiguous casing/aliases, missing or
-unreadable files, and unsupported reference forms with the referencing file
-and reason. A reference outside the skill folder requires explicit selection
-of an additional bounded source; until then the skill is unavailable.
+unreadable required tracked files with the referencing file and reason.
+Unsupported forms remain visible discovery gaps. Reading a reference outside
+the selected source scope requires explicit selection of an additional bounded
+source; do not scan it implicitly or claim the reference was resolved.
 This allows a future shared user helper to be included without trusting
 an arbitrary sibling directory or the entire profile.
 
 Walk the dependency graph with a visited set so cycles terminate and each
 canonical file appears once in the hash inventory. Detect and report cycles;
-execution remains unavailable unless the admitted runner explicitly supports
-their semantics. Never omit a dependency because parsing or resolution failed.
+never recurse indefinitely or infer that a cycle is safe. Do not label an
+inventory complete when parsing or resolution failed.
 Variable/computed paths, `Invoke-Expression`, generated/downloaded scripts,
 dynamic modules, or unregistered child-process script launches are unresolved
-execution dependencies, not an empty dependency list. Report them as blocking
-the narrow content-bound grant. Any future broader execution capability needs
-a separate design and explicit approval; this feature cannot silently fall
-back to an unrestricted shell.
+discovery gaps, not an empty dependency list. Follow the owner-approved
+[best-effort rule](Built_In_Skills.md#best-effort-transitive-dependency-tracking):
+the user accepts responsibility for the granted script's transitive actions
+within the admitted scope. Unknown references alone do not block that grant,
+but do not authorize a new top-level task or relax resource/privacy controls.
+No unrestricted-shell fallback or user-script exposure is enabled here.
 
-Static parsing is an attempt to discover the complete set, not proof of all
-possible PowerShell behaviour. The execution mechanism must enforce the same
-resolved snapshot map and deny undeclared script/module/process access. If
-ordinary PowerShell import semantics cannot be served from stable handles
-or immutable verified snapshots without unchecked live reads, leave that
-skill unavailable. Parser success alone is not an admission gate.
+Static parsing is best-effort discovery, not proof of all possible PowerShell
+behaviour. The host must execute the reviewed declared snapshot and verify
+required/tracked identities, while retaining discovery gaps. Universal denial
+of undeclared scripts/modules/processes is no longer the default grant
+requirement; any explicitly exact-dependency profile still needs actual proof.
+OS containment remains independently mandatory. Parser success alone is not
+containment admission, and known reviewed content still needs race-resistant
+identity/snapshot validation.
 
 ### Hashing, Review, and Changes
 
@@ -182,8 +187,9 @@ never updates the old digest or silently reactivates the record.
 Required future tests cover multi-script folders, nested/transitive imports,
 shared dependencies, identical basenames, cycles, missing files, source-scope
 escapes, unresolved dynamic references, directory membership changes,
-review/launch races, and parser-success cases that still attempt undeclared
-execution. Until these checks and containment pass, packages requiring
+review/launch races, honest dynamic-reference gap disclosure and known shared
+dependency invalidation without claiming complete transitive tracking.
+Until these checks and containment pass, packages requiring
 scripts remain disabled under the existing MVP policy.
 
 ## Identity and Revision Handling

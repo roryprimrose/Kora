@@ -1,0 +1,78 @@
+{
+  "Utc": "2026-10-06T06:45:35.4202384+00:00",
+  "SourceRevision": "3e8558fbff07943d39721b230599b02062d90d57",
+  "SourceDirty": true,
+  "RootReleaseBuild": {
+    "IncludesSetup": true,
+    "Warnings": 0,
+    "Errors": 0
+  },
+  "Suites": [
+    {
+      "Suite": "core",
+      "Counters": "<Counters total=\"251\" executed=\"251\" passed=\"251\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />",
+      "StartedUtc": "2026-10-06T06:04:46.2379229Z",
+      "EndedUtc": "2026-10-06T06:04:47.6033476Z",
+      "TrxSha256": "FCAA29B06D0DB95D074AD75B497F37AA8053C23CA539211A0CAAE87F7C6FCB70"
+    },
+    {
+      "Suite": "application",
+      "Counters": "<Counters total=\"744\" executed=\"744\" passed=\"744\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />",
+      "StartedUtc": "2026-10-06T06:04:54.6383244Z",
+      "EndedUtc": "2026-10-06T06:04:57.0002905Z",
+      "TrxSha256": "51A9CB44F8DFA44ADEA5ADB55625371C70E259652CF91A8041527C7EAB7CA5CD"
+    },
+    {
+      "Suite": "windows",
+      "Counters": "<Counters total=\"353\" executed=\"353\" passed=\"353\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />",
+      "StartedUtc": "2026-10-06T06:04:59.9401673Z",
+      "EndedUtc": "2026-10-06T06:05:02.5024226Z",
+      "TrxSha256": "7FD04F014EEE6B24190523BB3BCB6BE4724245ADCBE3C30A1A265516F0D4BC8E"
+    }
+  ],
+  "FixtureUnitTests": {
+    "Total": 27,
+    "Failed": 0,
+    "Passed": 27,
+    "Skipped": 0
+  },
+  "Coverage": {
+    "LatestOnlyRun": "w2-full-01",
+    "BranchRate": "1",
+    "LineRate": "1"
+  },
+  "Gates": {
+    "VersionPolicy": "Passed",
+    "PublishX86": "Passed",
+    "BurnAfterIce": "Not reached",
+    "PayloadManifestFilesPerRid": 201,
+    "LockedRestore": "Passed",
+    "RealComputerControls": "Not run",
+    "X64StaticNativeInspection": "Completed; raw OpenTK metadata warnings retained, not legal clearance",
+    "NetworkDenial": "Not run",
+    "MsiIce": "Blocked WIX1105 system policy",
+    "PublishX64": "Passed",
+    "PayloadNegativeChecks": "Passed",
+    "ProductionExecutor": "Disabled",
+    "LicensesAndNotices": "Passed",
+    "InstalledAcceptance": "Not run",
+    "NativeSyntheticLoad": "Blocked compiler prerequisite",
+    "SyntheticPublicationPolicy": "Passed"
+  },
+  "NativeInspectionFiles": [
+    {
+      "Name": "payload.json",
+      "Sha256": "6A66AB4C8C8F76D52EB05CD954AE7B180570EBD8D0A1BF4754A1C795D5B3A99D"
+    },
+    {
+      "Name": "SHA256SUMS",
+      "Sha256": "DB3128BA3EE91CDEF2C04DA13745391EEF0BE669596BF6A470F8136544F9F916"
+    }
+  ],
+  "ConhostHelper": {
+    "Sha256": "E449BCE01F275CD08F3D4E64BB73B3B43AE845A0DBDB3E6131426E66537705E5",
+    "Version": "10.0.26100.1 (WinBuild.160101.0800)"
+  },
+  "OwnedScratchDeleted": true,
+  "Coordination": "send_message blocked by session messaging limit; canonical scope/outcome handoff retained in fixture README"
+}

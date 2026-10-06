@@ -401,9 +401,14 @@ Agent-executable components must additionally be unable to mutate protected Kora
 
 The [R02 worker outcomes and continuation gates](Security_Data_Flows.md#r02-windows-containment-outcomes)
 reject Job-only restricted execution and retain capability-free AppContainer as
-a partial candidate. Network denial, dependency admission and independently
-protected deployment remain unresolved under D-013; no production worker is
-composed and no typed native broker is selected by the experiment.
+a partial candidate. The separate [W2 outcome](Security_Data_Flows.md#r02-w2-dependency-and-fixed-script-outcome)
+rejects ACL/no-child exact-dependency profiles while demonstrating a synthetic
+in-memory helper/entry effect. The owner accepts best-effort transitive tracking
+for bundled/future scripts and responsibility for script actions; manifest-listed
+internal files remain exact, grant-bound and reviewable in read-only tabs.
+This is not OS containment. Network denial, protected runtime/deployment,
+complete helper/receipt/lifecycle admission and real fixed controls remain
+unresolved under D-013; no production worker or native broker is composed.
 
 ### Windows Durable Storage Direction
 

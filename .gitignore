@@ -479,5 +479,8 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# Keep MSI authoring visible with case-insensitive Windows Git matching.
+!installer/Kora.Msi/
+
 # Vim temporary swap files
 *.swp

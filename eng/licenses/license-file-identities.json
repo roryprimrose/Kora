@@ -1,0 +1,9 @@
+[
+  {
+    "Id": "WixToolset.BootstrapperApplicationApi",
+    "Version": "7.0.0",
+    "File": "OSMFEULA.txt",
+    "License": "LicenseRef-WiX-7-OSMF",
+    "Sha256": "3358AF585772039E45D1192213838F906A478463AC3BB4DA208EC0D874C2219B"
+  }
+]

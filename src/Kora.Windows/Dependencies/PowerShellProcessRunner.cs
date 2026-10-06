@@ -16,15 +16,7 @@ internal sealed class PowerShellProcessRunner : IPowerShellProcessRunner
 
     public async Task<string> GetVersionAsync(string executable, CancellationToken cancellationToken)
     {
-        var start = new ProcessStartInfo(executable)
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            ArgumentList = { "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
-                "$PSVersionTable.PSVersion.ToString()" },
-        };
+        var start = CreateVersionStartInfo(executable);
         using var process = Process.Start(start)
             ?? throw new InvalidOperationException("PowerShell could not be started for verification.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -79,6 +71,22 @@ internal sealed class PowerShellProcessRunner : IPowerShellProcessRunner
             }
             throw;
         }
+    }
+
+    internal static ProcessStartInfo CreateVersionStartInfo(string executable)
+    {
+        var start = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            ArgumentList = { "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+                "$PSVersionTable.PSVersion.ToString()" },
+        };
+        start.Environment["POWERSHELL_TELEMETRY_OPTOUT"] = "1";
+        start.Environment["POWERSHELL_UPDATECHECK"] = "Off";
+        return start;
     }
 
     internal static ProcessStartInfo CreateInstallationStartInfo() =>

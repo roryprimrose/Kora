@@ -21,6 +21,23 @@ public sealed class KokoroTextToSpeechProviderTests : IDisposable
         $"Kora.Tests.{Guid.NewGuid():N}");
 
     [Fact]
+    public async Task Presence_inspection_does_not_create_directories_or_acquire_assets()
+    {
+        byte[] model = [1, 2, 3, 4];
+        var voices = CreateVoiceArchive("voices/af_heart.npy");
+        using var client = CreateClient(model, voices);
+        using var provider = CreateProvider(client, model, voices);
+        provider.IsInstalled.Should().BeFalse();
+        provider.HasLocalAssets.Should().BeFalse();
+        Directory.Exists(root).Should().BeFalse();
+        var partial = Path.Combine(root, "Speech", "Kokoro", "v2.0.0", "partial.download");
+        Directory.CreateDirectory(Path.GetDirectoryName(partial)!);
+        await File.WriteAllTextAsync(partial, "partial", TestContext.Current.CancellationToken);
+        provider.HasLocalAssets.Should().BeTrue();
+        provider.IsInstalled.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task InstallAsync_validates_activates_and_removes_downloaded_assets()
     {
         byte[] model = [1, 2, 3, 4];

@@ -3,13 +3,14 @@ using System.Reflection;
 
 namespace Kora.Application;
 
-public sealed class AssemblyApplicationInfo(Func<Version?>? versionProvider = null) : IApplicationInfo
+public sealed class AssemblyApplicationInfo(Func<string?>? versionProvider = null) : IApplicationInfo
 {
-    private readonly Func<Version?> versionProvider = versionProvider ?? GetEntryAssemblyVersion;
+    private readonly Func<string?> versionProvider = versionProvider ?? GetEntryAssemblyVersion;
 
-    public string Version => versionProvider()?.ToString(3) ?? "development";
+    public string Version => versionProvider() ?? "development";
 
     [ExcludeFromCodeCoverage(
         Justification = "The null entry-assembly path is controlled by the unmanaged process host; injected providers cover version behavior.")]
-    private static Version? GetEntryAssemblyVersion() => Assembly.GetEntryAssembly()?.GetName().Version;
+    private static string? GetEntryAssemblyVersion() => Assembly.GetEntryAssembly()?
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 }

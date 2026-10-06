@@ -9,7 +9,7 @@ namespace Kora.Windows.Dependencies;
 /// Performs the approved Ollama installation action. Call InstallAsync only after the
 /// user has explicitly consented to installing Ollama and downloading the model.
 /// </summary>
-public sealed class WindowsOllamaSetupService : ILocalModelSetup
+public sealed class WindowsOllamaSetupService : ILocalModelSetup, IDisposable
 {
     public const string PackageId = "Ollama.Ollama";
     public const string PackageVersion = "0.35.1";
@@ -23,12 +23,20 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
     private static readonly Uri GenerateUri = new("http://127.0.0.1:11434/api/generate");
     private readonly HttpClient client;
     private readonly IOllamaProcessRunner processes;
+    private readonly bool ownsClient;
+    private bool disposed;
 
     public WindowsOllamaSetupService()
         : this(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
         {
             Timeout = TimeSpan.FromMinutes(30),
         }, new OllamaProcessRunner())
+    {
+        ownsClient = true;
+    }
+
+    public WindowsOllamaSetupService(HttpClient client)
+        : this(client, new OllamaProcessRunner())
     {
     }
 
@@ -37,6 +45,70 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
         this.client = client ?? throw new ArgumentNullException(nameof(client));
         this.processes = processes ?? throw new ArgumentNullException(nameof(processes));
     }
+
+    public void Dispose()
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        disposed = true;
+        processes.StopOwnedServer();
+        if (ownsClient)
+        {
+            client.Dispose();
+        }
+    }
+
+    public async Task<OllamaInstallationStatus> InspectAsync(CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        try
+        {
+            var version = await GetRuntimeVersionAsync(timeout.Token);
+            if (version is null)
+            {
+                return processes.HasInstalledRuntime(InstalledExecutablePath)
+                    ? new(OllamaInstallationState.NotRunning,
+                        "A per-user Ollama executable was detected, but no endpoint is running. Model availability is unknown; no service was started.")
+                    : new(OllamaInstallationState.Missing,
+                        "No local endpoint or supported per-user Ollama installation was found.");
+            }
+
+            return await HasPinnedModelAsync(timeout.Token)
+                ? new(OllamaInstallationState.ModelDetected,
+                    $"Ollama {version} reports the pinned {Model} digest. Inference has not been tested; verification requires approval.")
+                : new(OllamaInstallationState.ModelMissing,
+                    $"Ollama {version} is responding, but {Model} is missing. Reuse the runtime; model download is {ModelDownloadSize}.");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new(OllamaInstallationState.Unverifiable,
+                "Local metadata discovery timed out. No runtime or model was changed.");
+        }
+        catch (InvalidOperationException exception) when (exception.InnerException is OperationCanceledException)
+        {
+            return new(OllamaInstallationState.Unverifiable, exception.Message);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return new(OllamaInstallationState.Incompatible, exception.Message);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException
+            or IOException or UnauthorizedAccessException)
+        {
+            return new(OllamaInstallationState.Unverifiable,
+                $"Local Ollama metadata could not be verified: {exception.Message}");
+        }
+    }
+
+    private static string InstalledExecutablePath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Programs", "Ollama", "ollama.exe");
 
     /// <summary>
     /// After caller consent, installs Ollama for the current Windows user if no local
@@ -47,6 +119,7 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
         IProgress<LocalModelSetupProgress> progress,
         CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentNullException.ThrowIfNull(progress);
         cancellationToken.ThrowIfCancellationRequested();
         var startedServer = 0;
@@ -61,9 +134,7 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
         progress.Report(new("Checking Ollama on 127.0.0.1:11434."));
         if (!await IsRuntimeAvailableAsync(cancellationToken))
         {
-            var executable = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Programs", "Ollama", "ollama.exe");
+            var executable = InstalledExecutablePath;
             if (processes.HasInstalledRuntime(executable))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -150,6 +221,11 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
     private async Task<bool> IsRuntimeAvailableAsync(
         CancellationToken cancellationToken,
         bool tolerateStartupTimeout = false)
+        => await GetRuntimeVersionAsync(cancellationToken, tolerateStartupTimeout) is not null;
+
+    private async Task<string?> GetRuntimeVersionAsync(
+        CancellationToken cancellationToken,
+        bool tolerateStartupTimeout = false)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(3));
@@ -166,18 +242,18 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
                 throw new InvalidOperationException("The local endpoint is not a compatible Ollama runtime.");
             }
 
-            return true;
+            return version.GetString();
         }
         catch (HttpRequestException exception) when (exception.InnerException is System.Net.Sockets.SocketException
         { SocketErrorCode: System.Net.Sockets.SocketError.ConnectionRefused })
         {
-            return false;
+            return null;
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             if (tolerateStartupTimeout)
             {
-                return false;
+                return null;
             }
 
             throw new InvalidOperationException(
@@ -227,7 +303,7 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
             {
                 if (model.TryGetProperty("digest", out var digest)
                     && digest.ValueKind == JsonValueKind.String
-                    && IsPinnedModelDigest(digest.GetString()))
+                    && OllamaModelIdentity.HasPinnedDigest(digest.GetString()))
                 {
                     return true;
                 }
@@ -238,19 +314,6 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
         }
 
         return false;
-    }
-
-    internal static bool IsPinnedModelDigest(string? digest)
-    {
-        const string prefix = "sha256:";
-        var expected = ModelDigest.AsSpan(prefix.Length);
-        var reported = digest.AsSpan();
-        if (reported.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            reported = reported[prefix.Length..];
-        }
-
-        return reported.Equals(expected, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task PullModelAsync(

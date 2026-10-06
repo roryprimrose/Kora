@@ -20,7 +20,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management; Node envelope passed; .NET RT1 prerequisites measured | R02-MG1 and management R02-PV1: full .NET byte/deadline/admission/no-retry proof; approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost envelope; deterministic fallback independent of inference |
-| D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First public binary candidate | WiX MSI + Burn direction selected; implementation/acceptance open, release-blocking; NSIS proof retained as historical evidence | Linux-first cross-publish with Windows WiX packaging, build-tool/redistribution review, final-byte provenance, MSI/Burn lifecycle, actual runtime/native requirements, Unknown Publisher/SmartScreen UX and protected runtime-only Windows trials remain required; follow R02-D01 through R17-D03 below; no install-capable updater; future signed-metadata root design separately gated |
+| D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First production-accepted binary candidate | WiX MSI/custom Burn binary packaging and POC release automation implemented; managed-source/installed/protection acceptance open, production release-blocking; historical NSIS receipts retained | Approved unsigned beta/stable POC publication is not D-005 closure. CI gates, per-release native/redistribution review, lifecycle/logon/upgrades, actual runtime/identity/protection trials and source delivery remain required; follow R02-D01 through R17-D03 below. No install-capable updater; future signed-metadata trust is separately gated. |
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes; schema/enforcement proof open, release-blocking; initial model grants only | Single-use consumption, operation-bound durable session grants, perpetual grants without retention/eviction, applicability/provenance after chat deletion, native explicit edit/removal, intent lineage, audit tamper evidence, fatigue/race acceptance tests |
@@ -181,7 +181,9 @@ Record provider/version/account tier, terms constraints, concurrency behavior, q
 
 Select WiX MSI + Burn as the production Windows installer direction, using
 Linux builds/cross-publishing wherever feasible and Windows packaging where
-needed. Preserve the completed NSIS prototype as historical evidence.
+needed. Preserve NSIS receipts as historical evidence; acquisition/build code
+and the unexecuted Linux recipe are retired. Retained source/native inspection
+checks have not been superseded by binary packaging alone.
 The initial application performs notify-only update discovery and cannot download, stage, execute, mutate source, or activate a replacement.
 Compare packaging options against protected installation, unsigned disclosure, and Windows-recovery gates without introducing an updater.
 Any future install-capable updater is a separate decision requiring independently signed metadata with a protected offline/root trust anchor, threshold/key rotation, expiry, rollback/freeze protection, exact host-owned voice/UI approval, and mandatory OS checks.
@@ -209,13 +211,20 @@ assigns the closure sequence:
 - R02-D03: prove the independent deployment boundary on an approved Windows
   lab under actual application identities; coordinate worker requirements
   without treating absent workers as tested.
-- R17-D01/D02: production managed-source/binary delivery and official
-  release/provenance integration, not promotion of the lab-only scripts.
+- R17-D01/D02: binary MSI/custom Burn packaging, scoped startup/completion
+  options and Linux-first release/provenance automation are implemented.
+  Production managed-source delivery and installed qualification remain open;
+  do not promote lab-only scripts as the production bootstrap.
 - R17-D03: integrated runtime-only Windows acceptance against the exact final
-  artifact and implemented resources/workers before first public binary sign-off.
+  artifact and implemented resources/workers before production sign-off.
 
-WiX implementation and Windows lab trials remain outstanding; the unexecuted
-Linux NSIS recipe is historical, not a production gate. Build-tool/external
+The owner approved unsigned beta/stable POC releases with front-loaded/ad-hoc/
+risk-based installed validation, not an exhaustive manual trial for every MSI.
+Full CI licence/test/coverage/payload/MSI ICE gates still apply; configured
+publication is not an actual release receipt. Silent related-bundle upgrades
+and numeric-version beta ordering remain unsupported; see
+[installer limits](../installer/README.md#package-behavior-and-limits).
+Windows installed/protection trials remain outstanding. Build-tool/external
 asset review and future resources remain separate requirements, not waived
 gates. Preserve the independently gated future
 signed-metadata trust design and unsigned-phase notify-only maintenance.

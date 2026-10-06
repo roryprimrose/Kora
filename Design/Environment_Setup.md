@@ -71,8 +71,30 @@ dependency setup that patches Kora code.
 These are capability/setup requirements, not a waiver of release acceptance.
 For example, the product must still implement and prove the required A2 local
 adapter even though an individual user may decline to install or use its model.
-Installer assistance is optional future delivery work; the current bootstrap
-and distribution proof do not demonstrate it or complete this onboarding policy.
+The [WiX/Burn installer](../installer/README.md) offers unchecked PowerShell,
+Ollama/pinned Qwen model, and Kokoro model/voice preparation using the existing
+app services, after native prerequisite/application installation. Optional
+work runs for the non-elevated interactive user; failure/cancellation retains
+Kora and reports incomplete preparation. OS speech resources, accounts and
+experimental/unimplemented adapters remain outside this installer slice.
+This installer does not complete the durable refusal/onboarding policy or native
+installed acceptance.
+Kora's installation scope defaults to the current user, with all-users as an
+explicit administrator-approved alternative; optional assets remain scoped
+to the interactive user in either case. Missing shared runtimes can still
+require elevation even when Kora itself is installed per-user.
+The installer now performs read-only preflight and displays installed, missing,
+stopped, asset-detected, incompatible and unverified states before approval.
+It does not start Ollama, run inference, load Kokoro, obtain assets or change
+provider preferences merely by opening setup. A detected asset record is not
+accepted as a fresh content/functional check; selected preparation revalidates
+after native apply.
+Successful install/repair also offers a default-on **Start Kora when setup
+closes** option. It requests one non-elevated interactive launch after
+quiescent closure, with scope/version EXE/DLL coherence checks. Failure,
+cancellation, uninstall, preview or a required restart suppresses launch.
+This is separate from start-at-login and grants no listening consent, provider
+configuration, ownership/host eligibility or storage/native admission.
 
 ## Built-In Setup Controller
 
@@ -116,7 +138,7 @@ Recheck on startup and relevant configuration/environment changes without reinst
 | Remote provider | Detect/configure adapter and supported identity/session | Secure sign-in; no secret dictation or automatic account substitution |
 | MCP connector | Probe admitted transport, identity, server, tools, and schemas | Do not install arbitrary servers or grant permissions from discovery |
 | Call-aware speech | Offer manual mode and verified supported communication detectors; show coverage/freshness/Unknown handling | Optional Graph sign-in/network consent; no automatic broad Microsoft permissions |
-| Logon startup | Inspect Kora registration and offer enable/disable | User consent in Kora setup; no elevated/pre-logon microphone service |
+| Logon startup | Inspect scope-matched Kora registration and offer enable/disable; installer POC defaults on for absent entries and reflects matching registry configuration | Install/Repair approves the visible choice; MSI owns HKCU/HKLM registration matching installation scope. Preserve Windows-disabled/unknown/foreign configuration; no elevated/pre-logon microphone service or voice-consent grant. Installed lifecycle proof remains open. |
 
 Internal initialisation must not touch shared skills, source repositories, or executable code.
 On storage/migration failure, report the affected capability and preserve recoverable data; never silently create a second database elsewhere.

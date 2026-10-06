@@ -1,0 +1,53 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Kora" Manufacturer="Kora" Version="$(ProductVersion)"
+           UpgradeCode="9F375B94-FE7C-4B0E-B74F-A885D889A03C"
+           Scope="perUserOrMachine" InstallerVersion="500" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Kora is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <!-- WindowsBuild reports the legacy 9600 value on modern Windows. -->
+    <Property Id="KORA_WINDOWS_BUILD">
+      <RegistrySearch Id="CurrentWindowsBuild" Root="HKLM"
+                      Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+                      Name="CurrentBuildNumber" Type="raw" Bitness="always64" />
+    </Property>
+    <Launch Condition="REMOVE = &quot;ALL&quot; OR (VersionNT64 AND KORA_WINDOWS_BUILD &gt;= 22000)"
+            Message="Kora requires Windows 11 x64 or later." />
+    <Icon Id="KoraIcon.exe" SourceFile="..\..\src\Kora\Assets\Kora.ico" />
+    <Property Id="ARPPRODUCTICON" Value="KoraIcon.exe" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="REBOOT" Value="ReallySuppress" />
+    <Property Id="KORA_START_AT_LOGIN" Value="0" Secure="yes" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="KoraRoot" Name="Kora">
+        <Directory Id="INSTALLFOLDER" Name="$(ProductVersion)" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="KoraStartMenu" Name="Kora" />
+    </StandardDirectory>
+    <Feature Id="KoraApplication" Title="Kora" Level="1">
+      <Component Id="KoraStartupComponent" Directory="INSTALLFOLDER"
+                 Guid="B6FBBAD7-AC0F-475A-953D-2E588331FEA9"
+                 Condition="KORA_START_AT_LOGIN = 1" Transitive="yes">
+        <RegistryValue Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+                       Name="Kora" Type="string" Value="&quot;[INSTALLFOLDER]Kora.exe&quot;" KeyPath="yes" />
+      </Component>
+      <Files Include="$(ApplicationPayload)\**" Directory="INSTALLFOLDER">
+        <Exclude Files="$(ApplicationPayload)\Kora.exe" />
+        <Exclude Files="$(ApplicationPayload)\e_sqlite3.dll" />
+        <Exclude Files="$(ApplicationPayload)\payload-manifest.json" />
+      </Files>
+      <Component Id="KoraBootstrapSqliteComponent" Directory="INSTALLFOLDER">
+        <File Id="KoraBootstrapSqlite" Source="$(ApplicationPayload)\e_sqlite3.dll"
+              KeyPath="yes" DefaultLanguage="0" />
+      </Component>
+      <Component Id="KoraExecutableComponent" Directory="INSTALLFOLDER">
+        <File Id="KoraExecutable" Source="$(ApplicationPayload)\Kora.exe" KeyPath="yes">
+          <Shortcut Id="KoraShortcut" Name="Kora" Directory="KoraStartMenu"
+                    Advertise="yes" WorkingDirectory="INSTALLFOLDER" Icon="KoraIcon.exe" />
+        </File>
+        <RemoveFolder Id="RemoveStartMenuFolder" Directory="KoraStartMenu" On="uninstall" />
+      </Component>
+    </Feature>
+  </Package>
+</Wix>

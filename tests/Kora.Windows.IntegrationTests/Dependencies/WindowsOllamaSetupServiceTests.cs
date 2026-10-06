@@ -10,6 +10,93 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 
 public sealed class WindowsOllamaSetupServiceTests
 {
+    [Theory]
+    [InlineData(true, OllamaInstallationState.ModelDetected)]
+    [InlineData(false, OllamaInstallationState.ModelMissing)]
+    public async Task InspectAsync_reads_metadata_without_installing_starting_pulling_or_generating(
+        bool modelPresent, OllamaInstallationState expected)
+    {
+        var calls = new List<string>();
+        var processes = new FakeProcesses();
+        using var client = Client(request =>
+        {
+            request.Method.Should().Be(HttpMethod.Get);
+            calls.Add(request.RequestUri!.AbsolutePath);
+            return request.RequestUri.AbsolutePath switch
+            {
+                "/api/version" => Json("""{"version":"0.35.1"}"""),
+                "/api/tags" => Json(modelPresent ? Tags(ApiDigest) : """{"models":[]}"""),
+                _ => throw new InvalidOperationException("No pull or inference is allowed during inspection."),
+            };
+        });
+        using var service = new WindowsOllamaSetupService(client, processes);
+        var status = await service.InspectAsync(TestContext.Current.CancellationToken);
+        status.State.Should().Be(expected);
+        calls.Should().Equal("/api/version", "/api/tags");
+        processes.Installs.Should().Be(0);
+        processes.Starts.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false, OllamaInstallationState.Missing)]
+    [InlineData(true, OllamaInstallationState.NotRunning)]
+    public async Task InspectAsync_distinguishes_absent_and_stopped_runtime_without_starting(
+        bool installed, OllamaInstallationState expected)
+    {
+        var processes = new FakeProcesses { Installed = installed };
+        using var client = Client(_ => throw new HttpRequestException(
+            "Refused", new SocketException((int)SocketError.ConnectionRefused)));
+        using var service = new WindowsOllamaSetupService(client, processes);
+        (await service.InspectAsync(TestContext.Current.CancellationToken)).State.Should().Be(expected);
+        processes.Starts.Should().Be(0);
+        processes.Installs.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task InspectAsync_rejects_wrong_model_identity_without_replacing_it()
+    {
+        var processes = new FakeProcesses();
+        using var client = Client(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/api/version" => Json("""{"version":"0.35.1"}"""),
+            "/api/tags" => Json(Tags("sha256:wrong")),
+            _ => throw new InvalidOperationException("No mutation permitted."),
+        });
+        using var service = new WindowsOllamaSetupService(client, processes);
+        var result = await service.InspectAsync(TestContext.Current.CancellationToken);
+        result.State.Should().Be(OllamaInstallationState.Incompatible);
+        result.Detail.Should().Contain("refusing to replace");
+    }
+
+    [Fact]
+    public async Task InspectAsync_reports_unresponsive_endpoints_as_unknown_and_preserves_cancellation()
+    {
+        using var client = Client(_ => throw new HttpRequestException("Endpoint unreachable."));
+        using var service = new WindowsOllamaSetupService(client, new FakeProcesses());
+        (await service.InspectAsync(TestContext.Current.CancellationToken)).State
+            .Should().Be(OllamaInstallationState.Unverifiable);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var inspect = () => service.InspectAsync(cancellation.Token);
+        await inspect.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task Disposal_stops_owned_server_and_preserves_borrowed_http_client()
+    {
+        var processes = new FakeProcesses();
+        using var client = Client(_ => Json("{}"));
+        var service = new WindowsOllamaSetupService(client, processes);
+        service.Dispose();
+        service.Dispose();
+        processes.Stops.Should().Be(1);
+        using var response = await client.GetAsync("http://127.0.0.1:11434/api/version",
+            TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var install = () => service.InstallAsync(new RecordingProgress(), TestContext.Current.CancellationToken);
+        await install.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
     [Fact]
     public void Winget_arguments_pin_official_package_version_and_user_scope()
     {
@@ -36,7 +123,7 @@ public sealed class WindowsOllamaSetupServiceTests
             return request.RequestUri.AbsolutePath switch
             {
                 "/api/version" => Json("""{"version":"0.35.1"}"""),
-                "/api/tags" => Json(Tags(WindowsOllamaSetupService.ModelDigest)),
+                "/api/tags" => Json(Tags(ApiDigest)),
                 "/api/generate" => Json("""{"model":"qwen3:1.7b","done":true,"response":"OK"}"""),
                 _ => throw new InvalidOperationException("Unexpected request."),
             };
@@ -221,6 +308,8 @@ public sealed class WindowsOllamaSetupServiceTests
         progress.Messages.Should().NotContain(message => message.Contains("verified successfully", StringComparison.Ordinal));
     }
 
+    private const string ApiDigest = "8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7";
+
     private static string Tags(string digest) =>
         $$"""{"models":[{"name":"qwen3:1.7b","digest":"{{digest}}"}]}""";
 
@@ -239,11 +328,14 @@ public sealed class WindowsOllamaSetupServiceTests
 
     private sealed class FakeProcesses : IOllamaProcessRunner
     {
+        public bool Installed { get; init; }
+        public int Stops { get; private set; }
+
         public int Installs { get; private set; }
 
         public int Starts { get; private set; }
 
-        public bool HasInstalledRuntime(string executable) => false;
+        public bool HasInstalledRuntime(string executable) => Installed;
 
         public Task<int> InstallWingetAsync(CancellationToken cancellationToken)
         {
@@ -253,7 +345,7 @@ public sealed class WindowsOllamaSetupServiceTests
 
         public void StartServer(string executable) => Starts++;
 
-        public void StopOwnedServer() { }
+        public void StopOwnedServer() => Stops++;
     }
 
     private sealed class RecordingProgress : IProgress<LocalModelSetupProgress>

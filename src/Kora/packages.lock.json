@@ -399,7 +399,7 @@
       "kora.application": {
         "type": "Project",
         "dependencies": {
-          "Kora.Core": "[1.0.0, )",
+          "Kora.Core": "[0.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
         }
       },
@@ -414,7 +414,7 @@
         "type": "Project",
         "dependencies": {
           "KokoroSharp": "[0.8.4, )",
-          "Kora.Core": "[1.0.0, )",
+          "Kora.Core": "[0.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
           "Microsoft.ML.OnnxRuntime": "[1.30.0, )",
           "Microsoft.Win32.SystemEvents": "[10.0.0, )",

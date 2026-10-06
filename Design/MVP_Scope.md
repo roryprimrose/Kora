@@ -208,9 +208,9 @@ adapter; users may instead select remote processing or decline inference
 entirely and use the supported deterministic subset. See the
 [optional-dependency setup contract](Environment_Setup.md#optional-dependencies-and-built-in-command-only-operation).
 Binary deployments check the hosted release feed and proactively offer unsigned/manual update notices; installation remains external and Kora has no install-capable updater during the unsigned phase.
-WiX MSI + Burn is the selected production installer direction; implementation and installed acceptance remain open.
+WiX MSI + custom Burn binary packaging and release automation are implemented; source bootstrap, protected deployment and installed acceptance remain open.
 Source is public and source-available on GitHub. Build/test/cross-publish and release metadata/publication use Linux GitHub Actions wherever feasible, with explicit Windows jobs for WiX packaging and justified Windows-specific work.
-Release and setup surfaces disclose the lack of Authenticode publisher identity and provide final-byte hashes/provenance.
+Release notes and installer documentation disclose the known lack of Authenticode publisher identity and provide final-byte hashes/provenance; setup has no unsigned/POC banner.
 Installed Windows acceptance evidence comes from a separate approved runtime-only environment; a Windows packaging job is not that evidence.
 See [Distribution and Updates](Distribution_And_Updates.md).
 

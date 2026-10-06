@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - '**'
+    tags:
+      - 'v*'
   pull_request:
   # Allows maintainers to run the same CI checks manually from the Actions page.
   workflow_dispatch:
@@ -16,10 +18,56 @@ env:
   DOTNET_NOLOGO: true
 
 jobs:
+  version:
+    name: Resolve build version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      product-version: ${{ steps.version.outputs.product-version }}
+      publish: ${{ steps.version.outputs.publish }}
+      already-published: ${{ steps.publication.outputs.already-published }}
+    steps:
+      - name: Check out complete version history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+      - name: Resolve main GitVersion or feature proof version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -eq 'refs/heads/main' -or $env:GITHUB_REF -like 'refs/tags/*') {
+            dotnet tool restore
+            if ($LASTEXITCODE -ne 0) { throw 'Local tool restore failed.' }
+          }
+          $resolved = ./eng/Get-BuildVersion.ps1
+          "version=$($resolved.Version)" >> $env:GITHUB_OUTPUT
+          "product-version=$($resolved.ProductVersion)" >> $env:GITHUB_OUTPUT
+          "publish=$($resolved.Publish.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+      - name: Check exact-version release before rebuilding
+        id: publication
+        if: steps.version.outputs.publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $state = ./eng/Publish-GitHubRelease.ps1 -Action Check -Version "$env:BUILD_VERSION" -SourceRevision "$env:GITHUB_SHA"
+          "already-published=$($state.AlreadyPublished.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
   portable:
     name: Portable build, tests, coverage, and package
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: version
+    if: needs.version.outputs.already-published != 'true'
+    env:
+      Version: ${{ needs.version.outputs.version }}
 
     steps:
       # Pin third-party actions to immutable commits to prevent a moved tag from changing trusted CI code.
@@ -47,6 +95,12 @@ jobs:
 
       - name: Build
         run: dotnet build Kora.slnx --configuration Release --no-restore
+
+      - name: Test version and publication policy
+        shell: pwsh
+        run: |
+          ./eng/Test-BuildVersion.ps1
+          ./eng/Test-GitHubRelease.ps1
 
       - name: Test portable core with coverage
         run: >
@@ -118,6 +172,13 @@ jobs:
             }
           }
 
+      - name: Record exact x64 application payload
+        shell: pwsh
+        run: |
+          foreach ($rid in @('win-x64', 'win-x86')) {
+            ./eng/Test-InstallerPayload.ps1 -PayloadPath "artifacts/Kora-$rid" -Version "$env:Version" -SourceRevision "$env:GITHUB_SHA" -WriteManifest
+          }
+
       - name: Upload dependency license audit
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -149,6 +210,7 @@ jobs:
           name: Kora-win-x64
           path: artifacts/Kora-win-x64
           if-no-files-found: error
+          include-hidden-files: true
 
       - name: Upload Windows x86 application
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -156,11 +218,16 @@ jobs:
           name: Kora-win-x86
           path: artifacts/Kora-win-x86
           if-no-files-found: error
+          include-hidden-files: true
 
   windows-integration:
     name: Windows integration tests
     runs-on: windows-latest
     timeout-minutes: 15
+    needs: version
+    if: needs.version.outputs.already-published != 'true'
+    env:
+      Version: ${{ needs.version.outputs.version }}
 
     steps:
       # Keep the Windows job on the same reviewed action revisions as the portable job.
@@ -181,6 +248,10 @@ jobs:
       - name: Build Windows integration tests
         run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --no-restore
 
+      - name: Test payload rejection before packaging
+        shell: pwsh
+        run: .\eng\Test-InstallerPayloadContracts.ps1
+
       - name: Run Windows integration tests
         run: >
           dotnet test
@@ -198,3 +269,102 @@ jobs:
           path: .net-test-artifacts/windows/*.trx
           if-no-files-found: error
           include-hidden-files: true
+
+  installer:
+    name: Build WiX MSI and custom Burn setup
+    runs-on: windows-latest
+    timeout-minutes: 20
+    needs: [version, portable, windows-integration]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Download exact Linux-published x64 application
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: Kora-win-x64
+          path: artifacts/Kora-win-x64
+
+      - name: Verify payload digests and build identity
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
+        run: >
+          .\eng\Test-InstallerPayload.ps1
+          -PayloadPath .\artifacts\Kora-win-x64
+          -Version "$env:BUILD_VERSION"
+          -SourceRevision "$env:GITHUB_SHA"
+
+      - name: Build MSI and Burn bundle without installing
+        id: package
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
+          PRODUCT_VERSION: ${{ needs.version.outputs.product-version }}
+        run: >
+          .\eng\Build-Installer.ps1
+          -Version "$env:BUILD_VERSION"
+          -ProductVersion "$env:PRODUCT_VERSION"
+          -ApplicationPayloadPath .\artifacts\Kora-win-x64
+
+      # Feature and PR builds compile setup but never upload/publish its bytes.
+      - name: Retain main installer candidate
+        if: needs.version.outputs.publish == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Kora-Setup-${{ needs.version.outputs.version }}-win-x64
+          path: ${{ steps.package.outputs.installer-path }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [version, portable, windows-integration, installer]
+    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true'
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ needs.version.outputs.version }}
+      cancel-in-progress: false
+    steps:
+      - name: Check out trusted main/tag source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Download x64 application
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: Kora-win-x64
+          path: artifacts/release/Kora-win-x64
+
+      - name: Download x86 application candidate
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: Kora-win-x86
+          path: artifacts/release/Kora-win-x86
+
+      - name: Download inspected installer
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: Kora-Setup-${{ needs.version.outputs.version }}-win-x64
+          path: artifacts/release/installer
+
+      - name: Verify bytes, generate notes and publish beta/stable release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
+        run: >
+          ./eng/Publish-GitHubRelease.ps1
+          -Action Publish
+          -Version "$env:BUILD_VERSION"
+          -SourceRevision "$env:GITHUB_SHA"
+          -ArtifactPath artifacts/release

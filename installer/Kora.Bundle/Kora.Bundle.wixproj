@@ -1,0 +1,13 @@
+<Project Sdk="WixToolset.Sdk/7.0.0">
+  <PropertyGroup>
+    <OutputType>Bundle</OutputType>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <OutputName>Kora-Setup-$(Version)-win-x64</OutputName>
+    <DefineConstants>ProductVersion=$(ProductVersion);DisplayVersion=$(Version);BootstrapperPayload=$(BootstrapperPayload);MsiPath=$(MsiPath);ApplicationExeHash=$(ApplicationExeHash);ApplicationAssemblyHash=$(ApplicationAssemblyHash)</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Netfx.wixext" />
+    <PackageReference Include="WixToolset.Util.wixext" />
+    <Compile Include="$(BootstrapperPayloadsSource)" />
+  </ItemGroup>
+</Project>

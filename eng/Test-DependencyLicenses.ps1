@@ -26,8 +26,31 @@ $packageNoticePath = Join-Path $outputPath 'package-notices'
 $licenseDirectory = Join-Path $PSScriptRoot 'licenses'
 $allowedLicenses = Join-Path $licenseDirectory 'allowed-licenses.json'
 $packageOverrides = Join-Path $licenseDirectory 'package-overrides.json'
+$packageRoot = if ($env:NUGET_PACKAGES)
+{
+    [System.IO.Path]::GetFullPath($env:NUGET_PACKAGES)
+}
+else
+{
+    Join-Path (Join-Path $HOME '.nuget') 'packages'
+}
+$fileLicenseMappings = Join-Path $outputPath 'license-file-mappings.json'
+$identities = Get-Content -LiteralPath (Join-Path $licenseDirectory 'license-file-identities.json') -Raw |
+    ConvertFrom-Json
+$mappings = @{}
+foreach ($identity in $identities)
+{
+    $packageDirectory = Join-Path (Join-Path $packageRoot $identity.Id.ToLowerInvariant()) $identity.Version
+    $licensePath = Join-Path $packageDirectory $identity.File
+    if ((Get-FileHash -LiteralPath $licensePath -Algorithm SHA256).Hash -cne $identity.Sha256)
+    {
+        throw "Reviewed license bytes changed for $($identity.Id) $($identity.Version)."
+    }
+    $mappings[$licensePath] = $identity.License
+}
 
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
+$mappings | ConvertTo-Json | Set-Content -LiteralPath $fileLicenseMappings
 foreach ($generatedDirectory in @($downloadPath, $packageNoticePath))
 {
     if (Test-Path $generatedDirectory)
@@ -41,6 +64,7 @@ foreach ($generatedDirectory in @($downloadPath, $packageNoticePath))
     --include-transitive `
     --allowed-license-types $allowedLicenses `
     --override-package-information $packageOverrides `
+    --licensefile-to-license-mappings $fileLicenseMappings `
     --output Markdown `
     --file-output $generatedNotice `
     --license-information-download-location $downloadPath
@@ -60,21 +84,13 @@ if (-not (Test-Path $generatedNotice))
     --include-transitive `
     --allowed-license-types $allowedLicenses `
     --override-package-information $packageOverrides `
+    --licensefile-to-license-mappings $fileLicenseMappings `
     --output JsonPretty `
     --file-output $jsonReport
 
 if ($LASTEXITCODE -ne 0)
 {
     throw "Dependency license JSON generation failed with exit code $LASTEXITCODE. Review $jsonReport."
-}
-
-$packageRoot = if ($env:NUGET_PACKAGES)
-{
-    [System.IO.Path]::GetFullPath($env:NUGET_PACKAGES)
-}
-else
-{
-    Join-Path (Join-Path $HOME '.nuget') 'packages'
 }
 
 New-Item -ItemType Directory -Path $packageNoticePath -Force | Out-Null

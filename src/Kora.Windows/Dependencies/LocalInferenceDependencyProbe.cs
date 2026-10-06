@@ -69,7 +69,7 @@ public sealed class LocalInferenceDependencyProbe(HttpClient client) : ISetupDep
             {
                 if (!pinned.TryGetProperty("digest", out var digest)
                     || digest.ValueKind != JsonValueKind.String
-                    || !WindowsOllamaSetupService.IsPinnedModelDigest(digest.GetString()))
+                    || !OllamaModelIdentity.HasPinnedDigest(digest.GetString()))
                 {
                     return Status(DependencyReadiness.Incompatible,
                         $"The installed {WindowsOllamaSetupService.Model} has an unexpected digest. Kora will not replace it automatically.");

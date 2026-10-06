@@ -11,7 +11,7 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
-  <Grid RowDefinitions="72,*">
+  <Grid RowDefinitions="72,Auto,*">
     <Border BorderBrush="{DynamicResource KoraHeaderBorderBrush}" BorderThickness="0,0,0,1" Padding="30,0">
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
         <Border Width="34" Height="34" Background="{DynamicResource KoraAccentBrush}" CornerRadius="9">
@@ -34,9 +34,17 @@
       </Grid>
     </Border>
 
+    <TextBlock
+        Grid.Row="1"
+        Margin="30,12,30,0"
+        Text="{Binding LocalStorageDisclosure}"
+        Classes="muted"
+        FontSize="11"
+        TextWrapping="Wrap" />
+
     <TabControl
         x:Name="SettingsTabs"
-        Grid.Row="1"
+        Grid.Row="2"
         TabStripPlacement="Left"
         Margin="22"
         Background="Transparent">

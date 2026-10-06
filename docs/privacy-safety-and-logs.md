@@ -124,8 +124,21 @@ Configuration writes, application and script execution categories, approvals,
 protected operations, and their outcomes use typed audit events without raw
 sensitive content.
 
-The current bootstrap writes both ordinary diagnostics and typed audit events
-to those files. The planned durable design continues writing every permitted
+The current host writes both ordinary diagnostics and typed audit events
+to those files and independent private-profile SQLite projections. Required
+capture/file/database failures are reported and fail admission explicitly,
+not silently swallowed. The bounded durable path currently covers exact
+typed or activated-voice **version** commands: task intent, dispatch, terminal
+evidence and receipt are committed before completion. Startup marks intent-only
+work Interrupted and dispatched work without a verified receipt Unknown;
+it never automatically reruns either. The terminal version receipt is not
+proof of an operating-system effect or speech-playback completion.
+There is still no durable conversation/history UI or general task executor.
+Database records receive independent 30-day diagnostic and 90-day audit
+due dates, but automatic database pruning/deletion is not yet implemented.
+The first-use greeting, settings and version response disclose this limitation;
+the daily-file 30-day/30-file retention remains active.
+The full durable design continues writing every permitted
 `ILogger` event to daily JSON files and private-profile standard SQLite.
 Ordinary records use a dedicated `application_log_events` table. Typed events
 marked `SecurityAudit=true` use a separate authoritative
@@ -136,7 +149,7 @@ stable source citations, reports retention or ingestion gaps, and never treats
 an ordinary diagnostic event or file audit copy as proof that an action was
 authorized or succeeded.
 
-Database encryption is not mandatory. The planned store verifies private
+Database encryption is not mandatory. The composed task/evidence stores verify private
 permissions under the supplied local application-data path. It does not
 protect against code running as you or an administrator; database/artifact/
 backup copies outside that private location are readable. Credentials remain

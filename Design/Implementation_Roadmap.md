@@ -100,7 +100,7 @@ The identifiers in this table are inventory references, not new capability or mo
 | I04 | Implemented PTT/ownership foundation; native acceptance partial | Microphone/output enumeration, device preferences, consent/readiness and Enable/Disable listening are wired. Startup may enable readiness after fresh gates; capture remains closed until held PTT. Settings supports mouse/Space/Enter PTT with release/focus-loss closure. A per-SID global owner coordinates cross-build activation/takeover/return; only Owner composes services. Privacy observation/closure is implemented, but complete native lock/disconnect/suspend/device and permission-polling acceptance remains unproved. | [Application orchestration](../src/Kora.Application/ViewModels/MainViewModel.cs), [PTT controls](../src/Kora/SettingsWindow.axaml.cs), [owner coordinator](../src/Kora.Windows/Coordination/WindowsInstanceCoordinator.cs), [Owner-only composition](../src/Kora/Program.cs), [bounded R03 evidence and remaining trials](Deferred_Validation.md#r03-windows-ownership-and-audio-privacy) |
 | I05 | Partial voice proof | Windows phrase grammar and assistant-name-prefixed dictation produce local transcripts during an explicit activated capture, not automatically at startup. Held PTT, bounded capture and stale-generation rejection are implemented. This is not the designed wake-only ambient pipeline; production wake/pre-roll/acoustic quality and complete packaged-native acceptance remain outstanding. | [Recognition service](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs), [activation/privacy orchestration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [audio stream](../src/Kora.Windows/Audio/BlockingAudioStream.cs), [recognition tests](../tests/Kora.Windows.IntegrationTests/Audio/WindowsVoiceRecognitionServiceTests.cs) |
 | I06 | Delivered bootstrap; speech/privacy proof outstanding | Windows TTS plus separately offered optional Kokoro assets/provider; local installation/hash checks, voice/device selection, preview, playback stop and visual fallback for unavailable/muted output. Basic recognition filtering during Kora speech is implemented, not proven acoustic echo/playback rejection or optional owner-aware privacy. | [Speech service](../src/Kora.Windows/Audio/WindowsTextToSpeechService.cs), [Kokoro](../src/Kora.Windows/Audio/KokoroTextToSpeechProvider.cs), [application coordination](../src/Kora.Application/ViewModels/MainViewModel.cs), [speech tests](../tests/Kora.Windows.IntegrationTests/Audio/WindowsTextToSpeechServiceTests.cs), [Kokoro tests](../tests/Kora.Windows.IntegrationTests/Audio/KokoroTextToSpeechProviderTests.cs) |
-| I07 | Delivered bootstrap; durable host partial | Bootstrap setup ledger remains separate. Actual private-profile standard-SQLite v1 task store implements revision-checked ordered states/events and no-replay recovery, but is not yet composed into transcript routing, history, evidence or retention. | [Storage probe](../src/Kora.Core/Dependencies/StorageDependencyProbe.cs), [actual task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs), [SQLite/ACL tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteHostTaskStoreTests.cs) |
+| I07 | Delivered bootstrap and first bounded durable milestone; full R04 partial | Bootstrap setup ledger remains separate. Standalone exact local version-query input composes private standard-SQLite intent/dispatch/evidence/terminal records and Interrupted/Unknown no-replay startup recovery. Log/audit/span/link due dates are independent; automatic database pruning, history/session lifecycle and managed copy/deletion acceptance remain open. | [Storage probe](../src/Kora.Core/Dependencies/StorageDependencyProbe.cs), [actual task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs), [composed fixtures](../tests/Kora.Windows.IntegrationTests/Storage/DurableStorageCompositionTests.cs), [current receipt](#composed-milestone-validation-receipt) |
 | I08 | Delivered bootstrap | Capability readiness and separate consented setup orchestration; PowerShell 7.4+ probing/install/re-probe is independent of local inference. Open Setup installs nothing. No general PowerShell task worker or executable grant is supplied by readiness. | [Application setup](../src/Kora.Application/ViewModels/MainViewModel.cs), [PowerShell setup/tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsPowerShellSetupServiceTests.cs), [dependency bootstrap](../src/Kora.Core/Dependencies/DependencyBootstrapper.cs) |
 | I09 | Delivered bootstrap; bounded production evidence, D-003 open | Consented per-user Ollama 0.35.1 setup and pinned `qwen3:1.7b` download; loopback runtime/model/digest checks, no automatic cloud fallback. R02 identity/licence/unavailable-path evidence and 31 deterministic harness tests remain distinct from the later actual production-host setup, simple/long answers and active model/speech cancellation without stale completion. CPU-floor quality, latency/resource/context budgets, repeated race/computation-cessation timing, installer provisioning and independently network-blocked offline qualification remain open. | [Ollama setup](../src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs), [inference probe](../src/Kora.Windows/Dependencies/LocalInferenceDependencyProbe.cs), [setup tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaSetupServiceTests.cs), [probe tests](../tests/Kora.Windows.IntegrationTests/Dependencies/LocalInferenceDependencyProbeTests.cs), [bounded production result](Deferred_Validation.md#2026-10-05-bounded-local-inference-result), [R02 technical plan](Local_Inference.md) |
 | I10 | Partial model interaction | Unmatched requests use one local reasoning operation with bounded status context and exactly one answer, question, action or grant-change response. Request length is 4,096 characters; inference deadline is two minutes; question prompts/options and three follow-ups are bounded. Generation is buffered, not streamed. Busy guards reject competing requests; handler results are not returned for tool-loop continuation. | [Reasoner](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), [reasoner tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaReasonerTests.cs), [application/tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs), [current protocol](Internal_Model_Tools.md#implemented-bootstrap-surface) |
@@ -241,12 +241,13 @@ Other R02 branches remain independently outstanding; the storage results do not 
 
 ### R04 Foundation Delivery
 
-The first usable **durable** milestone remains blocked: one identified
-request/task with correlated diagnostic/audit evidence, committed terminal
-state and interrupted-run recovery must run on the composed private SQLite
-store. The owner-approved baseline removes encrypted-native/key/rekey gates.
-Actual owned task-store tests now establish database transactions/reopen, but
-not integrated authoritative evidence or process-kill acceptance.
+The first bounded **durable** milestone now composes one actual exact local
+version-query request/task with correlated diagnostic/audit evidence,
+committed terminal state and interrupted-run recovery on private SQLite.
+The owner-approved baseline removes encrypted-native/key/rekey gates.
+The [composed continuation](#r04-composed-durable-version-query---2026-10-06)
+records its precise source, automated interruption evidence and validation;
+it is not completion of R04 or an OS-effect receipt.
 The existing `kora.db` setup probe remains the
 bootstrap-only `setup_tasks` schema; it is neither the new host store
 nor a legacy-content migration. No content, grants, receipts or evidence
@@ -257,10 +258,10 @@ are added to that database by R04.
 | Provider/native baseline | Existing pinned Microsoft.Data.Sqlite / SQLitePCLRaw e_sqlite3 is the owner-approved standard route. Historical exact 2.4.0 encrypted-candidate evaluation passed basic tests but was rejected; [D-009](Decision_Register.md#approved-profile-secured-sqlite-baseline---2026-10-06) supersedes codec/key admission. No manifests changed. | Normal licence/servicing/native packaging/loading evidence remains; no encrypted-native replacement or owned source-build is required. |
 | Host identity and truthful state | Implemented portable [typed identities](../src/Kora.Core/Hosting/HostId.cs), [host request](../src/Kora.Core/Hosting/HostRequest.cs), [task transition/recovery rules](../src/Kora.Core/Hosting/HostTaskRecord.cs), unknown/exclusive resource descriptors; [contract tests](../tests/Kora.Core.UnitTests/Hosting/HostContractTests.cs) | Session registry/routing, durable question/proposal/grant records and concurrent resource leases are not implemented. Bootstrap requests allocate host IDs, not full Sessions UX. |
 | Causal and business correlation | Implemented versioned four-source [host activities](../src/Kora.Core/Diagnostics/HostActivity.cs); request routing and typed audit boundaries; ordinary async child context and explicit deferred links; [trace/isolation/spoof tests](../tests/Kora.Application.UnitTests/Diagnostics/EvidenceLoggerProviderTests.cs) | Runtime/tool/queue/presentation/evidence/retention implementations must add their actual boundaries as delivered; operation completion is not proof of OS effect. |
-| Independent diagnostic/audit contracts | Implemented [formatter-independent capture](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs), bounded typed properties/scopes, call-time context, spans/links and gaps. [Daily JSON](../src/Kora/FileEvidenceSink.cs) preserves trusted categories/IDs. Only internal typed audit state routes audits; file copies/lookalikes confer no authority. | [Unavailable sink](../src/Kora.Application/Diagnostics/UnavailableEvidenceSink.cs) reports unimplemented durable evidence, not a missing encryption requirement. Separate log/audit/span/link tables, audit checkpoints and query/failure/backpressure integration remain. |
-| Intent, dispatch marker, terminal receipt and recovery | Implemented [coordinator](../src/Kora.Application/Hosting/HostTaskCoordinator.cs) and actual [standard SQLite store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs), revision-checked atomic state/event commits and bounded no-replay recovery. Intent-only becomes Interrupted; dispatched/no receipt becomes Unknown. | Transcript composition still uses the [unavailable store](../src/Kora.Core/Storage/UnavailableHostTaskStore.cs). Correlated authoritative evidence, real process interruption and the first fully integrated milestone remain; bootstrap/cancellation behavior is unchanged. |
-| Retention semantics | Implemented 30-day diagnostic/daily-file and 90-day audit defaults, audit 30-365 validation, UTC due-date and explicit apply-now calculation; [tests](../tests/Kora.Core.UnitTests/Diagnostics/EvidenceRetentionPolicyTests.cs) | Configured diagnostic schema, transactional due-date assignment, preview/apply UI, pruning anchors and query-visible expired segments remain R04/R12 work. |
-| Profile/artifact primitives | Actual supplied-root/owner/ACL/reparse checks are reused by the standard task partition. Earlier uncomposed [DPAPI keys](../src/Kora.Windows/Storage/WindowsStorageKeyStore.cs) and [encrypted artifacts](../src/Kora.Windows/Storage/WindowsEncryptedArtifactStore.cs) retain historical scratch evidence. | Database key/rekey/encrypted conversion is no longer required. Production provisioning/composition, standard managed backups/artifacts, process interruption and deletion remain; optional crypto primitives do not establish those workflows. |
+| Independent diagnostic/audit contracts | Implemented [formatter-independent capture](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs), bounded typed properties/scopes, call-time context, spans/links and gaps; production composes [private SQLite evidence](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.cs). [Daily JSON](../src/Kora/FileEvidenceSink.cs) preserves trusted categories/IDs independently. Only internal typed audit state routes audits; file copies/lookalikes confer no authority. Required delivery/capture failures report and propagate after independent sink attempts. | Audit tamper checkpoints/pruning, query-visible expired/gap projections and full evidence UI remain. No authorization is inferred from SQLite, file copies or correlation metadata. |
+| Intent, dispatch marker, terminal receipt and recovery | Implemented [coordinator](../src/Kora.Application/Hosting/HostTaskCoordinator.cs), actual [standard SQLite store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs), [bounded query runner](../src/Kora.Application/Hosting/DurableVersionQuery.cs) and [startup recovery](../src/Kora.Application/Hosting/DurableHostRecovery.cs). Exact typed/activated-voice version input uses required correlated evidence and revision-checked state/event commits. Intent-only becomes Interrupted; dispatched/no receipt becomes Unknown; no executor/replay callback. | The receipt proves only that this local query returned. General dispatch/grants/session registry, managed copies, broader migration/retention/deletion and installed/power-loss acceptance remain. Existing model/OS routes are not promoted to durable effect executors. |
+| Retention semantics | Implemented 30-day diagnostic/daily-file and 90-day audit defaults, audit 30-365 validation, UTC due-date and explicit apply-now calculation; [tests](../tests/Kora.Core.UnitTests/Diagnostics/EvidenceRetentionPolicyTests.cs). Composed SQLite evidence receives independent effective due dates transactionally. | Configured diagnostic schema, preview/apply UI, actual pruning/anchors and query-visible expired segments remain R04/R12 work. Due dates alone are not automatic deletion. |
+| Profile/artifact primitives | Actual supplied-root/owner/ACL/reparse checks compose the standard task/evidence partitions. Earlier uncomposed [DPAPI keys](../src/Kora.Windows/Storage/WindowsStorageKeyStore.cs) and [encrypted artifacts](../src/Kora.Windows/Storage/WindowsEncryptedArtifactStore.cs) retain historical scratch evidence. | Database key/rekey/encrypted conversion is no longer required. Standard managed backup/artifact provisioning/composition, their process-interruption and deletion boundaries remain; optional crypto primitives do not establish those workflows. |
 
 Artifact reconciliation is observation-only: at most 256 entries/references,
 64 MiB examined bytes and 4 MiB plaintext per artifact. It reports staged,
@@ -290,7 +291,8 @@ Concrete handoffs:
 - **R17:** package the pinned standard SQLite provider/native closure
   for every offered RID; independently prove installed loading, missing/
   corrupted-native fail-closed behavior, CurrentUser/profile/ACL and recovery.
-  Current publishes still contain bootstrap plaintext SQLite only.
+  Current publishes include the bounded standard-SQLite task/evidence
+  composition; the bootstrap `kora.db` remains setup-only.
   The WiX implementation is now included through main's #35, targeting
   Windows 11 `win-x64`; R04's x86 static publish does not add a supported
   installer target or establish D-007 acceptance.
@@ -363,6 +365,168 @@ Concrete handoffs:
   final managed-assembly hashes were captured after the last publish refresh.
   Disposable negative-suite payload copies were removed after verification;
   inspection/test receipts and the two published payloads were retained.
+
+### R04 Composed Durable Version Query - 2026-10-06
+
+This continuation implements the **first bounded composed milestone**, not
+complete R04/D-009 acceptance. It runs solely in the collision-checked isolated
+`agents/kora-r04-durable-composition-20261006` worktree, created clean from
+`origin/main` at `d1fc77f8083985c5d86ed0ef3496ac68c4a150ed` after #39/#40.
+The source checkout remained on `feature/personalized-startup-greeting`
+`a7bbc04`; no edits/builds/restores ran there. All deliverables remain
+uncommitted; publish manifests identify the base HEAD, not a committed release.
+
+**Admitted scope:** standalone exact typed or activated-voice `ShowVersion`
+requests with no pending question/grant/action-approval interaction. The
+application pins the matched command before asynchronous persistence, rechecks
+current host/privacy/interaction eligibility before dispatch, and never
+redirects a stale version request into model interpretation. The callback
+preserves presentation synchronization context. Subsequent optional speech is
+outside the query receipt. Model suggestions and other bootstrap/OS routes
+retain their existing behavior and are not promoted to durable effect executors.
+
+[Program](../src/Kora/Program.cs) composes the actual
+[task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs) and
+[evidence sink](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.cs).
+`HostStorageV1/host.db` and `EvidenceStorageV1/evidence.db` are distinct private
+standard-SQLite partitions; `kora.db/setup_tasks` is unchanged and never
+promoted or migrated to content storage. New files have protected current-user
+ownership/DACLs before contents are written. Existing missing/corrupt data,
+partial initialization, unsupported/altered schemas, reparse paths, permissive
+ACLs and missing journals fail without repair, replacement or shared fallback.
+Connections select exclusive locking before native hot-journal reads and
+`PERSIST`, retaining the privately preowned journal through rollback/reopen;
+transactions use FULL synchronization and memory-only temporary storage.
+Storage admission/execution is bounded, not an unbounded asynchronous queue.
+
+[DurableVersionQuery](../src/Kora.Application/Hosting/DurableVersionQuery.cs)
+orders intent, typed requested audit/diagnostic evidence, dispatch, local query
+return, required terminal evidence and terminal receipt. Its Succeeded receipt
+establishes only that this bounded local query returned. It is not an OS effect,
+API acceptance, abort acknowledgment or process/socket-close receipt.
+Required capture/file/database failures propagate after independent delivery
+attempts; the daily-file error latch prevents Serilog self-reporting from
+silently authorizing admission. Error presentation survives error-logger failure
+without swallowing that failure.
+
+Independent log/audit/span/link tables retain formatter-independent typed
+envelopes and promoted host/W3C/business fields. Audit request and terminal
+events share the host request's business correlation. Ordinary hostless logs
+retain explicit capture-owned MissingHostContext/`bootstrap=false` gaps and
+null trusted identity columns, not manufactured bootstrap/session authority.
+Invalid host-bearing records are never downgraded, and only the trusted typed
+audit route writes audit rows.
+
+[DurableHostRecovery](../src/Kora.Application/Hosting/DurableHostRecovery.cs)
+admits correlated recovery evidence before committing intent-only Interrupted
+or dispatched/unverified Unknown. Fresh recovery traces retain durable host
+IDs; there is no executor callback or automatic replay. Startup handles at most
+100 incomplete records and fails explicitly if further recovery remains.
+Cancellation and disposed-context late callbacks cannot publish success.
+
+First-use greeting, persistent Settings note and version response disclose
+readable copies outside the profile boundary, same-user/admin access,
+independent diagnostic/audit due dates and **unimplemented database pruning/
+deletion**. No transcript, response body, audio, credential or secret is newly
+stored. Credentials remain Windows-protected; no database key/rekey is required.
+
+#### Stable R05 Handoff
+
+- Existing `HostId`, `HostRequest`, `HostTaskRecord`, `IHostTaskStore` and
+  `HostTaskCoordinator` signatures/transition rules remain unchanged.
+  Host/state/correlation metadata still grants no authority.
+- New concrete Application services are `DurableVersionQuery.RunAsync(
+  RequestOrigin, Func<Task>, CancellationToken)` returning
+  `Task<HostTaskRecord>`, and `DurableHostRecovery.RecoverAsync(
+  CancellationToken)` returning `Task<IReadOnlyList<HostTaskRecord>>`.
+  The query callback is admitted application-owned local-query code, not a
+  general tool/effect executor or an R05 authorization gateway.
+- Windows adds `WindowsSqliteEvidenceSink(IApplicationDataPaths,
+  EvidenceRetentionPolicy? = null, TimeProvider? = null)`, `Initialize()` and
+  existing `IEvidenceSink` writes. The task implementation adds concrete
+  `InitializeAsync(CancellationToken)` and bounded `ReadTaskAsync(
+  HostId<TaskIdentity>, CancellationToken)`; Core store interfaces are unchanged.
+- Four host sources remain `Kora.Core`, `Kora.Application`, `Kora.Windows`,
+  `Kora.Desktop`, versioned from the Core assembly; this feature build captures
+  **0.1.0.0**, not a hard-coded 1.0.0. Reserved context-gap markers cannot be
+  selected by caller properties. W3C/correlation IDs never select a grant.
+- Attempts to contact orchestration, R05 and reconciliation via `send_message`
+  were rejected by the session tool's process-wide message limit. No sibling
+  branch or unpublished changes were imported. This durable handoff records
+  the integration boundary; it is not a claim that peer agreement was delivered.
+
+#### Composed Milestone Validation Receipt
+
+Final validation is against this **uncommitted working copy on `d1fc77f`**,
+Windows 10.0.26300.0/x64, SDK 10.0.401/runtime 10.0.12, feature version 0.1.0.
+It is not a union of earlier/sibling receipts. Initial missing restore assets,
+an incorrectly scoped test filter, an absolute-path payload check and related
+analyzer/test compilation failures were corrected before these final results.
+
+| Check | Actual final result |
+|---|---|
+| Root eight-project Release build | **0 warnings, 0 errors**, analyzers enabled |
+| Core suite | **307 passed**, 0 failed/skipped |
+| Application suite | **964 passed**, 0 failed/skipped |
+| Windows suite | **494 passed**, 0 failed/skipped; **116 Storage cases** |
+| Total | **1,765 passed**, 0 failed/skipped |
+| Latest-only portable coverage | **5,742/5,742 lines; 2,311/2,311 branches; 674/674 methods**, all 100%. Exactly the latest terminal Core/Application reports were merged; no old/sibling coverage was used. |
+| Real application/storage composition | Both UI/activated-voice cases pass with the actual runner, audit bridge, provider and both private SQLite stores: intent/dispatch/success, matching host/W3C/business fields and nine completed spans without sink recursion. Actual journal failures before requested/terminal audit admission preserve incomplete state, attempt the independent sink and never return a success receipt. |
+| Interruption/no replay | Exact fixture-owned test executables are killed after intent, dispatch and an uncommitted native transaction; Interrupted/Unknown and hot-journal rollback pass. Composed runner-child intent/dispatch kills recover with typed evidence and no execution callback/replay. Only fixture-created child PIDs are terminated. |
+| Failure/concurrency bounds | Atomic state/event and span/link rollback, concurrent revisions/sink instances, altered schema/data, corrupt/missing database/journal, partial initialization, ACL/reparse, bounded contention/progress, typed spoofing, context gaps/property/scope/byte limits, cancellation, late-context rejection and logging-error visibility pass. |
+| Licences/locked closure | Approved/current. No production dependency/notice changes; Windows test reference/lock adds Application project metadata only, no new package. |
+| Version/fake release/payload policy | All existing contracts pass; fake GitHub/owned version fixtures only, no real publication or repository commit. |
+| Final locked x64/x86 publishes | Both pass. Exact manifests verify **201/197 files**, including licence texts, for base HEAD `d1fc77f`; payloads contain uncommitted compiled changes. |
+| Actual native inspection | x64 **7 PE files/10 declarations**, x86 **5/6**; correct machine, normal imports and exact SHA-256 equality to declared pinned package assets, including `e_sqlite3.dll`. No experimental runtime or fixture payload leaked. Static inspection only, no app/installer launch. |
+| Bounded effects / still unsupported | Owned scratch file/database/ACL fixtures, fixture child processes and non-disruptive existing integration tests only. No real user storage migration, live app/audio/model, installer, elevation, lock/power or machine-policy trial; no installed or power-loss certification. |
+
+Final structured test/coverage artifacts are under
+`.net-test-artifacts\r04-terminal-core`,
+`.net-test-artifacts\r04-terminal-application`,
+`.net-test-artifacts\r04-terminal-windows` and
+`.net-test-artifacts\r04-terminal-coverage`. Retained publish payloads are
+`artifacts\r04-composed-win-x64` and `artifacts\r04-composed-win-x86`.
+Native inspection JSON and the read-only two-RID inspector are retained in
+the session's `files` artifacts; they do not enter production or the repository.
+Owned storage fixtures clean up their exact scratch directories; the deliverable
+worktree is deliberately retained for uncommitted handoff.
+
+Reproduction commands (run **only in the verified isolated worktree**):
+
+```powershell
+dotnet restore .\Kora.slnx --locked-mode
+dotnet build .\Kora.slnx --configuration Release --no-restore
+dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\r04-terminal-core --report-trx --coverlet --coverlet-output-format cobertura --coverlet-file-prefix core
+dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\r04-terminal-application --report-trx --coverlet --coverlet-output-format cobertura --coverlet-file-prefix application
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\r04-terminal-windows --report-trx
+# Select exactly the fresh Core/Application coverage reports; do not merge historical directories.
+dotnet reportgenerator "-reports:<fresh-core-report>;<fresh-application-report>" "-targetdir:.net-test-artifacts\r04-terminal-coverage" "-reporttypes:Cobertura;TextSummary" "-assemblyfilters:+Kora.Core;+Kora.Application"
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .net-test-artifacts\r04-terminal-coverage\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+.\eng\Test-DependencyLicenses.ps1
+.\eng\Test-BuildVersion.ps1
+.\eng\Test-GitHubRelease.ps1
+.\eng\Test-InstallerPayloadContracts.ps1
+dotnet publish .\src\Kora\Kora.csproj --configuration Release --runtime win-x64 --self-contained false --no-restore --property:RestoreLockedMode=true --output artifacts\r04-composed-win-x64
+dotnet publish .\src\Kora\Kora.csproj --configuration Release --runtime win-x86 --self-contained false --no-restore --property:RestoreLockedMode=true --output artifacts\r04-composed-win-x86
+```
+
+For each payload, copy the approved `licenses`/`package-notices` directories
+from `artifacts\license-compliance`, then run `eng\Test-InstallerPayload.ps1`
+with an **absolute** payload path, `-Version 0.1.0`,
+`-SourceRevision d1fc77f8083985c5d86ed0ef3496ac68c4a150ed`, first
+`-WriteManifest` and then verification. The base revision plus dirty-worktree
+qualification is intentional; no commit/push/PR/merge is authorized or performed.
+
+#### Remaining R04 Gates
+
+| Boundary | Explicitly still open |
+|---|---|
+| Migrations | Supported existing host v1 is validated without conversion. Broader version migrations, legacy content import and migration recovery/backups are not implemented. |
+| Managed copies/artifacts | No content-bearing artifact or managed backup is needed/created by this metadata-only query milestone. Standard managed artifact staging/publication/reference and backup-generation interruption/deletion acceptance remains. Historical optional encrypted primitives do not satisfy it. |
+| Retention/lifecycle | Independent 30-day diagnostic/span/link and 90-day audit due dates are assigned transactionally. Automatic database pruning, audit continuation anchors, query-visible expired segments, configurable preview/apply, session lifecycle/deletion and late-append/copy revocation remain R04/R12. |
+| Audit authority | Typed routing and ordered persistence are implemented; full D-008 tamper checkpoints/rollback guarantees and durable authorization/grant consumption are not. SQLite, ACLs, file copies and query receipts do not provide new authorization. |
+| Deployment/recovery | Owned fixture process kills and native rollback are automated evidence. Installed loading/effective ACLs, actual power-loss, all-users/cross-account/shared-storage claims and hardware/OS timing remain separately gated/approved. |
+| Other runtime surfaces | General session registry, history/queue/workspace UI, model/tool/worker adapters and consequential receipts are not added; no automatic replay, grant migration, installer execution or optional encryption overhaul. |
 
 ### R04 Rebase Validation Receipt - 2026-10-06
 
@@ -732,7 +896,7 @@ No dependency/profile architecture or sibling merge is introduced.
 | R01 - Reconcile policy, scope and checkpoint contracts | Design reconciliation complete; approved 2026-10-05; no runtime changes | P0 - prevent incompatible authority and consent implementations | None | Initial-release authority, consent, optional privacy and standalone-lock binding recorded and aligned above; A2/A3 evidence remains required. Standalone application rollback remains deferred R27 work. Runtime/enforcement proof is not claimed by this package. |
 | R02 - Run release-blocking feasibility proofs | Partial candidates in I01/I06/I09/I16; storage/inference/distribution outcomes recorded; containment I17/runtime I18 retain open gates | P0 - discover runtime/hardware/containment limits | R01 | Complete runtime RT1/RT2/MG1/PV1 as applicable, retaining rejected hook-only and blocked account/global paths as unavailable. Qualify local model/licence/CPU floor, wake, worker containment and deployment. D-009 now selects standard SQLite/private profile permissions; encrypted-native/key admission is superseded. Complete [local L1-L5/L6](#r02-local-inference-continuation), W1-W3 and R02-D01/D02/D03 evidence; historical NSIS assembly is not D-005 closure. Use actual SDK/provider/OS evidence, not aggregate R02 success; preserve unrelated proof gates. |
 | R03 - Establish Windows/audio ownership and privacy foundation | PTT/cross-build ownership and privacy closure implemented; bounded x64/audio trials pass; full native acceptance open in I03-I06/I12/I13 | P0 - stop unauthorized capture and overlapping owners | R01 | Complete acceptance of cross-build single-owner activation/handoff/return, consent/enablement generations, explicit PTT, bounded audio/transcript buffers and stale-callback rejection. Enforce wake-only versus activated-transcription separation; never label activated grammar capture as production wake. Prove native lock/disconnect/suspend/permission-polling/device observation and capture/audio/output closure on every required event. Release capture within 500 ms of observed lock in every reference trial. Provide native/tray recovery without model/network/speech. |
-| R04 - Introduce durable identities, Activity tracing and authoritative host contracts | **Partial; encrypted-admission blocker superseded.** Host/state/evidence/tracing contracts, no-replay coordinator and actual private standard-SQLite v1 task store have source/tests; [inventory](#r04-foundation-delivery) and [continuation](#r04-approved-standard-sqlite-continuation---2026-10-06). | P0 - stable attribution and crash-safe intent | R01, R03; approved D-009 standard SQLite/profile baseline | Compose actual request/task/terminal/recovery with correlated independent diagnostic/audit/span/link persistence, truthful outcomes, supported migrations, backup/artifact publication and process interruption. Complete audit checkpoints, retention/query-gap semantics and relevant runtime/tool boundaries. No database key/rekey/encrypted-native prerequisite, history/queue UI, automatic replay or proof-fixture schema promotion. R04 is not complete until the integrated milestone and all its criteria are met. |
+| R04 - Introduce durable identities, Activity tracing and authoritative host contracts | **Partial; first bounded composed milestone delivered.** Exact local version-query intent/dispatch/evidence/receipt and no-replay startup recovery compose private standard-SQLite task/log/audit/span/link partitions; [inventory](#r04-foundation-delivery), [baseline](#r04-approved-standard-sqlite-continuation---2026-10-06) and [composed continuation](#r04-composed-durable-version-query---2026-10-06). | P0 - stable attribution and crash-safe intent | R01, R03; approved D-009 standard SQLite/profile baseline | Complete broader supported migrations, backup/artifact publication/interruption, audit checkpoints, retention/query-gap/deletion semantics and relevant runtime/tool boundaries. Preserve the bounded query's required evidence admission and truthful receipts. No database key/rekey/encrypted-native prerequisite, history/queue UI, automatic replay or proof-fixture schema promotion. R04 remains open until all its criteria are met; installed/power-loss evidence is not inferred. |
 | R05 - Build the shared authorization/question gateway | **Partial foundation delivered**, in addition to I11/I12: [typed services/contracts and tests](#r05-bounded-authorizationquestion-foundation). Durable adapter/native input/production wiring pending verified R04 handoff. | P0 - one authority path for direct/UI/model/skill requests | R03, R04 | Compose host-owned typed questions, exact proposals and trusted native input; integrate atomic use/audit, operation-bound durable Session and independent Perpetual records. Prove actual immutable bytes/review, durable lifecycle/deletion, edit/removal, audit/receipt certainty and immediate pre-effect revalidation. Apply standalone-lock binding only after its durable host identity is committed/shown. Legacy action-name preferences confer no new executable authority without explicit review/approval. No new execution is enabled by the bounded foundation. |
 | R06 - Implement the admitted tool registry and local tool/result loop | Partial JSON selector in I02/I09/I10; R02 harness is not adapter qualification | P1 - natural requests can discover and use Kora capabilities | R02 (local runtime: L1-L5 qualification), R04, R05 | Expose versioned admitted schemas/skill summaries per lane; implement bounded validated proposals, host execution and correlated approved results followed by continued reasoning. Use the R02-L5 tested compatibility/context/resource envelope, preserve digest checks and rerun affected proofs on integration. First deliver discovery/application/readiness/runtime/status tools, deterministic status presenters and typed success/denied/unknown/unavailable behavior. Preserve exact offline safety routes. Add registry/catalogue coverage and hostile-result/unknown-ID/late-cancellation tests; do not expose unimplemented session tools. |
 | R07 - Deliver explicit clipboard context and local-first explanation | Outstanding context path; partial inference I09/I10; no R02 real answer/offline-success proof | P1 - first useful private vertical slice | R03, R04, R05, R06; R02 local L5 evidence carried through L6 | Implement request-triggered plain-text clipboard snapshot/preview, immutable context/source IDs, purpose/secret/destination classification, bounded excerpts and explicit reuse/revocation. Fit the complete approved envelope to the qualified context budget or reject explicitly. Reuse R02 fixtures/rubric and isolation evidence, then repeat actual quality/cancellation/no-egress proof on the integrated host; synthetic payload injection is not clipboard-broker acceptance. Local inference missing/unhealthy remains unavailable with no remote fallback. Unsupported clipboard formats are explicit. |

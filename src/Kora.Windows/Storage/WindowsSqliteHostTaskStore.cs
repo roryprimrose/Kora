@@ -13,21 +13,63 @@ namespace Kora.Windows.Storage;
 public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
 {
     private const int ApplicationId = 1263489585;
-    private readonly RestrictedStorageDirectory directory;
-    private readonly string databasePath;
-    private readonly string journalPath;
+    private static readonly string[] Schema =
+    [
+        """
+        CREATE TABLE host_tasks(
+            task_id TEXT PRIMARY KEY NOT NULL,
+            request_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            origin INTEGER NOT NULL,
+            invocation_id TEXT,
+            revision INTEGER NOT NULL CHECK(revision>0),
+            state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 8)) STRICT
+        """,
+        """
+        CREATE TABLE host_task_events(
+            task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0),
+            state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 8),
+            PRIMARY KEY(task_id, revision)) STRICT
+        """,
+    ];
+    private readonly RestrictedSqliteDatabase database;
 
     public WindowsSqliteHostTaskStore(IApplicationDataPaths paths)
     {
-        directory = new RestrictedStorageDirectory(paths, includeKeys: false);
-        databasePath = Path.Combine(directory.Root, "host.db");
-        journalPath = string.Concat(databasePath, "-journal");
+        database = new RestrictedSqliteDatabase(paths, "HostStorageV1", "host.db", ApplicationId, Schema);
+    }
+
+    public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
+        new(Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var lease = database.AcquireLease(out var created, cancellationToken);
+            using var connection = OpenDatabase(created, cancellationToken);
+        }, cancellationToken));
+
+    public ValueTask<HostTaskRecord?> ReadTaskAsync(HostId<TaskIdentity> taskId, CancellationToken cancellationToken)
+    {
+        taskId.Validate();
+        return new ValueTask<HostTaskRecord?>(Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var lease = database.AcquireLease(out var created, cancellationToken);
+            using var connection = OpenDatabase(created, cancellationToken);
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT * FROM host_tasks WHERE task_id=$task;";
+            command.Parameters.AddWithValue("$task", taskId.Value.ToString("D"));
+            using var reader = command.ExecuteReader();
+            var record = reader.Read() ? Decode(reader) : null;
+            database.VerifyFiles();
+            return record;
+        }, cancellationToken));
     }
 
     public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(record);
-        if (HostActivity.RequireCurrent().Request != record.Request)
+        var current = HostActivity.RequireCurrent();
+        if (current.Activity!.IsStopped || current.Request != record.Request)
         {
             throw new InvalidOperationException("The host activity does not own this request.");
         }
@@ -50,14 +92,15 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
 
     private void Commit(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
     {
-        if (HostActivity.RequireCurrent().Request != record.Request)
+        var live = HostActivity.RequireCurrent();
+        if (live.Activity!.IsStopped || live.Request != record.Request)
         {
             throw new InvalidOperationException("The queued storage operation lost its live host request.");
         }
         using var boundary = new StorageOperation("storage.task.commit", cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        using var lease = OpenPartition(out var created);
-        using var connection = OpenDatabase(created);
+        using var lease = database.AcquireLease(out var created, cancellationToken);
+        using var connection = OpenDatabase(created, cancellationToken);
         using var transaction = connection.BeginTransaction();
         using var current = connection.CreateCommand();
         current.Transaction = transaction;
@@ -98,7 +141,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         write.Parameters.AddWithValue("$revision", record.Revision.Value);
         write.Parameters.AddWithValue("$state", (int)record.State);
         write.ExecuteNonQuery();
-        VerifyFiles();
+        database.VerifyFiles();
         cancellationToken.ThrowIfCancellationRequested();
         // Once COMMIT succeeds, cancellation must not turn a durable receipt into a cancelled result.
         transaction.Commit();
@@ -109,8 +152,8 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     {
         using var boundary = new StorageOperation("storage.task.read", cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        using var lease = OpenPartition(out var created);
-        using var connection = OpenDatabase(created);
+        using var lease = database.AcquireLease(out var created, cancellationToken);
+        using var connection = OpenDatabase(created, cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM host_tasks WHERE state IN (0,1) ORDER BY task_id LIMIT $limit;";
         command.Parameters.AddWithValue("$limit", limit);
@@ -121,119 +164,39 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             cancellationToken.ThrowIfCancellationRequested();
             records.Add(Decode(reader));
         }
-        VerifyFiles();
+        database.VerifyFiles();
         boundary.Complete();
         return records.AsReadOnly();
     }
 
-    private FileStream OpenPartition(out bool created)
+    private SqliteConnection OpenDatabase(bool created, CancellationToken cancellationToken)
     {
-        created = !Directory.Exists(directory.Root);
-        if (created)
-        {
-            directory.CreateNew();
-        }
-        return directory.AcquireLease();
-    }
-
-    private SqliteConnection OpenDatabase(bool created)
-    {
-        var isNew = !File.Exists(databasePath);
-        if (isNew && !created)
-        {
-            throw new InvalidDataException("An existing storage partition is missing its database; replacement is forbidden.");
-        }
-        if (!isNew)
-        {
-            VerifyFiles();
-        }
-        else
-        {
-            using var database = directory.CreateNewFile(databasePath);
-            database.Flush(flushToDisk: true);
-            using var journal = directory.CreateNewFile(journalPath);
-            journal.Flush(flushToDisk: true);
-        }
-        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = databasePath,
-            Mode = SqliteOpenMode.ReadWrite,
-            Pooling = false,
-            Cache = SqliteCacheMode.Private,
-            DefaultTimeout = 5,
-        }.ToString());
+        var connection = database.Open(created, cancellationToken);
         try
         {
-            connection.Open();
-            VerifyFiles();
-            using var settings = connection.CreateCommand();
-            // PERSIST reuses the explicitly user-owned journal instead of recreating it with token-default ownership.
-            settings.CommandText = "PRAGMA journal_mode=PERSIST; PRAGMA synchronous=FULL; PRAGMA temp_store=MEMORY;";
-            settings.ExecuteNonQuery();
-            VerifyFiles();
-            if (isNew)
-            {
-                using var transaction = connection.BeginTransaction();
-                using var schema = connection.CreateCommand();
-                schema.Transaction = transaction;
-                schema.CommandText = $"""
-                    CREATE TABLE host_tasks(
-                        task_id TEXT PRIMARY KEY NOT NULL,
-                        request_id TEXT NOT NULL,
-                        session_id TEXT NOT NULL,
-                        origin INTEGER NOT NULL,
-                        invocation_id TEXT,
-                        revision INTEGER NOT NULL CHECK(revision>0),
-                        state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 8)) STRICT;
-                    CREATE TABLE host_task_events(
-                        task_id TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0),
-                        state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 8),
-                        PRIMARY KEY(task_id, revision)) STRICT;
-                    PRAGMA application_id={ApplicationId};
-                    PRAGMA user_version=1;
-                    """;
-                schema.ExecuteNonQuery();
-                VerifyFiles();
-                transaction.Commit();
-            }
             using var validate = connection.CreateCommand();
-            validate.CommandText = "PRAGMA application_id;";
-            if (Convert.ToInt64(validate.ExecuteScalar(), CultureInfo.InvariantCulture) != ApplicationId)
-            {
-                throw new InvalidDataException("The database identity is invalid.");
-            }
-            validate.CommandText = "PRAGMA user_version;";
-            if (Convert.ToInt64(validate.ExecuteScalar(), CultureInfo.InvariantCulture) != 1)
-            {
-                throw new InvalidDataException("The database schema version is unsupported.");
-            }
-            validate.CommandText = "PRAGMA journal_mode;";
-            if (!string.Equals(validate.ExecuteScalar() as string, "persist", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException("The database journal mode is unsupported.");
-            }
-            validate.CommandText = "PRAGMA quick_check;";
-            if (!string.Equals(validate.ExecuteScalar() as string, "ok", StringComparison.Ordinal))
-            {
-                throw new InvalidDataException("The database integrity check failed.");
-            }
             validate.CommandText = """
                 SELECT count(*) FROM host_tasks t
-                WHERE origin NOT IN (0,1,2) OR state NOT BETWEEN 0 AND 8 OR revision<1
+                WHERE origin NOT IN (0,1,2) OR state NOT BETWEEN 0 AND 8 OR revision NOT BETWEEN 1 AND 3
+                    OR length(task_id)<>36 OR length(request_id)<>36 OR length(session_id)<>36
+                    OR (invocation_id IS NOT NULL AND length(invocation_id)<>36)
                     OR NOT EXISTS(SELECT 1 FROM host_task_events e
                         WHERE e.task_id=t.task_id AND e.revision=t.revision AND e.state=t.state)
                     OR EXISTS(SELECT 1 FROM host_task_events e
-                        WHERE e.task_id=t.task_id AND e.revision>t.revision);
+                        WHERE e.task_id=t.task_id AND e.revision>t.revision)
+                    OR (SELECT count(*) FROM host_task_events e WHERE e.task_id=t.task_id)<>t.revision;
                 """;
             if (Convert.ToInt64(validate.ExecuteScalar(), CultureInfo.InvariantCulture) != 0)
             {
                 throw new InvalidDataException("The persisted task state or event projection is invalid.");
             }
+            ValidateLedger(connection);
             return connection;
         }
         catch (SqliteException exception)
         {
             connection.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
             throw new InvalidDataException("The private host database could not be opened or validated.", exception);
         }
         catch
@@ -243,16 +206,56 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         }
     }
 
-    private void VerifyFiles()
+    private static void ValidateLedger(SqliteConnection connection)
     {
-        directory.Verify();
-        if (!File.Exists(journalPath))
+        using var tasks = connection.CreateCommand();
+        tasks.CommandText = "SELECT * FROM host_tasks;";
+        using var reader = tasks.ExecuteReader();
+        var count = 0L;
+        while (reader.Read())
         {
-            throw new InvalidDataException("The managed rollback journal is missing; explicit recovery is required.");
+            var task = Decode(reader);
+            using var events = connection.CreateCommand();
+            events.CommandText = "SELECT revision,state FROM host_task_events WHERE task_id=$task ORDER BY revision;";
+            events.Parameters.AddWithValue("$task", task.Request.TaskId.Value.ToString("D"));
+            using var ledger = events.ExecuteReader();
+            HostTaskRecord? previous = null;
+            while (ledger.Read())
+            {
+                var record = new HostTaskRecord(task.Request, new(ledger.GetInt64(0)), (HostTaskState)ledger.GetInt64(1));
+                if (previous is null
+                    ? record.Revision.Value != 1 || record.State != HostTaskState.IntentRecorded
+                    : record.Revision.Value != previous.Revision.Value + 1 || previous.IsTerminal)
+                {
+                    throw new InvalidDataException("The persisted task ledger is discontinuous or replays terminal work.");
+                }
+                if (previous is not null)
+                {
+                    try
+                    {
+                        if (previous.Next(record.State) != record)
+                        {
+                            throw new InvalidDataException("The persisted task ledger transition is invalid.");
+                        }
+                    }
+                    catch (InvalidOperationException exception)
+                    {
+                        throw new InvalidDataException("The persisted task ledger transition is invalid.", exception);
+                    }
+                }
+                previous = record;
+                count++;
+            }
+            if (previous != task)
+            {
+                throw new InvalidDataException("The task ledger and durable receipt disagree.");
+            }
         }
-        foreach (var path in Directory.EnumerateFiles(directory.Root))
+        using var total = connection.CreateCommand();
+        total.CommandText = "SELECT count(*) FROM host_task_events;";
+        if (Convert.ToInt64(total.ExecuteScalar(), CultureInfo.InvariantCulture) != count)
         {
-            directory.VerifyFile(path);
+            throw new InvalidDataException("The task ledger contains orphan events.");
         }
     }
 
@@ -260,7 +263,9 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     {
         static Guid Identifier(SqliteDataReader row, string column)
         {
-            if (!Guid.TryParseExact(row.GetString(row.GetOrdinal(column)), "D", out var value) || value == Guid.Empty)
+            var text = row.GetString(row.GetOrdinal(column));
+            if (!Guid.TryParseExact(text, "D", out var value) || value == Guid.Empty
+                || !string.Equals(text, value.ToString("D"), StringComparison.Ordinal))
             {
                 throw new InvalidDataException("A persisted host identity is invalid.");
             }

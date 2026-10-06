@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.ObjectModel;
 using Kora.Application.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -75,7 +76,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             var host = HostActivity.Current;
             envelope = new DiagnosticEnvelope(1, identity, clock.GetUtcNow(),
                 eventId.Id, eventId.Name, level.ToString(), category,
-                EvidenceProperties.Template(state), EvidenceProperties.Capture(state),
+                EvidenceProperties.Template(state), CaptureProperties(state, host is null),
                 capturedScopes.AsReadOnly(), TraceSnapshot.Capture(host?.Activity),
                 host?.Request, exception?.GetType().FullName, host?.CorrelationId, host?.ApprovalId);
             if (state is TrustedAuditState)
@@ -92,7 +93,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         {
             gaps.Report(new EvidenceGap(clock.GetUtcNow(), "capture",
                 EvidenceGapReason.InvalidStructuredState, identity, invalid.GetType().FullName));
-            return;
+            throw;
         }
 
         FanOut(identity, sink =>
@@ -112,9 +113,23 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         }
     }
 
+    private static ReadOnlyDictionary<string, EvidenceValue> CaptureProperties<TState>(TState state, bool missingHost)
+    {
+        var properties = new Dictionary<string, EvidenceValue>(EvidenceProperties.Capture(state), StringComparer.Ordinal);
+        properties.Remove("kora.bootstrap");
+        properties.Remove("kora.evidence.gap");
+        if (missingHost)
+        {
+            properties.Add("kora.bootstrap", new(EvidenceValueKind.Boolean, "false"));
+            properties.Add("kora.evidence.gap", new(EvidenceValueKind.Text, nameof(EvidenceGapReason.MissingHostContext)));
+        }
+        return new ReadOnlyDictionary<string, EvidenceValue>(properties);
+    }
+
     private void FanOut(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write)
     {
         var failures = new List<EvidenceGap>();
+        var errors = new List<Exception>();
         foreach (var sink in sinks)
         {
             try
@@ -123,6 +138,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
+                errors.Add(exception);
                 failures.Add(new EvidenceGap(clock.GetUtcNow(), sink.Name,
                     exception is Kora.Core.Storage.StorageAdmissionException
                         ? EvidenceGapReason.StorageNotAdmitted : EvidenceGapReason.SinkFailure,
@@ -133,6 +149,11 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         foreach (var gap in failures)
         {
             gaps.Report(gap);
+        }
+        if (errors.Count != 0)
+        {
+            throw new IOException("Required evidence delivery failed; independent sinks were attempted.",
+                new AggregateException(errors));
         }
     }
 

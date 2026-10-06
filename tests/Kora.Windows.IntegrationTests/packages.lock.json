@@ -461,6 +461,13 @@
           "xunit.v3.runner.common": "[4.0.1]"
         }
       },
+      "kora.application": {
+        "type": "Project",
+        "dependencies": {
+          "Kora.Core": "[0.1.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+        }
+      },
       "kora.core": {
         "type": "Project",
         "dependencies": {

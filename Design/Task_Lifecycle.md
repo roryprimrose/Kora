@@ -292,6 +292,21 @@ Future external repository build/test, commit, or push capabilities each require
 
 ## Restart and Recovery
 
+The bounded R04 composition persists exact local version-query requests with
+fresh host request/session/task IDs, intent, dispatch and a terminal receipt.
+The receipt establishes that this offline local query returned; it is not an
+OS-effect receipt, API-acceptance receipt or proof that speech playback ended.
+Required request evidence is admitted before dispatch and terminal evidence
+before success commit. A terminal evidence/commit failure leaves the dispatched
+record eligible only for Unknown recovery, not replay.
+Startup recovery admits independent correlated audit/diagnostic evidence before
+committing intent-only Interrupted or dispatched/unverified Unknown, in a
+fresh trace retaining the durable host IDs. A cancellation acknowledgment or
+late callback cannot produce a success receipt. The batch is limited to 100;
+additional incomplete work produces an explicit startup/recovery failure.
+This is not the proposed general session/task queue, durable grant service or
+automatic retention/deletion implementation.
+
 Restart does not resume actions or replay approval tokens.
 Session history, artifacts, requests, and content-bearing ledger evidence are restored for reading on restart, not automatically dispatched.
 An app restart applies the ordinary automatic listening policy after fresh

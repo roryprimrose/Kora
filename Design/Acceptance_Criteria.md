@@ -890,9 +890,11 @@ Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contra
 R04 partial source/tests are tracked in the
 [implementation inventory](Implementation_Roadmap.md#r04-foundation-delivery).
 They do not mark the following installed/native, durable-store, audit-chain,
-integrated recovery, lifecycle or deletion criteria passed. The first durable
-request/task milestone remains unavailable until the composed private SQLite store
-commits actual intent and terminal evidence and survives interrupted recovery.
+integrated recovery, lifecycle or deletion criteria passed in full. The first
+bounded durable request/task milestone now composes exact local version-query
+intent, dispatch, required typed evidence and terminal state on private SQLite.
+Its own roadmap receipt records the specific automated interruption boundaries;
+it does not certify broader R04, installed, power-loss or OS-effect acceptance.
 Synthetic/fake-store and safe key/artifact scratch tests are not installed
 acceptance, and file copies cannot satisfy authoritative audit requirements.
 

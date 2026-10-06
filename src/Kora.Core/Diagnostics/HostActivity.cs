@@ -130,10 +130,16 @@ public sealed class HostActivity : IDisposable
         {
             Complete(HostOperationOutcome.Unknown);
         }
-        Activity?.Dispose();
-        disposed = true;
-        Ambient.Value = prior;
-        Activity.Current = priorActivity;
+        try
+        {
+            Activity?.Dispose();
+        }
+        finally
+        {
+            disposed = true;
+            Ambient.Value = prior;
+            Activity.Current = priorActivity;
+        }
     }
 
     private static ActivitySource CreateSource(string name) =>

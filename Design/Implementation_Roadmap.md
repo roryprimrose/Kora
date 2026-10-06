@@ -164,6 +164,12 @@ These are local source/test/static-publish results, not installer/desktop,
 screen-reader, speech, OS-transition or real-effect acceptance. Required
 remote CI and actual PR merge are independent publication evidence.
 
+After R03 #52 merged, the native slice rebased cleanly onto `ba1dc3d` without
+changing its disposal/input guards or privacy documentation. Combined Release
+and licence checks passed; full Core/Application/Windows suites passed
+**365 / 1,095 / 647**, zero failed/skipped, with fresh unchanged **100% line
+and branch** portable coverage under `r05-r03-rebase-*`.
+
 ## R14 Native Passive Detail Slice - 2026-10-06
 
 Implemented on isolated `agents/kora-r14-native-details-20261006`, based on

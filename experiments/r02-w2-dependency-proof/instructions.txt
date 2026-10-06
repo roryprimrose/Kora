@@ -1,0 +1,4 @@
+Select only the synthetic fixed action, with a host-selected integer from 1 to 3.
+The embedded helper returns a bounded value. The entry returns a typed receipt.
+This experiment never performs lock, shutdown, restart, or application control.
+Dependency and script identities are immutable review inputs, not OS enforcement.

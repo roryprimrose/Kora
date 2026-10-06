@@ -1,0 +1,13 @@
+{
+  "schema": "Kora.W2.ExperimentalSkill.v1",
+  "id": "w2.synthetic.fixed",
+  "version": 1,
+  "entryPoint": "scripts\\entry.ps1",
+  "scripts": ["scripts\\entry.ps1", "scripts\\helper.ps1"],
+  "helperLoadOrder": ["scripts\\helper.ps1"],
+  "parameters": {"value": {"type": "int32", "minimum": 1, "maximum": 3}, "marker": "host-bound-owned-scratch-only"},
+  "effect": "owned-scratch-marker-only",
+  "helperContract": "definition-only initialization; Get-W2FixedValue(int32)",
+  "dependencies": ["fixed-worker", "powershell-runtime-closure", "declared-managed-payload"],
+  "productionAdmitted": false
+}

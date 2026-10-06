@@ -1,0 +1,22 @@
+{
+  "StartedUtc": "2026-10-06T06:39:48.5678791+00:00",
+  "EndedUtc": "2026-10-06T06:40:05.465324+00:00",
+  "Os": "Microsoft Windows NT 10.0.26300.0",
+  "Architecture": "X64",
+  "Framework": ".NET 10.0.12",
+  "OriginalPowerShell": "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.6.0_x64__8wekyb3d8bbwe\\pwsh.exe",
+  "OriginalPowerShellSha256": "bfb46af89433268872ddb43d1ca7a3f433452ee91ed356a9786940f90118e285",
+  "HostToken": {
+    "AppContainer": false,
+    "UserSid": "<HOST_USER_SID>",
+    "ContainerSid": null,
+    "Elevated": false,
+    "IntegritySid": "S-1-16-8192"
+  },
+  "ContainerSid": "S-1-15-2-2343865137-878696626-173571419-353773735-3028023591-2332752345-1065346329",
+  "Capabilities": [],
+  "Scratch": "%OWNED_SCRATCH%",
+  "NativeTrial": "Blocked/not run: paired reviewed synthetic native DLLs unavailable; compiler prerequisite not satisfied",
+  "NoNetworkTrial": true,
+  "NoInstalledAdmission": true
+}

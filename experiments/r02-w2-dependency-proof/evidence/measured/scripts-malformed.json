@@ -1,0 +1,18 @@
+{
+  "StartedUtc": "2026-10-06T06:40:04.2098494+00:00",
+  "EndedUtc": "2026-10-06T06:40:04.8622315+00:00",
+  "Pid": 7692,
+  "State": "Exited",
+  "ExitCode": 0,
+  "Receipt": null,
+  "Error": "Malformed receipt: \u0027i\u0027 is an invalid start of a property name. Expected a \u0027\u0022\u0027. Path: $ | LineNumber: 0 | BytePositionInLine: 1.",
+  "WorkerFailures": [],
+  "Descendants": [],
+  "EffectMarker": "102",
+  "EffectOutcome": "Unknown",
+  "LoadedImages": null,
+  "OwnedProcesses": [],
+  "JobPids": [],
+  "TreeStopped": true,
+  "ShutdownMilliseconds": 0.0143
+}

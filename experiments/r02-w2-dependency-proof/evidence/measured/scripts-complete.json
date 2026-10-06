@@ -1,0 +1,755 @@
+{
+  "StartedUtc": "2026-10-06T06:40:02.4572973+00:00",
+  "EndedUtc": "2026-10-06T06:40:03.5434432+00:00",
+  "Pid": 32804,
+  "State": "Exited",
+  "ExitCode": 0,
+  "Receipt": {
+    "Framework": ".NET 10.0.12",
+    "Token": {
+      "AppContainer": true,
+      "UserSid": "<HOST_USER_SID>",
+      "ContainerSid": "S-1-15-2-2343865137-878696626-173571419-353773735-3028023591-2332752345-1065346329",
+      "Elevated": false,
+      "IntegritySid": "S-1-16-4096"
+    },
+    "LanguageMode": "FullLanguage",
+    "Pid": 32804,
+    "RunId": "kora.w2.8b77ffb6f967461881c94c00d176c257.scripts.complete",
+    "Probes": [
+      {
+        "NativeException": "System.Management.Automation.CommandNotFoundException",
+        "NativeError": 5377,
+        "Error": "System.Management.Automation.CommandNotFoundException",
+        "Outcome": "Unknown",
+        "Name": "denied.script",
+        "Value": null
+      },
+      {
+        "NativeException": "System.UnauthorizedAccessException",
+        "NativeError": 5,
+        "Error": "System.Management.Automation.MethodInvocationException",
+        "Outcome": "Denied",
+        "Name": "denied.script.read",
+        "Value": null
+      },
+      {
+        "Error": null,
+        "Outcome": "Allowed",
+        "Name": "writable.script",
+        "Value": "synthetic-undeclared-script"
+      },
+      {
+        "Error": null,
+        "Outcome": "Allowed",
+        "Name": "writable.module.explicit",
+        "Value": 22
+      },
+      {
+        "Error": null,
+        "Outcome": "Allowed",
+        "Name": "writable.module.autoload",
+        "Value": 22
+      },
+      {
+        "Error": null,
+        "Outcome": "Allowed",
+        "Name": "writable.managed.bytes",
+        "Value": 22
+      }
+    ],
+    "Version": "7.6.6",
+    "Effect": {
+      "AdmissionDigest": "b7af1436a63ce4936222a86794639d5a467ab282a8696dc0bb5ed58dd2931054",
+      "RunId": "kora.w2.8b77ffb6f967461881c94c00d176c257.scripts.complete",
+      "Pid": 32804,
+      "Value": 102
+    }
+  },
+  "Error": null,
+  "WorkerFailures": [],
+  "Descendants": [],
+  "EffectMarker": "102",
+  "EffectOutcome": "Observed",
+  "LoadedImages": [
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\declared\\W2Payload.dll",
+      "Sha256": "99375d48e4143d3f770eeb94d4abda3c76ed5b1de65215245aa0a3576eb737d7",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Microsoft.ApplicationInsights.dll",
+      "Sha256": "ea8b0774affeec16adfd24fc55cecce39f778ca55e89a2ff6b2b457afccf44bb",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Microsoft.PowerShell.Commands.Utility.dll",
+      "Sha256": "d156b47a70718a54d1b5691d0ff58663d11270bc94911d870ab2895648c1057d",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Microsoft.PowerShell.ConsoleHost.dll",
+      "Sha256": "456be117016c7b7e474c66e48439c1917d4e9717c2ee247b6dd4e19b4b7a674a",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Microsoft.PowerShell.CoreCLR.Eventing.dll",
+      "Sha256": "9ef54eb74eda1c44bb1e7b71218de2887a0490a526a3bac967dc319ed3a74d3a",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Microsoft.PowerShell.MarkdownRender.dll",
+      "Sha256": "08a7a5c37e857a0197c710b8d9b52a4269afe12f00374c077389e3c7dbd584e1",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Microsoft.Win32.Primitives.dll",
+      "Sha256": "0327272bf4555ebd266751dfb3ac42463c8c0f266cdfd352263d4c7aa8fbaf04",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Microsoft.Win32.Registry.dll",
+      "Sha256": "fad9af3a76a4b89bee820381fde9ce06dfaadc3d90859953503f4be81c74ee31",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\Newtonsoft.Json.dll",
+      "Sha256": "2b6fdde54cc2d2e9277d458a42fdf9fca30fc4299652e97144a31c90fec91829",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Collections.Concurrent.dll",
+      "Sha256": "efd70af76fe0182d974ddc1520f335e9764ecfdd6a517168944b76c07a31e7a7",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Collections.Immutable.dll",
+      "Sha256": "cdeff36e2129e3a1cbf08698c4d692a13f2c25cd1c04ced0120caef982461354",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Collections.NonGeneric.dll",
+      "Sha256": "d84c613da29baf7d8dfd7e8ab7cd806e1086eb16b350c8377947b5edb77b6eec",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Collections.Specialized.dll",
+      "Sha256": "e203e92897552d5109f4f096ee7019443f83dac9dc7190217359255ceed1e3a3",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Collections.dll",
+      "Sha256": "dc868c8736277084d26726d726c6ce07fff9eab3aca2d3476cface8fc3b2403f",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.ComponentModel.Primitives.dll",
+      "Sha256": "a6268fe9416484303a678b72837b461aaa686d4cd4509430c1e4c5203397e63b",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.ComponentModel.TypeConverter.dll",
+      "Sha256": "9fc839cc0c4138deeee0080c72d29069d4ea22a4385fb78cdb4fea6a911c30c0",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.ComponentModel.dll",
+      "Sha256": "283c355a88e039f5a49f791f89f1af721fb82576447e23859a4cb269085a69d1",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Console.dll",
+      "Sha256": "53b599b15b7eb4db618946b943b00229d998d9bf5450cf23274b0f66bcdcb4ea",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Data.Common.dll",
+      "Sha256": "1cbef4b075d6f36e914666010ce93fc831858622e775abe9f73966b24c816aee",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Diagnostics.DiagnosticSource.dll",
+      "Sha256": "1f3297fffdfd0c97ec4c3ab7b628839b1f43fcb44193e44e96d4480631c5f07b",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Diagnostics.Process.dll",
+      "Sha256": "7f70ea57a7868dfeeea304d5da3843b9b52d98767bc41a81162031baa9361405",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Diagnostics.StackTrace.dll",
+      "Sha256": "d696c411324cf024a89d830c57cb713c487950db5fcd7a3f8790559675a02ce4",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Diagnostics.TraceSource.dll",
+      "Sha256": "c707b27e877fb0c7d38848828ab08637915e2b7a05563aa1a08327dc69eea911",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Diagnostics.Tracing.dll",
+      "Sha256": "72f5f814b5e142c87f514a38af6c08d103ff14daa22160867f987151c7f26c39",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.DirectoryServices.dll",
+      "Sha256": "18a53af12ed4cdfc3f6fcbe0787e53101aca6b5c28b730abec789fbbe040801a",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.IO.FileSystem.AccessControl.dll",
+      "Sha256": "1c54898a3ec1eb02a9dff3ba726c6328d1d0f306926a9a370c0c468e065bab17",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.IO.FileSystem.DriveInfo.dll",
+      "Sha256": "ad0fa0f61602babdb65280cfb5295d7f3905e7739431ca64d531919703729d2e",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.IO.MemoryMappedFiles.dll",
+      "Sha256": "8d17d7a790d463c15c3d683a92d449a1d02c423da680d2dc5b809c9cde1b1c2f",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.IO.Pipelines.dll",
+      "Sha256": "40a3244f2a4eba94430c8813f7fd4778e15e1d957dce9034d8dfa17725a0fcf0",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.IO.Pipes.dll",
+      "Sha256": "a1858a82360321b757b41f8f7c33cb793d626a712cc29409e5e8d77493f62062",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Linq.Expressions.dll",
+      "Sha256": "e2627ea364ec3868e20b9f84d2c2a3ecf5faad4dc548f53a9d0c6a2d6f9fb282",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Linq.dll",
+      "Sha256": "f170005154fe77b1a5af72179a454ca1d24ff3f805e6dc1a629ef1cf82d3e7ad",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Management.Automation.dll",
+      "Sha256": "ed8d39663e05435aab59f1c7fb0ad20292e22b0cb12cf47aad4b62b31e4d4126",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Management.dll",
+      "Sha256": "ad07e0c250fe08ce6b23d63b7a564da19e128d0a5a7aba9ce49810ed7752a3df",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Memory.dll",
+      "Sha256": "a714f1a2b4b8d2695bea4e5d2a85e62621ced26a7e4ebc5fcd61e85ee4838b77",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Net.Http.dll",
+      "Sha256": "ed96d8a3995cf09e84981db6ee8a5199e41fc2a2599749f70cf84ada7d4cce53",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Net.Mail.dll",
+      "Sha256": "b0c2c70ba2035e683e2232699e0547df7ab4f361daf4a5418c8f3b45ea147c13",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Net.NetworkInformation.dll",
+      "Sha256": "2a85a3e70d84f237e10a9beae7d4b1fdfe05ce0de135d5ca45b46de48491cde3",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Net.Primitives.dll",
+      "Sha256": "6ca45c7299b6b76a5650f01e63a3290ac50432c6301cea135c89ffc54af72e25",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Numerics.Vectors.dll",
+      "Sha256": "f7d2dba3d30b09fa8ca802cda5d0ee0827cb3aa44e1e19f790f62c390ddf5de8",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.ObjectModel.dll",
+      "Sha256": "9a7d09ef51c648c4ce51a0e21cdc64dede904420ccec224d62c09fceee6b150a",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Private.CoreLib.dll",
+      "Sha256": "63d83dd8169f23820f5d3bf0f0399f60e5e26200361787dfcb1c24cabc76e423",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Private.Uri.dll",
+      "Sha256": "d14188a1352f793f862726fa2c956dc270fb0e2578d46c6561f682ff2b4e110e",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Private.Xml.Linq.dll",
+      "Sha256": "8a82630530fb3ad2e29a3d755bce1f50497ec764804ddc7b014428a88e6df16c",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Private.Xml.dll",
+      "Sha256": "65f1252bad1a18d985a55d6434608e4a66dba8a426310b2c6fdae12b09e3faf6",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Reflection.Emit.ILGeneration.dll",
+      "Sha256": "9d003f3b5df43c3062fa1e363e5f6b3ecc5d4b84213fc7397da53e583494f390",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Reflection.Emit.Lightweight.dll",
+      "Sha256": "0461ac768e7f2e3bcd20a016c1e06e207092df250458c868ff628c2e7766b748",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Reflection.Metadata.dll",
+      "Sha256": "b453ac5b26229328268803037b95ebdfd9ea3c7aabd830513bd6a39cf73f7076",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Reflection.Primitives.dll",
+      "Sha256": "b20c388943b74385f712cdaf74cde691f6eee14cb5320d8136c3d40b57c02d42",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Runtime.InteropServices.dll",
+      "Sha256": "f3587b04d04f05c5a22e129ebe3dabe34243315e035ab6bbd91a4a3350fbad18",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Runtime.Loader.dll",
+      "Sha256": "b3a9500ed9e7f4a698fb46513b8c73b5aa752331597a544e2722b2c5db262b09",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Runtime.Numerics.dll",
+      "Sha256": "9f067c312e0c0c097d56bb3487933dcda758d547480ab76e5a2987aeadd8fd7e",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Runtime.Serialization.Formatters.dll",
+      "Sha256": "7832e9dcc1a36276b2df00427c5c926f1a48dff2d03977632a83ad138d853013",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Runtime.Serialization.Primitives.dll",
+      "Sha256": "1c2ded997862cd07fd93bd8450a98517875f7bb52a4c4e651a4d3b8832d7db9c",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Runtime.dll",
+      "Sha256": "2c733c433c3d26c0edb1eb89c9ed7a53cb3194092d1a56a79bf14ab71f4a3425",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Security.AccessControl.dll",
+      "Sha256": "aa6bf70a513cb43daad41f91bde35740ec28456481639a57508be02b08f1969b",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Security.Claims.dll",
+      "Sha256": "6ae287447243764b203f58eabbc8e5b9ebca135f6174ad73dd06ae572936dcc4",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Security.Cryptography.dll",
+      "Sha256": "acb3e95912a1b3d2cc96bfd42346328462a930ac77858dfc62d7d712ceed4f5e",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Security.Permissions.dll",
+      "Sha256": "37d4c12b1bac234541871123511525b680089a61758ce6f28b09a18f8f0b39e6",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Security.Principal.Windows.dll",
+      "Sha256": "4c6ee4bc691d111ff4500a6d455deeeeb3f56f14f5cd686f404ba063c8d2741b",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Text.Encoding.CodePages.dll",
+      "Sha256": "9d8d9e0fa33437502fd659fcb726e295cf439e56bdb044970fe5b715d7813e37",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Text.Encoding.Extensions.dll",
+      "Sha256": "f507cc18b0449947a86606dfe9281b89316b39c1ba60a9249e41c0a1cd30e201",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Text.Encodings.Web.dll",
+      "Sha256": "ab138d71b868d606acd1d48ef17b9f12e51f75ecd297120add0c4552f6758160",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Text.Json.dll",
+      "Sha256": "abcecb266dfd7af409eba45cd2fd581d40f72d5fe916a1a95f05b32ac738968f",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Text.RegularExpressions.dll",
+      "Sha256": "cc5c01e9c1591df68708ca6386c1259b0ac34257336cf53106ce784f9d1175c0",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Threading.Tasks.Parallel.dll",
+      "Sha256": "47733f454e9d7da1bec529a36ae86db431e8a89ad1fe84641e80c9207d91f4c7",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Threading.Thread.dll",
+      "Sha256": "0b016736e7e4995a7e0a127a7baeb6f8487a97433e2dd034b8cc8dd5fa1048ac",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Threading.ThreadPool.dll",
+      "Sha256": "104c0f37199430ccebf3b81eb28e4c072547447075eacff8d488954035bd231f",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Threading.dll",
+      "Sha256": "b1aae26002952704d7d7913170dfd3c786de6dea50463bb671a9aa99423320bd",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Xml.ReaderWriter.dll",
+      "Sha256": "4e8265fe5d68f42648394f0d6ca0c06c60664f5e0c7456bd65c942c664891bd0",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\System.Xml.XDocument.dll",
+      "Sha256": "7e9217b005d31b73e5cd83bc6da85217677a773020ac736c67d53e6375ff5908",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\clrjit.dll",
+      "Sha256": "8b3e57d21cc9914a0f2df5df3b0fa5fc426d91282846eb88da07736cfb7416aa",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\coreclr.dll",
+      "Sha256": "20ea763d5ad8be8656a3123c4ad5afdb4c714a009bfc63bb8f4906d6678130db",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\hostfxr.dll",
+      "Sha256": "6d2d8b595846bfcbb5ef7b1cb1a3156aff4930d2002b6ac813910b848c918855",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\hostpolicy.dll",
+      "Sha256": "400e8547169e8d4405adfd79510ae429f76f7a580932ac8a602ef5d88e4feb2e",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\microsoft.management.infrastructure.dll",
+      "Sha256": "a5138f7b4ea083fa297e744d26af2254ee3b593186caa750a6e4963c00f3d778",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\netstandard.dll",
+      "Sha256": "42388b4a19485adc2a7d384f5257bb9d806f3bac6f8871dde42afd944bbfc0c5",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\pwsh.dll",
+      "Sha256": "91f9892f15a7e2dcf440afc3a497a7d839f9d38d1ab4a50bd36080d982a01449",
+      "Error": null
+    },
+    {
+      "Path": "%OWNED_SCRATCH%\\runtime\\powershell\\pwsh.exe",
+      "Sha256": "bfb46af89433268872ddb43d1ca7a3f433452ee91ed356a9786940f90118e285",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\BCrypt.dll",
+      "Sha256": "b5691584e857caf0c6c590dda13779966b383d66be3c87d5b3cbbc2f5005495b",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\CRYPTBASE.dll",
+      "Sha256": "d77b19df871b5a2f02e826ebeb5de86735f5cd0806294fe9143ba138c964ee16",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\CRYPTSP.dll",
+      "Sha256": "4c5d4a26fc916392d3d478174fb4ed32e0d1141f12dff3eee5a2a3fc71c0483c",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\MSASN1.dll",
+      "Sha256": "f71f74438165a374feeaffbad9e4d4cff9473be726c0781f248405a7d46c2f81",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\OpcServices.DLL",
+      "Sha256": "0867b14a9fb3cf0734f07221e64c559ff037fd86d4afc9ae69f92ece03b07ac3",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\RpcRtRemote.dll",
+      "Sha256": "8a2dbfcc04cf62db7e358d1b0dbcb279f2e965422d64b18e10939cb48680b779",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\SSPICLI.DLL",
+      "Sha256": "45b06eb4050fb92d859664d98aa3bc89f732d87f72fbb721e0c99af3d2d2c807",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\USERENV.dll",
+      "Sha256": "e5e77885cbac08ac247fa45916eca36d2fde292a8527ac2c428f36a691827fea",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\amsi.dll",
+      "Sha256": "9df7ad9e6826ab76294a91bef274696ee13d18a8cebabcd5c4c352a3d1141df3",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\coreprivacysettingsstore.dll",
+      "Sha256": "a0683f166a3e059c639debf4c9bebb82990dc26baa0c14c2736e7de1f6b1b289",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\cscapi.dll",
+      "Sha256": "362cf5c4b9774f47f08954cf529bea06b66f13fcfc18f7d6b489bef2531082e7",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\icu.dll",
+      "Sha256": "7e28c779e6015cc794677ffb00fef38ed76f0f0734130f8c85deaa2ff22fe703",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\kernel.appcore.dll",
+      "Sha256": "ed6d62f2555d260547cc94a5cdfe2a6fcb684f18b8e182f78f9e4de224321fc9",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\mpr.dll",
+      "Sha256": "8bb319c8c8255e915c05c03eccc24981cf9653025d2f720fb7fffdd4d524309c",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+      "Sha256": "a74f7482085eab125ccc09152ab7e0b5994bcb13e1a7b29880bdbb24179ecb8b",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\profapi.dll",
+      "Sha256": "ce53b082348fae6b4bef396c542a7415f39e1b28928233a9cc1b516311fb32c6",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\secur32.dll",
+      "Sha256": "4050dfd0d4e04e8d013cb16c09d90c2177e2b7e4f102f5931187b2bd0c9d14fc",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\windows.storage.dll",
+      "Sha256": "cf4793b9e7570f1c6621515d634e2fee115b51f6009a19e0d1a5d24cefb55703",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\SYSTEM32\\wldp.dll",
+      "Sha256": "ecf34c9c64b2e6be9f622f0ca3a6ca7b95dcfdb88eb0419b045b853934bae0ba",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\ADVAPI32.dll",
+      "Sha256": "e036c9baecd170d7ef4759a5a7eb76036158cacc4cd9e3f697dbf410a3457224",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\AppxSip.dll",
+      "Sha256": "233c32b68f88f5b13cd8bfe9ada67995f99ab08ea16f194953f29e3ee6f636cf",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\CRYPT32.dll",
+      "Sha256": "c720af58976a3624dbc5b74ec4e470d8fec8a4645dc06947906c49e929862dc3",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\DiagnosticDataSettings.dll",
+      "Sha256": "ca41217bba126d0224ca48ac6a7e43a078cabaf25e490c89f7e3303f42744f26",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\GDI32.dll",
+      "Sha256": "772c73e294a4c5f5e0d4146288af95287a85c074d3aee3fa9f320dc010d7dbfe",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\IMM32.DLL",
+      "Sha256": "7e45f12c1c555e2407c5ca082bd925b34655278fde4dbfac53a0468cc1e77411",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\KERNEL32.DLL",
+      "Sha256": "8f8629741558b5df71def4e1dd8ef9645d4f806b949762c47757c50fea1a9e6d",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\KERNELBASE.dll",
+      "Sha256": "becad014fb8efa8cb5e314931cca92778ad42c649b12a6909632cacd68af4f40",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\MSISIP.DLL",
+      "Sha256": "7f048ee46414755b1a989e97f6963ea949ec4ae4f92dc423b400bfa16a0b651e",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\OLEAUT32.dll",
+      "Sha256": "e276bb09983606469c50f0f03c9604bbeffd7d669d996526c8c1af89042fbae0",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\RPCRT4.dll",
+      "Sha256": "89af87b6387bde4243306036fce2be89c67a328f93c25c53542e4c665b114747",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\SHCORE.dll",
+      "Sha256": "e7b47e7b381849dd1b32fd67deedd16ad46b50aaf614cdd28e03a7bac7fd72c8",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\SHELL32.dll",
+      "Sha256": "57231c16611c536a5905395858af37120bce730092786238b1a9dfab0db7afac",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\USER32.dll",
+      "Sha256": "93a4310e66a47fa359f588c2ebda64fe3651771c6f9ff30d462a77215a2e558e",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\WINTRUST.dll",
+      "Sha256": "1fabae0284fa498f92ac83f10e928ab7dcefb42e50198e913291d37b496b7e40",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\Windows.StateRepositoryPS.dll",
+      "Sha256": "f0a2a83e796a1e1f45650a1a427562f12a78fe8e2220284f3562e2ef7fda5ec9",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\Windows.System.Profile.PlatformDiagnosticsAndUsageDataSettings.dll",
+      "Sha256": "33b9924c5037500b664314fe215b239f58df62bdc3734ae5602b252bf417d89c",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\bcryptPrimitives.dll",
+      "Sha256": "46c06a0f0323d25a32c2b16da1a4a09e9234d282be7714469b7985bb98031ab6",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\combase.dll",
+      "Sha256": "39a2e2ba1ca6012953c94c10011fff5a18783120a2a34f5b66deb2d374a362c9",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\coml2.dll",
+      "Sha256": "df62ba1c36325532c6b60229a855e38e88410c2fc5dcc89ac2a05fa06ff5f412",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\davclnt.dll",
+      "Sha256": "a3e4fa8f038c77c8751f4c14d147903f0e02edf169534932e2b996a2b860e6d0",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\drprov.dll",
+      "Sha256": "b76f62e97b1321ec658ead63ca4cbe1b733775c62ebb701752e7f2f8f1f12367",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\gdi32full.dll",
+      "Sha256": "bde2077a56c90f68c5fa1ce5ebd4a40755c97a5080b91a87d2beff47349dd01e",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\msvcp_win.dll",
+      "Sha256": "c50165e6aaf74395c059564d65fa78b0911844828cbcf791d78f80d964a60f4e",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\msvcrt.dll",
+      "Sha256": "a1bd0acd64e1a60368b8878d3987f603d966ed45be2252d2d4d0f92feb10fa8e",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\ntlanman.dll",
+      "Sha256": "9ffcf9c508ec1b10bfae5e96c6e7f59b0467fcbe9e7422e0e1e2e1bde2e0e463",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\ole32.dll",
+      "Sha256": "4b81e4a4cb982915ceb3ebef0148227689306c274d5b2f6068ea143ae4db3e40",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\p9np.dll",
+      "Sha256": "ff0aecf273d3aa04a4dbae716f9c5d93c0406b04300dd7e7dcfb7ff2c82edd66",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\pwrshsip.dll",
+      "Sha256": "fd6dc9f4ca3f66d13581c08bfa4cfa67d835c989bcb539cbe2ba7fc219adb1b2",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\sechost.dll",
+      "Sha256": "c760d6c0dfa2705446aa7a2260206c9076182d92231854c04aa526403217eb9a",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\shlwapi.dll",
+      "Sha256": "6b86e4abc06ae40b2b8c1ceebcd300cbcaa5790c3ba377c630f1f0e8b36fb92c",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\ucrtbase.dll",
+      "Sha256": "5c52e3a303baaac0e0af8bd9b96134993da34bc9d834a31ef37e1d2cdc7fe192",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\win32u.dll",
+      "Sha256": "9cd636e8a1b300e2f4b16f339d650eda71fa02b92b100e4b2f89ce7c04811767",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\wkscli.dll",
+      "Sha256": "9207aa4d33ed79d9a5199185514ecae5c4e85b4bcef633268875898dba5a3367",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\System32\\wshext.dll",
+      "Sha256": "762e48b4bedb91a07389da0f055b36f65198c60f8f55f3efed4043be6a29157c",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\system32\\rsaenh.dll",
+      "Sha256": "731771049467b6d01c7028a1269df17da37af8d323621e01a32856e306795400",
+      "Error": null
+    },
+    {
+      "Path": "C:\\Windows\\system32\\uxtheme.dll",
+      "Sha256": "6a55672f8ab09bbe36d5376e109dd89f263b37cf478412ff5b9e8bd0e1ab77a0",
+      "Error": null
+    }
+  ],
+  "OwnedProcesses": [],
+  "JobPids": [],
+  "TreeStopped": true,
+  "ShutdownMilliseconds": 0.0144
+}

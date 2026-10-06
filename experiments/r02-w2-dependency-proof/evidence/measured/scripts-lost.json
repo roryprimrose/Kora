@@ -1,0 +1,18 @@
+{
+  "StartedUtc": "2026-10-06T06:40:03.54639+00:00",
+  "EndedUtc": "2026-10-06T06:40:04.2076299+00:00",
+  "Pid": 38788,
+  "State": "Exited",
+  "ExitCode": 0,
+  "Receipt": null,
+  "Error": "Missing receipt; effect Unknown",
+  "WorkerFailures": [],
+  "Descendants": [],
+  "EffectMarker": "102",
+  "EffectOutcome": "Unknown",
+  "LoadedImages": null,
+  "OwnedProcesses": [],
+  "JobPids": [],
+  "TreeStopped": true,
+  "ShutdownMilliseconds": 0.016
+}

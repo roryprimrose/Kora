@@ -114,9 +114,11 @@ explicit assembly resource identifier. Neither identity depends on a source
 checkout, machine path, assembly enumeration order, or display name.
 
 The entry point must occur exactly once in `scripts`. A resource cannot appear
-twice under aliases in one script set. Every helper-load or script-call
-reference must resolve to that set; every non-entry script must have a declared
-role. Helper initialisation order is separate from hashing order: an
+twice under aliases in one script set. Every host-snapshot helper-load or
+script-call reference must resolve to that set; every non-entry script must
+have a declared role. This catalogue guarantee is distinct from
+[best-effort discovery of runtime transitive code](#best-effort-transitive-dependency-tracking).
+Helper initialisation order is separate from hashing order: an
 alphabetical hash must not determine execution order. Any execution-order or
 call-contract change changes the approved definition.
 
@@ -145,7 +147,7 @@ Resolve resources from the explicitly identified application assembly, never by 
 The assembly is part of the protected application binary deployment; this does not require choosing single-file publishing or a self-contained runtime.
 
 At build time, reject unsupported schemas, duplicate identities, absent
-resources, wrong resource kinds, unlisted script references, and invalid
+resources, wrong resource kinds, unlisted host-snapshot references, and invalid
 entry points or dependency registrations. Inspect the published assembly, not
 only project item declarations, to prove every manifest, Markdown file,
 fixture, entry point, and shared helper is embedded and the catalogue agrees
@@ -175,22 +177,65 @@ execution must be definition-only; any side-effecting helper call occurs
 after the common execution gate. Additional script calls resolve only through
 the worker's host-controlled snapshot map and declared call contract.
 
-Ordinary disk-based dot-sourcing, `&` invocation of a `.ps1` path, and imports
+For manifest-listed internal scripts, ordinary disk-based dot-sourcing,
+`&` invocation of a `.ps1` path, and imports
 from a profile, working directory, or `$PSScriptRoot` are not a fallback for
 built-ins. Shared scripts must use the admitted in-memory contract.
-Before admitting the runner, prove helper scope, parameter binding, call
-resolution, cancellation, and denial of undeclared file/process execution
-under the actual worker containment. PowerShell runspaces and command
-filtering alone are not a security sandbox. Failure of that proof leaves
-the affected action unavailable; it does not justify extraction or ambient
-PowerShell execution.
+Intentional transitive use of other code follows the separately reviewed
+best-effort tracking rule and admitted resource/capability scope.
+Before admitting the runner, prove helper scope, parameter binding,
+host-snapshot call resolution, cancellation and the actual required resource
+containment. PowerShell runspaces and command filtering alone are not a
+security sandbox. Failure of that containment proof leaves the affected
+action unavailable; it does not justify extraction or ambient PowerShell
+execution. Do not confuse best-effort transitive tracking with an enforced
+exact executable/module allowlist.
 
-R02 demonstrated only fixed embedded interpreter input and partial
-filesystem/credential/lifetime isolation. It did not prove the multi-script
-contract above, an executable dependency allowlist, network denial or installed
-host protection. Follow [the containment continuation gates](Security_Data_Flows.md#windows-containment-continuation-gates)
-before R11 admission; a native broker alternative requires an explicit decision,
-not an implicit replacement of these embedded-script requirements.
+R02's original proof demonstrated fixed embedded interpreter input and partial
+filesystem/credential/lifetime isolation. The separate
+[W2 fixture](../experiments/r02-w2-dependency-proof/README.md) demonstrates a
+definition-only helper plus typed entry-point effect from separate in-memory
+blocks, and rejects ACL/no-child policies as exact dependency mechanisms.
+It does not establish complete helper/runtime admission, network denial,
+installed protection or actual Windows control effects. Follow
+[the continuation gates](Security_Data_Flows.md#windows-containment-continuation-gates)
+before R11 admission; no native broker is selected.
+
+### Best-Effort Transitive Dependency Tracking
+
+Owner decision, 2026-10-06: this rule applies to **both bundled and future
+user-provided scripts**. The user granting execution accepts responsibility
+for the overall actions of the approved script, including code it calls,
+within the separately admitted capability/resource scope. Kora attempts to
+identify and track other scripts, modules and binaries, but does not promise
+complete discovery or detection of every transitive change.
+
+- The complete manifest-listed internal script set remains mandatory,
+  byte-exact, immutable and grant-bound. All manifest-listed files are
+  available through named read-only review tabs; each script, including every
+  shared helper, has its own tab. Approval binds the same bytes that run.
+- Discover supported static references without executing code or scanning
+  outside selected source scopes. Show identified dependencies, their tracked
+  identities/digests and unresolved/dynamic references. The review explicitly
+  explains that further code and changes may go undetected; do not label a
+  partial inventory complete.
+- Observed changes to declared or tracked approval-relevant content revoke
+  affected grants under the existing rules. A known required missing,
+  unreadable, changed or unverifiable resource still blocks dispatch.
+  Undiscoverable transitive references alone are not a blanket refusal or an
+  implicit grant for a new top-level task.
+- The protected host-selected runtime, native adapter identity, fixed task,
+  parameters, grant scope and declared embedded resources are not best effort.
+  Source discovery cannot install code, broaden approved read/egress access,
+  change policy, mint approvals or turn model text into executable input.
+- Universal denial of all undeclared code is **not** the default script-grant
+  requirement. An explicitly narrower exact-dependency profile still needs
+  actual enforcement evidence; an inventory, hash or user's acknowledgement
+  cannot certify it.
+- This changes dependency/revocation guarantees, not protected-resource,
+  privacy, ownership, network-profile, power-approval or truthful-receipt
+  boundaries. No ambient-rights fallback, production exposure or general
+  user-script capability is enabled by this design decision.
 
 Embedding prevents ordinary skill-file editing, not patching/replacing an entire binary.
 Protected deployment permissions and release-origin/provenance checks are still required; an embedded checksum alone cannot authenticate an assembly whose code/catalogue was also changed.
@@ -204,7 +249,7 @@ Kora must not claim that a locally owned source-available application is impossi
 
 Permission grants for a script-backed skill bind a SHA-256 hash of the
 **combined bytes of every `.ps1` declared by its manifest**, including shared
-and transitive scripts. Retain each file's SHA-256 as well for review,
+helpers and explicitly declared transitive scripts. Retain each file's SHA-256 as well for review,
 resource verification, and explaining which dependency changed. A hash of
 only the entry point, or of just the selected helper branch, is insufficient.
 All script-backed tasks in that skill bind the complete set, even if one
@@ -284,8 +329,9 @@ The host-owned grant key binds at least:
   resource identities and digests.
 - Entry point, parameter/call contract, allowed arguments, execution context,
   and required capabilities.
-- Separately verified interpreter, module, adapter, and executable identities
-  and digests. The `.ps1` hash does not cover these binaries.
+- Separately verified required interpreter/adapter identities and digests,
+  and identified approval-relevant module/executable dependencies tracked
+  best effort. The `.ps1` hash does not cover these binaries or undiscovered code.
 - Relevant grant/policy schema revision and user/identity scope.
 
 Once, session, and always describe duration, not trust in future script
@@ -307,8 +353,9 @@ to this combined-hash contract.
 
 1. Resolve the source-qualified skill and registered task from the immutable
    catalogue. Exact phrases and model suggestions use the same host gate.
-2. Resolve every manifest, Markdown, script, and executable dependency and
-   build the bounded snapshot; compute current hashes and validate contracts.
+2. Resolve every declared manifest, Markdown and script, and required runtime/
+   adapter identity. Build the bounded snapshot, compute hashes and validate
+   contracts; discover transitive dependencies best effort and retain gaps.
 3. Compare the complete grant key. An observed content-hash mismatch
    permanently revokes affected once/session/always authorizations, marking
    persistent records revoked rather than deleting them; returning to old
@@ -318,11 +365,13 @@ to this combined-hash contract.
 4. With no matching grant, show the action, origin, instruction/definition
    identity, entry point, ordered script inventory, full combined hash,
    individual hashes, dependencies, invocation, and scope choices. Review
-   opens each exact script read-only with syntax highlighting; shared helpers
-   are marked as shared. No script review or skill enablement itself approves
+   opens all manifest-listed files in read-only tabs, each exact script with
+   syntax highlighting; shared helpers are marked as shared. Disclose
+   best-effort transitive tracking and user responsibility. No script review or skill enablement itself approves
    execution.
-5. Bind approval to that complete snapshot and invocation. A new definition
-   or dependency while review is open invalidates the proposal. Rejection,
+5. Bind approval to that complete declared snapshot, tracked identities and
+   invocation, not a claim of complete runtime discovery. An observed new
+   approval-relevant definition/dependency while review is open invalidates the proposal. Rejection,
    dismissal, expiry, or cancellation starts no script.
 6. Immediately before dispatch, revalidate the grant and executable targets;
    execute only the reviewed immutable script set in the admitted worker.

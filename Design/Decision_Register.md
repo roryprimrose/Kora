@@ -28,7 +28,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; Node and scoped .NET RT1 conversation topology measured, production isolation/budget proof open | Approved provider concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races; loopback conversations are not execution-slot proof |
 | D-011 | Shared interaction, session routing/history and evidence tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; protocol/integration proof open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact interaction/list-plus-conversation workspace/separate detail surfaces, minimal Active-session routing context, per-session Logs/Audit/All Evidence across traces, trace-tree/link navigation, bounded cited search/reasoning and gap status, provenance/egress, foreground voice versus addressed UI races |
 | D-012 | Windows-session trust model and accepted voice boundary | Product and security leads | Design acceptance; enforcement before associated capability release | Accepted direction; implementation evidence outstanding | Enabled verbal input trusts the active unlocked profile, not speaker identity; no compulsory biometrics/PTT/UI for ordinary voice; scoped grants, call origin/reuse gates, intent/content separation, containment and truthful recovery tests |
-| D-013 | Windows worker and protected-deployment containment | Security and Windows engineering leads | R11 execution admission; R17 protected-deployment acceptance | Open, release-blocking; partial AppContainer proof, Job-only restriction rejected | Attributable OS network denial, executable dependency admission, effective app/worker identities and protected-root ACLs, aliases/TOCTOU, fixed-control feasibility, truthful receipts and descendant/crash shutdown |
+| D-013 | Windows worker and protected-deployment containment | Security and Windows engineering leads | R11 execution admission; R17 protected-deployment acceptance | Best-effort transitive tracking/review direction accepted 2026-10-06; technical admission open, release-blocking; strict ACL/no-child profiles rejected | Exact manifest-listed script review/grants, honest transitive gaps/user responsibility, attributable OS network denial, effective app/worker identities and protected-root/runtime ACLs, aliases/TOCTOU, fixed-control feasibility, truthful receipts and descendant/crash shutdown |
 
 The [Internal Model Tool Catalogue](Internal_Model_Tools.md) is the exposure inventory for D-001/D-008/D-011.
 Registry/schema/lane coverage, unavailable-tool exclusion, and host-only boundaries are release evidence, not implied by an SDK's native tool support.
@@ -359,7 +359,7 @@ record what this changes technically:
   as a partial filesystem/credential/lifetime candidate, not a production
   profile or executable allowlist.
 - Next establish attributable network denial on a supported OS and resolve
-  executable-dependency/fixed-control feasibility before R11 dispatch admission.
+  reviewed-script/fixed-control feasibility before R11 dispatch admission.
   A typed native broker is an alternative requiring an explicit decision and
   contract reconciliation, not an implicitly selected workaround.
 - Independently validate normal-host and worker deployment rights under
@@ -372,6 +372,28 @@ Keep this decision open until the accountable owners sign off on the applicable
 real-boundary evidence. Reconsider the mechanism if attributable network denial,
 protected identities/dependencies or required fixed controls cannot be enforced
 without broadening ambient authority. Other R02 branches may close independently.
+
+**2026-10-06 accepted dependency/review amendment:** after the
+[W2 real-boundary trials](../experiments/r02-w2-dependency-proof/README.md),
+the owner selected best-effort tracking of other scripts/modules/binaries
+for both bundled and future user scripts. The user granting permission is
+responsible for the script's overall actions within its admitted scope.
+The user can view/approve internal scripts: every manifest-listed file is
+available via named read-only tabs. The complete declared script-set hash,
+definition identity and observed-content-change revocation rules remain exact.
+Discovery gaps and possibly undetected transitive changes must be disclosed.
+See [the authoritative rule](Built_In_Skills.md#best-effort-transitive-dependency-tracking).
+
+ACL projection and no-child mitigation are rejected as **exact** dependency
+mechanisms: native denials coexist with undeclared byte/module/script execution,
+and no-child denies declared helpers too. The amendment removes universal
+dynamic-dependency denial as a default script-grant condition; it does not
+convert these trials into strict enforcement success. Separate in-memory
+helper/entry execution and an owned fixed effect were observed; native fixture
+loading is blocked by absent compiler, and real Windows controls were not run.
+No typed broker/adapter substitution was selected. W1/W3/W4, protected runtime
+resolution, R11/R16 and installed R17 evidence remain outstanding; no ambient
+execution, general user-script exposure or production profile is authorized.
 
 ## Decision Completion
 

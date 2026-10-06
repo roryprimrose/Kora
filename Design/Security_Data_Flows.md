@@ -532,9 +532,10 @@ candidate, subject to actual installation/identity/ACL evidence:
   or demonstrate an equivalent race-resistant mechanism, not hash-then-reopen.
   Verify that the complete protected version validated is the version launched.
 - Ensure working directories, PATH, runtime overrides/startup hooks and future
-  interpreter profile/module paths cannot redirect executable loading into
-  writable data. LocalAppData/skill/temporary stores remain data locations, not
-  protected executable roots.
+  interpreter profile/module paths cannot redirect host-owned runtime/adapter
+  loading into writable data. LocalAppData/skill/temporary stores are not
+  protected executable roots. Script-selected transitive code follows the
+  separate best-effort tracking decision; it is not protected runtime identity.
 
 Record each property as assumed, inspected, tested or blocked. Later approved
 Windows trials need allowed-data positive controls, actual denied mutation/
@@ -640,6 +641,49 @@ change its ACLs. Therefore these trials do not establish normal-application
 write denial for installed Kora code. Classic AppContainer access to OS/package
 resources is also not a demonstrated arbitrary filesystem allowlist.
 
+### R02-W2 Dependency and Fixed-Script Outcome
+
+The [separate W2 fixture](../experiments/r02-w2-dependency-proof/README.md)
+starts at merged #33/#34/#35, uses only owned synthetic resources and retains
+the original evidence above. Windows x64 AppContainer trials observed:
+
+- Actual error-5 denial for inaccessible synthetic executable/assembly/script
+  reads, and a separately stamped file-execute deny ACE. Uncontained controls
+  demonstrate that the same payloads work.
+- Readable undeclared managed code loads from bytes even without file execute
+  permission. PowerShell runs a writable `.ps1`, imports/autoloads a writable
+  module and loads a writable managed assembly. A denied script invocation
+  reports command-not-found/Unknown; its separate native source read returns
+  access-denied. Do not relabel the interpreter error.
+- Declared and undeclared RX children/grandchildren run with the container SID.
+  A queried child-process mitigation returns error 367 for both declared and
+  undeclared children; it does not select exact approved executables or prevent
+  in-process module execution. These strict dependency candidates are rejected.
+- Separate embedded helper/entry blocks produce a host-selected typed value
+  and owned marker without extracting the built-in scripts. Receipt-loss,
+  malformed-receipt and cancellation-after-effect trials retain Unknown and
+  never replay. This is not an actual lock/shutdown/restart trial.
+- Native synthetic source/loader prerequisites are implemented, but the native
+  load trial is **Blocked** without an existing reviewed C toolchain. Handle
+  probing can produce strict-handle SEH/Unknown; no-inheritance launch flags
+  are inspected, not complete inherited-object identity proof.
+
+On 2026-10-06 the owner explicitly changed the default dependency guarantee:
+**both bundled and future user scripts use best-effort transitive dependency
+discovery/tracking**, and the granting user accepts responsibility for the
+script's overall actions within the admitted scope. All manifest-listed
+internal files must be available in read-only review tabs; the declared
+script set remains exact and grant-bound. The authoritative
+[tracking/revocation rule](Built_In_Skills.md#best-effort-transitive-dependency-tracking)
+supersedes the earlier blanket requirement to deny every undeclared dynamic
+dependency. Do not claim that the rejected strict candidates now pass.
+
+This decision does not weaken OS denial of protected Kora resources, privacy,
+ownership, an applicable network-denied profile, fixed action/parameter
+approval, protected host-runtime resolution or Unknown receipts. No broker,
+production worker or general user-script capability is selected/enabled.
+W1/W3/W4 and real fixed-control acceptance remain open independently.
+
 ### Windows Containment Continuation Gates
 
 Proceed with bounded investigations in this order; deployment inspection can
@@ -656,10 +700,14 @@ run in parallel. These are R02 follow-up gates, not implemented capabilities.
    unexplained timeouts or gaps leave the affected profile disabled. Obtain
    approval before privileged diagnostics or policy changes; do not change
    global firewall/security policy as an experimental shortcut.
-2. **Resolve executable dependency admission and fixed computer controls.**
-   Demonstrate denial of undeclared executable/module/script loading under the
-   intended worker, not merely a list in a manifest or PowerShell command
-   filtering. Read-only desktop-handle denial is not a lock/power-action trial.
+2. **Resolve the reviewed script profile and fixed computer controls.**
+   Apply best-effort transitive tracking, exact declared-resource review and
+   truthful gap disclosure under the owner decision above. Do not require or
+   claim universal undeclared-dependency denial for the default script grant;
+   an explicitly stricter profile still needs real enforcement, not a manifest
+   or PowerShell command filter. The W2 synthetic helper/entry effect does not
+   prove Windows lock/power APIs or complete interpreter contracts.
+   Read-only desktop-handle denial is not a lock/power-action trial.
    Evaluate whether the contained worker can implement the exact registered
    actions under their required gates. If it cannot, bring an explicit design
    decision: a narrowly typed trusted native-adapter/broker boundary with its
@@ -687,9 +735,11 @@ Workers and descendants must be created with no inherited privileged handles
 or reusable credentials, explicit resource grants and an allowlisted
 environment. For the candidate job-based mechanism, assign a suspended worker
 to a non-breakaway kill-on-close job before resuming it; failed assignment or
-unverifiable identity must prevent execution. Admitted interpreter/native
+unverifiable identity must prevent execution. Required host-selected interpreter/native adapter
 dependencies must themselves be protected and must not resolve from writable
-skill, profile, working-directory or temporary paths.
+skill, profile, working-directory or temporary paths. This is distinct from
+the script's best-effort tracked transitive code and the user's responsibility
+for its actions within the admitted boundary.
 
 Reconsider the candidate if required denials cannot be attributed on the
 supported OS, an alias or descendant bypasses the boundary, or fixed actions

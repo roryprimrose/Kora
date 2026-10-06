@@ -94,6 +94,17 @@ remaining hardware/device/permission acceptance trials.
 
 ## Visual safety fallback
 
+The tray's **Review local version (native question)** uses trusted native
+input over the durable host question service, separately from legacy
+model-action approvals. Answers retain the exact original question/session
+and request origin; window focus cannot choose their target. Review, saved
+drafts, submitted answers, exact approval and grant use are distinct.
+This entry opens no microphone and calls no model or effect handler.
+Unknown privacy/ownership, stale revisions, expiry and audit failures deny
+the affected interaction. Native record review cannot supply missing script
+bytes, containment or deployment authority, and no action-name grants are
+migrated into exact grants. General effect dispatch remains gated.
+
 Failures, safety information, and unavailable speech are always visible. A
 VoiceOnly preference cannot hide:
 

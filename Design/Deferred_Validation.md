@@ -19,6 +19,14 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 
 ## Proof Checklists
 
+The [R05/R14 bounded native question delivery](Implementation_Roadmap.md#r05r14-bounded-native-shared-question---2026-10-07)
+adds automated trusted-UI state, exact review and production-store query tests,
+not native desktop acceptance. Still obtain separate scoped approval for
+keyboard/focus-restoration, screen-reader announcements, contrast/text scale,
+DPI/multimonitor, mixed speech targeting and live privacy/ownership transitions.
+It admits no effect proposal/dispatcher or missing source/containment/
+deployment capability and closes none of D-001/D-005/D-008/D-009/D-013.
+
 | Proof | Existing evidence / runnable checks | Deferred validation and preparation | Gates still open |
 |---|---|---|---|
 | R02 speech/hardware | [Merged synthetic proof and safe file-only reruns](../experiments/r02-speech-proof/README.md#safe-to-rerun-remotely-including-while-locked) | [Before a live test session](../experiments/r02-speech-proof/README.md#before-a-live-test-session), then [live/instrumented acceptance](../experiments/r02-speech-proof/README.md#live--instrumented-acceptance-work-still-outstanding). Obtain participant/bystander consent and an instrumented host with R03/R09 ownership/privacy controls; the current scripts cannot run live trials. | D-002/D-007; packaged acoustics, playback rejection, latency, reference floor and capture/recovery acceptance |

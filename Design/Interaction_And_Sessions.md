@@ -34,8 +34,10 @@ it does not use legacy action-name preferences.
 The bounded [production SQLite adapter](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)
 now persists typed questions/options/drafts/answers, exact proposals/grants and
 minimal session authority. The existing services are registered with that
-adapter, but no native question/approval route or effect dispatcher is activated.
-There is no native shared question presenter, typed form service,
+adapter. A bounded native question/review route now composes the existing
+durable local-version query; no effect dispatcher is activated. See the
+[native question boundary](Interaction_Fallback.md#delivered-bounded-native-question---2026-10-07).
+There is no general typed form service,
 session selection/history UI, concurrent task
 scheduler, or model-facing session tool API.
 Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
@@ -47,8 +49,9 @@ IDs and a positive revision. Every accepted draft edit advances that revision;
 submission of an earlier draft conflicts instead of overwriting newer input.
 The service accepts explicitly addressed UI or activated-voice replies against
 the same key. It does not implement generic spoken-reply focus or a speech/UI
-parser/presenter; trusted channel acquisition, focus targeting and native
-readback remain integration gates.
+parser or generic voice focus. Trusted local native input and exact-record
+review are composed for the bounded version query; general channel acquisition,
+voice targeting and native/speech acceptance remain integration gates.
 
 Clarification submission never creates a grant, including when text, purpose,
 source labels or option labels claim approval. Only the authorization service
@@ -73,9 +76,12 @@ cannot regain eligibility after resume. Perpetual records are independent
 and have no expiry/retention/eviction field.
 
 The [durable slice handoff](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
-defines schema/lease/audit ownership. Native trusted review/input and immediate
-pre-effect dispatch revalidation are still required. This slice does not alter bootstrap dispatch,
-microphone capture, direct lock, power operations, execution or UI composition.
+defines schema/lease/audit ownership. The native presenter adds trusted
+local-UI review/input over those services without schema or recovery changes.
+Immediate pre-effect dispatch revalidation, complete source/resource review
+and general authority composition are still required. This slice does not
+alter ordinary bootstrap dispatch, microphone capture, direct lock, power
+operations or execution.
 
 ### Durable Authority and Typed Presenter Handoff
 

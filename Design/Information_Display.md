@@ -6,6 +6,33 @@ routing, durable history/artifact resolution and isolated HTML remain gated.
 The guide, bootstrap grant document and passive viewer share the bounded
 native Markdig/Avalonia pipeline. This is a partial R14 delivery, not the
 general artifact or permission-management experience described below.
+The bounded native shared-question slice additionally reuses this passive
+plain-text renderer for complete immutable host-record review, separate from
+native answer/approval controls.
+
+## Delivered Exact Host-Record Review - 2026-10-07
+
+The [bounded question window](UI_Workspace_And_Windows.md#delivered-bounded-question-window)
+has an explicit **Review exact record** route through the audited
+[review service](../src/Kora.Application/Interaction/HostQuestionReviewService.cs).
+It resolves the original exact question key against live committed
+intent/session/generation/policy/proposal, then displays that immutable
+question/proposal snapshot as passive plain text. All actual host binding
+digests and identities are shown, not a generated operation summary. No
+operation/script bytes are invented: the current contracts do not supply
+them, and the window states that limitation.
+
+The record retains its original request origin; UI confirmation cannot
+launder protected voice-origin requests. Approval requires the complete
+current record to have been displayed and uses the authorization service.
+Neither review nor a native checkbox supplies missing source, containment,
+deployment or mandatory gate authority. Draft/revision changes invalidate
+the reviewed target, and conflicts disable rather than retarget the card.
+This is exact **record** review, not complete skill/script/diff review or a
+general grant-management/effect-dispatch experience. The only new production
+entry is the harmless durable local-version question, with no proposal/grant.
+No retained artifact identity or finalized-response authority is fabricated
+for a pending operation.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Ambient UI](Ambient_UI.md), [User Configuration](User_Configuration.md), [Security](Security_Data_Flows.md), [Extensibility](Extensibility.md).
 
@@ -112,7 +139,8 @@ over 256 characters is rejected visibly rather than silently shortened.
 
 Remaining R14 gates include Sessions list/full conversation, durable
 history/artifact resolution, exact response offers and voice targeting,
-shared questions/approvals, skill/script/diff review and export. HTML/browser,
+general shared question/approval routing beyond the bounded local-version
+entry, skill/script/diff review and export. HTML/browser,
 diagrams, images/assets and syntax grammar acquisition remain independent
 gates; this delivery adds none. Automated tests are not native visual,
 screen-reader, contrast, text-scale, DPI, multimonitor, focus-restoration or

@@ -2,14 +2,62 @@
 
 Status: required host capability from Slice A. Voice-first must not mean voice-only.
 
-R05 now supplies an uncomposed, portable
+R05 supplies a portable
 [typed question service](../src/Kora.Application/Interaction/HostQuestionService.cs)
 with matching host IDs/revisions, bounded single/multiple-choice/text answers,
 mixed-channel draft edits, explicit submit/cancel and expiry rejection.
-This is not a delivered native prompt card, onboarding/recovery UI or
-microphone workflow. Generic voice focus, trusted input/presentation,
-accessibility, secure forms and the durable R04 adapter remain pending;
-the foundation opens no microphone and executes no application/action.
+A bounded native presenter is now composed through the existing durable
+local-version query: tray **Review local version (native question)**. It uses
+the production question service/store, explicit draft/submit/cancel and exact
+original question/session targeting. The shared native component supports
+single/multiple-choice and bounded text, and routes admitted exact approvals
+through the authorization service, not ordinary submit. No production effect
+proposal, onboarding/device change or microphone workflow is enabled.
+Generic voice focus, secure forms, full workspace integration and real native
+accessibility acceptance remain pending.
+
+## Delivered Bounded Native Question - 2026-10-07
+
+The host creates one Active durable session for the existing harmless query,
+publishes a fresh ordinary-question policy snapshot with no exact proposal and
+mandatory-effect gates closed, and presents a five-minute question under the
+committed nonterminal task. A single owned, non-topmost native window displays
+session/task/question identity, original request origin, generation, revision,
+expiry, source/purpose and answer bounds. No option is preselected; existing
+committed drafts may be restored. Local edits are not durable until **Save
+draft**; saving advances the key and invalidates the old review. **Submit** and
+**Cancel question** are explicit. Closing/Escape only closes presentation and
+does not fabricate a submitted answer, approval or grant use.
+
+Native activation rechecks the exact target through the audited review service
+without counting activation as user review. Expiry and live privacy/ownership
+loss disable input and clear presentation. Every decision revalidates the
+serialized host snapshot and live desktop gate. Stale/revised/closed/foreign
+targets fail closed instead of refreshing to another question. Deferred native
+operations use linked new trace roots for the original host request, never
+incoming correlation or foreground selection as identity.
+
+**Review exact record** displays the complete immutable host question/proposal
+record through the bounded passive plain-text renderer. All binding digests,
+policy/proposal revisions, invocation, scope options and origin remain exact.
+These are the existing host-resolved fields, not fabricated source bytes or
+digests. The contract does not contain operation/script source bytes: their
+absence is explicit, and source acquisition, containment and deployment gates
+are not satisfied by the native reader. Approval additionally requires the
+current complete review to have been displayed; the authorization service
+still revalidates exact applicability and protected-call origin restrictions.
+Review, answer/approval and grant consumption are distinct; the presenter has
+no consume/effect route and legacy action-name grants are not migrated.
+
+Atomic audit/storage failure disables retry on that target and reports failure,
+not success. Explicit cancellation inside the existing query leaves an
+incomplete dispatch record; startup recovery records Unknown without replay.
+No cancelled query is labelled Succeeded. Close/conflict/privacy failures also
+claim no successful answer/query receipt. Starting another review is a new
+host request, not an automatic retry. The ordinary typed/voice version command
+is unchanged. Tests use production services and private disposable SQLite,
+with no app launch, speech, devices, models, network or side effects. Native
+visual/keyboard/screen-reader/DPI and speech acceptance require separate approval.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Environment Setup](Environment_Setup.md), [Task Lifecycle](Task_Lifecycle.md), [User Configuration](User_Configuration.md), [Information Display](Information_Display.md).
 

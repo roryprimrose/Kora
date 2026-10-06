@@ -1,7 +1,8 @@
 # Session Workspace and Coordinated Window Design
 
 Status: agreed window structure; bounded native-text-v1 document details
-implemented, while coordinated Sessions/history/question layouts remain proposed.
+implemented, with a bounded durable native question/review window; coordinated
+Sessions/history layouts remain proposed.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
 
@@ -46,6 +47,31 @@ Native visual/accessibility/DPI/multimonitor observations remain pending
 separate approval.
 
 ## Window and Surface Map
+
+### Delivered Bounded Question Window
+
+Tray **Review local version (native question)** opens one owned, non-topmost
+window for the original durable local-version request. Opening another while
+it is pending activates that same target, not the foreground session. The
+window has explicit identity/generation/revision/expiry and purpose/source
+chrome, labelled radio/check/text inputs, visible bounds, status/recovery, and
+separate Review exact record, Save draft, Submit, Cancel question and Close.
+Native tab order, labelled controls, polite status announcements and Escape
+closure are contract-tested; actual assistive-technology acceptance is open.
+Single/multiple/text use the shared component, but only the harmless
+single-choice version query is a shipped entry point in this slice.
+
+Exact-record review reuses the bounded native plain-text renderer, with no
+browser, resources, active content or automatic clipboard paths. Approval
+chrome stays outside that reader. A rendered review must match the complete
+host snapshot before approval becomes enabled. Reading and activation do not
+approve, consume a grant, execute, mark Done or supply session authority.
+Committed draft revisions invalidate previous review; revisiting or answering
+a stale target disables it rather than silently following a newer revision.
+Privacy/ownership loss clears private controls; timer/events are detached on
+close. Presenter closure and durable question cancellation remain distinct.
+The [interaction boundary](Interaction_Fallback.md#delivered-bounded-native-question---2026-10-07)
+owns the exact service checks, audit outcomes and no-replay recovery limits.
 
 These are UI roles, not a requirement to open every window or one window for every running session.
 Shared native question/approval components can be hosted in compact or workspace views without creating separate copies of the underlying interaction.

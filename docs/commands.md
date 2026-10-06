@@ -99,6 +99,25 @@ Opening setup shows readiness; it does not install a model without approval.
 - **tell me your version**
 - **which version of Kora is this**
 
+The tray also offers **Review local version (native question)**, an explicit
+mouse/keyboard-only route using the same durable local version-query context.
+It does not need voice consent, a microphone, a model or network access.
+The native window names the original session/task/question, revision and
+expiry. Choose **Show local version**, then **Submit answer** to read the
+running version and private-storage disclosure. No choice is preselected.
+**Save draft** records the current answer without submitting. **Review exact
+record** is passive inspection, not approval or execution. **Cancel question**
+is explicit; Close/Escape only closes presentation. Stale, expired or
+privacy/ownership-unavailable targets cannot be answered.
+
+Storage/audit failure never reports a successful query. Close and start a new
+review after correcting the blocker; Kora does not automatically retry uncertain
+work. Explicit cancellation may leave an incomplete query dispatch record,
+which startup recovers as Unknown without replay. This bounded route does not
+enable general effect approvals, change legacy grants or replace the ordinary
+version phrases above. Desktop/screen-reader/speech acceptance is not yet
+claimed from the automated tests.
+
 ### Show activity and the setup queue
 - **what are you currently working on**
 - **what are you doing**

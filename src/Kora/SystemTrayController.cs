@@ -36,7 +36,8 @@ public sealed class SystemTrayController : IDisposable
 
     public SystemTrayController(
         MainViewModel viewModel,
-        ILogger<SystemTrayController> logger)
+        ILogger<SystemTrayController> logger,
+        Func<Task>? reviewLocalVersion = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -57,6 +58,16 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (reviewLocalVersion is not null)
+        {
+            var reviewVersion = new NativeMenuItem("Review local version (native question)");
+            var reviewCommand = new AsyncCommand(reviewLocalVersion,
+                exception => viewModel.ReportHostInteractionFailure(
+                    "Native question presentation failed. No success is claimed. Close and start a fresh review. Failure type: "
+                    + exception.GetType().Name));
+            reviewVersion.Click += (_, _) => RunAfterNativeMenuCloses(() => reviewCommand.Execute(null));
+            menu.Add(reviewVersion);
+        }
         listeningItem = new NativeMenuItem();
         listeningItem.Click += async (_, _) =>
             await viewModel.ToggleListeningCommand.ExecuteAsync();

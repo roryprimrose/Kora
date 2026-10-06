@@ -154,6 +154,26 @@ The storage research may merge with these application/deployment gates open:
 | S3 - Integrate recovery and migration | Storage/application leads, R04 | Exact local version-query intent/dispatch/terminal/evidence and Interrupted/Unknown no-replay startup recovery are composed. The new bounded receipt is not an OS effect. Complete backup/artifact publication, broader supported migrations, retention/checkpoints and applicable interruption/power-loss boundaries. No database key/rekey or encrypted legacy conversion is required. |
 | S4 - Integrate deletion and lifecycle | Storage/security/application leads, R12 | Exercise source revocation, late appends, live/unknown-work holds and configured lifecycle; remove or rewrite managed recoverable copies while preserving unrelated sessions and independent grants. Disclose exported/provider/forensic limits. |
 
+The [2026-10-06 durable interaction continuation](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+adds real question/grant/audit transactions and minimal durable Active/Done/
+resume/authority-removal generations. Owned-scratch tests cover reopened typed
+records, duplicate approval/Once consumption, stale exact snapshots, revoke/
+use and task cancellation serialization, cancellation after staged writes,
+actual audit-write failure, corrupt/schema/journal/ACL failures and owned-child
+hot-journal rollback. Perpetual records survive authority removal; restart
+never replays decisions or dispatch. This is partial S2/S3/S4 progress, not
+full R04/R05/R12 acceptance.
+
+Remaining bounded-integration gates: immutable native operation review and
+trusted UI/foreground voice input; actual host snapshot acquisition and
+immediate adapter/worker pre-effect revalidation; source revocation/late append
+and live/uncertain-work holds; full lifecycle/meaningful-activity policy,
+history/search/queues and recoverable-copy inventory/deletion; audit
+anchors/pruning/coherent whole-store rollback and installed/power-loss proof.
+The authority-removal primitive is not forensic erasure or complete session
+content deletion. No direct lock/power route, model tool, installer, audio or
+hosted provider was newly admitted.
+
 No second-account denial result is claimed. Optional actual-account
 corroboration becomes required if introducing shared storage, service or
 impersonated identities, cross-profile import/migration or custom cross-user

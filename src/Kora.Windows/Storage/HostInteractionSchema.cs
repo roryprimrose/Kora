@@ -1,0 +1,67 @@
+namespace Kora.Windows.Storage;
+
+internal static class HostInteractionSchema
+{
+    internal const string Partition = "InteractionStorageV1";
+    internal const string FileName = "interaction.db";
+    internal const int ApplicationId = 1263489587;
+    internal static readonly string[] Tables =
+    [
+        """
+        CREATE TABLE work_sessions(
+            session_id TEXT PRIMARY KEY NOT NULL,
+            generation INTEGER NOT NULL CHECK(generation>0),
+            state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 2),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """,
+        """
+        CREATE TABLE host_observations(
+            request_id TEXT PRIMARY KEY NOT NULL,
+            session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+            run_id TEXT NOT NULL,
+            revision INTEGER NOT NULL CHECK(revision>0),
+            generation INTEGER NOT NULL CHECK(generation>0),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 131072),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """,
+        """
+        CREATE TABLE host_questions(
+            question_id TEXT PRIMARY KEY NOT NULL,
+            request_id TEXT NOT NULL,
+            session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+            revision INTEGER NOT NULL CHECK(revision>0),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 131072),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """,
+        """
+        CREATE TABLE scoped_grants(
+            approval_id TEXT PRIMARY KEY NOT NULL,
+            session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+            revision INTEGER NOT NULL CHECK(revision>0),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 131072),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """,
+        // No session FK, due date or cascading deletion: minimal grant provenance is independently retained.
+        """
+        CREATE TABLE perpetual_grants(
+            approval_id TEXT PRIMARY KEY NOT NULL,
+            revision INTEGER NOT NULL CHECK(revision>0),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 131072),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """,
+        """
+        CREATE TABLE security_audit_events(
+            sequence INTEGER PRIMARY KEY NOT NULL CHECK(sequence>0),
+            correlation_id TEXT UNIQUE NOT NULL,
+            previous_hash TEXT NOT NULL CHECK(length(previous_hash)=64),
+            hash TEXT NOT NULL CHECK(length(hash)=64),
+            envelope TEXT NOT NULL CHECK(length(CAST(envelope AS BLOB)) BETWEEN 1 AND 131072)) STRICT
+        """,
+        """
+        CREATE TABLE authority_head(
+            singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),
+            sequence INTEGER NOT NULL CHECK(sequence>=0),
+            hash TEXT NOT NULL CHECK(length(hash)=64)) STRICT
+        """,
+    ];
+}

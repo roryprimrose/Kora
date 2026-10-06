@@ -179,6 +179,8 @@ internal static class Program
         evidence.Initialize();
         var tasks = new WindowsSqliteHostTaskStore(paths);
         Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
+        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks);
+        Task.Run(() => interactions.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
@@ -194,6 +196,11 @@ internal static class Program
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
         services.AddSingleton<IHostTaskStore>(tasks);
+        services.AddSingleton(interactions);
+        services.AddSingleton<IHostInteractionStore>(interactions);
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
+        services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
         services.AddSingleton<DurableHostRecovery>();

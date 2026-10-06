@@ -1,7 +1,7 @@
 # Human Interaction and Persistent Sessions
 
-Status: agreed product direction; bounded R05 core/application question and
-authorization foundation implemented, full interaction/session integration proposed.
+Status: agreed product direction; bounded R04/R05 durable question/grant and
+minimal session-authority slice implemented; full interaction/session integration proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -25,14 +25,18 @@ response dispatch. See the
 Viewing/search/copy/close never changes session activity, lifecycle, pending
 questions or grants; privacy closure clears the viewer independently.
 
-The uncomposed R05 [question service](../src/Kora.Application/Interaction/HostQuestionService.cs)
+The R05 [question service](../src/Kora.Application/Interaction/HostQuestionService.cs)
 now implements bounded single/multiple-choice and text questions, explicit
 draft/submit/cancel, host owner/revision checks and expiry. Its
 [authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs)
 uses exact host-resolved proposals and a separate atomic storage/audit seam;
 it does not use legacy action-name preferences.
-There is no production durable question/grant adapter, native shared question
-presenter, typed form service, session selection/history, concurrent task
+The bounded [production SQLite adapter](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)
+now persists typed questions/options/drafts/answers, exact proposals/grants and
+minimal session authority. The existing services are registered with that
+adapter, but no native question/approval route or effect dispatcher is activated.
+There is no native shared question presenter, typed form service,
+session selection/history UI, concurrent task
 scheduler, or model-facing session tool API.
 Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
 
@@ -60,17 +64,60 @@ audit plus question/grant commits. A nonterminal task's root intent may omit
 invocation ID; exact proposals/questions carry their own host invocation while
 preserving root request/session/task/origin. A supplied intent invocation must
 match, and terminal/cancelled task records cannot admit new decisions.
-Tests exercise this seam with a test-only
-serialized adapter, not production SQLite persistence. Done/delete/resume
+Portable tests retain the serialized adapter; Windows tests additionally
+exercise the existing services with actual private SQLite transactions,
+reopen, owned-child interruption and races. Done/authority removal/resume
 must advance the session authorization generation; restart of an Active
 persisted session preserves it. Pending questions and Once/Session grants
 cannot regain eligibility after resume. Perpetual records are independent
 and have no expiry/retention/eviction field.
 
-The verified R04 composition handoff, agreed durable adapter/schema ownership,
-native trusted review/input and immediate pre-effect dispatch revalidation
-are still required. This foundation does not alter bootstrap dispatch,
+The [durable slice handoff](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+defines schema/lease/audit ownership. Native trusted review/input and immediate
+pre-effect dispatch revalidation are still required. This slice does not alter bootstrap dispatch,
 microphone capture, direct lock, power operations, execution or UI composition.
+
+### Durable Authority and Typed Presenter Handoff
+
+`InteractionStorageV1/interaction.db` is a separate private, standard-SQLite
+authority partition. Its single transaction commits changed questions/grants,
+session generation or host observations and typed, hash-sequenced audit plus
+the audit head. Audit payloads contain host/W3C identities, intent/session
+revisions, decision references and state digests, not question/answer content.
+The task partition lease is held while committed matching nonterminal intent
+is read and until the interaction COMMIT completes. Cancellation/terminal
+task writes use that same lease. There is no cross-database write or diagnostic
+sink success fallback. The independent evidence/file sinks are not a source
+of grant authority.
+
+The host explicitly creates the durable session, then publishes a fresh
+trusted policy/exact-operation snapshot with an optimistic observation revision.
+Content observations revoke affected grants and close affected pending
+approvals in that same commit, before the changed snapshot is exposed.
+Snapshots from a previous adapter lifetime are not eligible until freshly
+host-resolved and re-admitted. Active session generation survives restart;
+Done/resume each advance it and never revive old scoped authority. Authority
+removal advances generation and leaves a non-reusable session tombstone.
+Perpetual records have no session foreign key, expiry or retention/eviction;
+their approved-proposal deadline is provenance, not a grant lifetime.
+
+`ReadQuestionsAsync(sessionId)` returns passive `HostQuestionRecord` history:
+immutable host key/revision, typed spec/options, bounded draft/answer, channel,
+generation, status and optional exact proposal. It neither refreshes activity
+nor authorizes a reply. A future presenter must pass the returned exact key
+to the existing services under a live matching host request, reacquire trusted
+input and handle Conflict/Expired/Denied. Rendered labels, detail artifacts,
+viewer navigation, provider IDs and trace headers cannot create authority.
+No R14 chrome changes or generic foreground voice parser are required by
+this handoff. Native immutable review/readback remains a later R05 gate.
+
+The removal operation here removes authority rows, not every recoverable
+content copy; PERSIST journals/free pages and future backups still require
+the full R12 inventory/deletion contract. No inactivity clock, history/search
+UI, queue scheduler, automatic purge, arbitrary dispatcher or legacy-grant
+migration is delivered. Audit due dates are recorded, but pruning/anchors
+and protection against coherent whole-store replacement remain D-008/R04
+work; a local hash chain is not same-user/admin tamper prevention.
 
 ## Interaction Principle
 

@@ -47,6 +47,37 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             using var connection = OpenDatabase(created, cancellationToken);
         }, cancellationToken));
 
+    // The interaction writer holds this same lease until its own SQLite COMMIT finishes.
+    // No task cancellation/terminal transition can interleave with admitted authority.
+    internal T WithCommittedIntent<T>(HostRequest request, Func<HostTaskRecord, T> operation,
+        CancellationToken cancellationToken)
+    {
+        var live = HostActivity.RequireCurrent();
+        if (live.Activity!.IsStopped || live.Request != request)
+        {
+            throw new InvalidOperationException("The interaction lost its live owning host request.");
+        }
+        using var lease = database.AcquireLease(out var created, cancellationToken);
+        using var connection = OpenDatabase(created, cancellationToken);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM host_tasks WHERE task_id=$task;";
+        command.Parameters.AddWithValue("$task", request.TaskId.Value.ToString("D"));
+        HostTaskRecord? intent;
+        using (var reader = command.ExecuteReader())
+        {
+            intent = reader.Read() ? Decode(reader) : null;
+        }
+        if (intent is null || intent.IsTerminal || intent.Request.RequestId != request.RequestId
+            || intent.Request.SessionId != request.SessionId || intent.Request.Origin != request.Origin
+            || (intent.Request.InvocationId is { } invocation && invocation != request.InvocationId))
+        {
+            throw new InvalidDataException("Interaction authority requires matching committed nonterminal intent.");
+        }
+        var result = operation(intent);
+        database.VerifyFiles();
+        return result;
+    }
+
     public ValueTask<HostTaskRecord?> ReadTaskAsync(HostId<TaskIdentity> taskId, CancellationToken cancellationToken)
     {
         taskId.Validate();

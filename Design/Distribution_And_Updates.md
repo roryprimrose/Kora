@@ -327,6 +327,32 @@ installer payload contracts are unchanged. This is configured CI, not a new
 live Actions receipt; actual source build/stage contracts remain an explicitly
 trusted operator check.
 
+#### Merge and CI follow-up (2026-10-06)
+
+The original snapshot above remains an exact-baseline historical receipt.
+After publication #49 and durable interaction #48 merged, the migration and
+its CI correction were rebased onto `7c96033be991a544ad2ea5e02b80231ce1ba097c`.
+The combined Release build passed with zero warnings/errors; **365 Core,
+1,071 Application and 605 Windows tests (2,041 total)** passed with no skips.
+The source-bootstrap fixture now temporarily isolates and restores the
+caller's `GITHUB_ACTIONS` identity instead of comparing synthetic checkout
+revisions to the workflow SHA. **82 contracts** pass with an intentionally
+mismatched inherited workflow SHA, including unchanged production rejection
+of mismatched revisions; caller restoration was checked on success and
+failure. This fixes the newly enabled Windows CI fixture, not production
+revision validation or installed/source activation admission.
+
+Actual unsigned POC publication is now observed, not inferred from PR checks:
+main Actions run **37536638457** passed all jobs, including full WiX packaging
+and GitHub publication. Release `v0.1.0-beta43` is a published prerelease with
+eight assets; its Git tag resolves to
+`6a51b5634f3610c310f9731eb3fef34691626736`. GitHub reports the
+`release-manifest.json` asset digest as
+`sha256:434619ec0e6416d9edf81ec8d6960ed91e429e5d06652e19e0bf051d949c4103`.
+This closes that unsigned-publication observation only. It does not establish
+installed protection, x86 inference, native qualification or D-005 acceptance;
+the earlier failed drafts remain historical and were not changed manually.
+
 To inspect a newly reviewed payload without loading it:
 
 ```powershell

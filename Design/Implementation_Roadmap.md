@@ -40,6 +40,14 @@ and [archival disposition](../experiments/r02-distribution-proof/README.md).
 Delivery remains uncommitted; no sibling code was merged. Release-publication
 tag/draft correctness remains independently owned, as do R04/R05 and R14.
 
+The paragraph above records the original pre-PR snapshot. The subsequent
+[merge/CI follow-up](Distribution_And_Updates.md#merge-and-ci-follow-up-2026-10-06)
+records rebasing onto merged publication #49, viewer #47 and interaction #48,
+all **2,041** combined tests passing, **82** source-bootstrap contracts and
+the corrected workflow-identity fixture. Main run **37536638457** also
+establishes actual unsigned POC publication of `v0.1.0-beta43`; installed
+protection, source activation and native/architecture acceptance remain open.
+
 Current-assessment reconciliation on 2026-10-06 after #34/#40: held PTT and
 cross-build ownership are implemented, with bounded production-host voice,
 x64 handoff and Ollama simple/long-answer/cancellation observations recorded

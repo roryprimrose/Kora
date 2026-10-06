@@ -23,6 +23,14 @@ is retired as a command prefix and is not retained as a hidden recovery alias.
 Tray and mouse controls remain available if the user cannot use the configured
 name.
 
+The active name is required to begin an unsolicited spoken turn, not to answer
+every host-owned question. While the host question service has opened a
+bounded conversational reply turn, a schema-valid answer such as "Yes", "No",
+or an option name is accepted without a prefix and is bound to that exact
+question/revision. Expiry returns to normal activation-name behavior. This
+does not retain an old assistant name as an alias or create an unbounded
+conversation microphone.
+
 The product and host identity do not change. The executable remains `Kora.exe`;
 assemblies, namespaces, icon resources, publisher/trust identity, internal IDs,
 `%LOCALAPPDATA%\Kora`, `%APPDATA%\Kora`, and `kora-YYYYMMDD.log` remain fixed.

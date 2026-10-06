@@ -458,7 +458,17 @@ An isolated UI chat or an SDK-created session is not evidence of independent saf
 ## D-011 Shared Interaction and Model Tools
 
 The accepted [window structure](UI_Workspace_And_Windows.md) is compact latest interaction, a Sessions workspace with list beside full conversation/history, and separate immutable detail/script viewing.
-Settings/setup/permissions/guide and optional caption/web surfaces remain coordinated supporting roles, not alternative hidden interaction systems.
+The detail design reuses passive Markdown/static-HTML/source presenters and
+host-owned provenance chrome. Session, skill, settings and permission
+management remain purpose-built native workspaces; rendered content cannot own
+mutation, approval, dirty state or workflow authority. Settings/setup/guide
+and optional caption/web surfaces remain coordinated supporting roles, not
+alternative hidden interaction systems.
+The accepted voice interaction uses the activation name for unsolicited turns
+and permits prefix-free schema-valid answers only inside one timed
+host-opened conversational turn bound to the unique foreground
+question/revision. Timeout or target/gate change returns to wake activation;
+the exception never weakens confirmation or approval policy.
 Define versioned question/draft/reply and presentation contracts with stable session/task/proposal identity.
 Demonstrate pure voice, pure UI, and mixed workflows; historical/rendered content cannot answer itself or grant authority.
 Verify relatedness routing only to clear Active matches, explicit targeting precedence, archived read versus resume, and bounded evidence-cited history queries under local-only/remote-egress policy.

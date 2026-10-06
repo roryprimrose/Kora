@@ -17,6 +17,10 @@ Voice activation during detected calls is an independent device-local setting
 and remains enabled by default. If the user disables it, an Active or Suspected
 observation closes active capture and blocks new activation until the call
 clears; it never grants listening consent or silently reopens capture.
+The same gate blocks Awaiting Conversational Reply and prefix-free answer
+capture. A visual question shown during that state cannot bypass disabled
+call-time activation merely because Kora asked it before the observation
+changed.
 Locked-session microphone and speech restrictions remain mandatory and cannot be overridden.
 
 The separate in-call feedback override defaults to UI-only, with Voice/UI/Both/Inherit choices through the shared settings registry.

@@ -32,6 +32,70 @@ The physical limits of a closed/unavailable microphone and mandatory OS/provider
 The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) is also explicit: during protected calls, voice-initiated voice-setting and in-call-option changes are rejected and require a new UI request; operation approvals, read-only inspection, and deterministic safety controls follow their independent policy.
 Kora neither bypasses these requirements nor dictates credentials into a model.
 
+## Conversational Voice Turns
+
+The activation name starts an unsolicited user turn; it is not required for
+every statement in an already established exchange. When Kora asks a
+host-owned question and that question becomes the unique foreground voice
+target, Kora may open one bounded **conversational reply turn**. During that
+turn, an answer matching the question schema is accepted without the assistant
+name or push-to-talk. For example:
+
+> Kora: "This is a large response. Would you like me to show you the details?"
+>
+> User: "Yes."
+
+`Yes`, `No`, `Not now`, an option name/number, a bounded field value, or a
+permitted custom answer is interpreted only against the exact foreground
+question/revision. It is not treated as a new general request. The activation
+name remains optional inside the reply turn, so "Kora, yes" also works. Speech
+that does not satisfy the question schema cannot silently become a command,
+tool request, approval, session switch, or answer to another prompt; Kora
+reports the mismatch or asks a new clarification turn.
+
+The default prefix-free speech-start window is 15 seconds after Kora finishes
+speaking the question. Show an accessible visible listening state/countdown and
+use a short non-speech cue when output policy permits. Once speech begins, use
+the normal trailing-silence and maximum-utterance bounds. On accepted answer,
+explicit cancel, mute, timeout, target change, lock, call-policy loss, device
+loss, or question expiry, close the turn, invalidate its audio/transcript
+generation, clear buffered audio, and return to Wake Listening when eligible.
+Timeout ends only prefix-free eligibility; the unanswered native question
+remains available, and the user can later say "Kora, yes to showing the
+details" or answer through UI.
+
+Open a conversational reply turn only when all microphone consent, ownership,
+unlocked-session, device, local-recognizer, playback-rejection, privacy, and
+call gates pass, conversational replies are enabled, Kora actually presented
+the exact question, and no higher-priority voice target exists. A visually
+displayed but unspoken background question does not silently open transcription.
+An explicit native **Answer by voice** action may present/revalidate that exact
+question and then open the same bounded turn. During TTS, accept prefix-free
+barge-in only after verified self-playback rejection can distinguish the user;
+otherwise begin after playback completes.
+
+Only one conversational reply turn exists application-wide. New foreground
+questions, session changes, duplicate card hosts, and delayed callbacks cannot
+retarget an open microphone generation. Background questions remain UI
+answerable but cannot listen. If two possible targets exist, close prefix-free
+capture and require an explicitly addressed activation or UI selection.
+Generated prose, HTML, Markdown, tools, and skills cannot open a reply turn;
+only the host question service can.
+
+Question policy still controls what words are sufficient. Ordinary yes/no
+questions such as opening details accept `Yes` or `No`. A high-risk approval
+that requires the action and target to be spoken does not become approvable by
+generic `Yes` merely because Kora opened a conversational turn. Prefix-free
+speech changes input routing, not authorization, confirmation specificity,
+speaker confidence, or grant policy.
+
+Conversational turns do not create an unbounded open microphone. After one
+answer the capture closes while Kora processes it; if Kora asks another
+question, that newly identified prompt may open a fresh bounded turn. Silence
+never keeps extending the deadline. The first-run voice explanation and live
+presence distinguish ambient Wake Listening from prefix-free Awaiting Reply
+and active Capturing Reply.
+
 ## Three Connected UI Surfaces
 
 1. **Compact session interaction:** evolve the response window into the latest interaction for the selected session, with its name, actual work state, concise answer/progress, structured question or approval, Details/History, and typed composer.
@@ -42,6 +106,15 @@ Kora neither bypasses these requirements nor dictates credentials into a model.
 
 The compact view is a projection of durable session events, not the only copy of the conversation.
 A concise answer retains a link to its fuller content; expanding it never reruns work.
+The host applies the versioned detail-routing policy after response
+finalization. Detail-recommended compact responses expose an exact native Open
+details action. For a voice-origin request with no subsequent UI interaction,
+or effective voice-first/voice-only operation, the default Offer preference
+asks once whether to open that response. The offer is a response-bound
+non-consequential question, lower priority than approvals/clarifications; a
+unique accepted voice/UI answer opens without a model round trip, while
+silence/Not now retains the link. Generated prose cannot create the offer or
+become a clickable authoritative control.
 Streaming output is provisional until finalized, and summaries cannot claim observed success without receipts.
 All surfaces share theme, accessibility, safe rendering, and provenance rules in [Information Display](Information_Display.md).
 

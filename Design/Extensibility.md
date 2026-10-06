@@ -89,7 +89,15 @@ MVP behaviour:
 4. Kora previews the snapshot and handles egress approval before external processing.
 5. Follow-ups refer to the snapshot; later clipboard changes are not automatically incorporated.
 
-Clipboard write is a separate future permission and action. Read permission does not authorise it.
+General model/tool/skill-driven clipboard write is a separate future permission
+and action. Read permission does not authorise it. This does not prohibit a
+native Copy/Copy all command initiated directly by the user in a Kora text,
+detail, or source viewer: that bounded presentation action writes only the
+explicitly selected or currently displayed immutable content through the host
+clipboard adapter in host-selected formats, always including Unicode plain
+text and, for rich content, sanitized HTML/registered source formats. It cannot
+be initiated or format-controlled by rendered content and grants no clipboard
+capability to a model, tool, skill, or extension.
 The MVP does not follow clipboard URLs, read listed files, render active HTML, or monitor changes.
 
 Later, an OCR extension can process an explicitly captured image, and a skill can explain a stack trace.

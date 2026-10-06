@@ -59,7 +59,8 @@ inference; effect-specific approval still applies.
 
 ## Wake Listening and Command Capture
 
-Voice states are Muted, Wake Listening, Capturing Command, Transcribing, Session Locked, and Unavailable.
+Voice states are Muted, Wake Listening, Awaiting Conversational Reply,
+Capturing Command/Reply, Transcribing, Session Locked, and Unavailable.
 Wake Listening is the primary ready state after explicit setup consent; push-to-talk is optional.
 The [microphone consent and enablement matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix)
 governs first launch, ordinary restart, unlock/resume and failure recovery.
@@ -75,7 +76,14 @@ Endpoint loss invalidates capture/transcript generations and offers recovery wit
 - Provide a visible capture transition and a short non-speech cue that does not clip the command or re-trigger detection.
 - Wait up to 5 seconds for command speech, then abandon an empty activation without calling the runtime or reading context.
 - End a spoken command after 1 second of trailing silence, or at the 60-second capture limit.
-- Each follow-up, correction, or low-risk voice approval starts with a current active name or optional push-to-talk; there is no unbounded open conversation microphone.
+- Unsolicited requests, late follow-ups after reply eligibility expires, and
+  speech with no unique host question start with the current active name or
+  optional push-to-talk.
+- After Kora speaks a unique host-owned foreground question, it may enter
+  Awaiting Conversational Reply for the configured 15-second default. During
+  that bounded turn, schema-valid replies omit the name. One accepted answer,
+  timeout, cancellation, target change, or gate loss closes capture; another
+  host question creates a new turn rather than extending the old microphone.
 - During running tasks, local controls are handled immediately. The independent manager routes other requests to the explicitly addressed/clearly related Active session or a new session, while the host scheduler enforces concurrent-slot and resource limits.
 - During TTS, keep local wake detection active with playback echo rejection. User activation stops TTS and captures the command; it does not by itself cancel the task.
 - When Windows exposes a supported system-output/loopback reference, correlate all device playback, not only Kora TTS, and reject commands attributable to local media or conference output. If that proof is unavailable, disclose the limitation and prefer headset/PTT for disruptive controls.
@@ -91,6 +99,10 @@ Optional learning uses only separately consented new activated-command samples u
 Rename/alias-mode changes follow [Custom Activation Names](Activation_Name.md): validate the whole active set, commit a new audio generation atomically, and invalidate removed-name callbacks without changing consent.
 Optional local speaker verification is only a profile-owner confidence signal for privacy decisions; it never supplies an approval or action grant.
 False activations with no valid command end locally; recognised commands still pass normal context and action controls.
+Conversational reply audio follows the same memory-only transcription
+lifecycle as activated command audio and is bound to the exact host question
+generation. It is never general ambient transcription or authority to route a
+new request.
 When owner-aware private speech is enabled, sensitive status and context use a
 neutral visual notice for `Uncertain`, `NotOwner`, or `Unavailable` confidence,
 rather than spoken disclosure. Absent/disabled protection leaves
@@ -144,7 +156,10 @@ For [power proposals](Security_Data_Flows.md#management-power-proposal-authority
 M/E submit intent only; the host owns all-session review, approval, countdown
 and fixed-action dispatch through the admitted gateway/worker.
 Kora may also initiate eligible speech without a user utterance; see [Proactive Interaction](Proactive_Interaction.md).
-Responses still require a current active name or optional PTT and are routed to the current trusted prompt, not an unbounded listening window.
+Unsolicited responses require a current active name or optional PTT.
+Schema-valid replies during a live host-opened conversational turn are the
+bounded exception and route only to that trusted prompt, never an unbounded
+listening window.
 Every speech path applies [Call-Aware Speech](Call_Aware_Speech.md), including requested answers and audible activation cues.
 The user can configure the call policy verbally or request one identified response aloud; visual fallback remains available while gated.
 

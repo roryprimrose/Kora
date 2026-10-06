@@ -158,7 +158,14 @@ Communication detector adapters expose observations, not authority; see [Call-Aw
 Every user preference, including admitted extension settings, uses [User Configuration](User_Configuration.md); voice and UI share validation and persistence.
 The [window design](UI_Workspace_And_Windows.md) defines shell roles and shared view state: workspace/compact share UI selection, independently opened detail references stay immutable, and response/draft updates route by stable session/task/item IDs.
 This is not shared provider conversation state or permission to dispatch; the registry/interaction/scheduler remain authoritative.
-Rich presentation follows [Information Display](Information_Display.md); native approvals and trust indicators remain outside rendered content.
+Rich presentation follows [Information Display](Information_Display.md):
+portable contracts classify immutable content origin/profile/identity,
+application orchestration admits and revalidates it, Avalonia owns native
+Markdown/source presentation and the bundled language-highlighting service,
+and Windows owns isolated browser integration.
+Shared passive presenters do not turn session, skill, settings, or permission
+management into web content; native approvals, mutations, validation, and trust
+indicators remain outside rendered content.
 Native questions and first-run/device-loss recovery follow [Interaction Fallback](Interaction_Fallback.md) and require no working microphone, model, or rich renderer.
 
 ## Activity Tracing and Evidence Correlation
@@ -264,9 +271,18 @@ A local detector recognises the configured active names ("Kora" initially) witho
 The host-owned profile/alias registry and atomic detector switching follow [Custom Activation Names](Activation_Name.md); names are data-only settings, not replacement executable code.
 
 On detection, the controller emits activation feedback and captures the command, preserving words spoken immediately after the wake word.
-Local voice activity detection ends the command; only activated command audio reaches the local transcription engine.
+Local voice activity detection ends the command. Only activated command audio
+or one answer captured in a host-opened bounded conversational reply turn
+reaches the local transcription engine.
 The wake word is excluded from the task request.
 Optional push-to-talk enters the same capture path without requiring the wake word.
+
+The host question service can request an Awaiting Conversational Reply
+generation only for one explicitly presented foreground question/revision and
+only while all microphone/call/privacy/session gates remain valid. That
+generation expires after the configured speech-start wait and cannot route a
+new general request. See [Interaction and
+Sessions](Interaction_And_Sessions.md#conversational-voice-turns).
 
 During speech output, playback-reference echo rejection prevents Kora's own audio from activating the detector or entering command transcription.
 A genuine user activation stops playback and opens command capture.

@@ -1147,15 +1147,19 @@ PR CI. General artifacts/backups, retention/deletion, generic dispatch, UI,
 source tooling, installed/power-loss guarantees and full R04 closure are outside
 this slice.
 
-**Local validation receipt:** locked solution restore; root Release build with
-zero warnings/errors; Core **365**, Application **1,071**, Windows **636**
-passed (**2,072 total**, zero failed/skipped). The earlier focused storage run
-passed **191** before the final owner and postcommit-cancellation additions.
-Only the fresh Core/Application reports were aggregated: **6,450/6,450 lines,
-2,817/2,817 branches and 773/773 methods**, all 100%, with unchanged thresholds.
-Dependency-license/notice policy passed. Results are in this isolated worktree's
-`.net-test-artifacts/r04-final-{core,application,windows,coverage}`; no disposable
-storage root remained after the completed run. PR CI is independently required
+**Rebased local validation receipt:** based on merged R03 `ba1dc3d`; locked
+solution dependencies unchanged; root Release build with zero warnings/errors;
+Core **365**, Application **1,080**, Windows **660** passed (**2,105 total**,
+zero failed/skipped). The focused storage run passed **197**, including the
+resource-release barrier regressions. Only fresh Core/Application reports
+were aggregated: **6,457/6,457 lines, 2,821/2,821 branches and 773/773 methods**,
+all 100%, with unchanged thresholds. Dependency-license/notice policy passed.
+Results are in this isolated worktree's
+`.net-test-artifacts/r04-rebased-{core,application,windows,coverage}`; no
+disposable storage root remained after the completed run. Initial PR CI exposed
+post-kill fixture sharing violations before journal inspection; explicit
+exclusive-handle quiescence replaces the process-exit assumption without
+increasing deadlines or weakening assertions. PR CI is independently required
 before merge; this receipt is not installed/native-load or power-loss evidence.
 
 ### R05 Bounded Authorization/Question Foundation

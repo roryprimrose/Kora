@@ -493,6 +493,20 @@ with `-Version 0.1.0 -SourceRevision 74739023458bae7022cabc72ce1c4b34d8e602e1`,
 first `-WriteManifest`, then verification. Tests use unique owned directories
 and dispose them; no leaked storage fixture directories remain.
 
+#### PR Integration Rebase - 2026-10-06
+
+Main advanced during publication preparation to `fd71c80` (RT2 PR #37).
+Both R04 commits rebased cleanly; combined production source at `3019a2b`
+retains the merged bounded RT2 findings/all-path Blocked status and the
+owner-approved standard-SQLite baseline with optional future R30 encryption.
+The final full Release build has zero warnings/errors; Core 269, Application
+780 and Windows 405 all pass (1,454 total, zero failed/skipped).
+Fresh Core/Application coverage remains 5,404/5,404 lines, 2,209/2,209 branches
+and 617/617 methods. Build/test commands are the same as the standard-SQLite
+receipt above, with results under `.net-test-artifacts\r04-pr-*`.
+This is this branch's root-solution evidence, not a rerun or enlargement of
+the separate RT2 experiment's admission. R04 integration remains partial.
+
 ## R02 Runtime/Provider Follow-Up Gates
 
 These are sub-gates of R02, not new acceptance milestones or a claim that

@@ -16,7 +16,7 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
     private readonly Lock querySync = new();
     private readonly IWindowsPrivacySource source;
     private readonly ILogger logger;
-    private readonly Timer? poll;
+    private readonly ITimer? poll;
     private WindowsPrivacySnapshot current = new(
         WindowsSessionState.Unknown, MicrophoneAccessState.Unknown, 0, [], null, null);
     private WindowsSessionState? sessionOverride;
@@ -33,7 +33,8 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
     internal WindowsPrivacyObservationService(
         IWindowsPrivacySource source,
         ILogger logger,
-        TimeSpan? pollingInterval = null)
+        TimeSpan? pollingInterval = null,
+        TimeProvider? timeProvider = null)
     {
         this.source = source;
         this.logger = logger;
@@ -41,7 +42,8 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
         Refresh();
         if (pollingInterval is { } interval)
         {
-            poll = new Timer(_ => Refresh(topologyChanged: false, WindowsPrivacyChangeReason.Polling), null, interval, interval);
+            poll = (timeProvider ?? TimeProvider.System).CreateTimer(
+                _ => Refresh(topologyChanged: false, WindowsPrivacyChangeReason.Polling), null, interval, interval);
         }
     }
 
@@ -74,7 +76,11 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
 
         poll?.Dispose();
         source.Changed -= OnSourceChanged;
-        source.Dispose();
+        // Native observation resources must outlive any query already using them.
+        lock (querySync)
+        {
+            source.Dispose();
+        }
     }
 
     private WindowsPrivacySnapshot Refresh(

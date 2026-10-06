@@ -34,10 +34,18 @@ public sealed partial class MainViewModel
         {
             CloseForObservedPrivacyEvent("Microphone permission or selected endpoint is unavailable", hidePresentation: false);
         }
+        if (SelectedOutputDevice?.IsSystemDefault == true && snapshot.DefaultSpeakerId is null)
+        {
+            InvalidateUnavailableOutput();
+        }
         if (Interlocked.Exchange(ref observedTopologyRevision, snapshot.TopologyRevision) != snapshot.TopologyRevision)
         {
             uiDispatcher.Post(() =>
             {
+                if (disposed)
+                {
+                    return;
+                }
                 _ = RefreshMicrophonesAsync();
                 RefreshOutputEndpoints();
             });
@@ -120,13 +128,14 @@ public sealed partial class MainViewModel
             return;
         }
         disposed = true;
+        lifecycleAdmissionClosed = true;
+        HoldVoiceInput("Microphone closed · host disposed");
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
         voiceRecognition.TranscriptRecognized -= OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed -= OnRecognitionFailed;
         voiceRecognition.CaptureStateChanged -= OnCaptureStateChanged;
         voiceRecognition.RecognitionCompleted -= OnRecognitionCompleted;
         callStateService.StateChanged -= OnCallStateChanged;
-        captureOpenCancellation?.Cancel();
     }
 
     public event EventHandler? PrivacyClosureRequested;

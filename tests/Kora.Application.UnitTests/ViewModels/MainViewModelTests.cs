@@ -4493,6 +4493,10 @@ public sealed partial class MainViewModelTests
             DependencyReadiness.Ready, "Inference verified.");
         await fixture.ViewModel.InitializeAsync();
 
+        await fixture.RunAsync("which models are enabled");
+        fixture.ViewModel.ResponseBody.Should().Contain(
+            "Local models are enabled and Ollama is ready.");
+
         await fixture.RunAsync("disable local models");
         fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("Local models disabled.");
@@ -4516,6 +4520,88 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Model_execution_properties_ignore_duplicates_and_update_hosted_description()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+
+        fixture.ViewModel.LocalModelsEnabled = true;
+        fixture.ViewModel.HostedModelsEnabled = false;
+        fixture.Audit.Events.Should().BeEmpty();
+        fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
+            "Hosted model use is blocked.");
+
+        fixture.ViewModel.HostedModelsEnabled = true;
+        fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
+            "Hosted model use is allowed,");
+        fixture.ViewModel.HostedModelsEnabled = false;
+
+        fixture.ViewModel.HostedModelsEnabled.Should().BeFalse();
+        fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
+            "Hosted model use is blocked.");
+        fixture.Audit.Events.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public async Task Model_execution_commands_cover_each_availability_state()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+
+        await fixture.RunAsync("which models are enabled");
+        fixture.ViewModel.ResponseBody.Should().Contain(
+            "Local models are enabled, but Ollama is not ready.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Hosted models are disabled.");
+
+        await fixture.RunAsync("enable local models");
+        fixture.ViewModel.ResponseTitle.Should().Be("Local models enabled.");
+        await fixture.RunAsync("disable hosted models");
+        fixture.ViewModel.ResponseTitle.Should().Be("Hosted models disabled.");
+
+        await fixture.RunAsync("enable hosted models");
+        await fixture.RunAsync("explain this concept");
+        fixture.ViewModel.ResponseTitle.Should().Be("That isn't a supported built-in command.");
+        fixture.ViewModel.ResponseBody.Should().Contain(
+            "Hosted models are allowed, but no hosted provider is configured");
+
+        await fixture.RunAsync("disable local models");
+        await fixture.RunAsync("explain this concept");
+        fixture.ViewModel.ResponseTitle.Should().Be("No enabled model is available.");
+
+        await fixture.RunAsync("what can you do");
+        fixture.ViewModel.ResponseBody.Should().Contain("Local model use is disabled");
+        await fixture.RunAsync("what version are you running");
+        fixture.ViewModel.ResponseBody.Should().Contain("local models disabled");
+
+        await fixture.RunAsync("enable local models");
+        fixture.ViewModel.LocalModelsEnabled.Should().BeTrue();
+        await fixture.RunAsync("disable hosted models");
+        fixture.ViewModel.HostedModelsEnabled.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("enable local models", false, false)]
+    [InlineData("disable local models", true, false)]
+    [InlineData("enable hosted models", true, false)]
+    [InlineData("disable hosted models", true, true)]
+    public async Task Failed_model_execution_commands_do_not_report_success(
+        string command,
+        bool localModelsEnabled,
+        bool hostedModelsEnabled)
+    {
+        var fixture = new Fixture();
+        fixture.ModelExecutionPreferences.Save(new ModelExecutionSettings(
+            localModelsEnabled,
+            hostedModelsEnabled));
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ModelExecutionPreferences.SaveFailure = new IOException("disk unavailable");
+
+        await fixture.RunAsync(command);
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Model settings could not be saved.");
+        fixture.ViewModel.LocalModelsEnabled.Should().Be(localModelsEnabled);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(hostedModelsEnabled);
+    }
+
+    [Fact]
     public async Task Disabled_local_models_block_free_form_requests_even_when_ollama_is_ready()
     {
         var fixture = new Fixture();
@@ -4532,6 +4618,31 @@ public sealed partial class MainViewModelTests
         fixture.Reasoner.Requests.Should().BeEmpty();
         fixture.ViewModel.ResponseTitle.Should().Be("Model use is turned off.");
         fixture.ViewModel.ResponseBody.Should().Contain("Local and hosted models are disabled");
+    }
+
+    [Fact]
+    public async Task Disabling_local_models_tolerates_an_already_cancelled_reasoning_request()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var field = typeof(MainViewModel).GetField(
+            "activeReasoningCancellation",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        field.Should().NotBeNull();
+        field!.SetValue(fixture.ViewModel, cancellation);
+
+        try
+        {
+            fixture.ViewModel.LocalModelsEnabled = false;
+        }
+        finally
+        {
+            field.SetValue(fixture.ViewModel, null);
+        }
+
+        fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
+        cancellation.IsCancellationRequested.Should().BeTrue();
     }
 
     [Fact]

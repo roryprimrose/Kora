@@ -1,0 +1,80 @@
+{
+  "observedAtUtc": "2026-10-06T06:35:25.7890137+00:00",
+  "status": "PASS: inspection only",
+  "payloads": [
+    {
+      "rid": "win-x64",
+      "files": 201,
+      "payloadManifestSha256": "059883ef09a397fda0b2cdd3f3b6193b1b665b35b5025636dd031c67c897e1d1",
+      "version": "0.1.0",
+      "sourceRevision": "3e8558fbff07943d39721b230599b02062d90d57",
+      "native": [
+        {
+          "file": "Kora.exe",
+          "peMachine": "0x8664",
+          "sha256": "15433a49d281c2dd91f877d604533496bdc2fecaecfdde6c0200d9e39fc7e234"
+        },
+        {
+          "file": "e_sqlite3.dll",
+          "peMachine": "0x8664",
+          "sha256": "b7385d722c83fb52142a00477a726723745916d22a555711ee89834c1111fb2e"
+        },
+        {
+          "file": "libSkiaSharp.dll",
+          "peMachine": "0x8664",
+          "sha256": "7dec3ba900ab353491e6446f0083739924c6f8dd668832e2f09d38ebffdbbe1c"
+        },
+        {
+          "file": "libHarfBuzzSharp.dll",
+          "peMachine": "0x8664",
+          "sha256": "145ade963eba427027d5e1381db5d51a0ef9e98e9fef9efbfa6074ca20da246f"
+        },
+        {
+          "file": "av_libglesv2.dll",
+          "peMachine": "0x8664",
+          "sha256": "53191a77fe783cd757ca7767077c2a64a662e7043777a5b4ab74980d4a0b73e3"
+        }
+      ],
+      "experimentalRuntimeAbsent": true,
+      "licensesPresent": true,
+      "launched": false
+    },
+    {
+      "rid": "win-x86",
+      "files": 197,
+      "payloadManifestSha256": "7690599fb5747138ae546f65af48eafa8a4b7e4816f91be704f4fd966959cc23",
+      "version": "0.1.0",
+      "sourceRevision": "3e8558fbff07943d39721b230599b02062d90d57",
+      "native": [
+        {
+          "file": "Kora.exe",
+          "peMachine": "0x014c",
+          "sha256": "2a21f95f0ee40c9568c4aad489ebda1b8040a56edf649029c1e6ae08583eb982"
+        },
+        {
+          "file": "e_sqlite3.dll",
+          "peMachine": "0x014c",
+          "sha256": "d13eb819d1353d98c684c88672868bbfcc6a52eb5987bdf2557ec02fabce4ea7"
+        },
+        {
+          "file": "libSkiaSharp.dll",
+          "peMachine": "0x014c",
+          "sha256": "2e49b47ff56a0f6ccf61932d33e01e9046c319da35bbb16f9ec9572a9dcf675f"
+        },
+        {
+          "file": "libHarfBuzzSharp.dll",
+          "peMachine": "0x014c",
+          "sha256": "99a97ab4b2b4b60f37930584d79849bd3ef2d1252c51ac47df9805deb08912af"
+        },
+        {
+          "file": "av_libglesv2.dll",
+          "peMachine": "0x014c",
+          "sha256": "1e4df6ab43cc25cdaa5405048cb1088b5ca26660adfdddaeaf88c8954464244a"
+        }
+      ],
+      "experimentalRuntimeAbsent": true,
+      "licensesPresent": true,
+      "launched": false
+    }
+  ]
+}

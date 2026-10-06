@@ -1,0 +1,126 @@
+{
+  "observedAtUtc": "2026-10-06T06:15:29.6120166+00:00",
+  "baseCommit": "3e8558fbff07943d39721b230599b02062d90d57",
+  "rt1SourceFiles": [
+    {
+      "file": ".gitignore",
+      "sha256": "9baa55c1eb0779efc1873b7c6a87217f70aa4377a36b544a508b94aa8d71c432"
+    },
+    {
+      "file": "Candidate.cs",
+      "sha256": "7aec7433ce762c14907bd29cb2b0238d582166cc674fb819e599b6451f5fbf80"
+    },
+    {
+      "file": "ConformanceTests.cs",
+      "sha256": "53680512b5d2a8404212b38ec64e95b0ec57e5938de23b3bb741716233a0d917"
+    },
+    {
+      "file": "ControlProof.csproj",
+      "sha256": "d04df1d69c97d0550e51d0813332df1a7d0b1a62f7d26b7736861559a2a98f19"
+    },
+    {
+      "file": "Directory.Build.props",
+      "sha256": "33551ad48c99e510e8ce65a16f7a1fb14f2b434d6b34b12e77c6237e835f7683"
+    },
+    {
+      "file": "Directory.Packages.props",
+      "sha256": "5de0bd6cb9fd0334417a74fbb20cb6341063715789d8c0abdd54afdf6a48745b"
+    },
+    {
+      "file": "Evidence.cs",
+      "sha256": "2303607923ef0e49f1391516559eaad309fbab7dc100c4db5a90804500e3bf71"
+    },
+    {
+      "file": "EVIDENCE.md",
+      "sha256": "ff01891dd564855ca65c3bfa26654dac538c05ed31b78ab822819bce3b6714b6"
+    },
+    {
+      "file": "LICENSE-REVIEW.md",
+      "sha256": "078b8abbc57609c32c14d9090f73b3f70a9d6622b68fd6828f548ae539fc4cb9"
+    },
+    {
+      "file": "NuGet.Config",
+      "sha256": "81547eee9cf2f94c0b71805b60de9d3917cca4f19b8f8a83fbda8c9ac5f34ca2"
+    },
+    {
+      "file": "PackageArtifacts.ps1",
+      "sha256": "6a4c575dddb30e8cda088572129814c6eafb52bc2565101708bc0c25e306841f"
+    },
+    {
+      "file": "packages.lock.json",
+      "sha256": "f5ecdb5b6646e7046a449ae0ed81d2a6514c70e01bae6d5f16c7214f7aa70aa0"
+    },
+    {
+      "file": "Prepare-Candidate.ps1",
+      "sha256": "2737a415b268ea6015820a44fe1c44b0912b7dc7883d52522dd140c68307acef"
+    },
+    {
+      "file": "README.md",
+      "sha256": "c7f0900a37978a84e49b0f0f2a823a617d8c1fa94985aa1e62ba87aa5859c556"
+    },
+    {
+      "file": "RequestBoundary.cs",
+      "sha256": "407a4216c1a843fb8e2ca7a97c2cb3d1f5550e73909e2c23c4d85c40d2f6f47f"
+    },
+    {
+      "file": "Run-Conformance.ps1",
+      "sha256": "d72323e8a85a4a1cd50b74374e9ef73c9738e2ed0f0e56bda181663aa0c82dd8"
+    },
+    {
+      "file": "RuntimeFixture.cs",
+      "sha256": "b3e0002ce17ed9bebb0b35c1b827a5f25c333647021ecc850feec5014cfbb415"
+    },
+    {
+      "file": "SyntheticProvider.cs",
+      "sha256": "88d19cd672345c0ce48c936e088e5b72229505aaef2d76d93dc156ef4d576b14"
+    },
+    {
+      "file": "Test-Reproduction.ps1",
+      "sha256": "506edbbdfdfeb4d615b67fbba8793175a95e1e6c442e97f7611c8c7e4c731a11"
+    },
+    {
+      "file": "VolatileSessionFs.cs",
+      "sha256": "44664138977d5e3e147aaa9f4e4a7158fba756f28bf506556c1bb806e737dace"
+    },
+    {
+      "file": "evidence\\dependency-licenses.json",
+      "sha256": "c927120277398a8272bdcf5230562911d761b541f6b5d6e0604f8c3787c9c637"
+    },
+    {
+      "file": "evidence\\disposition.json",
+      "sha256": "3cc365437821c890252f39e616c150b9108e61ce0656ab3b2401946a6ee433ce"
+    },
+    {
+      "file": "evidence\\repository-validation.json",
+      "sha256": "e0d630fe2a7f1b9a4075d99fda89ca554a4f8d01df8d5cded5bd60f796e0825e"
+    },
+    {
+      "file": "evidence\\results.json",
+      "sha256": "a72c2deafd8c27330c340d674ddc07690d2b5ded097a203121ed50d670b1bf79"
+    },
+    {
+      "file": "evidence\\sdk-build.lock.json",
+      "sha256": "ad27e81efdb0060b6d4381033fa41bf9f7d7e0514a6d8d0d3d30279c70d0c8aa"
+    },
+    {
+      "file": "evidence\\source-build-licenses.json",
+      "sha256": "4272939be25fe25139f861ab91cb5de426a56dfa6e61987d0aed4ef691bf9aeb"
+    },
+    {
+      "file": "evidence\\source-reproduction.json",
+      "sha256": "c3b815b4061d4fcafa48835e48f770a70c8f654a06daa9c89979654bde58b1dc"
+    }
+  ],
+  "cleanSourceReproduction": {
+    "observedAtUtc": "2026-10-06T17:15:23.0206045+11:00",
+    "separateCleanSourceDirectory": true,
+    "sourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+    "sdkPackageSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+    "reproducedPackageSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+    "reproducedAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+    "packageBytesEqual": true,
+    "packaging": "Unmodified SDK entry contents; ZIP timestamps normalized to 1980-01-01 UTC"
+  },
+  "independentReproduction": "PASS",
+  "originalEvidenceUnchanged": true
+}

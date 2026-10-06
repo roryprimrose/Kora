@@ -1,0 +1,539 @@
+{
+  "id": "excluded-builtins",
+  "startedUtc": "2026-10-06T06:46:42.4454142+00:00",
+  "endedUtc": "2026-10-06T06:46:43.5386417+00:00",
+  "trial": "PASS",
+  "rt2": "BLOCKED: incomplete all-path attribution/prevention; passing trial is not RT2 acceptance",
+  "profile": "unchanged linked RT1 minimal HTTP/stdio profile, approved primary source-built bytes",
+  "traceId": "1f31a6d2edb2d887455c58a0b705d2ee",
+  "spanId": "4912fe7fc155b10c",
+  "observation": {
+    "startUtc": "2026-10-06T06:46:42.4455001+00:00",
+    "endUtc": "2026-10-06T06:46:43.5380507+00:00",
+    "targetIntervalMs": 20,
+    "maximumSampleGapMs": 81.91,
+    "samples": 18,
+    "processes": [
+      {
+        "id": 36684,
+        "parentId": 32408,
+        "startUtc": "2026-10-06T06:46:42.6980307Z",
+        "role": "runtime",
+        "imageName": "copilot-runtime.exe",
+        "imageClass": "approved-runtime"
+      },
+      {
+        "id": 47372,
+        "parentId": 66960,
+        "startUtc": "2026-10-06T06:46:42.7612634Z",
+        "role": "descendant",
+        "imageName": "conhost.exe",
+        "imageClass": "windows-helper"
+      },
+      {
+        "id": 62720,
+        "parentId": 36684,
+        "startUtc": "2026-10-06T06:46:42.7061389Z",
+        "role": "descendant",
+        "imageName": "conhost.exe",
+        "imageClass": "windows-helper"
+      },
+      {
+        "id": 66960,
+        "parentId": 36684,
+        "startUtc": "2026-10-06T06:46:42.7459105Z",
+        "role": "descendant",
+        "imageName": "powershell.exe",
+        "imageClass": "windows-helper"
+      }
+    ],
+    "socketSnapshots": [
+      {
+        "processId": 32408,
+        "protocol": "TCP",
+        "localAddress": "127.0.0.1",
+        "localPort": 50304,
+        "remoteAddress": "0.0.0.0",
+        "remotePort": 0,
+        "state": 2
+      },
+      {
+        "processId": 32408,
+        "protocol": "TCP",
+        "localAddress": "127.0.0.1",
+        "localPort": 50304,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 50309,
+        "state": 5
+      },
+      {
+        "processId": 32408,
+        "protocol": "TCP",
+        "localAddress": "127.0.0.1",
+        "localPort": 50309,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 50304,
+        "state": 5
+      }
+    ],
+    "moduleSnapshots": [
+      "36684:approved-runtime:copilot-runtime.exe",
+      "36684:approved-runtime:runtime.node",
+      "36684:windows:CRYPTBASE.DLL",
+      "36684:windows:FLTLIB.DLL",
+      "36684:windows:GDI32.dll",
+      "36684:windows:IMM32.DLL",
+      "36684:windows:KERNEL32.DLL",
+      "36684:windows:KERNELBASE.dll",
+      "36684:windows:MPR.dll",
+      "36684:windows:MSASN1.dll",
+      "36684:windows:NTASN1.dll",
+      "36684:windows:RPCRT4.dll",
+      "36684:windows:SHCORE.dll",
+      "36684:windows:SSPICLI.DLL",
+      "36684:windows:advapi32.dll",
+      "36684:windows:bcrypt.dll",
+      "36684:windows:bcryptprimitives.dll",
+      "36684:windows:combase.dll",
+      "36684:windows:crypt32.dll",
+      "36684:windows:fwpuclnt.dll",
+      "36684:windows:gdi32full.dll",
+      "36684:windows:msvcp_win.dll",
+      "36684:windows:msvcrt.dll",
+      "36684:windows:ncrypt.dll",
+      "36684:windows:ntdll.dll",
+      "36684:windows:ntmarta.dll",
+      "36684:windows:ole32.dll",
+      "36684:windows:oleaut32.dll",
+      "36684:windows:processmodel.dll",
+      "36684:windows:psapi.dll",
+      "36684:windows:sechost.dll",
+      "36684:windows:secur32.dll",
+      "36684:windows:shell32.dll",
+      "36684:windows:shlwapi.dll",
+      "36684:windows:tdh.dll",
+      "36684:windows:ucrtbase.dll",
+      "36684:windows:user32.dll",
+      "36684:windows:userenv.dll",
+      "36684:windows:win32u.dll",
+      "36684:windows:windows.storage.dll",
+      "36684:windows:wintrust.dll",
+      "36684:windows:ws2_32.dll",
+      "47372:windows:GDI32.dll",
+      "47372:windows:IMM32.DLL",
+      "47372:windows:KERNEL32.DLL",
+      "47372:windows:KERNELBASE.dll",
+      "47372:windows:RPCRT4.dll",
+      "47372:windows:advapi32.dll",
+      "47372:windows:combase.dll",
+      "47372:windows:conhost.exe",
+      "47372:windows:gdi32full.dll",
+      "47372:windows:msvcp_win.dll",
+      "47372:windows:msvcrt.dll",
+      "47372:windows:ntdll.dll",
+      "47372:windows:sechost.dll",
+      "47372:windows:ucrtbase.dll",
+      "47372:windows:user32.dll",
+      "47372:windows:uxtheme.dll",
+      "47372:windows:win32u.dll",
+      "62720:windows:GDI32.dll",
+      "62720:windows:IMM32.DLL",
+      "62720:windows:KERNEL32.DLL",
+      "62720:windows:KERNELBASE.dll",
+      "62720:windows:RPCRT4.dll",
+      "62720:windows:advapi32.dll",
+      "62720:windows:combase.dll",
+      "62720:windows:conhost.exe",
+      "62720:windows:gdi32full.dll",
+      "62720:windows:msvcp_win.dll",
+      "62720:windows:msvcrt.dll",
+      "62720:windows:ntdll.dll",
+      "62720:windows:sechost.dll",
+      "62720:windows:ucrtbase.dll",
+      "62720:windows:user32.dll",
+      "62720:windows:uxtheme.dll",
+      "62720:windows:win32u.dll",
+      "66960:windows:ADVAPI32.dll",
+      "66960:windows:ATL.DLL",
+      "66960:windows:AppxSip.dll",
+      "66960:windows:CRYPT32.dll",
+      "66960:windows:CRYPTBASE.dll",
+      "66960:windows:CRYPTSP.dll",
+      "66960:windows:GDI32.dll",
+      "66960:windows:IMM32.DLL",
+      "66960:windows:KERNEL32.DLL",
+      "66960:windows:KERNELBASE.dll",
+      "66960:windows:MSASN1.dll",
+      "66960:windows:MSISIP.DLL",
+      "66960:windows:Microsoft.Management.Infrastructure.ni.dll",
+      "66960:windows:Microsoft.PowerShell.ConsoleHost.ni.dll",
+      "66960:windows:Microsoft.PowerShell.Security.ni.dll",
+      "66960:windows:OLE32.dll",
+      "66960:windows:OLEAUT32.dll",
+      "66960:windows:OpcServices.DLL",
+      "66960:windows:RPCRT4.dll",
+      "66960:windows:RpcRtRemote.dll",
+      "66960:windows:SHCORE.dll",
+      "66960:windows:SHLWAPI.dll",
+      "66960:windows:SSPICLI.DLL",
+      "66960:windows:System.Configuration.ni.dll",
+      "66960:windows:System.Core.ni.dll",
+      "66960:windows:System.Data.dll",
+      "66960:windows:System.Data.ni.dll",
+      "66960:windows:System.DirectoryServices.ni.dll",
+      "66960:windows:System.Management.Automation.ni.dll",
+      "66960:windows:System.Management.ni.dll",
+      "66960:windows:System.Numerics.ni.dll",
+      "66960:windows:System.Transactions.dll",
+      "66960:windows:System.Transactions.ni.dll",
+      "66960:windows:System.Xml.ni.dll",
+      "66960:windows:System.ni.dll",
+      "66960:windows:USER32.dll",
+      "66960:windows:USERENV.dll",
+      "66960:windows:VCRUNTIME140_1_CLR0400.dll",
+      "66960:windows:VCRUNTIME140_CLR0400.dll",
+      "66960:windows:VERSION.dll",
+      "66960:windows:WS2_32.dll",
+      "66960:windows:Windows.StateRepositoryPS.dll",
+      "66960:windows:amsi.dll",
+      "66960:windows:bcrypt.dll",
+      "66960:windows:bcryptPrimitives.dll",
+      "66960:windows:clbcatq.dll",
+      "66960:windows:clr.dll",
+      "66960:windows:clrjit.dll",
+      "66960:windows:combase.dll",
+      "66960:windows:gdi32full.dll",
+      "66960:windows:gpapi.dll",
+      "66960:windows:kernel.appcore.dll",
+      "66960:windows:mscoree.dll",
+      "66960:windows:mscoreei.dll",
+      "66960:windows:mscorlib.ni.dll",
+      "66960:windows:msvcp_win.dll",
+      "66960:windows:msvcrt.dll",
+      "66960:windows:ntdll.dll",
+      "66960:windows:powershell.exe",
+      "66960:windows:profapi.dll",
+      "66960:windows:psapi.dll",
+      "66960:windows:pwrshsip.dll",
+      "66960:windows:rsaenh.dll",
+      "66960:windows:sechost.dll",
+      "66960:windows:secur32.dll",
+      "66960:windows:shell32.dll",
+      "66960:windows:ucrtbase.dll",
+      "66960:windows:ucrtbase_clr0400.dll",
+      "66960:windows:uxtheme.dll",
+      "66960:windows:win32u.dll",
+      "66960:windows:windows.storage.dll",
+      "66960:windows:wintrust.dll",
+      "66960:windows:wldp.dll",
+      "66960:windows:wshext.dll"
+    ],
+    "fileNotifications": [
+      {
+        "utc": "2026-10-06T06:46:42.6935343+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6938763+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6940659+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6943437+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6947477+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace\\AGENTS.md"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6954769+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace\\AGENTS.md"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6956022+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6960976+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\fixture-read.txt"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.696664+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\fixture-read.txt"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.6971776+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.7097251+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8559411+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\__PSScriptPolicyTest_0tc1u52r.gsm.ps1"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8566843+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\__PSScriptPolicyTest_0tc1u52r.gsm.ps1"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8567839+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.856925+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\__PSScriptPolicyTest_e34kmohc.12b.psm1"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8572878+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\__PSScriptPolicyTest_e34kmohc.12b.psm1"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8590245+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8748242+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\__PSScriptPolicyTest_0tc1u52r.gsm.ps1"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8749469+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\__PSScriptPolicyTest_e34kmohc.12b.psm1"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8835272+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8837015+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home\\AppData"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.8853366+00:00",
+        "kind": "create",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home\\AppData\\Roaming"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.9277224+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.0779409+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home\\AppData"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5132803+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\fixture-read.txt"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5137064+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home\\AppData\\Roaming"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5137348+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home\\AppData"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5137366+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home\\AppData"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5137378+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5137386+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\home"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5138818+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace\\AGENTS.md"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5139343+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.514+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5140237+00:00",
+        "kind": "change",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5141355+00:00",
+        "kind": "delete",
+        "relativePath": "trial-2360f6075ead413f92321d889a0cf490"
+      }
+    ],
+    "fileOverflow": 0,
+    "queryGaps": [],
+    "managedDiagnosticEventCounts": {
+      "System.Net.Http:10": 2,
+      "System.Net.Http:6": 2,
+      "System.Net.Http:4": 2,
+      "System.Net.Http:11": 2,
+      "System.Net.Sockets:2": 2,
+      "System.Net.Http:1": 2,
+      "System.Net.Http:7": 2,
+      "System.Net.Http:5": 2,
+      "System.Net.Http:12": 2,
+      "System.Net.Http:2": 2,
+      "System.Net.Http:9": 2,
+      "System.Net.Sockets:1": 2,
+      "System.Net.Sockets:4": 3,
+      "System.Net.Sockets:5": 3,
+      "System.Net.Http:8": 2,
+      "System.Net.Sockets:6": 1
+    },
+    "diagnosticEmitterProcessId": 32408,
+    "phases": [
+      {
+        "utc": "2026-10-06T06:46:42.4737747+00:00",
+        "phase": "pre-startup"
+      },
+      {
+        "utc": "2026-10-06T06:46:42.7462824+00:00",
+        "phase": "runtime-initialized-status-verified"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.4845593+00:00",
+        "phase": "session-path-complete"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.4894974+00:00",
+        "phase": "shutdown-requested"
+      },
+      {
+        "utc": "2026-10-06T06:46:43.5144694+00:00",
+        "phase": "observed-owned-quiescence"
+      }
+    ],
+    "fileProcessAttribution": "BLOCKED: ReadDirectoryChangesW does not identify writer PID",
+    "allDestinations": "BLOCKED: snapshots miss short-lived TCP; UDP destinations, DNS, ICMP, named pipes and non-IP transports unobserved",
+    "nativeDiagnostics": "BLOCKED: approved RT1 log-none profile; stdio protocol callbacks visible, native stderr/ETW/file diagnostics not independently captured",
+    "enforcement": "None from observer; only original RT1 public model-request and volatile-session-I/O boundaries mediate their paths",
+    "blindSpots": "Outside-scratch writes, deleted/transient contents, ADS, registry, pagefile/crash dump, pre-sample descendants/images and outliving/detached descendants cannot be ruled out"
+  },
+  "recoverableBeforeCleanup": [
+    {
+      "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\fixture-read.txt",
+      "bytes": 21,
+      "sha256": "49e478d3aedaa34181556a2c82ab9dc71af6fcef570845b9ebfddf58de113920",
+      "deniedMarker": false,
+      "credentialMarker": false,
+      "discoveryCanary": false
+    },
+    {
+      "relativePath": "trial-2360f6075ead413f92321d889a0cf490\\workspace\\AGENTS.md",
+      "bytes": 20,
+      "sha256": "c56a93382ca5eac8b5f9881470d61cefae450344a38e58a3768f321b280fb25f",
+      "deniedMarker": false,
+      "credentialMarker": false,
+      "discoveryCanary": true
+    }
+  ],
+  "observedImageSha256": {
+    "windows-helper:powershell.exe": "8bb6fa8c283b4d92120b1ef249a9b311b0f804d4cabbe9981159976c8be76a5e",
+    "approved-runtime:copilot-runtime.exe": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+    "windows-helper:conhost.exe": "e449bce01f275cd08f3d4e64bb73b3b43ae845a0dbdb3e6131426e66537705e5"
+  },
+  "providerRequests": 2,
+  "deniedMarkersAtProvider": 0,
+  "credentialInModelBody": 0,
+  "syntheticAuthenticationHeaders": 2,
+  "boundaryReceipts": [
+    {
+      "bytes": 359,
+      "blocked": false,
+      "deniedMarker": false,
+      "credentialInBody": false,
+      "reason": "admitted"
+    },
+    {
+      "bytes": 692,
+      "blocked": false,
+      "deniedMarker": false,
+      "credentialInBody": false,
+      "reason": "admitted"
+    }
+  ],
+  "cancellationObserved": 0,
+  "webSocketsDenied": 0,
+  "volatileWrites": 3,
+  "sessionWriteRejections": 0,
+  "ownedEffectWrites": 0,
+  "cleanupCompleted": 1,
+  "liveObservedOwnedProcessesAfterShutdown": 0,
+  "runtimeEventTypes": {
+    "SessionStartEvent": 1,
+    "SessionManagedSettingsResolvedEvent": 1,
+    "SessionSkillsLoadedEvent": 1,
+    "SessionInfoEvent": 1,
+    "SessionToolsUpdatedEvent": 2,
+    "PendingMessagesModifiedEvent": 2,
+    "SessionMcpServersLoadedEvent": 1,
+    "UserMessageEvent": 1,
+    "SystemMessageEvent": 1,
+    "SessionEvent": 16,
+    "AssistantTurnStartEvent": 2,
+    "SessionUsageInfoEvent": 2,
+    "ModelCallStartEvent": 2,
+    "AssistantStreamingDeltaEvent": 3,
+    "AssistantToolCallDeltaEvent": 1,
+    "AssistantUsageEvent": 2,
+    "ModelCallFinishedEvent": 2,
+    "AssistantMessageEvent": 2,
+    "ToolExecutionStartEvent": 1,
+    "ModelCallFinalResultEvent": 2,
+    "ToolExecutionCompleteEvent": 1,
+    "AssistantTurnEndEvent": 2,
+    "AssistantMessageStartEvent": 1,
+    "AssistantMessageDeltaEvent": 2,
+    "AssistantIdleEvent": 1,
+    "SessionIdleEvent": 1
+  },
+  "sdkAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+  "fixtureAssemblySha256": "f3cca877c0a0527cf82660fdb502a846493cb4e139e34af1f9c61d4f6658f12f",
+  "nativeLauncherSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+  "nativePayloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05"
+}

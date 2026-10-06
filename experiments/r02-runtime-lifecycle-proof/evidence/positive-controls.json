@@ -1,0 +1,87 @@
+{
+  "startedUtc": "2026-10-06T06:46:47.9421132+00:00",
+  "endedUtc": "2026-10-06T06:46:48.0268397+00:00",
+  "status": "PASS",
+  "markerFileObservedBeforeDeletion": [
+    {
+      "relativePath": "positive.txt",
+      "bytes": 48,
+      "sha256": "7a92ac34485f7650fa441f7714cff6942619ca9c73d3fa97decfe9ea38ac773c",
+      "deniedMarker": true,
+      "credentialMarker": true,
+      "discoveryCanary": false
+    }
+  ],
+  "observation": {
+    "startUtc": "2026-10-06T06:46:47.9416821+00:00",
+    "endUtc": "2026-10-06T06:46:48.0267356+00:00",
+    "targetIntervalMs": 20,
+    "maximumSampleGapMs": 34.8539,
+    "samples": 3,
+    "processes": [],
+    "socketSnapshots": [
+      {
+        "processId": 32408,
+        "protocol": "TCP",
+        "localAddress": "127.0.0.1",
+        "localPort": 50340,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 50341,
+        "state": 5
+      },
+      {
+        "processId": 32408,
+        "protocol": "TCP",
+        "localAddress": "127.0.0.1",
+        "localPort": 50340,
+        "remoteAddress": "0.0.0.0",
+        "remotePort": 0,
+        "state": 2
+      },
+      {
+        "processId": 32408,
+        "protocol": "TCP",
+        "localAddress": "127.0.0.1",
+        "localPort": 50341,
+        "remoteAddress": "127.0.0.1",
+        "remotePort": 50340,
+        "state": 5
+      }
+    ],
+    "moduleSnapshots": [],
+    "fileNotifications": [
+      {
+        "utc": "2026-10-06T06:46:48.0064868+00:00",
+        "kind": "create",
+        "relativePath": "positive.txt"
+      },
+      {
+        "utc": "2026-10-06T06:46:48.0072065+00:00",
+        "kind": "change",
+        "relativePath": "positive.txt"
+      },
+      {
+        "utc": "2026-10-06T06:46:48.0247021+00:00",
+        "kind": "delete",
+        "relativePath": "positive.txt"
+      }
+    ],
+    "fileOverflow": 0,
+    "queryGaps": [],
+    "managedDiagnosticEventCounts": {
+      "System.Net.Sockets:1": 1,
+      "System.Net.Sockets:2": 1,
+      "System.Net.Sockets:5": 1,
+      "System.Net.Sockets:4": 1
+    },
+    "diagnosticEmitterProcessId": 32408,
+    "phases": [],
+    "fileProcessAttribution": "BLOCKED: ReadDirectoryChangesW does not identify writer PID",
+    "allDestinations": "BLOCKED: snapshots miss short-lived TCP; UDP destinations, DNS, ICMP, named pipes and non-IP transports unobserved",
+    "nativeDiagnostics": "BLOCKED: approved RT1 log-none profile; stdio protocol callbacks visible, native stderr/ETW/file diagnostics not independently captured",
+    "enforcement": "None from observer; only original RT1 public model-request and volatile-session-I/O boundaries mediate their paths",
+    "blindSpots": "Outside-scratch writes, deleted/transient contents, ADS, registry, pagefile/crash dump, pre-sample descendants/images and outliving/detached descendants cannot be ruled out"
+  },
+  "syntheticOnly": true,
+  "interpretation": "Detection, not prevention; only intentionally authorized owned control markers persisted"
+}

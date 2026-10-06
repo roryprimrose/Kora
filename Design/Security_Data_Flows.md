@@ -491,6 +491,15 @@ See [Environment Setup](Environment_Setup.md).
 During the unsigned phase, application maintenance is notify-only with no model-callable or host-install-capable entry point.
 Any future updater requires an independently authenticated metadata trust root, native secure per-release approval, and separate acceptance evidence.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.
+The implemented external [source build-only interface](Distribution_And_Updates.md#source-bootstrap)
+requires operator review and explicit installation-time trust before executing
+source/dependency build code. Its exact revision, tooling/input/payload hashes
+and ownership receipts provide local traceability, not protected activation,
+publisher authentication, grants or worker admission. It never installs,
+registers or launches Kora and explicitly reports activation unavailable.
+The bounded static child verifier does not execute the published application
+or prove actual loader/token/ACL protection. User-writable build/staging roots
+remain outside the independently approved protected deployment boundary below.
 Automatic checks may produce proactive verbal suggestions, but cannot install without that scoped approval.
 See [Distribution and Updates](Distribution_And_Updates.md) and [Proactive Interaction](Proactive_Interaction.md) for protected feed, dialogue, and event boundaries.
 Skill revisions affect declarative behaviour only and cannot change policy or enable executable loading.

@@ -1,6 +1,6 @@
 # Distribution, Startup, and Application Maintenance
 
-Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. Source bootstrap, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
+Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. External managed-source preview/build/staging/verification is implemented; source activation, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
 R02's partial NSIS 3.13 proof remains historical evidence, not the production installer. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
 The source host is a public source-available GitHub repository; use Linux GitHub Actions wherever feasible, with Windows jobs for WiX MSI/Burn packaging and other justified Windows-specific work.
 Initial binary and setup artifacts are intentionally unsigned.
@@ -116,23 +116,157 @@ or ambient-system SQLite load as a broken release.
 
 ## Source Bootstrap
 
-Provide a documented, versioned script with a short invocation and a downloadable/reviewable form.
-Do not require users to execute an unverified mutable script blindly.
+### Implemented Preview / Build-Only Interface
 
-The bootstrap:
+[Invoke-SourceBootstrap.ps1](../eng/Invoke-SourceBootstrap.ps1), interface version
+**1.0.0**, is an external operator tool, not an in-app setup action or updater.
+Its default `Preview` returns a reviewable plan without creating directories,
+cloning, restoring, building, installing or launching. `Build` requires
+`-TrustBuildCode`: installation-time trust in the reviewed bootstrap, exact
+source and dependency/build code, not a grant to the running assistant.
+The canonical repository is fixed to `https://github.com/roryprimrose/Kora.git`;
+the public interface does not accept forks, local repositories or arbitrary URLs.
+An operator must select a full lowercase 40-character commit from that source.
+Branches, abbreviated revisions and automatic mutable "latest" selection are
+not supported.
 
-1. Explains planned locations, prerequisites, network access, and startup registration.
-2. Detects prerequisites; offers explicit setup or actionable remediation rather than silently installing/elevating.
-3. Resolves an identified repository and an exact release revision using the selected channel.
-4. Clones into a dedicated managed checkout, never an arbitrary existing user repository.
-5. Restores/builds/publishes with the pinned SDK and dependency configuration into a versioned staging directory.
-6. Verifies outputs and smoke-test results before publishing a runnable deployment.
-7. Records installation mode, source identity, revision, deployment path, and maintenance ownership.
-8. Launches Kora's setup experience; provider/model provisioning and optional logon registration belong to that running app.
+The only admitted channel is **local-source**. It means a local build of exact
+canonical source, not an official beta/stable binary, release publication or
+protected deployment. Detached source builds use the existing feature/local
+version resolver (`0.1.0` at this baseline); the full commit, SDK and final-byte
+hashes, not that version number alone, identify the output. Official release
+channel resolution, immutable bootstrap-asset publication and protected
+installation remain future D01/D02 work. Stable-tag classification never
+confers activation authority.
 
-Build scripts and dependency restore execute code and require installation-time trust; this is not a skill action.
-Bootstrap reruns must be idempotent, detect prior/partial installations, and never reset or overwrite local edits.
-On build/publish failure, preserve the previous runnable deployment and report the failure.
+Review the script and its complete helper set from an independently selected
+immutable repository snapshot or source archive that contains this tooling.
+The entry point is reviewable/downloadable source, not a standalone installer;
+it needs its relative `eng` and retained distribution-helper files. Verify
+acquired bytes against the selected trusted snapshot before executing.
+Do not pipe a mutable URL to PowerShell, download/execute a helper on demand,
+or infer publisher authentication from a self-supplied checksum. This
+source delivery is not itself a published immutable bootstrap asset.
+
+From that reviewed tooling checkout:
+
+```powershell
+$revision = 'd1fc77f8083985c5d86ed0ef3496ac68c4a150ed' # Explicit reviewed build baseline
+$root = 'C:\KoraSource\managed-d1fc77f'                # New dedicated root outside any repository
+.\eng\Invoke-SourceBootstrap.ps1 -Root $root -Revision $revision
+.\eng\Invoke-SourceBootstrap.ps1 -Root $root -Revision $revision -Action Build -TrustBuildCode
+```
+
+Use a short owned path. PowerShell 7, Git and the exact selected revision's
+`global.json` SDK are required. Preview reports executable availability and
+official manual remediation links; SDK identity is checked in the detached
+checkout before restore. A different roll-forward-selected SDK is rejected,
+not silently accepted or installed. Framework-dependent **binary users need
+neither Git nor an SDK**; their runtime/native requirements remain separate.
+Clone/history and locked NuGet acquisition use network access. Restore may
+read/write the normal configured per-user package cache; no machine-wide
+prerequisite setup, accounts, security settings or models are changed.
+
+### Ownership, Verification and Recovery
+
+The [orchestrator](../eng/SourceBootstrap.Common.ps1) reuses retained R02
+exact-checkout, no-links, payload inventory/hash and
+[native/resource/runtime inspection](../experiments/r02-distribution-proof/Inspect-Publish.ps1)
+helpers **read-only**. This is not a second installer feasibility project.
+Their migration into shared maintained release tooling remains coordinated
+D02 work; historical experiment receipts are unchanged.
+
+- Only a new dedicated root or a root with a matching, versioned
+  `source-owner.json` can be used. Existing repositories, nested worktree
+  paths, unowned directories, filesystem roots, reparse paths and live
+  Program Files/Windows destinations are refused.
+- The root has an exclusive operator lock, detached `checkouts\<full-sha>`,
+  fresh `staging\<full-sha>-<attempt>` and immutable `outputs\<full-sha>`.
+  No checkout reset, clean, pull, branch mutation or automatic partial repair
+  is performed. Local tracked/untracked edits and wrong origin/HEAD fail
+  before build/reuse and are checked again before output promotion.
+- Exact SDK, locked multi-RID dependency restore, separate Release win-x64
+  framework-dependent build and no-build/no-restore publish use attempt-owned
+  SDK artifact paths. Restore preserves both locked RIDs; it does not rewrite
+  dependency locks to make a single-RID invocation pass.
+- Inspection records runtime frameworks, native assets/imports, native AMD64
+  architecture, embedded resource inventory and complete payload hashes.
+  First-party EXE/DLL product versions and embedded Avalonia resources must
+  match the local build. Licence/notice files and standard SQLite managed/native
+  payloads are required; the SQLite package identity must match the selected
+  dependency lock. SQLite is not an optional setup/download package.
+- A **60-second bounded static PowerShell child** revalidates stage identity,
+  source inputs, tooling digests, evidence and payload hashes. It never loads
+  Kora assemblies/native libraries or launches the app. This is structural
+  smoke verification, **not Windows runtime/loader, audio, UI or installed
+  smoke acceptance**. A nonzero exit or timeout blocks promotion.
+- `source-build.json` records mode, root/checkout/output paths, canonical
+  source SHA, local channel, exact SDK/build configuration, source-input and
+  bootstrap-helper hashes, payload/evidence hashes, smoke outcome, explicit
+  operator maintenance and unavailable activation. It does not register an
+  installation. Receipts are local tamper-detection/ownership records, not
+  signatures or protection against a user who can rewrite them.
+- Only a fully verified attempt moves to a previously absent versioned
+  output. Reruns verify the entire receipt/input/tool/evidence/payload identity
+  and reuse without rebuild or receipt mutation. Identity/digest mismatch,
+  malformed/incomplete receipts or changed tooling are failures, never
+  "already installed" success. Earlier bytes remain untouched for review.
+- Restore/build/publish/inspection/smoke failures retain partial staging,
+  logs and `failure.json`; a clean-source retry gets a new attempt. A failed
+  clone/checkout leaves any partial checkout for manual review and refuses to
+  adopt/reset it on retry. Choose a new dedicated root after reviewing such
+  failures. No automated deletion, cleanup or replacement is offered.
+
+### Remaining Installation Gates
+
+Output promotion is **not activation**. The interface always reports
+activation **Unavailable**; it never copies to a live installation, runs an
+MSI/installer, elevates, uninstalls, registers start-at-login, launches Kora,
+acquires models or mutates user data/previous runnable deployments.
+It makes no runnable/protected-deployment claim about user-writable staging.
+The separately approved D01/D03 lab must implement independent protected
+activation/ownership, runtime/native loading and non-elevated launch,
+registration, interrupted installation/replacement reconciliation and
+data retention under the relevant parent gates. Existing WiX policy remains
+unchanged: equal-numeric beta upgrades and silent old-BA related upgrades are
+unsupported; retain external uninstall/reinstall guidance.
+
+### Verification Snapshot (2026-10-06)
+
+On an isolated branch based on `d1fc77f8083985c5d86ed0ef3496ac68c4a150ed`,
+an actual canonical clone at that exact revision passed locked restore,
+Release build/publish, inspection, bounded static child verification and an
+unchanged-receipt no-build rerun with SDK **10.0.401**. The local `0.1.0`
+framework-dependent win-x64 output contained **83 files / 257,865,286 bytes**
+and **7 native AMD64 PEs**. No Kora/installer process was executed.
+Its local receipt SHA-256 was
+`bdb738324f433c87be5e11a7763882f6f580c603a84c3bec67ac968a22d8ca25`.
+This identifies that observed scratch output only, not a release or
+bit-reproducibility guarantee. The pinned NuGet licence gate passed using
+current overrides/notices; static OpenTK nuspec warnings still do not clear
+per-release/native/tool/asset redistribution review.
+
+Validation also passed root Release (zero warnings/errors), all suites
+(307 Core, 941 Application, 437 Windows; zero skipped), portable **100% line
+and branch coverage**, existing version/release/payload/licence gates,
+17 retained source-proof and 9 native publish-contract checks, 74 new
+[source fixtures](../eng/Test-SourceBootstrap.ps1) and 15
+[stage-inspection contracts](../eng/Test-SourceStageContracts.ps1).
+Fixture builds/receipts are explicitly synthetic; they do not replace the
+actual exact-revision publish above or installed/privilege/ICE lab evidence.
+
+For fresh owned test directories **outside every source repository**:
+
+```powershell
+.\eng\Test-SourceBootstrap.ps1 -OutputDirectory 'C:\KoraSourceTests\fresh-fixtures'
+.\eng\Test-SourceStageContracts.ps1 -VerifiedOutput "$root\outputs\$revision" `
+    -OutputDirectory 'C:\KoraSourceTests\fresh-inspection'
+```
+
+CI ownership remains separate: these new script gates must be wired into the
+appropriate job alongside CI repair, without importing sibling code or
+changing release prechecks. Installed/protected/runtime-only acceptance and
+immutable source-tool distribution are still open, not inferred from tests.
 
 ## Precompiled Build Artifacts
 

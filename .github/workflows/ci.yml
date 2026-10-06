@@ -271,7 +271,7 @@ jobs:
           include-hidden-files: true
 
   installer:
-    name: Build unsigned WiX MSI and custom Burn setup
+    name: Build WiX MSI and custom Burn setup
     runs-on: windows-latest
     timeout-minutes: 20
     needs: [version, portable, windows-integration]
@@ -325,7 +325,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: Publish unsigned POC release
+    name: Publish GitHub release
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [version, portable, windows-integration, installer]

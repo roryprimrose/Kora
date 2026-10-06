@@ -174,5 +174,5 @@ $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $output
 if ($env:GITHUB_OUTPUT) {
     "installer-path=$output" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
 }
-Write-Host "Unsigned installer candidate: $bundle"
+Write-Host "Installer candidate: $bundle"
 Write-Host 'No package was installed, application launched, or release published.'

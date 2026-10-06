@@ -3,6 +3,7 @@ param()
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$gitExecutable = (Get-Command git -CommandType Application | Select-Object -First 1).Source
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "KoraVersionTests-$([guid]::NewGuid().ToString('N'))"
 $saved = @{}
@@ -13,7 +14,7 @@ foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB
 
 function Invoke-FixtureGit {
     param([string[]] $Arguments)
-    & (Get-Command git -CommandType Application).Source -C $fixture @Arguments | Out-Null
+    & $gitExecutable -C $fixture @Arguments | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Fixture git failed: $($Arguments -join ' ')" }
 }
 function Resolve { & (Join-Path $PSScriptRoot 'Get-BuildVersion.ps1') -RepositoryPath $fixture }

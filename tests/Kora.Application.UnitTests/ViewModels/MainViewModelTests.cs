@@ -105,7 +105,9 @@ public sealed partial class MainViewModelTests
             var requiresApproval = action is BuiltInAction.HideApplication
                 or BuiltInAction.ExitApplication or BuiltInAction.RestartApplication
                 or BuiltInAction.CancelTask or BuiltInAction.LockMachine
-                or BuiltInAction.ProposeShutdown or BuiltInAction.ProposeRestart;
+                or BuiltInAction.ProposeShutdown or BuiltInAction.ProposeRestart
+                or BuiltInAction.EnableLocalModels or BuiltInAction.DisableLocalModels
+                or BuiltInAction.EnableHostedModels or BuiltInAction.DisableHostedModels;
             MainViewModel.ModelActionRequiresApproval(action).Should().Be(requiresApproval);
         }
         var invalidAction = () => MainViewModel.ModelActionRequiresApproval((BuiltInAction)9999);
@@ -4483,6 +4485,111 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Model_execution_commands_persist_and_report_local_and_hosted_choices()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("disable local models");
+        fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Local models disabled.");
+
+        await fixture.RunAsync("enable hosted models");
+        fixture.ViewModel.HostedModelsEnabled.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Contain("no hosted provider is configured");
+
+        await fixture.RunAsync("which models are enabled");
+        fixture.ViewModel.ResponseTitle.Should().Be("Model execution settings");
+        fixture.ViewModel.ResponseBody.Should().Contain("Local models are disabled");
+        fixture.ViewModel.ResponseBody.Should().Contain("Hosted models are enabled");
+        fixture.ModelExecutionPreferences.Settings.Should().Be(new ModelExecutionSettings(
+            LocalModelsEnabled: false,
+            HostedModelsEnabled: true));
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Audit.Events.Should().Contain(entry =>
+            entry.ActionId == "configuration.model-execution"
+            && entry.Initiator == SecurityAuditInitiator.TypedCommand
+            && entry.Outcome == SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task Disabled_local_models_block_free_form_requests_even_when_ollama_is_ready()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.ModelExecutionPreferences.Save(new ModelExecutionSettings(
+            LocalModelsEnabled: false,
+            HostedModelsEnabled: false));
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("explain this concept");
+
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.ViewModel.ResponseTitle.Should().Be("Model use is turned off.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Local and hosted models are disabled");
+    }
+
+    [Fact]
+    public async Task Disabling_local_models_cancels_an_in_flight_ollama_request()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Gate = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("explain this concept");
+        var reasoning = fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.ViewModel.LocalModelsEnabled = false;
+        await reasoning;
+
+        fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Local request cancelled.");
+        fixture.ViewModel.SetupTasks.Should().Contain(task =>
+            task.Id == "local.reasoning" && task.State == SetupTaskState.Cancelled);
+    }
+
+    [Fact]
+    public async Task Voice_can_change_model_execution_without_invoking_a_model()
+    {
+        var fixture = new Fixture();
+        fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RaiseActivatedTranscriptAsync("Kora, disable local models", 0.9f);
+
+        fixture.ViewModel.LocalModelsEnabled.Should().BeFalse();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Audit.Events.Should().Contain(entry =>
+            entry.ActionId == "configuration.model-execution"
+            && entry.Initiator == SecurityAuditInitiator.VoiceCommand
+            && entry.Outcome == SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task Failed_model_execution_save_keeps_the_effective_setting()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ModelExecutionPreferences.SaveFailure = new IOException("disk unavailable");
+
+        fixture.ViewModel.LocalModelsEnabled = false;
+
+        fixture.ViewModel.LocalModelsEnabled.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Model settings could not be saved.");
+        fixture.Audit.Events.Should().Contain(entry =>
+            entry.ActionId == "configuration.model-execution"
+            && entry.Outcome == SecurityAuditOutcome.Failed);
+    }
+
+    [Fact]
     public async Task Model_can_request_a_read_only_built_in_action_through_the_host()
     {
         var fixture = new Fixture();
@@ -7293,6 +7400,7 @@ public sealed partial class MainViewModelTests
             PowerShell = new FakePowerShellSetup();
             Reasoner = new FakeLocalModelReasoner();
             ApprovalPreferences = new FakeModelApprovalPreferences();
+            ModelExecutionPreferences = new FakeModelExecutionPreferences();
             ApplicationInfo = new FakeApplicationInfo();
             ViewModel = new MainViewModel(
                 Catalog,
@@ -7304,6 +7412,7 @@ public sealed partial class MainViewModelTests
                     PowerShell),
                 Reasoner,
                 ApprovalPreferences,
+                ModelExecutionPreferences,
                 MicrophoneAccess,
                 Voice,
                 TextToSpeech,
@@ -7375,6 +7484,8 @@ public sealed partial class MainViewModelTests
         public FakeLocalModelReasoner Reasoner { get; }
 
         public FakeModelApprovalPreferences ApprovalPreferences { get; }
+
+        public FakeModelExecutionPreferences ModelExecutionPreferences { get; }
 
         public FakeApplicationInfo ApplicationInfo { get; }
 
@@ -7632,6 +7743,26 @@ public sealed partial class MainViewModelTests
                 }
 
                 Preferences = preferences;
+            }
+        }
+
+        public sealed class FakeModelExecutionPreferences : IModelExecutionPreferences
+        {
+            public ModelExecutionSettings Settings { get; private set; } =
+                ModelExecutionSettings.Default;
+
+            public IOException? SaveFailure { get; set; }
+
+            public ModelExecutionSettings Load() => Settings;
+
+            public void Save(ModelExecutionSettings settings)
+            {
+                if (SaveFailure is not null)
+                {
+                    throw SaveFailure;
+                }
+
+                Settings = settings;
             }
         }
 

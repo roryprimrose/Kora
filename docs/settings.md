@@ -12,6 +12,26 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Models
+
+The **Models** tab controls which model locations Kora may use for free-form
+commands:
+
+- **Allow local models** is on by default. When enabled and readiness has
+  verified Ollama and the pinned model, unmatched requests can run locally.
+  Turning it off cancels an in-flight local request and prevents later
+  requests from reaching Ollama.
+- **Allow hosted models** is off by default. The current build has no hosted
+  provider or credentials, so enabling this permission does not send data or
+  provide a cloud fallback. The saved opt-in will gate hosted execution when a
+  provider is implemented and configured.
+
+These device-local choices are applied immediately and retained across
+restarts. Exact built-in commands remain available when both choices are off.
+Use **which models are enabled**, **enable/disable local models**, or
+**enable/disable hosted models** as typed or activated voice commands to read
+or change the same settings. Model-setting writes are security audited.
+
 ## Approvals
 
 Model-suggested actions that need approval offer **Once**, **This session**,
@@ -40,7 +60,8 @@ for you.
 ## Readiness and required tools
 
 The setup queue checks local storage, SQLite, PowerShell 7 (`pwsh.exe`), and
-Ollama/model inference on startup and refresh. A missing or unhealthy PowerShell
+Ollama/model inference on startup and refresh even when local model execution
+is disabled, so readiness remains visible before it is re-enabled. A missing or unhealthy PowerShell
 runtime shows a PowerShell setup task. The Readiness page displays the detected
 PowerShell and Ollama/model status without requiring an approval prompt; review
 buttons are shown only when the corresponding dependency needs action.

@@ -49,6 +49,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string PowerShellInstallAction = "powershell.install";
     private const string ModelActionApprovalPrefix = "model.action.";
     private const string ModelApprovalPreferenceAction = "configuration.model-approval";
+    private const string ModelExecutionPreferenceAction = "configuration.model-execution";
     private const string SpeechProviderRemoveAction = "speech-provider.remove";
     private const string SpeechProviderSelectionConfigurationAction = "configuration.speech-provider";
     private const string SessionLockAction = "session.lock";
@@ -62,6 +63,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly DependencySetupWorkflow dependencySetup;
     private readonly ILocalModelReasoner localModelReasoner;
     private readonly IModelApprovalPreferences modelApprovalPreferences;
+    private readonly IModelExecutionPreferences modelExecutionPreferences;
     private readonly IMicrophoneAccessService microphoneAccessService;
     private readonly IActivatedVoiceRecognitionService voiceRecognition;
     private readonly ITextToSpeechService textToSpeech;
@@ -120,6 +122,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool isLocalTaskCancellable;
     private bool isModelActionDispatchActive;
     private bool isModelApprovalPromptActive;
+    private bool localModelsEnabled = ModelExecutionSettings.Default.LocalModelsEnabled;
+    private bool hostedModelsEnabled = ModelExecutionSettings.Default.HostedModelsEnabled;
     private int stoppingAudioOperations;
     private BuiltInAction? pendingModelAction;
     private SecurityAuditEvent? pendingModelActionAudit;
@@ -193,6 +197,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DependencySetupWorkflow dependencySetup,
         ILocalModelReasoner localModelReasoner,
         IModelApprovalPreferences modelApprovalPreferences,
+        IModelExecutionPreferences modelExecutionPreferences,
         IMicrophoneAccessService microphoneAccessService,
         IActivatedVoiceRecognitionService voiceRecognition,
         ITextToSpeechService textToSpeech,
@@ -220,6 +225,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.dependencySetup = dependencySetup;
         this.localModelReasoner = localModelReasoner;
         this.modelApprovalPreferences = modelApprovalPreferences;
+        this.modelExecutionPreferences = modelExecutionPreferences;
         this.microphoneAccessService = microphoneAccessService;
         this.voiceRecognition = voiceRecognition;
         this.textToSpeech = textToSpeech;
@@ -594,6 +600,104 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowFailure("Model approval settings could not be saved.", exception.Message);
             return false;
         }
+    }
+
+    public bool LocalModelsEnabled
+    {
+        get => localModelsEnabled;
+        set
+        {
+            if (value != localModelsEnabled)
+            {
+                TrySetModelExecutionSettings(
+                    value,
+                    hostedModelsEnabled,
+                    SecurityAuditInitiator.LocalUser);
+            }
+        }
+    }
+
+    public bool HostedModelsEnabled
+    {
+        get => hostedModelsEnabled;
+        set
+        {
+            if (value != hostedModelsEnabled)
+            {
+                TrySetModelExecutionSettings(
+                    localModelsEnabled,
+                    value,
+                    SecurityAuditInitiator.LocalUser);
+            }
+        }
+    }
+
+    public string HostedModelExecutionDescription => HostedModelsEnabled
+        ? "Hosted model use is allowed, but no hosted provider is configured in this build."
+        : "Hosted model use is blocked. No hosted provider is configured in this build.";
+
+    private bool TrySetModelExecutionSettings(
+        bool enableLocalModels,
+        bool enableHostedModels,
+        SecurityAuditInitiator initiator)
+    {
+        if (enableLocalModels == localModelsEnabled
+            && enableHostedModels == hostedModelsEnabled)
+        {
+            return true;
+        }
+
+        var audit = StartAudit(
+            SecurityAuditCategory.ConfigurationWrite,
+            ModelExecutionPreferenceAction,
+            initiator,
+            DeviceLocalPreferencesTarget);
+        try
+        {
+            modelExecutionPreferences.Save(new ModelExecutionSettings(
+                enableLocalModels,
+                enableHostedModels));
+            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "preference-write-failed");
+            ApplicationLog.Error(logger, exception, "Saving model execution preferences");
+            ShowFailure("Model settings could not be saved.", exception.Message);
+            OnPropertyChanged(nameof(LocalModelsEnabled));
+            OnPropertyChanged(nameof(HostedModelsEnabled));
+            return false;
+        }
+
+        var localModelsWereEnabled = localModelsEnabled;
+        localModelsEnabled = enableLocalModels;
+        hostedModelsEnabled = enableHostedModels;
+        OnPropertyChanged(nameof(LocalModelsEnabled));
+        OnPropertyChanged(nameof(HostedModelsEnabled));
+        OnPropertyChanged(nameof(HostedModelExecutionDescription));
+
+        if (localModelsWereEnabled && !enableLocalModels
+            && activeReasoningCancellation is { IsCancellationRequested: false } cancellation)
+        {
+            cancellation.Cancel();
+        }
+
+        return true;
+    }
+
+    private string DescribeModelExecution()
+    {
+        var localReadiness = Dependencies.FirstOrDefault(status =>
+            string.Equals(status.Id, "local.inference", StringComparison.Ordinal))?.Readiness;
+        var localStatus = LocalModelsEnabled
+            ? localReadiness == DependencyReadiness.Ready
+                ? "Local models are enabled and Ollama is ready."
+                : "Local models are enabled, but Ollama is not ready."
+            : "Local models are disabled.";
+        var hostedStatus = HostedModelsEnabled
+            ? "Hosted models are enabled, but no hosted provider is configured in this build."
+            : "Hosted models are disabled.";
+        return $"{localStatus} {hostedStatus}";
     }
 
     internal Task? ActiveReasoningTask => activeReasoningTask;
@@ -2678,6 +2782,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 nameof(RequireAssistantNameForVoiceApproval));
             OnPropertyChanged(nameof(AlwaysAllowedModelActions));
 
+            var modelExecution = modelExecutionPreferences.Load();
+            SetProperty(
+                ref localModelsEnabled,
+                modelExecution.LocalModelsEnabled,
+                nameof(LocalModelsEnabled));
+            SetProperty(
+                ref hostedModelsEnabled,
+                modelExecution.HostedModelsEnabled,
+                nameof(HostedModelsEnabled));
+            OnPropertyChanged(nameof(HostedModelExecutionDescription));
+
             var savedThemeMode = appearancePreferences.LoadThemeMode();
             var savedPresenceTimeoutSeconds = appearancePreferences.LoadPresenceTimeoutSeconds();
             var savedResponseTimeoutSeconds = appearancePreferences.LoadResponseTimeoutSeconds();
@@ -4115,7 +4230,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (request.Length > 4096)
         {
-            ShowInformation("The request is too long.", "Local model requests are limited to 4,096 characters.");
+            ShowInformation("The request is too long.", "Model requests are limited to 4,096 characters.");
             return Task.CompletedTask;
         }
 
@@ -4129,13 +4244,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         }
 
+        if (!LocalModelsEnabled)
+        {
+            ShowInformation(
+                HostedModelsEnabled
+                    ? "No enabled model is available."
+                    : "Model use is turned off.",
+                HostedModelsEnabled
+                    ? "Local models are disabled, and no hosted model provider is configured in this build. Built-in commands remain available."
+                    : $"Local and hosted models are disabled. Say “{AssistantName}, enable local models” or change the Models settings to allow free-form requests.");
+            return SpeakCurrentResponseAsync();
+        }
+
         if (Dependencies.FirstOrDefault(status =>
             string.Equals(status.Id, "local.inference", StringComparison.Ordinal)) is not
             { Readiness: DependencyReadiness.Ready })
         {
             ShowInformation(
                 "That isn't a supported built-in command.",
-                $"Say “{AssistantName}, what can you do?” to see deterministic commands. A verified local model is required for other requests; open setup to check readiness. No cloud fallback is used.");
+                $"Say “{AssistantName}, what can you do?” to see deterministic commands. A verified local model is required for other requests; open setup to check readiness."
+                + (HostedModelsEnabled
+                    ? " Hosted models are allowed, but no hosted provider is configured in this build."
+                    : " Hosted models are disabled, so no cloud fallback is used."));
             return SpeakCurrentResponseAsync();
         }
 
@@ -4419,14 +4549,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         BuiltInAction.HideApplication or BuiltInAction.ExitApplication
             or BuiltInAction.RestartApplication or BuiltInAction.CancelTask
             or BuiltInAction.LockMachine or BuiltInAction.ProposeShutdown
-            or BuiltInAction.ProposeRestart => true,
+            or BuiltInAction.ProposeRestart or BuiltInAction.EnableLocalModels
+            or BuiltInAction.DisableLocalModels or BuiltInAction.EnableHostedModels
+            or BuiltInAction.DisableHostedModels => true,
         BuiltInAction.ShowApplication or BuiltInAction.OpenSettings
             or BuiltInAction.OpenDocumentation or BuiltInAction.OpenSetup
             or BuiltInAction.ShowHelp or BuiltInAction.ShowVersion
             or BuiltInAction.ShowStatus or BuiltInAction.ShowCurrentTaskProgress
             or BuiltInAction.StopSpeaking or BuiltInAction.CancelPowerAction
             or BuiltInAction.ShowPowerStatus or BuiltInAction.ListGrants
-            or BuiltInAction.ManageGrants => false,
+            or BuiltInAction.ManageGrants or BuiltInAction.ShowModelExecution => false,
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unsupported model action."),
     };
 
@@ -4872,7 +5004,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             case BuiltInAction.OpenSettings:
                 ShowInformation(
                     "Settings",
-                    "Speech, audio, response, call, and readiness settings are available in the settings window.",
+                    "Model, speech, audio, response, call, and readiness settings are available in the settings window.",
                     requestWindow: false);
                 ShowSettings();
                 break;
@@ -4891,17 +5023,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ShowInformation(
                     "Built-in commands are ready.",
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
-                    + (Dependencies.Any(status =>
+                    + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
                         ? "You can also ask other questions; answers use the verified local model."
-                        : "Other questions require a verified local model; open setup to check readiness."));
+                        : LocalModelsEnabled
+                            ? "Other questions require a verified local model; open setup to check readiness."
+                            : "Local model use is disabled; built-in commands remain available."));
                 break;
             case BuiltInAction.ShowVersion:
                 ShowInformation(
                     $"{AssistantName} version",
                     $"{applicationInfo.Version} · local Windows speech · "
-                    + (Dependencies.Any(status =>
+                    + (!LocalModelsEnabled
+                        ? "local models disabled"
+                        : Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
                         ? "local model ready"
@@ -4991,6 +5127,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     "Select an action, Add, Remove, or Move, and the grant scope. For Move, select the destination after 'to'. Prepare the exact change before confirming it.");
                 IsGrantEditorVisible = true;
                 WindowActionRequested?.Invoke(this, WindowAction.Show);
+                break;
+            case BuiltInAction.ShowModelExecution:
+                ShowInformation("Model execution settings", DescribeModelExecution());
+                break;
+            case BuiltInAction.EnableLocalModels:
+                if (TrySetModelExecutionSettings(true, HostedModelsEnabled, initiator))
+                {
+                    ShowSuccess("Local models enabled.", DescribeModelExecution());
+                }
+                break;
+            case BuiltInAction.DisableLocalModels:
+                if (TrySetModelExecutionSettings(false, HostedModelsEnabled, initiator))
+                {
+                    ShowSuccess("Local models disabled.", DescribeModelExecution());
+                }
+                break;
+            case BuiltInAction.EnableHostedModels:
+                if (TrySetModelExecutionSettings(LocalModelsEnabled, true, initiator))
+                {
+                    ShowSuccess("Hosted models enabled.", DescribeModelExecution());
+                }
+                break;
+            case BuiltInAction.DisableHostedModels:
+                if (TrySetModelExecutionSettings(LocalModelsEnabled, false, initiator))
+                {
+                    ShowSuccess("Hosted models disabled.", DescribeModelExecution());
+                }
                 break;
             default:
                 throw new InvalidOperationException($"Unsupported built-in action: {command.Action}.");

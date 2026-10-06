@@ -9,6 +9,13 @@ Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.
 An extension cannot introduce a settings screen without registering equivalent verbal discovery/get/set/reset operations.
+Common unambiguous settings operations also register exact deterministic
+commands, while the model receives typed discovery/get/set/reset actions for
+natural-language interpretation. Both routes call the same host configuration
+operation and policy gate; model identification is never execution authority.
+Any setting that cannot safely support one of these routes documents the
+specific interaction, ambiguity, availability, privacy, or origin constraint
+in the capability catalogue.
 
 The desktop system-tray menu exposes a single-instance Settings window with
 every setting currently implemented by the host. All open settings surfaces
@@ -209,6 +216,8 @@ Fixed approval lifetimes, process cancellation grace, power confirmations, secre
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
+| Local model execution | On; device-local; disabling cancels active local inference while deterministic built-ins remain available | "Disable local models" |
+| Hosted model execution | Off until explicitly enabled; still requires a configured supported provider and credentials | "Enable hosted models" |
 | Processing mode | Selected explicitly in setup; local-only or remote-enabled | "Use local-only processing" |
 | Default runtime/provider | Compatible installed/configured choices | "Use my local model by default" |
 | Local model | Verified installed compatible model | "Use the smaller installed model" |

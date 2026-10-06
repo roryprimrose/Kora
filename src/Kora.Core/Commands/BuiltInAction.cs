@@ -22,4 +22,9 @@ public enum BuiltInAction
     ShowPowerStatus,
     ListGrants,
     ManageGrants,
+    ShowModelExecution,
+    EnableLocalModels,
+    DisableLocalModels,
+    EnableHostedModels,
+    DisableHostedModels,
 }

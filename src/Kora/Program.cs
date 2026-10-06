@@ -225,6 +225,9 @@ internal static class Program
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<IModelExecutionPreferences>(provider =>
+            new LocalModelExecutionPreferences(
+                provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<IAssistantNamePreferences>(provider =>
             new LocalAssistantNamePreferences(
                 provider.GetRequiredService<IPreferenceStore>(),

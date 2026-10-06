@@ -79,11 +79,14 @@ internal sealed partial class RestrictedStorageDirectory
     {
         Verify();
         var path = Path.Combine(Root, "operation.lock");
-        if (EntryExists(path))
+        var exists = EntryExists(path);
+        if (exists)
         {
             VerifyFile(path);
         }
-        var lease = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        var lease = exists
+            ? new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)
+            : CreateNewFile(path);
         var admitted = false;
         try
         {
@@ -102,11 +105,7 @@ internal sealed partial class RestrictedStorageDirectory
 
     internal void VerifyFile(string path)
     {
-        if (!Path.GetFullPath(path).StartsWith(string.Concat(Root, Path.DirectorySeparatorChar),
-                StringComparison.OrdinalIgnoreCase))
-        {
-            throw new UnauthorizedAccessException("A managed storage file is outside its owned partition.");
-        }
+        VerifyOwnedPath(path);
         RejectReparseAncestors(path);
         var info = new FileInfo(path);
         if (info.Attributes.HasFlag(FileAttributes.Directory))
@@ -115,6 +114,43 @@ internal sealed partial class RestrictedStorageDirectory
         }
         VerifyPermissions(info.GetAccessControl(AccessControlSections.Access | AccessControlSections.Owner),
             requireProtected: false, allowSystemAdministrators: false);
+    }
+
+    internal FileStream CreateNewFile(string path, FileOptions options = FileOptions.None)
+    {
+        Verify();
+        VerifyOwnedPath(path);
+        RejectReparseAncestors(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        var security = new FileSecurity();
+        security.SetOwner(user);
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.FullControl, AccessControlType.Allow));
+        // Elevated tokens may default to Administrators ownership; specify the user before any bytes are written.
+        var stream = new FileInfo(path).Create(FileMode.CreateNew,
+            FileSystemRights.Read | FileSystemRights.Write, FileShare.None, 4096, options, security);
+        var admitted = false;
+        try
+        {
+            VerifyFile(path);
+            admitted = true;
+            return stream;
+        }
+        finally
+        {
+            if (!admitted)
+            {
+                stream.Dispose();
+            }
+        }
+    }
+
+    private void VerifyOwnedPath(string path)
+    {
+        if (!Path.GetFullPath(path).StartsWith(string.Concat(Root, Path.DirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("A managed storage file is outside its owned partition.");
+        }
     }
 
     internal static void CreateRestrictedDirectory(string path, SecurityIdentifier owner)

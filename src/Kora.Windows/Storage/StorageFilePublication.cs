@@ -8,8 +8,7 @@ internal static class StorageFilePublication
     {
         cancellationToken.ThrowIfCancellationRequested();
         directory.Verify();
-        await using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                         bufferSize: 4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
+        await using (var stream = directory.CreateNewFile(path, FileOptions.Asynchronous | FileOptions.WriteThrough))
         {
             directory.VerifyFile(path);
             await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);

@@ -37,6 +37,10 @@ public sealed class WindowsSqliteHostTaskStoreTests
         command.ExecuteScalar().Should().Be(3L);
         command.CommandText = "PRAGMA user_version;";
         command.ExecuteScalar().Should().Be(1L);
+        command.CommandText = "PRAGMA journal_mode;";
+        command.ExecuteScalar().Should().Be("persist");
+        command.CommandText = "PRAGMA synchronous;";
+        command.ExecuteScalar().Should().Be(2L);
         Directory.Exists(Path.Combine(fixture.LocalRoot, "HostStorageV1", "Keys")).Should().BeFalse();
         host.Complete(HostOperationOutcome.Completed);
     }
@@ -187,6 +191,71 @@ public sealed class WindowsSqliteHostTaskStoreTests
     }
 
     [WindowsFact]
+    public async Task Database_and_persistent_journal_retain_private_user_ownership_across_commits_and_reopens()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        using var identity = WindowsIdentity.GetCurrent();
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        await store.ReadIncompleteAsync(1, TestContext.Current.CancellationToken);
+        var paths = new[] { DatabasePath(fixture), string.Concat(DatabasePath(fixture), "-journal") };
+        var permissions = paths.Select(path => new FileInfo(path).GetAccessControl()
+            .GetSecurityDescriptorBinaryForm()).ToArray();
+        for (var index = 0; index < 3; index++)
+        {
+            var request = Request();
+            using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+            await store.CommitAsync(new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded),
+                0, TestContext.Current.CancellationToken);
+            (await new WindowsSqliteHostTaskStore(fixture).ReadIncompleteAsync(10,
+                TestContext.Current.CancellationToken)).Should().HaveCount(index + 1);
+            for (var file = 0; file < paths.Length; file++)
+            {
+                var security = new FileInfo(paths[file]).GetAccessControl();
+                security.GetOwner(typeof(SecurityIdentifier)).Should().Be(identity.User);
+                security.AreAccessRulesProtected.Should().BeTrue();
+                security.GetSecurityDescriptorBinaryForm().Should().Equal(permissions[file]);
+            }
+        }
+    }
+
+    [WindowsFact]
+    public async Task Missing_journal_requires_explicit_recovery_without_recreating_files_or_mutating_the_database()
+    {
+        using var fixture = new OwnedStorageFixture();
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        await store.ReadIncompleteAsync(1, TestContext.Current.CancellationToken);
+        var journal = string.Concat(DatabasePath(fixture), "-journal");
+        File.Delete(journal);
+        var before = await File.ReadAllBytesAsync(DatabasePath(fixture), TestContext.Current.CancellationToken);
+        var read = () => store.ReadIncompleteAsync(1, TestContext.Current.CancellationToken).AsTask();
+        await read.Should().ThrowAsync<InvalidDataException>();
+        File.Exists(journal).Should().BeFalse();
+        (await File.ReadAllBytesAsync(DatabasePath(fixture), TestContext.Current.CancellationToken))
+            .Should().Equal(before);
+    }
+
+    [WindowsFact]
+    public async Task Permissive_journal_is_rejected_without_repair_or_database_mutation()
+    {
+        using var fixture = new OwnedStorageFixture();
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        await store.ReadIncompleteAsync(1, TestContext.Current.CancellationToken);
+        var journal = new FileInfo(string.Concat(DatabasePath(fixture), "-journal"));
+        var acl = journal.GetAccessControl();
+        acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+            FileSystemRights.Read, AccessControlType.Allow));
+        journal.SetAccessControl(acl);
+        var permissions = journal.GetAccessControl().GetSecurityDescriptorBinaryForm();
+        var database = await File.ReadAllBytesAsync(DatabasePath(fixture), TestContext.Current.CancellationToken);
+        var read = () => store.ReadIncompleteAsync(1, TestContext.Current.CancellationToken).AsTask();
+        await read.Should().ThrowAsync<UnauthorizedAccessException>();
+        journal.GetAccessControl().GetSecurityDescriptorBinaryForm().Should().Equal(permissions);
+        (await File.ReadAllBytesAsync(DatabasePath(fixture), TestContext.Current.CancellationToken))
+            .Should().Equal(database);
+    }
+
+    [WindowsFact]
     public void Missing_host_or_invalid_bound_is_rejected_before_io()
     {
         using var fixture = new OwnedStorageFixture();
@@ -254,6 +323,9 @@ public sealed class WindowsSqliteHostTaskStoreTests
             DataSource = DatabasePath(fixture), Mode = SqliteOpenMode.ReadWrite, Pooling = false,
         }.ToString());
         connection.Open();
+        using var settings = connection.CreateCommand();
+        settings.CommandText = "PRAGMA journal_mode=PERSIST;";
+        settings.ExecuteNonQuery();
         return connection;
     }
 

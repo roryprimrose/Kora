@@ -15,11 +15,13 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     private const int ApplicationId = 1263489585;
     private readonly RestrictedStorageDirectory directory;
     private readonly string databasePath;
+    private readonly string journalPath;
 
     public WindowsSqliteHostTaskStore(IApplicationDataPaths paths)
     {
         directory = new RestrictedStorageDirectory(paths, includeKeys: false);
         databasePath = Path.Combine(directory.Root, "host.db");
+        journalPath = string.Concat(databasePath, "-journal");
     }
 
     public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
@@ -145,10 +147,17 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             VerifyFiles();
         }
+        else
+        {
+            using var database = directory.CreateNewFile(databasePath);
+            database.Flush(flushToDisk: true);
+            using var journal = directory.CreateNewFile(journalPath);
+            journal.Flush(flushToDisk: true);
+        }
         var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
-            Mode = isNew ? SqliteOpenMode.ReadWriteCreate : SqliteOpenMode.ReadWrite,
+            Mode = SqliteOpenMode.ReadWrite,
             Pooling = false,
             Cache = SqliteCacheMode.Private,
             DefaultTimeout = 5,
@@ -158,8 +167,10 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             connection.Open();
             VerifyFiles();
             using var settings = connection.CreateCommand();
-            settings.CommandText = "PRAGMA synchronous=FULL; PRAGMA temp_store=MEMORY;";
+            // PERSIST reuses the explicitly user-owned journal instead of recreating it with token-default ownership.
+            settings.CommandText = "PRAGMA journal_mode=PERSIST; PRAGMA synchronous=FULL; PRAGMA temp_store=MEMORY;";
             settings.ExecuteNonQuery();
+            VerifyFiles();
             if (isNew)
             {
                 using var transaction = connection.BeginTransaction();
@@ -182,6 +193,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
                     PRAGMA user_version=1;
                     """;
                 schema.ExecuteNonQuery();
+                VerifyFiles();
                 transaction.Commit();
             }
             using var validate = connection.CreateCommand();
@@ -196,7 +208,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
                 throw new InvalidDataException("The database schema version is unsupported.");
             }
             validate.CommandText = "PRAGMA journal_mode;";
-            if (!string.Equals(validate.ExecuteScalar() as string, "delete", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(validate.ExecuteScalar() as string, "persist", StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("The database journal mode is unsupported.");
             }
@@ -234,6 +246,10 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     private void VerifyFiles()
     {
         directory.Verify();
+        if (!File.Exists(journalPath))
+        {
+            throw new InvalidDataException("The managed rollback journal is missing; explicit recovery is required.");
+        }
         foreach (var path in Directory.EnumerateFiles(directory.Root))
         {
             directory.VerifyFile(path);

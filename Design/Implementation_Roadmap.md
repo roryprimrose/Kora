@@ -507,6 +507,76 @@ receipt above, with results under `.net-test-artifacts\r04-pr-*`.
 This is this branch's root-solution evidence, not a rerun or enlargement of
 the separate RT2 experiment's admission. R04 integration remains partial.
 
+#### PR #39 Windows File-Ownership Correction - 2026-10-06
+
+Both Windows CI jobs at `d39f411` (runs `37432278634` and `37432272073`)
+failed **43 of 405 tests**; 362 passed, none skipped. The common first failure
+was the exact-user owner check on a newly created `operation.lock`. Ordinary
+file creation did not set an owner; an elevated token can default to
+Administrators ownership even when the inherited DACL is private. The actual
+runner owner SID was not logged, and local elevation was not performed.
+This is a creation-policy defect, not evidence that a package upgrade is needed.
+
+The correction supplies current-user ownership and protected user-only ACLs
+at atomic `CreateNew`, shared by leases, staging, the initial database and
+its rollback journal. Existing files are opened without implicit creation;
+no existing ACL/owner is normalized and no existing content is overwritten.
+SQLite connections reuse the pre-created journal with `PERSIST`,
+`synchronous=FULL` and memory temporary storage. Missing/permissive journals
+fail explicitly before database access; missing journals are not recreated.
+Earlier uncomposed prototype databases without the journal require explicit
+recovery/migration. Hot-journal/process-kill acceptance remains open; this
+change does not claim it or expand production composition.
+
+Local validation of the **uncommitted correction on `d39f411`, main base
+`b302b86`**: Windows build 26300/x64, SDK 10.0.401/runtime 10.0.12,
+feature version 0.1.0. No dependency manifest, lock, native provider or CI
+workflow change; existing locked-restored assets were reused.
+
+| Check | Actual result |
+|---|---|
+| Full Release solution | Zero warnings/errors, analyzers enabled |
+| Focused storage suite | 59 passed, zero failed/skipped |
+| Full Core / Application / Windows | 269 / 780 / 412 passed; **1,461 total**, zero failed/skipped |
+| Fresh Core/Application coverage | 5,404/5,404 lines; 2,209/2,209 branches; 617/617 methods, all 100%; only the two new reports were merged |
+| Licence/notices, version, fake-release, payload contracts | Passed; no dependency/notice changes or real release |
+| Fresh framework-dependent x64/x86 publishes | Passed; exact manifests verify 201/197 files including licence texts, identifying base HEAD rather than a future commit |
+| Native closure | x64 7 and x86 5 native PE files, including app hosts, match the previously inspected publish hashes and expected machine type; no native bytes changed |
+| Scope not performed | No elevation, token/security-policy change, real user-data mutation, installer/app launch, installed loading, process-kill or power-loss trial |
+
+Seven new Windows cases cover explicit owner/DACL creation, async handles,
+existing-file/no-repair/no-overwrite behavior, permissive leases, path escape,
+database/journal ownership across commits/reopens and missing/permissive
+journals. Corruption-test connections explicitly retain the same journal
+policy, so the intended schema/identity/projection failures are tested rather
+than a missing-journal proxy. Synthetic artifact-budget files are created
+privately before testing the byte/count limits. Owned fixtures were disposed.
+
+Exact commands:
+
+```powershell
+dotnet build .\Kora.slnx --configuration Release --no-restore
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --filter-class 'Kora.Windows.IntegrationTests.Storage.*' --results-directory .net-test-artifacts\r04-ci-storage --report-trx
+dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\r04-ci-core --report-trx --coverlet --coverlet-output-format cobertura --coverlet-file-prefix core
+dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\r04-ci-application --report-trx --coverlet --coverlet-output-format cobertura --coverlet-file-prefix application
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --results-directory .net-test-artifacts\r04-ci-windows --report-trx
+dotnet reportgenerator '-reports:.net-test-artifacts\r04-ci-core\*.coverage.cobertura.*.xml;.net-test-artifacts\r04-ci-application\*.coverage.cobertura.*.xml' '-targetdir:.net-test-artifacts\r04-ci-coverage' '-reporttypes:Cobertura;TextSummary' '-assemblyfilters:+Kora.Core;+Kora.Application'
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .net-test-artifacts\r04-ci-coverage\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+.\eng\Test-DependencyLicenses.ps1
+.\eng\Test-BuildVersion.ps1
+.\eng\Test-GitHubRelease.ps1
+.\eng\Test-InstallerPayloadContracts.ps1
+dotnet publish .\src\Kora\Kora.csproj --configuration Release --runtime win-x64 --self-contained false --no-restore --property:RestoreLockedMode=true --output artifacts\R04-ci-fix-win-x64
+dotnet publish .\src\Kora\Kora.csproj --configuration Release --runtime win-x86 --self-contained false --no-restore --property:RestoreLockedMode=true --output artifacts\R04-ci-fix-win-x86
+```
+
+Both publishes were passed through `eng\Test-InstallerPayload.ps1` with
+`-Version 0.1.0 -SourceRevision d39f411fdacf2bf8e7b5a2ed78b72a2b93982df7`,
+first `-WriteManifest`, then exact verification after copying the approved
+licence texts. Fresh GitHub checks on the pushed correction are separate from
+this local receipt; the earlier failures are not called green or rerun evidence.
+R04 remains partial and R30 optional encryption remains deferred.
+
 ## R02 Runtime/Provider Follow-Up Gates
 
 These are sub-gates of R02, not new acceptance milestones or a claim that

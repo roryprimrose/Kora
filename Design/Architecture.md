@@ -450,6 +450,16 @@ Existing Linux-hosted CI building Windows artifacts remains unchanged and does n
 R04 adds host contracts and a bounded standard-SQLite task-store implementation
 with actual private-folder/file checks and transactional versioned host records.
 Its distinct `HostStorageV1` partition has no Keys directory or DPAPI dependency.
+New managed files receive explicit current-user ownership and a protected,
+user-only DACL at atomic creation, before any content is written; token-default
+ownership is not trusted, including on elevated Windows runners. Existing
+files are verified, never silently repaired. The database and rollback journal
+are privately pre-created; each connection uses `PERSIST` journaling with
+`synchronous=FULL` so normal commits/reopens retain the owned journal rather
+than recreating it with a different default owner. A missing managed journal
+requires explicit recovery, not automatic replacement. This is not hot-journal/
+process-kill acceptance, and earlier uncomposed prototype databases without
+this journal are not silently migrated.
 The store is not yet composed into transcript dispatch/evidence. Earlier
 internal key/artifact primitives remain uncomposed and are not database prerequisites.
 The [unavailable store](../src/Kora.Core/Storage/UnavailableHostTaskStore.cs)

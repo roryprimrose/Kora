@@ -203,8 +203,9 @@ public sealed class WindowsEncryptedArtifactStoreTests
         await reconcileReferences.Should().ThrowAsync<InvalidDataException>();
         for (var index = 0; index <= WindowsEncryptedArtifactStore.MaximumReconciliationEntries; index++)
         {
-            await File.WriteAllBytesAsync(fixture.ArtifactPath(Guid.NewGuid()), [1],
-                TestContext.Current.CancellationToken);
+            await using var stream = new RestrictedStorageDirectory(fixture).CreateNewFile(
+                fixture.ArtifactPath(Guid.NewGuid()), FileOptions.Asynchronous);
+            await stream.WriteAsync(new byte[] { 1 }, TestContext.Current.CancellationToken);
         }
         var reconcileInventory = () => store.ReconcileAsync([], TestContext.Current.CancellationToken);
         await reconcileInventory.Should().ThrowAsync<InvalidDataException>();
@@ -299,8 +300,8 @@ public sealed class WindowsEncryptedArtifactStoreTests
         var store = new WindowsEncryptedArtifactStore(fixture, key);
         for (var index = 0; index < 17; index++)
         {
-            await using var stream = new FileStream(fixture.ArtifactPath(Guid.NewGuid()), FileMode.CreateNew,
-                FileAccess.Write, FileShare.None, bufferSize: 4096, FileOptions.Asynchronous);
+            await using var stream = new RestrictedStorageDirectory(fixture).CreateNewFile(
+                fixture.ArtifactPath(Guid.NewGuid()), FileOptions.Asynchronous);
             stream.SetLength(ArtifactEnvelope.MaximumPlaintextBytes);
         }
         var reconcile = () => store.ReconcileAsync([], TestContext.Current.CancellationToken);

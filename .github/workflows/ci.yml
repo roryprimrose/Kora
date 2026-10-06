@@ -96,7 +96,8 @@ jobs:
       - name: Build
         run: dotnet build Kora.slnx --configuration Release --no-restore
 
-      - name: Test version and publication policy
+      # Publication tests use a fake CLI, including abrupt child exits under the Actions pwsh wrapper.
+      - name: Test version and draft-publication process policy
         shell: pwsh
         run: |
           ./eng/Test-BuildVersion.ps1

@@ -382,8 +382,10 @@ record for the exact version tag:
   artifact identities, stop for maintainer reconciliation; it is not a no-op
   success and not permission to repair a published release automatically.
 - A draft is not an already published version; a prerelease must match the
-  requested beta channel. Interrupted drafts and source/channel/digest conflicts
-  stop for manual reconciliation; never silently promote or replace them.
+  requested beta channel. An interrupted draft can resume only with matching
+  exact source, final bytes and remaining gates. Source/channel/digest conflicts,
+  ambiguous records and incomplete upload placeholders require manual
+  reconciliation; never replace assets or promote uncertain content.
 - Build only after a successful lookup establishes that production publication
   has not happened. Authentication, network, rate-limit or ambiguous lookup
   failure blocks publication; do not treat it as an absent version.
@@ -397,6 +399,98 @@ bit-identical builds or authenticate an unsigned Windows publisher.
 The POC implements this pre-check and serialized publication for its stated
 non-production scope. The stronger production acceptance stages below remain
 R17 work; public POC assets do not supply their evidence.
+
+### Draft, Tag and Retry Publication Contract
+
+GitHub drafts carry a pending `tag_name` and exact `target_commitish`; creating
+one does not establish a Git ref. The REST release-by-tag endpoint excludes
+drafts. These are distinct states, not evidence of a permissions failure or
+permission to publish before verification. The
+[CLI draft lookup](https://github.com/cli/cli/blob/trunk/pkg/cmd/release/shared/fetch.go)
+likewise distinguishes published-by-tag and pending draft lookup.
+
+The maintained [publisher](../eng/Publish-GitHubRelease.ps1) follows this order:
+
+1. Read the published-by-tag record and all paginated release records. Require
+   one unambiguous version, matching channel, an exact SHA target and one
+   matching source marker. Check an existing lightweight/annotated tag resolves
+   to that SHA. `Check` is read-only; a matching draft reports not-yet-published.
+   Only explicitly observed 404 absence is accepted. Preserve the #41 Actions
+   native-exit reset; authentication, API, transport and list failures stop.
+   Draft visibility depends on the caller's access; the unprivileged version
+   job is not given write authority to improve that visibility. The protected
+   publication job repeats discovery with its existing write identity before
+   any release mutation.
+2. Verify the supplied clean CI installer receipt, full ICE/package inspection,
+   installer hashes, both application payload manifests and the identical
+   x64 MSI/application manifest. Rebuilds with differing bytes are not retries.
+3. Stage exact final assets. New ZIP entries have stable timestamps; for an
+   existing draft ZIP, download and hash-check the original bytes, then verify
+   every entry against the exact payload (including hidden files, no missing,
+   duplicate or extra content). Retain matching original ZIP, manifest and
+   checksum bytes, including their original workflow-run provenance. This also
+   admits matching older drafts without regenerating their ZIP containers.
+4. Recheck before draft creation. Verify every existing asset's name, completed
+   state, size and SHA-256 against staging; upload only missing names, without
+   clobber or deletion. Re-read the same release ID and verify the complete
+   eight-asset set, provenance and checksums before tag/publication writes.
+   A known obsolete mandatory-encryption sentence can be replaced in **draft
+   notes only**, preserving source/generated notes and every asset; confirm
+   the exact revised body before proceeding. Published notes are never edited.
+5. If the tag is absent, create only that ref at the verified source SHA with
+   the existing protected job's `contents: write` identity. Do not update/delete
+   an existing ref. Re-read and resolve it, then recheck the same release ID,
+   staged bytes and provenance. Publish that ID with the explicit SHA target
+   and beta/stable latest policy; verify the resulting published state and tag.
+
+Unexpected write failures are not swallowed or retried blindly. A subsequent
+invocation observes whether a create, individual upload, disclosure update,
+tag creation or publication actually completed, retains matching bytes and
+finishes only missing transitions. An already matching publication is a
+read-only no-op. A GitHub `starter`/incomplete upload or immutable mismatch
+blocks for scoped maintainer reconciliation rather than automatic deletion.
+Per-version Actions concurrency is retained; external mutation/API conflicts
+remain visible failures, not overwrite authority. No token scope, protected
+workflow boundary, version policy or unsigned/non-production claim is widened.
+
+Current storage disclosure follows D-009: private-profile **standard SQLite**,
+with encryption optional future R30 work. Installed lifecycle/protection,
+ordinary packaged-native loading, durable recovery and deletion remain actual
+separate acceptance gates; optional encryption is not restored as admission.
+
+#### Publication verification snapshot (2026-10-06)
+
+Read-only inspection of current-main
+[run 37464263447](https://github.com/roryprimrose/Kora/actions/runs/37464263447)
+at `c5dffabf8f4fa767147be06dd8b296238ea97da0` found portable, Windows and
+full-ICE packaging jobs passing, followed by publication failure at the
+missing-tag assertion. The publication job already had `contents: write`.
+Draft `v0.1.0-beta41` (ID `404693827`) held eight assets and that exact SHA;
+both its release-by-tag and Git-ref endpoints returned 404. The earlier
+beta40 draft also had eight assets and no tag. No live records were mutated.
+
+Local [release-state tests](../eng/Test-GitHubRelease.ps1) model that lifecycle,
+pagination, exact-source/channel collisions, matching published no-ops,
+immutable/provenance/checksum conflicts, failed APIs/uploads and retries.
+Child processes run the Actions pwsh prologue/dot-source/native-exit epilogue,
+including accepted-404 exit 0, unexpected failures exit 1 and abrupt exits
+after write boundaries followed by reconciliation: **265 assertions, 30 process
+cases and 15 partial-write/abrupt-exit retries** pass. This is local fake-CLI
+evidence, **not a successful protected main publication**.
+
+Local root Release build and all three suites pass, with fresh latest-only
+portable coverage at 100% line/branch. Version, payload-rejection and licence
+gates pass. Full local MSI assembly was attempted without ICE suppression,
+but WIX1105 blocked validation under current system policy; no elevation,
+policy change or ICE bypass was attempted, and Burn inspection was therefore
+not reached. The earlier main packaging pass is historical evidence for its
+own candidate, not a replacement for this local blocked gate. A later
+authorized protected-main run must supply the actual final tag/publication
+receipt; installed/native/durable production acceptance remains separate.
+Real local x64/x86 static publish payload checks pass for 201/197 exact files,
+including copied licence texts; neither application was launched. Terminal
+TRX and latest-only coverage artifacts are retained under the ignored
+`.net-test-artifacts/publication-terminal` directory.
 
 Proposed release stages:
 

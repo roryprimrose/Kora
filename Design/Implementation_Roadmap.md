@@ -550,6 +550,33 @@ identify the validated code checkpoint. The earlier receipt and artifacts
 remain historical evidence. Auto-merge remains subject to normal up-to-date
 branch and required CI gates, without administrative bypass.
 
+Final main integration includes #41 and #46 on base
+`6897d77cfc73a331f3ccf09646fbbcb009fbdcf2`. Validated checkpoint
+`bc6014a385ab7f62100d5358e4e5b20a78af332b` retains the reconciled R03/R05
+rows and the delivered-but-partial R04 row. The earlier apparent native
+hit-test failures occurred at **desktop cleanup**, not a hit-test assertion:
+switching back can fail while the worker retains implicit IME windows/hooks.
+The user-authorized worker-exit cleanup fix passed twenty separate native
+runs and the 494-case Windows suite, but #46 concurrently merged a canonical
+thread-local IME/desktop regression fix. With explicit user approval, the
+redundant test commit was dropped; #46's test source is retained unchanged.
+Historical failed and successful TRX files remain available.
+
+| Final combined check | Actual result |
+|---|---|
+| Root Release build | Zero warnings/errors. |
+| Core / Application / Windows | **338 / 1,049 / 495 passed**, **1,882 total**, zero failed/skipped on the first combined run. Includes main's sixteen-iteration private-desktop restoration/release regression. |
+| Fresh portable coverage | **6,246/6,246 lines; 2,685/2,685 branches; 742/742 methods**, all 100%, using only the fresh combined portable reports. |
+| Licence/release/payload policy | Passed; #41's ten runner-process exit-code cases and fake-release regression passed. Version policy was also revalidated after #41, before #46; #46 does not alter that policy. |
+| Locked publishes / exact native payloads | x64/x86 passed at checkpoint `bc6014a`; **201/197 files** verified. Native machines/imports/package SHA-256 passed, **7/10** and **5/6** PE/declaration counts. Static inspection only. |
+
+Final outputs use `.net-test-artifacts\r04-combined-core`,
+`r04-combined-application`, `r04-combined-windows`, `r04-combined-coverage`
+and `artifacts\r04-combined-win-x64`/`r04-combined-win-x86`. This final
+receipt update is documentation-only. R05 remains a bounded service/contract
+foundation; this R04 PR does not activate its durable grant/question adapter
+or shared production dispatch, and neither package is falsely closed.
+
 #### Remaining R04 Gates
 
 | Boundary | Explicitly still open |

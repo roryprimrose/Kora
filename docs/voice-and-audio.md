@@ -48,6 +48,9 @@ A result that arrives during microphone startup is staged as one bounded
 transcript until the application acknowledges that exact activation generation.
 Empty/timeout completion closes the recording and reports that no command was
 heard; it does not authorize a late transcript or a new activation.
+Releasing PTT while the microphone is still opening cancels that activation.
+A late native open or callback cannot restore it. Exit/disposal retires the
+activation before accepting any already queued command or completion.
 
 Kora stops capture when:
 
@@ -58,6 +61,13 @@ Kora stops capture when:
 - microphone permission or the selected endpoint is lost;
 - detected-call policy disables voice activation; or
 - capture fails.
+
+Windows session, power and endpoint notifications are already observed externally.
+Microphone permission also has a one-second polling fallback; it is not detected
+only at startup. Unknown session/permission and failed observation fail closed.
+Negative session notifications close input/output before slower device requery.
+The polling interval is not a guarantee of native detection or release latency;
+complete Windows-transition, routing and hardware acceptance is still outstanding.
 
 If Windows reports microphone access as blocked, enable **Microphone access**
 and **Let desktop apps access your microphone** in **Settings > Privacy &
@@ -147,6 +157,9 @@ Named endpoint selections remain pinned, even when Windows defaults or unrelated
 devices change. A missing or muted effective output stops speech without replay;
 subsequent eligible speech resolves the selected endpoint. A pinned endpoint is
 never silently replaced.
+An observed unavailable System output invalidates active speech before queued
+endpoint refresh. Loss of the Windows default does not stop an available pinned
+output. Restoring output availability does not replay retired speech.
 
 ## Mute and playback failures
 

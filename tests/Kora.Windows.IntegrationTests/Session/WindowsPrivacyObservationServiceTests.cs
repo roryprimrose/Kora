@@ -189,20 +189,90 @@ public sealed class WindowsPrivacyObservationServiceTests
     }
 
     [Fact]
-    public async Task Permission_poll_reports_a_permission_reason_without_claiming_session_change()
+    public void Permission_poll_reports_a_permission_reason_without_claiming_session_change()
     {
         using var source = new FakeSource { Snapshot = Ready };
+        var time = new PrivacyPollingTimeProvider();
         using var observer = new WindowsPrivacyObservationService(
-            source, NullLogger.Instance, TimeSpan.FromMilliseconds(10));
-        var notification = new TaskCompletionSource<WindowsPrivacyChangedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
-        observer.Changed += (_, args) => notification.TrySetResult(args);
+            source, NullLogger.Instance, TimeSpan.FromSeconds(1), time);
+        WindowsPrivacyChangedEventArgs? notification = null;
+        observer.Changed += (_, args) => notification = args;
         source.Snapshot = Ready with { MicrophoneAccess = MicrophoneAccessState.Denied };
 
-        var observed = await notification.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        time.Timer.DueTime.Should().Be(TimeSpan.FromSeconds(1));
+        time.Timer.Period.Should().Be(TimeSpan.FromSeconds(1));
+        time.Timer.Tick();
+        notification.Should().NotBeNull();
+        var observed = notification!;
 
         (observed.Reason & WindowsPrivacyChangeReason.MicrophonePermission).Should().Be(WindowsPrivacyChangeReason.MicrophonePermission);
         (observed.Reason & WindowsPrivacyChangeReason.Polling).Should().Be(WindowsPrivacyChangeReason.Polling);
         (observed.Reason & WindowsPrivacyChangeReason.Session).Should().Be(WindowsPrivacyChangeReason.Unknown);
+    }
+
+    [Fact]
+    public void Disposal_cancels_polling_and_queued_ticks_and_native_callbacks_cannot_read_or_publish()
+    {
+        using var source = new FakeSource { Snapshot = Ready };
+        var time = new PrivacyPollingTimeProvider();
+        using var observer = new WindowsPrivacyObservationService(
+            source, NullLogger.Instance, TimeSpan.FromSeconds(1), time);
+        var queuedNotification = source.QueueNotification(WindowsSessionState.Locked);
+        var changes = new List<WindowsPrivacyChangedEventArgs>();
+        observer.Changed += (_, args) => changes.Add(args);
+        observer.Dispose();
+        observer.Dispose();
+        source.BeforeRead = () => throw new InvalidOperationException("Read after disposal");
+
+        time.Timer.Tick();
+        queuedNotification();
+        observer.Refresh().Should().Be(observer.Current);
+
+        time.Timer.IsDisposed.Should().BeTrue();
+        source.ReadCalls.Should().Be(1);
+        source.DisposeCalls.Should().Be(1);
+        changes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Disposal_does_not_destroy_the_source_while_a_query_is_using_it()
+    {
+        using var source = new FakeSource { Snapshot = Ready };
+        var time = new PrivacyPollingTimeProvider();
+        using var observer = new WindowsPrivacyObservationService(
+            source, NullLogger.Instance, TimeSpan.FromSeconds(1), time);
+        using var releaseRead = new ManualResetEventSlim();
+        var readEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposalEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        time.Timer.BeforeDispose = () => disposalEntered.TrySetResult();
+        var disposedDuringRead = false;
+        source.BeforeRead = () =>
+        {
+            readEntered.TrySetResult();
+            releaseRead.Wait(TestContext.Current.CancellationToken);
+            disposedDuringRead = source.DisposeCalls != 0;
+        };
+        var changes = new List<WindowsPrivacyChangedEventArgs>();
+        observer.Changed += (_, args) => changes.Add(args);
+        source.Snapshot = Ready with { MicrophoneAccess = MicrophoneAccessState.Denied };
+        var refresh = Task.Run(observer.Refresh, TestContext.Current.CancellationToken);
+        await readEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        var disposal = Task.Run(observer.Dispose, TestContext.Current.CancellationToken);
+        try
+        {
+            await disposalEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            // Current remains readable while disposal waits for the native query.
+            observer.Current.MicrophoneAccess.Should().Be(MicrophoneAccessState.Allowed);
+        }
+        finally
+        {
+            releaseRead.Set();
+        }
+        await Task.WhenAll(refresh, disposal);
+
+        changes.Should().BeEmpty();
+        disposedDuringRead.Should().BeFalse();
+        source.DisposeCalls.Should().Be(1);
     }
 
     [Fact]
@@ -229,9 +299,12 @@ public sealed class WindowsPrivacyObservationServiceTests
         public event EventHandler<WindowsPrivacySignalEventArgs>? Changed;
         public WindowsPrivacySnapshot Snapshot { get; set; } = Ready;
         public Action? BeforeRead { get; set; }
+        public int ReadCalls { get; private set; }
+        public int DisposeCalls { get; private set; }
 
         public WindowsPrivacySnapshot Read()
         {
+            ReadCalls++;
             BeforeRead?.Invoke();
             return Snapshot;
         }
@@ -244,6 +317,13 @@ public sealed class WindowsPrivacyObservationServiceTests
 
         public void Dispose()
         {
+            DisposeCalls++;
+        }
+
+        public Action QueueNotification(WindowsSessionState state)
+        {
+            var callback = Changed;
+            return () => callback?.Invoke(this, new WindowsPrivacySignalEventArgs(state));
         }
     }
 }

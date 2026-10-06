@@ -4004,7 +4004,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         HoldVoiceInput("Microphone closed · command capture failed; use Enable listening");
         uiDispatcher.Post(() =>
         {
-            if (!sessionController.IsCurrentSessionUnlocked() || IsPrivacyPresentationHeld)
+            if (!IsHostInputEligible)
             {
                 return;
             }

@@ -3,6 +3,8 @@ using AwesomeAssertions;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
+using Kora.Windows.Session;
+using Kora.Windows.IntegrationTests.Session;
 
 using Neovolve.Logging.Xunit;
 
@@ -59,6 +61,220 @@ public sealed class ActivatedVoiceRecognitionTests(
         capture.Audio([1, 2, 3]);
         transcripts.Should().BeEmpty();
         capture.DisposeGate.SetResult();
+    }
+
+    [Theory]
+    [InlineData(WindowsSessionState.Unknown)]
+    [InlineData(WindowsSessionState.Locked)]
+    [InlineData(WindowsSessionState.Disconnected)]
+    [InlineData(WindowsSessionState.Suspended)]
+    [InlineData(WindowsSessionState.SignedOut)]
+    public async Task Production_observer_closes_capture_before_requery_and_discards_queued_native_callbacks(
+        WindowsSessionState state)
+    {
+        using var source = new ObserverSource();
+        using var observer = new WindowsPrivacyObservationService(source, Logger);
+        var factory = new FakeFactory();
+        var capture = new FakeCapture { DisposeGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+        factory.OpenResult.SetResult(capture);
+        await using var service = new WindowsVoiceRecognitionService(Logger, observer, factory, VoiceCaptureLimits.Default);
+        var results = new List<VoiceTranscriptEventArgs>();
+        service.TranscriptRecognized += (_, args) => results.Add(args);
+        await BeginCaptureAsync(service);
+        var generation = service.Generation;
+        var queuedAudio = capture.QueueAudio([1, 2, 3]);
+        var queuedTranscript = capture.QueueTranscript("lock the machine");
+        var closedBeforeQuery = false;
+        source.BeforeRead = () =>
+        {
+            closedBeforeQuery = !service.IsListening && service.Generation > generation &&
+                capture.ReleaseCount > 0 && factory.Stream!.BufferedBytes == 0;
+        };
+        try
+        {
+            source.Notify(state);
+            closedBeforeQuery.Should().BeTrue();
+            queuedAudio();
+            queuedTranscript();
+            results.Should().BeEmpty();
+            service.IsListening.Should().BeFalse();
+            factory.OpenCount.Should().Be(1);
+        }
+        finally
+        {
+            capture.DisposeGate.TrySetResult();
+        }
+    }
+
+    [Theory]
+    [InlineData(MicrophoneAccessState.Denied)]
+    [InlineData(MicrophoneAccessState.Unknown)]
+    public async Task Production_permission_timer_closes_capture_and_restore_does_not_reopen_it(
+        MicrophoneAccessState permission)
+    {
+        using var source = new ObserverSource();
+        var time = new PrivacyPollingTimeProvider();
+        using var observer = new WindowsPrivacyObservationService(source, Logger, TimeSpan.FromSeconds(1), time);
+        var factory = new FakeFactory();
+        var capture = new FakeCapture();
+        factory.OpenResult.SetResult(capture);
+        await using var service = new WindowsVoiceRecognitionService(Logger, observer, factory, VoiceCaptureLimits.Default);
+        await BeginCaptureAsync(service);
+        var generation = service.Generation;
+        var queuedTranscript = capture.QueueTranscript("lock the machine");
+        var results = new List<VoiceTranscriptEventArgs>();
+        service.TranscriptRecognized += (_, args) => results.Add(args);
+
+        source.Snapshot = Ready with { MicrophoneAccess = permission };
+        time.Timer.Tick();
+        service.IsListening.Should().BeFalse();
+        service.Generation.Should().BeGreaterThan(generation);
+        capture.ReleaseCount.Should().BeGreaterThan(0);
+        source.Snapshot = Ready;
+        time.Timer.Tick();
+        queuedTranscript();
+
+        results.Should().BeEmpty();
+        service.IsListening.Should().BeFalse();
+        factory.OpenCount.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(WindowsSessionState.Unknown)]
+    [InlineData(WindowsSessionState.Locked)]
+    [InlineData(WindowsSessionState.Disconnected)]
+    [InlineData(WindowsSessionState.Suspended)]
+    public async Task Production_observer_cancels_pending_open_and_a_late_native_result_never_records(
+        WindowsSessionState state)
+    {
+        using var source = new ObserverSource();
+        using var observer = new WindowsPrivacyObservationService(source, Logger);
+        var factory = new FakeFactory();
+        await using var service = new WindowsVoiceRecognitionService(Logger, observer, factory, VoiceCaptureLimits.Default);
+        var opening = service.BeginPushToTalkAsync(Microphone, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        await factory.Entered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        var generation = service.Generation;
+
+        source.Notify(state);
+
+        var action = () => opening;
+        await action.Should().ThrowAsync<OperationCanceledException>();
+        var late = new FakeCapture();
+        factory.OpenResult.SetResult(late);
+        await late.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        service.Generation.Should().BeGreaterThan(generation);
+        late.StartCount.Should().Be(0);
+        late.ReleaseCount.Should().BeGreaterThan(0);
+        service.IsListening.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Production_poll_query_failure_closes_capture_and_recovered_observation_cannot_restart_it()
+    {
+        using var source = new ObserverSource();
+        var time = new PrivacyPollingTimeProvider();
+        using var observer = new WindowsPrivacyObservationService(source, Logger, TimeSpan.FromSeconds(1), time);
+        var factory = new FakeFactory();
+        var capture = new FakeCapture();
+        factory.OpenResult.SetResult(capture);
+        await using var service = new WindowsVoiceRecognitionService(Logger, observer, factory, VoiceCaptureLimits.Default);
+        await BeginCaptureAsync(service);
+        var generation = service.Generation;
+        source.BeforeRead = () => throw new InvalidOperationException("Synthetic permission/endpoint query failure");
+
+        time.Timer.Tick();
+
+        observer.Current.SessionState.Should().Be(WindowsSessionState.Unknown);
+        observer.Current.MicrophoneAccess.Should().Be(MicrophoneAccessState.Unknown);
+        service.IsListening.Should().BeFalse();
+        service.Generation.Should().BeGreaterThan(generation);
+        capture.ReleaseCount.Should().BeGreaterThan(0);
+        source.BeforeRead = null;
+        time.Timer.Tick();
+        observer.Current.CanCapture.Should().BeTrue();
+        service.IsListening.Should().BeFalse();
+        factory.OpenCount.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Shutdown_of_a_held_activation_releases_recorder_before_teardown_and_rejects_late_results(
+        bool dispose)
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var capture = new FakeCapture { DisposeGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+        factory.OpenResult.SetResult(capture);
+        await using var service = Create(privacy, factory);
+        await BeginCaptureAsync(service);
+        var generation = service.Generation;
+        var queuedAudio = capture.QueueAudio([1, 2, 3]);
+        var queuedTranscript = capture.QueueTranscript("lock the machine");
+        var results = new List<VoiceTranscriptEventArgs>();
+        service.TranscriptRecognized += (_, args) => results.Add(args);
+
+        var shutdown = dispose ? service.DisposeAsync().AsTask() : service.StopAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await capture.DisposeEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            service.IsListening.Should().BeFalse();
+            service.Generation.Should().BeGreaterThan(generation);
+            capture.ReleaseCount.Should().BeGreaterThan(0);
+            shutdown.IsCompleted.Should().BeFalse();
+            service.IsCaptureQuiescent.Should().BeFalse();
+            queuedAudio();
+            queuedTranscript();
+            results.Should().BeEmpty();
+        }
+        finally
+        {
+            capture.DisposeGate.TrySetResult();
+        }
+        await shutdown;
+        service.IsCaptureQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Production_topology_observer_preserves_System_routing_but_never_substitutes_a_lost_pinned_endpoint(
+        bool pinned, bool defaultUnavailable)
+    {
+        using var source = new ObserverSource();
+        using var observer = new WindowsPrivacyObservationService(source, Logger);
+        var factory = new FakeFactory();
+        var capture = new FakeCapture();
+        factory.OpenResult.SetResult(capture);
+        await using var service = new WindowsVoiceRecognitionService(Logger, observer, factory, VoiceCaptureLimits.Default);
+        var selected = pinned ? Microphone : SystemAudioDevices.Microphone;
+        await service.BeginPushToTalkAsync(selected, ["help"], cancellationToken: TestContext.Current.CancellationToken);
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+        var generation = service.Generation;
+        source.Snapshot = Ready with
+        {
+            ActiveMicrophoneIds = ["other"],
+            DefaultMicrophoneId = defaultUnavailable ? null : "other",
+        };
+
+        source.Notify(topology: true);
+
+        var shouldClose = pinned || defaultUnavailable;
+        service.IsListening.Should().Be(!shouldClose);
+        factory.SelectedMicrophone.Should().Be(selected);
+        factory.OpenCount.Should().Be(1);
+        if (shouldClose)
+        {
+            service.Generation.Should().BeGreaterThan(generation);
+            capture.ReleaseCount.Should().BeGreaterThan(0);
+        }
+        else
+        {
+            service.Generation.Should().Be(generation);
+            capture.ReleaseCount.Should().Be(0);
+        }
     }
 
     [Fact]
@@ -657,6 +873,26 @@ public sealed class ActivatedVoiceRecognitionTests(
     private static WindowsPrivacySnapshot Ready => new(
         WindowsSessionState.Unlocked, MicrophoneAccessState.Allowed, 1, ["mic"], "mic", "speaker");
 
+    private sealed class ObserverSource : IWindowsPrivacySource
+    {
+        public event EventHandler<WindowsPrivacySignalEventArgs>? Changed;
+        public WindowsPrivacySnapshot Snapshot { get; set; } = Ready;
+        public Action? BeforeRead { get; set; }
+
+        public WindowsPrivacySnapshot Read()
+        {
+            BeforeRead?.Invoke();
+            return Snapshot;
+        }
+
+        public void Notify(WindowsSessionState? state = null, bool topology = false) =>
+            Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(state, topology));
+
+        public void Dispose()
+        {
+        }
+    }
+
     private sealed class FakePrivacy : IWindowsPrivacyObservationService
     {
         public event EventHandler<WindowsPrivacyChangedEventArgs>? Changed;
@@ -690,6 +926,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int OpenCount { get; private set; }
         public BlockingAudioStream? Stream { get; private set; }
+        public MicrophoneDevice? SelectedMicrophone { get; private set; }
 
         public Task<IActivatedCapture> OpenAsync(
             MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen)
@@ -700,6 +937,7 @@ public sealed class ActivatedVoiceRecognitionTests(
             }
 
             OpenCount++;
+            SelectedMicrophone = microphone;
             Stream = stream;
             Entered.TrySetResult();
             return OpenResult.Task;

@@ -82,6 +82,16 @@ permission/device loss and capture failure invalidate generations, clear audio,
 stop output and require explicit recovery. Unlock/resume/hot-plug cannot
 silently reopen it. Native/tray controls require no model, network or speech.
 
+External session/power/endpoint observation is implemented, with a one-second
+permission polling fallback. Negative session notifications invalidate capture
+and output before slower requery; Unknown or failed observation grants no input
+authority. Release during a pending PTT open, shutdown and disposal retire the
+activation, including already queued transcripts and cancellation-ignoring late
+opens. Restored readiness still requires explicit recovery, not buffered replay.
+Deterministic regression coverage does not certify native notification latency,
+the 500 ms reference lock-release target, acoustic playback rejection or the
+remaining hardware/device/permission acceptance trials.
+
 ## Visual safety fallback
 
 Failures, safety information, and unavailable speech are always visible. A

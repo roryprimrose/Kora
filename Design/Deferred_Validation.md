@@ -349,6 +349,43 @@ fails closed and requires restart. These fixes are retained as production code
 and regression coverage; they do not broaden the evidence above into production
 wake or complete R03 acceptance.
 
+### 2026-10-07 Deterministic Privacy Lifecycle Regression Slice
+
+The existing production observer already subscribes to WTS, power and MMDevice
+events and uses a one-second microphone-permission polling fallback. This slice
+adds a `TimeProvider` seam at that existing timer, not another observer.
+[Observer regressions](../tests/Kora.Windows.IntegrationTests/Session/WindowsPrivacyObservationServiceTests.cs)
+execute polling without wall-clock sleeps and verify queued ticks/native callbacks
+after disposal and source lifetime during an in-flight query. Disposal now closes
+observation admission before waiting for the query to finish and disposing its
+native source.
+
+[Observer-to-capture regressions](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs)
+exercise the production observer and recognition service together with synthetic
+platform/capture boundaries: Unknown/lock/disconnect/suspend/sign-out close the
+generation, clear buffered audio and release the recorder before the following
+query; denied/Unknown permission and failed polling queries fail closed.
+Restoration does not restart capture. Pending opens, queued native callbacks,
+System versus pinned endpoint loss and held-activation stop/disposal are covered.
+[Application regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs)
+retain explicit run holds and now retire input admission on disposal, reject
+already queued transcript/state/completion/topology/failure presentation, and
+invalidate an observed unavailable System output before queued enumeration without
+interrupting a still-available pinned route.
+
+No real capture, playback, installed launch, session transition, device/permission
+change or security-policy trial was performed. These deterministic checks do not
+establish the 500 ms native lock-release target, acoustic behavior, reference
+hardware or complete A03/A04 acceptance.
+
+Experiment disposition: retain `r02-speech-proof` because its candidate/licence,
+file-based keyword benchmark, acoustic/playback and reference-hardware gates are
+not superseded by privacy lifecycle tests. Retain the containment and runtime
+fixtures: their native token/ACL/network/descendant/effect receipts, failed
+hook-only mediation witness and all-native/runtime observation gaps are distinct
+from microphone generation/disposal proof. No executable or historical receipt
+is retired or relabelled by this slice.
+
 ### Preparation and Approval
 
 - Record exact source/artifact hashes, supported Windows servicing build, CPU,
@@ -374,8 +411,8 @@ wake or complete R03 acceptance.
 |---|---|---|
 | A01 - Consent and ordinary startup | On a clean disposable profile, enumerate without capture; exercise grant/decline, ordinary startup with saved consent, run disable/re-enable and persistent withdrawal/restart. Distinguish armed PTT from actual recording. Permission/device availability alone grants no capture. Debug/release partitions do not copy consent. | Consent/profile/build identities, individual capture-open/close observations and fresh-gate decisions. Withdrawal or persistence failure never keeps capture open. |
 | A02 - Explicit command and stale generations | Hold mouse/Space/Enter PTT and use harmless commands such as help/open settings; release or lose focus/close the control. Exercise early result during open, early release, empty speech, maximum duration, failed open and delayed/duplicate callbacks. Verify first command words, bound receipts and exactly one admitted dispatch. | Per-activation generation, sample/queue/transcript bounds and timestamps; no unactivated audio in command transcription and no retired callback dispatch. Hardware/offline Windows ASR behavior is measured, not inferred from fakes. |
-| A03 - External session privacy | Separately approve Win+L/idle lock, disconnect, suspend/resume and applicable session transitions while an owned activation/output is active. Capture closes, buffers clear, output stops and sensitive presentation hides. Unlock/reconnect/resume requires explicit recovery and cannot replay audio/approvals. | **Capture released within 500 ms from the observed lock event in every reference trial**. Record OS event-to-notification delay separately, plus each observed-event-to-release duration, buffer clearing, last output sample and zero stale dispatch; no averages/p95 substitution for this target. |
-| A04 - Permission and device changes | With approved capture/output fixtures, revoke/restore desktop microphone permission; remove/disable pinned endpoints; change System-default input/output; hot-plug and refresh. Active System-selected WASAPI streams reroute to available new defaults; pinned endpoints and streams are unaffected by unrelated device/default changes. Missing or muted effective endpoints close affected audio without substituting a same-name device. Restored readiness never removes a run hold. | Endpoint/permission revisions, successful eligible rerouting and pinned-route continuity, native failure/closure receipts, individual timings, bounded audio clearing, stopped unavailable output without replay and explicit input recovery after closure. Do not change global privacy settings without separately scoped approval. |
+| A03 - External session privacy | Existing WTS/power observation, synchronous negative closure before requery and stale-callback/disposal boundaries have deterministic regression coverage, not native timing acceptance. Separately approve Win+L/idle lock, disconnect, suspend/resume and applicable session transitions while an owned activation/output is active. Capture closes, buffers clear, output stops and sensitive presentation hides. Unlock/reconnect/resume requires explicit recovery and cannot replay audio/approvals. | **Capture released within 500 ms from the observed lock event in every reference trial** remains unproved. Record OS event-to-notification delay separately, plus each observed-event-to-release duration, buffer clearing, last output sample and zero stale dispatch; no averages/p95 substitution for this target. |
+| A04 - Permission and device changes | Existing one-second permission polling and MMDevice observation have deterministic timer/capture/route/run-hold regression coverage. With separately approved capture/output fixtures, revoke/restore desktop microphone permission; remove/disable pinned endpoints; change System-default input/output; hot-plug and refresh. Active System-selected WASAPI streams reroute to available new defaults; pinned endpoints and streams are unaffected by unrelated device/default changes. Missing or muted effective endpoints close affected audio without substituting a same-name device. Restored readiness never removes a run hold. | Native polling detection latency, endpoint/permission revisions, successful eligible rerouting and pinned-route continuity, native failure/closure receipts, individual timings, bounded audio clearing, stopped unavailable output without replay and explicit input recovery after closure remain outstanding. The one-second polling interval is not a measured native closure bound. Do not change global privacy settings without separately scoped approval. |
 | A05 - Cross-build owner, handoff and return | Launch validated same-build and different-build candidates across approved paths/versions/x64/x86. Verify activation without startup argument dispatch, one assistant owner/tray, inactive candidate, native default-deny approval, active-work refusal and full release before transfer. Exercise decline, expiry, candidate death, lock during approval, abort and explicit exact-original return. | OS-authenticated process/SID/session/creation/content identities, approvals, held-handle/owner epochs, actual desktop/service/capture quiescence and zero simultaneous owners. Return is lifecycle-only before explicit acceptance; no task/grant/audio/consent transfer. |
 | A06 - Unclean ownership and failure recovery | In a disposable instrumented host only, separately approve stable-identity process termination and preparation/transfer failure. Unknown/orphaned effects must block automatic crash takeover/return. Changed/elevated/cross-session/unknown identities deny. | Correlated process/job/resource outcomes, continuity marker and explicit blocker/reconciliation receipts; process death alone is not proof of worker quiescence or permission to delete a marker. |
 | A07 - Native fallback and private output | Without model/network/optional speech dependencies, exercise tray/settings refresh, revision-bound endpoint selection, enable/disable, PTT, Stop speaking, keyboard/focus/screen-reader paths and locked presentation denial. Test in-flight/queued synthesis through eligible System-default rerouting and unavailable-route/privacy closure so retired audio cannot start late. | Native UI/accessibility observations and last-output-sample/generation receipts under supported headset and speaker/microphone setups; keyboard focus loss ends held PTT, and stale menus do not authorize a substitute. Production wake, acoustic playback rejection and interruption quality remain owned by the separate speech gates. |

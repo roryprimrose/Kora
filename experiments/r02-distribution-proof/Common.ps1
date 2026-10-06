@@ -10,7 +10,10 @@ function Invoke-Checked {
 }
 
 function Assert-NoLinks {
-    param([string] $Path)
+    param(
+        [string] $Path,
+        [switch] $AncestorsOnly
+    )
     $item = Get-Item -LiteralPath $Path -Force
     while ($null -ne $item) {
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
@@ -18,7 +21,7 @@ function Assert-NoLinks {
         }
         $item = if ($item -is [IO.DirectoryInfo]) { $item.Parent } else { $item.Directory }
     }
-    if (Test-Path -LiteralPath $Path -PathType Container) {
+    if (!$AncestorsOnly -and (Test-Path -LiteralPath $Path -PathType Container)) {
         foreach ($child in Get-ChildItem -LiteralPath $Path -Recurse -Force) {
             if ($child.Attributes -band [IO.FileAttributes]::ReparsePoint) {
                 throw "Linked/reparse content is not admitted: $($child.FullName)"
@@ -33,12 +36,12 @@ function New-ProofDirectory {
     $parent = Split-Path -Parent ([IO.Path]::GetFullPath($Path))
     $existing = $parent
     while (!(Test-Path -LiteralPath $existing)) { $existing = Split-Path -Parent $existing }
-    Assert-NoLinks $existing
+    Assert-NoLinks $existing -AncestorsOnly
     if (!(Test-Path -LiteralPath $parent)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
 
-    Assert-NoLinks $parent
+    Assert-NoLinks $parent -AncestorsOnly
     New-Item -ItemType Directory -Path $Path | Out-Null
 }
 

@@ -273,6 +273,16 @@ Update [D-013](../../Design/Decision_Register.md#d-013-windows-worker-and-deploy
 and the applicable acceptance gates only when their required evidence passes.
 No outstanding row is waived by merging this proof.
 
+### Proof code lifecycle
+
+Retain this harness through W1-W4 and protected deployment integration. Move
+its filesystem, credential, process-tree and receipt-classification assertions
+into Windows integration tests as the production worker boundary is built.
+Remove the standalone harness only after equivalent production tests pass and
+the remaining real-boundary evidence is recorded; preserve historical
+receipts. See the shared
+[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+
 ### Merge Versus Acceptance
 
 On 2026-10-05 the user requested rebasing and publishing the PR after recording

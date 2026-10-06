@@ -189,3 +189,13 @@ See [evidence report](EVIDENCE.md) and [machine-readable results](evidence/resul
 Use an approved live account only after separate account/terms and budget
 approval. D-001/D-004 remain open. Do not enable production remote execution
 or model-assisted management from these local passes.
+
+## Proof code lifecycle
+
+Retain and rerun this harness whenever the SDK or bundled runtime pin changes,
+until an isolated .NET fixture and production host-envelope tests provide
+equivalent coverage. Keep the known hook-only failed-result case executable
+until production composition makes that unsupported path impossible. Remove
+the standalone Node harness only after parity, lifecycle and request-boundary
+coverage has migrated; preserve reviewed historical receipts. See the shared
+[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).

@@ -113,6 +113,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? powerShellSetupCancellation;
     private CancellationTokenSource? activeReasoningCancellation;
     private Task? activeReasoningTask;
+    private bool isLocalTaskCancellable;
     private bool isModelActionDispatchActive;
     private bool isModelApprovalPromptActive;
     private int stoppingAudioOperations;
@@ -131,8 +132,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly HashSet<BuiltInAction> sessionAllowedModelActions = [];
     private readonly HashSet<BuiltInAction> alwaysAllowedModelActions = [];
     private bool requireAssistantNameForVoiceApproval = true;
-    private string localModelSetupStatus = "Local model setup has not started.";
-    private string powerShellSetupStatus = "PowerShell installation has not started.";
+    private string localModelSetupStatus = "Checking local model readiness.";
+    private int localModelSetupProgress;
+    private bool isLocalModelSetupProgressIndeterminate;
+    private string powerShellSetupStatus = "Checking PowerShell 7 readiness.";
     private string? savedSpeechProviderIdForOffer;
     private bool suppressVoicePreferenceSave;
     private bool suppressSpeechProviderPreferenceSave;
@@ -256,7 +259,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                   && (!IsBusy || IsSetupStatusCommand()));
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
-            () => IsSpeechOutputAvailable && !IsBusy && !IsListening && !voiceRecognition.IsListening);
+            () => SelectedVoice is not null && SelectedOutputDevice is not null
+                && EffectiveOutputDevice is { IsMuted: false }
+                && !IsBusy && !IsListening && !voiceRecognition.IsListening);
         StopSpeechCommand = CreateCommand(StopSpeakingAsync, () => IsSpeaking);
         DownloadSpeechProviderCommand = CreateCommand(
             DownloadSpeechProviderAsync,
@@ -365,7 +370,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.CallStateChanged(logger, eventArgs.State);
             await uiDispatcher.InvokeAsync(() => ApplyCallStateAsync(eventArgs.State));
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Applying the call-aware output policy");
             ShowFailure("The call-aware output policy could not be applied.", exception.Message);
@@ -584,6 +589,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     internal Task? ActiveReasoningTask => activeReasoningTask;
 
+    public bool IsLocalTaskCancellable
+    {
+        get => isLocalTaskCancellable;
+        private set
+        {
+            SetProperty(ref isLocalTaskCancellable, value);
+            OnPropertyChanged(nameof(IsCancelTaskVisible));
+        }
+    }
+
+    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking;
+
     public bool IsLocalModelSetupActive
     {
         get => isLocalModelSetupActive;
@@ -635,6 +652,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => localModelSetupStatus;
         private set => SetProperty(ref localModelSetupStatus, value);
     }
+
+    public int LocalModelSetupProgress
+    {
+        get => localModelSetupProgress;
+        private set => SetProperty(ref localModelSetupProgress, value);
+    }
+
+    public bool IsLocalModelSetupProgressIndeterminate
+    {
+        get => isLocalModelSetupProgressIndeterminate;
+        private set => SetProperty(ref isLocalModelSetupProgressIndeterminate, value);
+    }
+
+    public bool ShouldOfferLocalModelSetup => Dependencies.Any(status =>
+        string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
+        && status.Readiness != DependencyReadiness.Ready);
+
+    public bool ShouldOfferPowerShellSetup => Dependencies.Any(status =>
+        string.Equals(status.Id, dependencySetup.PowerShellTaskId, StringComparison.Ordinal)
+        && status.Readiness != DependencyReadiness.Ready);
 
     public IReadOnlyList<CommandDefinition> Commands => commandCatalog.GetCommands(AssistantName);
 
@@ -730,7 +767,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string AssistantInitial =>
         StringInfo.GetNextTextElement(AssistantName).ToLower(CultureInfo.CurrentCulture);
 
-    public string SettingsWindowTitle => $"{AssistantName} settings";
+    public string SettingsWindowTitle => $"{AssistantName} settings - {applicationInfo.Version}";
 
     public string SettingsSubtitle => $"{AssistantName} preferences on this device";
 
@@ -1526,6 +1563,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 StopSpeechCommand.NotifyCanExecuteChanged();
                 RemoveSpeechProviderCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(CanRemoveSpeechProvider));
+                OnPropertyChanged(nameof(IsCancelTaskVisible));
             }
         }
     }
@@ -1568,9 +1606,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string ListeningButtonText => IsVoiceEnabled ? "Disable listening" : "Enable listening";
 
     public string ListeningStatus => IsListening
-        ? $"Push-to-talk capture on {SelectedMicrophone!.Name}"
+        ? SelectedMicrophone is { } activeMicrophone
+            ? $"Push-to-talk capture on {activeMicrophone.Name}"
+            : "Push-to-talk capture active · microphone selection is refreshing"
         : IsVoiceEnabled
-            ? $"Push-to-talk ready on {SelectedMicrophone!.Name} · microphone closed · production wake unavailable"
+            ? SelectedMicrophone is { } readyMicrophone
+                ? $"Push-to-talk ready on {readyMicrophone.Name} · microphone closed · production wake unavailable"
+                : "Microphone closed · selected microphone is unavailable"
         : !HasVoiceConsent
             ? "Microphone closed · ongoing voice consent not granted"
         : IsMicrophoneAccessDenied
@@ -1835,6 +1877,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ClearPendingModelQuestion();
         }
 
+        LocalModelSetupStatus = "Preparing approved Ollama and model installation.";
+        LocalModelSetupProgress = 0;
+        IsLocalModelSetupProgressIndeterminate = true;
         using var cancellation = new CancellationTokenSource();
         localModelCancellation = cancellation;
         IsLocalModelSetupActive = true;
@@ -1856,6 +1901,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
 
                 LocalModelSetupStatus = update.Detail;
+                LocalModelSetupProgress = update.Percentage ?? 0;
+                IsLocalModelSetupProgressIndeterminate = update.Percentage is null;
                 dependencyBootstrapper.Tasks.Update(
                     DependencySetupWorkflow.LocalModelTaskId,
                     SetupTaskState.Running,
@@ -1865,23 +1912,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var result = await dependencySetup.InstallLocalModelAsync(
                 progress,
                 cancellation.Token);
-            Dependencies.Clear();
-            foreach (var status in result.Statuses)
-            {
-                Dependencies.Add(status);
-            }
-
+            ApplyDependencyStatuses(result.Statuses);
+            LocalModelSetupStatus = result.Inference.Detail;
+            LocalModelSetupProgress = 100;
+            IsLocalModelSetupProgressIndeterminate = false;
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             ShowInformation("Local model is ready.", result.Inference.Detail);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
+            LocalModelSetupStatus = "Local model setup was cancelled.";
+            IsLocalModelSetupProgressIndeterminate = false;
             CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "user-cancelled");
             ShowInformation("Setup cancelled.", "Local model installation was stopped; refresh readiness to check partial progress.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or InvalidOperationException or HttpRequestException or JsonException or Win32Exception)
         {
+            LocalModelSetupStatus = $"Setup failed: {exception.Message}";
+            IsLocalModelSetupProgressIndeterminate = false;
             CompleteAudit(audit, SecurityAuditOutcome.Failed, "setup-failed");
             ApplicationLog.Error(logger, exception, "Installing local model dependencies");
             ShowFailure("Local model setup failed.", exception.Message);
@@ -1924,16 +1973,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 progress,
                 cancellation.Token);
 
-            var previous = Dependencies.FirstOrDefault(item =>
-                string.Equals(item.Id, status.Id, StringComparison.Ordinal));
-            if (previous is null)
-            {
-                Dependencies.Add(status);
-            }
-            else
-            {
-                Dependencies[Dependencies.IndexOf(previous)] = status;
-            }
+            ApplyDependencyStatus(status);
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             ShowInformation("PowerShell 7 is ready.", status.Detail);
         }
@@ -2407,7 +2447,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         lifecycleAdmissionClosed = true;
         HoldVoiceInput("Microphone closed · application exiting");
         textToSpeech.InvalidateOutput();
-        await StopAudioAsync(fromModelActionDispatch);
+        try
+        {
+            await StopAudioAsync(fromModelActionDispatch);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
+        }
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
@@ -2441,11 +2488,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var statuses = await dependencyBootstrapper.ProbeAsync();
-            Dependencies.Clear();
-            foreach (var status in statuses)
-            {
-                Dependencies.Add(status);
-            }
+            ApplyDependencyStatuses(statuses);
             dependencyBootstrapper.Tasks.Remove("environment.check");
             OnPropertyChanged(nameof(SetupTasks));
 
@@ -2700,12 +2743,74 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void ApplyDependencyStatuses(IEnumerable<DependencyStatus> statuses)
+    {
+        Dependencies.Clear();
+        foreach (var status in statuses)
+        {
+            Dependencies.Add(status);
+        }
+
+        var localModel = Dependencies.FirstOrDefault(status =>
+            string.Equals(status.Id, "local.inference", StringComparison.Ordinal));
+        if (localModel is not null)
+        {
+            LocalModelSetupStatus = localModel.Detail;
+        }
+
+        var powerShell = Dependencies.FirstOrDefault(status =>
+            string.Equals(status.Id, dependencySetup.PowerShellTaskId, StringComparison.Ordinal));
+        if (powerShell is not null)
+        {
+            PowerShellSetupStatus = powerShell.Detail;
+        }
+
+        OnPropertyChanged(nameof(ShouldOfferLocalModelSetup));
+        OnPropertyChanged(nameof(ShouldOfferPowerShellSetup));
+    }
+
+    private void ApplyDependencyStatus(DependencyStatus status)
+    {
+        var previous = Dependencies.FirstOrDefault(item =>
+            string.Equals(item.Id, status.Id, StringComparison.Ordinal));
+        if (previous is null)
+        {
+            Dependencies.Add(status);
+        }
+        else
+        {
+            Dependencies[Dependencies.IndexOf(previous)] = status;
+        }
+
+        if (string.Equals(status.Id, "local.inference", StringComparison.Ordinal))
+        {
+            LocalModelSetupStatus = status.Detail;
+        }
+        else
+        {
+            PowerShellSetupStatus = status.Detail;
+        }
+
+        OnPropertyChanged(nameof(ShouldOfferLocalModelSetup));
+        OnPropertyChanged(nameof(ShouldOfferPowerShellSetup));
+    }
+
     private async Task ToggleListeningAsync()
     {
         if (IsVoiceEnabled)
         {
             HoldVoiceInput("Microphone closed · listening was disabled manually");
-            await StopListeningAsync();
+            try
+            {
+                await StopListeningAsync();
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                ApplicationLog.Error(logger, exception, "Disabling voice activation");
+                ShowFailure("Microphone cleanup needs attention.",
+                    exception.Message + " Restart Kora before using voice again.");
+                return;
+            }
             SetListeningPauseReason(
                 "Microphone closed · listening was disabled manually");
             ApplicationLog.Information(logger, "Voice activation was disabled by the user");
@@ -2760,6 +2865,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             MicrophoneAccessStatus = microphoneAccessService.GetStatus();
             ApplicationLog.Error(logger, exception, "Starting Windows speech recognition");
             ShowFailure("Windows speech recognition is unavailable.", exception.Message);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            HoldVoiceInput("Microphone closed · unexpected readiness failure");
+            ApplicationLog.Error(logger, exception, "Starting voice activation unexpectedly");
+            ShowFailure("Voice activation failed.", exception.Message);
         }
         finally
         {
@@ -3033,6 +3144,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Denied voice preview outside the eligible host generation");
             return;
         }
+        if (SelectedVoice is not { } voice || SelectedOutputDevice is not { } outputDevice
+            || EffectiveOutputDevice is not { IsMuted: false })
+        {
+            ApplicationLog.Information(logger, "Denied voice preview without an explicit voice and available output");
+            ShowInformation("Voice preview is unavailable.",
+                "Select an installed speech voice and an available audio output, then try again.");
+            return;
+        }
         var previewText = $"Hello, I'm {AssistantName}.";
         IsBusy = true;
         IsSpeaking = true;
@@ -3041,8 +3160,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await textToSpeech.SpeakAsync(
                 previewText,
-                SelectedVoice!,
-                SelectedOutputDevice!);
+                voice,
+                outputDevice);
         }
         catch (OperationCanceledException)
         {
@@ -3065,6 +3184,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SelectedVoice = null;
             ShowFailure("Text-to-speech is unavailable.", exception.Message);
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ApplicationLog.Error(logger, exception, "Previewing text-to-speech unexpectedly");
+            ShowFailure("Voice preview failed.", exception.Message);
+        }
         finally
         {
             activeSpokenText = null;
@@ -3075,14 +3199,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task StopSpeakingAsync()
     {
-        await textToSpeech.StopAsync();
-        activeSpokenText = null;
-        IsSpeaking = false;
-        if (powerShellSetupCancellation is { } installation)
+        try
         {
-            await installation.CancelAsync();
+            await textToSpeech.StopAsync();
+            activeSpokenText = null;
+            IsSpeaking = false;
+            ShowInformation("Speech is stopped.", "No speech playback is active.");
         }
-        ShowInformation("Speech is stopped.", "No speech playback is active.");
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ApplicationLog.Error(logger, exception, "Stopping speech output");
+            ShowFailure("Speech output could not be stopped.", exception.Message);
+        }
     }
 
     private async Task StopAudioAsync(bool skipCurrentModelDispatchWait = false)
@@ -3545,8 +3673,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs));
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            ApplicationLog.Error(logger, exception, "Handling a recognized voice command");
             ShowFailure("The command could not be completed.", exception.Message);
         }
     }
@@ -3808,6 +3937,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var cancellation = new CancellationTokenSource();
         activeReasoningCancellation = cancellation;
+        IsLocalTaskCancellable = true;
         dependencyBootstrapper.Tasks.Start("local.reasoning", "Local model response", "Generating an answer locally.");
         RefreshCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanInstallPowerShell));
@@ -3952,17 +4082,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 "Local model inference (Ollama)",
                 DependencyReadiness.Failed,
                 $"Local inference failed: {exception.Message}. Refresh readiness to retry.");
-            var previous = Dependencies.FirstOrDefault(item =>
-                string.Equals(item.Id, status.Id, StringComparison.Ordinal));
-            if (previous is not null)
-            {
-                Dependencies[Dependencies.IndexOf(previous)] = status;
-            }
+            ApplyDependencyStatus(status);
             dependencyBootstrapper.Tasks.Reconcile(status);
             ShowFailure("Local reasoning failed.", exception.Message);
         }
         finally
         {
+            IsLocalTaskCancellable = false;
             if (ReferenceEquals(activeReasoningCancellation, cancellation))
             {
                 activeReasoningCancellation = null;
@@ -4100,6 +4226,63 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unsupported model action."),
     };
 
+    public async Task CancelCurrentTaskAsync()
+    {
+        CancelPendingPowerAudit("task-cancelled");
+        if (powerShellSetupCancellation is not null)
+        {
+            await powerShellSetupCancellation.CancelAsync();
+            ShowInformation("Cancelling PowerShell setup.", "The approved installation is stopping.");
+        }
+        else if (localModelCancellation is not null)
+        {
+            await localModelCancellation.CancelAsync();
+            ShowInformation("Cancelling local model setup.", "The running setup step is stopping.");
+        }
+        else if (activeReasoningCancellation is not null)
+        {
+            var running = activeReasoningTask;
+            await activeReasoningCancellation.CancelAsync();
+            if (IsSpeaking)
+            {
+                try
+                {
+                    await textToSpeech.StopAsync();
+                    activeSpokenText = null;
+                    IsSpeaking = false;
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    ApplicationLog.Error(logger, exception, "Stopping local response speech during cancellation");
+                    ShowFailure("Speech output could not be stopped.", exception.Message);
+                    return;
+                }
+            }
+
+            if (running is not null)
+            {
+                await running;
+            }
+
+            var cancelled = SetupTasks.Any(task =>
+                string.Equals(task.Id, "local.reasoning", StringComparison.Ordinal)
+                && task.State == SetupTaskState.Cancelled);
+            ShowInformation(
+                cancelled ? "Local request cancelled." : "Local answer already completed.",
+                cancelled
+                    ? "The local model request was stopped."
+                    : "No further model work is running. Speech playback was stopped.");
+        }
+        else if (IsSpeaking)
+        {
+            await StopSpeakingAsync();
+        }
+        else
+        {
+            ShowInformation("Cancelled.", $"No running {AssistantName} task or power proposal will continue. Setup items needing your action remain available.");
+        }
+    }
+
     private async Task ApproveModelActionAsync(
         ModelApprovalScope scope,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
@@ -4199,17 +4382,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ShowInformation("Model action declined.", "No action was performed.");
     }
 
-    public async Task RejectPendingModelActionAsync()
+    public async Task<bool> RejectPendingModelActionAsync()
     {
-        if (IsModelActionApprovalPending)
+        if (!IsModelActionApprovalPending)
         {
-            var approval = pendingModelActionAudit;
-            await StopModelApprovalPromptAsync();
-            if (ReferenceEquals(pendingModelActionAudit, approval))
-            {
-                RejectPendingModelAction();
-            }
+            return true;
         }
+
+        var approval = pendingModelActionAudit;
+        try
+        {
+            await StopModelApprovalPromptAsync();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ApplicationLog.Error(logger, exception, "Stopping the model approval prompt");
+            ShowFailure("Approval prompt could not be stopped.", exception.Message);
+            return false;
+        }
+
+        if (ReferenceEquals(pendingModelActionAudit, approval))
+        {
+            RejectPendingModelAction();
+        }
+
+        return true;
     }
 
     private async Task StopModelApprovalPromptAsync()
@@ -4290,6 +4487,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Error(logger, exception, "Playing a response with text-to-speech");
             ClearActiveSpeechVoice();
             ShowFailure("Text-to-speech is unavailable.", exception.Message);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ApplicationLog.Error(logger, exception, "Playing a spoken response unexpectedly");
+            ShowFailure("Speech output failed.", exception.Message);
         }
         finally
         {
@@ -4538,46 +4740,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         : $"{nextTask.Name}: {nextTask.State}. {nextTask.Detail}");
                 break;
             case BuiltInAction.CancelTask:
-                CancelPendingPowerAudit("task-cancelled");
-                if (powerShellSetupCancellation is not null)
-                {
-                    await powerShellSetupCancellation.CancelAsync();
-                    ShowInformation("Cancelling PowerShell setup.", "The approved installation is stopping.");
-                }
-                else if (localModelCancellation is not null)
-                {
-                    await localModelCancellation.CancelAsync();
-                    ShowInformation("Cancelling local model setup.", "The running setup step is stopping.");
-                }
-                else if (activeReasoningCancellation is not null)
-                {
-                    var running = activeReasoningTask;
-                    await activeReasoningCancellation.CancelAsync();
-                    if (IsSpeaking)
-                    {
-                        await textToSpeech.StopAsync();
-                        activeSpokenText = null;
-                        IsSpeaking = false;
-                    }
-
-                    if (running is not null)
-                    {
-                        await running;
-                    }
-
-                    var cancelled = SetupTasks.Any(task =>
-                        string.Equals(task.Id, "local.reasoning", StringComparison.Ordinal)
-                        && task.State == SetupTaskState.Cancelled);
-                    ShowInformation(
-                        cancelled ? "Local request cancelled." : "Local answer already completed.",
-                        cancelled
-                            ? "The local model request was stopped."
-                            : "No further model work is running. Speech playback was stopped.");
-                }
-                else
-                {
-                    ShowInformation("Cancelled.", $"No running {AssistantName} task or power proposal will continue. Setup items needing your action remain available.");
-                }
+                await CancelCurrentTaskAsync();
                 break;
             case BuiltInAction.StopSpeaking:
                 await StopSpeakingAsync();

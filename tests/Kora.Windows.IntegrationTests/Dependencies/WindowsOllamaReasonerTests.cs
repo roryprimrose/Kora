@@ -29,7 +29,7 @@ public sealed class WindowsOllamaReasonerTests
             calls.Add(message.RequestUri.AbsolutePath);
             if (string.Equals(message.RequestUri.AbsolutePath, "/api/tags", StringComparison.Ordinal))
             {
-                return Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}""");
+                return Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest["sha256:".Length..]}}"}]}""");
             }
 
             using var request = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(token));
@@ -39,6 +39,7 @@ public sealed class WindowsOllamaReasonerTests
             root.GetProperty("stream").GetBoolean().Should().BeFalse();
             root.GetProperty("options").GetProperty("num_predict").GetInt32().Should().Be(512);
             root.GetProperty("format").GetString().Should().Be("json");
+            root.GetProperty("think").GetBoolean().Should().BeFalse();
             var system = root.GetProperty("system").GetString();
             system.Should().Contain("\"AssistantName\":\"Kora\"");
             system.Should().Contain("\"Readiness\":\"Ready\"");
@@ -143,6 +144,8 @@ public sealed class WindowsOllamaReasonerTests
 
     [Theory]
     [InlineData("""{"action":"InstallLocalModel"}""")]
+    [InlineData("")]
+    [InlineData("not json")]
     [InlineData("""{"action":"LockMachine","answer":"already done"}""")]
     [InlineData("""{"action":"lock the machine"}""")]
     [InlineData("""{"answer":""}""")]

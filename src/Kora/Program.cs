@@ -92,8 +92,11 @@ internal static class Program
                     {
                         try
                         {
-                            // App also disposes on normal exit; provider disposal is idempotent.
-                            provider?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                            if (provider is not null)
+                            {
+                                // Avalonia leaves its synchronization context installed after the UI loop exits.
+                                Task.Run(() => provider.DisposeAsync().AsTask()).GetAwaiter().GetResult();
+                            }
                         }
                         catch (Exception exception)
                         {
@@ -105,10 +108,6 @@ internal static class Program
                         ownershipBridge.UnbindCallbacks();
                         provider = null;
                         App.Services = null!;
-                        if (Avalonia.Application.Current is { } application)
-                        {
-                            application.ApplicationLifetime = null;
-                        }
 
                         try
                         {

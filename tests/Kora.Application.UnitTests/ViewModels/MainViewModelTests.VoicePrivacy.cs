@@ -580,6 +580,54 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Command activation is no longer current.");
     }
 
+    [Fact]
+    public async Task Retired_activation_cleanup_failure_is_reported_without_crashing_the_UI()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.RejectAcknowledgement = true;
+        fixture.Voice.StopException = new InvalidOperationException("native capture is still closing");
+
+        var action = fixture.ViewModel.BeginPushToTalkAsync;
+
+        await action.Should().NotThrowAsync();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Microphone cleanup needs attention.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Restart Kora");
+    }
+
+    [Fact]
+    public async Task Unexpected_completion_failure_is_reported_without_escaping_the_PTT_handler()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkAsync();
+        fixture.Voice.EndException = new NotSupportedException("unexpected completion failure");
+
+        var action = fixture.ViewModel.EndPushToTalkAsync;
+
+        await action.Should().NotThrowAsync();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Command capture failed.");
+    }
+
+    [Fact]
+    public async Task Disable_listening_cleanup_failure_is_visible_without_escaping_the_command()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.StopException = new NotSupportedException("native release failed");
+
+        var action = fixture.ViewModel.ToggleListeningCommand.ExecuteAsync;
+
+        await action.Should().NotThrowAsync();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Microphone cleanup needs attention.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Restart Kora");
+    }
+
     [Theory]
     [InlineData(VoiceRecognitionCompletionReason.EmptySpeechTimeout)]
     [InlineData(VoiceRecognitionCompletionReason.NoSpeechRecognized)]
@@ -1026,6 +1074,49 @@ public sealed partial class MainViewModelTests
         PublishTopology(fixture, 1);
         fixture.ViewModel.SelectedOutputDevice?.Id.Should().Be(pinned ? "0" : null);
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Topology_refresh_restores_endpoints_after_native_controls_clear_their_selections(
+        bool captureActive)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
+            string.Equals(device.Id, "0", StringComparison.Ordinal));
+        var microphoneId = fixture.ViewModel.SelectedMicrophone!.Id;
+        var microphoneName = fixture.ViewModel.SelectedMicrophone.Name;
+        var outputId = fixture.ViewModel.SelectedOutputDevice.Id;
+        if (captureActive)
+        {
+            await fixture.ViewModel.BeginPushToTalkAsync();
+        }
+        fixture.ViewModel.Microphones.CollectionChanged += (_, _) =>
+        {
+            if (fixture.ViewModel.Microphones.Count == 0)
+            {
+                fixture.ViewModel.SelectedMicrophone = null;
+                fixture.ViewModel.ListeningStatus.Should().Be(captureActive
+                    ? "Push-to-talk capture active · microphone selection is refreshing"
+                    : "Microphone closed · selected microphone is unavailable");
+            }
+        };
+        fixture.ViewModel.OutputDevices.CollectionChanged += (_, _) =>
+        {
+            if (fixture.ViewModel.OutputDevices.Count == 0)
+            {
+                fixture.ViewModel.SelectedOutputDevice = null;
+            }
+        };
+
+        PublishTopology(fixture, 1);
+
+        fixture.ViewModel.SelectedMicrophone!.Id.Should().Be(microphoneId);
+        fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be(outputId);
+        fixture.ViewModel.IsListening.Should().Be(captureActive);
+        fixture.ViewModel.ListeningStatus.Should().Contain(microphoneName);
     }
 
     [Fact]

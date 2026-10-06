@@ -1,7 +1,7 @@
 using Kora.Application.Diagnostics;
 using Kora.Core;
-using Kora.Core.Voice;
 using Kora.Core.Platform;
+using Kora.Core.Voice;
 
 namespace Kora.Application.ViewModels;
 
@@ -70,6 +70,7 @@ public sealed partial class MainViewModel
     {
         try
         {
+            var previousOutput = selectedOutputDevice;
             var devices = textToSpeech.GetOutputDevices();
             systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
             var previous = SelectedOutputDevice;
@@ -82,10 +83,10 @@ public sealed partial class MainViewModel
                 {
                     OutputDevices.Add(device);
                 }
-                if (previous is not null)
+                if (previousOutput is not null)
                 {
                     SelectedOutputDevice = OutputDevices.FirstOrDefault(device =>
-                        string.Equals(device.Id, previous.Id, StringComparison.Ordinal)) ?? previous;
+                        string.Equals(device.Id, previousOutput.Id, StringComparison.Ordinal)) ?? previousOutput;
                 }
             }
             finally
@@ -103,7 +104,7 @@ public sealed partial class MainViewModel
             }
             return true;
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             InvalidateUnavailableOutput();
             ApplicationLog.Error(logger, exception, "Refreshing Windows output endpoint availability");
@@ -231,8 +232,7 @@ public sealed partial class MainViewModel
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException
-            or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Closing capture and output after a Windows privacy event");
             uiDispatcher.Post(() => ShowFailure("Audio privacy closure needs attention.", exception.Message));
@@ -362,7 +362,7 @@ public sealed partial class MainViewModel
                 || Volatile.Read(ref pushToTalkHeld) == 0 || !sessionController.IsCurrentSessionUnlocked())
             {
                 voiceRecognition.InvalidateCapture();
-                await voiceRecognition.StopAsync();
+                await TryStopFailedCaptureAsync("Closing an ineligible push-to-talk activation");
                 return;
             }
 
@@ -376,18 +376,31 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) when (opening.IsCancellationRequested)
         {
             HoldVoiceInput("Microphone closed · capture open cancelled or timed out");
-            await voiceRecognition.StopAsync();
-            ShowInformation("Command capture did not start.", "Use Enable listening and try push-to-talk again.");
+            if (await TryStopFailedCaptureAsync("Closing a cancelled push-to-talk activation"))
+            {
+                ShowInformation("Command capture did not start.", "Use Enable listening and try push-to-talk again.");
+            }
         }
         catch (Exception exception) when (exception is InvalidOperationException or ArgumentOutOfRangeException
             or IOException or UnauthorizedAccessException)
         {
             HoldVoiceInput("Microphone closed · capture failed");
-            await voiceRecognition.StopAsync();
             ApplicationLog.Error(logger, exception, "Opening explicit push-to-talk capture");
-            ShowFailure(exception is ArgumentOutOfRangeException
-                ? "The selected microphone is unavailable."
-                : "Windows speech recognition is unavailable.", exception.Message);
+            if (await TryStopFailedCaptureAsync("Closing a failed push-to-talk activation"))
+            {
+                ShowFailure(exception is ArgumentOutOfRangeException
+                    ? "The selected microphone is unavailable."
+                    : "Windows speech recognition is unavailable.", exception.Message);
+            }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            HoldVoiceInput("Microphone closed · unexpected capture failure");
+            ApplicationLog.Error(logger, exception, "Opening explicit push-to-talk capture unexpectedly");
+            if (await TryStopFailedCaptureAsync("Closing an unexpectedly failed push-to-talk activation"))
+            {
+                ShowFailure("Voice capture failed.", exception.Message);
+            }
         }
         finally
         {
@@ -403,9 +416,27 @@ public sealed partial class MainViewModel
         if (generationToAccept >= 0 && !voiceRecognition.AcceptCaptureGeneration(generationToAccept))
         {
             HoldVoiceInput("Microphone closed · activation was retired before acknowledgement");
+            if (await TryStopFailedCaptureAsync("Closing a retired push-to-talk activation"))
+            {
+                ShowInformation("Command activation is no longer current.",
+                    "No buffered command was accepted. Use Enable listening and activate push-to-talk again.");
+            }
+        }
+    }
+
+    private async Task<bool> TryStopFailedCaptureAsync(string operation)
+    {
+        try
+        {
             await voiceRecognition.StopAsync();
-            ShowInformation("Command activation is no longer current.",
-                "No buffered command was accepted. Use Enable listening and activate push-to-talk again.");
+            return true;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ApplicationLog.Error(logger, exception, operation);
+            ShowFailure("Microphone cleanup needs attention.",
+                exception.Message + " Restart Kora before using voice again.");
+            return false;
         }
     }
 
@@ -426,7 +457,7 @@ public sealed partial class MainViewModel
         {
             await voiceRecognition.EndPushToTalkAsync();
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             HoldVoiceInput("Microphone closed · command completion failed");
             ApplicationLog.Error(logger, exception, "Completing explicit push-to-talk");
@@ -457,6 +488,7 @@ public sealed partial class MainViewModel
     {
         try
         {
+            var previousMicrophone = selectedMicrophone;
             var devices = voiceRecognition.GetMicrophones();
             Interlocked.Increment(ref microphoneTopologyRevision);
             systemDefaultMicrophone = voiceRecognition.GetDefaultMicrophone();
@@ -469,10 +501,10 @@ public sealed partial class MainViewModel
                 {
                     Microphones.Add(device);
                 }
-                if (selectedMicrophone is { } previous)
+                if (previousMicrophone is not null)
                 {
                     SelectedMicrophone = Microphones.FirstOrDefault(device =>
-                        string.Equals(device.Id, previous.Id, StringComparison.Ordinal)) ?? previous;
+                        string.Equals(device.Id, previousMicrophone.Id, StringComparison.Ordinal)) ?? previousMicrophone;
                 }
             }
             finally
@@ -484,8 +516,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
             NotifyVoiceEnablementChanged();
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException
-            or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             HoldVoiceInput("Microphone closed · device enumeration failed");
             ApplicationLog.Error(logger, exception, "Refreshing native microphone recovery");

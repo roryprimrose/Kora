@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param([ValidateSet('windows', 'source')][string] $Archive = 'windows')
 . (Join-Path $PSScriptRoot 'Common.ps1')
+$curl = if ($IsWindows) { 'curl.exe' } else { 'curl' }
+Get-Command $curl -ErrorAction Stop | Out-Null
 $lock = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'tools.lock.json') -Raw |
     ConvertFrom-Json -AsHashtable
 $entry = $lock.nsis[$Archive]
@@ -12,7 +14,11 @@ $path = Join-Path $directory $name
 if (!(Test-Path -LiteralPath $path)) {
     $temporary = "$path.download"
     if (Test-Path -LiteralPath $temporary) { throw 'Partial download exists; review it before retrying.' }
-    Invoke-WebRequest -Uri $entry.url -OutFile $temporary -TimeoutSec 120
+    Invoke-Checked $curl @(
+        '--fail', '--location', '--retry', '3',
+        '--proto', '=https', '--proto-redir', '=https',
+        '--output', $temporary, '--', $entry.url
+    )
     if ((Get-FileHash -LiteralPath $temporary).Hash.ToLowerInvariant() -ne $entry.sha256) {
         throw 'NSIS archive hash mismatch; untrusted bytes retained but not extracted.'
     }

@@ -280,14 +280,11 @@
                   <Button Classes="primary" Content="{Binding ListeningButtonText}" Command="{Binding ToggleListeningCommand}" IsVisible="{Binding HasVoiceConsent}" />
                   <Button Content="Withdraw voice consent" Command="{Binding WithdrawVoiceConsentCommand}" IsVisible="{Binding HasVoiceConsent}" />
                   <Button
+                      x:Name="PushToTalkButton"
                       Content="Push to talk (hold)"
                       IsEnabled="{Binding IsVoiceEnabled}"
-                      PointerPressed="OnPushToTalkPressed"
-                      PointerReleased="OnPushToTalkReleased"
                       PointerCaptureLost="OnPushToTalkCaptureLost"
-                      LostFocus="OnPushToTalkFocusLost"
-                      KeyDown="OnPushToTalkKeyDown"
-                      KeyUp="OnPushToTalkKeyUp" />
+                      LostFocus="OnPushToTalkFocusLost" />
                 </StackPanel>
               </Grid>
             </Border>
@@ -556,16 +553,25 @@
             </StackPanel>
 
             <TextBlock Text="Setup tasks" Classes="settings-title" />
+            <TextBlock Text="Local model inference (Ollama)" Classes="settings-title" />
+            <TextBlock Text="{Binding LocalModelSetupStatus}" Classes="muted" TextWrapping="Wrap" />
             <Button Content="Review local model setup"
                     IsEnabled="{Binding CanInstallLocalModel}"
+                    IsVisible="{Binding ShouldOfferLocalModelSetup}"
                     Click="OnInstallLocalModelClicked"
                     HorizontalAlignment="Left" />
-            <TextBlock Text="{Binding LocalModelSetupStatus}" Classes="muted" TextWrapping="Wrap" />
+            <ProgressBar Minimum="0"
+                         Maximum="100"
+                         Value="{Binding LocalModelSetupProgress}"
+                         IsIndeterminate="{Binding IsLocalModelSetupProgressIndeterminate}"
+                         IsVisible="{Binding IsLocalModelSetupActive}" />
+            <TextBlock Text="PowerShell 7 (pwsh)" Classes="settings-title" />
+            <TextBlock Text="{Binding PowerShellSetupStatus}" Classes="muted" TextWrapping="Wrap" />
             <Button Content="Review PowerShell 7 setup"
                     IsEnabled="{Binding CanInstallPowerShell}"
+                    IsVisible="{Binding ShouldOfferPowerShellSetup}"
                     Click="OnInstallPowerShellClicked"
                     HorizontalAlignment="Left" />
-            <TextBlock Text="{Binding PowerShellSetupStatus}" Classes="muted" TextWrapping="Wrap" />
             <ItemsControl ItemsSource="{Binding SetupTasks}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>

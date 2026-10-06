@@ -334,6 +334,17 @@ Do not edit [recorded-results.json](evidence/recorded-results.json) or
 was part of this offline run. Add separately identified reviewed acoustic
 evidence once it exists.
 
+### Proof code lifecycle
+
+Retain this deterministic capture/benchmark harness through wake-candidate
+selection and R09 packaged acoustic validation. Move reusable buffer, timing
+and stale-generation assertions into production tests as those components are
+implemented. The Python/model-specific harness may be removed only after the
+equivalent production tests and required live evidence exist; preserve its
+reviewed historical receipts. The shared
+[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition)
+is authoritative if delivery sequencing changes.
+
 ### Merge versus acceptance
 
 On 2026-10-05 the user requested publishing and auto-completing the PR after

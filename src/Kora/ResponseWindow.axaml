@@ -14,6 +14,7 @@
     WindowDecorations="None"
     Topmost="{Binding IsResponseWindowTopmost}"
     TransparencyLevelHint="Transparent"
+    KeyDown="OnCancelTaskKeyDown"
     WindowStartupLocation="Manual">
   <Border
       Margin="12"
@@ -35,11 +36,15 @@
               FontWeight="SemiBold"
               TextWrapping="Wrap" />
         </StackPanel>
-        <Button
-            Grid.Column="1"
-            Content="Dismiss"
-            Click="OnDismissClicked"
-            VerticalAlignment="Top" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+          <Button
+              Content="Cancel task"
+              IsVisible="{Binding IsCancelTaskVisible}"
+              Click="OnCancelTaskClicked" />
+          <Button
+              Content="Dismiss"
+              Click="OnDismissClicked" />
+        </StackPanel>
       </Grid>
 
       <ScrollViewer Grid.Row="1" MaxHeight="150" VerticalScrollBarVisibility="Auto">
@@ -142,6 +147,7 @@
         <TextBox
             Text="{Binding CommandText}"
             PlaceholderText="Type a command"
+            KeyDown="OnCommandTextKeyDown"
             VerticalContentAlignment="Center" />
         <Button
             Grid.Column="1"

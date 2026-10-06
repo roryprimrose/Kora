@@ -23,11 +23,11 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 |---|---|---|---|
 | R02 speech/hardware | [Merged synthetic proof and safe file-only reruns](../experiments/r02-speech-proof/README.md#safe-to-rerun-remotely-including-while-locked) | [Before a live test session](../experiments/r02-speech-proof/README.md#before-a-live-test-session), then [live/instrumented acceptance](../experiments/r02-speech-proof/README.md#live--instrumented-acceptance-work-still-outstanding). Obtain participant/bystander consent and an instrumented host with R03/R09 ownership/privacy controls; the current scripts cannot run live trials. | D-002/D-007; packaged acoustics, playback rejection, latency, reference floor and capture/recovery acceptance |
 | R02 storage/key | [Synthetic storage proof and safe Windows reruns](../experiments/r02-storage-proof/README.md#reproduce); authenticated content, DPAPI/key-file ACLs and transaction/artifact interruption evidence | [Storage admission follow-up](#storage-admission-follow-up): maintained native selection, installed x64/x86 loading, production profile-path/CurrentUser/permission integration, and integrated recovery/deletion. Safe proof reruns require a loaded Windows profile, not an unlocked console. Routine second-account OS-denial trials are optional for profile-local storage. | D-009; R02 native admission, R04 integration and R12 lifecycle/deletion remain open; no production store is enabled |
-| R02 local inference | [Safe deterministic reruns](../experiments/r02-local-inference-proof/README.md#safe-deterministic-reruns); verified public identity/licence/download metadata and real missing-runtime/unavailable behavior, not model quality or performance | [Prepare an interactive inference session](../experiments/r02-local-inference-proof/README.md#before-an-interactive-inference-session), then [LI01-LI07 deferred trials](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials). Assign reference/isolation owners and agree budgets; separately approve exact pinned provisioning, exclusive model residency changes and whole-environment network blocking. Synthetic measurement commands exist; server-cessation/race, attributable egress and integrated-host rows need independent instrumentation or later implementation. | D-003 and inference D-007; [R02-L1-L6](Implementation_Roadmap.md#r02-local-inference-continuation), actual CPU-floor quality/context/cancellation, distribution and offline success; R06/R07/R08/R10 and A2/R19 integration remain gated |
+| R02 local inference | [Safe deterministic reruns](../experiments/r02-local-inference-proof/README.md#safe-deterministic-reruns), plus the [bounded production-host trial](#2026-10-05-bounded-local-inference-result): clean one-approval Ollama/model setup, exact digest verification, real answers, loopback-only observation, visible cancellation and repeatable session-controlled teardown | [Prepare an interactive inference session](../experiments/r02-local-inference-proof/README.md#before-an-interactive-inference-session), then complete the remaining [LI01-LI07 deferred trials](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials). Assign reference/isolation owners and agree budgets; separately approve exclusive model residency changes and whole-environment network blocking. Installer provisioning, CPU-floor measurements, server-cessation/races, attributable offline egress and repeated instrumented cancellation remain outstanding. | D-003 and inference D-007; [R02-L1-L6](Implementation_Roadmap.md#r02-local-inference-continuation), actual CPU-floor quality/context/resource budgets, installer distribution and independent offline success; R06/R07/R08/R10 and A2/R19 integration remain gated |
 | R02 runtime/provider | [Historical Node checks](../experiments/r02-runtime-proof/README.md#reproduce-on-windows) unchanged; separate [actual .NET RT1](../experiments/r02-dotnet-control-proof/README.md) source-built profile passes 45/45 tests, with rejected hook-only FAIL retained | [Runtime/provider follow-up](#runtimeprovider-follow-up): preserve exact RT1 pins; instrument RT2 lifecycle paths and implement MG1 complete .NET envelope. Released NuGet byte parity blocked; prepare separately approved account/usage trials. RT1 commands do not establish full process observation, management envelope or live eligibility. | D-001/D-004/D-010; RT2/MG1/PV1, R08 exposure and model-assisted R13 remain gated; deterministic local management does not wait for hosted trials |
 | R02 Windows containment | [Fixed owned-scratch reproduction](../experiments/r02-containment-proof/README.md#reproduce); partial OS denials and lifetime/Unknown receipts already observed | [Containment outstanding-testing checklist](../experiments/r02-containment-proof/README.md#outstanding-testing-checklist): supported-OS repeat, attributable network denial, dependency/control mechanism, independent deployment and aliases, helper contracts, actual controlled effects and host-death/race recovery. Most rows require a new bounded fixture or instrumented implementation; the current runner is not a general executor. | D-013 and [W1-W4](Implementation_Roadmap.md#r02-windows-containment-follow-up); R11/R16/R17 exposure remains gated |
 | R02 distribution | [Proof #24](https://github.com/roryprimrose/Kora/pull/24); historical Linux cross-publish/Windows NSIS build-inspection evidence, not a containment implementation dependency | Existing approval is build/inspect only. [WiX MSI + Burn is the selected production direction](Distribution_And_Updates.md#selected-windows-installer-direction), with Linux-first build/cross-publish and Windows packaging; standalone Linux NSIS construction is no longer a gate. R17 must validate lifecycle, actual ACL/token protection, native/runtime-only launch and recovery. Obtain new scoped approval and use disposable lab deployments before installation/launch/registry/privileged trials; follow the canonical distribution/acceptance plan. | D-005/R17 implementation/acceptance remains open; no production worker/catalogue acceptance from package inspection or missing components |
-| R03 Windows ownership/audio privacy | [Implementation PR #26](https://github.com/roryprimrose/Kora/pull/26), portable policy/race tests, non-disruptive Windows object/enumeration tests and x64/x86 builds/publishes; not live microphone or lifecycle evidence | [R03 interactive checklist](#r03-windows-ownership-and-audio-privacy). Prepare an instrumented, non-elevated test host and obtain separate approval for each capture/playback, launch/handoff and OS-transition trial. Production wake is not selected or enabled by R03. | R03 real-adapter acceptance; capture release within 500 ms of the observed lock event in every reference trial, takeover/return, hardware/offline ASR, native recovery and cross-architecture evidence remain open |
+| R03 Windows ownership/audio privacy | [Implementation PR #26](https://github.com/roryprimrose/Kora/pull/26), portable policy/race tests, non-disruptive Windows object/enumeration tests and x64/x86 builds/publishes, plus the [2026-10-05 bounded interactive results](#2026-10-05-bounded-interactive-result); not complete lifecycle acceptance | [R03 interactive checklist](#r03-windows-ownership-and-audio-privacy). Prepare an instrumented, non-elevated test host and obtain separate approval for each remaining capture/playback, launch/handoff and OS-transition trial. Production wake is not selected or enabled by R03. | Complete A01/A02/A05/A07 coverage; capture release within 500 ms of the observed lock event in every A03 reference trial; A04 device/permission changes; A06 unclean recovery; hardware matrices, native timing and installer-provisioned x86 runtime evidence remain open |
 
 Each proof-specific checklist owns its detailed procedures; this register
 does not replace them or weaken their separate consent requirements. Local
@@ -38,6 +38,79 @@ authorise its provisioning/network changes. The
 distribution entry records published proof/design coordination, not a claim
 of production installer acceptance. Preserve both distribution and
 containment roadmap plans when integrating that branch.
+
+## 2026-10-05 Safe Revalidation and Proof-Code Disposition
+
+The documented non-interactive checks were rerun on Windows with the pinned
+.NET 10.0.401, Node 24.16.0 and CPython 3.12.10 toolchains. No microphone,
+audible playback, application/installer launch, protected deployment, model
+provisioning/generation, elevation, network-policy change or disruptive
+lifecycle action was performed.
+
+| Proof | Revalidation outcome | Design consequence |
+|---|---|---|
+| R02 speech/hardware | Dependency/source validation and all 15 deterministic tests passed. The 60-second file-only benchmark reproduced the existing broad result: the small synthetic corpus changes materially with threshold and still admits synthetic TTS wake events. | No production threshold, candidate or hardware floor is selected. D-002/D-007 and every acoustic/packaged-host row remain open. |
+| R02 storage/key | Release build and all 152 automated checks passed; win-x64/win-x86 native assets published and were inspected without execution. | The D-009 direction remains feasible but not production-admitted. Maintained-native, installed-load, integrated recovery and lifecycle gates remain open. |
+| R02 local inference | Release build and all 31 deterministic self-tests passed. A later bounded production-host trial installed the exact Ollama/model pins through Kora, verified the digest and real inference, exercised simple and long answers, rejected malformed/empty structured output, and cancelled active model/speech work without a stale completion. | The candidate remains provisional. Production provisioning/reasoning/cancellation feasibility is now real rather than synthetic, but CPU-floor quality, latency/resource/context budgets, installer provisioning, repeated race timing and independent offline/egress evidence remain open. |
+| R02 runtime/provider | All 16 host/runtime tests passed. The evidence command truthfully returned `2`: 13 rows passed, the hook-only failed-result path failed, and three real-boundary rows remain blocked. | Keep the final request boundary mandatory; hook-only integration remains disabled. D-001/D-004/D-010 and .NET/live-provider parity stay open. |
+| R02 Windows containment | Build and deterministic checks completed; the OS matrix retained 63 of 71 passing assertions and returned `2` for the same eight unproven network-denial assertions. | Keep AppContainer plus job control as a filesystem/credential/lifetime candidate only. Network-denied execution and W1-W4 remain unavailable. |
+| R02 distribution | The historical source published successfully from a short dedicated root; its 81-file payload inspection, unsigned NSIS build, 17 orchestration checks and 9 static publish/packaging checks passed. Strict hashing also exposed and rejected a SourceForge HTML response before extraction. | Production remains WiX MSI + Burn under R17. Managed proof roots must be short for the historical SDK/MSBuild graph; official redirected downloads use `curl.exe` and remain hash-pinned. Static inspection does not clear redistribution, runtime-only, protection or lifecycle gates. |
+| R03 Windows ownership/audio privacy | Locked restore, Debug/Release builds, 251 Core tests, 742 application tests, 188 Windows tests, win-x64/win-x86 publishes and the unchanged 100% line/branch coverage gate passed. Bounded HyperX input/playback and Debug/Release ownership trials also passed after the defects below were corrected. | The implementation regression surface and tested PTT, playback, clean-exit and x64 handoff paths are healthy. Production wake remains unavailable. The bounded runs contribute partial A01/A02/A05/A07 evidence only; their unexercised cases and A03/A04/A06 acceptance remain open. Framework-dependent x86 launch is blocked until the installer provisions the x86 Desktop Runtime. |
+
+### 2026-10-05 Bounded Local-Inference Result
+
+The operator separately approved the running application's setup workflow and
+required teardown to remain session-controlled rather than app-owned. The
+following production-host evidence passed:
+
+- A clean baseline had no Kora/Ollama process, package, executable, endpoint,
+  selected model or continuity marker. Kora then installed Ollama `0.35.1`,
+  downloaded `qwen3:1.7b`, accepted Ollama's equivalent unprefixed SHA-256
+  representation, verified the exact pinned digest, ran real inference and
+  refreshed readiness in one approval.
+- Targeted teardown removed only the selected model, identified test-owned
+  process and `Ollama.Ollama` package. A second clean setup reproduced the
+  result after startup polling was changed to tolerate Winget returning before
+  the package-started server became responsive.
+- Existing PowerShell `7.6.6` satisfied the `7.4` minimum and passed the
+  no-profile, noninteractive health check. It predated the trial and was
+  neither installed nor removed.
+- Settings startup displayed Ollama/model and PowerShell readiness without
+  requiring review-button selection or mutation consent. Installation still
+  required explicit approval.
+- A simple unmatched request returned a relevant local answer. During the
+  observed request, Kora connected only to Ollama on `127.0.0.1:11434`;
+  Ollama had no remaining external connection after provisioning.
+- A long structured request exposed an empty `response` caused by hidden
+  Qwen3 thinking consuming the bounded output. Production now sends
+  `think: false`, rejects empty structured responses and reports malformed
+  model contracts without exposing raw parser errors. The corrected request
+  produced a spoken answer.
+- **Cancel task** remained visible while model work or response speech was
+  active. Both the button and **Esc** stopped the active work; no stale answer
+  or action appeared, and a following built-in command completed normally.
+  **Dismiss** remained presentation-only and did not stop speech. Enter in the
+  typed response prompt dispatched the existing Run command.
+
+This closes the bounded production setup/reuse and basic integrated
+reasoning/cancellation feasibility gaps only. It does not establish the LI01
+reference environment, LI03 quality/performance/resource budgets, LI04 full
+context envelope, repeated LI05 race/computation-cessation timing, LI06
+independent offline capture, installer provisioning or final LI07 disposition.
+The local-inference proof therefore remains required.
+
+The proof code is retained only while it owns evidence that has not yet moved
+to the production implementation:
+
+| Proof code | Retention decision and removal gate |
+|---|---|
+| Speech | Retain the deterministic capture/benchmark harness through wake-candidate selection and R09 packaged acoustic validation. Migrate reusable bounds/race assertions into production tests, then remove the Python/model-specific harness when its historical receipts are sufficient. |
+| Storage | Retain through maintained native selection and R04/R12 integration because it is the only repeatable crypto, interruption, migration and deletion comparison. Remove candidate-specific prototype paths after equivalent production recovery/native-load tests pass. |
+| Local inference | Retain through LI01-LI07 and R06-R08/R10 adapter delivery; it owns the exact candidate rubric and deferred measurement procedure. Remove it only after those cases are covered by production adapter/integration tests and final evidence. |
+| Runtime/provider | Retain and rerun on every SDK/runtime pin change until the isolated .NET fixture and production host-envelope tests supersede it. The known hook-only failure must remain executable until the unsupported path is impossible in production composition. |
+| Containment | Retain through W1-W4 and protected deployment integration. Migrate filesystem, credential, process-tree and receipt-classification assertions into Windows integration tests before deleting the standalone harness. |
+| Distribution | Retain generic source identity, payload inspection and packaging-contract checks and migrate them to R17. Retain NSIS-specific acquisition/build code only until the selected WiX pipeline reproduces equivalent payload/provenance checks; then delete the NSIS executable path while preserving reviewed historical receipts. |
+| R03 ownership/audio privacy | These are production implementation and regression tests, not disposable proof code. Retain them normally; add separately instrumented acceptance fixtures rather than replacing unit/integration coverage with manual receipts. |
 
 ## Storage Admission Follow-Up
 
@@ -123,11 +196,18 @@ acceptance; this checklist does not enable production adapters or tools.
 
 ## R03 Windows Ownership and Audio Privacy
 
-Status: **all interactive rows below Not run**. The operator deferred live
-trials; no microphone capture/playback, app launch, lock/disconnect/suspend,
-takeover/return or crash-recovery trial was performed for PR #26. Tests using
-fakes and native object/device enumeration are supplementary only. Publishing
-two architectures does not prove cross-build transfer or acoustic behavior.
+Status: **bounded A01/A02/A05/A07 evidence recorded; no row is fully closed**.
+An approved non-elevated physical-headset trial exercised application launch,
+armed-idle behavior, held PTT, local Windows recognition, spoken output and
+ordinary tray exit. A later approved continuation exercised Space/Enter PTT,
+focus-loss closure, empty speech, Preview, Stop speaking, exit during playback,
+same-build activation and x64 Debug/Release decline/takeover/return. It did not
+exercise the complete consent/startup matrix, screen-reader behavior,
+maximum/duplicate activations, device or permission changes,
+lock/disconnect/suspend, active-work handoff refusal, intentional termination
+or crash recovery. Tests using fakes and native object/device enumeration
+remain supplementary only. Publishing x86 does not prove x86 execution when
+the required framework runtime is absent.
 
 The scoped implementation has saved device/profile-local microphone consent,
 fresh-gated ordinary startup, run-scoped explicit recovery, held PTT, bounded
@@ -135,6 +215,51 @@ generation-tagged capture, external privacy observation and native recovery.
 It does not implement/select production wake, durable sessions, general grants,
 model adapters or script execution. Do not exercise those future capabilities
 or infer that the R02 containment experiment is part of this host.
+
+### 2026-10-05 Bounded Interactive Result
+
+The operator confirmed physical presence and bystander consent for a bounded
+trial using the HyperX Cloud Alpha Wireless microphone and headphones. The only
+approved phrase was "Kora, what can you do?". No lock, suspend, disconnect,
+installation, elevation, network-policy or power action was approved.
+
+| Scope | Result and evidence | Remaining gate |
+|---|---|---|
+| A01 subset - ordinary launch and armed-idle state | Kora launched as the non-elevated interactive owner. Enabling listening armed PTT without ambient capture; no response without PTT was expected because production wake is unavailable. | Clean-profile grant/decline, persistence/withdrawal, disable/re-enable and build-partition cases remain unrun. |
+| A02 subset - explicit physical PTT | Held mouse, Space and Enter PTT opened the selected HyperX endpoint and admitted one command per activation. Windows SAPI recognized the initial approved command at confidence `0.82509285`; later keyboard trials also dispatched exactly once. Focus loss closed capture without dispatch, silent release reported no command, and release during native open cancelled fail-closed and required explicit re-enable. | Screen-reader behavior, maximum/failed activations, delayed/duplicate callbacks, detailed queue/sample bounds and a wider hardware matrix remain unrun. |
+| A05 subset - ownership and return | A second identical Release x64 launch activated the authenticated existing owner and exited `0`. A Debug x64 candidate was declined without changing ownership, then accepted with exactly one active tray/UI; its clean exit offered and completed exact-original Release x64 return. Both former processes exited and only the exact original path remained. A framework-dependent Release x86 candidate failed before handoff with the standard missing x86 .NET Desktop Runtime dialog; it exited without disturbing the x64 owner. | Active-work refusal, expiry, candidate death, lock during approval, abort, an installed/runtime-complete x86 candidate and unclean replacement recovery remain unrun. Installer acceptance must prove the required x86 runtime before cross-architecture handoff can close. |
+| A07 subset - native output and exit | Spoken responses and explicit voice Preview completed through the selected HyperX headphones. Stop speaking halted active playback promptly. Exit during active speech released playback, disposed text-to-speech, terminated the process and deleted the continuity marker after the shutdown defects below were fixed. | Screen-reader navigation, System-default rerouting, unavailable/muted output, privacy closure during queued playback and acoustic playback rejection remain unrun. |
+| A03/A04/A06 | Not run; no approval was given for disruptive session/device/permission/failure trials. | All specified closure evidence remains open, including the 500 ms lock-release target. |
+
+The trial exposed defects that deterministic tests had not represented:
+
+- generated XAML members were unavailable during settings startup;
+- native buttons consumed ordinary routed PTT handlers;
+- host teardown attempted an invalid Avalonia lifetime mutation;
+- SAPI required no-op seek compatibility and reads spanning short WASAPI
+  packets;
+- audio cleanup failures could escape asynchronous UI boundaries;
+- endpoint property notifications caused refresh storms, and native selector
+  reset could transiently clear a selected microphone during capture;
+- Preview could execute with no explicitly selected voice; and
+- native cleanup could wait indefinitely before acquiring its lifecycle lock;
+- Avalonia Exit synchronously disposed asynchronous services on its UI context;
+- speech continuations and provider disposal could target Avalonia's retired
+  synchronization context; and
+- output invalidation stopped WASAPI while holding the lock needed by its
+  synchronous completion callback.
+
+The implementation now resolves named controls explicitly, observes handled PTT
+events in the tunnel route, uses verified host completion, provides a bounded
+SAPI-compatible stream adapter, contains audio failures visibly, preserves
+selection across topology refresh, ignores non-topology endpoint property
+noise, revalidates Preview inputs and bounds lifecycle-lock acquisition.
+Avalonia now disposes UI controllers only, host-finally starts provider disposal
+off the retired UI context, text-to-speech avoids capturing UI synchronization,
+and WASAPI stop runs outside the completion-state lock. Unconfirmed cleanup
+fails closed and requires restart. These fixes are retained as production code
+and regression coverage; they do not broaden the evidence above into production
+wake or complete R03 acceptance.
 
 ### Preparation and Approval
 
@@ -226,14 +351,15 @@ On 2026-10-05 the user requested rebasing R03 onto main and adding its deferred
 interactive testing alongside the other proofs so the scoped PR can merge.
 The authorized merge scope is implementation plus this actionable evidence
 handoff, **not completion of interactive acceptance or a production release**.
-The live A01-A07 rows remain capability/release blockers, not prerequisites for
-merging that limited scope. This does not disable the explicitly consented PTT
-implementation or mislabel it as proven wake/audio privacy; deployment/release
-acceptance still requires its real-boundary evidence. Production wake remains
-unavailable. Normal build/test/100% line-and-branch coverage checks and required
-reviews must pass; documenting deferred trials cannot waive CI failures or
-authorize disruptive testing. Overall roadmap/decision-register acceptance
-consolidation remains with integration review.
+The incomplete A01-A07 rows remain capability/release blockers, not
+prerequisites for merging that limited scope. The bounded A01/A02/A07 result
+above does not disable the explicitly consented PTT implementation or mislabel
+it as proven wake/audio privacy; deployment/release acceptance still requires
+the remaining real-boundary evidence. Production wake remains unavailable.
+Normal build/test/100% line-and-branch coverage checks and required reviews
+must pass; documenting a bounded result or deferred trials cannot waive CI
+failures or authorize disruptive testing. Overall roadmap/decision-register
+acceptance consolidation remains with integration review.
 
 No live speech, protected installation, privileged diagnostics or disruptive
 computer-control validation was performed by adding this register. Its inference

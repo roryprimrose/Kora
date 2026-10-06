@@ -462,6 +462,7 @@ public sealed class ActivatedVoiceRecognitionTests(
             capture.ReleaseCount.Should().BeGreaterThan(0);
             release.Set();
             await exited.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            await WaitForCaptureQuiescenceAsync(service);
             capture.Transcript("late");
             service.Generation.Should().Be(invalidated);
             service.IsListening.Should().BeFalse();
@@ -522,6 +523,34 @@ public sealed class ActivatedVoiceRecognitionTests(
         service.IsCaptureQuiescent.Should().BeTrue();
         late.StartCount.Should().Be(0);
         late.ReleaseCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Stop_fails_within_the_deadline_when_detached_cleanup_holds_the_lifecycle_lock()
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var capture = new FakeCapture
+        {
+            DisposeGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        factory.OpenResult.SetResult(capture);
+        var limits = VoiceCaptureLimits.Default with { OpenDeadline = TimeSpan.FromMilliseconds(100) };
+        var service = Create(privacy, factory, limits);
+        await BeginCaptureAsync(service);
+        capture.Completed.TrySetResult();
+        await capture.DisposeEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        var stop = () => service.StopAsync(TestContext.Current.CancellationToken);
+
+        (await stop.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*did not finish within its deadline*");
+        service.IsCaptureQuiescent.Should().BeFalse();
+
+        capture.DisposeGate.SetResult();
+        await capture.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        var dispose = () => service.DisposeAsync().AsTask();
+        await dispose.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -611,6 +640,16 @@ public sealed class ActivatedVoiceRecognitionTests(
         service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
     }
 
+    private static async Task WaitForCaptureQuiescenceAsync(WindowsVoiceRecognitionService service)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(2));
+        while (!service.IsCaptureQuiescent)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
+        }
+    }
+
     private WindowsVoiceRecognitionService Create(
         FakePrivacy privacy, FakeFactory factory, VoiceCaptureLimits? limits = null) =>
         new(Logger, privacy, factory, limits ?? VoiceCaptureLimits.Default);
@@ -675,6 +714,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         public event EventHandler? SpeechDetected;
         public TaskCompletionSource Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Released { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource DisposeEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Disposed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource? DisposeGate { get; set; }
         public bool CompleteOnFinish { get; set; } = true;
@@ -706,6 +746,7 @@ public sealed class ActivatedVoiceRecognitionTests(
 
         public async ValueTask DisposeAsync()
         {
+            DisposeEntered.TrySetResult();
             if (DisposeGate is not null)
             {
 #pragma warning disable VSTHRD003 // Synthetic gate has no synchronization-context dependency.

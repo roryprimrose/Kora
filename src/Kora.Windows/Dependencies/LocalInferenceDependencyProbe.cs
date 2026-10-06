@@ -1,6 +1,6 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Net.Http.Json;
+using System.Net.Sockets;
 using System.Text.Json;
 
 using Kora.Core.Dependencies;
@@ -69,10 +69,7 @@ public sealed class LocalInferenceDependencyProbe(HttpClient client) : ISetupDep
             {
                 if (!pinned.TryGetProperty("digest", out var digest)
                     || digest.ValueKind != JsonValueKind.String
-                    || !string.Equals(
-                        digest.GetString(),
-                        WindowsOllamaSetupService.ModelDigest,
-                        StringComparison.OrdinalIgnoreCase))
+                    || !WindowsOllamaSetupService.IsPinnedModelDigest(digest.GetString()))
                 {
                     return Status(DependencyReadiness.Incompatible,
                         $"The installed {WindowsOllamaSetupService.Model} has an unexpected digest. Kora will not replace it automatically.");
@@ -120,7 +117,7 @@ public sealed class LocalInferenceDependencyProbe(HttpClient client) : ISetupDep
                     : $"Ollama {versionValue.GetString()} and {list.GetArrayLength()} other model(s) were detected. The selected {WindowsOllamaSetupService.Model} model is missing.");
         }
         catch (HttpRequestException exception) when (exception.InnerException is SocketException
-            { SocketErrorCode: SocketError.ConnectionRefused })
+        { SocketErrorCode: SocketError.ConnectionRefused })
         {
             return Status(DependencyReadiness.Missing,
                 "No Ollama runtime is listening on 127.0.0.1:11434. Installation requires approval after Kora has a supported local-model adapter.");

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 
 using AwesomeAssertions;
 
@@ -204,6 +205,66 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.MicrophoneAccessMessage.Should().Contain("allowed");
         fixture.ViewModel.ResponseTitle.Should().Be("Push-to-talk is ready.");
         fixture.ViewModel.State.Should().Be(AssistantState.Information);
+        fixture.ViewModel.IsBusy.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(DependencyReadiness.Ready, false)]
+    [InlineData(DependencyReadiness.Missing, true)]
+    public async Task InitializeAsync_presents_detected_local_model_status_without_setup_review(
+        DependencyReadiness readiness,
+        bool shouldOfferSetup)
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference",
+            "Local model inference (Ollama)",
+            readiness,
+            "Detected local model status.");
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.LocalModelSetupStatus.Should().Be("Detected local model status.");
+        fixture.ViewModel.ShouldOfferLocalModelSetup.Should().Be(shouldOfferSetup);
+        fixture.ViewModel.ShouldOfferPowerShellSetup.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(DependencyReadiness.Ready, false)]
+    [InlineData(DependencyReadiness.Missing, true)]
+    public async Task InitializeAsync_presents_detected_PowerShell_status_without_setup_review(
+        DependencyReadiness readiness,
+        bool shouldOfferSetup)
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "powershell.runtime",
+            "PowerShell 7 (pwsh)",
+            readiness,
+            "Detected PowerShell status.");
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.PowerShellSetupStatus.Should().Be("Detected PowerShell status.");
+        fixture.ViewModel.ShouldOfferPowerShellSetup.Should().Be(shouldOfferSetup);
+        fixture.ViewModel.ShouldOfferLocalModelSetup.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Preview_voice_revalidates_selection_at_execution_time()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.SelectedVoice = null;
+        var previewVoice = typeof(MainViewModel).GetMethod(
+            "PreviewVoiceAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        previewVoice.Should().NotBeNull();
+        await (Task)previewVoice!.Invoke(fixture.ViewModel, null)!;
+
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.ViewModel.ResponseTitle.Should().Be("Voice preview is unavailable.");
+        fixture.ViewModel.IsSpeaking.Should().BeFalse();
         fixture.ViewModel.IsBusy.Should().BeFalse();
     }
 
@@ -465,6 +526,22 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
         fixture.ViewModel.ResponseTitle.Should().Be(expectedTitle);
         fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsBusy.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Enabling_listening_contains_unexpected_readiness_failures()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.PrivacyObservation.RefreshException = new IOException("privacy observation failed");
+
+        Func<Task> action = () => fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+
+        await action.Should().NotThrowAsync();
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.ResponseTitle.Should().Be("Voice activation failed.");
+        fixture.ViewModel.ResponseBody.Should().Contain("privacy observation failed");
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.ViewModel.IsBusy.Should().BeFalse();
     }
 
@@ -1040,7 +1117,7 @@ public sealed partial class MainViewModelTests
 
         fixture.ViewModel.AssistantName.Should().Be("Nova");
         fixture.ViewModel.AssistantInitial.Should().Be("n");
-        fixture.ViewModel.SettingsWindowTitle.Should().Be("Nova settings");
+        fixture.ViewModel.SettingsWindowTitle.Should().Be("Nova settings - 1.2.3");
         fixture.ViewModel.SettingsSubtitle.Should().Be("Nova preferences on this device");
         fixture.ViewModel.AppearanceSettingsDescription.Should().Contain("Nova");
         fixture.ViewModel.AppearanceThemeDescription.Should().Contain("Nova");
@@ -2128,6 +2205,25 @@ public sealed partial class MainViewModelTests
             "provider-unavailable"
         },
     };
+
+    [Fact]
+    public async Task Unexpected_response_playback_failure_is_visible_without_escaping()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.TaskResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.WindowActions.Clear();
+        fixture.TextToSpeech.SpeakException = new IOException("unexpected playback failure");
+
+        Func<Task> action = () => fixture.RunAsync("unsupported");
+
+        await action.Should().NotThrowAsync();
+        fixture.ViewModel.SelectedVoice.Should().NotBeNull();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
+        fixture.ViewModel.ResponseTitle.Should().Be("Speech output failed.");
+        fixture.ViewModel.ResponseBody.Should().Contain("unexpected playback failure");
+        fixture.ViewModel.IsSpeaking.Should().BeFalse();
+    }
 
     public static TheoryData<Exception, string> SpeechProviderRemoveFailures => new()
     {
@@ -3541,6 +3637,30 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Preview_voice_is_disabled_when_the_selected_provider_has_no_selected_voice()
+    {
+        var fixture = new Fixture();
+        fixture.TextToSpeech.Providers =
+        [
+            CreateWindowsProvider(),
+            CreateKokoroProvider(isInstalled: false),
+        ];
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.SelectedSpeechProvider = fixture.ViewModel.SpeechProviders.Single(provider =>
+            string.Equals(provider.Id, SpeechProviderIds.Kokoro, StringComparison.Ordinal));
+        fixture.ViewModel.SelectedVoice = null;
+
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
+        fixture.ViewModel.PreviewVoiceCommand.CanExecute(null).Should().BeFalse();
+
+        await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.ViewModel.IsSpeaking.Should().BeFalse();
+        fixture.ViewModel.IsBusy.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Preview_voice_keeps_PTT_armed_without_ambient_recording()
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -3620,10 +3740,31 @@ public sealed partial class MainViewModelTests
         await responseTask;
     }
 
+    [Fact]
+    public async Task Cancel_task_button_state_includes_built_in_response_speech()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var responseTask = fixture.RunAsync("Kora, what can you do");
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        fixture.ViewModel.IsCancelTaskVisible.Should().BeTrue();
+
+        await fixture.ViewModel.CancelCurrentTaskAsync();
+        await responseTask;
+
+        fixture.TextToSpeech.StopCalls.Should().BeGreaterThan(0);
+        fixture.ViewModel.IsSpeaking.Should().BeFalse();
+        fixture.ViewModel.IsCancelTaskVisible.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Speech is stopped.");
+    }
+
     [Theory]
     [InlineData(typeof(ArgumentOutOfRangeException), "The selected speech voice is unavailable.")]
     [InlineData(typeof(AudioOutputDeviceUnavailableException), "The selected audio output is unavailable.")]
     [InlineData(typeof(InvalidOperationException), "Text-to-speech is unavailable.")]
+    [InlineData(typeof(IOException), "Voice preview failed.")]
     public async Task Preview_voice_surfaces_expected_playback_failures(
         Type exceptionType,
         string expectedTitle)
@@ -3682,6 +3823,19 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Stop_speaking_failure_is_visible_without_escaping()
+    {
+        var fixture = new Fixture();
+        fixture.TextToSpeech.StopException = new IOException("playback cannot stop");
+
+        Func<Task> action = () => fixture.RunAsync("Kora, stop speaking");
+
+        await action.Should().NotThrowAsync();
+        fixture.ViewModel.ResponseTitle.Should().Be("Speech output could not be stopped.");
+        fixture.ViewModel.ResponseBody.Should().Contain("playback cannot stop");
+    }
+
+    [Fact]
     public async Task Other_commands_are_disabled_while_microphone_start_is_in_progress()
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -3735,6 +3889,7 @@ public sealed partial class MainViewModelTests
     {
         { new ArgumentOutOfRangeException("microphone", "gone"), "The selected microphone is unavailable." },
         { new InvalidOperationException("recognizer missing"), "Windows speech recognition is unavailable." },
+        { new NotSupportedException("unexpected adapter failure"), "Voice capture failed." },
     };
 
     [Fact]
@@ -4792,6 +4947,45 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ActiveReasoningTask!;
     }
 
+    [Fact]
+    public async Task Failed_approval_audio_stop_does_not_dismiss_the_pending_action()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
+        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("please lock this workstation");
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        fixture.TextToSpeech.StopException = new IOException("playback cannot stop");
+
+        var dismissed = await fixture.ViewModel.RejectPendingModelActionAsync();
+
+        dismissed.Should().BeFalse();
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("Approval prompt could not be stopped.");
+        fixture.ViewModel.ResponseBody.Should().Contain("playback cannot stop");
+
+        fixture.TextToSpeech.StopException = null;
+        (await fixture.ViewModel.RejectPendingModelActionAsync()).Should().BeTrue();
+        await fixture.ViewModel.ActiveReasoningTask!;
+    }
+
+    [Fact]
+    public async Task Rejecting_without_a_pending_model_action_is_a_successful_no_op()
+    {
+        var fixture = new Fixture();
+
+        var rejected = await fixture.ViewModel.RejectPendingModelActionAsync();
+
+        rejected.Should().BeTrue();
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.TextToSpeech.StopCalls.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -5098,10 +5292,13 @@ public sealed partial class MainViewModelTests
             TaskCreationOptions.RunContinuationsAsynchronously);
         await fixture.RunAsync("explain this concept");
         var running = fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.IsLocalTaskCancellable.Should().BeTrue();
+        fixture.ViewModel.IsCancelTaskVisible.Should().BeTrue();
 
-        await fixture.RunAsync("cancel task");
+        await fixture.ViewModel.CancelCurrentTaskAsync();
         await running;
 
+        fixture.ViewModel.IsLocalTaskCancellable.Should().BeFalse();
         fixture.ViewModel.SetupTasks.Should().Contain(task =>
             task.Id == "local.reasoning" && task.State == SetupTaskState.Cancelled);
         fixture.ViewModel.ResponseTitle.Should().NotBe("Local model response");
@@ -5186,13 +5383,43 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("explain this");
         await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        fixture.ViewModel.IsLocalTaskCancellable.Should().BeTrue();
 
-        await fixture.RunAsync("cancel task")
+        await fixture.ViewModel.CancelCurrentTaskAsync()
             .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         fixture.TextToSpeech.StopCalls.Should().BeGreaterThan(0);
         fixture.ViewModel.IsSpeaking.Should().BeFalse();
+        fixture.ViewModel.IsLocalTaskCancellable.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("Local answer already completed.");
+    }
+
+    [Fact]
+    public async Task Cancelling_model_speech_contains_stop_failures_and_retains_active_state()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        await fixture.RunAsync("explain this");
+        var reasoning = fixture.ViewModel.ActiveReasoningTask!;
+        await fixture.TextToSpeech.SpeakStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        fixture.TextToSpeech.StopException = new IOException("playback cannot stop");
+
+        Func<Task> action = () => fixture.ViewModel.CancelCurrentTaskAsync();
+
+        await action.Should().NotThrowAsync();
+        fixture.ViewModel.ResponseTitle.Should().Be("Speech output could not be stopped.");
+        fixture.ViewModel.ResponseBody.Should().Contain("playback cannot stop");
+        fixture.ViewModel.IsSpeaking.Should().BeTrue();
+        fixture.ViewModel.IsCancelTaskVisible.Should().BeTrue();
+
+        fixture.TextToSpeech.SpeakGate.SetResult();
+        await reasoning;
     }
 
     [Fact]
@@ -5209,6 +5436,9 @@ public sealed partial class MainViewModelTests
 
         fixture.ViewModel.Dependencies.Should().ContainSingle()
             .Which.Readiness.Should().Be(DependencyReadiness.Failed);
+        fixture.ViewModel.LocalModelSetupStatus.Should()
+            .Contain("Local inference failed: Local runtime disconnected.");
+        fixture.ViewModel.ShouldOfferLocalModelSetup.Should().BeTrue();
         fixture.ViewModel.ResponseTitle.Should().Be("Local reasoning failed.");
         await fixture.RunAsync("another question");
         fixture.Reasoner.Requests.Should().ContainSingle();
@@ -5643,6 +5873,8 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Local model inference (Ollama): running.");
         fixture.ViewModel.ResponseBody.Should().Contain("Downloading the selected local model.");
         fixture.ViewModel.ResponseBody.Should().Contain("Completion: 42%.");
+        fixture.ViewModel.LocalModelSetupProgress.Should().Be(42);
+        fixture.ViewModel.IsLocalModelSetupProgressIndeterminate.Should().BeFalse();
 
         fixture.Probe.Status = fixture.Probe.Status with
         {
@@ -5656,7 +5888,9 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SetupTasks.Should().ContainSingle()
             .Which.State.Should().Be(SetupTaskState.Completed);
         fixture.LocalModel.Calls.Should().Be(1);
-        fixture.ViewModel.LocalModelSetupStatus.Should().Be("Downloading the selected local model.");
+        fixture.ViewModel.LocalModelSetupStatus.Should().Be("Pinned model passed inference.");
+        fixture.ViewModel.LocalModelSetupProgress.Should().Be(100);
+        fixture.ViewModel.IsLocalModelSetupProgressIndeterminate.Should().BeFalse();
         await fixture.RunAsync("What can the local model explain?");
         await fixture.ViewModel.ActiveReasoningTask!;
         fixture.Reasoner.Requests.Should().ContainSingle()
@@ -5686,6 +5920,8 @@ public sealed partial class MainViewModelTests
 
         fixture.ViewModel.SetupTasks.Should().ContainSingle()
             .Which.State.Should().Be(SetupTaskState.Cancelled);
+        fixture.ViewModel.LocalModelSetupStatus.Should().Be("Local model setup was cancelled.");
+        fixture.ViewModel.IsLocalModelSetupProgressIndeterminate.Should().BeFalse();
         fixture.ViewModel.IsLocalModelSetupActive.Should().BeFalse();
         AssertAuditPair(
             fixture,
@@ -5708,6 +5944,8 @@ public sealed partial class MainViewModelTests
 
         fixture.ViewModel.ResponseTitle.Should().Be("Local model setup failed.");
         fixture.ViewModel.SetupTasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Failed);
+        fixture.ViewModel.LocalModelSetupStatus.Should().StartWith("Setup failed:");
+        fixture.ViewModel.IsLocalModelSetupProgressIndeterminate.Should().BeFalse();
         fixture.ViewModel.IsLocalModelSetupActive.Should().BeFalse();
         AssertAuditPair(fixture, SecurityAuditCategory.ResourceWrite, "local-model.install",
             SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Failed, "setup-failed");
@@ -5829,7 +6067,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Stopping_speech_during_PowerShell_setup_cancels_installation()
+    public async Task Stopping_speech_during_PowerShell_setup_does_not_cancel_installation()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.PowerShell.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -5837,12 +6075,18 @@ public sealed partial class MainViewModelTests
         await fixture.PowerShell.Started.Task;
 
         await fixture.RunAsync("Kora, stop speaking");
+
+        fixture.ViewModel.SetupTasks.Single(task =>
+                string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
+            .State.Should().Be(SetupTaskState.Running);
+        fixture.ViewModel.IsPowerShellSetupActive.Should().BeTrue();
+
+        await fixture.ViewModel.CancelCurrentTaskAsync();
         await installation;
 
         fixture.ViewModel.SetupTasks.Single(task =>
                 string.Equals(task.Id, "powershell.runtime", StringComparison.Ordinal))
             .State.Should().Be(SetupTaskState.Cancelled);
-        fixture.ViewModel.IsPowerShellSetupActive.Should().BeFalse();
     }
 
     [Fact]
@@ -6016,6 +6260,18 @@ public sealed partial class MainViewModelTests
 
         fixture.Events.Should().ContainInOrder("voice.stop", "window.Close");
         fixture.ViewModel.IsListening.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExitAsync_closes_after_reporting_audio_cleanup_failure_to_the_host()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.Voice.StopException = new InvalidOperationException("native capture is still closing");
+
+        Func<Task> action = () => fixture.ViewModel.ExitAsync();
+
+        await action.Should().NotThrowAsync();
+        fixture.Events.Should().Contain("window.Close");
     }
 
     [Fact]

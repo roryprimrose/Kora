@@ -124,11 +124,15 @@ If the Windows provider has no voice, install a Windows text-to-speech voice
 through Windows Settings. If Kokoro is selected but absent, download it from
 Kora Settings. Typed commands and visual output continue to work.
 
-Select **Preview** to test the chosen voice and output device. No ambient
-recognizer runs during playback. Push-to-talk stops Kora playback before opening
-command capture. **Stop speaking** remains available from the tray without
-speech recognition. Acoustic playback rejection for a future production wake
-pipeline still requires separate real-hardware proof.
+Select an installed voice and available output, then select **Preview** to test
+that explicit choice. Preview is disabled when no voice is selected and
+revalidates both selections before playback; a retained fallback voice used for
+ordinary responses is not an implicit Preview choice. No ambient recognizer
+runs during playback. Push-to-talk stops Kora playback before opening command
+capture. **Stop speaking** remains available from the tray without speech
+recognition. Exit also stops active playback before host teardown. Acoustic
+playback rejection for a future production wake pipeline still requires
+separate real-hardware proof.
 
 ## Audio output selection
 
@@ -170,6 +174,17 @@ Privacy closure invalidates input/output before asynchronous UI recovery;
 old opens, samples and transcripts cannot re-enable or dispatch. Audio is
 memory-only and cleared on closure, not logged or saved.
 
+Audio failures at UI and host boundaries are logged and shown without escaping
+through the desktop dispatcher. Native recognition cleanup and lifecycle-lock
+acquisition have hard deadlines. If Kora cannot confirm cleanup, voice remains
+disabled and the UI requires restart rather than claiming that capture is safe
+to reuse. Exit still enters controlled host shutdown so an unconfirmed cleanup
+can retain the unclean-owner marker instead of reporting a clean handoff.
+Audio synthesis/playback and provider disposal do not depend on Avalonia's UI
+synchronization context. Output invalidation never stops WASAPI while holding
+the completion-state lock, so Exit and privacy closure remain responsive even
+while speech is playing.
+
 Deterministic policy/race tests are not real Windows acceptance trials.
 External lock/disconnect/suspend, microphone-permission/device changes,
 cross-build takeover/return and capture-release timings require reference
@@ -202,20 +217,45 @@ the CI fixes and expanded privacy/race tests were validated with .NET SDK
 | Locked solution restore | Passed |
 | Fresh Debug and Release solution builds | Passed, zero warnings/errors |
 | Release Core unit tests | 251 passed |
-| Release application unit tests | 651 passed |
-| Release Windows tests | 172 passed |
+| Release application unit tests | 742 passed |
+| Release Windows tests | 188 passed |
 | Locked framework-dependent win-x64 and win-x86 publish | Passed; binaries not launched |
 | Merged portable line/branch coverage | 100% / 100%; passed the unchanged 100% / 100% gate |
 
-Coverage includes 4,768 of 4,768 lines and 1,823 of 1,823 branches. No coverage
+Coverage includes 4,982 of 4,982 lines and 1,943 of 1,943 branches. No coverage
 exclusions or threshold reductions were introduced. The added tests exercise
 queued privacy transitions, output/consent failures, endpoint selection,
-approval rechecks and lifecycle admission. Clearing selection now closes armed
-input; protected binary ACL comparison preserves exact SID/rights enforcement,
-and production elevated-process admission still denies.
+approval rechecks, lifecycle admission, SAPI stream compatibility, bounded
+native cleanup, transient selector reset and audio-failure containment.
+Clearing selection now closes armed input; protected binary ACL comparison
+preserves exact SID/rights enforcement, and production elevated-process
+admission still denies.
 The Windows count combines deterministic fakes with non-disruptive native
-object/device enumeration checks; it is not 172 real lifecycle or microphone
+object/device enumeration checks; it is not 188 real lifecycle or microphone
 trials. Debug/Release publishing is not proof of cross-build or cross-architecture
 handoff. Real Windows reference trials remain explicitly outstanding acceptance
-evidence. Interactive trials are deferred under the shared register; hosted CI
-and required reviews still must pass before this scoped implementation can merge.
+evidence. The shared register records the bounded interactive subset and the
+deferred cases; hosted CI and required reviews still must pass before this
+scoped implementation can merge.
+
+On 2026-10-05, a separately approved bounded trial used the physical HyperX
+Cloud Alpha Wireless microphone and headphones in a non-elevated interactive
+session. Held PTT recognized "Kora, what can you do?" at confidence
+`0.82509285`, admitted one `ShowHelp` command and completed the spoken response.
+Kora remained responsive and an ordinary tray exit removed the continuity
+marker after verified clean shutdown. This is partial A01/A02/A07 evidence,
+not full R03 acceptance. No ambient response without PTT is expected because
+production wake is unavailable. Lock/disconnect/suspend, permission/device
+mutation, takeover/return, failure recovery, output rerouting and the complete
+input/accessibility matrix remain untested; see the
+[shared deferred-validation register](../Design/Deferred_Validation.md#2026-10-05-bounded-interactive-result).
+
+A later bounded continuation passed Space and Enter PTT, focus-loss closure,
+silent activation, explicit voice Preview and Stop speaking. Exit during active
+speech initially exposed UI-context and WASAPI lock deadlocks; after correction,
+the process exited, text-to-speech disposed and the continuity marker was
+automatically removed. Release x64/Debug x64 ownership decline, accepted
+takeover and exact-original return also passed. Release x86 execution remains
+blocked by the missing x86 .NET Desktop Runtime and must be proven through the
+installer/runtime acceptance session; no runtime was downloaded during this
+trial.

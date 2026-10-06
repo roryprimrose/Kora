@@ -88,7 +88,9 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
                     throw new InvalidOperationException($"winget Ollama installation failed with exit code {exitCode}.");
                 }
 
-                if (!await IsRuntimeAvailableAsync(cancellationToken) && processes.HasInstalledRuntime(executable))
+                progress.Report(new("Waiting for the newly installed Ollama runtime."));
+                if (!await WaitForRuntimeAsync(attempts: 10, cancellationToken)
+                    && processes.HasInstalledRuntime(executable))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     progress.Report(new("Starting the newly installed Ollama runtime."));
@@ -103,7 +105,11 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
                 }
             }
 
-            await WaitForRuntimeAsync(cancellationToken);
+            if (!await WaitForRuntimeAsync(attempts: 30, cancellationToken))
+            {
+                throw new InvalidOperationException(
+                    "Ollama did not become available on 127.0.0.1:11434 after installation/startup.");
+            }
         }
         else
         {
@@ -127,6 +133,7 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
 
             progress.Report(new($"Downloading {Model} ({ModelDownloadSize}); verifying {ModelDigest}."));
             await PullModelAsync(progress, cancellationToken);
+            progress.Report(new($"Verifying the downloaded {Model} digest."));
             if (!await HasPinnedModelAsync(cancellationToken))
             {
                 throw new InvalidOperationException(
@@ -140,7 +147,9 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
         progress.Report(new($"Ollama and {Model} verified successfully."));
     }
 
-    private async Task<bool> IsRuntimeAvailableAsync(CancellationToken cancellationToken)
+    private async Task<bool> IsRuntimeAvailableAsync(
+        CancellationToken cancellationToken,
+        bool tolerateStartupTimeout = false)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(3));
@@ -160,12 +169,17 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
             return true;
         }
         catch (HttpRequestException exception) when (exception.InnerException is System.Net.Sockets.SocketException
-            { SocketErrorCode: System.Net.Sockets.SocketError.ConnectionRefused })
+        { SocketErrorCode: System.Net.Sockets.SocketError.ConnectionRefused })
         {
             return false;
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
+            if (tolerateStartupTimeout)
+            {
+                return false;
+            }
+
             throw new InvalidOperationException(
                 "The local Ollama endpoint timed out; refusing to install over an unknown runtime.", exception);
         }
@@ -175,20 +189,22 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
         }
     }
 
-    private async Task WaitForRuntimeAsync(CancellationToken cancellationToken)
+    private async Task<bool> WaitForRuntimeAsync(
+        int attempts,
+        CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 30; attempt++)
+        for (var attempt = 0; attempt < attempts; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await IsRuntimeAvailableAsync(cancellationToken))
+            if (await IsRuntimeAvailableAsync(cancellationToken, tolerateStartupTimeout: true))
             {
-                return;
+                return true;
             }
 
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
 
-        throw new InvalidOperationException("Ollama did not become available on 127.0.0.1:11434 after installation/startup.");
+        return false;
     }
 
     private async Task<bool> HasPinnedModelAsync(CancellationToken cancellationToken)
@@ -211,7 +227,7 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
             {
                 if (model.TryGetProperty("digest", out var digest)
                     && digest.ValueKind == JsonValueKind.String
-                    && string.Equals(digest.GetString(), ModelDigest, StringComparison.OrdinalIgnoreCase))
+                    && IsPinnedModelDigest(digest.GetString()))
                 {
                     return true;
                 }
@@ -222,6 +238,19 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
         }
 
         return false;
+    }
+
+    internal static bool IsPinnedModelDigest(string? digest)
+    {
+        const string prefix = "sha256:";
+        var expected = ModelDigest.AsSpan(prefix.Length);
+        var reported = digest.AsSpan();
+        if (reported.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            reported = reported[prefix.Length..];
+        }
+
+        return reported.Equals(expected, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task PullModelAsync(
@@ -264,9 +293,18 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
                     throw new InvalidDataException("Ollama reported invalid model download progress.");
                 }
 
-                progress.Report(new(
-                    $"Downloading {Model}: {downloaded:N0} of {total:N0} bytes.",
-                    (int)Math.Floor(100d * downloaded / total)));
+                if (downloaded == total)
+                {
+                    progress.Report(new(
+                        $"Downloaded {FormatBytes(total)} for {Model}. Finalizing the model locally."));
+                }
+                else
+                {
+                    var percentage = (int)Math.Floor(100d * downloaded / total);
+                    progress.Report(new(
+                        $"Downloading {Model}: {FormatBytes(downloaded)} of {FormatBytes(total)} ({percentage}%).",
+                        percentage));
+                }
             }
 
             if (document.RootElement.TryGetProperty("status", out var status)
@@ -282,6 +320,11 @@ public sealed class WindowsOllamaSetupService : ILocalModelSetup
             throw new InvalidOperationException("Ollama model download ended without a success status.");
         }
     }
+
+    private static string FormatBytes(long bytes) =>
+        bytes >= 1_000_000_000
+            ? $"{bytes / 1_000_000_000d:0.00} GB"
+            : $"{bytes / 1_000_000d:0.0} MB";
 
     private async Task VerifyGenerationAsync(CancellationToken cancellationToken)
     {

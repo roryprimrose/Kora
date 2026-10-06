@@ -35,7 +35,7 @@ public sealed class LocalInferenceDependencyProbeTests
             Task.FromResult(request.RequestUri!.AbsolutePath switch
             {
                 "/api/version" => Json("""{"version":"0.35.1"}"""),
-                "/api/tags" => Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}"""),
+                "/api/tags" => Json(Tags(WindowsOllamaSetupService.ModelDigest["sha256:".Length..])),
                 "/api/generate" => Json("""{"done":true,"response":"OK"}"""),
                 _ => throw new InvalidOperationException("Unexpected endpoint"),
             })));

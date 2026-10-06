@@ -133,9 +133,14 @@ regression caches remain ignored for reproducibility.
   inference, sign-in, paid usage or account entitlement was tested.
 - R13: deterministic host first, then integrated typed proposals/revision/
   target checks, admission, resource leases, fairness and Unknown recovery.
-- R04: durable host identities, tracing/audit, encrypted storage admission,
-  ordered commits and no replay. Runtime/provider fields remain untrusted
-  correlation, not identity or authority.
+- R04: compose durable host identities, tracing and ordered task/evidence/audit
+  commits into the host; prove recovery and lifecycle gates with no automatic
+  replay. [D-009's approved private-profile standard SQLite baseline](../../Design/Decision_Register.md#approved-profile-secured-sqlite-baseline---2026-10-06)
+  supersedes mandatory encryption/provider/key/rekey admission; optional
+  encryption is R30, not a prerequisite. Runtime/provider fields remain
+  untrusted correlation, not identity or authority. The
+  [R04 foundation](../../Design/Implementation_Roadmap.md#r04-foundation-delivery)
+  remains partial, not production admission.
 - D-001/D-004/D-010, R08 exposure and production admission remain open.
   Byte limits do not bound billed reasoning, authorize actions or prove
   physical computation stop.

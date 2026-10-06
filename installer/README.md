@@ -440,7 +440,11 @@ installer implementation or installed result.
 
 Version fixtures exercise real GitVersion histories and compiled metadata.
 Publication fixtures use a fake GitHub CLI and never make a release/network
-mutation. Payload contract fixtures reject changed bytes and identity before
+mutation. Child `pwsh` checks also exercise the Actions `LASTEXITCODE` epilogue:
+explicitly accepted HTTP 404 release/tag absence exits zero, while unexpected
+release or tag lookup failures exit nonzero without an absent-release result.
+Collision, provenance and exact-publication no-op checks remain mandatory.
+Payload contract fixtures reject changed bytes and identity before
 compiler invocation. CI additionally enforces locked dependencies/licences,
 portable coverage, Windows tests and full MSI ICE.
 

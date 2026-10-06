@@ -16,6 +16,8 @@ using Kora.Core.Configuration;
 using Kora.Core.Coordination;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Kora.Core.Storage;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
@@ -38,6 +40,7 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        HostActivity.ConfigureW3C();
         var ownershipBridge = new DesktopInstanceOwnershipBridge();
         WindowsInstanceCoordinator coordinator;
         try
@@ -77,16 +80,23 @@ internal static class Program
                         Log.Logger = fileLogger;
                         var services = new ServiceCollection();
                         ConfigureServices(services, paths, fileLogger, ownershipBridge, coordinator);
-                        provider = services.BuildServiceProvider();
-                        App.Services = provider;
-                        Log.Information("Starting Kora desktop host.");
+                        using (var startup = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+                            HostActivityLayer.Desktop, HostOperation.Startup))
+                        {
+                            provider = services.BuildServiceProvider();
+                            App.Services = provider;
+                            var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
+                            DesktopLog.Information(startupLogger, "Starting Kora desktop host");
+                            startup.Complete(HostOperationOutcome.Completed);
+                        }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
                         safelyDisposed = true;
                     }
                     catch (Exception exception)
                     {
                         failure = ExceptionDispatchInfo.Capture(exception);
-                        Log.Fatal(exception, "Kora terminated unexpectedly.");
+                        Log.Fatal("Kora terminated unexpectedly. BootstrapDiagnostic: {BootstrapDiagnostic}; ExceptionType: {ExceptionType}.",
+                            true, exception.GetType().FullName);
                     }
                     finally
                     {
@@ -102,7 +112,8 @@ internal static class Program
                         {
                             safelyDisposed = false;
                             failure ??= ExceptionDispatchInfo.Capture(exception);
-                            Log.Error(exception, "Kora service shutdown failed; clean ownership release is not verified.");
+                            Log.Error("Kora service shutdown failed; clean ownership release is not verified. BootstrapDiagnostic: {BootstrapDiagnostic}; ExceptionType: {ExceptionType}.",
+                                true, exception.GetType().FullName);
                         }
 
                         ownershipBridge.UnbindCallbacks();
@@ -160,7 +171,9 @@ internal static class Program
         {
             builder.ClearProviders();
             builder.SetMinimumLevel(LogLevel.Debug);
-            builder.AddSerilog(fileLogger, dispose: true);
+            var fileSink = new FileEvidenceSink(fileLogger);
+            builder.AddProvider(new EvidenceLoggerProvider(
+                [fileSink, new UnavailableEncryptedEvidenceSink()], fileSink));
         });
         services.AddSingleton(ownershipBridge);
         services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);
@@ -168,6 +181,7 @@ internal static class Program
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
+        services.AddSingleton<IHostTaskStore, UnavailableHostTaskStore>();
         services.AddSingleton<IApplicationLogReader, LocalApplicationLogReader>();
         services.AddSingleton<IUserDocumentationProvider, EmbeddedUserDocumentationProvider>();
         services.AddSingleton<ISecurityAuditLog, LoggerSecurityAuditLog>();

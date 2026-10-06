@@ -320,6 +320,41 @@ The [deferred-validation register](Deferred_Validation.md#storage-admission-foll
 
 ### Lifecycle and Integration Closure
 
+R04's 2026-10-06 isolated implementation is **partial, not D-009 closure**.
+The [delivery inventory](Implementation_Roadmap.md#r04-foundation-delivery)
+records portable host identities, ordered state/recovery contracts, versioned
+W3C sources, bounded structured diagnostic/typed audit envelopes, independent
+sink failure/gap handling and retention calculations. Content persistence and
+the encrypted evidence projection remain unavailable. No unapproved native
+engine, commercial dependency, plaintext fallback or envelope-based SQLite
+substitute is admitted. Daily-file typed audit copies and in-memory recovery
+tests cannot establish authoritative durable receipts, audit tamper evidence
+or installed protection. Native selection and S1-S4 gates remain open.
+
+On 2026-10-06 the owner approved **evaluation, not production admission**, of
+maintainer-owned
+[SQLite3MC.PCLRaw 2.4.0](https://github.com/utelle/SQLite3MultipleCiphers-NuGet/tree/v2.4.0)
+as a noncommercial route. Its tagged source declares SQLite3MC 2.4.0 /
+SQLite 3.53.4, a netstandard2.0 provider using SQLitePCLRaw.core 3.0.2,
+and both Windows native RIDs. The
+[authenticated ChaCha20-Poly1305 page configuration](https://utelle.github.io/SQLite3MultipleCiphers/docs/ciphers/cipher_chacha20/)
+requires authentication checking to remain enabled; selecting an
+unauthenticated cipher or disabling `hmac_check` is not admitted.
+MIT engine/wrapper metadata does not discharge embedded-component notice
+requirements (including SHA2 BSD and the applicable Argon2/Aegis notices).
+
+Public research found active upstream maintenance but a NuGet/native release
+lag (packaged 2.4.0 versus observed native 2.5.1). Certificate-validated
+acquisition of the exact provider/lib packages failed with Schannel
+`SEC_E_ILLEGAL_MESSAGE` and PowerShell TLS errors; one bundle receipt was
+observed, but payloads were not retained and exact package closure is not
+verified. Actual nuspec/RID/signature/native-byte/notice inspection, servicing
+ownership, .NET 10 authentication/WAL/recovery tests and installed x64/x86
+acceptance remain S1 requirements. No production dependency or notice was
+changed. Official SQLCipher commercial binaries were not approved; an owned
+SQLCipher Community build remains a possible separately owned alternative,
+not an implicitly selected fallback.
+
 Prove atomic intent/decision/event recording, readable recovery with interrupted/unknown work, key protection, source-revocation handling, and full permitted history without raw audio/secrets.
 Both archive and deletion durations are configurable; the same meaningful-activity clock controls them and passive browsing does not refresh it.
 Test timer/startup/access expiry, live-work holds, changed-policy apply-now confirmation, deletion completeness and disclosed independent audit/provider/export limitations.

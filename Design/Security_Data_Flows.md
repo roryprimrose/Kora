@@ -780,6 +780,15 @@ Persistent permitted session history is required, with first-use storage/retenti
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.
 Encrypt history, artifacts, and indexes with OS-protected keys; deletion must cover caches, indexes, blobs, journals/recoverable copies, and outstanding session dispatch authority, not independently stored perpetual grants.
 The [Windows durable-storage direction](Architecture.md#windows-durable-storage-direction) requires maintained authenticated page encryption, authenticated managed artifacts, CurrentUser DPAPI key wrapping and restricted local ACLs; the R02 native candidate is not production-admitted.
+R04's partial [host evidence foundation](Implementation_Roadmap.md#r04-foundation-delivery)
+does not change this admission. The internal typed audit state is the only
+audit-routing discriminator; arbitrary `SecurityAudit=true`, model/provider
+session fields and activity tags remain diagnostic data. Envelopes capture
+host/trace state at the call, minimize known sensitive properties and omit
+exception messages. Daily JSON copies are non-authoritative. The encrypted
+store is explicitly unavailable and reports gaps; no plaintext content/evidence
+database or new consequential dispatch is enabled. Log producers still own
+content minimisation; bounded strings are not a universal secret detector.
 Key custody must verify the application's CurrentUser scope, profile-local managed paths/copies and effective restrictive directory/key-file ACLs, without LocalMachine or shared-path fallback.
 Windows provides ordinary cross-profile isolation; a second-account trial is optional corroboration for this profile-local architecture, not a mandatory application gate.
 Follow [the profile-boundary contract](Architecture.md#profile-boundary-and-validation-responsibility) before changing storage/identity scope; any new cross-user protection claim needs actual identity evidence, not mock SIDs.

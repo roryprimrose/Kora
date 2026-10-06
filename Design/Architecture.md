@@ -211,9 +211,22 @@ span projection expires. The UI then reports an expired/missing trace segment
 rather than inventing it. No remote telemetry exporter is enabled by this
 contract; adding one requires a separate destination/privacy decision.
 
-The current bootstrap does not implement this contract. It has typed audit
-`CorrelationId` values but no repository `ActivitySource` instrumentation,
-persisted span graph, or automatic trace/session fields in every log.
+The R04 partial foundation implements the four versioned sources through
+[HostActivity](../src/Kora.Core/Diagnostics/HostActivity.cs), fresh host-resolved
+request routing, audit policy spans and deferred request/terminal audit links.
+[EvidenceLoggerProvider](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs)
+captures a bounded formatter-independent envelope and trusted context at call
+time; arbitrary tags, scopes, provider IDs and lookalike markers cannot select
+host columns or the typed audit route. Missing context is reported as an
+explicit gap, not silently promoted to a bootstrap classification. Completed
+spans/links have separate contracts and daily-file copies.
+
+This is not the complete instrumentation or persisted graph. The encrypted
+sink and host task store remain explicitly unavailable until storage
+admission; no database evidence tables or session registry are enabled.
+The [R04 delivery inventory](Implementation_Roadmap.md#r04-foundation-delivery)
+tracks actual source/tests and downstream boundaries. File audit copies
+remain diagnostic evidence, never authorization or durable receipt proof.
 
 ## Independent Management and Concurrent Sessions
 
@@ -429,6 +442,18 @@ falls back to an unencrypted/system engine.
 Windows is the only supported product OS; Linux runtime support and local Linux-host validation are outside this storage proof.
 Existing Linux-hosted CI building Windows artifacts remains unchanged and does not imply Linux product support.
 [D-009](Decision_Register.md#d-009-session-persistence-and-retention) owns selection status and remaining gates; the [reproducible R02 evidence](../experiments/r02-storage-proof/README.md) supports, rather than replaces, this contract.
+
+R04 adds independently safe host contracts and Windows key/artifact
+primitives without selecting or composing a page-encrypted engine.
+The [unavailable store](../src/Kora.Core/Storage/UnavailableHostTaskStore.cs)
+fails explicitly; it does not create an unkeyed replacement, use application
+envelopes as a SQLite substitute, or open/migrate the user's legacy database.
+The bootstrap setup probe remains unchanged and must not receive content or
+authoritative host evidence. Ordered intent/dispatch/receipt and bounded
+Interrupted/Unknown recovery are defined by
+[HostTaskCoordinator](../src/Kora.Application/Hosting/HostTaskCoordinator.cs);
+store commits require a live matching host request and there is no replay/
+executor callback. These contracts are not on-disk durability acceptance.
 
 Implementation requirements:
 

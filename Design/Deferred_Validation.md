@@ -154,6 +154,26 @@ the retained [optional handoff protocol](../experiments/r02-storage-proof/README
 does not create an account or grant authority to test another profile.
 Per-user DPAPI is not same-user worker containment; D-013/W1-W4 remain separate.
 
+R04 now has independently safe source/test contracts as recorded in the
+[foundation inventory](Implementation_Roadmap.md#r04-foundation-delivery).
+Re-run the final integrated provider/key/schema on the selected native
+closure; the old R02 provider results cannot qualify a different engine.
+The production encrypted sink/store deliberately remains unavailable.
+S1 native/licence/installed admission, S2 composed production-path custody,
+S3 actual SQLite/backup/key rotation/legacy conversion and process interruption,
+and S4 lifecycle/deletion are not closed by fake-store ordering tests,
+key/artifact scratch tests or publish inspection. Prepare a separately
+approved disposable installed x64/x86 lab for S1, and a bounded owned-data
+fixture for integrated S2/S3 before enabling content persistence.
+The selected **evaluation** route is SQLite3MC.PCLRaw 2.4.0, not a shipping
+closure; [D-009](Decision_Register.md#lifecycle-and-integration-closure)
+records the source-backed identity/licence findings and exact-package TLS
+blocker. Retain and verify all actual provider/native payloads before
+compatibility, authenticated-configuration and installed trials. Synthetic
+key/artifact tests exercise CurrentUser DPAPI and actual owned-directory/file
+ACLs, but no production-profile permission repair, key rotation, database
+backup/conversion, actual process-kill or installed security result is claimed.
+
 ## Runtime/Provider Follow-Up
 
 Status: **RT1 selected source-built profile passes; RT2 bounded observations

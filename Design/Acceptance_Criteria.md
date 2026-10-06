@@ -814,6 +814,15 @@ Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contra
 
 ### Persistence, Configurable Lifecycle, and Deletion
 
+R04 partial source/tests are tracked in the
+[implementation inventory](Implementation_Roadmap.md#r04-foundation-delivery).
+They do not mark the following installed/native, durable-store, audit-chain,
+integrated recovery, lifecycle or deletion criteria passed. The first durable
+request/task milestone remains unavailable until the admitted encrypted store
+commits actual intent and terminal evidence and survives interrupted recovery.
+Synthetic/fake-store and safe key/artifact scratch tests are not installed
+acceptance, and file copies cannot satisfy authoritative audit requirements.
+
 - Accepted intent/approval is durable before consequential dispatch; crash at each commit/dispatch/receipt boundary preserves truthful interrupted/unknown evidence without replay.
 - Restart restores Active/Done history/artifacts and selection; queued requests require explicit fresh dispatch/revalidation, and old grant records never become tokens.
 - Simulated defaults stay Active just before 24 inactive hours, archive at 24 hours when safe, retain content just before 30 inactive days, and purge at 30 days when safe.

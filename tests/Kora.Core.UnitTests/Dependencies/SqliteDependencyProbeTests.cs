@@ -36,6 +36,7 @@ public sealed class SqliteDependencyProbeTests
 
             first.Readiness.Should().Be(DependencyReadiness.Ready);
             second.Readiness.Should().Be(DependencyReadiness.Ready);
+            first.Detail.Should().Contain("Durable content and authoritative evidence storage remain unavailable");
             await using var connection = new SqliteConnection(
                 new SqliteConnectionStringBuilder
                 {

@@ -76,7 +76,7 @@ public sealed class SqliteDependencyProbe(
                 "kora.sqlite",
                 "Local SQLite storage",
                 DependencyReadiness.Ready,
-                "Local database passed its integrity check and schema initialization.");
+                "Bootstrap setup database passed its integrity check and schema initialization. Durable content and authoritative evidence storage remain unavailable pending encrypted-storage admission.");
         }
         catch (SqliteException exception)
         {

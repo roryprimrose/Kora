@@ -619,6 +619,59 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Models">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Model execution" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Choose which model locations Kora may use for free-form commands. Exact built-in commands remain available when every model is disabled."
+                  Classes="muted"
+                  FontSize="13"
+                  TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Local models" Classes="settings-title" />
+                  <TextBlock
+                      Text="Allow requests to use the verified Ollama model on this device. Turning this off cancels a running local request."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Allow local models"
+                    IsChecked="{Binding LocalModelsEnabled}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Hosted models" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding HostedModelExecutionDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <TextBlock
+                      Text="No hosted provider or credentials are included in this build. Enabling this permission does not send data by itself."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Allow hosted models"
+                    IsChecked="{Binding HostedModelsEnabled}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
       <TabItem x:Name="ReadinessTab" Header="Readiness">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">

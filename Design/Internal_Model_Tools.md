@@ -28,11 +28,35 @@ owns approval, countdown and gated fixed-action dispatch, not either model lane.
 Host-owned deterministic voice/UI controls remain available when either model lane is unavailable.
 The same registry serves local inference and approved remote/agent adapters, but each receives only its admitted subset.
 
+## Model-facing coverage rule
+
+Model discovery is a normal entry point for user-visible Kora actions, not a
+special integration added only to complex workflows. Each new action must be
+evaluated for both an exact deterministic command and a typed model-facing
+descriptor, alongside any UI surface. Implement every applicable route over
+the same registered host action and policy gate. This allows common requests
+to work without inference while allowing a model to identify less exact
+natural-language intent and propose the same action.
+
+An advertised descriptor is proposal authority only. The host still validates
+the action and inputs, applies origin/privacy/ownership policy, obtains any
+required approval, revalidates availability, performs the effect, and returns
+a structured result. Models cannot invent actions, handlers, command lines, or
+parameters outside the admitted schema.
+
+The capability inventory must state and justify any missing deterministic or
+model-facing route. Valid exceptions include actions that inherently require
+interactive visual selection, have no safe unambiguous static phrase, are
+unavailable in the current build, or have not passed their security and
+containment gates. Delivery tests verify command/action resolution, shared
+policy behavior, unavailable and unauthorized failures, and rejection of
+unknown model proposals.
+
 ## Implemented Bootstrap Surface
 
 Evidence: [action enum](../src/Kora.Core/Commands/BuiltInAction.cs), [command catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [local reasoner](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), and [host dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs).
 
-The reasoner advertises all 20 catalogue actions by their exact case-sensitive enum names.
+The reasoner advertises all 25 catalogue actions by their exact case-sensitive enum names.
 It accepts exactly one response kind per inference:
 
 | Response | Input/result shape and host behavior |
@@ -71,6 +95,11 @@ These are current protocol limits, not proof of future tool-loop behavior.
 | `ShowPowerStatus` | Report pending proposal and disabled execution | No | `computer.power_status` |
 | `ListGrants` | Open current model-action grant document | No | `approvals.list` |
 | `ManageGrants` | Open grant-change editor; not a grant mutation itself | No | `approvals.show` |
+| `ShowModelExecution` | Report whether local and hosted model execution are enabled and available | No | `models.execution.get` |
+| `EnableLocalModels` | Persist permission to use ready local models | Yes unless an applicable named grant exists | `models.local.enable` |
+| `DisableLocalModels` | Persistently block local model use and cancel active local inference | Yes unless an applicable named grant exists | `models.local.disable` |
+| `EnableHostedModels` | Persist hosted-model permission; current build still has no hosted provider | Yes unless an applicable named grant exists | `models.hosted.enable` |
+| `DisableHostedModels` | Persistently block hosted model use | Yes unless an applicable named grant exists | `models.hosted.disable` |
 
 The current host stores named model-action Session/Always preferences and supports Once approval.
 This is not the proposed content/invocation-bound grant store with durable session identity and independently retained perpetual grants, nor proof that current actions have script-bound execution grants.

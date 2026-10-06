@@ -35,6 +35,41 @@ A registered skill task can itself have a tool interface; skill and tool are com
 Do not require a skill or PowerShell process for every internal Kora operation.
 Conversely, selecting a skill does not execute a script or create a grant.
 
+### Action exposure is the default
+
+For every new user-visible Kora action, design review must consider three
+entry points backed by the same registered host action:
+
+1. a deterministic UI control where visual interaction is appropriate;
+2. one or more exact host-owned commands for common, unambiguous requests; and
+3. a typed model-facing action/tool descriptor so a model can identify the
+   action from natural language and propose it through the normal host gate.
+
+Implement all applicable entry points rather than making ordinary actions
+UI-only or requiring model inference for an exact common command. Exact
+commands and model proposals must converge on the same validation,
+authorization, execution, audit, cancellation, and result implementation;
+they must not grow independent effect handlers with different safety rules.
+The model-facing description includes when to use and not use the action, its
+typed inputs, availability, effects, and result semantics. Advertising an
+action lets a model identify and propose it; it never grants authority to
+execute it.
+
+Omit an entry point only for a concrete reason, such as no meaningful static
+phrase, required interactive/visual selection, excessive parameter ambiguity,
+privacy or origin restrictions, an unavailable dependency, or a capability
+that has not passed its containment and authorization proof. Record that
+exception in the capability catalogue with the supported alternatives. Do not
+use implementation convenience, a missing screen, or the assumption that a
+model can paraphrase everything as the reason to omit deterministic access.
+
+Capability work is incomplete until focused tests prove that every declared
+exact phrase and admitted model proposal resolves to the intended registered
+action, that both routes apply the same policy, and that unavailable,
+unauthorized, ambiguous, or invented actions fail closed. Catalogue tests must
+also detect conflicting normalized phrases and descriptors that advertise an
+action with no registered dispatcher.
+
 An executable task here means a registered effect; a scheduled user task in the work ledger can contain several such invocations.
 Keep their identities distinct in proposals, approvals, and receipts.
 Identifiers and payloads below are illustrative contract concepts, not a published SDK or manifest schema.
@@ -47,6 +82,11 @@ The host maintains related but distinct registries:
 - A tool catalogue binds stable IDs and schema versions to trusted implementations, host-assigned effects, and policy.
 - A skill catalogue binds source-qualified IDs to enabled, digest-pinned revisions, descriptions, selection guidance, and required tool/task references.
 - An executable-task catalogue resolves admitted task IDs to exact scripts/native adapters, dependencies, validated parameters, targets, and execution profiles.
+
+These registries are separate views over admitted capabilities, not permission
+to implement the same effect repeatedly. A capability inventory records which
+UI, exact-command, model-action/tool, and skill surfaces exist and why any
+normally applicable surface is absent.
 
 The application supplies the relevant available tool definitions and skill summaries to the runtime before asking it to interpret a request.
 Each tool definition includes its ID/version, purpose, input schema, and result semantics.

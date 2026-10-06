@@ -239,9 +239,57 @@ action; otherwise select the existing scope. If a ready model identifies the
 grant from a more specific request, it still cannot apply the change without
 confirmation. Confirming a grant never executes the named action.
 
+## Model execution settings
+
+These exact commands read or change the same device-local choices shown on the
+Settings **Models** tab. They work without invoking a model and are available
+through typed input or activated voice.
+
+### Show enabled model locations
+- **which models are enabled**
+- **show model settings**
+- **show model configuration**
+- **what models can you use**
+- **are local models enabled**
+- **are hosted models enabled**
+
+### Enable local model execution
+- **enable local models**
+- **turn on local models**
+- **use local models**
+- **allow local models**
+
+### Disable local model execution
+- **disable local models**
+- **turn off local models**
+- **stop using local models**
+- **block local models**
+
+Disabling local models cancels an in-flight Ollama request. Built-in commands
+continue to work.
+
+### Enable hosted model execution
+- **enable hosted models**
+- **turn on hosted models**
+- **use hosted models**
+- **allow hosted models**
+- **enable cloud models**
+
+### Disable hosted model execution
+- **disable hosted models**
+- **turn off hosted models**
+- **stop using hosted models**
+- **block hosted models**
+- **disable cloud models**
+
+Hosted execution is disabled by default. The current build has no hosted
+provider or credentials; enabling hosted models records permission but does
+not send a request or provide a cloud fallback.
+
 ## When a command does not match
 
-When the selected local model is ready, Kora sends only the current unmatched
+When local model execution is enabled and the selected local model is ready,
+Kora sends only the current unmatched
 request text, the built-in action descriptions, and a limited snapshot of
 readiness, task state/progress, listening state, and pending power-proposal
 status to it. The model can return an answer, ask a clarification question

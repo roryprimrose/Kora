@@ -47,6 +47,11 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("reboot my computer", BuiltInAction.ProposeRestart)]
     [InlineData("don't shut down the computer", BuiltInAction.CancelPowerAction)]
     [InlineData("is a shutdown pending?", BuiltInAction.ShowPowerStatus)]
+    [InlineData("show model settings", BuiltInAction.ShowModelExecution)]
+    [InlineData("turn on local models", BuiltInAction.EnableLocalModels)]
+    [InlineData("stop using local models", BuiltInAction.DisableLocalModels)]
+    [InlineData("enable cloud models", BuiltInAction.EnableHostedModels)]
+    [InlineData("turn off hosted models", BuiltInAction.DisableHostedModels)]
     public void Match_routes_conversational_variants_to_the_intended_action(
         string transcript,
         BuiltInAction expectedAction)

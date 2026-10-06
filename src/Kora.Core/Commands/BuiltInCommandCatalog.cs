@@ -33,6 +33,11 @@ public sealed class BuiltInCommandCatalog
             Define(BuiltInAction.ShowPowerStatus, "what power action is pending", $"Describe {name}'s pending power proposal.", "are you about to restart the computer", "is a shutdown pending", "is a restart pending", "show pending power action"),
             Define(BuiltInAction.ListGrants, "list grants", $"Open the current {name} model-action grants.", "show grants", "view grants", "what grants are active", "list my approvals", "show my permissions"),
             Define(BuiltInAction.ManageGrants, "manage grants", $"Choose an action and prepare a grant change in {name}.", "add a grant", "edit a grant", "remove a grant", "change grants", "manage approvals"),
+            Define(BuiltInAction.ShowModelExecution, "which models are enabled", $"Show whether {name} may use local and hosted models.", "show model settings", "show model configuration", "what models can you use", "are local models enabled", "are hosted models enabled"),
+            Define(BuiltInAction.EnableLocalModels, "enable local models", $"Allow {name} to use ready local models.", "turn on local models", "use local models", "allow local models"),
+            Define(BuiltInAction.DisableLocalModels, "disable local models", $"Stop {name} from using local models.", "turn off local models", "stop using local models", "block local models"),
+            Define(BuiltInAction.EnableHostedModels, "enable hosted models", $"Allow {name} to use configured hosted model providers.", "turn on hosted models", "use hosted models", "allow hosted models", "enable cloud models"),
+            Define(BuiltInAction.DisableHostedModels, "disable hosted models", $"Stop {name} from using hosted model providers.", "turn off hosted models", "stop using hosted models", "block hosted models", "disable cloud models"),
         ];
 
         var conflict = commands

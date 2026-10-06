@@ -556,24 +556,40 @@ public sealed partial class MainViewModelTests
             ApplicationThemeMode.Light,
             ApplicationThemeMode.Dark);
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(10);
         fixture.ViewModel.PresenceTimeoutDescription.Should().Contain("Hide the presence");
-        fixture.ViewModel.PresenceTimeoutDescription.Should().Contain("unpinned response window");
+        fixture.ViewModel.PresenceTimeoutDescription.Should().Contain("inactivity")
+            .And.Contain("no prompts").And.NotContain("response window");
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(5);
+        fixture.ViewModel.ResponseTimeoutDescription.Should().Contain("unpinned response window");
         fixture.ViewModel.IsResponseAlwaysVisible.Should().BeFalse();
         fixture.ViewModel.IsResponseWindowTopmost.Should().BeTrue();
         fixture.ViewModel.ResponseWindowPosition.Should().BeNull();
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);
         fixture.ViewModel.PresenceDotSizePercent.Should().Be(PresenceSettings.DefaultDotSizePercent);
+        fixture.ViewModel.PresenceDotDensityPercent.Should().Be(PresenceSettings.DefaultDotDensityPercent);
         fixture.ViewModel.PresenceMovementSpeedPercent.Should()
             .Be(PresenceSettings.DefaultMovementSpeedPercent);
+        fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should()
+            .Be(PresenceSettings.DefaultSpeechScalingEnabled);
+        fixture.ViewModel.PresenceSpeechScaleAmountPercent.Should()
+            .Be(PresenceSettings.DefaultSpeechScaleAmountPercent);
         fixture.ViewModel.PresencePosition.Should().BeNull();
         fixture.ViewModel.PresenceSizeDescription.Should().Contain("360 pixels");
         fixture.ViewModel.PresenceDotSizeDescription.Should().Contain("100%");
+        fixture.ViewModel.PresenceDotDensityDescription.Should().Contain("100%").And.Contain("150 dots");
         fixture.ViewModel.PresenceMovementSpeedDescription.Should().Contain("100%");
+        fixture.ViewModel.PresenceSpeechScalingDescription.Should().Contain("grows and shrinks");
+        fixture.ViewModel.PresenceSpeechScaleAmountDescription.Should().Contain("100%");
         fixture.AppearancePreferences.SavedMode.Should().BeNull();
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
         fixture.AppearancePreferences.SavedPresenceSizePixels.Should().BeNull();
         fixture.AppearancePreferences.SavedPresenceDotSizePercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceDotDensityPercent.Should().BeNull();
         fixture.AppearancePreferences.SavedPresenceMovementSpeedPercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceSpeechScaleAmountPercent.Should().BeNull();
         fixture.AppearancePreferences.SavedPresencePosition.Should().BeNull();
         fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
     }
@@ -594,12 +610,49 @@ public sealed partial class MainViewModelTests
     public async Task InitializeAsync_loads_the_saved_presence_timeout_without_resaving_it()
     {
         var fixture = new Fixture();
-        fixture.AppearancePreferences.PresenceTimeoutSeconds = 10;
+        fixture.AppearancePreferences.PresenceTimeoutSeconds = 15;
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(15);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task InitializeAsync_loads_independent_timeouts_without_resaving_or_auditing_writes()
+    {
+        var fixture = new Fixture();
+        fixture.AppearancePreferences.PresenceTimeoutSeconds = 15;
+        fixture.AppearancePreferences.ResponseTimeoutSeconds = 8;
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(15);
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(8);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+        changedProperties.Should().Contain(nameof(MainViewModel.PresenceTimeoutSeconds))
+            .And.Contain(nameof(MainViewModel.ResponseTimeoutSeconds));
+        fixture.Audit.Events.Should().NotContain(entry =>
+            entry.ActionId == "configuration.presence-timeout"
+            || entry.ActionId == "configuration.response-timeout");
+    }
+
+    [Fact]
+    public async Task InitializeAsync_loads_a_response_timeout_without_changing_the_presence_default()
+    {
+        var fixture = new Fixture();
+        fixture.AppearancePreferences.ResponseTimeoutSeconds = 18;
 
         await fixture.ViewModel.InitializeAsync();
 
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(10);
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(18);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
     }
 
     [Fact]
@@ -608,7 +661,10 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture();
         fixture.AppearancePreferences.PresenceSizePixels = 400;
         fixture.AppearancePreferences.PresenceDotSizePercent = 120;
+        fixture.AppearancePreferences.PresenceDotDensityPercent = 125;
         fixture.AppearancePreferences.PresenceMovementSpeedPercent = 125;
+        fixture.AppearancePreferences.PresenceSpeechScalingEnabled = false;
+        fixture.AppearancePreferences.PresenceSpeechScaleAmountPercent = 150;
         fixture.AppearancePreferences.PresencePosition =
             new PresencePosition(320, -120);
 
@@ -616,12 +672,18 @@ public sealed partial class MainViewModelTests
 
         fixture.ViewModel.PresenceSizePixels.Should().Be(400);
         fixture.ViewModel.PresenceDotSizePercent.Should().Be(120);
+        fixture.ViewModel.PresenceDotDensityPercent.Should().Be(125);
         fixture.ViewModel.PresenceMovementSpeedPercent.Should().Be(125);
+        fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should().BeFalse();
+        fixture.ViewModel.PresenceSpeechScaleAmountPercent.Should().Be(150);
         fixture.ViewModel.PresencePosition.Should().Be(
             new PresencePosition(320, -120));
         fixture.AppearancePreferences.SavedPresenceSizePixels.Should().BeNull();
         fixture.AppearancePreferences.SavedPresenceDotSizePercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceDotDensityPercent.Should().BeNull();
         fixture.AppearancePreferences.SavedPresenceMovementSpeedPercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceSpeechScaleAmountPercent.Should().BeNull();
         fixture.AppearancePreferences.SavedPresencePosition.Should().BeNull();
     }
 
@@ -756,18 +818,22 @@ public sealed partial class MainViewModelTests
         var changedProperties = new List<string?>();
         fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
             changedProperties.Add(eventArgs.PropertyName);
+        fixture.AppearancePreferences.BeforePresencePreferenceSave = () =>
+            fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
 
         var changed = fixture.ViewModel.SetPresenceTimeoutSeconds(
-            10,
+            15,
             SecurityAuditInitiator.VoiceCommand);
         var unchanged = fixture.ViewModel.SetPresenceTimeoutSeconds(
-            10,
+            15,
             SecurityAuditInitiator.VoiceCommand);
 
         changed.Should().BeTrue();
         unchanged.Should().BeTrue();
-        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(10);
-        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(10);
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(15);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(15);
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
         changedProperties.Should().ContainSingle()
             .Which.Should().Be(nameof(MainViewModel.PresenceTimeoutSeconds));
         AssertAuditPair(
@@ -784,10 +850,119 @@ public sealed partial class MainViewModelTests
     public async Task Presence_timeout_change_rejects_an_invalid_value(int value)
     {
         var fixture = await Fixture.CreateInitializedAsync();
+        var previousAuditCount = fixture.Audit.Events.Count;
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
 
         var action = () => fixture.ViewModel.PresenceTimeoutSeconds = value;
 
         action.Should().Throw<ArgumentOutOfRangeException>();
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        fixture.Audit.Events.Should().HaveCount(previousAuditCount);
+        changedProperties.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Response_timeout_changes_persist_before_apply_notify_and_use_the_supplied_audit_initiator()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+        fixture.AppearancePreferences.BeforeResponseTimeoutPreferenceSave = () =>
+            fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+
+        var changed = fixture.ViewModel.SetResponseTimeoutSeconds(
+            8,
+            SecurityAuditInitiator.VoiceCommand);
+        var unchanged = fixture.ViewModel.SetResponseTimeoutSeconds(
+            8,
+            SecurityAuditInitiator.VoiceCommand);
+
+        changed.Should().BeTrue();
+        unchanged.Should().BeTrue();
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(8);
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        changedProperties.Should().ContainSingle()
+            .Which.Should().Be(nameof(MainViewModel.ResponseTimeoutSeconds));
+        AssertAuditPair(
+            fixture,
+            SecurityAuditCategory.ConfigurationWrite,
+            "configuration.response-timeout",
+            SecurityAuditInitiator.VoiceCommand,
+            SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task Timeout_noops_do_not_persist_notify_or_audit()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var previousAuditCount = fixture.Audit.Events.Count;
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+        fixture.AppearancePreferences.SaveException = new IOException("Must not save a noop");
+
+        var presenceUnchanged = fixture.ViewModel.SetPresenceTimeoutSeconds(
+            PresenceSettings.DefaultTimeoutSeconds);
+        var responseUnchanged = fixture.ViewModel.SetResponseTimeoutSeconds(
+            ResponseWindowSettings.DefaultTimeoutSeconds);
+
+        presenceUnchanged.Should().BeTrue();
+        responseUnchanged.Should().BeTrue();
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+        fixture.Audit.Events.Should().HaveCount(previousAuditCount);
+        changedProperties.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(ResponseWindowSettings.MinimumTimeoutSeconds - 1)]
+    [InlineData(ResponseWindowSettings.MaximumTimeoutSeconds + 1)]
+    [InlineData(int.MinValue)]
+    [InlineData(int.MaxValue)]
+    public async Task Response_timeout_change_rejects_invalid_values_without_saving_notifying_or_auditing(int value)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var previousAuditCount = fixture.Audit.Events.Count;
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+
+        var action = () => fixture.ViewModel.ResponseTimeoutSeconds = value;
+
+        action.Should().Throw<ArgumentOutOfRangeException>();
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+        fixture.Audit.Events.Should().HaveCount(previousAuditCount);
+        changedProperties.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Presence_and_response_timeout_property_setters_persist_independently()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+
+        fixture.ViewModel.PresenceTimeoutSeconds = 15;
+        fixture.ViewModel.ResponseTimeoutSeconds = 8;
+        fixture.ViewModel.PresenceTimeoutSeconds = 20;
+
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(20);
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(8);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(20);
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
+        AssertAuditPair(
+            fixture,
+            SecurityAuditCategory.ConfigurationWrite,
+            "configuration.response-timeout",
+            SecurityAuditInitiator.LocalUser,
+            SecurityAuditOutcome.Succeeded);
     }
 
     [Fact]
@@ -879,11 +1054,23 @@ public sealed partial class MainViewModelTests
         nameof(MainViewModel.PresenceDotSizeDescription),
         "configuration.presence-dot-size")]
     [InlineData(
+        PresenceSetting.DotDensity,
+        125,
+        nameof(MainViewModel.PresenceDotDensityPercent),
+        nameof(MainViewModel.PresenceDotDensityDescription),
+        "configuration.presence-dot-density")]
+    [InlineData(
         PresenceSetting.MovementSpeed,
         125,
         nameof(MainViewModel.PresenceMovementSpeedPercent),
         nameof(MainViewModel.PresenceMovementSpeedDescription),
         "configuration.presence-movement-speed")]
+    [InlineData(
+        PresenceSetting.SpeechScaleAmount,
+        150,
+        nameof(MainViewModel.PresenceSpeechScaleAmountPercent),
+        nameof(MainViewModel.PresenceSpeechScaleAmountDescription),
+        "configuration.presence-speech-scale-amount")]
     public async Task Presence_changes_persist_notify_and_use_the_supplied_audit_initiator(
         PresenceSetting setting,
         int value,
@@ -895,6 +1082,9 @@ public sealed partial class MainViewModelTests
         var changedProperties = new List<string?>();
         fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
             changedProperties.Add(eventArgs.PropertyName);
+        var previousValue = GetPresenceSetting(fixture.ViewModel, setting);
+        fixture.AppearancePreferences.BeforePresencePreferenceSave = () =>
+            GetPresenceSetting(fixture.ViewModel, setting).Should().Be(previousValue);
 
         var changed = SetPresenceSetting(
             fixture.ViewModel,
@@ -925,13 +1115,22 @@ public sealed partial class MainViewModelTests
     [InlineData(PresenceSetting.Size, PresenceSettings.MaximumSizePixels + 1)]
     [InlineData(PresenceSetting.DotSize, PresenceSettings.MinimumDotSizePercent - 1)]
     [InlineData(PresenceSetting.DotSize, PresenceSettings.MaximumDotSizePercent + 1)]
+    [InlineData(PresenceSetting.DotDensity, PresenceSettings.MinimumDotDensityPercent - 1)]
+    [InlineData(PresenceSetting.DotDensity, PresenceSettings.MaximumDotDensityPercent + 1)]
     [InlineData(PresenceSetting.MovementSpeed, PresenceSettings.MinimumMovementSpeedPercent - 1)]
     [InlineData(PresenceSetting.MovementSpeed, PresenceSettings.MaximumMovementSpeedPercent + 1)]
+    [InlineData(PresenceSetting.SpeechScaleAmount, PresenceSettings.MinimumSpeechScaleAmountPercent - 1)]
+    [InlineData(PresenceSetting.SpeechScaleAmount, PresenceSettings.MaximumSpeechScaleAmountPercent + 1)]
     public async Task Presence_change_rejects_an_invalid_value(
         PresenceSetting setting,
         int value)
     {
         var fixture = await Fixture.CreateInitializedAsync();
+        var previousValue = GetPresenceSetting(fixture.ViewModel, setting);
+        var previousAuditCount = fixture.Audit.Events.Count;
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
 
         var action = () => SetPresenceSetting(
             fixture.ViewModel,
@@ -940,6 +1139,117 @@ public sealed partial class MainViewModelTests
             SecurityAuditInitiator.LocalUser);
 
         action.Should().Throw<ArgumentOutOfRangeException>();
+        GetPresenceSetting(fixture.ViewModel, setting).Should().Be(previousValue);
+        GetSavedPresenceSetting(fixture.AppearancePreferences, setting).Should().BeNull();
+        changedProperties.Should().BeEmpty();
+        fixture.Audit.Events.Should().HaveCount(previousAuditCount);
+    }
+
+    [Theory]
+    [InlineData(PresenceSetting.DotDensity, PresenceSettings.MinimumDotDensityPercent)]
+    [InlineData(PresenceSetting.DotDensity, PresenceSettings.MaximumDotDensityPercent)]
+    [InlineData(PresenceSetting.SpeechScaleAmount, PresenceSettings.MinimumSpeechScaleAmountPercent)]
+    [InlineData(PresenceSetting.SpeechScaleAmount, PresenceSettings.MaximumSpeechScaleAmountPercent)]
+    public async Task New_presence_settings_accept_boundary_values(
+        PresenceSetting setting,
+        int value)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+
+        SetPresenceSetting(
+            fixture.ViewModel,
+            setting,
+            value,
+            SecurityAuditInitiator.LocalUser).Should().BeTrue();
+
+        GetPresenceSetting(fixture.ViewModel, setting).Should().Be(value);
+        GetSavedPresenceSetting(fixture.AppearancePreferences, setting).Should().Be(value);
+    }
+
+    [Fact]
+    public async Task Presence_speech_scaling_changes_persist_notify_and_are_audited()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+        fixture.AppearancePreferences.BeforePresencePreferenceSave = () =>
+            fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should().BeTrue();
+
+        var changed = fixture.ViewModel.SetPresenceSpeechScalingEnabled(
+            false,
+            SecurityAuditInitiator.VoiceCommand);
+        var unchanged = fixture.ViewModel.SetPresenceSpeechScalingEnabled(
+            false,
+            SecurityAuditInitiator.VoiceCommand);
+
+        changed.Should().BeTrue();
+        unchanged.Should().BeTrue();
+        fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should().BeFalse();
+        fixture.ViewModel.PresenceSpeechScalingDescription.Should().Contain("normal size");
+        fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeFalse();
+        changedProperties.Should().Equal(
+            nameof(MainViewModel.IsPresenceSpeechScalingEnabled),
+            nameof(MainViewModel.PresenceSpeechScalingDescription));
+        AssertAuditPair(
+            fixture,
+            SecurityAuditCategory.ConfigurationWrite,
+            "configuration.presence-speech-scaling",
+            SecurityAuditInitiator.VoiceCommand,
+            SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task New_presence_bound_properties_persist_changes_and_retain_amount_when_disabled()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+
+        fixture.ViewModel.PresenceDotDensityPercent = 125;
+        fixture.ViewModel.PresenceSpeechScaleAmountPercent = 150;
+        fixture.ViewModel.IsPresenceSpeechScalingEnabled = false;
+
+        fixture.AppearancePreferences.SavedPresenceDotDensityPercent.Should().Be(125);
+        fixture.AppearancePreferences.SavedPresenceSpeechScaleAmountPercent.Should().Be(150);
+        fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeFalse();
+        fixture.ViewModel.PresenceSpeechScaleAmountPercent.Should().Be(150);
+
+        fixture.ViewModel.IsPresenceSpeechScalingEnabled = true;
+
+        fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeTrue();
+        fixture.ViewModel.PresenceSpeechScaleAmountPercent.Should().Be(150);
+    }
+
+    [Theory]
+    [InlineData(true, "access-denied")]
+    [InlineData(false, "io-error")]
+    public async Task Presence_speech_scaling_save_failure_retains_previous_value_and_is_audited(
+        bool accessDenied,
+        string reasonCode)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.AppearancePreferences.SaveException = accessDenied
+            ? new UnauthorizedAccessException("denied")
+            : new IOException("disk");
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+
+        var changed = fixture.ViewModel.SetPresenceSpeechScalingEnabled(false);
+
+        changed.Should().BeFalse();
+        fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should().BeTrue();
+        fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeNull();
+        fixture.ViewModel.ResponseTitle.Should().Be(
+            "The presence speech scaling could not be saved.");
+        changedProperties.Should().Contain(nameof(MainViewModel.IsPresenceSpeechScalingEnabled));
+        changedProperties.Should().NotContain(nameof(MainViewModel.PresenceSpeechScalingDescription));
+        AssertAuditPair(
+            fixture,
+            SecurityAuditCategory.ConfigurationWrite,
+            "configuration.presence-speech-scaling",
+            SecurityAuditInitiator.LocalUser,
+            SecurityAuditOutcome.Failed,
+            reasonCode);
     }
 
     [Theory]
@@ -980,15 +1290,57 @@ public sealed partial class MainViewModelTests
             ? new UnauthorizedAccessException("denied")
             : new IOException("disk");
 
-        var changed = fixture.ViewModel.SetPresenceTimeoutSeconds(10);
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+
+        var changed = fixture.ViewModel.SetPresenceTimeoutSeconds(15);
 
         changed.Should().BeFalse();
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
         fixture.ViewModel.ResponseTitle.Should().Be("The presence timeout could not be saved.");
+        changedProperties.Should().Contain(nameof(MainViewModel.PresenceTimeoutSeconds))
+            .And.NotContain(nameof(MainViewModel.ResponseTimeoutSeconds));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
             "configuration.presence-timeout",
+            SecurityAuditInitiator.LocalUser,
+            SecurityAuditOutcome.Failed,
+            reasonCode);
+    }
+
+    [Theory]
+    [InlineData(true, "access-denied")]
+    [InlineData(false, "io-error")]
+    public async Task Response_timeout_save_failure_retains_both_values_notifies_and_is_audited(
+        bool accessDenied,
+        string reasonCode)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.AppearancePreferences.SaveException = accessDenied
+            ? new UnauthorizedAccessException("denied")
+            : new IOException("disk");
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
+
+        var changed = fixture.ViewModel.SetResponseTimeoutSeconds(8);
+
+        changed.Should().BeFalse();
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        fixture.ViewModel.ResponseTitle.Should().Be("The response timeout could not be saved.");
+        changedProperties.Should().Contain(nameof(MainViewModel.ResponseTimeoutSeconds))
+            .And.NotContain(nameof(MainViewModel.PresenceTimeoutSeconds));
+        AssertAuditPair(
+            fixture,
+            SecurityAuditCategory.ConfigurationWrite,
+            "configuration.response-timeout",
             SecurityAuditInitiator.LocalUser,
             SecurityAuditOutcome.Failed,
             reasonCode);
@@ -1049,6 +1401,18 @@ public sealed partial class MainViewModelTests
         "configuration.presence-dot-size",
         "The presence dot size could not be saved.")]
     [InlineData(
+        PresenceSetting.DotDensity,
+        true,
+        "access-denied",
+        "configuration.presence-dot-density",
+        "The presence dot density could not be saved.")]
+    [InlineData(
+        PresenceSetting.DotDensity,
+        false,
+        "io-error",
+        "configuration.presence-dot-density",
+        "The presence dot density could not be saved.")]
+    [InlineData(
         PresenceSetting.MovementSpeed,
         true,
         "access-denied",
@@ -1060,6 +1424,18 @@ public sealed partial class MainViewModelTests
         "io-error",
         "configuration.presence-movement-speed",
         "The presence movement speed could not be saved.")]
+    [InlineData(
+        PresenceSetting.SpeechScaleAmount,
+        true,
+        "access-denied",
+        "configuration.presence-speech-scale-amount",
+        "The presence speech scale amount could not be saved.")]
+    [InlineData(
+        PresenceSetting.SpeechScaleAmount,
+        false,
+        "io-error",
+        "configuration.presence-speech-scale-amount",
+        "The presence speech scale amount could not be saved.")]
     public async Task Presence_save_failure_retains_the_previous_value_and_is_audited(
         PresenceSetting setting,
         bool accessDenied,
@@ -1072,6 +1448,9 @@ public sealed partial class MainViewModelTests
             ? new UnauthorizedAccessException("denied")
             : new IOException("disk");
         var previousValue = GetPresenceSetting(fixture.ViewModel, setting);
+        var changedProperties = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+            changedProperties.Add(eventArgs.PropertyName);
 
         var changed = SetPresenceSetting(
             fixture.ViewModel,
@@ -1081,6 +1460,17 @@ public sealed partial class MainViewModelTests
 
         changed.Should().BeFalse();
         GetPresenceSetting(fixture.ViewModel, setting).Should().Be(previousValue);
+        GetSavedPresenceSetting(fixture.AppearancePreferences, setting).Should().BeNull();
+        var propertyName = setting switch
+        {
+            PresenceSetting.Size => nameof(MainViewModel.PresenceSizePixels),
+            PresenceSetting.DotSize => nameof(MainViewModel.PresenceDotSizePercent),
+            PresenceSetting.DotDensity => nameof(MainViewModel.PresenceDotDensityPercent),
+            PresenceSetting.MovementSpeed => nameof(MainViewModel.PresenceMovementSpeedPercent),
+            PresenceSetting.SpeechScaleAmount => nameof(MainViewModel.PresenceSpeechScaleAmountPercent),
+            _ => throw new ArgumentOutOfRangeException(nameof(setting)),
+        };
+        changedProperties.Should().Contain(propertyName);
         fixture.ViewModel.ResponseTitle.Should().Be(expectedTitle);
         AssertAuditPair(
             fixture,
@@ -1103,6 +1493,71 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.ResponseTitle.Should().Be("A saved setting is invalid.");
         fixture.ViewModel.ResponseBody.Should().Be("invalid appearance theme");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InitializeAsync_surfaces_invalid_saved_timeouts_without_writes(bool presence)
+    {
+        var fixture = new Fixture();
+        var exception = new InvalidDataException("invalid saved timeout");
+        if (presence)
+        {
+            fixture.AppearancePreferences.PresenceTimeoutLoadException = exception;
+        }
+        else
+        {
+            fixture.AppearancePreferences.ResponseTimeoutLoadException = exception;
+        }
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(10);
+        fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(5);
+        fixture.ViewModel.ResponseTitle.Should().Be("A saved setting is invalid.");
+        fixture.ViewModel.ResponseBody.Should().Be(exception.Message);
+        fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+        fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+        fixture.Audit.Events.Should().NotContain(entry =>
+            entry.ActionId == "configuration.presence-timeout"
+            || entry.ActionId == "configuration.response-timeout");
+    }
+
+    [Theory]
+    [InlineData("density")]
+    [InlineData("speech-scaling")]
+    [InlineData("speech-scale-amount")]
+    public async Task InitializeAsync_surfaces_an_invalid_saved_presence_setting(string setting)
+    {
+        var fixture = new Fixture();
+        var exception = new InvalidDataException("invalid saved presence setting");
+        switch (setting)
+        {
+            case "density":
+                fixture.AppearancePreferences.DotDensityLoadException = exception;
+                break;
+            case "speech-scaling":
+                fixture.AppearancePreferences.SpeechScalingLoadException = exception;
+                break;
+            case "speech-scale-amount":
+                fixture.AppearancePreferences.SpeechScaleAmountLoadException = exception;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(setting));
+        }
+
+        await fixture.ViewModel.InitializeAsync();
+
+        fixture.ViewModel.PresenceDotDensityPercent.Should().Be(PresenceSettings.DefaultDotDensityPercent);
+        fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should().BeTrue();
+        fixture.ViewModel.PresenceSpeechScaleAmountPercent.Should()
+            .Be(PresenceSettings.DefaultSpeechScaleAmountPercent);
+        fixture.ViewModel.ResponseTitle.Should().Be("A saved setting is invalid.");
+        fixture.ViewModel.ResponseBody.Should().Be(exception.Message);
+        fixture.AppearancePreferences.SavedPresenceDotDensityPercent.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeNull();
+        fixture.AppearancePreferences.SavedPresenceSpeechScaleAmountPercent.Should().BeNull();
     }
 
     [Fact]
@@ -6729,8 +7184,12 @@ public sealed partial class MainViewModelTests
                 viewModel.SetPresenceSizePixels(value, initiator),
             PresenceSetting.DotSize =>
                 viewModel.SetPresenceDotSizePercent(value, initiator),
+            PresenceSetting.DotDensity =>
+                viewModel.SetPresenceDotDensityPercent(value, initiator),
             PresenceSetting.MovementSpeed =>
                 viewModel.SetPresenceMovementSpeedPercent(value, initiator),
+            PresenceSetting.SpeechScaleAmount =>
+                viewModel.SetPresenceSpeechScaleAmountPercent(value, initiator),
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
 
@@ -6741,7 +7200,9 @@ public sealed partial class MainViewModelTests
         {
             PresenceSetting.Size => viewModel.PresenceSizePixels,
             PresenceSetting.DotSize => viewModel.PresenceDotSizePercent,
+            PresenceSetting.DotDensity => viewModel.PresenceDotDensityPercent,
             PresenceSetting.MovementSpeed => viewModel.PresenceMovementSpeedPercent,
+            PresenceSetting.SpeechScaleAmount => viewModel.PresenceSpeechScaleAmountPercent,
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
 
@@ -6752,8 +7213,11 @@ public sealed partial class MainViewModelTests
         {
             PresenceSetting.Size => preferences.SavedPresenceSizePixels,
             PresenceSetting.DotSize => preferences.SavedPresenceDotSizePercent,
+            PresenceSetting.DotDensity => preferences.SavedPresenceDotDensityPercent,
             PresenceSetting.MovementSpeed =>
                 preferences.SavedPresenceMovementSpeedPercent,
+            PresenceSetting.SpeechScaleAmount =>
+                preferences.SavedPresenceSpeechScaleAmountPercent,
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
 
@@ -6787,7 +7251,9 @@ public sealed partial class MainViewModelTests
     {
         Size,
         DotSize,
+        DotDensity,
         MovementSpeed,
+        SpeechScaleAmount,
     }
 
     private sealed class Fixture
@@ -7445,9 +7911,21 @@ public sealed partial class MainViewModelTests
         {
             events.Add("speech.invalidate");
             IsSpeaking = false;
+            PlaybackFrame = SpeechPlaybackFrame.Inactive;
+            PlaybackFrameException = null;
         }
 
         public bool IsSpeaking { get; private set; }
+
+        private SpeechPlaybackFrame playbackFrame = SpeechPlaybackFrame.Inactive;
+
+        public AudioOutputDeviceUnavailableException? PlaybackFrameException { get; set; }
+
+        public SpeechPlaybackFrame PlaybackFrame
+        {
+            get => PlaybackFrameException is { } exception ? throw exception : playbackFrame;
+            set => playbackFrame = value;
+        }
 
         public IReadOnlyList<SpeechProvider> Providers { get; set; } =
         [
@@ -7676,11 +8154,19 @@ public sealed partial class MainViewModelTests
 
         public int? PresenceTimeoutSeconds { get; set; }
 
+        public int? ResponseTimeoutSeconds { get; set; }
+
         public int? PresenceSizePixels { get; set; }
 
         public int? PresenceDotSizePercent { get; set; }
 
+        public int? PresenceDotDensityPercent { get; set; }
+
         public int? PresenceMovementSpeedPercent { get; set; }
+
+        public bool? PresenceSpeechScalingEnabled { get; set; }
+
+        public int? PresenceSpeechScaleAmountPercent { get; set; }
 
         public PresencePosition? PresencePosition { get; set; }
 
@@ -7690,11 +8176,19 @@ public sealed partial class MainViewModelTests
 
         public int? SavedPresenceTimeoutSeconds { get; private set; }
 
+        public int? SavedResponseTimeoutSeconds { get; private set; }
+
         public int? SavedPresenceSizePixels { get; private set; }
 
         public int? SavedPresenceDotSizePercent { get; private set; }
 
+        public int? SavedPresenceDotDensityPercent { get; private set; }
+
         public int? SavedPresenceMovementSpeedPercent { get; private set; }
+
+        public bool? SavedPresenceSpeechScalingEnabled { get; private set; }
+
+        public int? SavedPresenceSpeechScaleAmountPercent { get; private set; }
 
         public PresencePosition? SavedPresencePosition { get; private set; }
 
@@ -7702,7 +8196,21 @@ public sealed partial class MainViewModelTests
 
         public Exception? LoadException { get; set; }
 
+        public Exception? PresenceTimeoutLoadException { get; set; }
+
+        public Exception? ResponseTimeoutLoadException { get; set; }
+
+        public Exception? DotDensityLoadException { get; set; }
+
+        public Exception? SpeechScalingLoadException { get; set; }
+
+        public Exception? SpeechScaleAmountLoadException { get; set; }
+
         public Exception? SaveException { get; set; }
+
+        public Action? BeforePresencePreferenceSave { get; set; }
+
+        public Action? BeforeResponseTimeoutPreferenceSave { get; set; }
 
         public ApplicationThemeMode? LoadThemeMode()
         {
@@ -7727,6 +8235,11 @@ public sealed partial class MainViewModelTests
 
         public int? LoadPresenceTimeoutSeconds()
         {
+            if (PresenceTimeoutLoadException is not null)
+            {
+                throw PresenceTimeoutLoadException;
+            }
+
             if (LoadException is not null)
             {
                 throw LoadException;
@@ -7737,13 +8250,36 @@ public sealed partial class MainViewModelTests
 
         public void SavePresenceTimeoutSeconds(int seconds)
         {
+            ThrowIfSaveFails();
+            SavedPresenceTimeoutSeconds = seconds;
+            PresenceTimeoutSeconds = seconds;
+        }
+
+        public int? LoadResponseTimeoutSeconds()
+        {
+            if (ResponseTimeoutLoadException is not null)
+            {
+                throw ResponseTimeoutLoadException;
+            }
+
+            if (LoadException is not null)
+            {
+                throw LoadException;
+            }
+
+            return ResponseTimeoutSeconds;
+        }
+
+        public void SaveResponseTimeoutSeconds(int seconds)
+        {
+            BeforeResponseTimeoutPreferenceSave?.Invoke();
             if (SaveException is not null)
             {
                 throw SaveException;
             }
 
-            SavedPresenceTimeoutSeconds = seconds;
-            PresenceTimeoutSeconds = seconds;
+            SavedResponseTimeoutSeconds = seconds;
+            ResponseTimeoutSeconds = seconds;
         }
 
         public int? LoadPresenceSizePixels()
@@ -7766,6 +8302,21 @@ public sealed partial class MainViewModelTests
             return PresenceDotSizePercent;
         }
 
+        public int? LoadPresenceDotDensityPercent()
+        {
+            if (DotDensityLoadException is not null)
+            {
+                throw DotDensityLoadException;
+            }
+
+            if (LoadException is not null)
+            {
+                throw LoadException;
+            }
+
+            return PresenceDotDensityPercent;
+        }
+
         public int? LoadPresenceMovementSpeedPercent()
         {
             if (LoadException is not null)
@@ -7774,6 +8325,36 @@ public sealed partial class MainViewModelTests
             }
 
             return PresenceMovementSpeedPercent;
+        }
+
+        public bool? LoadPresenceSpeechScalingEnabled()
+        {
+            if (SpeechScalingLoadException is not null)
+            {
+                throw SpeechScalingLoadException;
+            }
+
+            if (LoadException is not null)
+            {
+                throw LoadException;
+            }
+
+            return PresenceSpeechScalingEnabled;
+        }
+
+        public int? LoadPresenceSpeechScaleAmountPercent()
+        {
+            if (SpeechScaleAmountLoadException is not null)
+            {
+                throw SpeechScaleAmountLoadException;
+            }
+
+            if (LoadException is not null)
+            {
+                throw LoadException;
+            }
+
+            return PresenceSpeechScaleAmountPercent;
         }
 
         public PresencePosition? LoadPresencePosition()
@@ -7810,11 +8391,32 @@ public sealed partial class MainViewModelTests
             PresenceDotSizePercent = value;
         }
 
+        public void SavePresenceDotDensityPercent(int value)
+        {
+            ThrowIfSaveFails();
+            SavedPresenceDotDensityPercent = value;
+            PresenceDotDensityPercent = value;
+        }
+
         public void SavePresenceMovementSpeedPercent(int value)
         {
             ThrowIfSaveFails();
             SavedPresenceMovementSpeedPercent = value;
             PresenceMovementSpeedPercent = value;
+        }
+
+        public void SavePresenceSpeechScalingEnabled(bool value)
+        {
+            ThrowIfSaveFails();
+            SavedPresenceSpeechScalingEnabled = value;
+            PresenceSpeechScalingEnabled = value;
+        }
+
+        public void SavePresenceSpeechScaleAmountPercent(int value)
+        {
+            ThrowIfSaveFails();
+            SavedPresenceSpeechScaleAmountPercent = value;
+            PresenceSpeechScaleAmountPercent = value;
         }
 
         public void SavePresencePosition(PresencePosition position)
@@ -7833,6 +8435,7 @@ public sealed partial class MainViewModelTests
 
         private void ThrowIfSaveFails()
         {
+            BeforePresencePreferenceSave?.Invoke();
             if (SaveException is not null)
             {
                 throw SaveException;

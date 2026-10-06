@@ -11,10 +11,15 @@ namespace Kora.Application.Configuration;
 public sealed class LocalAppearancePreferences : IAppearancePreferences
 {
     private const string FileName = "appearance-theme.txt";
-    private const string PresenceTimeoutFileName = "presence-timeout-seconds.txt";
+    private const string PresenceTimeoutFileName = "presence-inactivity-timeout-seconds.txt";
+    private const string ResponseTimeoutFileName = "response-timeout-seconds.txt";
+    private const string LegacyResponseTimeoutFileName = "presence-timeout-seconds.txt";
     private const string PresenceSizeFileName = "presence-size-pixels.txt";
     private const string PresenceDotSizeFileName = "presence-dot-size-percent.txt";
+    private const string PresenceDotDensityFileName = "presence-dot-density-percent.txt";
     private const string PresenceMovementSpeedFileName = "presence-movement-speed-percent.txt";
+    private const string PresenceSpeechScalingEnabledFileName = "presence-speech-scaling-enabled.txt";
+    private const string PresenceSpeechScaleAmountFileName = "presence-speech-scale-amount-percent.txt";
     private const string PresencePositionFileName = "presence-position.txt";
     private const string ResponseWindowFileName = "response-window.txt";
     private readonly IPreferenceStore store;
@@ -63,36 +68,11 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
         ApplicationLog.Information(logger, "Saved the appearance theme preference");
     }
 
-    public int? LoadPresenceTimeoutSeconds()
-    {
-        var contents = store.ReadText(PresenceTimeoutFileName);
-        if (contents is null)
-        {
-            return null;
-        }
-
-        var value = contents.Trim();
-        if (!int.TryParse(
-                value,
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var seconds))
-        {
-            throw new InvalidDataException("The saved presence timeout is invalid.");
-        }
-
-        try
-        {
-            PresenceSettings.ValidateTimeoutSeconds(seconds);
-        }
-        catch (ArgumentOutOfRangeException exception)
-        {
-            throw new InvalidDataException("The saved presence timeout is invalid.", exception);
-        }
-
-        ApplicationLog.Debug(logger, "Loaded the presence timeout preference");
-        return seconds;
-    }
+    public int? LoadPresenceTimeoutSeconds() =>
+        LoadIntegerPreference(
+            PresenceTimeoutFileName,
+            PresenceSettings.ValidateTimeoutSeconds,
+            "presence timeout");
 
     public void SavePresenceTimeoutSeconds(int seconds)
     {
@@ -102,6 +82,23 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
             seconds,
             PresenceTimeoutFileName);
         ApplicationLog.Information(logger, "Saved the presence timeout preference");
+    }
+
+    public int? LoadResponseTimeoutSeconds() =>
+        LoadIntegerPreference(
+            ResponseTimeoutFileName,
+            ResponseWindowSettings.ValidateTimeoutSeconds,
+            "response timeout")
+        ?? LoadIntegerPreference(
+            LegacyResponseTimeoutFileName,
+            ResponseWindowSettings.ValidateTimeoutSeconds,
+            "legacy response timeout");
+
+    public void SaveResponseTimeoutSeconds(int seconds)
+    {
+        ResponseWindowSettings.ValidateTimeoutSeconds(seconds);
+        SaveIntegerPreference(seconds, ResponseTimeoutFileName);
+        ApplicationLog.Information(logger, "Saved the response timeout preference");
     }
 
     public int? LoadPresenceSizePixels() =>
@@ -116,11 +113,40 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
             PresenceSettings.ValidateDotSizePercent,
             "presence dot size");
 
+    public int? LoadPresenceDotDensityPercent() =>
+        LoadIntegerPreference(
+            PresenceDotDensityFileName,
+            PresenceSettings.ValidateDotDensityPercent,
+            "presence dot density");
+
     public int? LoadPresenceMovementSpeedPercent() =>
         LoadIntegerPreference(
             PresenceMovementSpeedFileName,
             PresenceSettings.ValidateMovementSpeedPercent,
             "presence movement speed");
+
+    public bool? LoadPresenceSpeechScalingEnabled()
+    {
+        var contents = store.ReadText(PresenceSpeechScalingEnabledFileName);
+        if (contents is null)
+        {
+            return null;
+        }
+
+        if (!bool.TryParse(contents, out var value))
+        {
+            throw new InvalidDataException("The saved presence speech scaling preference is invalid.");
+        }
+
+        ApplicationLog.Debug(logger, "Loaded the presence speech scaling preference");
+        return value;
+    }
+
+    public int? LoadPresenceSpeechScaleAmountPercent() =>
+        LoadIntegerPreference(
+            PresenceSpeechScaleAmountFileName,
+            PresenceSettings.ValidateSpeechScaleAmountPercent,
+            "presence speech scale amount");
 
     public PresencePosition? LoadPresencePosition()
     {
@@ -210,6 +236,15 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
         ApplicationLog.Information(logger, "Saved the presence dot size preference");
     }
 
+    public void SavePresenceDotDensityPercent(int value)
+    {
+        PresenceSettings.ValidateDotDensityPercent(value);
+        SaveIntegerPreference(
+            value,
+            PresenceDotDensityFileName);
+        ApplicationLog.Information(logger, "Saved the presence dot density preference");
+    }
+
     public void SavePresenceMovementSpeedPercent(int value)
     {
         PresenceSettings.ValidateMovementSpeedPercent(value);
@@ -217,6 +252,23 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
             value,
             PresenceMovementSpeedFileName);
         ApplicationLog.Information(logger, "Saved the presence movement speed preference");
+    }
+
+    public void SavePresenceSpeechScalingEnabled(bool value)
+    {
+        store.WriteText(
+            PresenceSpeechScalingEnabledFileName,
+            value.ToString(CultureInfo.InvariantCulture));
+        ApplicationLog.Information(logger, "Saved the presence speech scaling preference");
+    }
+
+    public void SavePresenceSpeechScaleAmountPercent(int value)
+    {
+        PresenceSettings.ValidateSpeechScaleAmountPercent(value);
+        SaveIntegerPreference(
+            value,
+            PresenceSpeechScaleAmountFileName);
+        ApplicationLog.Information(logger, "Saved the presence speech scale amount preference");
     }
 
     public void SavePresencePosition(PresencePosition position)

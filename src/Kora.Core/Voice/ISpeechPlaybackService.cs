@@ -4,6 +4,8 @@ public interface ISpeechPlaybackService : IAsyncDisposable
 {
     bool IsSpeaking { get; }
 
+    SpeechPlaybackFrame PlaybackFrame { get; }
+
     void InvalidateOutput();
 
     Task SpeakAsync(

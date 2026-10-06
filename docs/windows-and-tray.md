@@ -7,7 +7,18 @@ current state. Its particle cloud appears on a small, borderless, transparent
 surface near the bottom-right of the primary display's working area. It floats
 above ordinary windows without a rectangular application frame.
 
-Drag the visible presence to reposition it. Kora stores the position on
+The presence is **click-through by default**: clicks, scrolling, and other mouse
+events reach the window underneath it, even over the visible dots.
+To reposition it, **hold Ctrl, then left-click and drag the visible presence**.
+While Ctrl is held, the presence receives mouse events instead of passing them
+through, and the pointer over it changes to the **four-way move cursor**, including
+when it was already resting over the presence. Release the mouse button and Ctrl
+to return to click-through mode.
+Either Ctrl key works, and Kora does not need keyboard focus.
+An in-progress mouse gesture stays with the window where it began; pressing or
+releasing Ctrl mid-gesture takes effect after the mouse buttons are released.
+
+Kora stores the position on
 this device and restores it after restart when that display remains connected.
 If the saved display is unavailable, the presence returns to the
 bottom-right of an available working area.
@@ -21,9 +32,14 @@ The presence communicates state, not percentage complete. Hiding it does not
 turn off listening or stop ongoing work. Microphone status is separate from
 the presence's visibility.
 
-While listening, the visible presence hides after 5 seconds without
-interaction by default. Change **Visible timeout** under Appearance in
-Settings to any value from 1 to 60 seconds. New interaction restarts the timer.
+While idle or listening without a prompt needing attention, presence hides
+automatically after **10 seconds** without Kora interaction. It does not ask
+before hiding. Change **Presence timeout** under **Settings > Appearance >
+Presence appearance** to any value from 1 to 60 seconds. New interaction
+restarts the timer, including Ctrl-dragging the presence.
+Active work, speech, approvals, questions, recovery actions, grant editing,
+and unacknowledged failures keep presence visible. After these finish, the
+timer starts fresh. Hiding presentation never disables listening.
 
 When visual text is enabled or forced by a voice-output problem, Kora opens a
 separate compact response surface near the presence. That surface contains
@@ -35,10 +51,11 @@ Under **Settings > Appearance > Visual feedback**, configure:
 
 - **Always show** - keep the current response visible until dismissed;
 - **Stay on top** - keep the response above other windows; enabled by default;
-- **Visible timeout** - change the shared 1-60 second inactivity timeout.
+- **Response timeout** - change the response's 1-60 second inactivity timeout,
+  default **5 seconds**.
 
-The presence always follows the visible timeout, even when **Always show**
-keeps the response window visible.
+Presence and response timeouts are independent. **Always show** keeps only
+the response window visible; idle presence still uses its own timeout.
 
 ## Tray icon
 

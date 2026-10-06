@@ -8,7 +8,13 @@ public interface IPresencePreferences
 
     int? LoadPresenceDotSizePercent();
 
+    int? LoadPresenceDotDensityPercent();
+
     int? LoadPresenceMovementSpeedPercent();
+
+    bool? LoadPresenceSpeechScalingEnabled();
+
+    int? LoadPresenceSpeechScaleAmountPercent();
 
     PresencePosition? LoadPresencePosition();
 
@@ -18,7 +24,13 @@ public interface IPresencePreferences
 
     void SavePresenceDotSizePercent(int value);
 
+    void SavePresenceDotDensityPercent(int value);
+
     void SavePresenceMovementSpeedPercent(int value);
+
+    void SavePresenceSpeechScalingEnabled(bool value);
+
+    void SavePresenceSpeechScaleAmountPercent(int value);
 
     void SavePresencePosition(PresencePosition position);
 }

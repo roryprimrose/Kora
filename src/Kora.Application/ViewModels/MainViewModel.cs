@@ -25,10 +25,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string ApplicationRestartAction = "application.restart";
     private const string AppearanceThemeConfigurationAction = "configuration.appearance-theme";
     private const string PresenceDotSizeConfigurationAction = "configuration.presence-dot-size";
+    private const string PresenceDotDensityConfigurationAction = "configuration.presence-dot-density";
     private const string PresenceMovementSpeedConfigurationAction = "configuration.presence-movement-speed";
     private const string PresencePositionConfigurationAction = "configuration.presence-position";
     private const string PresenceSizeConfigurationAction = "configuration.presence-size";
+    private const string PresenceSpeechScalingConfigurationAction = "configuration.presence-speech-scaling";
+    private const string PresenceSpeechScaleAmountConfigurationAction = "configuration.presence-speech-scale-amount";
     private const string PresenceTimeoutConfigurationAction = "configuration.presence-timeout";
+    private const string ResponseTimeoutConfigurationAction = "configuration.response-timeout";
     private const string ResponseWindowConfigurationAction = "configuration.response-window";
     private const string AssistantNameConfigurationAction = "configuration.assistant-name";
     private const string CallAwareConfigurationAction = "configuration.call-aware-policy";
@@ -143,6 +147,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool suppressAppearancePreferenceSave;
     private bool suppressPresenceAppearancePreferenceSave;
     private bool suppressPresencePreferenceSave;
+    private bool suppressResponseTimeoutPreferenceSave;
     private bool suppressResponseWindowPreferenceSave;
     private bool suppressResponseModeSave;
     private bool suppressCallAwarePreferenceSave;
@@ -156,9 +161,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string outputDeviceAvailabilityMessage = "Checking Windows audio output devices.";
     private ApplicationThemeMode themeMode = ApplicationThemeMode.System;
     private int presenceTimeoutSeconds = PresenceSettings.DefaultTimeoutSeconds;
+    private int responseTimeoutSeconds = ResponseWindowSettings.DefaultTimeoutSeconds;
     private int presenceSizePixels = PresenceSettings.DefaultSizePixels;
     private int presenceDotSizePercent = PresenceSettings.DefaultDotSizePercent;
+    private int presenceDotDensityPercent = PresenceSettings.DefaultDotDensityPercent;
     private int presenceMovementSpeedPercent = PresenceSettings.DefaultMovementSpeedPercent;
+    private bool isPresenceSpeechScalingEnabled = PresenceSettings.DefaultSpeechScalingEnabled;
+    private int presenceSpeechScaleAmountPercent = PresenceSettings.DefaultSpeechScaleAmountPercent;
     private PresencePosition? presencePosition;
     private ResponseWindowSettings responseWindowSettings = ResponseWindowSettings.Default;
     private ResponseOutputMode defaultResponseMode = ResponseOutputMode.Hybrid;
@@ -778,7 +787,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         $"System follows the current Windows light or dark preference. Light and Dark override it for all {AssistantName} surfaces.";
 
     public string PresenceTimeoutDescription =>
-        "Hide the presence and an unpinned response window after this many seconds without interaction.";
+        "Hide the presence after this many seconds of inactivity when no prompts are waiting.";
+
+    public string ResponseTimeoutDescription =>
+        "Hide an unpinned response window after this many seconds without interaction.";
 
     public string PresenceSizeDescription =>
         $"Overall presence footprint: {PresenceSizePixels} pixels.";
@@ -786,8 +798,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string PresenceDotSizeDescription =>
         $"Relative particle diameter: {PresenceDotSizePercent}%.";
 
+    public string PresenceDotDensityDescription =>
+        $"Relative particle density: {PresenceDotDensityPercent}% ({PresenceSettings.GetParticleCount(PresenceDotDensityPercent)} dots).";
+
     public string PresenceMovementSpeedDescription =>
         $"Relative particle movement speed: {PresenceMovementSpeedPercent}%.";
+
+    public string PresenceSpeechScalingDescription =>
+        IsPresenceSpeechScalingEnabled
+            ? "The presence grows and shrinks with speech playback."
+            : "The presence stays at its normal size during speech playback.";
+
+    public string PresenceSpeechScaleAmountDescription =>
+        $"Relative speech-driven size change: {PresenceSpeechScaleAmountPercent}%.";
 
     public string MainCaptureDescription =>
         $"{AssistantName} enumerates devices without recording. Capture starts only after you enable listening.";
@@ -858,6 +881,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ref presenceTimeoutSeconds,
             value,
             nameof(PresenceTimeoutSeconds));
+    }
+
+    public int ResponseTimeoutSeconds
+    {
+        get => responseTimeoutSeconds;
+        set => _ = SetResponseTimeoutSeconds(value);
+    }
+
+    public bool SetResponseTimeoutSeconds(
+        int value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        ResponseWindowSettings.ValidateTimeoutSeconds(value);
+        if (ResponseTimeoutSeconds == value)
+        {
+            return true;
+        }
+
+        if (!suppressResponseTimeoutPreferenceSave
+            && !SaveResponseTimeoutPreference(value, initiator))
+        {
+            OnPropertyChanged(nameof(ResponseTimeoutSeconds));
+            return false;
+        }
+
+        return SetProperty(
+            ref responseTimeoutSeconds,
+            value,
+            nameof(ResponseTimeoutSeconds));
     }
 
     public bool IsResponseAlwaysVisible
@@ -966,6 +1018,41 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return true;
     }
 
+    public int PresenceDotDensityPercent
+    {
+        get => presenceDotDensityPercent;
+        set => _ = SetPresenceDotDensityPercent(value);
+    }
+
+    public bool SetPresenceDotDensityPercent(
+        int value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        PresenceSettings.ValidateDotDensityPercent(value);
+        if (PresenceDotDensityPercent == value)
+        {
+            return true;
+        }
+
+        if (!suppressPresenceAppearancePreferenceSave
+            && !SavePreference(
+                () => appearancePreferences.SavePresenceDotDensityPercent(value),
+                PresenceDotDensityConfigurationAction,
+                initiator,
+                "presence dot density"))
+        {
+            OnPropertyChanged(nameof(PresenceDotDensityPercent));
+            return false;
+        }
+
+        SetProperty(
+            ref presenceDotDensityPercent,
+            value,
+            nameof(PresenceDotDensityPercent));
+        OnPropertyChanged(nameof(PresenceDotDensityDescription));
+        return true;
+    }
+
     public int PresenceMovementSpeedPercent
     {
         get => presenceMovementSpeedPercent;
@@ -998,6 +1085,75 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             value,
             nameof(PresenceMovementSpeedPercent));
         OnPropertyChanged(nameof(PresenceMovementSpeedDescription));
+        return true;
+    }
+
+    public bool IsPresenceSpeechScalingEnabled
+    {
+        get => isPresenceSpeechScalingEnabled;
+        set => _ = SetPresenceSpeechScalingEnabled(value);
+    }
+
+    public bool SetPresenceSpeechScalingEnabled(
+        bool value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        if (IsPresenceSpeechScalingEnabled == value)
+        {
+            return true;
+        }
+
+        if (!suppressPresenceAppearancePreferenceSave
+            && !SavePreference(
+                () => appearancePreferences.SavePresenceSpeechScalingEnabled(value),
+                PresenceSpeechScalingConfigurationAction,
+                initiator,
+                "presence speech scaling"))
+        {
+            OnPropertyChanged(nameof(IsPresenceSpeechScalingEnabled));
+            return false;
+        }
+
+        SetProperty(
+            ref isPresenceSpeechScalingEnabled,
+            value,
+            nameof(IsPresenceSpeechScalingEnabled));
+        OnPropertyChanged(nameof(PresenceSpeechScalingDescription));
+        return true;
+    }
+
+    public int PresenceSpeechScaleAmountPercent
+    {
+        get => presenceSpeechScaleAmountPercent;
+        set => _ = SetPresenceSpeechScaleAmountPercent(value);
+    }
+
+    public bool SetPresenceSpeechScaleAmountPercent(
+        int value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        PresenceSettings.ValidateSpeechScaleAmountPercent(value);
+        if (PresenceSpeechScaleAmountPercent == value)
+        {
+            return true;
+        }
+
+        if (!suppressPresenceAppearancePreferenceSave
+            && !SavePreference(
+                () => appearancePreferences.SavePresenceSpeechScaleAmountPercent(value),
+                PresenceSpeechScaleAmountConfigurationAction,
+                initiator,
+                "presence speech scale amount"))
+        {
+            OnPropertyChanged(nameof(PresenceSpeechScaleAmountPercent));
+            return false;
+        }
+
+        SetProperty(
+            ref presenceSpeechScaleAmountPercent,
+            value,
+            nameof(PresenceSpeechScaleAmountPercent));
+        OnPropertyChanged(nameof(PresenceSpeechScaleAmountDescription));
         return true;
     }
 
@@ -1560,6 +1716,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (SetProperty(ref isSpeaking, value))
             {
+                if (!value)
+                {
+                    SetSpeechPlaybackFrame(SpeechPlaybackFrame.Inactive);
+                }
                 StopSpeechCommand.NotifyCanExecuteChanged();
                 RemoveSpeechProviderCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(CanRemoveSpeechProvider));
@@ -2042,6 +2202,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void NotifyPresenceInteraction() =>
         WindowActionRequested?.Invoke(this, WindowAction.ShowPresence);
 
+    public void ReportPresenceInputFailure(string detail) =>
+        ShowFailure("Presence mouse routing is unavailable.",
+            $"The presence has been hidden to avoid blocking other windows. Restart Kora to try again. {detail}");
+
     public void ShowSettings()
     {
         if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
@@ -2516,15 +2680,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var savedThemeMode = appearancePreferences.LoadThemeMode();
             var savedPresenceTimeoutSeconds = appearancePreferences.LoadPresenceTimeoutSeconds();
+            var savedResponseTimeoutSeconds = appearancePreferences.LoadResponseTimeoutSeconds();
             var savedPresenceSizePixels = appearancePreferences.LoadPresenceSizePixels();
             var savedPresenceDotSizePercent = appearancePreferences.LoadPresenceDotSizePercent();
+            var savedPresenceDotDensityPercent = appearancePreferences.LoadPresenceDotDensityPercent();
             var savedPresenceMovementSpeedPercent =
                 appearancePreferences.LoadPresenceMovementSpeedPercent();
+            var savedPresenceSpeechScalingEnabled =
+                appearancePreferences.LoadPresenceSpeechScalingEnabled();
+            var savedPresenceSpeechScaleAmountPercent =
+                appearancePreferences.LoadPresenceSpeechScaleAmountPercent();
             var savedPresencePosition =
                 appearancePreferences.LoadPresencePosition();
             var savedResponseWindowSettings = appearancePreferences.LoadResponseWindowSettings();
             suppressAppearancePreferenceSave = true;
             suppressPresencePreferenceSave = true;
+            suppressResponseTimeoutPreferenceSave = true;
             suppressPresenceAppearancePreferenceSave = true;
             suppressResponseWindowPreferenceSave = true;
             try
@@ -2532,13 +2703,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ThemeMode = savedThemeMode ?? ApplicationThemeMode.System;
                 PresenceTimeoutSeconds =
                     savedPresenceTimeoutSeconds ?? PresenceSettings.DefaultTimeoutSeconds;
+                ResponseTimeoutSeconds =
+                    savedResponseTimeoutSeconds ?? ResponseWindowSettings.DefaultTimeoutSeconds;
                 PresenceSizePixels =
                     savedPresenceSizePixels ?? PresenceSettings.DefaultSizePixels;
                 PresenceDotSizePercent =
                     savedPresenceDotSizePercent ?? PresenceSettings.DefaultDotSizePercent;
+                PresenceDotDensityPercent =
+                    savedPresenceDotDensityPercent ?? PresenceSettings.DefaultDotDensityPercent;
                 PresenceMovementSpeedPercent =
                     savedPresenceMovementSpeedPercent
                     ?? PresenceSettings.DefaultMovementSpeedPercent;
+                IsPresenceSpeechScalingEnabled =
+                    savedPresenceSpeechScalingEnabled
+                    ?? PresenceSettings.DefaultSpeechScalingEnabled;
+                PresenceSpeechScaleAmountPercent =
+                    savedPresenceSpeechScaleAmountPercent
+                    ?? PresenceSettings.DefaultSpeechScaleAmountPercent;
                 SetProperty(
                     ref presencePosition,
                     savedPresencePosition,
@@ -2551,6 +2732,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 suppressAppearancePreferenceSave = false;
                 suppressPresencePreferenceSave = false;
+                suppressResponseTimeoutPreferenceSave = false;
                 suppressPresenceAppearancePreferenceSave = false;
                 suppressResponseWindowPreferenceSave = false;
             }
@@ -3467,6 +3649,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             PresenceTimeoutConfigurationAction,
             initiator,
             "presence timeout");
+    }
+
+    private bool SaveResponseTimeoutPreference(
+        int value,
+        SecurityAuditInitiator initiator)
+    {
+        return SavePreference(
+            () => appearancePreferences.SaveResponseTimeoutSeconds(value),
+            ResponseTimeoutConfigurationAction,
+            initiator,
+            "response timeout");
     }
 
     private bool SetResponseWindowSettings(

@@ -1,4 +1,5 @@
 using Kora.Core;
+using Kora.Core.Configuration;
 
 namespace Kora.Application.Visuals;
 
@@ -10,10 +11,12 @@ public sealed class PresenceAnimation
 
     public static readonly TimeSpan ColorTransitionDuration = TimeSpan.FromMilliseconds(320);
 
-    public static readonly TimeSpan SpeechScaleTransitionDuration = TimeSpan.FromMilliseconds(90);
+    public static readonly TimeSpan SpeechScaleSmoothingTimeConstant = TimeSpan.FromMilliseconds(35);
 
     private const double MinimumSpeechScale = 0.9;
     private const double SpeechScaleRange = 0.22;
+    private const double SpeechScaleSettlingTolerance = 0.0001;
+    private double smoothedSpeechScale = 1;
 
     public PresenceAnimation(AssistantState initialState)
     {
@@ -29,8 +32,11 @@ public sealed class PresenceAnimation
         AssistantState state,
         bool isSpeaking,
         double speechOutputLevel,
-        TimeSpan elapsed)
+        TimeSpan elapsed,
+        bool isSpeechScalingEnabled = PresenceSettings.DefaultSpeechScalingEnabled,
+        int speechScaleAmountPercent = PresenceSettings.DefaultSpeechScaleAmountPercent)
     {
+        PresenceSettings.ValidateSpeechScaleAmountPercent(speechScaleAmountPercent);
         if (elapsed < TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(elapsed), elapsed, "Elapsed time cannot be negative.");
@@ -46,17 +52,41 @@ public sealed class PresenceAnimation
 
         var targetColor = state == AssistantState.Hidden ? Current.Color : GetStateColor(state);
         var targetOpacity = state == AssistantState.Hidden ? 0 : 1;
-        var targetScale = isSpeaking
-            ? MinimumSpeechScale + (Math.Clamp(speechOutputLevel, 0, 1) * SpeechScaleRange)
+        var amount = speechScaleAmountPercent / 100d;
+        var targetScale = isSpeaking && isSpeechScalingEnabled
+            ? 1 + ((MinimumSpeechScale - 1 + (Math.Clamp(speechOutputLevel, 0, 1) * SpeechScaleRange)) * amount)
             : 1;
 
         var next = new PresenceVisualFrame(
             MoveTowards(Current.Color, targetColor, elapsed, ColorTransitionDuration),
             MoveTowards(Current.Opacity, targetOpacity, elapsed, VisibilityTransitionDuration, 1),
-            MoveTowards(Current.Scale, targetScale, elapsed, SpeechScaleTransitionDuration, SpeechScaleRange));
+            SmoothSpeechScale(targetScale, elapsed));
         var changed = next != Current;
         Current = next;
         return changed;
+    }
+
+    private double SmoothSpeechScale(double target, TimeSpan elapsed)
+    {
+        if (elapsed == TimeSpan.Zero)
+        {
+            return Current.Scale;
+        }
+
+        // Two cascaded low-pass stages preserve velocity across speech edges without overshoot.
+        var interval = elapsed.TotalMilliseconds / SpeechScaleSmoothingTimeConstant.TotalMilliseconds;
+        var decay = Math.Exp(-interval);
+        var next = target
+                   + ((Current.Scale - target) + ((smoothedSpeechScale - target) * interval)) * decay;
+        smoothedSpeechScale = target + (smoothedSpeechScale - target) * decay;
+        if (Math.Abs(next - target) <= SpeechScaleSettlingTolerance
+            && Math.Abs(smoothedSpeechScale - target) <= SpeechScaleSettlingTolerance)
+        {
+            smoothedSpeechScale = target;
+            return target;
+        }
+
+        return next;
     }
 
     private static PresenceColor GetStateColor(AssistantState state) => state switch

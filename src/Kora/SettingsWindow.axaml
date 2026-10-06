@@ -115,15 +115,15 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Visible timeout" Classes="settings-title" />
+                  <TextBlock Text="Response timeout" Classes="settings-title" />
                   <TextBlock
-                      Text="{Binding PresenceTimeoutDescription}"
+                      Text="{Binding ResponseTimeoutDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <NumericUpDown
                     Grid.Column="1"
-                    Value="{Binding PresenceTimeoutSeconds}"
+                    Value="{Binding ResponseTimeoutSeconds}"
                     Minimum="1"
                     Maximum="60"
                     Increment="1"
@@ -140,6 +140,26 @@
                   FontSize="12"
                   TextWrapping="Wrap" />
             </StackPanel>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Presence timeout" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceTimeoutDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <NumericUpDown
+                    Grid.Column="1"
+                    Value="{Binding PresenceTimeoutSeconds}"
+                    Minimum="1"
+                    Maximum="60"
+                    Increment="1"
+                    FormatString="0"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
 
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
@@ -184,6 +204,26 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
+                  <TextBlock Text="Dot density" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceDotDensityDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <Slider
+                    Grid.Column="1"
+                    Value="{Binding PresenceDotDensityPercent}"
+                    Minimum="25"
+                    Maximum="200"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
                   <TextBlock Text="Movement speed" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding PresenceMovementSpeedDescription}"
@@ -194,6 +234,44 @@
                     Grid.Column="1"
                     Value="{Binding PresenceMovementSpeedPercent}"
                     Minimum="25"
+                    Maximum="200"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Speech sizing" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceSpeechScalingDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Scale with speech"
+                    IsChecked="{Binding IsPresenceSpeechScalingEnabled}"
+                    VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Speech scale amount" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceSpeechScaleAmountDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <Slider
+                    Grid.Column="1"
+                    Value="{Binding PresenceSpeechScaleAmountPercent}"
+                    IsEnabled="{Binding IsPresenceSpeechScalingEnabled}"
+                    Minimum="0"
                     Maximum="200"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"

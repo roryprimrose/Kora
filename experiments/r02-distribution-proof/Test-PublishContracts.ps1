@@ -2,7 +2,6 @@
 param(
     [Parameter(Mandatory)][string] $Payload,
     [Parameter(Mandatory)][string] $Inspection,
-    [Parameter(Mandatory)][string] $MakeNsis,
     [Parameter(Mandatory)][string] $OutputDirectory
 )
 . (Join-Path $PSScriptRoot 'Common.ps1')
@@ -122,17 +121,14 @@ if (!$caught) { throw 'Wrong native architecture was accepted.' }
 $passed.Add('Wrong native PE architecture explicitly rejected')
 $caught = $false
 try {
-    & (Join-Path $PSScriptRoot 'Build-Setup.ps1') -Payload $copy -Inspection $Inspection `
-        -MakeNsis $MakeNsis -OutputDirectory (Join-Path $OutputDirectory 'must-not-exist')
+    Assert-Payload $copy $manifest
 }
 catch {
     if ($_.Exception.Message -notlike '*Payload identity changed*') { throw }
     $caught = $true
 }
-if (!$caught -or (Test-Path -LiteralPath (Join-Path $OutputDirectory 'must-not-exist'))) {
-    throw 'Tampered payload reached packaging.'
-}
-$passed.Add('Tampered final bytes rejected before compiler invocation')
+if (!$caught) { throw 'Tampered payload passed static identity inspection.' }
+$passed.Add('Tampered final bytes rejected by static identity inspection')
 Write-ProofJson ([ordered]@{ tests = @($passed); count = $passed.Count; staticOnly = $true }) `
     (Join-Path $OutputDirectory 'tests.json')
 Write-Host "$($passed.Count) static publish/packaging contract checks passed; no app or installer executed."

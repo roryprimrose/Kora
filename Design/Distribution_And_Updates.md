@@ -1,6 +1,6 @@
 # Distribution, Startup, and Application Maintenance
 
-Status: WiX MSI + Burn selected as the production direction; implementation and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
+Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. Source bootstrap, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
 R02's partial NSIS 3.13 proof remains historical evidence, not the production installer. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
 The source host is a public source-available GitHub repository; use Linux GitHub Actions wherever feasible, with Windows jobs for WiX MSI/Burn packaging and other justified Windows-specific work.
 Initial binary and setup artifacts are intentionally unsigned.
@@ -8,19 +8,19 @@ Windows remains the only supported application runtime for the foreseeable futur
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Application Integrity](Security_Data_Flows.md#application-integrity-and-no-self-modification), [Acceptance Criteria](Acceptance_Criteria.md).
 
-The [WiX MSI/custom Burn proof](../installer/README.md) now implements an
+The [WiX MSI/custom Burn installer](../installer/README.md) implements the
 unsigned x64 packaging/UI slice. Local feature builds use `0.1.0`; untagged
 main uses GitVersion `<major>.<minor>.<patch>-beta<increment>`, stable-tagged
 main uses `<major>.<minor>.<patch>` across binaries and setup. Feature/PR CI
 builds but does not upload the installer. Canonical main/tag CI publishes
 application/installer artifacts and explicitly non-production POC GitHub
 releases with notes, checksums and provenance; beta versions are prereleases.
-The proof neither establishes protected deployment nor closes installed
+The installer neither establishes protected deployment nor closes installed
 acceptance, source-bootstrap, prerequisite-health, or redistribution gates.
 It now detects/reuses or obtains and installs pinned required runtimes through
 Burn, and offers unchecked PowerShell, Ollama/Qwen, and Kokoro preparation
 using non-elevated per-user app setup services.
-The proof defaults to **Just for me** and also offers **All users**.
+The installer defaults to **Just for me** and also offers **All users**.
 Windows Installer's dual-purpose package redirects application/shortcut
 locations to the selected user/machine context. Shared prerequisites retain
 their machine-wide scope and can still require elevation; the per-user option
@@ -44,23 +44,23 @@ Future builds must inspect their own exact revision and final bytes.
 | Finding | Design / implementation consequence |
 |---|---|
 | Ubuntu 24.04 CI cross-published the existing framework-dependent win-x64 bootstrap with SDK 10.0.401. | Retain normal managed cross-publishing on Linux as the build baseline. Windows is the only deployed runtime; preserve the [platform seams](Architecture.md#platform-boundaries-and-support) for future extensibility without adding other OS releases. |
-| NSIS 3.13 assembled one unsigned EXE on Windows from that Linux-produced payload. Native Linux NSIS execution was unavailable. | Preserve the scripts/receipts as historical evidence. WiX MSI + Burn is now the selected production direction for Windows lifecycle management; Linux-native NSIS assembly is no longer a release prerequisite. Prove WiX packaging and installed behavior through R17 implementation acceptance, not another standalone R02 installer proof. |
+| NSIS 3.13 assembled one unsigned EXE on Windows from that Linux-produced payload. Native Linux NSIS execution was unavailable. | Historical receipts are retained, but NSIS acquisition/build code and the Linux recipe are retired. WiX MSI + custom Burn now supplies binary packaging with exact payload/provenance checks; installed behavior remains R17 acceptance, not another standalone installer feasibility proof. |
 | Runtime metadata requires both .NET 10 base and Windows Desktop shared frameworks, and ONNX imports external VC++ runtime DLLs. | Declare the observed [launch prerequisites](#launch-prerequisite-baseline) separately from Kora-led capability setup. Binary users do not need an SDK, Git or source checkout. |
 | Exact-revision managed-source publishing and hash-verified reruns succeeded; fixtures preserve local edits and earlier outputs on failure. | Reuse dedicated detached checkout, versioned staging, explicit ownership and non-destructive reruns. Add protected deployment, interrupted-install reconciliation and actual Windows launch smoke tests before calling it a production source bootstrap. |
 | Repeated setup assembly changed the final EXE digest despite unchanged payload identity and size. | Hash every finished setup, not its filename, revision or input directory alone; bind provenance and Windows results to those exact final bytes. Do not claim bit-identical builds from this experiment. |
 | At the proof revision, no project licence was found and three OpenTK prerelease nuspecs lacked licence declarations. | The repository now declares PolyForm Shield 1.0.0 and a [NuGet licence/notice gate with version-specific overrides](../DEPENDENCY-LICENSES.md). Preserve the historical finding; apply the current controls to each release and separately review native/model assets and WiX build-tool terms before selection/distribution. A passed NuGet gate is not clearance for every external asset. |
 | Only documentation/Avalonia resources are embedded; the planned skill catalogue, scripts and protected workers are absent. | Keep their R11/R16/R17 gates open. Shipping or testing this bootstrap does not establish resource completeness or worker protection for the designed release. |
-| Windows installation/launch trials were not approved; ACL and runtime-only evidence are absent. | Allocate an approved disposable Windows 11 x64 lab. Keep release candidates draft/unreleased and dependent execution capabilities unavailable until the actual boundaries pass. |
+| Windows installation/launch trials were not approved; ACL and runtime-only evidence are absent. | Allocate an approved disposable Windows 11 x64 lab. Unsigned POC publication is approved under the risk-based policy below, not production acceptance. Dependent protected-execution capabilities remain unavailable until their actual boundaries pass. |
 
 The path forward is staged in the
 [distribution follow-up roadmap](Implementation_Roadmap.md#r02-distribution-follow-up-and-r17-delivery).
 Apply the current redistribution controls and establish the Windows
 protected-deployment boundary; these investigations can run in parallel.
-Implement the two required R17 delivery options using the selected WiX
-direction, beginning with a thin MSI/Burn lifecycle slice, then integrate
-release metadata/provenance and accept the exact installed candidate on Windows
-after its resource/privacy/worker prerequisites exist. Do not promote the
-lab-only NSIS prototype or require another standalone packaging proof.
+Binary MSI/Burn packaging and release metadata/provenance are implemented.
+Complete the required managed-source delivery option and accept the exact
+installed candidate on Windows after its resource/privacy/worker prerequisites
+exist. Do not revive the retired NSIS executable path or require another
+standalone packaging proof.
 Do not wait for unrelated R02 provider proofs to run private packaging tests,
 and do not confuse permission to prototype with permission to release.
 
@@ -313,7 +313,7 @@ inspection do not install the MSI.
 
 Launch published binaries, not a build command.
 After either installation option, Kora's setup offers start-at-logon registration with explicit consent and an accessible disable option.
-The [WiX/Burn POC](../installer/README.md#start-at-login) now presents that
+The [WiX/Burn installer](../installer/README.md#start-at-login) presents that
 choice before Install/Repair, defaulting on for an absent entry and reflecting
 matching registry configuration. Registration matches the explicitly chosen
 installation scope (HKCU/current user or HKLM/all users), is owned by a native
@@ -403,17 +403,20 @@ standard installation, repair, upgrade and uninstall lifecycle; Burn supplies
 one user-facing setup EXE and reviewed prerequisite chaining. This reduces
 bespoke lifecycle scripting compared with NSIS, at the cost of more authoring
 and a Windows packaging job. Optional dependencies and a branded UI alone are
-not unique WiX benefits. Retain NSIS's runnable proof/receipts as historical
-evidence, not a second supported installer.
+not unique WiX benefits. Retain NSIS receipts as historical evidence, not a
+second supported installer. Its acquisition/build path and unexecuted Linux
+recipe are retired; generic managed-source/native inspection checks remain
+until equivalent maintained delivery tooling supersedes them.
 
-Start with a branded standard Burn bootstrapper and clear install/repair/remove
-and unsigned-publisher disclosures. A custom bootstrapper UI is a later UX
-choice if needed; its own runtime/native closure must be explicit and usable
-before Kora's launch prerequisites are installed. No WiX version, additional
-UI framework or prerequisite installer is pinned by this design change.
-Review the selected version's licence, notices and current
+The delivered slice pins WiX 7.0.0 with a custom Avalonia bootstrapper, explicit
+install/repair/uninstall views and a self-contained .NET runtime so the UI works
+before Kora's required runtimes are present. Signing is a known constraint,
+disclosed in release notes/documentation rather than a UI POC banner.
+Required .NET Desktop/base and VC++ runtimes are distinct from selectable
+optional capability preparation. Preserve closure, licence and notice
+inspection on pin changes; the selected tools' current
 [Open Source Maintenance Fee terms](https://github.com/wixtoolset/wix#open-source-maintenance-fee)
-before admitting the build tools under the [dependency policy](../DEPENDENCY-LICENSES.md).
+remain part of the [dependency policy](../DEPENDENCY-LICENSES.md).
 
 Burn may offer independently consented optional capability assistance, but
 must retain a Kora-only path and the app's detection/setup/refusal/re-entry
@@ -422,10 +425,15 @@ model, speech or future Copilot dependencies. Shared/pre-existing components
 are not automatically removed on Kora uninstall; ownership and data-retention
 decisions must be explicit.
 
-Implement a thin R17 MSI/Burn slice rather than another standalone feasibility
-experiment. Author explicit MSI component/product/upgrade identities and a
-version mapping that preserves release identity and rejects unsupported
-downgrades. Validate fresh install, upgrade, repair, interrupted/failed
+The implemented R17 binary slice has MSI component/product/upgrade identities
+and shared version mapping; production upgrade behavior is not established.
+The custom BA currently rejects silent/passive/layout operation, so related
+bundle upgrades requiring silent execution of the old BA are unsupported.
+Betas sharing a numeric MSI version are not independently upgrade-ordered;
+do not advertise seamless upgrade or enable same-version overrides as a
+shortcut. Until supported upgrade paths are implemented/validated, use an
+explicitly approved external uninstall/reinstall workflow retaining user data.
+Validate fresh install, upgrade, repair, interrupted/failed
 operations and uninstall, with previous-version recovery, local-edit/user-data
 preservation, exact-byte provenance, prerequisite handling and the independent
 protected-deployment boundary. Standard MSI behavior does not by itself prove
@@ -442,4 +450,4 @@ The bootstrap concept does not commit Kora to Chocolatey as a dependency.
 Future package configuration must preserve per-release exact host-owned approval and mandatory OS checks; do not enable unattended App Installer updates that bypass that policy.
 Do not implement multiple independent update authorities for the same installation.
 
-References: [WiX documentation](https://docs.firegiant.com/wix/), [WiX build integration tutorial](https://docs.firegiant.com/wix/tutorial/), [WiX source and maintenance terms](https://github.com/wixtoolset/wix), [historical NSIS portable compiler](https://nsis.sourceforge.io/Features).
+References: [WiX documentation](https://docs.firegiant.com/wix/), [WiX build integration tutorial](https://docs.firegiant.com/wix/tutorial/), [WiX source and maintenance terms](https://github.com/wixtoolset/wix), [historical distribution receipts and retained checks](../experiments/r02-distribution-proof/README.md).

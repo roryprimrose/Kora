@@ -8,13 +8,9 @@
         Foreground="{DynamicResource KoraForegroundBrush}"
         Icon="/Assets/Kora.ico">
   <Grid Margin="32" RowDefinitions="Auto,*,Auto">
-    <StackPanel Orientation="Horizontal" Spacing="12">
-      <StackPanel Spacing="2">
-        <TextBlock Text="Kora" FontSize="32" FontWeight="SemiBold" />
-        <TextBlock x:Name="VersionLabel" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
-      </StackPanel>
-      <TextBlock Text="UNSIGNED PROOF OF CONCEPT" VerticalAlignment="Center"
-                 Foreground="{DynamicResource KoraWarningBrush}" FontSize="11" />
+    <StackPanel Spacing="2">
+      <TextBlock Text="Kora" FontSize="32" FontWeight="SemiBold" />
+      <TextBlock x:Name="VersionLabel" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
     </StackPanel>
     <Grid Grid.Row="1" ColumnDefinitions="180,*" Margin="0,24">
       <StackPanel Spacing="16" VerticalAlignment="Center">

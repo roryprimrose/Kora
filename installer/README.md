@@ -1,8 +1,11 @@
-# WiX MSI and custom Burn proof
+# WiX MSI and custom Burn installer
 
-This is an **unsigned, Windows x64 packaging and UI proof**, not a production
-installer or redistribution approval. It does not implement the source
-bootstrap, protected activation, updates, or the R17 installed acceptance gates.
+The Windows 11 x64 installer uses WiX MSI and a custom Avalonia Burn UI.
+Artifacts are currently **unsigned**; signing is a known technical constraint.
+The delivered packaging/UI/lifecycle implementation is not production
+acceptance or complete redistribution approval. Source bootstrap, protected
+activation, updates and the remaining R17 installed gates are not implemented
+or established by this installer.
 
 ## Build and preview
 
@@ -54,6 +57,14 @@ This emits a warning and records `skipped-explicitly`, not `passed`. CI rejects
 that flag and requires full ICE validation. Do not change Windows policy or
 claim installed acceptance from a skipped validation.
 
+Transferred application payloads are verified before tool restore, compilation
+or staging and rechecked before packaging. Windows CI runs
+[payload contract tests](../eng/Test-InstallerPayloadContracts.ps1), including
+tampered/hidden/missing/extra files and invalid build identity. NSIS-only
+acquisition/build code has been retired; the retained
+[source/native inspection checks and receipts](../experiments/r02-distribution-proof/README.md)
+do not supply installed acceptance.
+
 ## UI and branding
 
 The custom out-of-process Burn bootstrapper uses the same Avalonia packages as
@@ -67,6 +78,9 @@ Burn.
   [multi-resolution Kora icon](../src/Kora/Assets/Kora.ico).
 - The display version appears beneath the Kora heading and as the window-title
   suffix. Preview retains its explicit `preview` version label in both places.
+- The header does not display an unsigned/POC banner. Signing remains a known
+  technical constraint disclosed in documentation and release notes; this
+  presentation change does not alter signing or acceptance status.
 - The free-standing upright ribbon follows the source geometry and complete
   seven-colour palette in [Branding](../Design/Branding.md).
 - The UI follows the current Windows **app** light/dark preference through
@@ -101,9 +115,12 @@ Burn.
 The preview has no installer engine, and all package buttons remain disabled.
 The maintenance-mode switch remains interactive because it only changes the
 view; it never plans or applies an action.
-The proof deliberately rejects `/quiet`, passive display, and layout requests
+The bootstrapper deliberately rejects `/quiet`, passive display, and layout requests
 before planning. Related-bundle upgrade flows that require a silent old
-bootstrapper are therefore **not supported or accepted by this proof**.
+bootstrapper are therefore **not supported or accepted**. Until that path is
+implemented and validated, use an explicitly approved external
+uninstall/reinstall workflow and retain user data; do not advertise seamless
+in-place bundle upgrades.
 
 ## Package behavior and limits
 
@@ -353,7 +370,8 @@ publish. Beta release tags do not convert reruns into stable releases.
 `MajorMinorPatch` supplies the numeric MSI/Burn version. MSI permits at most
 `255.255.65535` and does not understand prerelease ordering. Multiple beta
 candidates with the same numeric version are **not independently upgrade-ordered**;
-the proof does not enable same-version upgrade overrides.
+the installer does not enable same-version upgrade overrides. Release notes
+must retain this limitation; a new beta label is not an MSI upgrade sequence.
 
 Portable builds/tests/application publishing remain on Linux. The Windows
 packaging job verifies the exact Linux-produced x64 payload file hashes,
@@ -406,87 +424,39 @@ source provision and notices, the self-contained .NET runtime, and other
 native assets still require review before production distribution. A passing
 NuGet gate is not clearance of those additional obligations.
 
-## Verification recorded for this proof
+## Validation and remaining acceptance
 
-- Locked solution restore and Release build succeeded with no warnings/errors.
-- The dependency-enabled revision's complete solution suites passed: 1,187 tests, zero failures/skips.
-  Managed setup tests do not invoke Windows Installer or acquire optional assets.
-- The scope-enabled revision passed all 235 Windows integration tests, including
-  per-user defaults, explicit scope planning, maintenance scope locking and
-  unknown-scope refusal. Its managed Release build had no warnings/errors.
-- MSI/Burn compilation succeeded locally with the approved, explicitly recorded
-  ICE-validation skip; full local ICE validation was blocked by Windows policy.
-- Burn payload extraction and MSI decompilation succeeded without running setup.
-  Packaging verifies the embedded MSI and every bootstrapper file digest, plus
-  the complete MSI application path set, before writing a successful receipt.
-- The self-contained `--preview` window launched, responded, and closed with exit
-  code zero. Its layout was inspected without installing or launching Kora.
-- The actual Burn bundle launched the custom UI successfully after correcting
-  its COM entry-thread apartment. Package detection completed with `0x0` and
-  reported Kora absent. The window was left open for explicit user consent;
-  no install/plan/apply was performed by this verification.
-  The final dependency-enabled bundle also detected both .NET runtimes at
-  10.0.12, an installed VC++ runtime below its pinned baseline, and Kora absent.
-  Its three-package detection completed with `0x0`; the UI remained responsive.
-- The dependency-enabled UI was observed for more than 24 seconds: all 96
-  sampled mark frames differed, with no unchanged consecutive sample. The
-  animation checkbox is absent.
-- The progressed bundle's three-package chain, exact prerequisite URL/size/hash
-  pins, and permanent/vital/per-machine installation contracts are checked
-  from its extracted native manifest before a successful build receipt.
-- Packaging also requires the native Burn MSI and decompiled MSI to retain
-  `perUserOrMachine` scope and context-redirected application/Start-menu folders.
-  This is packaging/managed planning evidence, not a completed UAC or installed
-  per-user/all-users acceptance trial.
-- Before the click-to-approve change, the scope-enabled actual Burn UI detected
-  successfully and exposed **Just for me** selected, **All users** available,
-  and Install disabled until checkbox approval through Windows accessibility.
-  It closed normally without any
-  plan/apply. A separate non-installing preview verified switching both scopes
-  and their descriptions, then closed normally.
-- The click-to-approve revision also passed all 235 Windows tests. Its actual
-  Burn UI exposed Install enabled after detection, exactly three unchecked
-  optional-component checkboxes and no approval checkbox. Changing scope did
-  not start work; the window closed normally with `WixBundleAction=0`.
-- The preflight/system-theme revision passed all 261 Windows tests and the full
-  1,224-test solution suite with no failures/skips. Coverage includes GET-only
-  Ollama inspection, absent/stopped/model-missing/mismatched states, cancellation,
-  unknown-state refusal, retry, non-mutating asset presence checks, explicit
-  asset-identity failures, and both shared compiled theme palettes/contrast.
-- Both light/dark non-installing previews rendered the expected window background
-  and were visually inspected without changing Windows preferences. Owned-window
-  captures avoid capturing other applications; previews closed normally.
-- The final actual bundle displayed all five required/optional statuses, completed
-  explicit read-only retry, and rendered a background matching the Windows app
-  theme. Normal closure and retry-then-immediate-close both completed without
-  package planning/apply or surviving observed owned probe processes. Native
-  installed acceptance remains outstanding.
-- Optional selection/defaults, native-failure ordering, explicit optional
-  failure/cancellation and reboot results, animation timing/lifecycle, and
-  shared-service disposal are covered by deterministic Windows tests.
-- Payload-tampering and MSI numeric-version-boundary/mismatch checks were
-  exercised and rejected invalid inputs. The workflow YAML and main-only
-  installer-upload guard were checked, and a main-style prerelease version
-  succeeded with locked restore.
+Run the managed solution tests after a warning-free Release build. Installer
+regressions cover scope/consent freezing, read-only preflight and unknown-state
+refusal, startup inspection, safe maintenance switching, optional failures/
+cancellation, restart/closure launch suppression, exact launch identity and
+shared-service/animation lifetimes. They use fakes; they do not install packages,
+write live startup entries, acquire optional assets or establish app readiness.
+The safe `--preview` mode remains useful UI-maintenance tooling, not a temporary
+installer implementation or installed result.
 
-GitHub Actions execution and native installed acceptance have not been performed
-by this local proof. Do not describe these results as production readiness.
+Version fixtures exercise real GitVersion histories and compiled metadata.
+Publication fixtures use a fake GitHub CLI and never make a release/network
+mutation. Payload contract fixtures reject changed bytes and identity before
+compiler invocation. CI additionally enforces locked dependencies/licences,
+portable coverage, Windows tests and full MSI ICE.
 
-The completion-launch/versioning revision additionally passed a clean Release
-build and all 1,288 solution tests (323 Windows), with no failures or skips.
-Real GitVersion fixture histories and compiled binary metadata cover feature,
-main beta, stable tags, detached tags, generated beta-tag retries, PR/fork and
-off-main rejection. Fake GitHub CLI tests cover beta/stable notes/assets,
-source/digest conflicts, failed lookups, publication routing and no-overwrite
-idempotence; they make no network or publication calls.
-Both `0.1.0` and explicit main-style `0.1.0-beta12` MSI/Burn candidates built
-and passed native payload/version/hash inspection using the local ICE exception.
-Light/dark completion previews verified the default-on checkbox, opt-out,
-disabled package actions and normal closure without launching Kora.
+Each packaging run extracts Burn, decompiles MSI and checks versions, scope,
+quoted startup registration/conditions/costing, actual Windows-build detection,
+required prerequisite chain/cache/download pins, the embedded MSI and every
+bootstrapper digest, and complete application paths. `installer-build.json`
+records that candidate's source, dirty state, final hashes and ICE outcome.
+These checks never run install/apply.
 
-The maintenance-view revision passed a warning-free Release build and all
-339 Windows tests, including read-only scope, mode switching without approval,
-locked modes during native work, terminal visibility and absent/unknown
-installation handling. Repair/uninstall previews in both themes, safe view
-switching and install/repair/uninstall completion views were exercised through
-Windows accessibility without native package operations or application launch.
+Installed validation is front-loaded and revisited ad hoc for lifecycle,
+native and security-sensitive changes, not an exhaustive manual trial of every
+POC MSI. Separate approved Windows trials remain for actual install/repair/
+uninstall/all-users/logon/completion, upgrade/recovery, prerequisite failures,
+rollback/restart/locked files, effective ACL/token/native-loading protection,
+user-data retention and runtime-only launch. The known silent-upgrade and
+numeric-beta limitations above remain open.
+
+Merge, publication, process creation, static native inspection and a local ICE
+skip do not establish protected deployment, encrypted-storage admission or
+future resource/worker acceptance. Keep per-revision CI/TRX and package receipts
+as evidence rather than treating historical test totals as current validation.

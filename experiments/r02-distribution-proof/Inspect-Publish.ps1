@@ -28,7 +28,7 @@ $frameworks = @($runtime.runtimeOptions.frameworks)
 if ($frameworks.Count -ne 2 -or
     @($frameworks | Where-Object { $_.name -eq 'Microsoft.NETCore.App' -and $_.version -eq '10.0.0' }).Count -ne 1 -or
     @($frameworks | Where-Object { $_.name -eq 'Microsoft.WindowsDesktop.App' -and $_.version -eq '10.0.0' }).Count -ne 1) {
-    throw 'Runtime contract changed; review inspector and NSIS prerequisite checks.'
+    throw 'Runtime contract changed; review inspector and WiX prerequisite checks.'
 }
 if (Test-Path -LiteralPath (Join-Path $Payload 'coreclr.dll')) {
     throw 'Expected framework-dependent payload, not a bundled CLR.'

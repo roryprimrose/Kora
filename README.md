@@ -320,7 +320,7 @@ included in xUnit diagnostics. The GitHub Actions workflow restores locked
 dependencies, builds and tests on Linux, and cross-publishes
 framework-dependent Windows x64 and x86 artifacts.
 
-An unsigned [WiX MSI/custom Burn proof](installer/README.md) packages the x64
+The unsigned [WiX MSI/custom Burn installer](installer/README.md) packages the x64
 application with an animated, reduced-motion-aware Avalonia setup UI.
 Run `.\eng\Build-Installer.ps1` on Windows; local feature builds use `0.1.0`.
 Feature/PR CI builds setup without uploading it. Main uses GitVersion:

@@ -189,6 +189,8 @@ SHA256SUMS.txt and the exact-source release manifest; these are not independent 
 - Application ZIPs are framework-dependent compiled binaries, not source bootstrap.
   x86 is a static publish candidate, not an accepted x86 installer/runtime commitment.
 - MSI uses the numeric $($receipt.productVersion) version; beta builds sharing it are not upgrade-ordered.
+- Silent related-bundle upgrades are unsupported. Use explicit external uninstall/reinstall
+  retaining user data until that lifecycle path is implemented and validated.
 - Installed lifecycle/protection and encrypted-storage/native admission remain separate gates.
   Validation is front-loaded and risk-based; each release is not exhaustively manually installed.
 - CI: portable/Windows tests, locked dependencies/licences, exact payload/native inspection and full MSI ICE.

@@ -248,6 +248,10 @@ jobs:
       - name: Build Windows integration tests
         run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --no-restore
 
+      - name: Test payload rejection before packaging
+        shell: pwsh
+        run: .\eng\Test-InstallerPayloadContracts.ps1
+
       - name: Run Windows integration tests
         run: >
           dotnet test

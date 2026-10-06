@@ -71,13 +71,13 @@ dependency setup that patches Kora code.
 These are capability/setup requirements, not a waiver of release acceptance.
 For example, the product must still implement and prove the required A2 local
 adapter even though an individual user may decline to install or use its model.
-The [WiX/Burn proof](../installer/README.md) now offers unchecked PowerShell,
+The [WiX/Burn installer](../installer/README.md) offers unchecked PowerShell,
 Ollama/pinned Qwen model, and Kokoro model/voice preparation using the existing
 app services, after native prerequisite/application installation. Optional
 work runs for the non-elevated interactive user; failure/cancellation retains
 Kora and reports incomplete preparation. OS speech resources, accounts and
 experimental/unimplemented adapters remain outside this installer slice.
-This proof does not complete the durable refusal/onboarding policy or native
+This installer does not complete the durable refusal/onboarding policy or native
 installed acceptance.
 Kora's installation scope defaults to the current user, with all-users as an
 explicit administrator-approved alternative; optional assets remain scoped

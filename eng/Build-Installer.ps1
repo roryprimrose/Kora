@@ -36,6 +36,16 @@ function Invoke-DotNet {
     if ($LASTEXITCODE -ne 0) { throw "dotnet failed with exit code $LASTEXITCODE." }
 }
 
+# Reject transferred-payload tampering before staging, restoring tools or invoking a compiler.
+if ($ApplicationPayloadPath) {
+    $ApplicationPayloadPath = [IO.Path]::GetFullPath($ApplicationPayloadPath)
+    if (-not (Test-Path -LiteralPath $ApplicationPayloadPath -PathType Container)) {
+        throw "Application payload does not exist: $ApplicationPayloadPath"
+    }
+    & (Join-Path $PSScriptRoot 'Test-InstallerPayload.ps1') -PayloadPath $ApplicationPayloadPath `
+        -Version $Version -SourceRevision $sourceRevision
+}
+
 # Every attempt owns a fresh staging tree; failure never overwrites an earlier candidate.
 $staging = Join-Path $root "artifacts\installer\build-$([guid]::NewGuid().ToString('N'))"
 $application = Join-Path $staging 'application'
@@ -50,10 +60,7 @@ if ($SkipMsiValidation -and $env:GITHUB_ACTIONS -eq 'true') {
 }
 
 if ($ApplicationPayloadPath) {
-    $application = [IO.Path]::GetFullPath($ApplicationPayloadPath)
-    if (-not (Test-Path -LiteralPath $application -PathType Container)) {
-        throw "Application payload does not exist: $application"
-    }
+    $application = $ApplicationPayloadPath
 }
 else {
     Invoke-DotNet -Arguments @('restore', (Join-Path $root 'Kora.slnx'), '--locked-mode')

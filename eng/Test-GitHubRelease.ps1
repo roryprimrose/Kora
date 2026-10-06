@@ -41,8 +41,9 @@ function gh {
     $state.Writes++
     if ($arguments[1] -eq 'create') {
         $notes = Get-Content -LiteralPath $arguments[($arguments.IndexOf('--notes-file') + 1)] -Raw
-        if ($notes -notlike '*Unsigned proof-of-concept*' -or $notes -notlike '*Customer-visible fixture*') {
-            throw 'Release notes lack disclosure or generated changes.'
+        if ($notes -notlike '*Unsigned proof-of-concept*' -or $notes -notlike '*Customer-visible fixture*' -or
+            $notes -notlike '*not upgrade-ordered*' -or $notes -notlike '*Silent related-bundle upgrades are unsupported*') {
+            throw 'Release notes lack signing/upgrade disclosure or generated changes.'
         }
         $state.Release = [pscustomobject] @{
             tag_name = $arguments[2]; target_commitish = $source; body = $notes

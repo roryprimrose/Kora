@@ -48,9 +48,8 @@ function Get-LocalSourceToolTree {
     param([string] $RepositoryPath, [ValidatePattern('^[a-f0-9]{40}$')][string] $Revision)
     Assert-NoLinks $RepositoryPath -AncestorsOnly
     $origin = (& git -C $RepositoryPath remote get-url origin | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $origin -cne $script:KoraSourceRepository) {
-        throw 'Source-tool packaging requires the canonical origin.'
-    }
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot establish source-tool checkout origin.' }
+    Assert-CanonicalSourceOrigin $origin
     $resolved = (& git -C $RepositoryPath rev-parse "$Revision^{commit}" | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or $resolved -cne $Revision) { throw 'Source-tool commit identity mismatch.' }
     $lines = @(& git -C $RepositoryPath ls-tree -r --full-tree $Revision -- (Get-SourceToolPaths))

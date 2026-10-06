@@ -4,6 +4,13 @@ $script:KoraRepository = 'roryprimrose/Kora'
 $script:KoraRepositoryUrl = 'https://github.com/roryprimrose/Kora'
 $script:KoraSourceRepository = "$script:KoraRepositoryUrl.git"
 
+function Assert-CanonicalSourceOrigin {
+    param([string] $Origin)
+    if ($Origin -cnotin @($script:KoraSourceRepository, $script:KoraRepositoryUrl)) {
+        throw 'Source-tool packaging requires the canonical origin.'
+    }
+}
+
 function Get-SourceToolPaths {
     @('eng/Invoke-SourceBootstrap.ps1', 'eng/SourceBootstrap.Common.ps1',
         'eng/Test-SourceStage.ps1', 'eng/Get-BuildVersion.ps1',

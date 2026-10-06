@@ -22,6 +22,12 @@ function Reject {
     try { & $Operation | Out-Null } catch { $failure = $_ }
     Check ($null -ne $failure) $Name
 }
+Assert-CanonicalSourceOrigin $script:KoraSourceRepository
+Check $true 'Canonical clone HTTPS origin admitted'
+Assert-CanonicalSourceOrigin $script:KoraRepositoryUrl
+Check $true 'Pinned Actions checkout HTTPS origin admitted without .git'
+Reject 'Fork origin cannot acquire canonical packaging provenance' { Assert-CanonicalSourceOrigin 'https://github.com/other/Kora.git' }
+Reject 'Unapproved URL aliases remain refused' { Assert-CanonicalSourceOrigin 'https://github.com/roryprimrose/Kora/' }
 New-SourceToolArchive $repositoryPath $revision $version $archivePath $tree
 $manifest = Test-SourceToolArchive $archivePath $revision $version $tree
 Check (@($manifest.files).Count -eq 8 -and $manifest.unsigned -and !$manifest.productionAccepted) `

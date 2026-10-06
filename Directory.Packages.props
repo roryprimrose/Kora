@@ -25,9 +25,9 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.4.1" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.4.1" />
-    <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="2.4.1" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.0" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.Telemetry" Version="2.5.0" />
+    <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.0" />
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.7.23" />
     <PackageVersion Include="Microsoft.Win32.SystemEvents" Version="10.0.12" />
     <PackageVersion Include="MisakiSharp" Version="2.2.0" />

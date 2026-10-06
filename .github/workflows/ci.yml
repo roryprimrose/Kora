@@ -29,11 +29,11 @@ jobs:
       already-published: ${{ steps.publication.outputs.already-published }}
     steps:
       - name: Check out complete version history
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Install .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
       - name: Resolve main GitVersion or feature proof version
@@ -73,10 +73,10 @@ jobs:
       # Pin third-party actions to immutable commits to prevent a moved tag from changing trusted CI code.
       # Dependabot still tracks the version comments and proposes reviewed commit updates.
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
           cache: true
@@ -201,7 +201,7 @@ jobs:
 
       - name: Upload dependency license audit
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dependency-license-audit
           path: artifacts/license-compliance
@@ -209,7 +209,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results
           path: .net-test-artifacts/**/*.trx
@@ -218,7 +218,7 @@ jobs:
 
       - name: Upload coverage report
         if: always() && hashFiles('.net-test-artifacts/coverage-report/Cobertura.xml') != ''
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-report
           path: .net-test-artifacts/coverage-report
@@ -226,7 +226,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload Windows x64 application
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Kora-win-x64
           path: artifacts/Kora-win-x64
@@ -234,7 +234,7 @@ jobs:
           include-hidden-files: true
 
       - name: Upload Windows x86 application
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Kora-win-x86
           path: artifacts/Kora-win-x86
@@ -253,10 +253,10 @@ jobs:
     steps:
       # Keep the Windows job on the same reviewed action revisions as the portable job.
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
           cache: true
@@ -296,7 +296,7 @@ jobs:
 
       - name: Upload Windows test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-test-results
           path: .net-test-artifacts/windows/*.trx
@@ -310,10 +310,10 @@ jobs:
     needs: [version, portable, windows-integration]
     steps:
       - name: Check out source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
           cache: true
@@ -351,7 +351,7 @@ jobs:
       # Feature and PR builds compile setup but never upload/publish its bytes.
       - name: Retain main installer candidate
         if: needs.version.outputs.publish == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: Kora-Setup-${{ needs.version.outputs.version }}-win-x64
           path: ${{ steps.package.outputs.installer-path }}
@@ -370,7 +370,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Check out trusted main/tag source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download x64 application
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5

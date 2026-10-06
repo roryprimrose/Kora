@@ -1,0 +1,1113 @@
+{
+  "recordedAtUtc": "2026-10-06T19:17:51.7137217+11:00",
+  "profile": "Released NuGet 1.0.16, separate MG1-owned RT1 regression, Windows x64, child stdio, empty mode, synthetic HTTP/SSE only",
+  "sdkSourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+  "sdk": "1.0.16",
+  "sdkAssemblySha256": "6ed0b19fd2f9cf525074830784bb255245f15b8f08a3d6aa78fb116be5ba668b",
+  "sdkPackageSha256": "c5518980b71d0ef0abd39ecdec7834898878222290c7fd1099a9040c8c5bf2ef",
+  "fixtureAssemblySha256": "27f33859cd12e58652eb68228691cba1f454ec02e2354f066fb4c7ac3a58c41d",
+  "fixtureSources": [
+    {
+      "file": "Candidate.cs",
+      "sha256": "62fc579f84b769c2b461b6d8531e843e64d4a06cb3d3d0465d53a455e69b81c9"
+    },
+    {
+      "file": "ConformanceTests.cs",
+      "sha256": "53680512b5d2a8404212b38ec64e95b0ec57e5938de23b3bb741716233a0d917"
+    },
+    {
+      "file": "ControlProof.csproj",
+      "sha256": "55f88b875aa5cc41392ded178f43e0e171e047dd0798508c5c41c9285c6ad5b3"
+    },
+    {
+      "file": "Directory.Build.props",
+      "sha256": "33551ad48c99e510e8ce65a16f7a1fb14f2b434d6b34b12e77c6237e835f7683"
+    },
+    {
+      "file": "Directory.Packages.props",
+      "sha256": "82634024c507980746eb51f22c12fd64eaf0b252f4872b435865b8c1ba310db5"
+    },
+    {
+      "file": "Evidence.cs",
+      "sha256": "dd08820c40c8ea35b3dcd4ec08e1ba401f6a460c0a99eeeccbcdd647648001f7"
+    },
+    {
+      "file": "PackageArtifacts.ps1",
+      "sha256": "6a4c575dddb30e8cda088572129814c6eafb52bc2565101708bc0c25e306841f"
+    },
+    {
+      "file": "Prepare-Candidate.ps1",
+      "sha256": "2737a415b268ea6015820a44fe1c44b0912b7dc7883d52522dd140c68307acef"
+    },
+    {
+      "file": "RequestBoundary.cs",
+      "sha256": "407a4216c1a843fb8e2ca7a97c2cb3d1f5550e73909e2c23c4d85c40d2f6f47f"
+    },
+    {
+      "file": "Run-Conformance.ps1",
+      "sha256": "d72323e8a85a4a1cd50b74374e9ef73c9738e2ed0f0e56bda181663aa0c82dd8"
+    },
+    {
+      "file": "RuntimeFixture.cs",
+      "sha256": "b3e0002ce17ed9bebb0b35c1b827a5f25c333647021ecc850feec5014cfbb415"
+    },
+    {
+      "file": "SyntheticProvider.cs",
+      "sha256": "88d19cd672345c0ce48c936e088e5b72229505aaef2d76d93dc156ef4d576b14"
+    },
+    {
+      "file": "Test-Reproduction.ps1",
+      "sha256": "506edbbdfdfeb4d615b67fbba8793175a95e1e6c442e97f7611c8c7e4c731a11"
+    },
+    {
+      "file": "VolatileSessionFs.cs",
+      "sha256": "44664138977d5e3e147aaa9f4e4a7158fba756f28bf506556c1bb806e737dace"
+    }
+  ],
+  "runtime": "1.0.90",
+  "protocol": 3,
+  "nativeLauncherSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+  "nativePayloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+  "dotnetRuntime": ".NET 10.0.12",
+  "os": "Microsoft Windows NT 10.0.26300.0",
+  "architecture": "X64",
+  "syntheticOnly": true,
+  "liveInferenceCalls": 0,
+  "modelChargesUsd": 0,
+  "productionEnabled": false,
+  "scope": "RT1 public controls only; not RT2, MG1, PV1, production scheduler or installed acceptance",
+  "rows": [
+    {
+      "id": "admitted-tool-cancellation-unknown",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:16:49.6521564+11:00",
+      "counters": {
+        "cancellationRequested": 1,
+        "abortAcknowledged": 1,
+        "admittedEffectsAfterCancellation": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 5,
+        "diskFiles": 3,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 1,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "effectOutcomeAtCancellation": "Unknown",
+        "eventPresentation": "No production presenter tested; downstream host must suppress late output."
+      }
+    },
+    {
+      "id": "approved-history",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:10.0703558+11:00",
+      "counters": {
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "denied-tool-zero-effects",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:34.863126+11:00",
+      "counters": {
+        "preToolGates": 1,
+        "deniedToolEffects": 0,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 2,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "destination-mismatch",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:07.6301975+11:00",
+      "counters": {
+        "providerRequests": 0,
+        "managementRequests": 0,
+        "finalRequests": 1,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 2,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "hook-only-failure-witness",
+      "status": "FAIL",
+      "observedAtUtc": "2026-10-06T19:17:33.6817089+11:00",
+      "counters": {
+        "successHooks": 0,
+        "failureHooks": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "interpretation": "Expected rejected hook-only architecture; final gate prevented forwarding."
+      }
+    },
+    {
+      "id": "hostile-identifiers",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:16:52.8946279+11:00",
+      "counters": {
+        "deniedToolEffects": 0,
+        "providerRequests": 2,
+        "managementRequests": 1,
+        "finalRequests": 3,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 5,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "identityBoundary": "Host binds actual created conversation; model arguments are not host identity or authorization."
+      }
+    },
+    {
+      "id": "initial-streaming-auth",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:16:54.1934168+11:00",
+      "counters": {
+        "submittedHooks": 1,
+        "transformedHooks": 1,
+        "streamDeltas": 2,
+        "syntheticCredentialHeader": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 1,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "lane-provider-isolation",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:37.2591089+11:00",
+      "counters": {
+        "executionConversationsHeld": 2,
+        "managementElapsedMs": 37,
+        "providerRequests": 2,
+        "managementRequests": 1,
+        "finalRequests": 3,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 8,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "minimal-profile-session-io",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:36.0412995+11:00",
+      "counters": {
+        "advertisedBuiltins": 0,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 2,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "scope": "Collection canary absent; scoped disk scan only, not lifecycle containment."
+      }
+    },
+    {
+      "id": "provider-error-401",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:06.4494069+11:00",
+      "counters": {
+        "blockedRetries": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "provider-error-429",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:02.614938+11:00",
+      "counters": {
+        "blockedRetries": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "provider-error-500",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:04.2891915+11:00",
+      "counters": {
+        "blockedRetries": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "redirect-not-followed",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:16:56.6148745+11:00",
+      "counters": {
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 1,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "transport": "Public handler owns non-proxy, non-redirecting HTTP client; redirect was not followed."
+      }
+    },
+    {
+      "id": "sanitized-result-blocked",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:44.5899617+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "blocked"
+      }
+    },
+    {
+      "id": "sanitized-result-cancelled",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:43.397418+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "cancelled"
+      }
+    },
+    {
+      "id": "sanitized-result-conflict",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:42.1895636+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "conflict"
+      }
+    },
+    {
+      "id": "sanitized-result-denied",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:46.9628928+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "denied"
+      }
+    },
+    {
+      "id": "sanitized-result-failure",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:48.1462896+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "failure"
+      }
+    },
+    {
+      "id": "sanitized-result-pending",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:45.7581829+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "pending"
+      }
+    },
+    {
+      "id": "sanitized-result-rejected",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:40.9979736+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 5,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "immediateContinuation": "Rejected result ends the turn; next user send tests retained history.",
+        "hostStatus": "rejected"
+      }
+    },
+    {
+      "id": "sanitized-result-success",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:39.7744754+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "success"
+      }
+    },
+    {
+      "id": "sanitized-result-timeout",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:50.543309+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "timeout"
+      }
+    },
+    {
+      "id": "sanitized-result-unavailable",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:38.4951485+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "unavailable"
+      }
+    },
+    {
+      "id": "sanitized-result-unknown",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:49.351972+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "unknown"
+      }
+    },
+    {
+      "id": "session-io-write-failure",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:25.7403932+11:00",
+      "counters": {
+        "sessionWriteRejections": 1,
+        "sessionErrorEvents": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 1,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 0,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "boundary": "Actual provider I/O error became an SDK session error; no context-marker disk fallback observed."
+      }
+    },
+    {
+      "id": "stalled-inference-cancellation",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:11.3122869+11:00",
+      "counters": {
+        "cancellationRequested": 1,
+        "abortAcknowledged": 1,
+        "runtimeCancellationTokenObserved": 1,
+        "providerConnectionTerminationObserved": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "scope": "Loopback connection terminated; no remote model-compute/billing or physical-effect cessation claim."
+      }
+    },
+    {
+      "id": "stream-failure-drop",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:32.5129893+11:00",
+      "counters": {
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "stream-failure-malformed",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:30.3247851+11:00",
+      "counters": {
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "success-post-tool-hook",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:16:55.434074+11:00",
+      "counters": {
+        "successHooks": 1,
+        "providerRequests": 2,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "unsafe-initial-final-gate",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:08.7970606+11:00",
+      "counters": {
+        "providerRequests": 0,
+        "managementRequests": 0,
+        "finalRequests": 1,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "unsafe-result-blocked",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:22.1415869+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "blocked",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-result-cancelled",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:18.5784672+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "cancelled",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-result-conflict",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:14.9967606+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "conflict",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-result-denied",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:13.7492644+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "denied",
+        "sdkResultType": "denied"
+      }
+    },
+    {
+      "id": "unsafe-result-failure",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:20.9895155+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "failure",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-result-pending",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:24.5953745+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "pending",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-result-rejected",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:23.4291669+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 5,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "immediateContinuation": "Rejected result ends the turn; next user send tests retained history.",
+        "hostStatus": "rejected",
+        "sdkResultType": "rejected"
+      }
+    },
+    {
+      "id": "unsafe-result-success",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:17.3748977+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "success",
+        "sdkResultType": "success"
+      }
+    },
+    {
+      "id": "unsafe-result-timeout",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:12.5495229+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "timeout",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-result-unavailable",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:16.170203+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "unavailable",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-result-unknown",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:19.7972522+11:00",
+      "counters": {
+        "admittedScratchReads": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 1
+      },
+      "facts": {
+        "hostStatus": "unknown",
+        "sdkResultType": "failure"
+      }
+    },
+    {
+      "id": "unsafe-runtime-history",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:51.7136866+11:00",
+      "counters": {
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 4,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {}
+    },
+    {
+      "id": "unsafe-thrown-tool-exception-False",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:28.0774168+11:00",
+      "counters": {
+        "thrownToolCalls": 1,
+        "exceptionMarkerAtFinalGate": 0,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "boundary": "Actual SDK exception result inspected and denied regardless of SDK exception-message formatting."
+      }
+    },
+    {
+      "id": "unsafe-thrown-tool-exception-True",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:17:26.9128507+11:00",
+      "counters": {
+        "thrownToolCalls": 1,
+        "exceptionMarkerAtFinalGate": 0,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 2,
+        "blockedRequests": 1,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "boundary": "Actual SDK exception result inspected and denied regardless of SDK exception-message formatting."
+      }
+    },
+    {
+      "id": "wait-timeout-is-not-abort",
+      "status": "PASS",
+      "observedAtUtc": "2026-10-06T19:16:51.4455235+11:00",
+      "counters": {
+        "timeoutObserved": 1,
+        "terminationAtTimeout": 0,
+        "explicitAbortAcknowledged": 1,
+        "providerRequests": 1,
+        "managementRequests": 0,
+        "finalRequests": 1,
+        "blockedRequests": 0,
+        "deniedMarkerForwarded": 0,
+        "finalCredentialInBody": 0,
+        "volatileWrites": 3,
+        "diskFiles": 2,
+        "diskMarkerFiles": 0,
+        "ownedCleanupCompleted": 1,
+        "ownedEffectWrites": 0,
+        "ownedScratchReads": 0
+      },
+      "facts": {
+        "outcomeAtTimeout": "Unknown; SDK wait timeout does not abort runtime inference."
+      }
+    }
+  ]
+}

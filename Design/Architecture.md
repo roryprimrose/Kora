@@ -623,6 +623,12 @@ technical continuation: preserve scoped RT1 pins and regressions, then RT2
 lifecycle network/storage/diagnostic observation and MG1 .NET management
 envelope, followed by approved provider trials, with explicit
 stop/decision paths for unsupported controls.
+The [separate MG1 released-profile proof](../experiments/r02-dotnet-management-proof/EVIDENCE.md)
+now repeats all 45 RT1 controls on explicitly approved released SDK 1.0.16
+bytes, then passes the .NET envelope against unchanged RT1 native bytes.
+It does not rewrite source-built RT1 evidence or assert artifact equivalence.
+RT2 must qualify the applicable profile; account eligibility, R04 durable
+authority/storage and R13 task-slot/resource admission remain open.
 The [roadmap gates](Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
 must pass before R08 remote exposure or R13 model-assisted management.
 

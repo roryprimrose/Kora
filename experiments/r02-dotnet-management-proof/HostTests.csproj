@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RuntimeFrameworkVersion>10.0.12</RuntimeFrameworkVersion>
+    <RollForward>Disable</RollForward>
+    <NuGetLockFilePath>host.packages.lock.json</NuGetLockFilePath>
+    <OutputPath>bin\host\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Envelope.cs" />
+    <Compile Include="LoopbackProvider.cs" />
+    <Compile Include="HostTests.cs" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

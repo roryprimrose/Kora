@@ -112,6 +112,27 @@ does not expand the experiment's status-only schema into production approval
 or execution authority. Implement deterministic management first; do not
 make it wait for hosted-model enablement.
 
+The separate [actual .NET MG1 proof](../experiments/r02-dotnet-management-proof/README.md)
+now passes for the explicitly approved **released NuGet SDK 1.0.16** and the
+unchanged RT1 native 1.0.90 minimal HTTP/stdio bytes. The original source-built
+RT1 artifact did not reproduce here; its hashes and historical evidence were
+not rewritten. The user approved the released profile separately, and all 45
+RT1 control-point regressions were repeated before MG1. No byte equivalence
+between those SDK artifacts is claimed.
+
+MG1 measures complete UTF-8 requests at 32768/32769 bytes and complete typed
+JSON at 4096/4097 bytes, real held inference and stalled native abort
+acknowledgement, 30 actual failed runtime attempts plus a new request at the
+exact rolling-hour boundary, cancellation/deadline/retry admission races and
+an independent manager while two execution conversations remain held.
+Unknown computation/effect termination remains quarantined after SDK
+acknowledgement; local choices/status/cancel do not wait for it. A socket
+closure is only connection evidence, not physical computation stop or rollback.
+R13 must carry these limits into host-owned dispatch, target/revision validation
+and truthful receipts using R04 identities/audit/no-replay contracts. The
+fixture has no production ledger, task slots, resource leases, account capacity
+or approval authority; RT2/PV1 and production admission remain separate.
+
 ## Authoritative Work Ledger
 
 The [Sessions workspace](UI_Workspace_And_Windows.md#sessions-workspace) presents the session list beside full conversation/history, per-session task/queue, and All work.

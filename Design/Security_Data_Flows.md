@@ -289,6 +289,18 @@ event-loss checks and owned trace cleanup. Tracing alone is not prevention.
 Keep unobservable/uncontrollable content paths unavailable and carry durable
 identity/Activity/audit admission through R04 before R08 production composition.
 
+The [separate released-profile MG1 proof](../experiments/r02-dotnet-management-proof/EVIDENCE.md)
+measures complete UTF-8 bounds, host dispatch deadlines despite real stalled
+native acknowledgement, single-attempt/window admission and isolated
+conversations. It does not grant models/runtime correlation fields host
+identity, task or approval authority. R13 must use R04's durable identity,
+audit and no-replay contracts; its fixture status schema is not a production
+protocol. SDK acknowledgement, observed connection closure and effect/
+computation termination remain distinct. Unknown stays quarantined without
+borrowing an execution lane; deterministic controls remain local. Native
+all-path lifecycle observation, account eligibility and production resource
+admission are still independent gates.
+
 ## Grants and Approvals
 
 Permissions combine capability, canonical resource scope, identity, destination where relevant, and current applicability; proposal/dispatch deadlines are separate from perpetual grant lifetime.

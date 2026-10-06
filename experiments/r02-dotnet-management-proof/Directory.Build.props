@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestorePackagesPath>..\r02-dotnet-control-proof\.candidate\packages</RestorePackagesPath>
+    <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
+    <DefaultItemExcludes>$(DefaultItemExcludes);.regression\**;.scratch\**;.inputs\**</DefaultItemExcludes>
+    <BaseIntermediateOutputPath Condition="'$(MSBuildProjectName)' == 'HostTests'">obj\host\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath Condition="'$(MSBuildProjectName)' == 'HostTests'">obj\host\</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+</Project>

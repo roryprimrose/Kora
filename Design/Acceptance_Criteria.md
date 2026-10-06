@@ -129,6 +129,12 @@ passes only its explicitly approved exact-tag source-built minimal profile.
 It does not accept released-NuGet bytes, RT2 full lifecycle observation, MG1's
 complete envelope, PV1 account eligibility, host authority/audit integration
 or installed/scheduler acceptance. The requirements above are unchanged.
+The [independent MG1 evidence](../experiments/r02-dotnet-management-proof/EVIDENCE.md)
+subsequently repeats RT1 on separately approved released 1.0.16 bytes and
+passes its synthetic .NET byte/deadline/admission/Unknown-quarantine envelope.
+This is not source-built byte equivalence, RT2 lifecycle observation, PV1
+account/cost eligibility, production management protocol or scheduler/lease
+acceptance. Gate 0 and D-001/D-004/D-010 remain open.
 
 The [RT2 lifecycle evidence](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
 passes 20 bounded tests plus two locale contracts but leaves RT2 **Blocked**.

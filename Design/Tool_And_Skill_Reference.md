@@ -562,8 +562,8 @@ submit or cancel against the same question revision. Only one spoken question
 is foreground; other sessions' explicitly addressed UI cards remain usable.
 Closing a window changes presentation, not lifecycle or microphone consent.
 
-Persist permitted full history, immutable artifacts and receipts with encrypted
-device-local storage and OS-protected keys; never raw audio, credentials or
+Persist permitted full history, immutable artifacts and receipts in standard
+SQLite/private device-local storage; never raw audio, credentials or
 hidden reasoning. Defaults archive after 24 hours and delete after 30 days
 from the same meaningful-activity clock. Both durations are configurable;
 passive browsing/search does not refresh them. Live/unknown work blocks silent

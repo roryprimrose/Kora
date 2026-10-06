@@ -22,7 +22,7 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 | Proof | Existing evidence / runnable checks | Deferred validation and preparation | Gates still open |
 |---|---|---|---|
 | R02 speech/hardware | [Merged synthetic proof and safe file-only reruns](../experiments/r02-speech-proof/README.md#safe-to-rerun-remotely-including-while-locked) | [Before a live test session](../experiments/r02-speech-proof/README.md#before-a-live-test-session), then [live/instrumented acceptance](../experiments/r02-speech-proof/README.md#live--instrumented-acceptance-work-still-outstanding). Obtain participant/bystander consent and an instrumented host with R03/R09 ownership/privacy controls; the current scripts cannot run live trials. | D-002/D-007; packaged acoustics, playback rejection, latency, reference floor and capture/recovery acceptance |
-| R02 storage/key | [Synthetic storage proof and safe Windows reruns](../experiments/r02-storage-proof/README.md#reproduce); authenticated content, DPAPI/key-file ACLs and transaction/artifact interruption evidence | [Storage admission follow-up](#storage-admission-follow-up): maintained native selection, installed x64/x86 loading, production profile-path/CurrentUser/permission integration, and integrated recovery/deletion. Safe proof reruns require a loaded Windows profile, not an unlocked console. Routine second-account OS-denial trials are optional for profile-local storage. | D-009; R02 native admission, R04 integration and R12 lifecycle/deletion remain open; no production store is enabled |
+| R02 storage/key | [Historical encrypted storage proof](../experiments/r02-storage-proof/README.md#reproduce); DPAPI/ACL and interruption evidence retained | [Approved standard-SQLite follow-up](#storage-admission-follow-up): supplied-profile effective permissions, actual host/evidence composition, recovery and lifecycle/deletion. Mandatory encrypted-native/key/rekey gates superseded; installed loading remains R17 evidence. | D-009; actual standard task store implemented/tested but uncomposed. R04 integration/R12 remain partial; no production transcript/content store enabled. |
 | R02 local inference | [Safe deterministic reruns](../experiments/r02-local-inference-proof/README.md#safe-deterministic-reruns), plus the [bounded production-host trial](#2026-10-05-bounded-local-inference-result): clean one-approval Ollama/model setup, exact digest verification, real answers, loopback-only observation, visible cancellation and repeatable session-controlled teardown | [Prepare an interactive inference session](../experiments/r02-local-inference-proof/README.md#before-an-interactive-inference-session), then complete the remaining [LI01-LI07 deferred trials](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials). Assign reference/isolation owners and agree budgets; separately approve exclusive model residency changes and whole-environment network blocking. Installer provisioning, CPU-floor measurements, server-cessation/races, attributable offline egress and repeated instrumented cancellation remain outstanding. | D-003 and inference D-007; [R02-L1-L6](Implementation_Roadmap.md#r02-local-inference-continuation), actual CPU-floor quality/context/resource budgets, installer distribution and independent offline success; R06/R07/R08/R10 and A2/R19 integration remain gated |
 | R02 runtime/provider | [Historical Node checks](../experiments/r02-runtime-proof/README.md#reproduce-on-windows) unchanged; separate [actual .NET RT1](../experiments/r02-dotnet-control-proof/README.md) source-built profile passes 45/45 tests, with rejected hook-only FAIL retained | [Runtime/provider follow-up](#runtimeprovider-follow-up): preserve exact RT1 pins; instrument RT2 lifecycle paths and implement MG1 complete .NET envelope. Released NuGet byte parity blocked; prepare separately approved account/usage trials. RT1 commands do not establish full process observation, management envelope or live eligibility. | D-001/D-004/D-010; RT2/MG1/PV1, R08 exposure and model-assisted R13 remain gated; deterministic local management does not wait for hosted trials |
 | R02 Windows containment | [Original owned-scratch proof](../experiments/r02-containment-proof/README.md#reproduce) retains 63/71 assertions and eight unproven network denials. [Independent W2 fixture](../experiments/r02-w2-dependency-proof/README.md) observes native ACL/child-policy denials, undeclared execution bypasses, separate embedded helper/entry fixed effect and Unknown/cancellation receipts; strict candidates rejected | Owner accepts best-effort transitive tracking/user responsibility for bundled/future scripts, with all manifest files in review tabs and exact declared hashes. Implement honest gap/invalidation tests, not universal undeclared-code denial. Native fixture loading blocked: supply an existing reviewed x64 C compiler or separately approve tool acquisition; no installation performed. Then independently prove protected runtime resolution, actual Windows control APIs, inherited object identity and complete helper/lifecycle/effect-race contracts. W1 attributable network and W3 installed ownership/ACL/alias trials retain separate consent/evidence. | D-013 technical admission and [W1-W4](Implementation_Roadmap.md#r02-windows-containment-follow-up); R11/R16/R17 worker/installed exposure remains gated; no broker selected |
@@ -135,14 +135,14 @@ to the production implementation:
 The [profile-boundary contract](Architecture.md#profile-boundary-and-validation-responsibility)
 trusts Windows per-user isolation but requires Kora to demonstrate correct
 use of it. A profile-local path alone does not cover permissive ACLs,
-LocalMachine wrapping, shared staging or unkeyed backup/export copies.
+shared staging or readable backup/export copies outside that boundary.
 The storage research may merge with these application/deployment gates open:
 
 | Follow-up | Owner / package | Required evidence and scope |
 |---|---|---|
-| S1 - Admit maintained native assets | Storage/release leads, R02 then R17 | Review engine/provider provenance, notices and servicing; rerun synthetic authentication/recovery tests on the candidate and demonstrate installed Windows x64/x86 loading. Package publication alone is insufficient. Installation/protected setup needs separate bounded approval. |
-| S2 - Integrate the profile boundary | Storage/application leads, R04 | Verify production CurrentUser wrapping without machine/shared fallback, every managed path/copy under the intended local profile, and effective directory/key-file ACLs. Exercise unavailable profile/key/permissions without replacement data or success-shaped fallback. Use owned synthetic fixtures, not the user's existing database. |
-| S3 - Integrate recovery and migration | Storage/application leads, R04 | Interrupt key-wrapper/backup-generation and artifact publication, verify legacy-source preservation and rekey recovery, and demonstrate real durable intent/receipt recovery without automatic dispatch. Define final host types independently of the private prototype fixtures. |
+| S1 - Standard native closure | Storage/release leads, R17 | Existing pinned Microsoft.Data.Sqlite / e_sqlite3 is the approved standard-SQLite route. Review notices/servicing and offered architecture packaging/loading. Encrypted-native selection/authentication is superseded, not a current storage blocker. Installed loading remains separate evidence. |
+| S2 - Integrate the profile boundary | Storage/application leads, R04 | Supplied LocalApplicationData paths, effective folder/file ACLs and scoped managed copies; no shared fallback, silent permission repair or replacement data. Owned scratch tests cover the actual task partition; production composition and first-use readable-copy disclosure remain. |
+| S3 - Integrate recovery and migration | Storage/application leads, R04 | Actual version-1 SQLite transactions/reopen and Interrupted/Unknown recovery are implemented/tested. Complete composed evidence, backup/artifact publication, supported migrations and actual process-interruption boundaries without replay. No database key/rekey or encrypted legacy conversion is required. |
 | S4 - Integrate deletion and lifecycle | Storage/security/application leads, R12 | Exercise source revocation, late appends, live/unknown-work holds and configured lifecycle; remove or rewrite managed recoverable copies while preserving unrelated sessions and independent grants. Disclose exported/provider/forensic limits. |
 
 No second-account denial result is claimed. Optional actual-account
@@ -152,27 +152,25 @@ authorization, or investigating inconsistent effective permissions.
 Such trials need approved real accounts and explicit fixture/effect scope;
 the retained [optional handoff protocol](../experiments/r02-storage-proof/README.md#optional-real-cross-user-handoff-protocol)
 does not create an account or grant authority to test another profile.
-Per-user DPAPI is not same-user worker containment; D-013/W1-W4 remain separate.
+Private profile permissions are not same-user worker containment; D-013/W1-W4 remain separate.
 
 R04 now has independently safe source/test contracts as recorded in the
 [foundation inventory](Implementation_Roadmap.md#r04-foundation-delivery).
-Re-run the final integrated provider/key/schema on the selected native
-closure; the old R02 provider results cannot qualify a different engine.
-The production encrypted sink/store deliberately remains unavailable.
-S1 native/licence/installed admission, S2 composed production-path custody,
-S3 actual SQLite/backup/key rotation/legacy conversion and process interruption,
-and S4 lifecycle/deletion are not closed by fake-store ordering tests,
-key/artifact scratch tests or publish inspection. Prepare a separately
-approved disposable installed x64/x86 lab for S1, and a bounded owned-data
-fixture for integrated S2/S3 before enabling content persistence.
-The selected **evaluation** route is SQLite3MC.PCLRaw 2.4.0, not a shipping
-closure; [D-009](Decision_Register.md#lifecycle-and-integration-closure)
-records the source-backed identity/licence findings and exact-package TLS
-blocker. Retain and verify all actual provider/native payloads before
-compatibility, authenticated-configuration and installed trials. Synthetic
-key/artifact tests exercise CurrentUser DPAPI and actual owned-directory/file
-ACLs, but no production-profile permission repair, key rotation, database
-backup/conversion, actual process-kill or installed security result is claimed.
+The owner-approved [D-009 baseline](Decision_Register.md#approved-profile-secured-sqlite-baseline---2026-10-06)
+supersedes mandatory encryption/key/native-codec admission. The actual
+[standard task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs)
+uses the existing provider, private ACL-verified `HostStorageV1`, transactional
+versioned intent/dispatch/terminal records and a bounded incomplete query.
+It has no database key dependency and rejects missing/corrupt existing data.
+It is not yet composed into transcript dispatch or the evidence sink.
+No process-kill, power-loss, installed loading, backup or deletion acceptance
+is inferred from owned SQLite/ACL tests.
+
+**Historical encrypted-route evaluation:** SQLite3MC 2.4.0 acquisition and
+basic encryption tests succeeded but source/licensing findings rejected it.
+That outcome and earlier DPAPI/artifact tests remain evidence, not a
+replacement/source-build decision required for the approved standard store.
+Credentials still require Windows-protected secret storage.
 
 ## Runtime/Provider Follow-Up
 

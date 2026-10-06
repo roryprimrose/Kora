@@ -228,11 +228,11 @@ No setting change silently purges sessions. Storage pressure reports failure/opt
 ## Persistence and Restart
 
 Persist accepted input/decisions and finalized artifacts as ordered host events; write intent before dispatch and link observed receipts afterward.
-Use transactional revision/sequence updates, encrypted device-local history/artifacts/indexes, OS-protected keys, and schema migration/backup/deletion proofs.
-Do not select an encryption/database library without its Windows deployment and recovery evidence.
-Use the [R02-derived Windows storage direction](Architecture.md#windows-durable-storage-direction); the measured experiment is not production admission or a final session/task schema.
-Recovery must reconcile artifact publication and versioned key/backup generations as well as SQLite transactions.
-Deletion owns managed recoverable copies and rejects late appends; it cannot be implemented as only deleting rows or a current key wrapper.
+Use transactional revision/sequence updates, standard SQLite and managed artifacts/indexes under verified private LocalApplicationData permissions, with schema/backup/deletion recovery.
+Use the pinned Windows provider/native closure, not ambient DLLs or optional database downloads.
+The [owner-approved storage baseline](Architecture.md#windows-durable-storage-direction) supersedes mandatory page encryption and database-key/rekey workflows; copied/exported files are readable. Credentials remain OS protected.
+Recovery reconciles artifact/backup publication as well as SQLite transactions.
+Deletion owns managed recoverable copies and rejects late appends; deleting only current rows is insufficient.
 Storage failure is visible and blocks consequential dispatch whose required intent/decision cannot be recorded.
 
 Restart restores Active/Done history and UI selection, not action execution, queue dispatch, or consumed/expired approval tokens.

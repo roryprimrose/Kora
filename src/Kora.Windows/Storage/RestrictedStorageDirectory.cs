@@ -12,8 +12,9 @@ internal sealed partial class RestrictedStorageDirectory
     internal const string PartitionName = "DurableStorageV1";
     private readonly SecurityIdentifier user;
     private readonly string localRoot;
+    private readonly bool includeKeys;
 
-    internal RestrictedStorageDirectory(IApplicationDataPaths paths)
+    internal RestrictedStorageDirectory(IApplicationDataPaths paths, bool includeKeys = true)
     {
         ArgumentNullException.ThrowIfNull(paths);
         if (!OperatingSystem.IsWindows())
@@ -40,7 +41,8 @@ internal sealed partial class RestrictedStorageDirectory
             throw new InvalidDataException("Durable storage requires a local fixed-volume application directory.");
         }
 
-        Root = Path.Combine(localRoot, PartitionName);
+        this.includeKeys = includeKeys;
+        Root = Path.Combine(localRoot, includeKeys ? PartitionName : "HostStorageV1");
         Keys = Path.Combine(Root, "Keys");
         Artifacts = Path.Combine(Root, "Artifacts");
     }
@@ -54,7 +56,10 @@ internal sealed partial class RestrictedStorageDirectory
         VerifyLocalRoot();
         CreateRestrictedDirectory(Root, user);
         VerifyDirectory(Root);
-        CreateRestrictedDirectory(Keys, user);
+        if (includeKeys)
+        {
+            CreateRestrictedDirectory(Keys, user);
+        }
         CreateRestrictedDirectory(Artifacts, user);
         Verify();
     }
@@ -63,7 +68,10 @@ internal sealed partial class RestrictedStorageDirectory
     {
         VerifyLocalRoot();
         VerifyDirectory(Root);
-        VerifyDirectory(Keys);
+        if (includeKeys)
+        {
+            VerifyDirectory(Keys);
+        }
         VerifyDirectory(Artifacts);
     }
 

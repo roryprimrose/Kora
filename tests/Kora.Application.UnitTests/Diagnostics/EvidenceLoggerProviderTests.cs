@@ -142,7 +142,7 @@ public sealed class EvidenceLoggerProviderTests
     public void Storage_gate_is_visible_and_does_not_write_plaintext_replacement()
     {
         var file = new RecordingSink();
-        using var provider = new EvidenceLoggerProvider([file, new UnavailableEncryptedEvidenceSink()], file);
+        using var provider = new EvidenceLoggerProvider([file, new UnavailableEvidenceSink()], file);
         using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
             HostActivityLayer.Application, HostOperation.Request);
         Log(provider.CreateLogger("fixture"), State());
@@ -387,7 +387,7 @@ public sealed class EvidenceLoggerProviderTests
     public void Both_unavailable_audit_and_span_projections_report_gaps_independently()
     {
         var file = new RecordingSink();
-        using var provider = new EvidenceLoggerProvider([file, new UnavailableEncryptedEvidenceSink()], file);
+        using var provider = new EvidenceLoggerProvider([file, new UnavailableEvidenceSink()], file);
         using var factory = LoggerFactory.Create(builder => builder.AddProvider(provider));
         new LoggerSecurityAuditLog(factory.CreateLogger<LoggerSecurityAuditLog>()).Write(CreateAudit());
         file.Audits.Should().ContainSingle();

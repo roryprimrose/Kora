@@ -483,10 +483,13 @@ equivalent UI identifies the same proposal. Historical/rendered content cannot
 answer or approve itself. During protected calls the separate settings-origin
 restriction still applies.
 
-Planned history is encrypted device-local storage of permitted messages,
+Planned history uses standard SQLite/private device-local storage of permitted messages,
 decisions, artifacts and observed receipts, not raw audio, secrets or hidden
 model reasoning. Source/identity restrictions and remote-egress policy still
 apply when reading or summarizing old content.
+
+Private permissions provide the account boundary; exported/copied files are
+readable. Database encryption and database key/rekey machinery are not required.
 
 Defaults archive after **24 hours** and delete after **30 days** from the same
 last meaningful activity. Both durations are configurable; passive selection,

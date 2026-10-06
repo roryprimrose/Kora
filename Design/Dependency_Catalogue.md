@@ -37,9 +37,31 @@ that complete policy.
 |---|---|
 | .NET runtime | R02 win-x64 output declares `Microsoft.NETCore.App` and `Microsoft.WindowsDesktop.App` 10.0.0. Require a supported patched .NET 10 x64 **Desktop Runtime**, not just the base runtime or an SDK. See the [launch baseline](Distribution_And_Updates.md#launch-prerequisite-baseline). |
 | Native VC++ runtime | Published ONNX DLL imports include `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`, `MSVCP140.dll` and `MSVCP140_1.dll`. The WiX/Burn POC pins VC++ v14 x64 Redistributable 14.51.36247.0 as its candidate delivery prerequisite; production qualification, actual loader closure and runtime-only Windows trials remain open. Declining Ollama/Kokoro is not evidence that these launch dependencies disappear. |
-| Bundled libraries | [Central versions](../Directory.Packages.props) include KokoroSharp 0.8.4, MisakiSharp 2.2.0, ONNX Runtime 1.30.0, NAudio 3.1.0, System.Speech 10.0.12, Microsoft.Data.Sqlite 10.0.12 and Markdig 1.4.0, alongside Avalonia, logging and application libraries. These are package/build inputs, not separate optional user installations. In particular, current `Microsoft.Data.Sqlite` transitively supplies `SQLitePCLRaw.bundle_e_sqlite3` and its architecture-specific native asset. R04 has not replaced that unkeyed bootstrap-only pairing or enabled content persistence. The complete restored/published closure and licences must be inventoried per release, including transitive and native assets. |
-| Storage and OS facilities | Current storage/SQLite initialisation is app-owned; no SQLite server is installed. SQLite is launch-critical built-in application infrastructure, not an optional capability: its startup entry is a health/migration check, not an offer to install it. Every admitted durable-storage binary package must include the reviewed managed provider and matching native engine; missing/unloadable assets are a packaging failure. Windows known folders, session notifications and audio APIs are platform facilities. [R04's safe foundation](Implementation_Roadmap.md#r04-foundation-delivery) implements internal, uncomposed CurrentUser DPAPI/ACL/key/artifact primitives, not production profile/storage integration. SQLite3MC 2.4.0 is approved for evaluation only; exact provider/native/licence closure and installed loading/protection remain unverified, and the durable store/authoritative evidence sink explicitly remain unavailable. These are required host-storage gates, not a user-optional database download, ambient system-library lookup or silent plaintext fallback; see [Windows durable storage](Architecture.md#windows-durable-storage-direction), [D-009](Decision_Register.md#lifecycle-and-integration-closure) and R04/R12. |
+| Bundled libraries | [Central versions](../Directory.Packages.props) include KokoroSharp 0.8.4, MisakiSharp 2.2.0, ONNX Runtime 1.30.0, NAudio 3.1.0, System.Speech 10.0.12, Microsoft.Data.Sqlite 10.0.12 and Markdig 1.4.0, alongside Avalonia/logging libraries. These are build inputs, not optional user installations. Microsoft.Data.Sqlite transitively supplies SQLitePCLRaw.bundle_e_sqlite3 and matching native assets; this existing pairing is the approved standard-SQLite route, with no new encrypted codec or package upgrade. Inventory the complete restored/published closure and licences per release. |
+| Storage and OS facilities | App-owned built-in SQLite is not a server, optional download or ambient library. [R04](Implementation_Roadmap.md#r04-approved-standard-sqlite-continuation---2026-10-06) now implements an actual standard-SQLite task store under verified private supplied-profile permissions. It remains uncomposed into transcript dispatch/evidence; schema/evidence/lifecycle completion is partial. Database encryption, DPAPI keys and rekey/native-codec admission are superseded by owner-approved [D-009](Decision_Register.md#approved-profile-secured-sqlite-baseline---2026-10-06). Copies outside that boundary are readable; credentials remain OS protected. Packaged native loading/protection is separate R17 evidence, not inferred from scratch tests. |
 | Source build and packaging | Managed-source installation needs the selected .NET SDK and Git/build tooling; binary users do not. NSIS/SCons acquisition/build code has been retired; its receipts and the remaining source/native checks belong to the [historical distribution experiment](../experiments/r02-distribution-proof/README.md), not routine Kora launch. The [WiX 7.0.0 MSI/custom Burn installer](../installer/README.md) uses the pinned SDK, Avalonia and self-contained bootstrapper runtime with explicit prerequisite chains. Licence/notice controls run during packaging; external-asset and installed closure qualification remain separate R17 work. Use Linux for portable build/cross-publish and Windows for WiX packaging, not another application OS. |
+
+R04's subsequent actual-package evaluation resolved acquisition and passed
+basic x64 encrypted database/WAL and tamper checks, but **SQLite3MC 2.4.0 is
+rejected for production** because of post-release VFS corruption/temporary-file
+fixes and unresolved component permissions/notices. [D-009](Decision_Register.md#lifecycle-and-integration-closure)
+records the historical evidence. The owner then chose standard SQLite/private
+profile permissions, so an encrypted source-build/replacement route is no
+longer required. Nothing was added to the production dependency closure.
+
+[R30](Implementation_Roadmap.md#optional-and-deferred-work) records optional
+database encryption for reconsideration when a suitable maintained,
+redistributable provider package becomes available. This is future backlog,
+not a current dependency change or a reason to block standard SQLite.
+
+The actual offered publish closure pairs **Microsoft.Data.Sqlite 10.0.12**
+with **SQLitePCLRaw bundle/core/provider/lib e_sqlite3 2.1.12**.
+The native dependency metadata declares file version **3.53.3.0**; this is
+packaging metadata, not an installed execution receipt. Final x64/x86 native
+PE hashes, machines and dependency declarations match the previously inspected
+closure; `e_sqlite3.dll` imports KERNEL32 only. No new VC++ prerequisite or
+installer dependency is introduced by this continuation. Existing licence/
+notice and exact-file payload checks pass; installed loading remains separate.
 
 The OS probes currently require Windows 10 build 19041 or later for speech.
 That check is not an accepted Windows support matrix or hardware floor; D-007

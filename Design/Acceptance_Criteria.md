@@ -250,7 +250,7 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Remote-enabled mode shows the actual destination and context before transmission.
 - Rejecting transmission sends none of the rejected context.
 - Secret-risk fixtures block transmission pending reviewed redaction.
-- Raw audio/secrets are absent from all history/log stores. Clipboard/tool/answer content is absent from diagnostics and content-minimising audit, while permitted session content is intentionally retained encrypted.
+- Raw audio/secrets are absent from all history/log stores. Clipboard/tool/answer content is absent from diagnostics and content-minimising audit, while permitted session content is retained under verified private profile permissions.
 - Before activation, synthetic ambient audio reaches neither transcription nor any model, tool, persisted store, or network destination.
 - Wake pre-roll never exceeds 2 seconds and is overwritten; unrelated pre-activation audio is excluded from command transcription.
 - Mute/lock/sign-out/suspend close capture and clear buffers; unlock/resume
@@ -553,7 +553,7 @@ Verify:
 - Executable trust disclosures match actual OS rights.
 - Disabling an extension blocks new invocations.
 - Audit metadata defaults to 90-day retention and accepts only configured values from 30 through 365 days. Diagnostic database retention defaults to 30 days under its independent bounded setting; the daily file sink always enforces both 30-file and 30-day limits.
-- Every permitted `ILogger` event is independently delivered to daily structured JSON under `%LOCALAPPDATA%\Kora\Logs` and encrypted local SQLite. Ordinary records use `application_log_events`; `SecurityAudit=true` records use `security_audit_events` and are not mixed into the ordinary table. Each database row receives the due time from its own effective policy.
+- Every permitted `ILogger` event is independently delivered to daily structured JSON under `%LOCALAPPDATA%\Kora\Logs` and private local SQLite. Ordinary records use `application_log_events`; trusted typed audit records use `security_audit_events` and are not mixed into the ordinary table. Each database row receives the due time from its own effective policy; lookalike properties confer no authority.
 - For both tables, emit fixtures containing named/numeric event IDs, categories, levels, message templates, null/Boolean/integer/real/string/GUID/timestamp properties and nested scopes. Verify the original template and value kinds round-trip independently of rendered text and current culture; no supported property is silently flattened to a string or lost.
 - Verify admitted W3C trace/span/parent, activity source/name/kind, correlation/session/task/invocation/approval fields are captured at the log call and promoted/indexed from trusted structured state, while bounded residual properties remain queryable through the schema-versioned typed property representation. Unsupported or oversized values fail/report their safe projection rather than invoking arbitrary `ToString()` or storing an unbounded object graph.
 - Database and file diagnostics contain no recognized transcript text, response body, synthesized speech text, raw audio, credentials, secrets, decrypted SQL parameters, database keys, or raw security/tool arguments.
@@ -776,7 +776,7 @@ Validate the production invocation's flags and actual restricted worker admissio
 
 ## Human Interaction and Persistent Session Gate
 
-Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contract and disposable encrypted-store/resource fixtures.
+Use the canonical [Interaction and Sessions](Interaction_And_Sessions.md) contract and disposable private-profile store/resource fixtures.
 
 ### Channel Parity and Evidence
 
@@ -818,7 +818,7 @@ R04 partial source/tests are tracked in the
 [implementation inventory](Implementation_Roadmap.md#r04-foundation-delivery).
 They do not mark the following installed/native, durable-store, audit-chain,
 integrated recovery, lifecycle or deletion criteria passed. The first durable
-request/task milestone remains unavailable until the admitted encrypted store
+request/task milestone remains unavailable until the composed private SQLite store
 commits actual intent and terminal evidence and survives interrupted recovery.
 Synthetic/fake-store and safe key/artifact scratch tests are not installed
 acceptance, and file copies cannot satisfy authoritative audit requirements.
@@ -832,17 +832,17 @@ acceptance, and file copies cannot satisfy authoritative audit requirements.
 - Test offline startup/access after deadlines, clock rollback, time-zone/DST changes, concurrent resume-versus-expiry, blocked live work, and unresolved effects; no early deletion or silent abandonment.
 - Exact session deletion removes messages/artifacts/snapshots/summaries/indexes/caches and recoverable journal/backup content under the proven store contract and rejects late appends; independent perpetual grant records survive, with applicability revalidated and minimal provenance retained separately.
 - Deletion preserves unrelated sessions/saved skills and discloses independent content-minimising audit, user exports, provider copies, and lack of forensic-erasure guarantees.
-- Inspect history/artifact/index storage for encryption and OS-protected key handling; verify raw audio/credentials/biometrics are absent, known secret fixtures are redacted, and retained content never leaks into ordinary diagnostics.
-- Inspect diagnostic/audit search indexes and temporary storage for the same encryption, key and plaintext constraints; retention of one stream does not silently extend another, and session deletion leaves only the independently disclosed content-minimising evidence.
-- Admit the [Windows storage strategy](Architecture.md#windows-durable-storage-direction) only with a maintained native engine, reviewed provenance/licences, expected authenticated codec configuration, and actual installed Windows x64/x86 loading evidence. RID publication alone is not execution proof.
-- Inspect every offered publish/installer architecture and prove the pinned managed SQLite provider and matching admitted native encrypted engine are included and loaded from Kora's packaged deployment. Run from a clean runtime-only machine with no separately installed SQLite; startup, migration, encrypted read/write and evidence search must work without network access or setup consent.
-- Remove or corrupt the packaged native SQLite asset and place an incompatible ambient SQLite library on `PATH` and other ordinary search locations. Kora must report a broken installation/storage capability, preserve existing data and avoid consequential dispatch; it must not offer optional SQLite installation, download a replacement, load the ambient library or fall back to plaintext.
-- Verify CurrentUser DPAPI use without LocalMachine fallback, actual restrictive directory/key-file ACLs, and profile-local placement of content, keys, staging and every managed backup. Test unavailable-profile/key/permission failures without replacing recoverable data. Profile-local paths alone do not prove correct integration.
+- Inspect history/artifact/index storage for supplied LocalApplicationData placement and verified private permissions; verify raw audio/credentials/biometrics are absent, known secret fixtures are redacted and retained content never leaks into ordinary diagnostics. Credentials use Windows-protected storage, not database fields.
+- Inspect diagnostic/audit indexes and managed temporary files for the same private-profile boundary; retention of one stream does not extend another. Disclose that database, journal, artifact and backup copies outside that boundary are readable.
+- Use the [approved Windows storage strategy](Architecture.md#windows-durable-storage-direction): maintained standard SQLite with pinned provider/native closure and reviewed licences. Encrypted-codec selection, database keys and rekey tests are no longer storage prerequisites.
+- Inspect every offered publish/installer architecture for the pinned provider and matching native engine. Installed runtime-only loading/read/write remains R17 evidence; RID publication alone is not execution or filesystem protection proof.
+- Missing/corrupt packaged native assets fail explicitly without runtime replacement download, ambient-library fallback or replacement of existing data.
+- Verify restrictive effective folder/file ACLs and profile-local placement of content, staging and managed backups. Test profile/permission failure without data replacement or silent permission repair. Profile-local paths alone do not prove correct integration.
 - For profile-local storage, trust Windows cross-profile isolation rather than require a second-account OS-denial trial for routine application acceptance. Reassess before shared storage, service/impersonated identities, cross-profile migration or custom authorization; any resulting cross-user claim needs approved actual-account evidence, not mock SIDs.
-- Exercise encrypted WAL/rollback journals, keyed backups and identity-bound artifacts; enforce memory-only SQLite temporary storage on every connection and prohibit plaintext FTS/SQL-content tracing. Include a positive plaintext-leak control and disclose unobserved locked/deleted-open files, paging and dumps; absent fixture markers alone are not a universal plaintext-absence claim.
-- Interrupt artifact staging/publication/reference commits and rekey/wrapper/backup-generation publication; authenticate recovered content, reconcile orphan/missing/corrupt files, and report incomplete key recovery explicitly without overwriting originals or inventing success. Preserve and verify legacy source data after failed encrypted conversion; keying a plaintext file is not conversion.
-- Demonstrate cleanup or rewrite of every managed recoverable copy after targeted deletion while unrelated records and independent grants survive. Test old backups and copied wrappers: live rekey/unlink alone is insufficient. Shared-key deletion is not per-session cryptographic erasure, and content authentication is not protection against valid-history rollback.
-- Disk-full, encryption-key loss, corrupted storage, migration failure, and artifact-size admission failures are explicit; no success-shaped persistence fallback, silent history eviction, or consequential dispatch without required durable evidence.
+- Exercise private WAL/rollback journals, backups and identity-bound artifacts; use memory-only SQLite temporary storage and prohibit SQL-content tracing. ACLs do not protect against same-user/admin access, copied files, paging or dumps.
+- Interrupt artifact staging/publication/reference and backup-generation commits; verify recovered identity/digests, reconcile orphan/missing/corrupt files and preserve originals on failure. Reject unknown schemas and preserve legacy sources during any explicitly supported migration.
+- Demonstrate cleanup or rewrite of managed recoverable copies after targeted deletion while unrelated records and independent grants survive. Include old managed backups; unlink is not forensic erasure or protection against valid-history rollback.
+- Disk-full, profile/permission failure, corrupted storage, migration failure and artifact-size admission failures are explicit; no success-shaped fallback, silent history eviction or consequential dispatch without required durable evidence.
 
 ## Future Capability Gates
 

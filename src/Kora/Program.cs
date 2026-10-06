@@ -173,7 +173,7 @@ internal static class Program
             builder.SetMinimumLevel(LogLevel.Debug);
             var fileSink = new FileEvidenceSink(fileLogger);
             builder.AddProvider(new EvidenceLoggerProvider(
-                [fileSink, new UnavailableEncryptedEvidenceSink()], fileSink));
+                [fileSink, new UnavailableEvidenceSink()], fileSink));
         });
         services.AddSingleton(ownershipBridge);
         services.AddSingleton<IInstanceHostCallbacks>(ownershipBridge);

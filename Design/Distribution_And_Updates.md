@@ -31,7 +31,7 @@ Successful install/repair offers a default-on **Start Kora when setup closes**
 option. This requests an ordinary non-elevated launch after quiescent closure,
 with candidate EXE/DLL coherence checks; it is suppressed on failure,
 cancellation, uninstall, previews or required restart. Process creation is
-not host, protected-loading, native-storage or encrypted-evidence admission.
+not host, protected-loading, private-storage or authoritative-evidence admission.
 
 ## R02 Distribution Outcomes and Direction
 
@@ -106,7 +106,7 @@ Framework-dependent means compiled/published application binaries, not source co
 Self-contained is distinct from Native AOT and does not automatically eliminate every native dependency.
 
 SQLite is part of those launch-critical application assets. The managed
-provider and architecture-matched admitted native encrypted engine ship inside
+provider and architecture-matched standard native engine ship inside
 every binary release and installer payload; they are not an installer checkbox,
 Burn prerequisite package, first-run download, or separately installed SQLite
 server/runtime. Source bootstrap restores the pinned build packages before

@@ -147,7 +147,7 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Speech policy service | Central playback eligibility, call-state freshness, voice-configurable preferences, one-shot overrides | Claiming universal call detection or allowing lock/mute bypass |
 | Speaker confidence service | Separately consented local per-SID frequent-speaker adaptation, protected learned/enrolled profiles, quality/verification observations, optional privacy-policy signal | Authenticating a learned frequent speaker, granting actions, satisfying approvals, ambient/history training, exposing scores/templates, or silently replacing enrollment |
 | Reserved intent/lifecycle controller | Exact local control routing, target disambiguation, named confirmations, serialised app/power/maintenance lifecycle | Arbitrary shell commands or user-skill shadowing of privileged controls |
-| Storage services | Configuration, metadata, encrypted permitted session history/artifacts/indexes, migration/deletion | Raw audio, plaintext credentials, unrestricted clipboard collection, or silent eviction |
+| Storage services | Configuration, metadata, private-profile session history/artifacts/indexes, migration/deletion | Raw audio, plaintext credentials, unrestricted clipboard collection, or silent eviction |
 | Environment setup controller | Internal storage/schema initialisation, capability probes, approved dependency setup, ownership and readiness | Arbitrary model-supplied installers or changing Kora code |
 | Configuration service | Option schema, validation/scope, revision-safe persistence, voice/UI parity, effective settings | Arbitrary config-file patches or weakening mandatory policy |
 
@@ -203,7 +203,7 @@ source/name/kind, and host-owned session/task/invocation/approval/correlation
 IDs where applicable. `CorrelationId` remains the durable domain identity that
 pairs audit request/terminal records; it does not replace W3C trace identity.
 
-Persist completed local span metadata in encrypted `activity_spans` and
+Persist completed local span metadata in private-profile `activity_spans` and
 `activity_links` projections under diagnostic retention: trace/span/parent,
 source/name/kind, start/end, status, allowlisted typed tags and durable Kora
 IDs. Evidence records retain their own trace/span/session fields even if the
@@ -221,9 +221,9 @@ host columns or the typed audit route. Missing context is reported as an
 explicit gap, not silently promoted to a bootstrap classification. Completed
 spans/links have separate contracts and daily-file copies.
 
-This is not the complete instrumentation or persisted graph. The encrypted
-sink and host task store remain explicitly unavailable until storage
-admission; no database evidence tables or session registry are enabled.
+This is not the complete instrumentation or persisted graph. The SQLite
+evidence sink and transcript-bound store remain unavailable pending composition;
+the bounded task-store implementation alone enables no evidence tables or session registry.
 The [R04 delivery inventory](Implementation_Roadmap.md#r04-foundation-delivery)
 tracks actual source/tests and downstream boundaries. File audit copies
 remain diagnostic evidence, never authorization or durable receipt proof.
@@ -383,14 +383,14 @@ Tool names and descriptions are untrusted metadata. Policy bindings are maintain
 
 ## Storage and Processes
 
-The proposed store uses SQLite for configuration, session/events, and task/action metadata, with encrypted permitted content/artifacts/indexes and OS-protected keys.
-The Windows durable-storage direction below follows the R02 feasibility evidence; no particular native encryption package is production-admitted.
-Encryption integration, transactional persistence, migration, journal/backup deletion, and failure behavior remain release gates.
+The store uses standard SQLite for configuration, session/events, and task/action metadata under verified private user-profile permissions.
+The owner-approved D-009 baseline supersedes mandatory page encryption and database-key/rekey admission.
+Transactional persistence, schema validation/migration, journal/backup deletion and failure behavior remain delivery gates.
 Machine-local configuration/enablement/audit storage is under `%LOCALAPPDATA%\Kora`.
 Kora-specific declarative skill packages are under the Windows Roaming AppData folder at `%APPDATA%\Kora\Skills`.
 Shared profile skill roots are registered read-only sources, not writable storage.
 Credentials are represented by opaque references to an OS-protected credential store.
-Large retained artifacts use a managed encrypted store linked by immutable digest, session ID, and deletion ownership.
+Large retained artifacts use a private managed store linked by immutable digest, session ID, and deletion ownership.
 Default inactivity archiving/deletion is 24 hours/30 days, both configurable; passive history access never extends retention.
 Restart restores readable history, not active dispatch, provider memory, or executable approval tokens.
 The running app creates its stores and migrates embedded SQLite schemas; installers do not provision a database server.
@@ -425,28 +425,35 @@ unresolved under D-013; no production worker or native broker is composed.
 
 ### Windows Durable Storage Direction
 
-The R02 storage/key investigation selects **maintained, authenticated whole-database encryption for content-bearing SQLite events, metadata and indexes, plus AES-256-GCM for managed out-of-database artifacts**.
-Use random keys wrapped by Windows CurrentUser DPAPI and user-restricted local filesystem ACLs.
-This is an implementation direction, not a selected shipping package or a completed R04/R05 schema.
+The owner-approved baseline is **standard SQLite with verified private
+LocalApplicationData permissions**, using the existing pinned Microsoft.Data.Sqlite
+and SQLitePCLRaw `e_sqlite3` closure. Database encryption, database DPAPI keys
+and rekey workflows are not required. This protects the Windows account
+boundary, not same-user/admin access or copied files. Credentials remain in
+OS-protected credential storage. Copies outside the private location are
+readable and must be disclosed as such.
 SQLite is a required application component, not an optional provider, external
 server, user-installed prerequisite, or capability that can be disabled. Every
 supported binary package must carry its admitted managed provider and native
-encrypted engine for the package architecture. Source builds acquire the pinned
+engine for the package architecture. Source builds acquire the pinned
 packages during restore; end users are never asked to locate or install SQLite.
-The startup storage probe validates the bundled component, keys, database and
+The startup storage probe validates the bundled component, permissions, database and
 schema. It is a health/migration gate, not an optional dependency setup task.
 Missing or unloadable native SQLite assets are a broken installation and fail
 durable session/evidence capabilities explicitly; Kora never downloads a
 replacement at runtime, searches the machine for an ambient SQLite library, or
-falls back to an unencrypted/system engine.
+falls back to an ambient/system engine.
 Windows is the only supported product OS; Linux runtime support and local Linux-host validation are outside this storage proof.
 Existing Linux-hosted CI building Windows artifacts remains unchanged and does not imply Linux product support.
 [D-009](Decision_Register.md#d-009-session-persistence-and-retention) owns selection status and remaining gates; the [reproducible R02 evidence](../experiments/r02-storage-proof/README.md) supports, rather than replaces, this contract.
 
-R04 adds independently safe host contracts and Windows key/artifact
-primitives without selecting or composing a page-encrypted engine.
+R04 adds host contracts and a bounded standard-SQLite task-store implementation
+with actual private-folder/file checks and transactional versioned host records.
+Its distinct `HostStorageV1` partition has no Keys directory or DPAPI dependency.
+The store is not yet composed into transcript dispatch/evidence. Earlier
+internal key/artifact primitives remain uncomposed and are not database prerequisites.
 The [unavailable store](../src/Kora.Core/Storage/UnavailableHostTaskStore.cs)
-fails explicitly; it does not create an unkeyed replacement, use application
+fails explicitly; it does not replace missing/corrupt existing data, use application
 envelopes as a SQLite substitute, or open/migrate the user's legacy database.
 The bootstrap setup probe remains unchanged and must not receive content or
 authoritative host evidence. Ordered intent/dispatch/receipt and bounded
@@ -457,10 +464,10 @@ executor callback. These contracts are not on-disk durability acceptance.
 
 Implementation requirements:
 
-- Admit only a maintained native engine with reviewed provenance/licences, authenticated encryption configuration and installed Windows x64/x86 loading evidence. The measured unofficial package reports SQLCipher 4.5.2, SQLite 3.39.2 and LibTomCrypt 1.18.2 and is not admitted for production.
+- Use the maintained pinned standard-SQLite distribution with reviewed provenance/licences and release-native closure. The rejected encrypted candidates are historical evidence, not admission blockers for this baseline. Installed native loading remains distribution evidence, not proof of database confidentiality.
 - Pin the managed provider, native engine and initialization mode as one release-owned dependency closure. Publish and installer manifests must include the exact native asset for each offered architecture; package restore/build tools are development inputs, not runtime acquisition paths.
-- Keep content-bearing FTS, summaries and derived indexes inside the keyed store. Require memory-only SQLite temporary storage on every connection; reject an absent codec or incompatible configuration. Backups must be explicitly keyed. Do not trace decrypted SQL parameters, connection passwords or record content into diagnostics.
-- Fan every content-minimising `ILogger` event to two independent providers: the retained daily JSON file sink and the encrypted SQLite logging provider. The file stream remains complete enough for startup, database open/migration/key/commit failure, fatal crash and recovery diagnosis; the database projection supplies structured local query. Failure or backpressure in one provider must not recursively invoke it or silently suppress delivery to the other.
+- Keep content-bearing FTS, summaries, indexes, journals and managed backups inside the private storage boundary. Use memory-only temporary storage and never trace SQL parameters or record content into diagnostics. Backups/exports outside that boundary are readable, not encrypted.
+- Fan every content-minimising `ILogger` event to two independent providers: the retained daily JSON file sink and the private SQLite logging provider. The file stream remains available for database open/migration/permission/commit failure, fatal crash and recovery diagnosis. Failure in one provider must not recursively invoke it or silently suppress delivery to the other.
 - Both SQLite tables are structured logging stores, not rendered-line archives.
   Preserve a common formatter-independent `ILogger` envelope: stable evidence
   ID, UTC observation time, numeric/name event ID, level, logger category,
@@ -493,39 +500,37 @@ Implementation requirements:
   authority. Preserve source-specific payloads, indexes, access rules and
   retention rather than flattening every record into one generic table.
 - Apply independent database retention policies: diagnostics default to 30 days under their configurable bounded schema; audits default to 90 days and permit 30-365 days. Persist each row's effective due time. Session deletion, search and reasoning do not refresh or collapse these policies; perpetual grants remain independently retained.
-- Query the retained database tables and daily files through one host-owned evidence service. It provides source-specific list, read and search operations for logs and audits, plus an All Evidence correlation view. It returns stable source/event citations, bounded pages and explicit source-unavailable, retention-expired, sink-failure and diagnostic-loss markers; it never exposes arbitrary SQL or file paths. Cross-source search uses only permitted indexed fields and encrypted FTS content.
+- Query retained tables/files through one host-owned evidence service with bounded list/read/search, stable citations and explicit unavailable/expired/gap markers; never expose arbitrary SQL or paths. Search uses permitted indexed fields inside private storage.
 - “Ask Evidence” is an application workflow over that service, not unrestricted database access. It retrieves a bounded, reviewable set of permitted log/audit/session records through the context broker, invokes the selected eligible reasoning runtime, and returns claims with exact evidence citations and explicit inference/uncertainty. Local reasoning is the default. A remote runtime requires preview and approval of the exact selected records under normal egress policy. Missing reasoning does not disable deterministic list/read/search.
 - The security audit `ILogger` provider commits `security_audit_events` synchronously at the policy boundary and reports failure to the host-owned audit service; a daily-file copy alone cannot permit consequential dispatch. Ordinary `application_log_events` ingestion may batch asynchronously, but bounded-buffer exhaustion, write failure or recovery must produce an explicit loss marker in the file stream and later database gap evidence rather than silent loss or pressure that prevents audit commits.
 - Transactionally commit ordered intent/decision evidence before consequential dispatch and link observed receipts afterward. Use FULL-synchronous durability, then prove recovery on the admitted engine. Recovery restores readable interrupted/unknown evidence, never fresh execution authority or automatic replay.
-- Authenticate artifacts with versioned, identity/role-bound envelopes. Stage, flush and publish before committing the reference; recover staged files, unreferenced published files and missing/corrupt referenced files explicitly. Bound sizes and account for immutable digest/equality disclosure when choosing artifact names.
-- Version key wrappers and coordinate publication, rotation and recovery with all managed backup generations. Missing/invalid keys fail visibly without overwriting existing data, creating replacement keys over it or changing storage location. Verify CurrentUser scope without LocalMachine fallback, profile-local managed paths and actual restrictive directory/key-file ACLs. CurrentUser DPAPI is not an unconditional device-binding guarantee for every profile/domain configuration.
-- Convert legacy plaintext into a separate encrypted candidate, verify its contents before replacement, and preserve recoverable originals on failure. Applying a key to an existing plaintext SQLite file is not conversion. Track the retained plaintext original and its copies as migration/deletion-owned data, not an undisclosed indefinite backup.
-- Define deletion ownership across rows, indexes, caches, staging, artifacts, journals and every managed backup. Prevent late appends and prove that unrelated content remains readable. A shared database key does not provide per-session cryptographic erasure; checkpoint, VACUUM and `secure_delete` are hygiene, not forensic-erasure guarantees.
+- Validate versioned identity/role-bound artifacts and immutable digests. Stage, flush and publish before committing references; recover staged, orphan and missing/corrupt referenced files explicitly. Bound sizes. Digests detect accidental corruption, not same-user tampering.
+- Verify supplied profile-local paths and restrictive effective folder/file ACLs for every managed copy. Missing/corrupt data or permissions fail visibly without replacement data, permission repair or shared-path fallback.
+- Migrate supported schemas transactionally or through a separately verified candidate, preserving recoverable originals on failure. Reject unknown schemas; the existing bootstrap setup ledger is not a legacy conversation database.
+- Define deletion ownership across rows, indexes, caches, staging, artifacts, journals and managed backups. Prevent late appends and preserve unrelated content. Checkpoint, VACUUM and `secure_delete` are hygiene, not forensic-erasure guarantees.
 
-If maintained page encryption cannot be admitted, reconsider D-009 before using an application-envelope fallback; never silently downgrade.
-That fallback must encrypt every content-bearing field and artifact and use in-memory search or explicitly accepted keyed-equality leakage, not plaintext FTS.
-The measured equality index does not prove ranked, substring or semantic search, key separation/rotation, or large-history performance.
-
-Page authentication and AES-GCM do not detect removal of whole valid records or restoration of an older valid database.
-Independent tamper-evident security evidence remains D-008 work.
-DPAPI wrapper deletion and live-database rekey do not revoke copied wrappers or old backups; local unlink cannot erase user exports, provider copies, filesystem snapshots, SSD remnants, OS paging or third-party dumps.
-The R02 sentinel scans and process-kill trials do not establish absence of all plaintext or hardware power-loss durability.
+The approved standard-SQLite choice is explicit, not a silent downgrade.
+Independent tamper-evident security evidence remains D-008 work. SQLite/ACLs
+do not detect an authorized user's restoration of an old valid database.
+Local unlink cannot erase exports, provider copies, filesystem snapshots,
+SSD remnants, OS paging or third-party dumps. Historical encrypted R02
+fixtures do not prove the current implementation or hardware power-loss durability.
 The [acceptance criteria](Acceptance_Criteria.md#persistence-configurable-lifecycle-and-deletion) govern admission and later integration.
 
 ### Profile Boundary and Validation Responsibility
 
-Durable content, keys, managed backups and staging belong under the running user's `%LOCALAPPDATA%\Kora`, not shared/machine storage or the roaming declarative-skill directory.
+Durable content, managed backups and staging belong under the supplied running-user LocalApplicationData root, not shared/machine storage or the roaming declarative-skill directory.
 The [bootstrap path resolver](../src/Kora.Core/Dependencies/ApplicationDataPaths.cs) already resolves LocalApplicationData for the current user; R04 must verify the entire production persistence path rather than assume every copy follows that resolver.
 The storage proof deliberately uses owned synthetic scratch instead of opening that application directory.
 
-For this profile-local architecture, ordinary cross-profile access isolation and CurrentUser DPAPI semantics are trusted Windows facilities.
+For this profile-local architecture, ordinary cross-profile access isolation is a trusted Windows facility.
 A second-account denial trial primarily corroborates that OS boundary and is optional, not a routine R02/R04 completion or PR-merge gate.
-Kora's required evidence is its own integration: select CurrentUser scope, reject machine-scope/shared-path fallback, inspect effective ACLs of actual directories/key files, keep every managed copy scoped, and fail visibly when the expected profile/key/permissions are unavailable.
-Profile location alone is insufficient if the application creates permissive ACLs, unkeyed copies or machine-scoped keys.
+Kora's required evidence is its own integration: reject shared-path fallback, inspect effective folder/file ACLs, keep every managed copy scoped and fail visibly when the expected profile/permissions are unavailable.
+Profile location alone is insufficient if the application creates permissive ACLs or exposes copies outside that boundary.
 
 Revisit real multi-account testing before introducing shared storage, impersonation/service identities, cross-profile import/migration or custom cross-user authorization, or when observed permissions contradict the supported boundary.
 Any such protection claim requires actual approved identities; neither mock identities nor a same-user roundtrip proves cross-user denial.
-Same-user tools/workers remain a separate D-013 containment boundary; per-profile storage and DPAPI do not protect against all code running as the same user or an administrator.
+Same-user tools/workers remain a separate D-013 containment boundary; private-profile storage does not protect against code running as the same user or an administrator.
 The file/database-only proof needs a loaded Windows user profile, not an unlocked physical desktop or local interactive input; it may run through a remote session while the console is locked.
 
 ## Skill Data Versus Application Code

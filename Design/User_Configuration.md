@@ -233,7 +233,7 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
 Do not require typing a path, but do not infer one from unrelated context.
 The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
-Permitted conversation history is encrypted and durable under session retention. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports, and secret logging remain unsupported.
+Permitted conversation history uses durable standard SQLite under verified private profile permissions and session retention. Copies outside that boundary are readable; database encryption is not required. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports and secret logging remain unsupported.
 Diagnostic, audit and session retention are independent. Session deletion does
 not remove content-minimising audit records, while audit expiry does not remove
 perpetual grants. Browsing/search/reasoning never refreshes either diagnostic or

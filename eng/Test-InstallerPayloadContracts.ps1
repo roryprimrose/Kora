@@ -8,6 +8,13 @@ $fixture = Join-Path ([IO.Path]::GetTempPath()) "KoraPayloadTests-$([guid]::NewG
 $version = '0.1.0'
 $source = & git -C $root rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve payload-test source revision.' }
+foreach ($name in @('Kora.Msi.wixproj', 'Package.wxs', 'packages.lock.json')) {
+    $relative = Join-Path 'installer\Kora.Msi' $name
+    & git -C $root ls-files --error-unmatch -- $relative | Out-Null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)) {
+        throw "Required MSI source is not tracked or present: $relative"
+    }
+}
 $staging = Join-Path $root 'artifacts\installer'
 $before = @(if (Test-Path -LiteralPath $staging) { Get-ChildItem -LiteralPath $staging -Directory | Select-Object -ExpandProperty Name })
 $savedActions = $env:GITHUB_ACTIONS
@@ -77,7 +84,7 @@ try {
     Assert-RejectedBeforePackaging '*Application payload version or source revision*'
     Remove-Item -LiteralPath $manifestPath
     Assert-RejectedBeforePackaging '*payload-manifest.json*'
-    Write-Host 'Payload contract tests passed: exact/hidden bytes, changed/removed/added files, version/source mismatch and missing manifest; no compiler invocation or installer staging.'
+    Write-Host 'Payload contract tests passed: tracked MSI authoring, exact/hidden bytes, changed/removed/added files, version/source mismatch and missing manifest; no compiler invocation or installer staging.'
 }
 finally {
     $env:GITHUB_ACTIONS = $savedActions

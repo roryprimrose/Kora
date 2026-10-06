@@ -60,7 +60,10 @@ claim installed acceptance from a skipped validation.
 Transferred application payloads are verified before tool restore, compilation
 or staging and rechecked before packaging. Windows CI runs
 [payload contract tests](../eng/Test-InstallerPayloadContracts.ps1), including
-tampered/hidden/missing/extra files and invalid build identity. NSIS-only
+tracked MSI project/authoring/lockfile presence, tampered/hidden/missing/extra
+files and invalid build identity. The source directory has an explicit Git
+ignore exception because Windows' case-insensitive `*.msi` rule otherwise
+hides `Kora.Msi`; generated MSI binaries and `obj` output remain ignored. NSIS-only
 acquisition/build code has been retired; the retained
 [source/native inspection checks and receipts](../experiments/r02-distribution-proof/README.md)
 do not supply installed acceptance.

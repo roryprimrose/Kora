@@ -1,0 +1,7 @@
+<Project Sdk="WixToolset.Sdk/7.0.0">
+  <PropertyGroup>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <OutputName>Kora-$(ProductVersion)-win-x64</OutputName>
+    <DefineConstants>ProductVersion=$(ProductVersion);ApplicationPayload=$(ApplicationPayload)</DefineConstants>
+  </PropertyGroup>
+</Project>

@@ -33,10 +33,17 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         """,
     ];
     private readonly RestrictedSqliteDatabase database;
+    private readonly ISqliteTransactionCheckpoint? checkpoint;
 
     public WindowsSqliteHostTaskStore(IApplicationDataPaths paths)
+        : this(paths, checkpoint: null)
+    {
+    }
+
+    internal WindowsSqliteHostTaskStore(IApplicationDataPaths paths, ISqliteTransactionCheckpoint? checkpoint)
     {
         database = new RestrictedSqliteDatabase(paths, "HostStorageV1", "host.db", ApplicationId, Schema);
+        this.checkpoint = checkpoint;
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -133,6 +140,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         using var lease = database.AcquireLease(out var created, cancellationToken);
         using var connection = OpenDatabase(created, cancellationToken);
         using var transaction = connection.BeginTransaction();
+        checkpoint?.BeforeWrite(connection, transaction);
         using var current = connection.CreateCommand();
         current.Transaction = transaction;
         current.CommandText = "SELECT * FROM host_tasks WHERE task_id=$task;";
@@ -172,6 +180,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         write.Parameters.AddWithValue("$revision", record.Revision.Value);
         write.Parameters.AddWithValue("$state", (int)record.State);
         write.ExecuteNonQuery();
+        checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
         cancellationToken.ThrowIfCancellationRequested();
         // Once COMMIT succeeds, cancellation must not turn a durable receipt into a cancelled result.

@@ -1,5 +1,7 @@
 using System.Diagnostics;
 
+using AwesomeAssertions;
+
 namespace Kora.Windows.IntegrationTests.Storage;
 
 internal static class OwnedStorageChildProcess
@@ -48,6 +50,26 @@ internal static class OwnedStorageChildProcess
         if (!attributes.HasFlag(FileAttributes.Directory) || attributes.HasFlag(FileAttributes.ReparsePoint))
         {
             throw new InvalidOperationException("The owned child fixture must be an existing non-reparse directory.");
+        }
+    }
+
+    internal static void AssertHotJournal(string path)
+    {
+        using var journal = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        journal.Length.Should().BeGreaterThan(512);
+        var header = new byte[8];
+        journal.ReadExactly(header);
+        header.Should().Equal([0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7],
+            "a persistent journal's retained size alone does not prove a hot rollback header");
+    }
+
+    internal static void SignalAndBlock(string root, string marker)
+    {
+        File.WriteAllText(Path.Combine(root, marker), "owned pre-commit checkpoint");
+        using var wait = new ManualResetEventSlim();
+        if (!wait.Wait(TimeSpan.FromMinutes(2), TestContext.Current.CancellationToken))
+        {
+            throw new TimeoutException("The parent failed to terminate its owned child.");
         }
     }
 }

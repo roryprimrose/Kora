@@ -16,6 +16,108 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteHostTaskStoreTests
 {
     [WindowsFact]
+    public async Task Cancellation_after_commit_does_not_turn_a_durable_receipt_into_a_cancelled_result()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = activity =>
+            {
+                if (string.Equals(activity.GetTagItem("kora.storage.boundary") as string,
+                    "storage.task.commit", StringComparison.Ordinal))
+                {
+                    cancellation.Cancel();
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+        var request = Request();
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+        await new WindowsSqliteHostTaskStore(fixture).CommitAsync(intent, 0, cancellation.Token);
+        cancellation.IsCancellationRequested.Should().BeTrue();
+        (await new WindowsSqliteHostTaskStore(fixture).ReadTaskAsync(request.TaskId,
+            TestContext.Current.CancellationToken)).Should().Be(intent);
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    public async Task Precommit_failure_or_cancellation_rolls_back_both_task_projection_and_ledger(int priorRevision, bool cancel)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var request = Request();
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        var store = new WindowsSqliteHostTaskStore(fixture);
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+        var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+        var dispatch = intent.Next(HostTaskState.DispatchRecorded);
+        if (priorRevision > 0)
+        {
+            await store.CommitAsync(intent, 0, TestContext.Current.CancellationToken);
+        }
+        if (priorRevision > 1)
+        {
+            await store.CommitAsync(dispatch, 1, TestContext.Current.CancellationToken);
+        }
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var checkpoint = new SqliteTransactionCheckpoint
+        {
+            Write = SqliteTransactionCheckpoint.SpillPages,
+            Commit = (connection, transaction) =>
+            {
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = "SELECT count(*) FROM host_task_events;";
+                command.ExecuteScalar().Should().Be(priorRevision + 1L);
+                if (cancel)
+                {
+                    cancellation.Cancel();
+                }
+                else
+                {
+                    throw new IOException("Owned fixture precommit failure.");
+                }
+            },
+        };
+        var next = priorRevision switch
+        {
+            0 => intent,
+            1 => dispatch,
+            _ => dispatch.Next(HostTaskState.Succeeded),
+        };
+        var failing = new WindowsSqliteHostTaskStore(fixture, checkpoint);
+        var commit = () => failing.CommitAsync(next, priorRevision, cancellation.Token).AsTask();
+        if (cancel)
+        {
+            await commit.Should().ThrowAsync<OperationCanceledException>();
+        }
+        else
+        {
+            await commit.Should().ThrowAsync<IOException>().WithMessage("Owned fixture precommit failure.");
+        }
+        var reopened = new WindowsSqliteHostTaskStore(fixture);
+        var previous = priorRevision switch { 0 => null, 1 => intent, _ => dispatch };
+        (await reopened.ReadTaskAsync(request.TaskId, TestContext.Current.CancellationToken)).Should().Be(previous);
+        using (var connection = Open(fixture))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT count(*) FROM host_task_events;";
+            command.ExecuteScalar().Should().Be((long)priorRevision);
+        }
+        await reopened.CommitAsync(next, priorRevision, TestContext.Current.CancellationToken);
+        (await reopened.ReadTaskAsync(request.TaskId, TestContext.Current.CancellationToken)).Should().Be(next);
+    }
+
+    [WindowsFact]
     public async Task Startup_and_bounded_receipt_lookup_need_no_host_context_and_preserve_terminal_receipts()
     {
         using var fixture = new OwnedStorageFixture();

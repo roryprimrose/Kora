@@ -154,6 +154,12 @@ evidence and receipt are committed before completion. Startup marks intent-only
 work Interrupted and dispatched work without a verified receipt Unknown;
 it never automatically reruns either. The terminal version receipt is not
 proof of an operating-system effect or speech-playback completion.
+Private task, interaction and evidence journals are retained under the same
+verified profile boundary. Valid interrupted transactions reopen atomically;
+committed approvals/use counts/session generations are not replayed.
+Missing journals, corrupt/unsupported data, permissive permissions or unavailable
+ownership/access stop admission explicitly, without file replacement or ACL
+repair. Process-interruption tests do not guarantee physical power-loss recovery.
 There is still no durable conversation/history UI or general task executor.
 Database records receive independent 30-day diagnostic and 90-day audit
 due dates, but automatic database pruning/deletion is not yet implemented.

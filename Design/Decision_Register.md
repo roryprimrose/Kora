@@ -361,6 +361,17 @@ row removal is not recoverable-copy deletion; full R12 retention/deletion,
 audit anchors/pruning/whole-store rollback and installed/power-loss acceptance
 remain open.
 
+The [2026-10-07 production-store interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+adds maintained proof for actual task/evidence/interaction adapter writes and
+hot-journal reopening under PERSIST/FULL. No schema migration or provider
+change is required. Uncommitted writes roll back as a unit; committed rows,
+audit sequences and session generations survive owned-process termination.
+Recovery of intent-only/dispatch-only work remains Interrupted/Unknown with
+typed audit and no executor; interruption during recovery does not authorize
+a replay. Missing or permissive journals are neither recreated nor repaired.
+The proof does not certify physical power-loss, installed loading, full
+retention/deletion, D-008 audit anchors or complete D-009/R04 closure.
+
 ### R02 Windows Storage Outcome - 2026-10-05
 
 **Historical, superseded encryption direction:** the investigation proposed:

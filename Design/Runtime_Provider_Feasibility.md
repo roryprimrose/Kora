@@ -2,8 +2,9 @@
 
 Status: evidence-backed technical direction; production runtime/provider
 selection and D-001/D-004 closure remain open.
-Reviewed 2026-10-05 UTC against the retained Node proof and the separate
-[actual .NET RT1 fixture](../experiments/r02-dotnet-control-proof/README.md).
+Reviewed 2026-10-06 UTC against the retained Node proof, separate
+[actual .NET RT1 fixture](../experiments/r02-dotnet-control-proof/README.md)
+and bounded [RT2 lifecycle observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md).
 
 Related: [Architecture](Architecture.md#copilot-integration-proof),
 [Decision Register](Decision_Register.md#r02-runtimeprovider-feasibility-outcomes),
@@ -112,6 +113,47 @@ SDK completion cannot commit host authority or certify durable storage.
 No architecture decision is changed, no sidecar is selected and D-001 remains
 open. A change to released artifact/transport/runtime/profile requires retesting.
 
+### RT2 outcome: bounded observations pass; all-path gate Blocked
+
+The independent [RT2 fixture/disposition](../experiments/r02-runtime-lifecycle-proof/evidence/disposition.json)
+records **Blocked** for the exact approved RT1 source-built minimal profile.
+Final primary and independent clean-source package/assembly bytes match RT1's
+pins; earlier mismatching builds were rejected and are retained as
+reproduction-maintenance evidence. Original RT1/Node sources and historical
+evidence are unchanged. The full staged RT1 regressions pass 45/45; RT2 passes
+20/20 tests (13 actual runtime trials, six deterministic observer tests and a
+live positive control), plus two receipt-locale contracts. None is RT2 closure.
+
+Live scratch notifications, PID/creation-time process/module snapshots,
+IPv4/IPv6 TCP/UDP tables, managed network diagnostic event counters and
+before-cleanup file inspection cover startup, verified runtime initialization,
+session/history/I/O, synthetic authentication/errors/retries, failed/denied
+results, cancellation/late effects, disposal and observed quiescence.
+The run observes native PowerShell and console-host descendants and transient
+PowerShell policy-test files even with zero advertised built-ins. All 52 sampled
+owned process identities terminate; provider model bodies have zero denied
+markers/credential sentinels. Positive controls see real loopback sockets,
+live marker files before deletion and managed diagnostics.
+
+This is **detection plus the original public model/session-I/O mediation**,
+not native containment. Directory notifications have no writer PID/content;
+socket/module/process snapshots miss short-lived paths. Native stderr/ETW,
+DNS/UDP destinations/non-IP transports, transient/deleted/outside-scratch
+writes, registry/ADS/crash-dump paths and missed/detached descendants are not
+fully observed or controlled. Therefore all-destination and zero unauthorized
+native marker persistence/egress claims remain **Blocked**, not inferred from
+zero model-handler markers or post-cleanup absence.
+
+The user retained this fail-closed RT2 contract after the separate W2
+best-effort transitive dependency discussion. Privileged tracing was deferred
+to a dedicated host, not approved/run in the shared parallel environment.
+Obtain scoped approval for bounded PID/creation-time-attributed, metadata-only
+tracing with loss controls; tracing alone still cannot establish content
+prevention. Prove native mediation/isolation for the unchanged approved profile
+or return an explicit D-001 decision. R08 remains unavailable; MG1 continues
+independently and PV1 still needs technical gates plus intended-account/terms/
+cost approval. R04 remains owner of durable correlation/audit admission.
+
 ### Host boundaries, not hook-only authority
 
 The candidate architecture is:
@@ -200,9 +242,11 @@ assign owners, prerequisites and exit evidence. Execute in this order:
    conformance/negative tests and artifact pins. Released NuGet parity remains
    blocked. Passing allows RT2/MG1, not production exposure. Failure triggers
    an explicit D-001 architecture decision; stop that integration path.
-2. **R02-RT2:** observe the candidate runtime's full network/storage lifecycle
-   and establish a verified minimal processing profile. Any unexplained or
-   uncontrollable content path keeps the runtime unavailable.
+2. **R02-RT2:** bounded user-mode trials are complete; all-path observation/
+   prevention is **Blocked**. Follow the dedicated-host approval and native
+   mediation handoff above. Any unexplained or uncontrollable content path
+   keeps the runtime unavailable; do not weaken this gate to W2 best-effort
+   script dependency discovery.
 3. **R02-MG1:** reproduce the envelope/concurrency/cancellation tests in .NET.
    This can run alongside RT2 after RT1. Passing allows a management-provider
    trial proposal; it does not prove a hosted budget.

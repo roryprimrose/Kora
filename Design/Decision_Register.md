@@ -16,7 +16,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
-| D-001 | Copilot adapter/control-point viability | Runtime engineering lead | Slice A0 implementation | Open, release-blocking; scoped .NET RT1 source-built profile passes; hook-only approach rejected | Preserve exact RT1 pins/profile; released NuGet byte parity blocked; R02-RT2 and execution R02-PV1 still require all-destination/storage/diagnostic observation and approved hosted auth/account evidence. Changed artifact/profile repeats RT1. No production adapter admitted. |
+| D-001 | Copilot adapter/control-point viability | Runtime engineering lead | Slice A0 implementation | Open, release-blocking; scoped .NET RT1 passes; bounded RT2 tests pass but all-path gate Blocked; hook-only approach rejected | Preserve exact RT1 pins/profile and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs); released NuGet parity blocked. Native helper/transient-write observations do not establish all-destination/storage/diagnostic attribution or prevention. Dedicated-host tracing needs separate approval; execution PV1 still requires approved hosted auth/account evidence. Changed artifact/profile repeats RT1. No production adapter admitted. |
 | D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for model-assisted management; Node envelope passed; .NET RT1 prerequisites measured | R02-MG1 and management R02-PV1: full .NET byte/deadline/admission/no-retry proof; approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost envelope; deterministic fallback independent of inference |
@@ -79,6 +79,17 @@ This is candidate evidence, not selection approval or decision closure.
   destination/diagnostic/storage observation (RT2), full .NET management
   envelope (MG1) and hosted-account/auth/terms/usage/concurrency evidence (PV1).
   RT1 unblocks RT2/MG1 trials for those exact tested bytes, not Gate 0.
+
+- **Measured bounded RT2, not closure:** the independent
+  [lifecycle fixture](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
+  passes 20/20 tests and two locale contracts, with exact final source-byte
+  reproduction and all 45 unchanged staged RT1 regressions. Native PowerShell/
+  console-host helpers and transient policy-test writes are observed.
+  All-path attribution/native prevention remains **Blocked**; the user
+  retained fail-closed runtime privacy and deferred privileged tracing to a
+  dedicated host. W2 best-effort transitive dependency tracking is a separate
+  policy, not runtime-egress consent. D-004 still needs MG1/account envelope;
+  D-010 still needs integrated leases/scheduler/unknown-effect evidence.
 
 The hook-only failure rejects an option, not every Copilot integration.
 Closure evaluates the selected final-request-gated profile and its remaining

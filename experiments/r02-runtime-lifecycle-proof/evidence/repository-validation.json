@@ -1,0 +1,1614 @@
+{
+  "observedAtUtc": "2026-10-06T06:47:06.5640782+00:00",
+  "baseCommit": "3e8558fbff07943d39721b230599b02062d90d57",
+  "branch": "agents/kora-rt2-runtime-lifecycle-observation",
+  "sdk": "10.0.401",
+  "os": "Microsoft Windows NT 10.0.26300.0",
+  "architecture": "X64",
+  "validationSourceSha256": [
+    {
+      "file": ".github/copilot-instructions.md",
+      "sha256": "9aa23e09170a540a4d81e91a8b519f12a0506c83f2ee7c7073392c4ceb8b6b57"
+    },
+    {
+      "file": ".github/dependabot.yml",
+      "sha256": "347040fe0e53970a533d18bd92f39e995a821836c568d89ca912370717aaf983"
+    },
+    {
+      "file": ".github/release.yml",
+      "sha256": "d05a09f3975e10e5867209197a1c96819bf78cd660499825a09abd6eef3f2bd9"
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "sha256": "9a99a86c03fc59546b07b52ef5610b25365bc18ebb5b8fcd5dcfc335cef13fd0"
+    },
+    {
+      "file": ".github/workflows/coverage-comment.yml",
+      "sha256": "c03e167ff2b3ed6441c6653a2f2f45734c2fcfdada77a230be416ccd7f7511fa"
+    },
+    {
+      "file": "DEPENDENCY-LICENSES.md",
+      "sha256": "5ebef398cdb7f80f24ad7c3d7b97e77c720b0e9eafbabef78c43720fa2c4900a"
+    },
+    {
+      "file": "Directory.Build.props",
+      "sha256": "df1a91704f81bbd06f0b60722a2f2e13c66c9899cc908cf0e1edd18abffa4e71"
+    },
+    {
+      "file": "Directory.Build.targets",
+      "sha256": "ad98a44faad41a5fd42a335724ab9ca393b5317465aab197b7949a4bae3d8c62"
+    },
+    {
+      "file": "Directory.Packages.props",
+      "sha256": "17489712c78887bff86780e86fadb748e1d5dd4d15d3b3fe587c781cad66ded7"
+    },
+    {
+      "file": "Kora.slnx",
+      "sha256": "a4f0f3e2e0080e801a364b0f502dfdea229769af9944723e57c8302d70bce2b7"
+    },
+    {
+      "file": "THIRD-PARTY-NOTICES.md",
+      "sha256": "8e96a18b30eb7620e57765fb3c100506e062d97ebe699c046b7d6f2b2995677e"
+    },
+    {
+      "file": "eng/Assert-CodeCoverage.ps1",
+      "sha256": "1d8482f477c3b01f4b087403b399ecdf999d789af93c1e52583a38204c9156d0"
+    },
+    {
+      "file": "eng/Build-Installer.ps1",
+      "sha256": "a1ded7c053f6df669105010fac186b90643f1f4919552337401dfbfcbca4d31e"
+    },
+    {
+      "file": "eng/Generate-WindowsIcon.ps1",
+      "sha256": "67470b51b833fc43092f2a062d7d084fb3089e1540e512be22a6380c80f760d6"
+    },
+    {
+      "file": "eng/Get-BuildVersion.ps1",
+      "sha256": "a83fa1908830bd8583e2e4e20f236901b8607c6a87e5820de44ce7b64383e680"
+    },
+    {
+      "file": "eng/Publish-GitHubRelease.ps1",
+      "sha256": "64713f6e06e8da0163027ffcac90cb9116be2a2849749f4cbf0e37329b4b5fa8"
+    },
+    {
+      "file": "eng/Test-BuildVersion.ps1",
+      "sha256": "ba363dab043167a3dfe9541e412f12156d45a3a8a3bfa00e896f753bd44fd871"
+    },
+    {
+      "file": "eng/Test-DependencyLicenses.ps1",
+      "sha256": "c60acaeb6de22fb8eba612b9cd75f9bcbff5253dd6f2713f4a0abfb61320f51e"
+    },
+    {
+      "file": "eng/Test-GitHubRelease.ps1",
+      "sha256": "30b7cb4de647abe1945a284c3bb6193d800aaa9922bc0c80e70be4cc0e35b606"
+    },
+    {
+      "file": "eng/Test-Installer.ps1",
+      "sha256": "54dac20cc70956c3be8e866ce932a7a85fb5e56db5387a21300fcc5dc35103b6"
+    },
+    {
+      "file": "eng/Test-InstallerPayload.ps1",
+      "sha256": "25db4b031865041308de1c43432cc8ade8b1d89bad2df8ddcf1018fd7c580abe"
+    },
+    {
+      "file": "eng/Test-InstallerPayloadContracts.ps1",
+      "sha256": "fb6e06421ad8c35479c892eebb0d3bd8d6ed13ed5269e040b82ec7ab66ad9c66"
+    },
+    {
+      "file": "eng/licenses/allowed-licenses.json",
+      "sha256": "03dfee190194800d9c1c69c63ad6c70b9c3ed3754ddbe5bd54078329991e5b53"
+    },
+    {
+      "file": "eng/licenses/license-file-identities.json",
+      "sha256": "dce2e7550f3f35d142e9f1e17bd4d0d5829ab59f3d88a8248e0529048ebef2e2"
+    },
+    {
+      "file": "eng/licenses/package-overrides.json",
+      "sha256": "0dad200dba91a2d6a3b38eb6a7cc31dc908891655187aa68e05520bd8d33c488"
+    },
+    {
+      "file": "global.json",
+      "sha256": "4977ae364d92d2679acc93fcb364eb2d7c990a320edebf034b01b9ed14098d84"
+    },
+    {
+      "file": "installer/Directory.Build.props",
+      "sha256": "6674e2d20816b18278a41310a4e4793c5a377b4cfb21b863693945ae5739ef54"
+    },
+    {
+      "file": "installer/Kora.Bundle/Bundle.wxs",
+      "sha256": "dcbdf93c30c98cd8d88bec760ec3bbf69c0606a7611fe437200b5052f3b4db13"
+    },
+    {
+      "file": "installer/Kora.Bundle/Kora.Bundle.wixproj",
+      "sha256": "b4e8bbd2ff6ba9fdb40821ed05c5141d4366dde5bd566379797f231cbae19ed6"
+    },
+    {
+      "file": "installer/Kora.Bundle/packages.lock.json",
+      "sha256": "a9d6df9ac0b9d39d2f71d3af968f891d6867cba0f0b9fa28b3a0a7df8fc75038"
+    },
+    {
+      "file": "installer/Kora.Msi/Kora.Msi.wixproj",
+      "sha256": "1e09bb22de5e794334cee1dd6758ed123dda916e441cf11657b3b7fcb327ba89"
+    },
+    {
+      "file": "installer/Kora.Msi/Package.wxs",
+      "sha256": "455744ce1b6b7ef73055efb4bae039c9a4958d482e8b2b6ac029c4c3691f73ae"
+    },
+    {
+      "file": "installer/Kora.Msi/packages.lock.json",
+      "sha256": "fc06296dab7b8bb8d3f83b27f319973520c6bb67fc7b67440e02261c47903503"
+    },
+    {
+      "file": "installer/Kora.Setup/AnimatedMark.cs",
+      "sha256": "a63d656eccf587fe84c627d42723e1a199a4f33c15f1318cbc569ff051b4fd63"
+    },
+    {
+      "file": "installer/Kora.Setup/BurnLogger.cs",
+      "sha256": "c58165011412bf94a415d27e7de3767365a9644f0fd30c0afe0179857955082b"
+    },
+    {
+      "file": "installer/Kora.Setup/IInstallerApplicationLauncher.cs",
+      "sha256": "ad8749214580c442d22f2d536da704a21e54fbd09a7f4830a47fa07f1baa30a8"
+    },
+    {
+      "file": "installer/Kora.Setup/IInstallerEngine.cs",
+      "sha256": "3c7b401342837c7394dc4d2b8df140e0473aaabac619131730a4caa63277ea7a"
+    },
+    {
+      "file": "installer/Kora.Setup/IInstallerLaunchPlatform.cs",
+      "sha256": "ea675d307dc0acae8c59e8a485e7498a25d92a01d821302de3df38e78382264f"
+    },
+    {
+      "file": "installer/Kora.Setup/IInstallerPreflight.cs",
+      "sha256": "212879ebea943ef5bd0b6e6dd515a4a58301c8ffa7c904f26187c3202f44c0da"
+    },
+    {
+      "file": "installer/Kora.Setup/IOptionalComponentSetup.cs",
+      "sha256": "5927fc3ef45ef7ead52424e2131a1f094063e5acfd524a2dcca2cc3d020ab7b2"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallScope.cs",
+      "sha256": "ed351c826efd096219226daa1d643c1012b1086f8da02819406d9c2d5a804b6a"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerApplicationLauncher.cs",
+      "sha256": "96b50ab2ca9a351fb3426226513ed3f21e743ced91e2dbfdf6173a72a1a05087"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerDependencyState.cs",
+      "sha256": "cb4ad314e65d8189cd433b6c41267551efebd840c03e22d87806bff5d12499b6"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerDependencyStatus.cs",
+      "sha256": "0ea3ad37f24e6ec779322320c090979f151257a1e88d5415410b39840e822b41"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerLog.cs",
+      "sha256": "2969667c8ee6f1b131ed07b10ffccf263c22c63e7924121b397aca924c26435d"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerPreflightResult.cs",
+      "sha256": "6ab71eab9bd3fc05d576d2ab410d7e1d6445c29e91ecf9dd05509a303ceaaed8"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerPreflightState.cs",
+      "sha256": "a93312bef24a01b1ac68c33e34ad583eb1bc67703c8bcdcadf5c741389595055"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerPresentation.cs",
+      "sha256": "c97c4a8d5e153b3c8acff53253368a08a6aac437a472534bc7e5374632d2f3f0"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerSession.cs",
+      "sha256": "52c0170fc732ee88e950fa68549f469eb3036bd6486a11642f108e5ce174cfc1"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerStartupState.cs",
+      "sha256": "5e8810b4f6b57e143d80db95f575fa319ac1b27bfc20a0007ce721445976c2ff"
+    },
+    {
+      "file": "installer/Kora.Setup/InstallerStartupStatus.cs",
+      "sha256": "31340225d9afc191fc18f9cd458fcfd902b3083077c70cc7d3d3df0bead619b2"
+    },
+    {
+      "file": "installer/Kora.Setup/Kora.Setup.csproj",
+      "sha256": "840b842b03ccfd696818134c617d960dc139d6643fdf0e333ccbf0ed36c6d533"
+    },
+    {
+      "file": "installer/Kora.Setup/KoraBootstrapper.cs",
+      "sha256": "85fd28da5a7f36b366d8a62c3febc646ebdf009d58e2d74e7a792a3e29b0dc0e"
+    },
+    {
+      "file": "installer/Kora.Setup/OptionalComponentSetup.cs",
+      "sha256": "13b0ed6c1d8462db6835ff77b01884828c2b7f0e13410ca441f13ebeb6f29c99"
+    },
+    {
+      "file": "installer/Kora.Setup/OptionalComponents.cs",
+      "sha256": "47cbbb9bb99a77723d3f57a532b69b1e4d4958324be96e3119e0bda2d30355d7"
+    },
+    {
+      "file": "installer/Kora.Setup/Program.cs",
+      "sha256": "8b24fbf8953fb45cbcf07abb3cabf07babe278071b78ad9d3d0dfe433f8e364a"
+    },
+    {
+      "file": "installer/Kora.Setup/SetupAction.cs",
+      "sha256": "c3f2f6c106facfe2e8305ee88f07aa75e5aa210774ee7ab220538a4e28f693f1"
+    },
+    {
+      "file": "installer/Kora.Setup/SetupApplication.cs",
+      "sha256": "b76d0716a5d7c068ef8bd46554af329d012f2eb8125aadeb6bfbf052f34e1031"
+    },
+    {
+      "file": "installer/Kora.Setup/SetupPhase.cs",
+      "sha256": "37a47bd7c43e1fb4db89566c63f8d39eb9120313c32161f6216cab953722b76b"
+    },
+    {
+      "file": "installer/Kora.Setup/SetupWindow.axaml",
+      "sha256": "6475ff4e6034cfff130c158a9360bbd419d5e7ca366f9bf0c68bee8c6f134ca9"
+    },
+    {
+      "file": "installer/Kora.Setup/SetupWindow.axaml.cs",
+      "sha256": "b67b7342a5b07edf453bd88afced0cbbd3718862ddb306662712401bd77b215d"
+    },
+    {
+      "file": "installer/Kora.Setup/WindowsInstalledApplicationPaths.cs",
+      "sha256": "8d14e3acd14607b796e91638d80afa709c5ababe062bb772a7168348a86bf215"
+    },
+    {
+      "file": "installer/Kora.Setup/WindowsInstallerLaunchPlatform.cs",
+      "sha256": "143cd3ae3d5c23f26d613667c8567fd37bfd24e57c963723cfbb225a33a99b96"
+    },
+    {
+      "file": "installer/Kora.Setup/WindowsInstallerPreflight.cs",
+      "sha256": "e87921cfe3d57d37cff618742c75ee8aa3929399527c8d1ce68418eb3c893c99"
+    },
+    {
+      "file": "installer/Kora.Setup/WindowsMotionPreference.cs",
+      "sha256": "5c9ec6b254bf93200fe53c0b72fad07ebd2e810165d3b7c3327135694eaae38f"
+    },
+    {
+      "file": "installer/Kora.Setup/WindowsStartupRegistrationProbe.cs",
+      "sha256": "9cf0a822d76ebfcb06d04705604dd507cdce55d4c4696fdeee449cadcad6512a"
+    },
+    {
+      "file": "installer/Kora.Setup/packages.lock.json",
+      "sha256": "f6f607e7ae0666f067c0268298daf9c9464724cf0e535b936207c18f940ec3db"
+    },
+    {
+      "file": "installer/README.md",
+      "sha256": "e1a98e86d2bc6d613c1cd366298f8fd5dea56c9c85a4479fb6e763b132cc70b2"
+    },
+    {
+      "file": "src/Kora.Application/AssemblyApplicationInfo.cs",
+      "sha256": "93af5c065c5841035dc5d7bde061b2579a1b476d9becd83f5d50bcbcb735db3d"
+    },
+    {
+      "file": "src/Kora.Application/Auditing/LoggerSecurityAuditLog.cs",
+      "sha256": "1b22a370083e2d572933505ea4b19ea85eff5c5da0230199205efdd314ea76fa"
+    },
+    {
+      "file": "src/Kora.Application/Auditing/SecurityAuditLog.cs",
+      "sha256": "a40b7dad0a40a31b0a200e3d3c6a35aaa7146d6072a467de2574fa0d71ff263e"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/IPreferenceStore.cs",
+      "sha256": "ad948e585c77f2850e54ac2fb97521586758add6916fce12a37f83d0c966cba7"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalAppearancePreferences.cs",
+      "sha256": "b0c91f9fcc0b4a08490b6ed316c0c5110f7648e506149d596cf1da04e003efa9"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalAssistantNamePreferences.cs",
+      "sha256": "b18b8b43f8196866e4f83c17d988030a72a335ce818b49a2f96ba43d55a1b323"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalAudioDevicePreferences.cs",
+      "sha256": "d772fa558b51ee50f360505fd194f333a01a52ce31f640b361900fe7dfd462e4"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalCallAwarePreferences.cs",
+      "sha256": "b790e6a84896784f213f571831feb57130fd16093d8b068df0e80fd86c398a8d"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalModelApprovalPreferences.cs",
+      "sha256": "61a10a681d09d618068da3834321ea9f095f735da546a0ac8120eb21ec92c931"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalOptionalSpeechOfferPreferences.cs",
+      "sha256": "a4602aa176b45e0944cc3fdca79c75e20a198ff36586d28be4030ccf36ef0cc3"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalPreferenceStore.cs",
+      "sha256": "ef5951f4be4490fa942e110cdbeec9b789fe3f725cb255ca07b89de803f1d119"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalResponseOutputPreferences.cs",
+      "sha256": "f021fb562422446c7866c3e29ef4b4ae378772e9bb4132519aaf6e2774f89fa7"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalTextToSpeechPreferences.cs",
+      "sha256": "94b3cd93de570d39e37dcae00353c0a1988d0923ee6049846a0ced3d7d81d701"
+    },
+    {
+      "file": "src/Kora.Application/Configuration/LocalVoiceConsentPreferences.cs",
+      "sha256": "795af750fbceb52417633a439d69060ac337d8436fdac07dbd054b8c0e80e335"
+    },
+    {
+      "file": "src/Kora.Application/Dependencies/DependencySetupWorkflow.cs",
+      "sha256": "0d6b643b40395c9bc1a8544041b708afdd9c037dc754b520c20440cdf7710861"
+    },
+    {
+      "file": "src/Kora.Application/Dependencies/LocalModelSetupResult.cs",
+      "sha256": "daeb16d18bc5f7ad8d7189a3c9eeeda3d89108b275c9ec78104a19c1162a4261"
+    },
+    {
+      "file": "src/Kora.Application/Diagnostics/ApplicationLog.cs",
+      "sha256": "e3c42ae2036c20c2673561bfa4254aa735576102af5671d31bad9bb355e1f50a"
+    },
+    {
+      "file": "src/Kora.Application/Diagnostics/LocalApplicationLogReader.cs",
+      "sha256": "4630864503d1df6b6f54cc19e9448b22945b18f5f7ae53fccb56c333327f6710"
+    },
+    {
+      "file": "src/Kora.Application/Documentation/EmbeddedUserDocumentationProvider.cs",
+      "sha256": "1f6b0da3ffed56bfcd9d393a970c7163422f030c275b16793f2c444329955663"
+    },
+    {
+      "file": "src/Kora.Application/Documentation/IUserDocumentationProvider.cs",
+      "sha256": "16c4a9b041aa3a6ef3464846e6dbb80f0303616adb4ff31ba79861fddac7ffe8"
+    },
+    {
+      "file": "src/Kora.Application/Documentation/UserDocumentationPage.cs",
+      "sha256": "3e44e971f1eab5c6a1e25dda9cfeb2536d2f75cd7daf36517109887f976ee21a"
+    },
+    {
+      "file": "src/Kora.Application/IApplicationInfo.cs",
+      "sha256": "012f4af379cf43e17ad0bc240c9e0451eb48d904998ce0a5cea4f8e7df40d1b3"
+    },
+    {
+      "file": "src/Kora.Application/IUiDispatcher.cs",
+      "sha256": "761a5736f38b0580099b59c7833f0c1530e1449bc83d8ecdba934ac147fc2739"
+    },
+    {
+      "file": "src/Kora.Application/Infrastructure/AsyncCommand.cs",
+      "sha256": "5f5dc4894f4a1fc08fe76499936ee296a53fa43e7a05a551cd1fc45a3630f2cc"
+    },
+    {
+      "file": "src/Kora.Application/Infrastructure/ClickSequenceOutcome.cs",
+      "sha256": "8a044303f651a92efe2d5bd007ae3363abfb3ab96d0aba0b1883afeedb5e4ee7"
+    },
+    {
+      "file": "src/Kora.Application/Infrastructure/ClickSequenceResolver.cs",
+      "sha256": "f8453fbcab2ba4fafebeee66794b97416c15f4b43853cfa75c437491d871e4e5"
+    },
+    {
+      "file": "src/Kora.Application/Infrastructure/ObservableObject.cs",
+      "sha256": "9766a3c94d2adde5b343a98ac1905d6eb5e5cf3176b1c5f18220dcb22e8b53e2"
+    },
+    {
+      "file": "src/Kora.Application/Kora.Application.csproj",
+      "sha256": "01ea2412f7b31f3dbeb7d4af25288cd7c35e02940a6e1a1cf512f6fad375d247"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/AssistantStateLabels.cs",
+      "sha256": "bb3ab7f2861b3d13710cfa964edd1f28fc55ea793540914c5d0e93c399fd854b"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs",
+      "sha256": "5b45afc58d59e194550f223115c39c5e03f2cb7060dedd8a3268bd5462d2bf86"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/MainViewModel.cs",
+      "sha256": "5720e5890769a8aaf39337586fd5b0d5f92cfd5d770cb58fd85fc2f822435ef4"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/ModelQuestionChoice.cs",
+      "sha256": "84009e87b0cacefc5976dc312a0c10b41e22e5eabcc8f8fdf7bf76639198972f"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/ResponseAction.cs",
+      "sha256": "387eda6c345e5969c37c5a50571bac36f29dc61711288c87c5ad4046ee0fb3f9"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/ResponseActionKind.cs",
+      "sha256": "d8d7d07e7e53a92c70940fcd7da6eb533bd6965e579dbfc2a6f419066b9f1c3d"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/ResponseModeOverrideOption.cs",
+      "sha256": "72f045443d0761d15cebd8b1140d610e5189b7a82662df3687b640b278b29d7f"
+    },
+    {
+      "file": "src/Kora.Application/ViewModels/WindowAction.cs",
+      "sha256": "4932019e3600d7bee1592d654e6a9f49d1c969fb32e3d9cf004304de637ab88a"
+    },
+    {
+      "file": "src/Kora.Application/Visuals/PresenceAnimation.cs",
+      "sha256": "de0042cddc109e831a70947fdd6a1fb147fade7b7f093625013a2fd7bcd036f8"
+    },
+    {
+      "file": "src/Kora.Application/Visuals/PresenceColor.cs",
+      "sha256": "9dc682bebbb0b602772e1db183704f7215e5b09888e90f2bf40caf68918c4b58"
+    },
+    {
+      "file": "src/Kora.Application/Visuals/PresenceVisualFrame.cs",
+      "sha256": "cac80fde01c3dd76362d2d4da7951e2969fd44b47aa7e85b311ce27d5e0f3060"
+    },
+    {
+      "file": "src/Kora.Application/packages.lock.json",
+      "sha256": "ea9b9f9613a98483fb55ffba313980abefbd9498d36781be19d636890922cdf3"
+    },
+    {
+      "file": "src/Kora.Core/AssistantState.cs",
+      "sha256": "576e7fc59a0cac28ea68f99f4ec94d44a73739500e0ff74d67ff4aee08c7c5db"
+    },
+    {
+      "file": "src/Kora.Core/Auditing/ISecurityAuditLog.cs",
+      "sha256": "3a39d8b78f66e0b02e4a3c513f92dca0ad70382838fc124a06eb5691aa996603"
+    },
+    {
+      "file": "src/Kora.Core/Auditing/SecurityAuditCategory.cs",
+      "sha256": "8b280f8d00528399ad00af785e59f42fcdb11f7428d96008a740e4bcef47af37"
+    },
+    {
+      "file": "src/Kora.Core/Auditing/SecurityAuditEvent.cs",
+      "sha256": "e4d0780be0a61f068476d2ded36b40fed76b729f7ded3b12973d4aac74ebe101"
+    },
+    {
+      "file": "src/Kora.Core/Auditing/SecurityAuditInitiator.cs",
+      "sha256": "c765a3c8cf817bc1edc6edaf141240067e4a9c2350bd8c543bbb344e9c919861"
+    },
+    {
+      "file": "src/Kora.Core/Auditing/SecurityAuditOutcome.cs",
+      "sha256": "20393f44cd9eafeb8330386c7ccc0fdf6d27b01d2bfaa22ee68731c5771a0c41"
+    },
+    {
+      "file": "src/Kora.Core/Commands/BuiltInAction.cs",
+      "sha256": "e05b13e6ede0c33275fb78fe255861d4edb275d735ae413edc92878ff2b93776"
+    },
+    {
+      "file": "src/Kora.Core/Commands/BuiltInCommandCatalog.cs",
+      "sha256": "b9c2b02ba6b99dd02c7bfb1276abb3580416e000f63da5afdc1a3bd200bf2758"
+    },
+    {
+      "file": "src/Kora.Core/Commands/BuiltInCommandRouter.cs",
+      "sha256": "639963836b040b61855d78ea5e11700e425dabfad59c2a3ea3bd57f65733a4f9"
+    },
+    {
+      "file": "src/Kora.Core/Commands/CommandDefinition.cs",
+      "sha256": "aa9b87caa4e6daccf0f7398dfb95b4c3436c4f56e98528eccf4485e5b83fe765"
+    },
+    {
+      "file": "src/Kora.Core/Commands/CommandMatch.cs",
+      "sha256": "ba9069167117a832bee9fa4b031d4ccabf262f2276960e24815bd960dbb88340"
+    },
+    {
+      "file": "src/Kora.Core/Commands/GrantChange.cs",
+      "sha256": "7bd4d49eaefbb12c9bc4883bbc8e6fcd3635d549116dba02b800475150c766ef"
+    },
+    {
+      "file": "src/Kora.Core/Commands/GrantChangeOperation.cs",
+      "sha256": "24704080f95763de062dea943b23b2caaf0996a8b7d69251e2ad067579ba1161"
+    },
+    {
+      "file": "src/Kora.Core/Commands/IModelApprovalPreferences.cs",
+      "sha256": "1dfcc1236f4774e49aacdd02718329a8f7f915a4a3a4e9bc1c6feece92f24b4c"
+    },
+    {
+      "file": "src/Kora.Core/Commands/ModelApprovalPreferences.cs",
+      "sha256": "a03fba0f8c3f9354f6124e077e7b4f772f6cbddb533ce0130f28e328e3459684"
+    },
+    {
+      "file": "src/Kora.Core/Commands/ModelApprovalReply.cs",
+      "sha256": "5634258c00da97ae23c62f239c6a9335fa348092b65be7bde4f5c5d421f5200b"
+    },
+    {
+      "file": "src/Kora.Core/Commands/ModelApprovalScope.cs",
+      "sha256": "0df56b595b1e7c894c02ca1da37167fc52d524759e9666830d015b16e61fa01b"
+    },
+    {
+      "file": "src/Kora.Core/Commands/ModelApprovalSpeech.cs",
+      "sha256": "f98a5b5ee1a78c6f8c6d2e09ff933c0c39eb5f15de19f44498d1aaa67254b45f"
+    },
+    {
+      "file": "src/Kora.Core/Communication/CallAwareSettings.cs",
+      "sha256": "9f3d05270cc9c81244a9bea8670e900dadac46c227305d161c7c81fce9e341ed"
+    },
+    {
+      "file": "src/Kora.Core/Communication/CallState.cs",
+      "sha256": "5666867f1f8544495b045d75a86fcc4c9adf0214ef28cd0e01137b16e0af930c"
+    },
+    {
+      "file": "src/Kora.Core/Communication/CallStateChangedEventArgs.cs",
+      "sha256": "e39206633e65619d0dbab4e75491e4855495b691a8871f758c23dee91203c31f"
+    },
+    {
+      "file": "src/Kora.Core/Communication/ICallAwarePreferences.cs",
+      "sha256": "77e5d3f3a0630ea6aaf20a45f50be4516f9be30d15310d72679d2808ae579b8e"
+    },
+    {
+      "file": "src/Kora.Core/Communication/ICallStateService.cs",
+      "sha256": "f7a5d8ca3f803708990d77657bb41e2f3424578759b15ef094b6f11a48f4614b"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/ApplicationThemeMode.cs",
+      "sha256": "902d5651f11f686ce4e38b2ef19226ed0484741436144ad0fee49873b256de49"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/AssistantNameRules.cs",
+      "sha256": "1498230b29f895e0d90664474dea406350aaa263164b5032b9ae39b90b02c069"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/IAppearancePreferences.cs",
+      "sha256": "9121e902ec6bf3f4febf1ebff558d0bf1f533acd7762343354d13d4c9a1f5d5c"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/IAssistantNamePreferences.cs",
+      "sha256": "69e8ca9269d2c586e9854e752ebdb669a40644d8625a773e5003afdb20bd2eb3"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/IPresencePreferences.cs",
+      "sha256": "3fa482ad4f9024cc950191a2ed98e984bfa1b5a3eaefc50218c2c88b2b3f77d8"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/IResponseWindowPreferences.cs",
+      "sha256": "afc0d44e96fd6c813daab890510f54156f4db21e6a6e3dce72c8ea76f5fadaac"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/IThemePreferences.cs",
+      "sha256": "6eb8f3dfbf84ef673383e21e6c0b3dabd4249f59d4dd17bbcba246854efecc11"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/PresencePosition.cs",
+      "sha256": "66970f6719f17c35ec8cb4424313c79333ded78d9fd91fe93b46aedef19eab2a"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/PresenceSettings.cs",
+      "sha256": "31c5065e4eab67fde995db1c02c575b36220e96a616742242f8cac833a93a1a0"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/ResponseWindowPosition.cs",
+      "sha256": "1da358cfe3e074e7a88e971f8eb35ae83e6c7d1a27a817e773829bc15fab2a53"
+    },
+    {
+      "file": "src/Kora.Core/Configuration/ResponseWindowSettings.cs",
+      "sha256": "fb2b0d2bf3f0ade61386eaf37c87e86f29d51963becfe3f547eb3d8f8bad1faf"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/HandoffStage.cs",
+      "sha256": "0a7d07e8d2dcb1bcedccd063092451c221fb95c2a58d180a02cb5fc87f579825"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/HandoffTransaction.cs",
+      "sha256": "54673e4128abebaad7a46f54b320bfeccb27156d3419c285c296c62f2761c0ed"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/IInstanceCoordinator.cs",
+      "sha256": "156b8e432895e3d96c0ff7a158f187d2d35c399f9a1680417990c80212a1e6c4"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/IInstanceHostCallbacks.cs",
+      "sha256": "c9dd5c17af47546fca0fdcd6e8135ac712cf1dda329b14d18428362388b6bc16"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/IInstanceLifecycleController.cs",
+      "sha256": "f0e303be389f425efb2642af8e85f661e8a88971a81bd36ecd0ae5aabb36dc8d"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/InstanceBuildIdentity.cs",
+      "sha256": "e94f5b68cb06541f58aca1256b80b166901779b890214767e11a3e51b59f21aa"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/InstanceProcessIdentity.cs",
+      "sha256": "c4c69d1725a169ebe8fd53b9c0f0d5a889f24844eba79e63bd99c8fa84af16a7"
+    },
+    {
+      "file": "src/Kora.Core/Coordination/InstanceStartupDisposition.cs",
+      "sha256": "f444e42e6592263acf82a10de371fa84dd4f46dd70e6401bedd9a8f0e0352b13"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/ApplicationDataPaths.cs",
+      "sha256": "98a70d25dc27cd8b0faa236db873a209473d8cd18bd525ef735d257e274829e0"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/DependencyBootstrapper.cs",
+      "sha256": "02bc4141e30f2ff2c543761ff7026ebb9ef6ae04c2ebfb2ea99e2e5cdff68df5"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/DependencyReadiness.cs",
+      "sha256": "3a3aeb956639c9fd4539f488134b904b58fa02753234c29e5c323e3dffe4d2d8"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/DependencyStatus.cs",
+      "sha256": "c26d006a2c90124bb7ecaccdc24676f7e8e2a6a82d4a88c9b4164ee4ab705c2c"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/IApplicationDataPaths.cs",
+      "sha256": "d8b28cfa9b6855d64ccc16a870eb3972403c79d40e67f60b8da4d4a44c976c75"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/IDependencyProbe.cs",
+      "sha256": "bc09edb05bf23cf376ad1565eb2a80b8b5ab5900d817edd0fdb3830cb778092b"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/ILocalModelReasoner.cs",
+      "sha256": "e76837c6e4fe60f9534e9910f96ba348c0774ec3dc3989abe4c8054795a74eca"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/ILocalModelSetup.cs",
+      "sha256": "5d4db282f5cd36e8e75dda73de452c2fd277508270b8b7bccb5d1cd0172cbc46"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/IPowerShellSetup.cs",
+      "sha256": "efc06599de8074de5f0a81e3194069126b0bac0a564b55ef869806f1fc939f71"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/ISetupDependencyProbe.cs",
+      "sha256": "864d423e74b8a58d0dbea7ad7cc7a06c2cfeab5cb71f61aa070a849d71d06e69"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/LocalModelContext.cs",
+      "sha256": "68e8224c7c6a1655117ccca1bf839a1ce7d20f027c84233b5cdd92c997df5f15"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/LocalModelDependency.cs",
+      "sha256": "6a04bb2fc8f75017730b42b597741ad1a843527d995fb4c5838af6a97db2c361"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/LocalModelQuestion.cs",
+      "sha256": "b1d4d39d4cb1b6520deb414d238351e22362c3f735be6ed4851e82f283ffeb7c"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/LocalModelQuestionSpeech.cs",
+      "sha256": "ad4b4e6eea804cf0f4bf01ae6f0fe6a05a02a13828d8bf14da81398088c6ee6b"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/LocalModelResponse.cs",
+      "sha256": "b66a1bad729302ee6294e4e596e8749e3df53944eaebe0dffb818bc0b75cf666"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/LocalModelSetupProgress.cs",
+      "sha256": "fe2221b90d6d20ab0e42aad029d183821f1154ced169cbfa7210f052c21100db"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/LocalModelTask.cs",
+      "sha256": "1ac5e7dd3ed66237852a12a1f99f08e1b695292176ba49e55cad17d4bffd2747"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/SetupTask.cs",
+      "sha256": "ac4bef4f4fb3394dfcb597baa9727ba23566c60c8da0916ab6db1a7b50559f2d"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/SetupTaskLedger.cs",
+      "sha256": "7d2bf993e48189a81c17ea1a087f50e69d4a72873a3d0fd29569f568619e831b"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/SetupTaskState.cs",
+      "sha256": "37beef51d82ba69e8228135dabd2f5e2a92a2fd35c5fb8c9a01b089ce26338df"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/SqliteDependencyProbe.cs",
+      "sha256": "dbdb436a3dfa3254044551b0156dec5bc8cc935f775d02894087230933d39585"
+    },
+    {
+      "file": "src/Kora.Core/Dependencies/StorageDependencyProbe.cs",
+      "sha256": "e8cc6f08433a5baf6e566a81e77f77b0cc25f0903f21868bc4580d6194ad0495"
+    },
+    {
+      "file": "src/Kora.Core/Diagnostics/ApplicationLogFile.cs",
+      "sha256": "ea66b7e904981d604492c2eefe3c2e870c3fdb730cb79664b3c7be025b289990"
+    },
+    {
+      "file": "src/Kora.Core/Diagnostics/CoreLog.cs",
+      "sha256": "c844a8baf2f0b7636b558800a4a8a40c1dca14015d52b661b248c665e18e4554"
+    },
+    {
+      "file": "src/Kora.Core/Diagnostics/IApplicationLogReader.cs",
+      "sha256": "ce807194dd95756980ac8cdb4be9b4bcaa8a183652ccae512b526776855bfffd"
+    },
+    {
+      "file": "src/Kora.Core/Kora.Core.csproj",
+      "sha256": "9696e1512629c4befe7e23df8f2d6bc240e6eaccfe244e403a2941b2b8de9918"
+    },
+    {
+      "file": "src/Kora.Core/Platform/IApplicationProcessController.cs",
+      "sha256": "0776602a61a50f451cc379ecda3d755a9842f490e3804e78464cd54e6710e579"
+    },
+    {
+      "file": "src/Kora.Core/Platform/ICurrentUserNameProvider.cs",
+      "sha256": "35ee98c5ad0207f9e41c2d7bac71b7664ea77e32f6cd941a3f99aa00d32f35b0"
+    },
+    {
+      "file": "src/Kora.Core/Platform/ISessionController.cs",
+      "sha256": "2e4383cc4d8f2230f3e83ac811b40ef847565b6a1753e61988c5064b75689999"
+    },
+    {
+      "file": "src/Kora.Core/Platform/IWindowsPrivacyObservationService.cs",
+      "sha256": "c19dbebff12574a441b11beb02c00f4b99cbf80e4523fe37f7dfb30bbbef942d"
+    },
+    {
+      "file": "src/Kora.Core/Platform/WindowsPrivacyChangeReason.cs",
+      "sha256": "b7a80dbc74ef84a9bcbec2d3c47786ac4112b2da1b0b5fcb2578226f424b52b2"
+    },
+    {
+      "file": "src/Kora.Core/Platform/WindowsPrivacyChangedEventArgs.cs",
+      "sha256": "50f0bd4059299e3f9c9aff99e85278fe48b93945182d2580b5a9fd128ac1075b"
+    },
+    {
+      "file": "src/Kora.Core/Platform/WindowsPrivacySnapshot.cs",
+      "sha256": "63b00affd504418b96adca5bd4ea7fae5b12735d03996c601524b2a9cec75308"
+    },
+    {
+      "file": "src/Kora.Core/Platform/WindowsSessionState.cs",
+      "sha256": "26f7b828771a12e3a8ae901227e2bdc8298439bc0a2cdd89b93b570acdd6e75e"
+    },
+    {
+      "file": "src/Kora.Core/Voice/AudioOutputDevice.cs",
+      "sha256": "5b4c602788dded8f005ce71d7dc3653fa96cc1a6a0bfd88deebd690dba91a210"
+    },
+    {
+      "file": "src/Kora.Core/Voice/AudioOutputDeviceUnavailableException.cs",
+      "sha256": "e17e5e61ac32f633f79876c26bd7116fe5a46ad5de6aede8a851cb624f810a51"
+    },
+    {
+      "file": "src/Kora.Core/Voice/AudioOutputFailureReason.cs",
+      "sha256": "ddbc3b93a4c3aa8603b71500d87132a5dec3850ea7f78c3cb507432928c55297"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IActivatedVoiceRecognitionService.cs",
+      "sha256": "069d35300e31339eac77d689110b2bac4760e1f9ec609ce060ddd8a710287f95"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IAudioDevicePreferences.cs",
+      "sha256": "55c423334c0e63e10b847a65260b7a717416e850f0ffa335fc4b3a70e16f7bdc"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IAudioOutputDeviceCatalog.cs",
+      "sha256": "7046596fd3af38ab1a7727fe469fbf9921982c2dfc07ecb5a4dc40ca415e923b"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IMicrophoneAccessService.cs",
+      "sha256": "0a19e54631527be7ab942045d3f2aae7c1ba33fe1dbfd7767887116a5a40f3b0"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IOptionalSpeechOfferPreferences.cs",
+      "sha256": "43ae648e4abe33a52e949207479dab3931d8063e36a712bed21ace488b4e01d1"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IResponseOutputPreferences.cs",
+      "sha256": "0eb342faf5fe048fff33c4d9506a763270780ecd5936e39722902c021edfeac9"
+    },
+    {
+      "file": "src/Kora.Core/Voice/ISpeechCatalog.cs",
+      "sha256": "6161d4b8a4c73d39f13a2c9587bb960d99c19740aa0bf7c7cca0acb916bbabd3"
+    },
+    {
+      "file": "src/Kora.Core/Voice/ISpeechPlaybackService.cs",
+      "sha256": "fdc8676f20ffa1dfc18eea9128d8f97e53d648bacb46b5ee8e274d5c90e87be0"
+    },
+    {
+      "file": "src/Kora.Core/Voice/ISpeechProviderManager.cs",
+      "sha256": "25d4463af680b4568b72a4841d4a44d2c9a836705bae37e981846805eea3c10f"
+    },
+    {
+      "file": "src/Kora.Core/Voice/ITextToSpeechPreferences.cs",
+      "sha256": "3fbaf9bbc003054af7e984db72679b075d4d4e84217dd576dbcab974542ee877"
+    },
+    {
+      "file": "src/Kora.Core/Voice/ITextToSpeechService.cs",
+      "sha256": "e009e58163df113a437c6c4d26229a0d8256dc47ef53c469945048877b84c14e"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IVoiceConsentPreferences.cs",
+      "sha256": "9bed7a600849b528527a40cb0bf16d34815875e2a63b75917c9c2b965f334511"
+    },
+    {
+      "file": "src/Kora.Core/Voice/IVoiceRecognitionService.cs",
+      "sha256": "c6b265ec4984b6e5ef96861500727513b78411331b1bccc4ecc7bf9531f8dd47"
+    },
+    {
+      "file": "src/Kora.Core/Voice/MicrophoneAccessState.cs",
+      "sha256": "097ac05a47f7ede3bffa6747530c11cf820ddaa7bee299f512d45c4d4f933fd2"
+    },
+    {
+      "file": "src/Kora.Core/Voice/MicrophoneAccessStatus.cs",
+      "sha256": "ab08f47192460873e6835e11ab68e3859455fab33bee6ca714e9898d0616d0cd"
+    },
+    {
+      "file": "src/Kora.Core/Voice/MicrophoneDevice.cs",
+      "sha256": "60d9439c940164d167f3155e16e76ab2f6e0b7c0fa811477fcd3a12afcf50c84"
+    },
+    {
+      "file": "src/Kora.Core/Voice/OptionalSpeechOfferState.cs",
+      "sha256": "9f6830d7fe09b8be132f65f491b55bf813280b44f84455209ecfa975f630e8d9"
+    },
+    {
+      "file": "src/Kora.Core/Voice/OptionalSpeechProviderOffer.cs",
+      "sha256": "c70da6ece187ab9f10f603fb78dc7555efc63d5c66a85f5f4b3f9f941643a074"
+    },
+    {
+      "file": "src/Kora.Core/Voice/ResponseOutputMode.cs",
+      "sha256": "17d439df00ab26119719f35b3806002a5cab70e50f7263b78b98eb3f5fb3052e"
+    },
+    {
+      "file": "src/Kora.Core/Voice/ResponseOutputModeResolver.cs",
+      "sha256": "f544ae80be3f95242be1f37024b0eb15ded332702021b496e8eb5b3b94d4651f"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SpeechProvider.cs",
+      "sha256": "3c1cdb3b8018f95b962f6217486dfb3e1badb92e563e0834bf32b65e2e85fcd3"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SpeechProviderIds.cs",
+      "sha256": "1c9d006ecdf7e0fcf23299236dc276c517ef3f63c2959d2a4207c219f50207fa"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SpeechProviderInstallProgress.cs",
+      "sha256": "54b0767cafd0df9d15e59a39ffe24adbaa44e16743e6058dd0712696d935fc80"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SpeechProviderInstallStage.cs",
+      "sha256": "331bd9e56f5791d35d9f49e72cfcd0610228f097a1e36165a9f59346adf564dc"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SpeechVoice.cs",
+      "sha256": "88e214b0bde17ef453e37636f88490215f830ee740ac2a81a09d1c8a10293358"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SpeechVoiceGender.cs",
+      "sha256": "9c6bc50e449c8e24e482b8b152354dfc3f4a00fda16052c7b50b97b23e0aa1f6"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SpeechVoiceSelector.cs",
+      "sha256": "13d04a28cfa2610d09c0c22ce7e1f279d07c2bf5b5168eb7ba7467c3449f2a1d"
+    },
+    {
+      "file": "src/Kora.Core/Voice/SystemAudioDevices.cs",
+      "sha256": "badd0a21a0a6c133bf086d3fa1c2115e68a45005719cb16314ce80553cefb324"
+    },
+    {
+      "file": "src/Kora.Core/Voice/VoiceCaptureStateChangedEventArgs.cs",
+      "sha256": "e1c87269265b23f715d2a17e12806ba7848e314743b86f45f0d0529f03464fb4"
+    },
+    {
+      "file": "src/Kora.Core/Voice/VoiceRecognitionCompletedEventArgs.cs",
+      "sha256": "07d92a5b3afbb6f369497e6378efe47cc307985deef060d4e2d0dfdb8234b3b9"
+    },
+    {
+      "file": "src/Kora.Core/Voice/VoiceRecognitionCompletionReason.cs",
+      "sha256": "4a8d1f7314ebb75d6c36533e8d52d16c50270a5d0d9390f2e4729789ea6992c5"
+    },
+    {
+      "file": "src/Kora.Core/Voice/VoiceRecognitionFailureEventArgs.cs",
+      "sha256": "1e63013b60816a6a7edd56650a4951835bc436f6c18ccbe20342cdbce24c4a65"
+    },
+    {
+      "file": "src/Kora.Core/Voice/VoiceTranscriptEventArgs.cs",
+      "sha256": "e7deea385c161c9b609808c71a861f90636a539b23e8ece139bce7678a7661ac"
+    },
+    {
+      "file": "src/Kora.Core/packages.lock.json",
+      "sha256": "6d89e137683584e0114760d5c698aa686740c2a9d0ccc7a650bdb81b701b3127"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/ActivatedAudioAvailable.cs",
+      "sha256": "16f12184e0090ebd545caee444394f5541da418a99efdf33b6708fd9788a9879"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/BlockingAudioStream.cs",
+      "sha256": "90857850124006bdd4d9e030b84aa646d475db935db19bbee701eafea2664101"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/IActivatedCapture.cs",
+      "sha256": "4b07350c8dd5507d484e61d3ed18b04e4c51511b84fd7cf6e54689ae1134c05a"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/IActivatedCaptureFactory.cs",
+      "sha256": "3fe165c91d2111e1b984f2082e1508d6741a1e32ddec4108b3bac640f8e740a7"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/KokoroAudio.cs",
+      "sha256": "f84dc662aaa88c63ac642ff7aa7fce91ec05c35dc8be4be0232eb1ed5fe94a96"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/KokoroTextToSpeechProvider.cs",
+      "sha256": "91fd5eda32b58efb340c3ad41b1bf3fbba4c87fb95ec178a09110b9b1479dc72"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/VoiceCaptureLimits.cs",
+      "sha256": "7cff4f60b7cbc404976f9ec93dce67c19e4222675ac67f166fc0f34cf6696c32"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/VoiceRecognitionShutdown.cs",
+      "sha256": "337ba29821d939074c2409c72b8fe1354d31a5169229fb854214755b09fb2d45"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/WindowsActivatedCapture.cs",
+      "sha256": "8d63475dbd6230b61eabd01c57db05a5b04342a6adafdfe61c5dac92758348c4"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/WindowsActivatedCaptureFactory.cs",
+      "sha256": "75a26bc1d39b819a27870c46b838a8ed66a817d71ac85be156aefa5213d9ca57"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/WindowsCapturePrivacyGate.cs",
+      "sha256": "2bef269db35ee9bab81a4bc609c10887a12136469554b5c7d61f565fe4c0cd7c"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/WindowsMicrophoneAccessService.cs",
+      "sha256": "39d0805d45a8031dbc8952d5bc26ebc8ee2ce805463582096d7129c9b5d58218"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/WindowsTextToSpeechService.cs",
+      "sha256": "e86de50e3973cb69c1c1ac9ab0c453c7f076beb7072153f614819117e4570d1f"
+    },
+    {
+      "file": "src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs",
+      "sha256": "e49a1bc7d0bc3e97a84395e4bad5ae6dd69891c49b64809f31c420259fefc208"
+    },
+    {
+      "file": "src/Kora.Windows/Communication/UnavailableCallStateService.cs",
+      "sha256": "f3a5487d0038f3ed9718b943361b655324b20659f6e6094997ceefc681fb2012"
+    },
+    {
+      "file": "src/Kora.Windows/Coordination/CoordinationNative.cs",
+      "sha256": "11349c422cfcd065c9b183ac0442064272df74cf62a83e6bc6789e750f6c33d5"
+    },
+    {
+      "file": "src/Kora.Windows/Coordination/InstanceMessage.cs",
+      "sha256": "40706d79332f6e7ca3e9950e3403a43af81fac53dc3a3fe084ea98c9a6af54ad"
+    },
+    {
+      "file": "src/Kora.Windows/Coordination/InstanceProtocol.cs",
+      "sha256": "f416c86e85e0634af1c4b32fa403cc7d0115b18a7dcac96b532bea7fd3eeafe6"
+    },
+    {
+      "file": "src/Kora.Windows/Coordination/NativeLifecyclePrompt.cs",
+      "sha256": "bd8d60480ad9b404628a528afd191290865618a2e81f8e4771ec526d0ac8ce54"
+    },
+    {
+      "file": "src/Kora.Windows/Coordination/OwnerContinuity.cs",
+      "sha256": "74ba5b23d8b5f09b34fd9616287e17ac6d18afe90ea2f32ed3f241f6c0ae421f"
+    },
+    {
+      "file": "src/Kora.Windows/Coordination/VerifiedInstanceProcess.cs",
+      "sha256": "ae9a680aa4a3c84b5adbe6a089eba84c1a700f3729494c86005ecc5268fbf179"
+    },
+    {
+      "file": "src/Kora.Windows/Coordination/WindowsInstanceCoordinator.cs",
+      "sha256": "251e18b964f3fe2c367e83846aee0788376e7dd6df97ca8640f44fb3428bf1b6"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/IOllamaProcessRunner.cs",
+      "sha256": "d22b724fb015a87c0ebd4814d5b35b6d1d3df8f25f80a6b2200c5d5415301ca2"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/IPowerShellProcessRunner.cs",
+      "sha256": "3d267204c2d526debc8b888dd787fe8131337324d7623717f33d99bed44f4b27"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/LocalInferenceDependencyProbe.cs",
+      "sha256": "dccd71689210f59798c83d5d003f9db054e7a4b1b9164c9f11772841e898eb2a"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/OllamaInstallationState.cs",
+      "sha256": "5666baf05b02b7e571e65b9d151b06023f62b478d4eb1433061169720e1cee0b"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/OllamaInstallationStatus.cs",
+      "sha256": "720421206efe636e81cf2de5062fd7c0d3997b26cd71648cdfc05c4a89d8e8f4"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/OllamaModelIdentity.cs",
+      "sha256": "a7d0277949865e23a40d3ab8c97f7d4cb4ee59c5e4b91b51dad37ecbe204c5b6"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/OllamaProcessRunner.cs",
+      "sha256": "b9e4690eea53647b6db6544bcf78ea83f0c47ad4937ef5924e60669f4d0a21f7"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/PowerShellProcessRunner.cs",
+      "sha256": "9f09d1ed1c3989a67d2846f93dd85d41fb377db937036c1935bfa61dffad1cba"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs",
+      "sha256": "64042e4ff57f22d347bd8e2a585b628ae8193e0ecac2283cb9136f4c0d6887ee"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs",
+      "sha256": "f2d5766e5e91a6f3f8713286d40bbbf278b6086f3353b700e85be1944e2b3b3f"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/WindowsPowerShellSetupService.cs",
+      "sha256": "732e540e2e2c890a07561bb54480fc2034746b453a8bd4560e21e66b90b97877"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/WindowsTextToSpeechDependencyProbe.cs",
+      "sha256": "977e0df137ce0ba18f53c85b2699c89c6e791359c556df2c5c7e49d1eaac98f2"
+    },
+    {
+      "file": "src/Kora.Windows/Dependencies/WindowsVoiceDependencyProbe.cs",
+      "sha256": "ca1bcea532878622893b89a1a3fd9c6c38d407114ed72d355ab920ced0a3aeb5"
+    },
+    {
+      "file": "src/Kora.Windows/Diagnostics/WindowsLog.cs",
+      "sha256": "e72f122e761b8791f35ad0a2a1afa521257a88cb8453cae385f6c684c458c5ae"
+    },
+    {
+      "file": "src/Kora.Windows/Identity/WindowsCurrentUserNameProvider.cs",
+      "sha256": "4a12d8b413adccccf1e5768eb34250ff95c2dba5b5af6dd0bd7fbc4bdde736c4"
+    },
+    {
+      "file": "src/Kora.Windows/Kora.Windows.csproj",
+      "sha256": "b9b9de104ddd21c76e41620e59ef88fac55d3276277589b53cd108906b1889cf"
+    },
+    {
+      "file": "src/Kora.Windows/Properties/AssemblyInfo.cs",
+      "sha256": "867cba17e031e05b171b72487161a74db6e4cb8034b1404fb31afe4451743082"
+    },
+    {
+      "file": "src/Kora.Windows/Session/IWindowsPrivacySource.cs",
+      "sha256": "df221d258ec4ff31de032374bb8566fdb8f29d22ae9b49abacf3ffe547089fd9"
+    },
+    {
+      "file": "src/Kora.Windows/Session/WindowsPrivacyObservationService.cs",
+      "sha256": "c89fa258440e5fe4e3e1479d8d37c7614f393f052ea76761da2a0c5d24fd90d7"
+    },
+    {
+      "file": "src/Kora.Windows/Session/WindowsPrivacySignalEventArgs.cs",
+      "sha256": "1bdfc4143537032ef5716c8299a0a90f24c13f2f259add0531926eb22b7d01ea"
+    },
+    {
+      "file": "src/Kora.Windows/Session/WindowsPrivacySource.cs",
+      "sha256": "f097dccc67c5fd54dd91e0ab56bacb3d460ee1f1da3f5c5a4097f1d343fdec96"
+    },
+    {
+      "file": "src/Kora.Windows/Session/WindowsSessionController.cs",
+      "sha256": "3c810fd1515578d34912a6ae8ba9ec9c7799601404de6b49a07aa45b8cac9e88"
+    },
+    {
+      "file": "src/Kora.Windows/Session/WindowsSessionNotificationWindow.cs",
+      "sha256": "1f8126d0006de0f5bdd195e45b7b8cfbfcaa8e96c6bf0c22d5dbc1a592957b78"
+    },
+    {
+      "file": "src/Kora.Windows/packages.lock.json",
+      "sha256": "fce08469916895cbd45a83d0719145c9417c52684a1180aac97a3f825ba68d6c"
+    },
+    {
+      "file": "src/Kora/App.axaml",
+      "sha256": "d3ada905dfa94ee49d0fc164e140adb211874ecee45a98fcdbcc61444469e275"
+    },
+    {
+      "file": "src/Kora/App.axaml.cs",
+      "sha256": "6049048c90344c91ac87771ad631f7742bca275091db21997d6ab4198a730099"
+    },
+    {
+      "file": "src/Kora/Assets/Kora.ico",
+      "sha256": "476666e8cfca2a8795d2123293be5e305ecdc12a676a8b9003631d113a525931"
+    },
+    {
+      "file": "src/Kora/Assets/ThemeResources.axaml",
+      "sha256": "69c0759c9d1d6d657c31baa576f5c9dc8cd7e17b814991979631deedb3363368"
+    },
+    {
+      "file": "src/Kora/Assets/ThemeResources.axaml.cs",
+      "sha256": "6067181d49b42f22a235b038e395dbbdc2112e7977decdbdc59e59e832d88e82"
+    },
+    {
+      "file": "src/Kora/AvaloniaUiDispatcher.cs",
+      "sha256": "540c0c3911985e1cdc9628438be94dd143418f8aea342948dd288d29c9ad9069"
+    },
+    {
+      "file": "src/Kora/Controls/PresenceControl.cs",
+      "sha256": "09328543b67cd19b14154c0014ad2c54573ddac8456123bd724a5afb7838c60e"
+    },
+    {
+      "file": "src/Kora/DesktopApplicationProcessController.cs",
+      "sha256": "32d6a282b80ea31d2b7e71bf0af1db0cedcc619e5b04caed7527a07940bdbd75"
+    },
+    {
+      "file": "src/Kora/DesktopInstanceOwnershipBridge.cs",
+      "sha256": "e34db893d61f1cb0df42e143c485e8c7c4a822bd28146fb83e954ec324dba0fa"
+    },
+    {
+      "file": "src/Kora/DesktopLog.cs",
+      "sha256": "f7700ab8db3b2cc4c53f6b0aec82be969bd8a58b93ae884321743a72e8b4f334"
+    },
+    {
+      "file": "src/Kora/DocumentationWindow.axaml",
+      "sha256": "8f33e261d7e807a3aa22be6e5c8f16431b737a5bec2b2c7a949b099b6662954d"
+    },
+    {
+      "file": "src/Kora/DocumentationWindow.axaml.cs",
+      "sha256": "3bb610a545ed9d24e4af1d3943cc9653dd7f1ee048efa583d9875ff2d46fc817"
+    },
+    {
+      "file": "src/Kora/DocumentationWindowController.cs",
+      "sha256": "85a48804f7bc03b5faec0dedd485771a4f0d9798a3aa796e59f9b95524f47546"
+    },
+    {
+      "file": "src/Kora/GrantListWindow.axaml",
+      "sha256": "3d6017b40254ad6f6366a6b6c50874038a8e7f5b120ea96d84979f85ef56be84"
+    },
+    {
+      "file": "src/Kora/GrantListWindow.axaml.cs",
+      "sha256": "444a97eefc69cf124b0c31d3a9f63bb40dd2f460e9c9befc659596da019c1704"
+    },
+    {
+      "file": "src/Kora/GrantListWindowController.cs",
+      "sha256": "a81edfbd736e73f1dba6ef491e69966188a5bc52cd9c014bbe6e35d6f53f8e5e"
+    },
+    {
+      "file": "src/Kora/Kora.csproj",
+      "sha256": "e645304a09183f219341614d0010f757598b39c23dc9f2cdedcf1d70eee80e24"
+    },
+    {
+      "file": "src/Kora/MainWindow.axaml",
+      "sha256": "58be796e63da9f136b305a3956067c9344f45cd4191f1c814c5e63d04bac5150"
+    },
+    {
+      "file": "src/Kora/MainWindow.axaml.cs",
+      "sha256": "6066fa96ead2cedceb5b07102b4825d2e0cf3c554b7ede9fd3d6fc6357f64414"
+    },
+    {
+      "file": "src/Kora/MarkdownDocumentRenderer.cs",
+      "sha256": "49840e03e36bd9ae8ad9236841605ee9a1fa002d5a1a384663e4fe2166ca35e1"
+    },
+    {
+      "file": "src/Kora/Program.cs",
+      "sha256": "e7f123b2fac6eb818eb316f1b8b983c4bc68ef7c11207ef7b313469831ed566b"
+    },
+    {
+      "file": "src/Kora/ResponseWindow.axaml",
+      "sha256": "e3235f8fa34d9d8a0e1f8b3a32c0b3c15133f86c4abaf8e9b8c72301639235bc"
+    },
+    {
+      "file": "src/Kora/ResponseWindow.axaml.cs",
+      "sha256": "e36551dc69c8267df349c9478b939b46d77ab14dbd7056b6425fcb03b417f605"
+    },
+    {
+      "file": "src/Kora/ResponseWindowController.cs",
+      "sha256": "0a9495ee1030bfc5d4ee726ce487e969c745486eb08b390aaeece278b273d1d3"
+    },
+    {
+      "file": "src/Kora/SettingsWindow.axaml",
+      "sha256": "4c8559d5d7e86ec67ae32f48cf334701c1eb115fdc1c3d1b1bf61f7a22d2aa87"
+    },
+    {
+      "file": "src/Kora/SettingsWindow.axaml.cs",
+      "sha256": "38db2ffb9e62de92ed704acee74df3165b284e69b70d424e1dfcb331bb7dd062"
+    },
+    {
+      "file": "src/Kora/SettingsWindowController.cs",
+      "sha256": "bfef2356551f7cd7af42e74a7ea508e8e49f359ff8c04ef7283a85b4ef26cca2"
+    },
+    {
+      "file": "src/Kora/SystemTrayController.cs",
+      "sha256": "65090ecbaadce115dbd5f2b4dd53717d8724a5a17ef1522322184bf9e49ebd26"
+    },
+    {
+      "file": "src/Kora/packages.lock.json",
+      "sha256": "8a6ac63610e9acf720458f54350d07f272b7638ed8da4b332c3e50f6342d5480"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/ApplicationInfoTests.cs",
+      "sha256": "1cd6f1bf60133103eb746b5bc76e537cf418c83c1da4f5d0b3994d4393fe444c"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Auditing/LoggerSecurityAuditLogTests.cs",
+      "sha256": "6c0c84c3b8e3507b10456e6702ab5995b44aee942aa4694fc7fe296a286f110d"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalAppearancePreferencesTests.cs",
+      "sha256": "4665a6df0b6a09e7a6af682565561591a3d93c9f3fb7e56b3fd2be45f66b15c9"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalAssistantNamePreferencesTests.cs",
+      "sha256": "b252bb5755f4db46527e7eb249f21694ddcb9d1bf91a2eb10d1e5ae1768a37b3"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalAudioDevicePreferencesTests.cs",
+      "sha256": "35fc44ef40f51539669339f7635d23b95f0c9dba0cf0c5fefb57ec1613a6f6c2"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalCallAwarePreferencesTests.cs",
+      "sha256": "8793bfdbae48314593dc8da7176f3bdf375740ba73032cb2d3f9d9be3ccab648"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalModelApprovalPreferencesTests.cs",
+      "sha256": "295d21dc728c9031fdc744a6a00ccb874f0d5746ebc1f09daa5252369ffa846a"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalOptionalSpeechOfferPreferencesTests.cs",
+      "sha256": "d903cbe21a8d02b3266ff99089767a92073ae7fe80f340284851d572da10c02f"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs",
+      "sha256": "0ff4ea0b7a8ae9510c3facee52f0ab86c9f6398f31bb6159c1889e1a98624e4f"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalResponseOutputPreferencesTests.cs",
+      "sha256": "2faed79f54c4a9dc2229ebecb088db71bdfc4232ff830a1ced2d267155a6c336"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalTextToSpeechPreferencesTests.cs",
+      "sha256": "df1e8a78bf05e5b51e49b9ee1d0f126c5ba9f82aeb0cad55100adffc9ae26a6e"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Configuration/LocalVoiceConsentPreferencesTests.cs",
+      "sha256": "247107bf03f81c187401f23d32eb9537e3c4b27a77645bd6a837bb5b8c87afb3"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Diagnostics/LocalApplicationLogReaderTests.cs",
+      "sha256": "168cd3ed1a436a73443036444bc4ac34bd5798fbae5aa7f52ec63826c2303099"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Documentation/EmbeddedUserDocumentationProviderTests.cs",
+      "sha256": "26c139b5b45cbd94bb890b4927b488356502a517c15518428a5fe140dc1584c6"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Infrastructure/AsyncCommandTests.cs",
+      "sha256": "981780f362cffcacba4c0b0bf36af32086b665a68bb169a1d0cc0b52ddfb2323"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Infrastructure/ClickSequenceResolverTests.cs",
+      "sha256": "2b8251aa80c219e2164f20b770791276ced1203f3b32ff346b6942979ce17d64"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Infrastructure/ObservableObjectTests.cs",
+      "sha256": "bc2a31c0f6efa0409e3b60a426701d65377cf2e770e01dd523c273f8cc3d8882"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj",
+      "sha256": "3e1547bb16712debadf8feedd6e57b0d8eded16b982260c2c85e16eb53d8059d"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/ViewModels/AssistantStateLabelsTests.cs",
+      "sha256": "57cb1f55356f9222538efb7056e45bb64396b3b5d07e884b81e9a72a8c0250ef"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs",
+      "sha256": "50a30a5c77b71bab057d4a5f31605560e2a098ecf325a408247f832b49d1b515"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs",
+      "sha256": "579518e64b9cfa4695fed28580858ede2dcc97158837039693a404cd59243c6a"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/Visuals/PresenceAnimationTests.cs",
+      "sha256": "83756cd0ae6cab968d5198530e7ca9f54f28ebbbc7a43ff6497e2dd85de663c3"
+    },
+    {
+      "file": "tests/Kora.Application.UnitTests/packages.lock.json",
+      "sha256": "21f5807fc55cd1129d801aea89050f9fdd8c801b2697a4c35ab182b3949943a0"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Auditing/SecurityAuditEventTests.cs",
+      "sha256": "3bb15533a20428419605061df7d53e98a2af75e66ab8b42aeb9137a04f85715d"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Commands/BuiltInCommandRouterTests.cs",
+      "sha256": "d6e3f916eb9395958da88c5deb1c1c96341c79c07362e3aa1b0189ce0331e089"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Commands/ModelApprovalSpeechTests.cs",
+      "sha256": "bb36758c9fbf98589b8adcb69de518b0d8da30f15f316da2b7a1e56e29ac53b3"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Configuration/AssistantNameRulesTests.cs",
+      "sha256": "65a3995ec612d1fed081b1ad650ea28808c7134293c108bacc20f72f7497aea9"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Configuration/PresenceSettingsTests.cs",
+      "sha256": "a8fd82046297bc1f96bc88310823e250aa16738ee0651c1a8f65aaefc99999d2"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Coordination/HandoffTransactionTests.cs",
+      "sha256": "7a8429f7d1e3074a1538b0d2648c7efc075b1bf5b2ab877897ae925e7b86c185"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Dependencies/DependencyBootstrapperTests.cs",
+      "sha256": "7a4d48aa14f1dad93e08d56ff7cc092149fc5237a6b15e13df8044ddc262d102"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Dependencies/LocalModelQuestionSpeechTests.cs",
+      "sha256": "8e28e56975a3fd528d33f5cc146ee479b9486bb50adddf9ca7ced34385a3f77a"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Dependencies/SetupTaskLedgerTests.cs",
+      "sha256": "cd831d37869df7082eddf3981efd781c73bbd38ef86092e729e986fd1886ee09"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Dependencies/SqliteDependencyProbeTests.cs",
+      "sha256": "408a94d14f5893e98d1ecc5fee418c0ac26b0f035aa4399eddf605827059ea9a"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Dependencies/StorageDependencyProbeTests.cs",
+      "sha256": "86e1cb9058d6d258b5f96520a88a94c27b2e1c17b0917f32f570461cedb09269"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj",
+      "sha256": "b381a5bcda71c2f42cdeee3209b612cf2a728ec1bf5f8c38fa0009310a57eebf"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/ValueObjectTests.cs",
+      "sha256": "84970c283677e6c4ec295de72adfc2b1a3c1c24eeb1975ec631502fd6f6252ff"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/Voice/WindowsPrivacySnapshotTests.cs",
+      "sha256": "7eef8178592bb4bc0412aeed3aac5d225cac32edf3d2f7a4f612385ef53c1296"
+    },
+    {
+      "file": "tests/Kora.Core.UnitTests/packages.lock.json",
+      "sha256": "f65de6ba68c119872ec04aaa81c1ccf23127fa916a0383af59b3b89efe00119b"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/AnimatedMarkTests.cs",
+      "sha256": "9c18a50e517847cb8948f136f6ef21ab4cb48f002e2fb6290a2ae9398baba830"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs",
+      "sha256": "3ffc1219f30c5cf18beb2bdcb80c9b44ee7fab44b9732fa42b04fbf4273f9e08"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs",
+      "sha256": "e764111668bb575e3ffc40da7eefe211471b822524b849bf9d3bd55b03035910"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/BoundedBlockingAudioStreamTests.cs",
+      "sha256": "9334109075af631e3dd60613e7ae006d46d5e0ec01b82f94700259fd049c527d"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/KokoroTextToSpeechProviderTests.cs",
+      "sha256": "5b81a240982b382e24376b72618fb397ee589e93facea90cc70958763f302a8c"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/VoiceRecognitionShutdownTests.cs",
+      "sha256": "83abe30545e3d90a0007072c030459fa84d23fa3bd876a98409e88505c7c1753"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/WindowsFactAttribute.cs",
+      "sha256": "0bf58025d34adef240cbac338b14de444a2838c158b321f3abe1674b99dafb06"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/WindowsTextToSpeechServiceTests.cs",
+      "sha256": "875450f31c1211dceda90e97773bffea5e1547599a15340b11cb95807ef6cfe4"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Audio/WindowsVoiceRecognitionServiceTests.cs",
+      "sha256": "6d40e6095fb3b145e6dc73e40cf61a15fe7be2c66fc94fb7e8b6c0a1eae45ab1"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Coordination/InstanceProtocolTests.cs",
+      "sha256": "92ed2ef9b7945aceb19edbc93366933d83efd562bd2c93a77140560438efb5a5"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Coordination/OwnerContinuityTests.cs",
+      "sha256": "aa105163aabae6531dc7e8b8817bb97781335d1239345cdaccf6681f256d0c9e"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Dependencies/LocalInferenceDependencyProbeTests.cs",
+      "sha256": "59e71ba367f2295a49cee9a2305c8ae8a2bfbfcb745ee52a73c36accced510d5"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Dependencies/OllamaModelIdentityTests.cs",
+      "sha256": "4b20e6e0debd2eb9d46a563e73dd8d6ea2b8a372219a1c32eb8014612045b769"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaReasonerTests.cs",
+      "sha256": "09856bd466d4fc8bf9f9e7d78036b96783a978fe2188bbea4018caabf6540f08"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaSetupServiceTests.cs",
+      "sha256": "447f87d7e8b9f590ecceadb1d9f1b8e3efb727302f8ea68420a087dfa095cbec"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Dependencies/WindowsPowerShellSetupServiceTests.cs",
+      "sha256": "c7aa48d82daaf9908689ce8f6daaeff9e2a1ee2d839657a3f1c7be40ce581859"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Dependencies/WindowsTextToSpeechDependencyProbeTests.cs",
+      "sha256": "e069f4e8ae11e4fb90bc83e090cbfc651f5799ccadeef4c863a01d50f05c0605"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Dependencies/WindowsVoiceDependencyProbeTests.cs",
+      "sha256": "44cf116b9eec7b182902542b0f09308918e9067b1dc6f82ce07a6762d1ab734c"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Identity/WindowsCurrentUserNameProviderTests.cs",
+      "sha256": "a975f20513186265e4c81f26546810b3e588a52bc0385a16a9af77ca18cba595"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerApplicationLauncherTests.cs",
+      "sha256": "c5830157befe54180656b7e4fac1c072f9a34cffc1258e847c1a06091b15c1ea"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerCompletionLaunchTests.cs",
+      "sha256": "f1aeceb394e315178d1a014b30db8806928b905d8d268e0a7bdadbb35e3381b0"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerOptionalSetupTests.cs",
+      "sha256": "7bb35c6dc177910d5da9f0c96d9efcf9d9676c443d0120aa65b58c67dc3c89cc"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerPreflightTests.cs",
+      "sha256": "f82eeaa192b8c6edc66163818d86baa53295f84a5e68b9dd2f48bd9104ed49e0"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerPresentationTests.cs",
+      "sha256": "51a6cdb56fbacffaeaa3a772f7dcea8a667b39afdc8cb4e82e363645187d22dc"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerSessionTests.cs",
+      "sha256": "34fc60ef4bf7c8ef3f3f8f93ab05affc9ce9bfd432bdff89016f3585ff83b993"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerStartupTests.cs",
+      "sha256": "da800a89df5ef5069e3154b43f6c3320cc5fa1299eeae1e991f82dc784130e1d"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/InstallerThemeTests.cs",
+      "sha256": "6f49f50e6f088053a563bbf495f33dc0cfed29f4e6eaeeb2c8437e2f3acc558d"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj",
+      "sha256": "c63f9372e9587d4e291b241287b0005925fcd9e9d7449cd5636d95e62a93ecac"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Session/WindowsPrivacyObservationServiceTests.cs",
+      "sha256": "e36731b5e2992437e9b4d778256c8c1d26233a6bc690a40e4ada04fd445c6245"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/Session/WindowsSessionControllerTests.cs",
+      "sha256": "0032861405d096475d6890a0dbbe8d8ffc079eeb3fd731a3fbb266d68432b1f1"
+    },
+    {
+      "file": "tests/Kora.Windows.IntegrationTests/packages.lock.json",
+      "sha256": "0e07780ba715dc9571ff47c76d95a9166d0437ef85431afcbf872d485a7447ae"
+    }
+  ],
+  "rt2SourceSha256": [
+    {
+      "file": "DiagnosticObserver.cs",
+      "sha256": "4d4e83440839f7db239d9c3cdfbf9049cf1e51d8f464a5a616404da745308954"
+    },
+    {
+      "file": "Directory.Build.props",
+      "sha256": "33551ad48c99e510e8ce65a16f7a1fb14f2b434d6b34b12e77c6237e835f7683"
+    },
+    {
+      "file": "Directory.Packages.props",
+      "sha256": "5de0bd6cb9fd0334417a74fbb20cb6341063715789d8c0abdd54afdf6a48745b"
+    },
+    {
+      "file": "Inspect-Publish.ps1",
+      "sha256": "8df561090011328595d71c2209c7e3a08216a19906ef8487919190f3d011b28e"
+    },
+    {
+      "file": "LifecycleObserver.cs",
+      "sha256": "09ee1a496f4f9a7ed4442ad0a511ebc82f1d08eaf1403040d6d1fa453e7c22f4"
+    },
+    {
+      "file": "LifecycleProof.csproj",
+      "sha256": "3b789992521500b82b8520ba014097ecfcb5b83a5a8b98f4e3acce6622aa619c"
+    },
+    {
+      "file": "LifecycleTests.cs",
+      "sha256": "23f238dd944c55c199bd161f9896f6bc746fef4c1da89be22650f1f8d9123103"
+    },
+    {
+      "file": "NativeSnapshot.cs",
+      "sha256": "be34446ae8ba3590bf959cdd6bd824e95adc6daabc9044fb778f15a5583bdc21"
+    },
+    {
+      "file": "NuGet.Config",
+      "sha256": "0dc311a5f390ec73a5ea695e0309f35750b5a10915e298338c2521265622a025"
+    },
+    {
+      "file": "ObserverTests.cs",
+      "sha256": "f35e99805d4c9f593cba0efd6e15efc13d6ad6be764ae2296b2225ea1aae5a97"
+    },
+    {
+      "file": "packages.lock.json",
+      "sha256": "f5ecdb5b6646e7046a449ae0ed81d2a6514c70e01bae6d5f16c7214f7aa70aa0"
+    },
+    {
+      "file": "Prepare-Fixture.ps1",
+      "sha256": "530abeac64253afb71899d59699b4e82e114069a311684eb4c338172e96754d3"
+    },
+    {
+      "file": "Record-Validation.ps1",
+      "sha256": "83c8bc33d68771c8be230e7903e3bc75496a0aed401214e5543f6cf09d7ecca3"
+    },
+    {
+      "file": "Run-Observations.ps1",
+      "sha256": "7fdfefbc7e8d271890fa1094861c0f9c042e8b2465f26b262d1b0ccf6dd37f79"
+    },
+    {
+      "file": "Test-ApprovedInputs.ps1",
+      "sha256": "ad7dfc3825fcabf708dce3c5057c60fb8d4fd358f78b61febde37774e7f48dd2"
+    },
+    {
+      "file": "Test-ReceiptContracts.ps1",
+      "sha256": "2d5ac83434cd0b1db6971258a57122745da252eb2fa7ae90b498638739716045"
+    }
+  ],
+  "rt2DispositionSha256": "8e7860e36346057b0c99e552eeca1468ea2d468c66780ac752aeb72a9151b006",
+  "tests": [
+    {
+      "suite": "core",
+      "total": 251,
+      "passed": 251,
+      "failed": 0,
+      "skipped": 0,
+      "startedUtc": "2026-10-06T06:06:50.7967753Z",
+      "finishedUtc": "2026-10-06T06:06:51.5791451Z",
+      "trxSha256": "bfc78fec31b2c54b99b222dabb83169a8f1c1ee68dca5e87f87660f72e7603f7"
+    },
+    {
+      "suite": "application",
+      "total": 744,
+      "passed": 744,
+      "failed": 0,
+      "skipped": 0,
+      "startedUtc": "2026-10-06T06:06:54.1926057Z",
+      "finishedUtc": "2026-10-06T06:06:56.1747278Z",
+      "trxSha256": "30144f94d5db5611af237c2d498e4f21ac8449f376ccabd9b0d064d324fd9e01"
+    },
+    {
+      "suite": "windows",
+      "total": 353,
+      "passed": 353,
+      "failed": 0,
+      "skipped": 0,
+      "startedUtc": "2026-10-06T06:06:57.997128Z",
+      "finishedUtc": "2026-10-06T06:07:00.6965137Z",
+      "trxSha256": "10e9c307743fe7e696fe38013506ccf348f0d977b941f82afb37b7b358d29bd0"
+    },
+    {
+      "suite": "rt1",
+      "total": 45,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "startedUtc": "2026-10-06T06:15:52.5745815Z",
+      "finishedUtc": "2026-10-06T06:16:59.4504714Z",
+      "trxSha256": "c6192e83f650bedda0149c151cadfedd843bb1db231eac41f75e2ddb3f321c6e"
+    }
+  ],
+  "rootBuild": "PASS: dotnet build Kora.slnx --configuration Release --no-restore; 0 warnings/errors; includes Kora.Setup",
+  "rootLockedRestore": "PASS: dotnet restore Kora.slnx --locked-mode after initial NETSDK1004 missing assets",
+  "coverage": {
+    "branch": 100,
+    "latestOnly": true,
+    "status": "PASS",
+    "line": 100,
+    "reportSha256": "35a16b1bbb40da2d30cee7ad878ba66caa57a637a7210c935b5e867ae5d8fe13"
+  },
+  "productionLicenseNotice": {
+    "status": "PASS",
+    "command": "eng\\Test-DependencyLicenses.ps1",
+    "scanSha256": "0ccbaeb6127ccd0ecbe6ac5b343815c7b1b9701945b278dbc1693c6268374762"
+  },
+  "policyScripts": "PASS: Test-BuildVersion.ps1, Test-GitHubRelease.ps1 (synthetic fake gh, not publication), Test-InstallerPayloadContracts.ps1",
+  "publish": "PASS: both win-x64/win-x86 framework-dependent locked publishes; exact license-bearing payload manifests; five PE/native checks each; no experimental candidate leaked; no launch",
+  "fullWixPackaging": {
+    "command": "eng\\Build-Installer.ps1 -Version 0.1.0 -ProductVersion 0.1.0 -ApplicationPayloadPath artifacts\\rt2-publish\\Kora-win-x64",
+    "error": "WIX1105: Validation could not run due to system policy",
+    "bootstrapperPublish": "PASS: self-contained win-x64; not launched",
+    "status": "BLOCKED",
+    "elevated": false,
+    "bundleBuildAndTestInstaller": "NOT RUN: MSI full validation blocked",
+    "iceSuppressed": false
+  },
+  "notRun": [
+    "installed/production application or setup launch",
+    "privileged ETW",
+    "live account/provider/PV1",
+    "reference CPU/device/speech acceptance",
+    "production runtime composition",
+    "NSIS: retired, not applicable"
+  ],
+  "historicalRt1AndNode": "UNCHANGED: hash assertions plus git diff --exit-code",
+  "cleanup": "Every real runtime scratch cleared; all sampled owned process identities exited; listeners/stores/native snapshots/diagnostic listeners disposed. Ignored verified source/build cache retained."
+}

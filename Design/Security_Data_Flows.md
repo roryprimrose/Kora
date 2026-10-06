@@ -270,6 +270,25 @@ SDK memory/transcripts cannot become a second unreviewed store alongside
 Kora's host-owned permitted history. The measured loopback marker filter is
 a test oracle, not a sufficient production classifier or OS sandbox.
 
+The [bounded RT2 observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
+passes its 20 safe tests but leaves all-path runtime admission **Blocked**.
+Native initialization launches PowerShell/console-host descendants and creates
+transient policy-test files even in empty-tool mode. Live scratch notifications
+have no writer PID/content; process/socket/image snapshots and managed
+diagnostic counters cannot certify native stderr, deleted/outside-root writes
+or all destinations. Positive controls demonstrate detection before deletion;
+the original public model gate demonstrates prevention only on that route.
+Zero model markers and zero sampled survivors do not prove zero unauthorized
+native persistence/egress or complete descendant quiescence.
+
+The user retained the fail-closed RT2 contract; W2 best-effort transitive
+dependency tracking for granted scripts is not approval for hidden runtime
+collection. Privileged observation is deferred to separately approved
+dedicated-host work, with PID/creation-time filtering, metadata minimization,
+event-loss checks and owned trace cleanup. Tracing alone is not prevention.
+Keep unobservable/uncontrollable content paths unavailable and carry durable
+identity/Activity/audit admission through R04 before R08 production composition.
+
 ## Grants and Approvals
 
 Permissions combine capability, canonical resource scope, identity, destination where relevant, and current applicability; proposal/dispatch deadlines are separate from perpetual grant lifetime.

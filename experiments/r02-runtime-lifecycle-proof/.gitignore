@@ -1,0 +1,5 @@
+.candidate/
+bin/
+obj/
+TestResults/
+.scratch/

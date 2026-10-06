@@ -1,0 +1,105 @@
+{
+  "observedAtUtc": "2026-10-06T06:46:53.8604570+00:00",
+  "startedUtc": "2026-10-06T06:46:23.5834718+00:00",
+  "rt2": "BLOCKED",
+  "reason": "All-path process/file/network/diagnostic observation and native content prevention are unproved. User retained fail-closed runtime contract; dedicated-host tracing deferred.",
+  "sdk": "1.0.16-rt1.source.f8ae645.1",
+  "source": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+  "runtime": "1.0.90",
+  "protocol": 3,
+  "sdkAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+  "fixtureAssemblySha256": "f3cca877c0a0527cf82660fdb502a846493cb4e139e34af1f9c61d4f6658f12f",
+  "nativeLauncherSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+  "nativePayloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+  "fixtureSources": [
+    {
+      "file": "DiagnosticObserver.cs",
+      "sha256": "4d4e83440839f7db239d9c3cdfbf9049cf1e51d8f464a5a616404da745308954"
+    },
+    {
+      "file": "Directory.Build.props",
+      "sha256": "33551ad48c99e510e8ce65a16f7a1fb14f2b434d6b34b12e77c6237e835f7683"
+    },
+    {
+      "file": "Directory.Packages.props",
+      "sha256": "5de0bd6cb9fd0334417a74fbb20cb6341063715789d8c0abdd54afdf6a48745b"
+    },
+    {
+      "file": "Inspect-Publish.ps1",
+      "sha256": "8df561090011328595d71c2209c7e3a08216a19906ef8487919190f3d011b28e"
+    },
+    {
+      "file": "LifecycleObserver.cs",
+      "sha256": "09ee1a496f4f9a7ed4442ad0a511ebc82f1d08eaf1403040d6d1fa453e7c22f4"
+    },
+    {
+      "file": "LifecycleProof.csproj",
+      "sha256": "3b789992521500b82b8520ba014097ecfcb5b83a5a8b98f4e3acce6622aa619c"
+    },
+    {
+      "file": "LifecycleTests.cs",
+      "sha256": "23f238dd944c55c199bd161f9896f6bc746fef4c1da89be22650f1f8d9123103"
+    },
+    {
+      "file": "NativeSnapshot.cs",
+      "sha256": "be34446ae8ba3590bf959cdd6bd824e95adc6daabc9044fb778f15a5583bdc21"
+    },
+    {
+      "file": "NuGet.Config",
+      "sha256": "0dc311a5f390ec73a5ea695e0309f35750b5a10915e298338c2521265622a025"
+    },
+    {
+      "file": "ObserverTests.cs",
+      "sha256": "f35e99805d4c9f593cba0efd6e15efc13d6ad6be764ae2296b2225ea1aae5a97"
+    },
+    {
+      "file": "packages.lock.json",
+      "sha256": "f5ecdb5b6646e7046a449ae0ed81d2a6514c70e01bae6d5f16c7214f7aa70aa0"
+    },
+    {
+      "file": "Prepare-Fixture.ps1",
+      "sha256": "530abeac64253afb71899d59699b4e82e114069a311684eb4c338172e96754d3"
+    },
+    {
+      "file": "Record-Validation.ps1",
+      "sha256": "83c8bc33d68771c8be230e7903e3bc75496a0aed401214e5543f6cf09d7ecca3"
+    },
+    {
+      "file": "Run-Observations.ps1",
+      "sha256": "7fdfefbc7e8d271890fa1094861c0f9c042e8b2465f26b262d1b0ccf6dd37f79"
+    },
+    {
+      "file": "Test-ApprovedInputs.ps1",
+      "sha256": "ad7dfc3825fcabf708dce3c5057c60fb8d4fd358f78b61febde37774e7f48dd2"
+    },
+    {
+      "file": "Test-ReceiptContracts.ps1",
+      "sha256": "2d5ac83434cd0b1db6971258a57122745da252eb2fa7ae90b498638739716045"
+    }
+  ],
+  "tests": {
+    "total": 20,
+    "failed": 0,
+    "skipped": 0,
+    "passed": 20
+  },
+  "realRuntimeTrials": 13,
+  "observerDeterministicTests": 6,
+  "livePositiveControlTests": 1,
+  "providerRequests": 14.0,
+  "blockedModelRequests": 8,
+  "deniedMarkersAtProvider": 0.0,
+  "credentialInModelBody": 0.0,
+  "observedOwnedProcesses": 52,
+  "observedOwnedDescendants": 39,
+  "observedSurvivorsAfterShutdown": 0.0,
+  "watcherOverflows": 0.0,
+  "maximumSampleGapMs": 121.961,
+  "syntheticOnly": true,
+  "liveAccounts": 0,
+  "productionEnabled": false,
+  "nativePrevention": "BLOCKED: observer does not prevent outside-scratch writes or direct native egress",
+  "optionalTransports": "NOT RUN/unavailable: WebSockets/MCP/agents/plugins/tools/memory/spill/export",
+  "pv1": "BLOCKED: no intended-account/terms/cost approval",
+  "gate0": "OPEN"
+}

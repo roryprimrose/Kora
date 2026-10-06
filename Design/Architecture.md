@@ -554,6 +554,18 @@ parity, global lifecycle egress/storage/diagnostics observation and
 hosted-account eligibility remain blocked/open.
 D-001/D-004 are not closed and no production adapter is enabled.
 
+The separate [RT2 lifecycle fixture](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
+records exact final SDK/native byte verification/reproduction, 45/45 unchanged
+staged RT1 regressions and 20/20 bounded RT2 tests plus two locale contracts.
+Its all-path gate is **Blocked**: native PowerShell/console-host initialization
+and transient file activity are visible, but user-mode snapshots/watchers
+cannot attribute/control every native network, file or diagnostic path.
+Observed shutdown and positive detection controls are not a sandbox or
+zero-native-egress/persistence proof. The user retained this fail-closed
+boundary and deferred privileged tracing to separately approved dedicated-host
+work. R08 remains disabled; MG1/PV1 and R04 host authority/audit integration
+retain their independent handoffs and gates.
+
 The next candidate must combine pre-effect tool authorization, host-sanitized
 results for every outcome, and a final gate over each complete serialized
 model request before transmission. Prompt/tool hooks alone are insufficient.

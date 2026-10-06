@@ -130,6 +130,18 @@ It does not accept released-NuGet bytes, RT2 full lifecycle observation, MG1's
 complete envelope, PV1 account eligibility, host authority/audit integration
 or installed/scheduler acceptance. The requirements above are unchanged.
 
+The [RT2 lifecycle evidence](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
+passes 20 bounded tests plus two locale contracts but leaves RT2 **Blocked**.
+Live positive controls, sampled native helpers/quiescence, model-request
+denials and before-cleanup recoverable-file checks do not qualify full native
+egress/persistence or diagnostic coverage. Require writer-attributable
+all-file/all-destination observation, native diagnostic inventory, event-loss/
+short-lived-path controls and actual prevention/mediation before claiming
+zero unauthorized native markers. Dedicated-host privileged observation needs
+separate approval; a successful trace alone is not prevention. W2 best-effort
+script dependency tracking does not relax this runtime contract. Gate 0,
+D-001/D-004, PV1 and integrated R04/R08 acceptance remain open.
+
 ## Command, Tool, and Skill Interaction Gate
 
 Apply [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)

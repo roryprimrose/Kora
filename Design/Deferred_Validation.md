@@ -138,7 +138,8 @@ Per-user DPAPI is not same-user worker containment; D-013/W1-W4 remain separate.
 
 ## Runtime/Provider Follow-Up
 
-Status: **RT1 selected source-built profile passes; RT2/MG1/PV1 remain open**.
+Status: **RT1 selected source-built profile passes; RT2 bounded observations
+recorded, all-path gate Blocked; MG1/PV1 remain independently open**.
 The [actual .NET fixture](../experiments/r02-dotnet-control-proof/README.md)
 passes 45/45 tests, with 44 selected-profile PASS rows and one expected
 rejected hook-only FAIL. Released NuGet byte parity remains Blocked after
@@ -160,7 +161,11 @@ Merging the experiment closes no remaining gate or production acceptance.
   now supplies actual supported .NET APIs, source/native hashes, separate
   locks/license closure, UTC counters and owned cleanup. Reproduce its
   preparation, clean-source package and all 45 tests without installs/accounts.
-  RT2 still needs attributable network/file/diagnostic observation; MG1 needs
+  The separate [RT2 fixture](../experiments/r02-runtime-lifecycle-proof/README.md)
+  records 20/20 safe tests and two receipt-locale contracts, exact final
+  source reproduction and all 45 staged RT1 regressions without rewriting
+  the historical evidence. RT2 still needs complete attributable
+  network/file/diagnostic observation and native prevention; MG1 needs
   the corresponding .NET host envelope. Neither the Node fixture nor RT1's
   generic trial timeouts/status payloads implement those gates.
 - Record source, SDK/native-runtime hashes, Windows version and fixture/
@@ -181,7 +186,7 @@ Merging the experiment closes no remaining gate or production acceptance.
 | Trial / owner | Current state and prerequisite | Required trial and evidence |
 |---|---|---|
 | RT1 - .NET public control points / runtime lead | PASS, scoped exact-tag source build; 45/45 actual-runtime tests; released NuGet byte parity Blocked | [Disposition/receipts](../experiments/r02-dotnet-control-proof/evidence/disposition.json): actual SDK v1.0.16 source/runtime 1.0.90, final initial/history/all-result/exception paths, tool denial, streaming/auth/errors, volatile I/O and failure, cancellation and lane/provider isolation. Denied effects/markers forwarded zero; hook-only FAIL retained. No public controls missing in tested profile; no private patch/Node bridge. Changed artifact/profile must repeat RT1; D-001 remains open. |
-| RT2 - Full runtime lifecycle / runtime and security leads | Not run; scoped RT1 prerequisite satisfied; attributable instrumentation/approval required | Observe exact tested profile's startup/session/auth/error/shutdown network, storage and diagnostics, initialization metadata, optional helper loading and non-model transports. Inventory every destination/content path; demonstrate prevention/mediation and no denied-marker egress/recoverable persistence. RT1 model HTTP/scoped disk are not all-path observation. Repeat account paths during PV1. Unknown/uncontrollable paths remain Failed/Blocked. |
+| RT2 - Full runtime lifecycle / runtime and security leads | BLOCKED, 2026-10-06 UTC; 20/20 bounded actual/control/observer tests + two locale contracts pass; exact final SDK reproduction and 45/45 staged RT1 regressions pass | [Observed inventory/limits](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md): native PowerShell/conhost descendants and transient policy-test writes; 52 sampled identities terminate, zero denied model markers. Watcher lacks writer/content attribution, snapshots miss native traffic/images/descendants, native diagnostic/outside-scratch content paths unproved. User retained fail-closed RT2 contract and deferred privileged tracing to a dedicated host. Obtain scoped approval/collector review and loss controls, then prove complete paths and actual native prevention/mediation; metadata tracing alone is insufficient. Repeat approved account paths in PV1. Unknown/uncontrollable paths stay Failed/Blocked; W2 best-effort transitive tracking does not relax runtime privacy. |
 | MG1 - .NET management envelope / runtime lead | Not run; scoped RT1 prerequisite satisfied; may run alongside RT2 | Prove complete serialized UTF-8 input at 32768/32769 bytes and complete typed output at 4096/4097 bytes, counting framing/history and multi-byte text. Hold real inference across the host 15000 ms dispatch deadline and stall SDK acknowledgements; record actual elapsed timing without extending the configured deadline. Verify one in-flight request, 30 attempts/rolling hour including failures, at most one forwarded inference/no SDK retries, manager responsiveness with two execution conversations held, no lane/context leakage, uncertain-termination quarantine and deterministic fallback. RT1 SDK wait-timeout/non-cooperative-tool evidence reinforces that acknowledgement cannot certify rollback or release an uncertain slot. |
 | PV1 - Live account/provider / runtime lead, account owner and security/legal review | Not run; no hosted account/usage approval; RT1/RT2, plus MG1 for management | Use the intended user's supported secure authentication; test expiry/denial/throttling/errors, exact destination/content isolation and truthful cancellation. Record approved terms/plan/model scope, actual concurrency/quotas/rates, billed-cost assumptions and hard spending controls. Execution eligibility feeds D-001/R08; management additionally needs actual two-execution-plus-manager capacity/budget evidence for D-004/R13. Incompatible/unapproved or unbounded service stays disabled; do not infer hosted allowance from three loopback conversations or byte counts. |
 
@@ -193,6 +198,16 @@ failure with a timeout or a successful fake. Retest affected paths whenever the
 SDK/runtime, endpoint/model/auth, transport, storage or admitted feature changes.
 R08/R13 still need their own integrated host, scheduler and installed-app
 acceptance; this checklist does not enable production adapters or tools.
+
+RT2's [handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs)
+specifies the dedicated-host metadata-only tracing scope, exact
+PID/creation-time attribution, bounded duration, loss/positive controls and
+owned trace cleanup. No privileged collection is authorized in the shared
+parallel environment. R04 owns durable host correlation/audit admission;
+fixture/SDK IDs and sampled quiescence do not establish authority or release
+an MG1 unknown-termination slot. Root build/tests/100% coverage pass, while
+full local WiX ICE validation is separately Blocked by WIX1105; publish
+inspection or the RT2 fixture does not replace installed acceptance.
 
 ## R03 Windows Ownership and Audio Privacy
 

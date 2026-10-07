@@ -67,7 +67,7 @@ public sealed partial class DurableEvidenceQuery(
                     : records.Count == 0 && (query.Record is not null || query.TraceId is not null)
                         ? EvidencePageStatus.MissingOrRemoved : EvidencePageStatus.Available);
                 page = new(status,
-                    records.ToArray(), next, unavailable, EvidencePage.StorageDisclosure, batch.DailyReport);
+                    records.ToArray(), next, batch.UnavailableSources ?? unavailable, EvidencePage.StorageDisclosure, batch.DailyReport);
                 if (Serialize(page).Length <= EvidencePage.MaximumBytes) { break; }
                 if (records.Count == 1)
                 {
@@ -86,7 +86,8 @@ public sealed partial class DurableEvidenceQuery(
             cancellationToken.ThrowIfCancellationRequested();
             RequireAccess(current.Request);
             Returned(logger, page.Records.Count, Serialize(page).Length, page.Status);
-            activity.Complete(HostOperationOutcome.Completed);
+            activity.Complete(batch.UnavailableSources is { Count: > 0 }
+                ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
             return page;
         }
         catch (FileNotFoundException)
@@ -96,7 +97,9 @@ public sealed partial class DurableEvidenceQuery(
             Failed(logger, nameof(FileNotFoundException));
             activity.Complete(HostOperationOutcome.Failed);
             var sources = query.Source == EvidenceSource.All
-                ? Enum.GetValues<EvidenceSource>().Where(source => source != EvidenceSource.All).ToArray() : [query.Source];
+                ? new[] { EvidenceSource.Log, EvidenceSource.Audit, EvidenceSource.Span, EvidenceSource.Link,
+                    EvidenceSource.Session, EvidenceSource.Conversation, EvidenceSource.DailyLog }
+                : query.Source == EvidenceSource.CombinedLog ? [EvidenceSource.Log, EvidenceSource.DailyLog] : [query.Source];
             return new(EvidencePageStatus.Unavailable, [], null, sources,
                 "The private evidence store is unavailable; no replacement was created. " + EvidencePage.StorageDisclosure);
         }
@@ -182,6 +185,11 @@ public sealed partial class DurableEvidenceQuery(
                 || (record.Source == EvidenceSource.Link ? record.LinkOrdinal is not (>= 0 and <= 31) : record.LinkOrdinal is not null))
             {
                 throw new ArgumentException("The evidence citation is invalid.", nameof(query));
+            }
+            if (query.Source == EvidenceSource.CombinedLog
+                && record.Source is not (EvidenceSource.Log or EvidenceSource.DailyLog))
+            {
+                throw new ArgumentException("Combined ordinary diagnostics require a source-qualified ordinary log citation.", nameof(query));
             }
         }
         if (query.Property is { } property)

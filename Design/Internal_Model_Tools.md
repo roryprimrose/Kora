@@ -240,12 +240,19 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 The R04/R14 native evidence slice delivers the deterministic host-service
 semantics behind list/get/search/read_trace for actual SQLite log/audit/span/link
-sources only. It does **not** register model-facing evidence tools or add them
+sources, independent DailyLog ordinary diagnostics and explicit opt-in
+CombinedLog ordinary list/search/source-qualified cited reads. **All** remains
+SQLite-only. CombinedLog pairs independent bounded SQLite/daily snapshots in
+source-major order (SQLite commit time/ID, then daily name/offset), without
+deduplication, causal rank, audit mirrors or invented graph records. Each
+source retains its original time/retention/citation semantics; failure of either
+source cannot become a SQLite-only or empty success.
+It does **not** register model-facing evidence tools or add them
 to the existing action selector. One typed query service supports exact cited
 record reads, bounded filters and trace navigation under live local-UI
 ownership/privacy admission. Session/conversation and interaction-receipt
-sources are unavailable. The proposed model lanes/catalogue below, daily-file
-adapter, Ask Evidence and export still require separate delivery/admission.
+sources are unavailable. The proposed model lanes/catalogue below,
+Ask Evidence and export still require separate delivery/admission.
 Safe text searches only admitted templates and redacted structured values;
 properties use exact typed equality, not rendered-message parsing or SQL.
 Output uses the service's authoritative serialized page, including metadata

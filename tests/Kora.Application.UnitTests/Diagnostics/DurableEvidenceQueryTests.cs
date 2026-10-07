@@ -65,14 +65,16 @@ public sealed class DurableEvidenceQueryTests
         page.Disclosure.Should().Contain("not an atomic interaction audit");
     }
 
-    [Fact]
-    public async Task Fifty_record_limit_is_independent_of_byte_budget()
+    [Theory]
+    [InlineData(EvidenceSource.All)]
+    [InlineData(EvidenceSource.CombinedLog)]
+    public async Task Fifty_record_limit_is_independent_of_byte_budget(EvidenceSource source)
     {
         using var listener = Listen();
         var fixture = new Fixture();
         fixture.Reader.Batch = Batch(51);
         using var host = Root();
-        var page = await fixture.Service.QueryAsync(new(), null, TestContext.Current.CancellationToken);
+        var page = await fixture.Service.QueryAsync(new() { Source = source }, null, TestContext.Current.CancellationToken);
         page.Records.Should().HaveCount(50);
         DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
     }
@@ -154,6 +156,7 @@ public sealed class DurableEvidenceQueryTests
     [Theory]
     [InlineData(EvidenceSource.All)]
     [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.CombinedLog)]
     public async Task Missing_store_is_explicitly_unavailable_and_never_created(EvidenceSource source)
     {
         using var listener = Listen();
@@ -164,6 +167,82 @@ public sealed class DurableEvidenceQueryTests
         page.Status.Should().Be(EvidencePageStatus.Unavailable);
         page.UnavailableSources.Should().Contain(EvidenceSource.Log);
         page.Disclosure.Should().Contain("no replacement");
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.DailyLog)]
+    [InlineData(EvidenceSource.Audit)]
+    [InlineData(EvidenceSource.Span)]
+    public async Task Combined_cited_reads_admit_only_original_ordinary_sources(EvidenceSource source)
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        using var host = Root();
+        var query = new EvidenceQuery { Source = EvidenceSource.CombinedLog, Record = new(source, new(Guid.NewGuid())) };
+        if (source is EvidenceSource.Log or EvidenceSource.DailyLog)
+        {
+            var page = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+            page.Status.Should().Be(EvidencePageStatus.MissingOrRemoved);
+        }
+        else
+        {
+            var rejected = async () => await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+            await rejected.Should().ThrowAsync<ArgumentException>();
+            fixture.Reader.Calls.Should().Be(0);
+        }
+    }
+
+    [Fact]
+    public async Task Included_source_failure_is_explicit_not_a_partial_empty_success()
+    {
+        using var listener = Listen();
+        var stopped = new List<Activity>();
+        listener.ActivityStopped = stopped.Add;
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(0) with
+        {
+            Status = EvidencePageStatus.Corrupt, UnavailableSources = [EvidenceSource.DailyLog],
+        };
+        using var host = Root();
+        var page = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.CombinedLog }, null,
+            TestContext.Current.CancellationToken);
+        page.Status.Should().Be(EvidencePageStatus.Corrupt);
+        page.UnavailableSources.Should().Equal(EvidenceSource.DailyLog);
+        page.Records.Should().BeEmpty();
+        page.Cursor.Should().BeNull();
+        stopped.Single(activity => string.Equals(activity.Source.Name, "Kora.Application", StringComparison.Ordinal))
+            .Status.Should().Be(ActivityStatusCode.Error);
+        fixture.Reader.Batch = fixture.Reader.Batch with { Status = null, UnavailableSources = [] };
+        (await fixture.Service.QueryAsync(new() { Source = EvidenceSource.CombinedLog }, null,
+            TestContext.Current.CancellationToken)).Status.Should().Be(EvidencePageStatus.Available);
+    }
+
+    [Fact]
+    public async Task Combined_complete_serialized_shape_admits_exact_byte_ceiling_and_omits_one_byte_over()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(1, string.Empty);
+        using var host = Root();
+        var query = new EvidenceQuery { Source = EvidenceSource.CombinedLog };
+        var baseline = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+        var capacity = EvidencePage.MaximumBytes - DurableEvidenceQuery.Serialize(baseline).Length;
+        var candidate = fixture.Reader.Batch.Candidates[0];
+        fixture.Reader.Batch = fixture.Reader.Batch with
+        {
+            Candidates = [candidate with { Record = candidate.Record with { Text = new string('x', capacity) } }],
+        };
+        var atLimit = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+        DurableEvidenceQuery.Serialize(atLimit).Length.Should().Be(EvidencePage.MaximumBytes);
+        atLimit.Records.Single().ContentOmitted.Should().BeFalse();
+        fixture.Reader.Batch = fixture.Reader.Batch with
+        {
+            Candidates = [candidate with { Record = candidate.Record with { Text = new string('x', capacity + 1) } }],
+        };
+        var over = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+        over.Records.Single().ContentOmitted.Should().BeTrue();
+        DurableEvidenceQuery.Serialize(over).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
     }
 
     [Fact]

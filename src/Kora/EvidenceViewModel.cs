@@ -49,7 +49,8 @@ internal sealed partial class EvidenceViewModel(
 
     public Task ReadTraceAsync() => RunAsync(() => new()
     {
-        Source = selected?.Reference.Source == EvidenceSource.DailyLog ? EvidenceSource.DailyLog : EvidenceSource.All,
+        Source = currentQuery?.Source == EvidenceSource.CombinedLog ? EvidenceSource.CombinedLog
+            : selected?.Reference.Source == EvidenceSource.DailyLog ? EvidenceSource.DailyLog : EvidenceSource.All,
         TraceId = selected?.Trace?.TraceId
             ?? throw new InvalidOperationException("Select a record with trace correlation."),
         SessionId = currentQuery?.SessionId,
@@ -90,10 +91,13 @@ internal sealed partial class EvidenceViewModel(
             page = result;
             selected = null;
             resultText = Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(result));
+            var sourceFailed = target.Source == EvidenceSource.CombinedLog && result.UnavailableSources.Count > 0;
             status = $"{result.Status}: {result.Records.Count} records. "
-                + (result.Cursor is not null ? "More bounded pages available. " : "End of this filtered snapshot. ")
+                + (sourceFailed
+                    ? "An included source could not be read; no complete or empty-success result is claimed. Verify access and start a fresh search. "
+                    : result.Cursor is not null ? "More bounded pages available. " : "End of this filtered snapshot. ")
                 + result.Disclosure;
-            activity.Complete(HostOperationOutcome.Completed);
+            activity.Complete(sourceFailed ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
         }
         catch (OperationCanceledException)
         {

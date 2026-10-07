@@ -12,6 +12,39 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Release maintenance (notify-only)
+
+Use **Settings > Maintenance > Review / check / open canonical release** or
+the Tray **Release maintenance (notify-only)** entry. The existing **Review
+local version (native question)** remains a separate local-only workflow.
+Select Production (stable only) or explicitly choose Preview (published beta
+releases only), then permit **public metadata checks for this run**. Permission
+is off by default and not saved. An initial check is scheduled; subsequent
+checks use six hours plus jitter and explicit failure/rate-limit backoff.
+**Check canonical releases** respects the same deadline, including after
+permission/channel changes.
+
+Read the exact version, immutable source, architecture, expected application
+ZIP digest, canonical page and unsigned disclosure before **Open reviewed
+canonical release page**. Browser navigation is not download/install approval.
+**Snooze this version (24h)** affects only this run; there is no automatic
+speech, focus or prompt backlog. Lock/disconnect, unknown ownership and
+protected call mode close the review and invalidate pending callbacks.
+Return explicitly after recovery; Kora does not replay a deferred check.
+
+Available/UpToDate require consistent canonical metadata. Unavailable means
+no selected release or HTTP 404, not verified current. RateLimited (403/429)
+shows a retry deadline. Unknown includes transport, timeout, cancellation,
+malformed/oversized/changed metadata and unsupported architecture.
+Last successful verification stays historical after a failed check and is
+stale after six hours; stale/failed results cannot open a release page.
+
+Only release metadata and the bounded JSON manifest are fetched. Kora never
+obtains ZIP/MSI/EXE/source code, stages, executes, elevates, installs or changes
+source. Hashes are not publisher signatures. x86 has an application ZIP but
+no x86 installer/native capability acceptance. Deployment mode is unknown;
+replacement and prerequisite handling remain external/manual.
+
 ## Models
 
 The **Models** tab controls which model locations Kora may use for free-form

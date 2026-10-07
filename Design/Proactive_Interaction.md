@@ -2,6 +2,18 @@
 
 Status: proposed core MVP capability.
 
+R17/R18's delivered release foundation is a **passive native notify-only
+status**, not this general proactive broker or voice capability. Settings/
+Tray maintenance review explicitly permits public metadata for this run,
+checks canonical stable/beta releases with bounded cadence/backoff, shows
+verification age and supports reviewed canonical-page navigation and a
+version-specific 24-hour per-run snooze. It never opens a window, takes focus
+or speaks unsolicited. Privacy/ownership/protected-call closure invalidates
+checks and navigation; no unlock/call-end replay exists. Remote notes are
+not rendered, and models/tools cannot supply a feed, availability or URL.
+Full broker event routing, voice deferral/replies and durable reminder
+preferences remain proposed. See the [delivered limits](Distribution_And_Updates.md#delivered-bounded-r17r18-native-foundation).
+
 Related: [Task Lifecycle](Task_Lifecycle.md), [Work Management](Work_Management.md), [Distribution and Updates](Distribution_And_Updates.md), [Security and Data Flows](Security_Data_Flows.md).
 
 ## Product Behaviour
@@ -11,7 +23,7 @@ Voice interaction is bidirectional, not solely request/response.
 
 Examples:
 
-- "A new Kora release is available. Would you like me to install it when your current task finishes?"
+- "A new Kora release is available. Would you like to review its canonical release page?"
 - "The explanation is ready. Would you like the short summary?"
 - "I need you to choose an environment before I can continue."
 - "The next request is blocked because its prerequisite failed."

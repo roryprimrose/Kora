@@ -9,6 +9,7 @@ using Kora.Application.Diagnostics;
 using Kora.Application.Dependencies;
 using Kora.Application.Documentation;
 using Kora.Application.Hosting;
+using Kora.Application.Maintenance;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -18,6 +19,7 @@ using Kora.Core.Coordination;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Maintenance;
 using Kora.Core.Storage;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
@@ -26,6 +28,7 @@ using Kora.Windows.Communication;
 using Kora.Windows.Coordination;
 using Kora.Windows.Dependencies;
 using Kora.Windows.Identity;
+using Kora.Windows.Maintenance;
 using Kora.Windows.Session;
 using Kora.Windows.Storage;
 
@@ -202,6 +205,29 @@ internal static class Program
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton(TimeProvider.System);
+        services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = false,
+            UseCookies = false,
+            UseDefaultCredentials = false,
+            AutomaticDecompression = System.Net.DecompressionMethods.None,
+        }) { Timeout = Timeout.InfiniteTimeSpan });
+        services.AddSingleton<IReleaseMetadataClient>(provider => new GitHubReleaseMetadataClient(
+            provider.GetRequiredKeyedService<HttpClient>("release-metadata"),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<ILogger<GitHubReleaseMetadataClient>>()));
+        services.AddSingleton<ICanonicalReleasePageOpener, WindowsReleasePageOpener>();
+        services.AddSingleton(provider => new MaintenanceViewModel(
+            provider.GetRequiredService<IReleaseMetadataClient>(), provider.GetRequiredService<IApplicationInfo>(),
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture switch
+            {
+                System.Runtime.InteropServices.Architecture.X64 => ReleaseArchitecture.X64,
+                System.Runtime.InteropServices.Architecture.X86 => ReleaseArchitecture.X86,
+                _ => ReleaseArchitecture.Unsupported,
+            },
+            provider.GetRequiredService<ICanonicalReleasePageOpener>(), provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<IUiDispatcher>(), provider.GetRequiredService<ISecurityAuditLog>(),
+            provider.GetRequiredService<ILogger<MaintenanceViewModel>>()));
         services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();

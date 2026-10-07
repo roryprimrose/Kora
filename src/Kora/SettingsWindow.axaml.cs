@@ -75,6 +75,11 @@ public sealed partial class SettingsWindow : Window
 
     public void ShowVoiceRecovery() => settingsTabs.SelectedItem = speechAudioTab;
 
+    private void OnMaintenanceClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (DataContext is MainViewModel viewModel) { viewModel.ShowMaintenance(); }
+    }
+
     private void OnPushToTalkFocusLost(object? sender, Avalonia.Input.FocusChangedEventArgs eventArgs) =>
         OnCaptureSurfaceUnavailable(sender, eventArgs);
 

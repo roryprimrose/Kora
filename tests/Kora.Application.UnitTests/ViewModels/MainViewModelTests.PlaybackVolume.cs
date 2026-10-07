@@ -86,6 +86,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        fixture.ViewModel.ResponseBody.Should().Contain("Kora playback volume is zero or unavailable");
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         await fixture.RunAsync("set speech.playback-volume to 100");
         await fixture.RunAsync("reset speech.playback-volume");

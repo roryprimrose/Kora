@@ -3185,6 +3185,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowInformation("Voice preview is suppressed.", "Protected call policy requires visual-only output.");
             return;
         }
+        if (playbackVolumeConfiguration is not null && !playbackVolumeConfiguration.Get().AllowsSpeech)
+        {
+            ShowInformation("Voice preview is unavailable.",
+                "Kora playback volume is zero or unavailable. Inspect volume status in Settings; changing it never replays stopped speech.");
+            return;
+        }
         if (!IsSpeechOutputAvailable || SelectedVoice is not { } voice || SelectedOutputDevice is not { } outputDevice
             || EffectiveOutputDevice is not { IsMuted: false })
         {

@@ -62,6 +62,21 @@ the request prompt. Clarification turns retain the exact selected artifact.
 Unknown or incomplete slash commands fail closed and are not reinterpreted as
 free-form model requests.
 
+The response composer binds its `/` dropdown to that same catalogue. A bare
+slash lists all available artifacts; command text and optional
+`/skill `, `/prompt `, or `/instruction ` qualification filter it. Pointer
+selection and Up/Down/Enter insert the canonical direct command; Escape closes
+the list. Each entry shows command, name, description, and source.
+
+At composition, the embedded catalogue is combined with bounded compatible
+disk definitions. Kora-owned roaming `Skills`, `Instructions`, and `Prompts`
+folders and recognized personal `.copilot`, `.agents`, `.claude`, VS Code, and
+VS Code Insiders customization locations are read without whole-profile
+scanning or reparse traversal. Strict UTF-8, byte/file/depth bounds,
+frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
+uniqueness are validated. Invalid or conflicting discovery fails closed.
+Discovery occurs at startup; restart is required after disk changes.
+
 Running an artifact means applying its declarative instructions to the current
 model request. It does not execute a packaged script, approve an operation,
 create a grant, or prove an outcome. A selected artifact may lead the model to

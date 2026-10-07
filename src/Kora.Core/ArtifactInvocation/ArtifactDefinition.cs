@@ -3,6 +3,7 @@ namespace Kora.Core.Artifacts;
 public sealed record ArtifactDefinition
 {
     public const int MaximumContentLength = 64 * 1024;
+    public const int MaximumDescriptionLength = 1024;
 
     public ArtifactDefinition(
         string id,
@@ -23,7 +24,7 @@ public sealed record ArtifactDefinition
         }
         Kind = kind;
         Name = ValidateText(name, nameof(name), 128);
-        Description = ValidateText(description, nameof(description), 512);
+        Description = ValidateText(description, nameof(description), MaximumDescriptionLength);
         CommandName = ValidateCommandName(commandName);
         ArgumentNullException.ThrowIfNull(spokenNames);
         if (spokenNames.Count is 0 or > 8)

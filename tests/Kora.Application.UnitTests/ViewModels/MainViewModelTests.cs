@@ -4499,6 +4499,45 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Slash_command_dropdown_filters_and_applies_available_artifacts()
+    {
+        var fixture = new Fixture();
+
+        fixture.ViewModel.CommandText = "/";
+
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeTrue();
+        fixture.ViewModel.ArtifactCommandOptions.Should().ContainSingle();
+        var option = fixture.ViewModel.ArtifactCommandOptions[0];
+        option.Command.Should().Be("/lock");
+        option.Source.Should().Be("bundled");
+
+        fixture.ViewModel.ApplyArtifactCommandOption(option);
+
+        fixture.ViewModel.CommandText.Should().Be("/lock ");
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Slash_command_dropdown_supports_kind_qualification_and_dismissal()
+    {
+        var artifacts = new[]
+        {
+            new ArtifactDefinition(
+                "kora.skill.test", ArtifactKind.Skill, "Test skill", "Skill.",
+                "test-skill", ["test skill"], "bundled", "1.0.0", new string('1', 64), "Skill body."),
+            new ArtifactDefinition(
+                "kora.prompt.test", ArtifactKind.Prompt, "Test prompt", "Prompt.",
+                "test-prompt", ["test prompt"], "bundled", "1.0.0", new string('2', 64), "Prompt body."),
+        };
+
+        MainViewModel.FilterArtifactCommandOptions("/prompt test", artifacts)
+            .Should().ContainSingle().Which.Command.Should().Be("/test-prompt");
+        MainViewModel.FilterArtifactCommandOptions("/skill test", artifacts)
+            .Should().ContainSingle().Which.Command.Should().Be("/test-skill");
+        MainViewModel.FilterArtifactCommandOptions("not a command", artifacts).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Revoking_a_session_grant_publishes_the_updated_grant_document()
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -7663,23 +7702,25 @@ public sealed partial class MainViewModelTests : IDisposable
             var clipboard = new Kora.Tools.Clipboard.ClipboardSnapshotBroker(ClipboardReader, TimeProvider.System,
                 NullLogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>.Instance);
             var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(bootstrapper);
+            var artifactCatalogue = new ArtifactCatalogue(
+            [
+                new ArtifactDefinition(
+                    "kora.session.lock",
+                    ArtifactKind.Skill,
+                    "Lock the machine",
+                    "Lock the current Windows session.",
+                    "lock",
+                    ["lock", "lock the machine"],
+                    "bundled",
+                    "1.0.0",
+                    new string('0', 64),
+                    "Select only for an explicit request to lock the current session."),
+            ]);
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
-                new ArtifactCommandRouter(new ArtifactCatalogue(
-                [
-                    new ArtifactDefinition(
-                        "kora.session.lock",
-                        ArtifactKind.Skill,
-                        "Lock the machine",
-                        "Lock the current Windows session.",
-                        "lock",
-                        ["lock", "lock the machine"],
-                        "bundled",
-                        "1.0.0",
-                        new string('0', 64),
-                        "Select only for an explicit request to lock the current session."),
-                ])),
+                artifactCatalogue,
+                new ArtifactCommandRouter(artifactCatalogue),
                 bootstrapper,
                 new DependencySetupWorkflow(
                     bootstrapper,

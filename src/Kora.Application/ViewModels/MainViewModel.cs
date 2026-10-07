@@ -57,6 +57,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly BuiltInCommandCatalog commandCatalog;
     private readonly BuiltInCommandRouter commandRouter;
     private readonly ArtifactCommandRouter artifactCommandRouter;
+    private readonly ArtifactCatalogue artifactCatalogue;
     private readonly DependencyBootstrapper dependencyBootstrapper;
     private readonly DependencySetupWorkflow dependencySetup;
     private readonly ILocalModelReasoner localModelReasoner;
@@ -190,6 +191,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(
         BuiltInCommandCatalog commandCatalog,
         BuiltInCommandRouter commandRouter,
+        ArtifactCatalogue artifactCatalogue,
         ArtifactCommandRouter artifactCommandRouter,
         DependencyBootstrapper dependencyBootstrapper,
         DependencySetupWorkflow dependencySetup,
@@ -226,6 +228,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
+        this.artifactCatalogue = artifactCatalogue;
         this.artifactCommandRouter = artifactCommandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
         this.dependencySetup = dependencySetup;
@@ -415,6 +418,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = [];
 
     public ObservableCollection<DependencyStatus> Dependencies { get; } = [];
+
+    public ObservableCollection<ArtifactCommandOption> ArtifactCommandOptions { get; } = [];
 
     public IReadOnlyList<SetupTask> SetupTasks => dependencyBootstrapper.Tasks.Tasks;
 
@@ -1575,9 +1580,70 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (SetProperty(ref commandText, value))
             {
+                RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
         }
+    }
+
+    public bool IsArtifactCommandDropdownVisible => ArtifactCommandOptions.Count > 0;
+
+    public void ApplyArtifactCommandOption(ArtifactCommandOption option)
+    {
+        ArgumentNullException.ThrowIfNull(option);
+        if (!ArtifactCommandOptions.Contains(option))
+        {
+            return;
+        }
+        CommandText = option.Command + " ";
+    }
+
+    public void DismissArtifactCommandOptions()
+    {
+        ArtifactCommandOptions.Clear();
+        OnPropertyChanged(nameof(IsArtifactCommandDropdownVisible));
+    }
+
+    private void RefreshArtifactCommandOptions()
+    {
+        ArtifactCommandOptions.Clear();
+        foreach (var option in FilterArtifactCommandOptions(CommandText, artifactCatalogue.Artifacts))
+        {
+            ArtifactCommandOptions.Add(option);
+        }
+        OnPropertyChanged(nameof(IsArtifactCommandDropdownVisible));
+    }
+
+    internal static IReadOnlyList<ArtifactCommandOption> FilterArtifactCommandOptions(
+        string input,
+        IReadOnlyList<ArtifactDefinition> artifacts)
+    {
+        if (!input.StartsWith('/'))
+        {
+            return [];
+        }
+        var query = input[1..];
+        ArtifactKind? kind = null;
+        foreach (var candidate in Enum.GetValues<ArtifactKind>())
+        {
+            var prefix = candidate.ToString().ToLowerInvariant();
+            if (query.StartsWith(prefix + " ", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = candidate;
+                query = query[(prefix.Length + 1)..];
+                break;
+            }
+        }
+        if (query.Any(char.IsWhiteSpace))
+        {
+            return [];
+        }
+        return artifacts
+            .Where(artifact => (kind is null || artifact.Kind == kind)
+                && artifact.CommandName.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(artifact => artifact.CommandName, StringComparer.OrdinalIgnoreCase)
+            .Select(ArtifactCommandOption.From)
+            .ToArray();
     }
 
     private bool IsSetupStatusCommand() =>

@@ -23,7 +23,7 @@
       BorderBrush="{DynamicResource KoraBorderBrush}"
       BorderThickness="1"
       CornerRadius="16">
-    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel
             Spacing="4"
@@ -143,10 +143,43 @@
         <Button Content="Cancel question" Click="OnCancelQuestionClicked" HorizontalAlignment="Left" />
       </StackPanel>
 
-      <Grid Grid.Row="8" ColumnDefinitions="*,Auto" ColumnSpacing="9">
+      <Border Grid.Row="8"
+              IsVisible="{Binding IsArtifactCommandDropdownVisible}"
+              MaxHeight="190"
+              Padding="5"
+              Background="{DynamicResource KoraSurfaceAltBrush}"
+              BorderBrush="{DynamicResource KoraBorderBrush}"
+              BorderThickness="1"
+              CornerRadius="7">
+        <ListBox x:Name="ArtifactCommandList"
+                 ItemsSource="{Binding ArtifactCommandOptions}"
+                 AutomationProperties.Name="Available artifact slash commands">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Button Tag="{Binding}"
+                      Click="OnArtifactCommandClicked"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Left"
+                      Padding="8,5">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <TextBlock Text="{Binding Command}" FontWeight="SemiBold" />
+                  <StackPanel Grid.Column="1">
+                    <TextBlock Text="{Binding Name}" />
+                    <TextBlock Text="{Binding Description}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" Text="{Binding Source}" Classes="muted" FontSize="10" />
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Grid Grid.Row="9" ColumnDefinitions="*,Auto" ColumnSpacing="9">
         <TextBox
+            x:Name="CommandInput"
             Text="{Binding CommandText}"
-            PlaceholderText="Type a command"
+            PlaceholderText="Type a command or / for artifacts"
             KeyDown="OnCommandTextKeyDown"
             VerticalContentAlignment="Center" />
         <Button

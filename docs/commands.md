@@ -439,7 +439,12 @@ Kora can apply a bundled skill's instructions to a local-model request from
 the command box or activated voice. Future bundled instructions and prompts
 use the same command format.
 
-### Type a slash command
+**Type a slash command**
+
+Type `/` in the command box to open a dropdown of every available bundled and
+disk-backed artifact. Continue typing to filter by command name, or type a
+kind such as `/skill `, `/prompt `, or `/instruction `. Use Up/Down and Enter
+or select an item with the pointer; Escape closes the dropdown.
 
 Use a direct command:
 
@@ -467,21 +472,35 @@ The current release bundles only the three skills listed above. An unknown,
 incomplete, or wrong-kind slash command shows an error and is not sent to the
 model as an ordinary question.
 
-### Say an artifact command
+**Say an artifact command**
 
 Start with your configured assistant name, then say **run** or **use**:
 
-- **"Kora, run lock."**
-- **"Kora, use the restart skill."**
-- **"Kora, run the shut down the machine skill."**
-- **"Kora, use explain to summarize this result."** when a future `explain`
+- "Kora, run lock."
+- "Kora, use the restart skill."
+- "Kora, run the shut down the machine skill."
+- "Kora, use explain to summarize this result." when a future `explain`
   artifact is available.
 
 If you renamed Kora, use the configured name. Voice artifact requests without
 the activation name are rejected in the same way as other free-form voice
 requests.
 
-### What “run” means
+**Where disk artifacts are loaded from**
+
+Kora loads compatible files at startup from its roaming `Skills`,
+`Instructions`, and `Prompts` folders, recognized personal skill folders
+under `.copilot`, `.agents`, and `.claude`, and the VS Code or VS Code Insiders
+user prompts folder. It does not scan the rest of your profile or follow
+reparse points.
+
+Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
+`*.instructions.md`. Files require bounded UTF-8 content and YAML frontmatter.
+Skills marked `user-invocable: false` do not appear. Conflicting command names,
+IDs, or spoken names fail closed instead of choosing one source silently.
+Restart Kora after adding or changing an artifact.
+
+**What “run” means**
 
 Kora sends the current request and the exact selected bundled instructions
 only to the configured local model. The artifact is source- and

@@ -30,6 +30,11 @@ You do not need to know a tool ID, skill manifest, or PowerShell filename.
 For explicit selection, use `/lock`, `/restart`, `/shutdown`, the
 kind-qualified form `/skill <name>`, or activated voice such as
 **"Kora, run lock."** See [artifact commands](commands.md#run-skills-and-future-artifacts).
+Typing `/` opens a filtered dropdown composed from the same source-qualified
+catalogue used by routing. It includes bundled artifacts plus compatible
+`SKILL.md`, `.prompt.md`, and `.instructions.md` files from Kora-owned roaming
+folders and recognized user-profile customization folders. Disk definitions
+remain untrusted instruction content and do not inherit bundled execution trust.
 In the planned interaction:
 
 1. Kora receives your typed request or transcribes your activated voice request.

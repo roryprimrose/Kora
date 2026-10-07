@@ -263,6 +263,14 @@ collide with built-in command phrases are rejected. The executable remains
 
 ### Microphone
 
+- **Choose microphone (native recovery)** opens the same passive card as the
+  tray entry. Opening/Refresh reads bounded device metadata only. Highlight an
+  exact endpoint, then **Save preference only**; System and unavailable saved
+  pins remain visible, including after restart.
+- Separate **Enable listening (PTT readiness only)** uses the displayed saved
+  endpoint and fresh host gates, not the highlight or an old answer. Consent
+  remains in the existing separate Settings flow. No combined consent/enable,
+  microphone test or durable device-question bridge is available.
 - The card reports whether Windows microphone access for desktop applications
   is **allowed**, **blocked**, or could not be confirmed.
 - **System** follows the live Windows multimedia-default microphone.

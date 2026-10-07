@@ -9,10 +9,13 @@ Each section explains what exists now and what is planned.
 - **Partial** means a narrower version exists; read the stated limitation.
 - **Planned** means the described behavior is not available in this release.
 
-**No script-backed built-in skills ship in the current release.** The model
-also does not yet have the full tool/result conversation described below.
-Today, exact commands run C# handlers; other requests can receive a local
-answer, a clarification question, or a named action/grant-change proposal.
+**No script-backed built-in skill executor ships in the current release.**
+Bundled skill instructions can now be selected with typed slash commands or
+activated voice and applied to a local-model request; their embedded scripts
+remain inspection-only. The model also does not yet have the full tool/result
+conversation described below. Today, exact commands run C# handlers; other
+requests can receive a local answer, a clarification question, or a named
+action/grant-change proposal.
 See [exact commands](commands.md) for phrases you can use now and
 [Settings](settings.md) for controls you can change now.
 
@@ -24,6 +27,9 @@ typed command box instead. If you renamed Kora, use the new name; the old
 name is not kept as a hidden alias.
 
 You do not need to know a tool ID, skill manifest, or PowerShell filename.
+For explicit selection, use `/lock`, `/restart`, `/shutdown`, the
+kind-qualified form `/skill <name>`, or activated voice such as
+**"Kora, run lock."** See [artifact commands](commands.md#run-skills-and-future-artifacts).
 In the planned interaction:
 
 1. Kora receives your typed request or transcribes your activated voice request.

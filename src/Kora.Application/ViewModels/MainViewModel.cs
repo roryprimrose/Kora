@@ -12,6 +12,7 @@ using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -55,6 +56,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly BuiltInCommandCatalog commandCatalog;
     private readonly BuiltInCommandRouter commandRouter;
+    private readonly ArtifactCommandRouter artifactCommandRouter;
     private readonly DependencyBootstrapper dependencyBootstrapper;
     private readonly DependencySetupWorkflow dependencySetup;
     private readonly ILocalModelReasoner localModelReasoner;
@@ -129,6 +131,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private SecurityAuditEvent? pendingGrantChangeAudit;
     private LocalModelQuestion? pendingModelQuestion;
     private string? pendingQuestionRequest;
+    private LocalModelArtifact? pendingQuestionArtifact;
     private int pendingQuestionDepth;
     private bool isGrantEditorVisible;
     private CommandDefinition? selectedGrantAction;
@@ -187,6 +190,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(
         BuiltInCommandCatalog commandCatalog,
         BuiltInCommandRouter commandRouter,
+        ArtifactCommandRouter artifactCommandRouter,
         DependencyBootstrapper dependencyBootstrapper,
         DependencySetupWorkflow dependencySetup,
         ILocalModelReasoner localModelReasoner,
@@ -222,6 +226,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
+        this.artifactCommandRouter = artifactCommandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
         this.dependencySetup = dependencySetup;
         this.localModelReasoner = localModelReasoner;
@@ -2375,10 +2380,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NotifyOutputPolicyChanged();
     }
 
-    private void PresentModelQuestion(LocalModelQuestion question, string request, int depth)
+    private void PresentModelQuestion(
+        LocalModelQuestion question,
+        string request,
+        int depth,
+        LocalModelArtifact? artifact)
     {
         pendingModelQuestion = question;
         pendingQuestionRequest = request;
+        pendingQuestionArtifact = artifact;
         pendingQuestionDepth = depth;
         ModelQuestionChoices = question.Options.Select((text, index) =>
             new ModelQuestionChoice(index + 1, text)).ToArray();
@@ -2396,6 +2406,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         pendingModelQuestion = null;
         pendingQuestionRequest = null;
+        pendingQuestionArtifact = null;
         ModelQuestionChoices = [];
         OnPropertyChanged(nameof(ModelQuestionChoices));
         OnPropertyChanged(nameof(IsModelQuestionPending));
@@ -2414,6 +2425,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var answer = choice.Text;
+        var artifact = pendingQuestionArtifact;
         var followup = JsonSerializer.Serialize(new
         {
             OriginalRequest = original,
@@ -2438,7 +2450,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await HandleUnmatchedRequestAsync(followup, SecurityAuditInitiator.TypedCommand, depth);
+        await HandleUnmatchedRequestAsync(
+            followup,
+            SecurityAuditInitiator.TypedCommand,
+            depth,
+            artifact: artifact);
     }
 
     public async Task CancelModelQuestionAsync()
@@ -3962,6 +3978,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             return;
         }
+        var artifactMatch = artifactCommandRouter.Match(spokenText, AssistantName);
+        if (artifactMatch.IsArtifactCommand)
+        {
+            if (artifactMatch.Invocation is null)
+            {
+                ShowInformation("Artifact command not found.", artifactMatch.Error!);
+                return;
+            }
+            await HandleUnmatchedRequestAsync(
+                spokenText,
+                initiator,
+                artifactInvocation: artifactMatch.Invocation);
+            return;
+        }
         if (!match.IsMatch || match.Command is null)
         {
             await HandleUnmatchedRequestAsync(spokenText, initiator);
@@ -3986,7 +4016,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task HandleUnmatchedRequestAsync(
         string spokenText,
         SecurityAuditInitiator initiator,
-        int questionDepth = 0)
+        int questionDepth = 0,
+        ArtifactInvocation? artifactInvocation = null,
+        LocalModelArtifact? artifact = null)
     {
         if (initiator == SecurityAuditInitiator.VoiceCommand
             && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -3997,24 +4029,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         }
 
-        var request = spokenText.Trim();
-        if (string.Equals(
+        var request = artifactInvocation?.Request ?? spokenText.Trim();
+        if (artifactInvocation is null && string.Equals(
             request.TrimEnd(',', ':', '-', '—').TrimEnd(),
             AssistantName,
             StringComparison.OrdinalIgnoreCase))
         {
             request = string.Empty;
         }
-        else if (commandRouter.IsActivationPrefixed(request, AssistantName))
+        else if (artifactInvocation is null
+            && commandRouter.IsActivationPrefixed(request, AssistantName))
         {
             request = request[AssistantName.Length..].TrimStart(' ', ',', ':', '-', '—');
         }
 
         if (string.IsNullOrWhiteSpace(request))
         {
-            ShowInformation("No question was heard.", $"Say “{AssistantName}” followed by a request.");
-            return Task.CompletedTask;
+            if (artifactInvocation is null)
+            {
+                ShowInformation("No question was heard.", $"Say “{AssistantName}” followed by a request.");
+                return Task.CompletedTask;
+            }
+            request = $"Run the selected {artifactInvocation.Artifact.Kind.ToString().ToLowerInvariant()}.";
         }
+
+        artifact ??= artifactInvocation is null
+            ? null
+            : new LocalModelArtifact(
+                artifactInvocation.Artifact.Id,
+                artifactInvocation.Artifact.Kind,
+                artifactInvocation.Artifact.Name,
+                artifactInvocation.Artifact.Source,
+                artifactInvocation.Artifact.Version,
+                artifactInvocation.Artifact.Digest,
+                artifactInvocation.Artifact.Content);
 
         if (request.Length > 4096)
         {
@@ -4065,9 +4113,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanInstallPowerShell));
         OnPropertyChanged(nameof(CanInstallLocalModel));
         ShowInformation(
-            "Thinking locally.",
-            "Only your current request text is sent to the selected local model.");
-        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth);
+            artifact is null ? "Thinking locally." : $"Running {artifact.Name} locally.",
+            artifact is null
+                ? "Only your current request text is sent to the selected local model."
+                : "Your current request and the selected bundled artifact instructions are sent only to the selected local model. Artifact selection does not approve or execute an action.");
+        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth, artifact);
         _ = activeReasoningTask.ContinueWith(completed =>
         {
             if (completed.Exception is { } exception)
@@ -4087,7 +4137,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         bool busy, bool modelSetup, bool powerShellSetup) =>
         reasoning || actionDispatch || approvalPrompt || busy || modelSetup || powerShellSetup;
 
-    private async Task RunReasoningAsync(string request, CancellationTokenSource cancellation, int questionDepth)
+    private async Task RunReasoningAsync(
+        string request,
+        CancellationTokenSource cancellation,
+        int questionDepth,
+        LocalModelArtifact? artifact)
     {
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
@@ -4103,7 +4157,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         task.Id, "local.reasoning", StringComparison.Ordinal))
                     .Select(task => new LocalModelTask(
                         task.Name, task.State, task.ProgressPercentage)).ToArray());
-            var decision = await localModelReasoner.ReasonAsync(request, context, cancellation.Token);
+            var decision = await localModelReasoner.ReasonAsync(request, context, artifact, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             if (new object?[] { decision.Answer, decision.Action, decision.GrantChange, decision.Question }
                     .Count(value => value is not null) != 1
@@ -4131,7 +4185,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    PresentModelQuestion(clarification, request, questionDepth + 1);
+                    PresentModelQuestion(clarification, request, questionDepth + 1, artifact);
                     announceApproval = true;
                 }
             }

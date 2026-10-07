@@ -3,12 +3,28 @@ using System.Security.Cryptography;
 using AwesomeAssertions;
 
 using Kora.Definitions.Skills;
+using Kora.Definitions.Artifacts;
+using Kora.Core.Artifacts;
 using Kora.Core.Skills;
 
 namespace Kora.Definitions.UnitTests.Skills;
 
 public sealed class EmbeddedSkillCatalogueTests
 {
+    [Fact]
+    public void Every_embedded_skill_has_a_source_qualified_invocation_artifact()
+    {
+        var artifacts = EmbeddedArtifactCatalogue.Load().Artifacts;
+
+        artifacts.Should().HaveCount(3);
+        artifacts.Should().OnlyContain(artifact =>
+            artifact.Kind == ArtifactKind.Skill
+            && artifact.Source == "bundled"
+            && artifact.Content.Contains("## Availability", StringComparison.Ordinal));
+        artifacts.Select(artifact => artifact.CommandName)
+            .Should().BeEquivalentTo(["lock", "restart", "shutdown"]);
+    }
+
     [Theory]
     [InlineData("kora.session.lock", "4b17598f9ffc1b9b0c93937f199ae3c98b46d3971b1cb396ef20a7f45268335c",
         "eff78c161cafe57936ab2c48995ee56be4ecbb498777949bee0b92696af62d0f", "d93d9e99fb9c6260295b757a60fa80c98b6098af60e7f588d6c20bc13156497b")]

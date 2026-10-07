@@ -11,6 +11,7 @@ using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -4450,6 +4451,54 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Typed_slash_command_selects_artifact_without_bypassing_the_model_action_gate()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which
+            .Should().Be("Run the selected skill.");
+        fixture.Reasoner.LastArtifact.Should().NotBeNull();
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Activated_voice_artifact_command_uses_the_same_artifact_route()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RaiseActivatedTranscriptAsync("Kora, use lock to lock this session", 0.91f);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which
+            .Should().Be("lock this session");
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Unknown_slash_command_fails_closed_without_invoking_the_model()
+    {
+        var fixture = new Fixture();
+
+        await fixture.RunAsync("/not-registered");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact command not found.");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Revoking_a_session_grant_publishes_the_updated_grant_document()
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -7617,6 +7666,20 @@ public sealed partial class MainViewModelTests : IDisposable
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
+                new ArtifactCommandRouter(new ArtifactCatalogue(
+                [
+                    new ArtifactDefinition(
+                        "kora.session.lock",
+                        ArtifactKind.Skill,
+                        "Lock the machine",
+                        "Lock the current Windows session.",
+                        "lock",
+                        ["lock", "lock the machine"],
+                        "bundled",
+                        "1.0.0",
+                        new string('0', 64),
+                        "Select only for an explicit request to lock the current session."),
+                ])),
                 bootstrapper,
                 new DependencySetupWorkflow(
                     bootstrapper,
@@ -7928,14 +7991,17 @@ public sealed partial class MainViewModelTests : IDisposable
             public Exception? Failure { get; set; }
 
             public LocalModelContext? LastContext { get; private set; }
+            public LocalModelArtifact? LastArtifact { get; private set; }
 
             public async Task<LocalModelResponse> ReasonAsync(
                 string request,
                 LocalModelContext context,
+                LocalModelArtifact? artifact,
                 CancellationToken cancellationToken)
             {
                 Requests.Add(request);
                 LastContext = context;
+                LastArtifact = artifact;
                 if (Failure is not null)
                 {
                     throw Failure;

@@ -433,3 +433,63 @@ model; selecting an option is **not** permission to run an action or create a
 grant. A later action proposal still requires its own approval, unless a
 specific grant already covers that action. Kora limits consecutive questions
 to three; start a new request with more details if it reaches that limit.
+## Run skills and future artifacts
+
+Kora can apply a bundled skill's instructions to a local-model request from
+the command box or activated voice. Future bundled instructions and prompts
+use the same command format.
+
+### Type a slash command
+
+Use a direct command:
+
+```text
+/lock
+/restart
+/shutdown
+```
+
+You can also include the artifact kind:
+
+```text
+/skill lock
+/skill restart
+/skill shutdown
+```
+
+An artifact that accepts request text uses the rest of the line as its input:
+
+```text
+/prompt explain why this setup failed
+```
+
+The current release bundles only the three skills listed above. An unknown,
+incomplete, or wrong-kind slash command shows an error and is not sent to the
+model as an ordinary question.
+
+### Say an artifact command
+
+Start with your configured assistant name, then say **run** or **use**:
+
+- **"Kora, run lock."**
+- **"Kora, use the restart skill."**
+- **"Kora, run the shut down the machine skill."**
+- **"Kora, use explain to summarize this result."** when a future `explain`
+  artifact is available.
+
+If you renamed Kora, use the configured name. Voice artifact requests without
+the activation name are rejected in the same way as other free-form voice
+requests.
+
+### What “run” means
+
+Kora sends the current request and the exact selected bundled instructions
+only to the configured local model. The artifact is source- and
+version-qualified, and it remains selected if Kora asks a clarification
+question.
+
+Selecting an artifact does **not** run its embedded PowerShell, approve a
+protected operation, create a grant, or mean an action succeeded. If the model
+proposes a registered action, Kora still applies the ordinary host validation,
+approval, privacy, audit, and execution rules. The current embedded
+session-control scripts remain inspection-only.

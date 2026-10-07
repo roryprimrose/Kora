@@ -7613,6 +7613,7 @@ public sealed partial class MainViewModelTests : IDisposable
             ApplicationInfo = new FakeApplicationInfo();
             var clipboard = new Kora.Tools.Clipboard.ClipboardSnapshotBroker(ClipboardReader, TimeProvider.System,
                 NullLogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>.Instance);
+            var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(bootstrapper);
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
@@ -7647,7 +7648,13 @@ public sealed partial class MainViewModelTests : IDisposable
                 new DurableVersionQuery(new HostTaskCoordinator(HostStore), Audit,
                     NullLogger<DurableVersionQuery>.Instance),
                 new Kora.Application.Tools.ReadOnlyCapabilityRegistry(
-                    new CapabilityHostAccess(Session), ApplicationInfo, bootstrapper,
+                    new CapabilityHostAccess(Session),
+                    new Kora.Tools.Capabilities.CapabilitiesList(),
+                    new Kora.Tools.Capabilities.CapabilitiesGet(),
+                    new Kora.Tools.Application.ApplicationGetVersion(ApplicationInfo),
+                    new Kora.Tools.Readiness.ReadinessGet(bootstrapper),
+                    new Kora.Tools.Runtime.RuntimeList(runtime),
+                    new Kora.Tools.Runtime.RuntimeGetStatus(runtime),
                     NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance),
                 new AppearanceConfigurationService(AppearancePreferences, Audit,
                     NullLogger<AppearanceConfigurationService>.Instance),

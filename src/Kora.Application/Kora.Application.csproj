@@ -13,19 +13,6 @@
     <EmbeddedResource
         Include="..\..\docs\*.md"
         LogicalName="Kora.Docs.%(Filename)%(Extension)" />
-    <EmbeddedResource Include="Skills\Resources\Lock\manifest.json" LogicalName="Kora.Skills.Session.Lock.Manifest" />
-    <EmbeddedResource Include="Skills\Resources\Lock\skill.md" LogicalName="Kora.Skills.Session.Lock.Instructions" />
-    <EmbeddedResource Include="Skills\Resources\Lock\fixtures.json" LogicalName="Kora.Skills.Session.Lock.Fixtures" />
-    <EmbeddedResource Include="Skills\Resources\Lock\entry.ps1" LogicalName="Kora.Scripts.Session.Lock" />
-    <EmbeddedResource Include="Skills\Resources\Shutdown\manifest.json" LogicalName="Kora.Skills.Session.Shutdown.Manifest" />
-    <EmbeddedResource Include="Skills\Resources\Shutdown\skill.md" LogicalName="Kora.Skills.Session.Shutdown.Instructions" />
-    <EmbeddedResource Include="Skills\Resources\Shutdown\fixtures.json" LogicalName="Kora.Skills.Session.Shutdown.Fixtures" />
-    <EmbeddedResource Include="Skills\Resources\Shutdown\entry.ps1" LogicalName="Kora.Scripts.Session.Shutdown" />
-    <EmbeddedResource Include="Skills\Resources\Restart\manifest.json" LogicalName="Kora.Skills.Session.Restart.Manifest" />
-    <EmbeddedResource Include="Skills\Resources\Restart\skill.md" LogicalName="Kora.Skills.Session.Restart.Instructions" />
-    <EmbeddedResource Include="Skills\Resources\Restart\fixtures.json" LogicalName="Kora.Skills.Session.Restart.Fixtures" />
-    <EmbeddedResource Include="Skills\Resources\Restart\entry.ps1" LogicalName="Kora.Scripts.Session.Restart" />
-    <EmbeddedResource Include="Skills\Resources\session-control.ps1" LogicalName="Kora.Scripts.Shared.SessionControl" />
   </ItemGroup>
 
   <ItemGroup>

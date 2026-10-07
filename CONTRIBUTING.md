@@ -28,6 +28,8 @@ dotnet tool restore
 dotnet build .\Kora.slnx --configuration Release --no-restore
 dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
 dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
+dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
+dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTests.csproj --configuration Release --no-build
 dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 
@@ -37,6 +39,14 @@ requests in other test collections from entering a test's evidence sink or
 changing its sampling assumptions. Other collections remain parallel.
 Portable CI retains a generated coverage report even when the unchanged
 100% line/branch gate fails, so uncovered branches can be diagnosed.
+
+Built-in C# actions belong in `Kora.Tools`, with one class per action grouped
+by capability. Bundled skills, prompt templates, shared instructions and future
+agent profiles belong in the single `Kora.Definitions` content project.
+Follow the [tool and definition implementation guidance](Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation):
+preserve the common host gateway, explicit content IDs/bytes/digests and
+existing unavailable/qualification gates. Project placement or a definition
+never grants execution, approval or model-egress authority.
 
 Run the dependency-license gate before adding or upgrading a package:
 

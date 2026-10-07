@@ -399,7 +399,7 @@ framework or test patterns where a rule is not applicable.
 
 The automated test boundary is:
 
-- `Kora.Core.UnitTests`, `Kora.Application.UnitTests` and `Kora.Tools.UnitTests` are portable unit tests. Linux CI collects coverage for `Kora.Core`, `Kora.Application` and `Kora.Tools`, requires 100% line and branch coverage, uploads the Cobertura report, and posts the Markdown summary to pull requests.
+- `Kora.Core.UnitTests`, `Kora.Application.UnitTests`, `Kora.Tools.UnitTests` and `Kora.Definitions.UnitTests` are portable unit tests. Linux CI collects coverage for all four portable assemblies, requires 100% line and branch coverage, uploads the Cobertura report, and posts the Markdown summary to pull requests.
 - `Kora.Windows.IntegrationTests` runs on a GitHub-hosted Windows runner. It covers native dependency probing, safe microphone enumeration/error boundaries, and the audio stream adapter without opening a real capture session or invoking session lock.
 - Physical microphone capture, recognition quality, device removal during capture, Windows session-lock notification, and real lock behavior require a controlled Windows machine and remain manual/end-to-end acceptance evidence. CI must never lock or restart its runner.
 
@@ -410,7 +410,8 @@ The automated test boundary is:
 - `src/Kora.Windows` — Windows microphone, speech-recognition, text-to-speech, readiness, and session integrations.
 - `src/Kora` — Avalonia composition root and presence interface.
 - `src/Kora.Tools` — portable host-owned built-in actions, one class per action grouped by capability (for example `Clipboard/ClipboardRead.cs` and namespace `Kora.Tools.Clipboard`); shared brokers are not model authority. See [implementation guidance](Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
-- `tests/Kora.Core.UnitTests`, `tests/Kora.Application.UnitTests` and `tests/Kora.Tools.UnitTests` — portable unit tests and CI coverage.
+- `src/Kora.Definitions` — immutable bundled definitions/resources and explicit catalogue loading; existing skills are embedded here with unchanged IDs/bytes/digests. Prompt templates, shared instructions and agent profiles share this project when implemented; no agent runtime is delivered. See [definition guidance](Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles).
+- `tests/Kora.Core.UnitTests`, `tests/Kora.Application.UnitTests`, `tests/Kora.Tools.UnitTests` and `tests/Kora.Definitions.UnitTests` — portable unit tests and CI coverage.
 - `tests/Kora.Windows.IntegrationTests` — non-destructive Windows integration tests.
 - `Design` — product, architecture, safety, and interaction specifications.
 

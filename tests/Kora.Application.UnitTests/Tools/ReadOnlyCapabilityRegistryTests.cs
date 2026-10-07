@@ -340,8 +340,18 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
         public AppInfo Info { get; } = new();
         public DependencyBootstrapper Dependencies { get; } = new([], NullLogger<DependencyBootstrapper>.Instance);
         public ReadOnlyCapabilityRegistry Registry { get; }
-        public Fixture(ILogger<ReadOnlyCapabilityRegistry>? logger = null) =>
-            Registry = new(Host, Info, Dependencies, logger ?? NullLogger<ReadOnlyCapabilityRegistry>.Instance);
+        public Fixture(ILogger<ReadOnlyCapabilityRegistry>? logger = null)
+        {
+            var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(Dependencies);
+            Registry = new(Host,
+                new Kora.Tools.Capabilities.CapabilitiesList(),
+                new Kora.Tools.Capabilities.CapabilitiesGet(),
+                new Kora.Tools.Application.ApplicationGetVersion(Info),
+                new Kora.Tools.Readiness.ReadinessGet(Dependencies),
+                new Kora.Tools.Runtime.RuntimeList(runtime),
+                new Kora.Tools.Runtime.RuntimeGetStatus(runtime),
+                logger ?? NullLogger<ReadOnlyCapabilityRegistry>.Instance);
+        }
         public void Dispose() => Dependencies.Dispose();
     }
 

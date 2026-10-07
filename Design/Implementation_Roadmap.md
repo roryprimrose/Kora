@@ -1434,6 +1434,37 @@ proof's measurements.
 
 ### Complete the Required Slice A Product
 
+#### Tools and Definitions Structural Follow-Up - 2026-10-07
+
+The six R06 implementations are separated into per-action C# classes in the
+portable `Kora.Tools` capability folders, retaining the existing Application
+gateway for host/caller/lane admission, strict JSON and complete output bounds,
+cancellation/tracing and content-minimizing logs. IDs, schema/effect descriptors,
+six-record/4 KiB limits, cached observations, unsupported inputs and unavailable
+tool-loop qualification are unchanged. The portable version-observation
+interface moves to Core to avoid a reverse Tools-to-Application dependency.
+No model tool exposure or action authority is added.
+
+`Kora.Definitions` is the single bundled-content project for skills and, when
+actually implemented, prompt templates, shared instructions and agent profiles.
+The existing skill catalogue and all 13 declared lock/shutdown/restart/helper
+resources move here without changing logical IDs, resource bytes, manifests
+or independent golden package/script-set/definition digests. Core retains
+validation/digest policy; desktop retains the same native immutable inspection.
+Agent profiles are documented as future bounded declarative task definitions,
+not a loader, scheduler or permission system. No empty scaffolding or model
+prompt/runtime changes are introduced.
+
+Repository instructions, contributing guidance and the authoritative
+[implementation convention](Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles)
+cover both project responsibilities and folder/namespace alignment.
+Moved tests preserve original R06 hostile-input, bounds, caller/session,
+cancellation/trace and R11 golden/resource/error/shared-helper proofs.
+CI covers all four portable assemblies at unchanged 100% line/branch thresholds
+and checks final x64/x86 `Kora.Definitions.dll` resource bytes. This is
+structural organization, not closure of R06/R11 runtime/worker/agent gates.
+No experiment evidence is retired or relabelled by this move.
+
 #### R11 Bounded Embedded Package Catalogue and Native Review - 2026-10-07
 
 The fixed lock, graceful shutdown and restart packages now have explicit

@@ -149,20 +149,91 @@ or method names. Having an implementation or action class does not enable
 model exposure or confer authority: unsupported caller lanes, missing
 qualification, privacy/egress and other mandatory gates still fail closed.
 Document the concrete unavailable reason and supported deterministic route.
-Tools, Core and Application are all subject to the existing 100% portable
+Tools, Definitions, Core and Application are all subject to the existing 100% portable
 line/branch coverage gate; moving code cannot remove it from coverage.
 
-**Existing implementation migration:** the R06 `ReadOnlyCapabilityRegistry`
-currently combines gateway infrastructure and six implementations:
-`capabilities.list`, `capabilities.get`, `application.get_version`,
-`readiness.get`, `runtime.list` and `runtime.get_status`. Move their
-capability-specific implementations into corresponding Tools groups when
-that R06 work is explicitly undertaken, preserving descriptors, bounds,
-caller lanes, outcomes and tests. This R07 delivery does not refactor that
-peer-owned registry. Legacy built-in command handlers in `MainViewModel`
+**Delivered R06 layout:** `ReadOnlyCapabilityRegistry` retains the common
+caller/current-host admission, strict JSON parsing, complete serialized-output
+bounds, trace/cancellation and structured logging gateway. Its six typed
+implementation targets are now separate classes:
+
+| Canonical ID | Source class in `Kora.Tools` |
+|---|---|
+| `capabilities.list` | `Capabilities/CapabilitiesList.cs` |
+| `capabilities.get` | `Capabilities/CapabilitiesGet.cs` |
+| `application.get_version` | `Application/ApplicationGetVersion.cs` |
+| `readiness.get` | `Readiness/ReadinessGet.cs` |
+| `runtime.list` | `Runtime/RuntimeList.cs` |
+| `runtime.get_status` | `Runtime/RuntimeGetStatus.cs` |
+
+Those R06 execution entry points are internal to the admitted host gateway,
+not public SDK/reflection shortcuts. DI registration does not register a tool
+with a model. Canonical IDs, descriptors, schema/effects, limits, lane admission,
+recorded observations and unavailable tool-loop status are unchanged.
+The application-version observation contract belongs in Core, with the
+assembly-version implementation in Application; Tools has no reverse dependency.
+Legacy built-in command handlers in `MainViewModel`
 are not yet generic model tools; migrate only a capability whose actual
 registered tool contract and shared authority path are in scope, rather than
 reclassifying all methods or helper services as tools.
+
+### Bundled Definitions and Agent Profiles
+
+Use one portable `Kora.Definitions` project for bundled behavior content:
+skills, reusable prompt templates, shared scoped instructions and future
+agent profiles. These content kinds share explicit catalogue registration,
+immutable embedding, bounds, version/digest handling and passive source review;
+they do not need separate projects solely because they have different file
+extensions. `Kora.Tools` remains separate because it implements executable
+C# host actions.
+
+The source layout is grouped by content kind, with C# loader/catalogue
+namespaces mirroring their actual folders:
+
+```text
+Kora.Definitions/
+  Skills/
+    EmbeddedSkillCatalogue.cs        -> Kora.Definitions.Skills
+    Lock/                            -> manifest, instructions, fixtures, entry script
+    Shutdown/
+    Restart/
+    session-control.ps1              -> declared shared skill helper
+  Prompts/                           -> when actual prompt resources are introduced
+  Instructions/                      -> when shared scoped resources are introduced
+  Agents/                            -> when supported agent definitions are introduced
+```
+
+Only the delivered Skills files currently exist. Do not create empty folders,
+placeholder loaders or fictitious advertised capabilities. Keep each skill's
+own instructions, fixtures and executable-resource closure together; reserve
+`Instructions` for shared guidance rather than splitting every skill package.
+Resource files have explicit stable IDs, not C# namespaces. Relocating an
+assembly or folder must preserve IDs, original bytes, manifests and package
+digests unless a separately reviewed content/version change is intended.
+The three built-ins retain their existing `Kora.Skills.*`/`Kora.Scripts.*`
+resource IDs and independent golden digest vectors in `Kora.Definitions.dll`.
+
+Definitions references Core for authoritative schemas/domain validation, not
+Tools, Application, Windows, Avalonia or model/provider SDKs. Consumers resolve
+the embedded first-party catalogue explicitly; there is no directory/assembly
+scan that turns arbitrary files into enabled skills. Scripts are inert
+packaged resources until a separately qualified host runner admits execution.
+Do not move protocol enforcement, authorization or security checks into
+Markdown, templates or model instructions. Existing model-selector framing
+and runtime code are unchanged by this resource migration.
+
+**Agent design direction, not delivered execution:** support named declarative
+task profiles that reference instructions, skills and a bounded subset of
+admitted tools, with typed input/output and runtime/locality/budget constraints.
+A profile is not a running agent, scheduler lane or new permission system.
+The host owns each run's session/task/request identity, original origin,
+resource leases, cancellation, budgets and approval/egress decisions.
+Profile text cannot approve effects, acquire arbitrary context, expand the
+tool subset or select an unapproved processing destination. No recursive
+delegation, concurrent worker creation, profile auto-enablement or provider
+fallback follows from loading a definition. Qualification of the actual
+model/tool loop and host runtime remains mandatory; no agent profile loader
+or agent executor is introduced by this structural delivery.
 
 The host maintains related but distinct registries:
 

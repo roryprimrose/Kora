@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Kora.Application;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.Logging;
 

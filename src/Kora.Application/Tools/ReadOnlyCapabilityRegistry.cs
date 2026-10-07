@@ -2,9 +2,12 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Tools;
+using Kora.Tools.Application;
+using Kora.Tools.Capabilities;
+using Kora.Tools.Readiness;
+using Kora.Tools.Runtime;
 
 using Microsoft.Extensions.Logging;
 
@@ -12,8 +15,12 @@ namespace Kora.Application.Tools;
 
 public sealed class ReadOnlyCapabilityRegistry(
     ICapabilityHostAccess host,
-    IApplicationInfo application,
-    DependencyBootstrapper dependencies,
+    CapabilitiesList listCapabilities,
+    CapabilitiesGet getCapability,
+    ApplicationGetVersion getVersion,
+    ReadinessGet getReadiness,
+    RuntimeList listRuntimes,
+    RuntimeGetStatus getRuntimeStatus,
     ILogger<ReadOnlyCapabilityRegistry> logger)
 {
     private readonly Guid registryId = Guid.NewGuid();
@@ -22,8 +29,6 @@ public sealed class ReadOnlyCapabilityRegistry(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter() },
     };
-    private static readonly string[] DependencyIds =
-        ["kora.storage", "kora.sqlite", "powershell.runtime", "local.inference", "windows.voice", "windows.tts"];
 
     public CapabilityCaller Admit(CapabilityLane lane)
     {
@@ -115,11 +120,7 @@ public sealed class ReadOnlyCapabilityRegistry(
             {
                 return new(CapabilityOutcome.Denied, "unknown-input-field");
             }
-            var version = application.Version;
-            return string.IsNullOrWhiteSpace(version) || version.Length > 128
-                ? new(CapabilityOutcome.Failed, "invalid-version-observation")
-                : new(CapabilityOutcome.Succeeded, "observed",
-                    Version: new(version, "Not observed by the current version provider."));
+            return getVersion.Execute();
         }
         if (descriptor.Input == CapabilityInputShape.Id)
         {
@@ -128,7 +129,9 @@ public sealed class ReadOnlyCapabilityRegistry(
             {
                 return new(CapabilityOutcome.Denied, "invalid-id-input");
             }
-            return Get(descriptor.Id, new CapabilityIdInput(fields[0].Value.GetString()!));
+            var id = new CapabilityIdInput(fields[0].Value.GetString()!);
+            return string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal)
+                ? getCapability.Execute(id) : getRuntimeStatus.Execute(id);
         }
         if (fields.Any(field => field.Name is not ("offset" or "count")
             || field.Value.ValueKind != JsonValueKind.Number
@@ -145,7 +148,12 @@ public sealed class ReadOnlyCapabilityRegistry(
         {
             return new(CapabilityOutcome.Denied, "page-out-of-range");
         }
-        return List(descriptor.Id, page);
+        return descriptor.Id switch
+        {
+            ReadOnlyCapabilityCatalog.List => listCapabilities.Execute(page),
+            ReadOnlyCapabilityCatalog.Readiness => getReadiness.Execute(page),
+            _ => listRuntimes.Execute(page),
+        };
     }
 
     private static JsonDocument? Parse(string input)
@@ -158,74 +166,6 @@ public sealed class ReadOnlyCapabilityRegistry(
         {
             return null;
         }
-    }
-
-    private CapabilityReply Get(string id, CapabilityIdInput input)
-    {
-        if (string.Equals(id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal))
-        {
-            var target = ReadOnlyCapabilityCatalog.Descriptors.FirstOrDefault(item => string.Equals(item.Id, input.Id, StringComparison.Ordinal));
-            return target is null
-                ? new(CapabilityOutcome.Denied, "unknown-capability")
-                : new(CapabilityOutcome.Succeeded, "admitted-read-only", Descriptor: target);
-        }
-        return string.Equals(input.Id, "local.inference", StringComparison.Ordinal)
-            ? new(CapabilityOutcome.Succeeded, "recorded-observation", Runtime: Runtime())
-            : new(CapabilityOutcome.Denied, "unknown-runtime");
-    }
-
-    private CapabilityReply List(string id, CapabilityPageInput input)
-    {
-        var total = id switch
-        {
-            ReadOnlyCapabilityCatalog.List => ReadOnlyCapabilityCatalog.Descriptors.Count,
-            ReadOnlyCapabilityCatalog.Readiness => DependencyIds.Length,
-            _ => 1,
-        };
-        if (input.Offset >= total)
-        {
-            return new(CapabilityOutcome.Denied, "page-out-of-range");
-        }
-        var count = Math.Min(input.Count, total - input.Offset);
-        int? next = input.Offset + count < total ? input.Offset + count : null;
-        var observations = dependencies.Observations;
-        return id switch
-        {
-            ReadOnlyCapabilityCatalog.List => new(CapabilityOutcome.Succeeded, "admitted-read-only",
-                Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Skip(input.Offset).Take(count).ToArray(), total, next)),
-            ReadOnlyCapabilityCatalog.Readiness => new(CapabilityOutcome.Succeeded, "recorded-observations",
-                Readiness: new(DependencyIds.Skip(input.Offset).Take(count)
-                    .Select(dependencyId => Observe(dependencyId, observations)).ToArray(), total, next)),
-            _ => new(CapabilityOutcome.Succeeded, "recorded-observation", Runtimes: new([Runtime()], total, next)),
-        };
-    }
-
-    private static ReadinessObservation Observe(string id, IReadOnlyList<DependencyObservation> observations)
-    {
-        var observation = observations.FirstOrDefault(item => string.Equals(item.Status.Id, id, StringComparison.Ordinal));
-        if (observation is null)
-        {
-            return new(id, null, CapabilityAvailability.NotObserved, "No completed observation is recorded.", null);
-        }
-        var readiness = observation.Status.Readiness;
-        return new(id, readiness, readiness == DependencyReadiness.Ready
-                ? CapabilityAvailability.Available : CapabilityAvailability.Unavailable,
-            readiness switch
-            {
-                DependencyReadiness.Ready => "The existing probe completed successfully; this is not a fresh check.",
-                DependencyReadiness.Missing => "A required dependency was not found by the existing probe.",
-                DependencyReadiness.NeedsConfiguration => "The existing probe requires configuration or a selected prerequisite.",
-                DependencyReadiness.Incompatible => "The existing probe found an incompatible dependency.",
-                DependencyReadiness.Blocked => "The existing probe reported a blocked dependency.",
-                _ => "The existing probe failed; open setup for local recovery details.",
-            }, observation.ObservedAt);
-    }
-
-    private RuntimeObservation Runtime()
-    {
-        var observation = Observe("local.inference", dependencies.Observations);
-        return new(observation.Id, RuntimeLocality.Local, observation.Availability,
-            observation.Readiness, observation.Reason, observation.ObservedAt, ToolLoopQualified: false);
     }
 
     private CapabilityReply Finish(string id, CapabilityReply reply)

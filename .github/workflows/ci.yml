@@ -167,13 +167,25 @@ jobs:
           --coverlet-output-format cobertura
           --coverlet-file-prefix tools
 
+      - name: Test bundled definitions with coverage
+        run: >
+          dotnet test
+          --project tests/Kora.Definitions.UnitTests/Kora.Definitions.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --results-directory .net-test-artifacts/definitions
+          --report-trx
+          --coverlet
+          --coverlet-output-format cobertura
+          --coverlet-file-prefix definitions
+
       - name: Generate and enforce coverage report
         run: >
           dotnet reportgenerator
           "-reports:.net-test-artifacts/**/*.coverage.cobertura.*.xml"
           "-targetdir:.net-test-artifacts/coverage-report"
           "-reporttypes:Cobertura;MarkdownSummaryGithub;TextSummary"
-          "-assemblyfilters:+Kora.Core;+Kora.Application;+Kora.Tools"
+          "-assemblyfilters:+Kora.Core;+Kora.Application;+Kora.Tools;+Kora.Definitions"
 
       - name: Enforce coverage thresholds
         shell: pwsh
@@ -225,7 +237,7 @@ jobs:
         run: |
           foreach ($rid in @('win-x64', 'win-x86')) {
             $evidence = "artifacts/publish-inspection/$rid"
-            ./eng/Test-EmbeddedSkillResources.ps1 -AssemblyPath "artifacts/Kora-$rid/Kora.Application.dll"
+            ./eng/Test-EmbeddedSkillResources.ps1 -AssemblyPath "artifacts/Kora-$rid/Kora.Definitions.dll"
             ./eng/Inspect-Publish.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Revision "$env:GITHUB_SHA" -EvidenceDirectory $evidence -BuildOrigin "GitHub Actions $env:GITHUB_RUN_ID/$env:GITHUB_RUN_ATTEMPT; Linux cross-publish; static-only"
             $tests = Join-Path $env:RUNNER_TEMP "kora-publish-contracts-$rid"
             ./eng/Test-PublishContracts.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Inspection "$evidence/payload.json" -OutputDirectory $tests

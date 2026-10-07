@@ -187,7 +187,7 @@ function Assert-SourceInspection {
     }
     $resources = @($inspection.peFiles | Where-Object { $_.path -ceq 'Kora.dll' } | ForEach-Object { $_.embeddedResources })
     if ($resources -notcontains '!AvaloniaResources') { throw 'Missing embedded Avalonia resources.' }
-    foreach ($name in 'Kora.exe', 'Kora.dll', 'Kora.Core.dll', 'Kora.Application.dll', 'Kora.Windows.dll') {
+    foreach ($name in 'Kora.exe', 'Kora.dll', 'Kora.Core.dll', 'Kora.Application.dll', 'Kora.Tools.dll', 'Kora.Definitions.dll', 'Kora.Windows.dll') {
         $observed = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload $name)).ProductVersion
         if ($observed -cne $Version) { throw "Published version mismatch: $name expected $Version, observed $observed." }
     }

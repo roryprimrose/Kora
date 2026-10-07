@@ -1,4 +1,4 @@
-namespace Kora.Application;
+namespace Kora.Core.Hosting;
 
 public interface IApplicationInfo
 {

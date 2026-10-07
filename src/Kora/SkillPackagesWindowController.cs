@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-using Kora.Application.Skills;
+using Kora.Definitions.Skills;
 using Kora.Application.ViewModels;
 using Microsoft.Extensions.Logging;
 

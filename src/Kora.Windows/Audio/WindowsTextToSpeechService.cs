@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Speech.Synthesis;
 
+using Kora.Core.Configuration;
 using Kora.Core.Voice;
 using Kora.Windows.Diagnostics;
 
@@ -12,12 +13,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Audio;
 
-public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
+public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, IPlaybackVolumeControl
 {
     private readonly Lock stateLock = new();
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
     private readonly SemaphoreSlim speechLock = new(1, 1);
     private readonly SpeechSynthesizer synthesizer = new();
+    private readonly Action<int> setOwnedWindowsGain;
+    private readonly Action cancelOwnedSynthesis;
     private TaskCompletionSource? synthesisCompletion;
     private TaskCompletionSource? playbackCompletion;
     private Prompt? activePrompt;
@@ -32,6 +35,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
     private bool stopRequested;
     private bool disposed;
     private long outputGeneration;
+    private PlaybackVolume? playbackVolume = PlaybackVolume.Default;
     private readonly KokoroTextToSpeechProvider? kokoroProvider;
     private readonly ILogger<WindowsTextToSpeechService> logger;
 
@@ -43,11 +47,24 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
     public WindowsTextToSpeechService(
         KokoroTextToSpeechProvider? kokoroProvider,
         ILogger<WindowsTextToSpeechService> logger)
+        : this(kokoroProvider, logger, setOwnedWindowsGain: null)
+    {
+    }
+
+    internal WindowsTextToSpeechService(
+        KokoroTextToSpeechProvider? kokoroProvider,
+        ILogger<WindowsTextToSpeechService> logger,
+        Action<int>? setOwnedWindowsGain,
+        Action? cancelOwnedSynthesis = null)
     {
         this.kokoroProvider = kokoroProvider;
         this.logger = logger;
+        this.setOwnedWindowsGain = setOwnedWindowsGain ?? (percent => synthesizer.Volume = percent);
+        this.cancelOwnedSynthesis = cancelOwnedSynthesis ?? synthesizer.SpeakAsyncCancelAll;
         synthesizer.SpeakCompleted += OnSpeakCompleted;
     }
+
+    internal void ApplyOwnedWindowsGain(PlaybackVolume volume) => setOwnedWindowsGain(volume.Percent);
 
     public bool IsSpeaking
     {
@@ -222,6 +239,13 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
         ArgumentNullException.ThrowIfNull(voice);
         ArgumentNullException.ThrowIfNull(outputDevice);
 
+        PlaybackVolume volume;
+        lock (stateLock)
+        {
+            volume = playbackVolume is { AllowsSpeech: true } current ? current
+                : throw new PlaybackVolumeUnavailableException(
+                    "Kora playback volume is zero or unavailable. Full visual output is required; no synthesis started.");
+        }
         await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task synthesisTask;
         try
@@ -285,22 +309,28 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
                 synthesisTask = SynthesizeKokoroAsync(
                     text,
                     voice,
+                    volume,
                     completion,
                     cancellationToken);
             }
             else
             {
+                if (!string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal))
+                {
+                    throw new PlaybackVolumeUnavailableException("This provider has no qualified Kora-only volume capability.");
+                }
                 synthesizer.SelectVoice(voice.Id);
                 audioStream = new MemoryStream();
                 synthesizer.SetOutputToWaveStream(audioStream);
                 var prompt = new Prompt(text);
                 lock (stateLock)
                 {
+                    RequireCurrentOutput(generation);
+                    ApplyOwnedWindowsGain(volume);
                     synthesisCompletion = completion;
                     activePrompt = prompt;
+                    synthesizer.SpeakAsync(prompt);
                 }
-
-                synthesizer.SpeakAsync(prompt);
                 synthesisTask = completion.Task;
             }
 
@@ -369,7 +399,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
                 completionTask = synthesisCompletion?.Task ?? playbackCompletion?.Task;
             }
 
-            synthesizer.SpeakAsyncCancelAll();
+            cancelOwnedSynthesis();
             playback?.Stop();
         }
         finally
@@ -388,12 +418,36 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
         WasapiPlayer? player;
         lock (stateLock)
         {
-            Interlocked.Increment(ref outputGeneration);
-            stopRequested = true;
-            player = playback;
+            player = RetireOutputLocked();
         }
+        StopRetiredOutput(player);
+    }
+
+    public void SetPlaybackVolume(PlaybackVolume? volume)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        WasapiPlayer? player;
+        lock (stateLock)
+        {
+            if (playbackVolume == volume) { return; }
+            playbackVolume = volume;
+            player = RetireOutputLocked();
+        }
+        StopRetiredOutput(player);
+    }
+
+    private WasapiPlayer? RetireOutputLocked()
+    {
+        Interlocked.Increment(ref outputGeneration);
+        stopRequested = true;
+        return playback;
+    }
+
+    private void StopRetiredOutput(WasapiPlayer? player)
+    {
+        // Native stop can synchronously wait for callbacks that need stateLock.
         player?.Stop();
-        synthesizer.SpeakAsyncCancelAll();
+        cancelOwnedSynthesis();
     }
 
     public async Task InstallProviderAsync(
@@ -539,6 +593,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
             audioReader = rawAudioFormat is null
                 ? new WaveFileReader(stream)
                 : new RawSourceWaveStream(stream, rawAudioFormat);
+            ValidatePlaybackSamples(audioReader);
             var envelope = SpeechOutputEnvelope.Create(audioReader, cancellationToken);
             lock (stateLock)
             {
@@ -664,6 +719,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
     private async Task SynthesizeKokoroAsync(
         string text,
         SpeechVoice voice,
+        PlaybackVolume volume,
         TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
@@ -677,6 +733,12 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
                 voice.Id,
                 cancellationToken).ConfigureAwait(false);
             audioStream = CreateOutputAudioStream(audio.Samples);
+            if (audio.BitsPerSample != 16 || audio.Channels != 1 || audio.SampleRate <= 0)
+            {
+                Array.Clear(audio.Samples);
+                throw new InvalidDataException("Kokoro produced an unsupported PCM format. Full visual output is required.");
+            }
+            Pcm16PlaybackGain.Attenuate(audio.Samples, volume);
             rawAudioFormat = new WaveFormat(
                 audio.SampleRate,
                 audio.BitsPerSample,
@@ -708,6 +770,14 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
 
     internal static MemoryStream CreateOutputAudioStream(byte[] samples) =>
         new(samples, 0, samples.Length, writable: false, publiclyVisible: true);
+
+    internal static void ValidatePlaybackSamples(WaveStream reader)
+    {
+        if (reader.Length == 0 || reader.Length % reader.WaveFormat.BlockAlign != 0)
+        {
+            throw new InvalidDataException("Speech audio must contain complete nonempty PCM frames; no silent-success playback is claimed.");
+        }
+    }
 
     internal static void ClearOutputAudio(MemoryStream stream) =>
         stream.GetBuffer().AsSpan().Clear();

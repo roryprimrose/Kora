@@ -149,9 +149,10 @@ host gate; this slice changes no protection downgrade, exact consent or call
 override policy. System/pinned output routing, speech privacy and mandatory
 visual fallback are unchanged. Asset review/download/removal remains separate
 from ready selection; finishing a download does not silently switch output.
-No rate/volume, microphone/tray recovery, model tools, provisioning
+No rate, microphone/tray recovery, model tools, provisioning
 authority, general registry rewrite or full R10/acoustic acceptance is delivered.
 Summary caps are delivered by the separate bounded slice below.
+Playback volume is delivered by its separate admitted audio-control slice below.
 
 ### Delivered bounded spoken summary limits (R10)
 
@@ -294,6 +295,65 @@ This is a bounded preference feature, not full R10/I/A or acoustic acceptance.
 Unique speech/acoustic/hardware/provider experiment receipts and executables are
 retained: metadata, storage and native-binding fixtures do not supersede them.
 
+### Delivered bounded per-Kora playback volume (R10)
+
+`speech.playback-volume` is a device-local **integer percent, 0-100 inclusive**.
+The unsaved/reset default is **100**, preserving the original unscaled engine
+output; it is not amplification or a Windows volume percentage. One
+[domain scalar](../src/Kora.Core/Configuration/PlaybackVolume.cs) validates exact
+canonical decimal input (no sign, padding, fractional value, percent suffix or
+leading zeros). A separate version-1 atomic preference file uses the existing
+store and application-data paths; no other preference is rewritten.
+
+Native Settings draft/save/reset and exact typed/ACTIVATED
+`list volume settings`, `get/status speech.playback-volume`,
+`set speech.playback-volume to <0-100>` and `reset speech.playback-volume`
+share the [volume workflow](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs).
+The current assistant-name prefix, 1,024-byte UTF-8/control input bound and
+complete 64-KiB result bound apply. Results expose desired/effective percent,
+saved/default/unavailable provenance, default/bounds, availability, recovery,
+configuration/call revisions, application timing and independent reset.
+
+An atomic unconfirmed-write marker is installed before changing the scalar
+file (including reset) and removed only after exact readback and both audit/task
+terminal receipts. Failed evidence therefore remains unavailable across restart,
+not just in memory. The marker is not authority or a new registry. Inspect the
+committed scalar and receipts before explicitly repairing unconfirmed state;
+normal refresh cannot silently clear that hold.
+
+The existing persisted audio-control admission resolves original local user
+input and an active session/generation. Host-held scalar proposals bind that
+authority, original channel, captured ownership/unlocked privacy/call/input
+eligibility and preference revision. Requested audit, live call-policy-locked
+revalidation, atomic persistence, exact readback and terminal task/audit receipts
+precede activation. Unknown/protected calls deny voice mutations; correlation
+IDs and lookalike/stale/foreign proposals supply no authority. Changed saved
+state or failed storage/readback/evidence leaves output explicitly unavailable;
+committed bytes are not falsely described as rolled back. Invalid saved values
+throw `InvalidDataException`; inspect/repair and refresh explicitly.
+
+Zero prevents new synthesis/automatic playback and keeps the **complete original
+visual response**, including warnings and mandatory question/approval readback.
+Changes retire active and queued output; raising/resetting never replays it.
+Windows uses gain on Kora's owned `SpeechSynthesizer` instance only. Delivered
+Kokoro uses signed PCM16 little-endian attenuation toward zero; unity is
+byte-identical and no sample is amplified. Empty/incomplete/unsupported samples
+fail visibly. Adapters without qualified owned-gain capability are explicitly
+unavailable, not silent-success audio.
+
+No system/call/other-process volume, mixer, mute or default device is written.
+Microphone/PTT, consent, permission, run holds, provider/voice/rate/downloads,
+summary caps (3 sentences/80 words), output routing, pinned/unavailable/System
+behavior, name, grants, approvals and pending previews remain independent.
+Stop/recovery stays available. The preference stores no response/audio content
+and changes no session, ordinary diagnostic or audit retention.
+
+This completes only bounded per-Kora volume, not full R10, provider/native or
+hardware/acoustic acceptance. The speech experiment's file-rendered SAPI
+samples, capture/threshold executable, hardware/provider gaps and historical
+receipts have no whole-executable maintained equivalent here: retain all;
+nothing is deleted or rerun.
+
 ### Proposed full configuration contract
 
 Voice and settings UI use the same typed host configuration service.
@@ -428,7 +488,7 @@ All voice-profile settings and management changes obey the protected-call origin
 | Output device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; stale/missing/unselected/muted/zero-volume/open/playback failure forces visual fallback | "Speak through my headphones" |
 | Local voice | Supported installed voice; do not silently download on selection | "Use the second installed voice" |
 | Speech rate | Engine normal; advertised supported range | "Speak twenty percent slower" |
-| Kora playback volume | Normal configured level; 0-100%, affects only Kora | "Set your volume to thirty percent" |
+| Kora playback volume | 100% original/unscaled; integer 0-100%, Kora-owned speech only; zero blocks synthesis with full visual output | Delivered exact: "set speech.playback-volume to 30" |
 | Spoken summary length | At most 3 sentences/80 words; user may lower either limit | "Keep spoken summaries under forty words" |
 | Detail presentation | Offer by default / Open automatically / Link only; applies to host-classified detail-recommended finalized foreground responses | "Always open detailed results" / "Stop asking about details" |
 | Speech text / rich display | Independent optional captions, source/rendered Markdown, diagram and viewer preferences | "Show the words you're saying" |

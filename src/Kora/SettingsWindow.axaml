@@ -516,6 +516,23 @@
               </Grid>
             </Border>
 
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Kora playback volume (0-100%)" Classes="settings-title" />
+                  <TextBlock Text="Kora-owned speech only. 100 is the original unscaled level. Zero prevents synthesis and keeps the full response visual. Saving stops old output; raising/resetting never replays it. Windows, call volume, microphone and consent are unchanged."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                  <TextBlock Text="{Binding PlaybackVolumeStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding PlaybackVolumeChoices}" SelectedItem="{Binding SelectedPlaybackVolume}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                  <Button Content="Refresh volume preference only" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                  <Button Content="Save Kora volume only" Command="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                  <Button Content="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
             <Button
                 Content="Refresh devices and readiness"
                 Command="{Binding RefreshCommand}"

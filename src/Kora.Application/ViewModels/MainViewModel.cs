@@ -222,7 +222,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
         Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
-        OutputDeviceConfigurationService? outputConfiguration = null)
+        OutputDeviceConfigurationService? outputConfiguration = null,
+        PlaybackVolumeConfigurationService? playbackVolumeConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -262,6 +263,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.speechConfiguration = speechConfiguration;
         speechConfiguration.Changed += OnSpeechConfigurationChanged;
         this.outputConfiguration = outputConfiguration;
+        this.playbackVolumeConfiguration = playbackVolumeConfiguration;
+        if (playbackVolumeConfiguration is not null)
+        {
+            try { playbackVolumeConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                playbackVolumeConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading playback volume");
+            }
+            selectedPlaybackVolume = playbackVolumeConfiguration.Get().Desired?.Percent ?? PlaybackVolume.Default.Percent;
+            playbackVolumeConfiguration.Changed += OnPlaybackVolumeChanged;
+        }
         if (outputConfiguration is not null)
         {
             outputConfiguration.Changed += OnOutputConfigurationChanged;
@@ -281,6 +294,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshOutputDevicesCommand = CreateCommand(RefreshOutputConfigurationAsync);
         SaveOutputDeviceCommand = CreateCommand(() => SaveOutputChoiceAsync(false));
         ResetOutputDeviceCommand = CreateCommand(() => SaveOutputChoiceAsync(true));
+        RefreshPlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SavePlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedPlaybackVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetPlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
         ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
@@ -1362,6 +1379,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsSpeechOutputAvailable =>
         activeSpeechVoice is not null
+        && (playbackVolumeConfiguration is null || playbackVolumeConfiguration.Get().AllowsSpeech)
         && (outputConfiguration is null || outputConfiguration.Get(CallPolicyRevision).Available)
         && EffectiveOutputDevice is not null
         && !EffectiveOutputDevice.IsMuted;
@@ -3167,7 +3185,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowInformation("Voice preview is suppressed.", "Protected call policy requires visual-only output.");
             return;
         }
-        if (SelectedVoice is not { } voice || SelectedOutputDevice is not { } outputDevice
+        if (playbackVolumeConfiguration is not null && !playbackVolumeConfiguration.Get().AllowsSpeech)
+        {
+            ShowInformation("Voice preview is unavailable.",
+                "Kora playback volume is zero or unavailable. Inspect volume status in Settings; changing it never replays stopped speech.");
+            return;
+        }
+        if (!IsSpeechOutputAvailable || SelectedVoice is not { } voice || SelectedOutputDevice is not { } outputDevice
             || EffectiveOutputDevice is not { IsMuted: false })
         {
             ApplicationLog.Information(logger, "Denied voice preview without an explicit voice and available output");
@@ -3189,6 +3213,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException)
         {
             ApplicationLog.Information(logger, "Voice preview was invalidated by a privacy transition");
+        }
+        catch (PlaybackVolumeUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Previewing with unavailable Kora playback volume");
+            PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
         }
         catch (ArgumentOutOfRangeException exception)
         {
@@ -3585,6 +3614,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (OutputDeviceCommand.Parse(spokenText, AssistantName) is { } outputCommand)
         {
             await ExecuteOutputDeviceCommandAsync(outputCommand, initiator);
+            return;
+        }
+        if (PlaybackVolumeCommand.Parse(spokenText, AssistantName) is { } volumeCommand)
+        {
+            await ExecutePlaybackVolumeCommandAsync(volumeCommand, initiator);
             return;
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
@@ -4509,6 +4543,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             NotifyOutputPolicyChanged();
             if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
         }
+        catch (PlaybackVolumeUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Playing a response with unavailable Kora playback volume");
+            PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
+        }
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Playing a response with the selected speech voice");
@@ -5035,6 +5074,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ResponseOutputStatus));
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
+        OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(PlaybackVolumeStatus));
     }
 
     private string[] GetRecognitionPhrases()
@@ -5046,6 +5087,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
+            .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands

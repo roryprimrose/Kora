@@ -304,6 +304,9 @@ internal static class Program
                 provider.GetRequiredKeyedService<HttpClient>("ollama-reasoner"),
                 provider.GetRequiredService<BuiltInCommandCatalog>()));
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
+        services.AddSingleton<IPlaybackVolumePreferences>(provider =>
+            new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<PlaybackVolumeConfigurationService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));

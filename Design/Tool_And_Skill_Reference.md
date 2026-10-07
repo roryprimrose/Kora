@@ -246,8 +246,8 @@ See [Call-Aware Speech](Call_Aware_Speech.md) and [Proactive Interaction](Proact
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
-| `context.capture_clipboard` | Explicit current-user snapshot request | Immutable text/context ID, size, source/time and classification; not monitoring | E | Planned |
-| `context.inspect` | Existing approved context ID | Policy-filtered captured content and provenance, not a fresh read | E | Planned |
+| `context.capture_clipboard` | Explicit current-user snapshot request | Immutable text/context ID, size, source/time and classification; not monitoring | E | Partial host-only R07 local snapshot/native preview delivered; model tool unavailable pending qualified local loop/answering and secret/egress gates |
+| `context.inspect` | Existing approved context ID | Policy-filtered captured content and provenance, not a fresh read | E | Host native preview/same-ID reuse only; model tool and general context store remain planned |
 | `context.select` | Existing context/result reference and task ID | Bind explicit approved input; clarify expired/missing/ambiguous references | E | Planned |
 
 Clipboard capture requires deliberate scoped voice/UI intent before read,

@@ -28,6 +28,7 @@ public sealed partial class App : Avalonia.Application
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
     private SessionsWindowController? sessionsWindow;
+    private ClipboardPreviewWindowController? clipboardWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
@@ -101,7 +102,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SessionsViewModel>>());
             sessionsWindow.Bind();
+            clipboardWindow = new ClipboardPreviewWindowController(viewModel);
             var host = viewModel;
+            host.BindClipboardOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
+                && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             host.BindCallOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             var dispatcher = Services.GetRequiredService<IUiDispatcher>();
@@ -182,6 +186,8 @@ public sealed partial class App : Avalonia.Application
         skillPackagesWindow = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
+        clipboardWindow?.Dispose();
+        clipboardWindow = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

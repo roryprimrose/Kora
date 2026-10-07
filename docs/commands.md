@@ -46,6 +46,35 @@ An observed ready dependency does not grant execution permission. No hosted
 provider, MCP adapter, or model tool/result loop is delivered by this registry.
 Existing help, version, setup/status, lock and power phrases retain their behavior.
 
+## Explicit local clipboard preview
+
+These exact commands and the tray's **Preview clipboard (local plain text)**
+entry use the same request workflow without a model:
+
+| Exact command | Result |
+|---|---|
+| **preview clipboard** / **preview the clipboard** / **snapshot clipboard** | Read one fresh bounded Unicode plain-text snapshot and open its immutable native preview |
+| **explain clipboard** / **explain the clipboard** | The same local preview, with explanation explicitly unavailable |
+| **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
+| **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
+
+Configured-name prefixes and the normal exact-command case/punctuation rules
+apply. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
+read version, capture time and exact UTF-8 byte count. Its **Reuse this exact
+snapshot ID** button uses the displayed ID; **Revoke and clear**, closing the
+preview, cancel, privacy/ownership loss, call-policy change and host exit clear
+or suppress it. A new capture replaces the prior selection with a new ID.
+
+The whole text must fit 256 KiB UTF-8, with valid paired Unicode surrogates.
+Empty, unsupported, oversize, busy, denied, changed-version and malformed
+reads are explicit; there is no truncation, queued retry, background watcher,
+URL fetch, HTML/image/file capture, clipboard write, history or persistence.
+Whitespace and line endings are preserved. Text is untrusted and may contain
+secrets; preview/reuse is neither execution authority nor transmission approval.
+Clipboard explanation is unavailable until qualified local tool-loop and
+clipboard-answering gates pass. Nothing reaches the current JSON selector,
+Ollama or a remote provider. See [privacy](privacy-safety-and-logs.md#clipboard-snapshots).
+
 ## Window and application tasks
 
 ### Inspect existing minimal durable sessions

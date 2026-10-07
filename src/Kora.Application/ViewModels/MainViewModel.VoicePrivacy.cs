@@ -129,6 +129,8 @@ public sealed partial class MainViewModel
         }
         disposed = true;
         lifecycleAdmissionClosed = true;
+        clipboardPreview.Changed -= OnClipboardPreviewChanged;
+        clipboardPreview.Dispose();
         HoldVoiceInput("Microphone closed · host disposed");
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
         voiceRecognition.TranscriptRecognized -= OnTranscriptRecognized;
@@ -198,6 +200,7 @@ public sealed partial class MainViewModel
         if (hidePresentation)
         {
             Interlocked.Exchange(ref privacyPresentationHeld, 1);
+            ClearClipboardPreview();
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening");
         textToSpeech.InvalidateOutput();
@@ -537,7 +540,7 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (lifecycleAdmissionClosed || IsBusy || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
+        if (lifecycleAdmissionClosed || IsBusy || !clipboardPreview.IsQuiescent || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())
         {
@@ -547,6 +550,7 @@ public sealed partial class MainViewModel
 
         Interlocked.Exchange(ref handoffPreparationActive, 1);
         lifecycleAdmissionClosed = true;
+        ClearClipboardPreview();
         HoldVoiceInput("Microphone closed · host handoff");
         textToSpeech.InvalidateOutput();
         try

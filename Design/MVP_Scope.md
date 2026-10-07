@@ -33,6 +33,16 @@ Linux GitHub Actions build/test/package infrastructure does not make Linux a sup
 
 ### Slice A: Voice and Clipboard
 
+**Bounded delivered subset (2026-10-07):** explicit request-triggered Unicode
+plain-text snapshot and immutable native preview, exact-ID reuse and
+revoke/clear are composed without a model. Reads are bounded to 256 KiB strict
+UTF-8 and denied/stale/unsupported/contended states are explicit. There is no
+background watcher, clipboard write/history/persistence or model egress.
+**Explain the clipboard** currently offers that preview and states that
+explanation is unavailable. Qualified local tool-loop/answering, complete
+secret/egress envelope controls and live clipboard acceptance remain open;
+this is not the product outcome or completion of A0/A2.
+
 Slice A is delivered through independently accepted implementation checkpoints.
 A checkpoint may be used for development evaluation but is not advertised as the completed product outcome until all Slice A checkpoints pass.
 Do not begin a later checkpoint while an earlier checkpoint has unresolved safety/correctness failures.

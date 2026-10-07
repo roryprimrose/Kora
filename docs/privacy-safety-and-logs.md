@@ -8,6 +8,40 @@ is unavailable, not the old ambient grammar. The built-in text-to-speech provide
 Windows SAPI voices. Kora does not need a cloud account or network connection
 for these features.
 
+## Clipboard snapshots
+
+An exact [clipboard preview request](commands.md#explicit-local-clipboard-preview)
+authorizes one ephemeral local plain-text read, not monitoring or model use.
+Kora checks current unlocked privacy, instance ownership, original input
+origin and call-policy generation before reading and again before presentation.
+Unknown/unavailable authority fails closed. Native reads run on a request-owned
+STA, close the clipboard and release the borrowed native memory lock; Kora
+does not own or free the clipboard data handle.
+Unverified native release is latched as unavailable and blocks clean ownership
+handoff/exit; cancellation cannot conceal that failure or claim quiescence.
+
+Preview displays the exact immutable text, including whitespace, under separate
+host-owned provenance/ID chrome. Quoted commands, HTML, links and credentials
+are inert data; they cannot approve, invoke tools, edit settings or select a
+destination. No content, digest, title, excerpt or raw exception message enters
+diagnostic/audit/status/model payloads. Diagnostics record only the typed
+outcome/failure type under host activity correlation. This slice has no content
+store, history index or persisted context.
+
+All model explanation and egress are unavailable, even for apparently harmless
+text and even after reuse. This follows the accepted policy that secret
+detection is best-effort, not a safety guarantee; no redaction or secret-free
+claim is made. A future answering/egress slice must independently qualify
+the local tool loop, inspect the complete outgoing envelope and enforce secret
+and destination rules. Credential-store material remains excluded.
+
+Clear/revoke, close, cancel, privacy/ownership loss, changed call policy,
+handoff and disposal retire the selection/render generation and suppress late
+reads/callbacks. Unlock does not restore it. Clearing releases Kora's references;
+it does not change the shared clipboard or promise managed-memory zeroization.
+Automated tests use private fake/native seams, never the user's clipboard.
+Real clipboard/native accessibility/latency acceptance remains outstanding.
+
 ## Local-model actions
 
 After model setup is approved and inference verified, Kora sends the current

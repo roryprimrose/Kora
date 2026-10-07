@@ -309,6 +309,11 @@ internal static class Program
         services.AddSingleton<ICurrentUserNameProvider, WindowsCurrentUserNameProvider>();
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         services.AddSingleton<IApplicationInfo, AssemblyApplicationInfo>();
+        services.AddSingleton<Kora.Core.Context.IPlainTextClipboardReader, Kora.Windows.Context.WindowsPlainTextClipboardReader>();
+        services.AddSingleton<Kora.Tools.Clipboard.ClipboardSnapshotBroker>();
+        services.AddSingleton<Kora.Tools.Clipboard.ClipboardRead>();
+        services.AddSingleton<Kora.Tools.Clipboard.ClipboardReuse>();
+        services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
         services.AddSingleton<MainViewModel>();
     }
 

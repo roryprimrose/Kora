@@ -12,6 +12,19 @@ native answer/approval controls.
 
 ## Delivered Exact Host-Record Review - 2026-10-07
 
+### Delivered R07 Immutable Plain-Text Clipboard Preview
+
+The explicit clipboard route opens a separate native inert-text window, not a
+Markdown/rich renderer or a host authorization card. It shows the exact
+snapshot, host source/snapshot IDs, `CF_UNICODETEXT` format, read version/time
+and strict UTF-8 byte count. No copy/cut/paste/export, links, interpretation
+or automatic refresh occurs. **Reuse this exact snapshot ID** selects only the
+same immutable item; **Revoke and clear** and window close release it.
+Host privacy/ownership/call-generation loss and cancellation retire content and
+late callbacks. Preview is not a context egress grant or inference result.
+See [the R07 security boundary](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07);
+full clipboard answering and real native acceptance remain unavailable/open.
+
 ### Delivered Bounded Native Evidence Inspection
 
 The tray's **Evidence (read-only)** entry opens a separate, non-topmost native

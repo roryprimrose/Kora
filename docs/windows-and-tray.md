@@ -75,6 +75,7 @@ The right-click menu contains:
 - **Kora Settings**
 - **Documentation**
 - **Sessions**
+- **Preview clipboard (local plain text)**
 - **Evidence (read-only)**
 - **Review local version (native question)**
 - **Enable listening / Disable listening**
@@ -119,6 +120,13 @@ approvals or restore/transmit old context. Privacy closure clears this window.
 Full conversations, work queues, rename/create metadata, automatic archive,
 delete/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
+
+### Local clipboard preview
+
+The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
+uses inert native plain text, not Markdown/HTML parsing or the document viewer's
+copy controls. It has exact-ID reuse and revoke/clear only. Closing it revokes
+the selected snapshot. It does not authorize explanation or model transmission.
 
 The separate **Review local version (native question)** tray entry opens one
 owned native card bound to the original durable host question, not whichever

@@ -13,6 +13,7 @@
 - Follow SOLID and DRY pragmatically. Prefer small, cohesive services and consumer-focused interfaces over broad managers, god objects, or speculative abstractions.
 - Put each policy or serialization rule in one authoritative location. Reuse existing domain validation rather than duplicating limits or parsing rules.
 - Keep view models focused on presentation state and delegation. Move device operations, persistence, setup workflows, and policy decisions into injected collaborators.
+- Implement built-in tool actions in `Kora.Tools/<CapabilityGroup>/<Action>.cs`, with matching `Kora.Tools.<CapabilityGroup>` namespaces and one class per registered action, not a broad class with a method per tool. Share cohesive policy/broker services; keep contracts/domain rules in Core, native mechanisms in Windows, and presentation in Application/desktop. All admitted command/UI/model routes call the same action. See [built-in tool implementation guidance](../Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
 - Add abstractions only at real seams: platform integration, persistence, time/process/network dependencies, or a cohesive workflow with independent tests.
 - Preserve strong types and nullable analysis. Do not use `dynamic`, `object`, or unsafe casts to avoid defining the correct contract.
 - Surface failures explicitly with repository-standard logging and user-facing recovery. Do not silently fall back after invalid persisted state or failed security-sensitive work.
@@ -49,6 +50,7 @@ dotnet restore .\Kora.slnx --locked-mode
 dotnet build .\Kora.slnx --configuration Release --no-restore
 dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
 dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
+dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
 dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 

@@ -274,9 +274,20 @@ timestamps/staleness, per-run network consent, six-hour+jitter cadence,
 backoff and ownership/privacy/protected-call invalidation.
 This is notify-only: no binary/source download, updater, source mutation,
 general proactive broker, model tool or unsolicited voice/focus. Full R17
-installed/protected/native acceptance and R18 broker/voice interaction remain
-open. The external source-bootstrap/publisher and all unique historical R02
+installed/protected/native acceptance and the general R18 broker remain
+open. Exact typed/activated `maintenance status`, `maintenance review` and
+`maintenance snooze` now share the guarded native cached workflow. These
+original-user requests record durable intent in a dedicated maintenance
+session through the consolidated host gateway, revalidate generation/current
+host and exact cache identity, and retain typed snooze request/terminal audit.
+They never check/refresh metadata, open a browser, enable network consent,
+answer a question/approval, or create model/runtime/wake authority. Responses
+are complete bounded visual output; review opens the existing native surface.
+The external source-bootstrap/publisher and all unique historical R02
 evidence are preserved; no further experiment retirement is justified.
+The new cached command/admission tests supersede no experiment executable:
+release/protection/runtime/source receipts still cover distinct boundaries
+and remain necessary evidence, not portable-command acceptance.
 See the [distribution boundary](Distribution_And_Updates.md#delivered-bounded-r17r18-native-foundation)
 and [native user workflow](../docs/settings.md#release-maintenance-notify-only).
 

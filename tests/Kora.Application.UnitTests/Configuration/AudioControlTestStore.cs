@@ -6,7 +6,7 @@ using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.Configuration;
 
-internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IHostTaskStore
+internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore, IHostTaskStore
 {
     public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
         CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -15,10 +15,17 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
     internal WorkSessionAuthorization? Authority { get; set; }
     internal List<HostTaskRecord> Tasks { get; } = [];
     internal Action? BeforeOperation { get; set; }
+    internal Action? AfterOperation { get; set; }
     internal Exception? CreateFailure { get; set; }
+    internal Task<WorkSessionAuthorization>? PendingCreation { get; set; }
     internal bool FailTerminal { get; set; }
     internal Action<HostTaskRecord>? BeforeCommit { get; set; }
     internal HostRequest? LastRequest { get; private set; }
+
+    public ValueTask<WorkSessionAuthorization> CreateMaintenanceControlSessionAsync(HostRequest request,
+        Func<bool> admitted, CancellationToken cancellationToken) => CreateAudioControlSessionAsync(request, admitted, cancellationToken);
+    public ValueTask<T> WithMaintenanceControlSessionAsync<T>(HostRequest request, HostRevision generation,
+        Func<T> operation, CancellationToken cancellationToken) => WithAudioControlSessionAsync(request, generation, operation, cancellationToken);
 
     public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
     {
@@ -36,7 +43,7 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
             throw new InvalidOperationException("No admitted input.");
         }
         Authority = new(request.SessionId, new(1), true);
-        return ValueTask.FromResult(Authority);
+        return PendingCreation is { } pending ? new(pending.WaitAsync(cancellationToken)) : ValueTask.FromResult(Authority);
     }
 
     public ValueTask<T> WithAudioControlSessionAsync<T>(HostRequest request, HostRevision generation, Func<T> operation,
@@ -49,7 +56,9 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
         {
             throw new InvalidOperationException("No current durable session/generation.");
         }
-        return ValueTask.FromResult(operation());
+        var result = operation();
+        AfterOperation?.Invoke();
+        return ValueTask.FromResult(result);
     }
 
     public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)

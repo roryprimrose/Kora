@@ -160,11 +160,12 @@ public sealed partial class MainViewModel
             return;
         }
         disposed = true;
-        microphoneRefreshCancellation?.Cancel();
         lifecycleAdmissionClosed = true;
+        // Refresh cancellation can release an awaiting caller before Dispose returns.
+        HoldVoiceInput("Microphone closed · host disposed");
+        microphoneRefreshCancellation?.Cancel();
         clipboardPreview.Changed -= OnClipboardPreviewChanged;
         clipboardPreview.Dispose();
-        HoldVoiceInput("Microphone closed · host disposed");
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
         voiceRecognition.TranscriptRecognized -= OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed -= OnRecognitionFailed;

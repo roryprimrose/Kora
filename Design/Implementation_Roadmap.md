@@ -1971,3 +1971,13 @@ available while bootstrap work is busy, without cancellation or model dispatch.
 Fresh Application **1,478**, three focused native-session tests, root Release
 and latest-only exact **100% line/branch** coverage passed on the same base;
 the full five-suite base qualification above remains valid.
+
+After #71 merged, immediate rebase onto `cf0057b` retained the native recovery
+boundaries. Qualification exposed an existing disposal-order race: cancelling
+the awaited microphone refresh could release its caller before input was held.
+With owner approval, disposal now closes lifecycle admission and holds input
+before releasing refresh waiters; the maintained disposed-callback regression
+passes without weakening its privacy assertions. Fresh root no-restore Release
+build has zero warnings/errors; Core **601**, Application **1,502**, Tools
+**38**, Definitions **6**, Windows **835** all pass. Latest-only portable
+coverage meets the unchanged exact **100% line/branch** gate.

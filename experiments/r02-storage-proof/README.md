@@ -22,6 +22,16 @@ equivalent to this minimal standard-SQLite lifecycle slice. Historical receipts
 and provenance remain unchanged. General retention/deletion and complete
 artifact/backup disposal acceptance remain open.
 
+The subsequent bounded metadata slice adds maintained production
+[name/revision/migration preservation tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionMetadataTests.cs)
+and extends the owned-process interruption harness to Create, Rename and
+v1-to-v2 migration. Generic schema-version refusal, transaction atomicity and
+reopen expectations are now maintained against exact production semantics.
+This does not supersede the proof's opaque capacity/migration payloads,
+encrypted engines, artifacts, managed backups/rekey, DPAPI, leakage or
+native-provider cases. No executable or historical evidence is removed;
+retaining the intertwined harness preserves those unique measurements.
+
 The approved R01 merge (`7d5e6a3`, PR #19) was verified before starting.
 An actual second-user Windows trial was initially left blocked with the
 owner's approval. Reassessment distinguishes OS isolation from application

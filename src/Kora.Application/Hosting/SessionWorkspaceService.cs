@@ -15,6 +15,18 @@ public sealed partial class SessionWorkspaceService(
     public Task<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) =>
         ReadAsync(() => store.ReadSessionsAsync(after, limit, token));
 
+    public Task<SessionPage<SessionWorkspaceEntry>> ReadMetadataAsync(Guid? after, int limit, CancellationToken token) =>
+        ReadAsync(() => store.ReadMetadataPageAsync(after, limit, token));
+
+    public Task<SessionWorkspaceEntry> CreateAsync(SessionName name, RequestOrigin origin, CancellationToken token) =>
+        ControlAsync(new(Guid.NewGuid()), origin,
+            (request, eligible) => store.CreateNamedSessionAsync(request, name, eligible, token), token);
+
+    public Task<SessionWorkspaceEntry> RenameAsync(HostId<SessionIdentity> session, HostRevision expectedGeneration,
+        long expectedMetadataRevision, SessionName name, RequestOrigin origin, CancellationToken token) =>
+        ControlAsync(session, origin,
+            (request, eligible) => store.RenameSessionAsync(request, expectedGeneration, expectedMetadataRevision, name, eligible, token), token);
+
     public Task<SessionPage<HostQuestionRecord>> ReadQuestionsAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) =>
         ReadAsync(() => store.ReadQuestionPageAsync(session, after, limit, token));
 
@@ -53,8 +65,13 @@ public sealed partial class SessionWorkspaceService(
         }
     }
 
-    public async Task<WorkSessionAuthorization> ChangeLifecycleAsync(HostId<SessionIdentity> session,
-        HostRevision expectedGeneration, bool active, RequestOrigin origin, CancellationToken token)
+    public Task<WorkSessionAuthorization> ChangeLifecycleAsync(HostId<SessionIdentity> session,
+        HostRevision expectedGeneration, bool active, RequestOrigin origin, CancellationToken token) =>
+        ControlAsync(session, origin,
+            (request, eligible) => store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, eligible, token), token);
+
+    private async Task<T> ControlAsync<T>(HostId<SessionIdentity> session, RequestOrigin origin,
+        Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
@@ -71,10 +88,10 @@ public sealed partial class SessionWorkspaceService(
                 throw new InvalidOperationException("Session control denied by privacy, call or ownership admission.");
             }
             var intent = await store.RecordControlIntentAsync(request, token).ConfigureAwait(false);
-            WorkSessionAuthorization result;
+            T result;
             try
             {
-                result = await store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, Eligible, token).ConfigureAwait(false);
+                result = await mutation(request, Eligible).ConfigureAwait(false);
             }
             catch (InvalidOperationException)
             {

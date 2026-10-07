@@ -13,6 +13,21 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void Embedded_sessions_guide_distinguishes_bounded_native_metadata_from_unadmitted_routing_and_history()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var windows = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        windows.Should().Contain("Create empty Active session").And.Contain("Rename selected ID")
+            .And.Contain("120 Unicode scalars / 480 UTF-8 bytes").And.Contain("Duplicate names")
+            .And.Contain("metadata revision").And.Contain("no execution task")
+            .And.Contain("v1-to-v2").And.Contain("meaningful activity");
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("not admitted typed/voice phrases").And.Contain("selected window never redirects");
+        var privacy = pages.Single(page => string.Equals(page.Id, "privacy-safety-and-logs", StringComparison.Ordinal)).Markdown;
+        privacy.Should().Contain("Names never").And.Contain("content digest").And.Contain("never invents titles");
+    }
+
+    [Fact]
     public void Embedded_guide_contains_every_documentation_page_in_navigation_order()
     {
         var provider = new EmbeddedUserDocumentationProvider();

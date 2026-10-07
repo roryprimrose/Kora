@@ -162,6 +162,17 @@ projection is not that authority. Unknown/live work and unresolved questions
 remain blockers. Each transition advances generation, invalidates old scoped
 authority, preserves independent Perpetual records and replays nothing.
 No automatic archive, deletion, retention or export is added.
+Native **Create empty Active session** and **Rename selected ID** store bounded
+intentional private names in the existing interaction partition. Names never
+enter activity tags/names, diagnostic messages or raw audit envelopes; required
+typed audit commits retain exact identity/revision and a content digest.
+Duplicate names are not authority keys. Rename does not resume, revive old
+questions, change scoped/Perpetual grants or extend meaningful activity.
+Create grants no permission and creates no executor/model context. Both require
+fresh original-user admission, privacy/ownership and call policy/revision at
+COMMIT. Privacy closure clears name drafts and late content. Missing/corrupt/
+unsupported data is refused rather than replaced; validated v1-to-v2 schema
+maintenance preserves authority and never invents titles.
 
 The tray's **Review local version (native question)** uses trusted native
 input over the durable host question service, separately from legacy

@@ -19,7 +19,7 @@ namespace Kora.Windows.Storage;
 /// Host-only durable authority. This stores decisions, not executable tokens or effect receipts.
 /// The task lease is always acquired before the interaction lease; neither store writes the other database.
 /// </summary>
-public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -44,7 +44,8 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
         this.checkpoint = checkpoint;
         database = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
-            HostInteractionSchema.ApplicationId, HostInteractionSchema.Tables);
+            HostInteractionSchema.ApplicationId, HostInteractionSchema.MetadataTables,
+            new(1, 2, HostInteractionSchema.Tables, MigrateMetadata));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -328,7 +329,7 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
 
     private ValueTask<T> RunHostMutationAsync<T>(HostRequest request, string action,
         Func<SqliteConnection, SqliteTransaction, HostTaskRecord, SecurityAuditEvent, T> mutation,
-        CancellationToken cancellationToken, Func<bool>? canControl = null)
+        CancellationToken cancellationToken, Func<bool>? canControl = null, bool requireIdle = true)
     {
         RequireLive(request);
         return new(Task.Run(() =>
@@ -356,7 +357,7 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
                     storage.Complete(HostOperationOutcome.Completed);
                     return value;
                 }
-                var result = canControl is null
+                var result = canControl is null || !requireIdle
                     ? tasks.WithCommittedIntent(request, Mutate, cancellationToken)
                     : tasks.WithCommittedIdleIntent(request, Mutate, cancellationToken);
                 activity.Complete(HostOperationOutcome.Completed);
@@ -408,6 +409,7 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
             }
             ValidateAudit(connection);
             ValidateRows(connection);
+            ValidateMetadata(connection);
             return connection;
         }
         catch

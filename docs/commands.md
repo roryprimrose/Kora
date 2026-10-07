@@ -87,6 +87,11 @@ and compact response's **Ctrl+Shift+S**. It does not change a pending question
 or approval target, create a conversation, resume a session or call a model.
 Done/resume are explicit selected-ID native actions, not inferred from words
 in history or from selecting a row.
+The native workspace also offers **Create empty Active session** and **Rename
+selected ID** with bounded durable names and optimistic revisions. These are
+not admitted typed/voice phrases or model tools. A name never selects authority,
+and the selected window never redirects global commands. Creation grants no
+execution permission; rename/browse never resumes or changes approvals.
 
 ### Show the Kora window
 - **show Kora**

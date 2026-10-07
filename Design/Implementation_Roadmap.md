@@ -1511,6 +1511,14 @@ Windows fixtures **785** (**2,774** total), zero warnings/errors and **100%
 portable line/branch coverage**. The same local hardware/voice exclusions
 apply; this is not native acceptance or closure of R03/R09.
 
+Main subsequently advanced through ordinary diagnostic retention #69 while
+the rebased CI run passed. Rebase onto
+`c0c15ac2a74a865bbd7540a7a0cf5c00c2d3a21b` was also clean. Fresh combined
+validation passed Core **530**, Application **1,415**, Tools **38**,
+Definitions **6**, authorized Windows fixtures **806** (**2,795** total),
+root Release/no-restore with zero warnings/errors, and **100% portable
+line/branch coverage**. No retention behavior was changed by this slice.
+
 ### R02 Local-Inference Continuation
 
 The [technical outcomes and qualification contract](Local_Inference.md) turn

@@ -1940,6 +1940,15 @@ remains blocked on its separate stop gate; no timing-dependent admission is
 assumed. The bounded delivered-name entry above supplements, rather than
 overwrites, #76's dated source-review snapshot.
 
+Final combined rebase also preserves merged spoken-summary caps #75 at
+`cd99241516b782525732fc2a4627af5b6af54f95`. Release no-restore build remains
+zero warnings/errors. All five suites were rerun directly: Core **648**,
+Application **1,623**, Tools **38**, Definitions **6**, Windows **865**
+(**3,180** total, zero failures/skips). Fresh combined portable coverage is
+exactly **9,702/9,702 lines** and **5,190/5,190 branches**, both unrounded
+**100%**, with no threshold/inclusion change. Prior counts above are dated
+snapshots, not a claim that the separately merged speech-cap scope was absent.
+
 **Experiment disposition:** retain all experiment executables and historical
 receipts. The speech proof's keyword/acoustic, synthesis-to-file, candidate and
 hardware measurements are not executable equivalents of typed preference or

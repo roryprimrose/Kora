@@ -37,7 +37,8 @@ public sealed class SystemTrayController : IDisposable
     public SystemTrayController(
         MainViewModel viewModel,
         ILogger<SystemTrayController> logger,
-        Func<Task>? reviewLocalVersion = null)
+        Func<Task>? reviewLocalVersion = null,
+        Action? inspectEvidence = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -58,6 +59,12 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (inspectEvidence is not null)
+        {
+            var evidenceItem = new NativeMenuItem("Evidence (read-only)");
+            evidenceItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectEvidence);
+            menu.Add(evidenceItem);
+        }
         if (reviewLocalVersion is not null)
         {
             var reviewVersion = new NativeMenuItem("Review local version (native question)");

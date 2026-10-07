@@ -25,6 +25,7 @@ public sealed partial class App : Avalonia.Application
     private ResponseWindowController? responseWindow;
     private GrantListWindowController? grantListWindow;
     private QuestionWindowController? questionWindow;
+    private EvidenceWindowController? evidenceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
@@ -78,7 +79,13 @@ public sealed partial class App : Avalonia.Application
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
-                () => questionWindow.ReviewVersionAsync(window));
+                () => questionWindow.ReviewVersionAsync(window),
+                () => evidenceWindow?.Open());
+            evidenceWindow = new EvidenceWindowController(viewModel,
+                Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
+                Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
+                Services.GetRequiredService<ILogger<EvidenceViewModel>>());
+            evidenceWindow.Bind();
             var host = viewModel;
             host.BindCallOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
@@ -154,6 +161,8 @@ public sealed partial class App : Avalonia.Application
         grantListWindow = null;
         questionWindow?.Dispose();
         questionWindow = null;
+        evidenceWindow?.Dispose();
+        evidenceWindow = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

@@ -26,7 +26,7 @@ internal static class EvidenceProperties
             {
                 throw new InvalidDataException("Structured logging state exceeds its bounds.");
             }
-            if (!properties.TryAdd(pair.Key, IsSensitive(pair.Key)
+            if (!properties.TryAdd(pair.Key, EvidenceFieldPolicy.IsSensitive(pair.Key)
                 ? new EvidenceValue(EvidenceValueKind.Text, "[redacted]")
                 : CaptureValue(pair.Value)))
             {
@@ -51,17 +51,6 @@ internal static class EvidenceProperties
         }
         throw new InvalidDataException("A bounded original logging template is required.");
     }
-
-    private static bool IsSensitive(string name) =>
-        name.Contains("password", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("secret", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("token", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("path", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("transcript", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("content", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("arguments", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("response", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("speech", StringComparison.OrdinalIgnoreCase);
 
     private static EvidenceValue CaptureValue(object? value) => value switch
     {

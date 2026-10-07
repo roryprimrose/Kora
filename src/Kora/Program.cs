@@ -203,6 +203,9 @@ internal static class Program
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
+        services.AddSingleton<IEvidenceReader>(new WindowsSqliteEvidenceReader(evidence));
+        services.AddSingleton<IEvidenceQueryAccess, DesktopEvidenceAccess>();
+        services.AddSingleton<DurableEvidenceQuery>();
         services.AddSingleton<DurableHostRecovery>();
         services.AddSingleton<IApplicationLogReader, LocalApplicationLogReader>();
         services.AddSingleton<IUserDocumentationProvider, EmbeddedUserDocumentationProvider>();

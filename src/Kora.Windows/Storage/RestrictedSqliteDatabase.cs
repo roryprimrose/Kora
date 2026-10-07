@@ -36,6 +36,54 @@ internal sealed class RestrictedSqliteDatabase
         return directory.AcquireBoundedLease(requireExisting: !created, cancellationToken);
     }
 
+    internal FileStream AcquireReadLease(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!directory.HasExistingPartition())
+        {
+            throw new FileNotFoundException("The private evidence partition is unavailable. No replacement was created.");
+        }
+        return directory.AcquireBoundedLease(requireExisting: true, cancellationToken);
+    }
+
+    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        VerifyFiles();
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false,
+            Cache = SqliteCacheMode.Private, DefaultTimeout = 5,
+        }.ToString());
+        try
+        {
+            connection.Open();
+            var started = Stopwatch.GetTimestamp();
+            SQLitePCL.raw.sqlite3_progress_handler(connection.Handle, 1000,
+                _ => cancellationToken.IsCancellationRequested
+                    || Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(5) ? 1 : 0, null);
+            using var settings = connection.CreateCommand();
+            settings.CommandText = "PRAGMA query_only=ON; PRAGMA temp_store=MEMORY;";
+            settings.ExecuteNonQuery();
+            ValidateSchema(connection);
+            ValidateIntegrity(connection);
+            VerifyFiles();
+            cancellationToken.ThrowIfCancellationRequested();
+            return connection;
+        }
+        catch (SqliteException exception)
+        {
+            connection.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidDataException("The private evidence database could not be read or validated.", exception);
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
+    }
+
     internal SqliteConnection Open(bool created, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -85,13 +133,7 @@ internal sealed class RestrictedSqliteDatabase
                 transaction.Commit();
                 ValidateSchema(connection);
             }
-            using var integrity = connection.CreateCommand();
-            integrity.CommandText = "PRAGMA quick_check;";
-            using var reader = integrity.ExecuteReader();
-            if (!reader.Read() || !string.Equals(reader.GetString(0), "ok", StringComparison.Ordinal) || reader.Read())
-            {
-                throw new InvalidDataException("The private SQLite database failed its integrity check.");
-            }
+            ValidateIntegrity(connection);
             return connection;
         }
         catch (SqliteException exception)
@@ -104,6 +146,17 @@ internal sealed class RestrictedSqliteDatabase
         {
             connection.Dispose();
             throw;
+        }
+    }
+
+    private static void ValidateIntegrity(SqliteConnection connection)
+    {
+        using var integrity = connection.CreateCommand();
+        integrity.CommandText = "PRAGMA quick_check;";
+        using var reader = integrity.ExecuteReader();
+        if (!reader.Read() || !string.Equals(reader.GetString(0), "ok", StringComparison.Ordinal) || reader.Read())
+        {
+            throw new InvalidDataException("The private SQLite database failed its integrity check.");
         }
     }
 

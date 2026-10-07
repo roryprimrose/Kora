@@ -503,6 +503,12 @@ coverage passed. Cancellation now clears/closes immediately but retires its
 token source only after the in-flight bounded read ends; the maintained
 view-model test verifies both wait-handle lifetime and rejected late content.
 
+The final clean rebase onto settings #57 (`cc9d79c`) retains all three merged
+batch deliveries. Root Release/analyzers and full suites
+**411 / 1,304 / 710** passed with no warnings/errors/failures/skips and fresh
+portable **100% line/branch** coverage. Evidence remains a native read-only
+host service, not a registry/model tool or an appearance/call mutation.
+
 ### R04 Foundation Delivery
 
 The first bounded **durable** milestone now composes one actual exact local

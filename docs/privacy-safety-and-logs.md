@@ -1,5 +1,31 @@
 # Privacy, safety, and logs
 
+## Committed authority audit inspection
+
+In **Evidence (read-only)**, select **AuthorityAudit** to inspect committed typed
+interaction-store security audit rows. This is a separate source from the
+diagnostic **Audit** projection and daily mirrors. **All** remains SQLite
+evidence-only; **CombinedLog** remains ordinary diagnostics-only.
+Only this store's committed events are included; settings/effect events from
+other storage or logging paths are not imported or represented as atomic
+interaction commits.
+
+Pages show source-qualified citations, recorded schema/event/outcome,
+session/task/approval/trace IDs and exact committed revision/digest references.
+They do not reconstruct historical question text or a file/activity graph.
+Search starts a bounded snapshot; Next continues its original sequence ceiling,
+excluding later appends. Invalid/expired cursors, schema drift, changed stores,
+corruption and access failures require a fresh admitted search or explicit
+storage recovery, never silently restart as empty success.
+
+The complete output remains at most 50 records / 64 KiB; each request scans at
+most 4,096 rows under bounded storage admission/query time. Ownership/privacy
+loss clears and cancels the viewer. Reads do not change tasks, approvals,
+session activity, lifecycle, audit records or retention. There is no export,
+model tool or effect authority. Private files are unencrypted/user-modifiable;
+local consistency checks are not forensic tamper resistance or external
+checkpoints. Installed/native accessibility acceptance remains outstanding.
+
 ## Local speech
 
 Explicitly activated command recognition uses the installed Windows recognizer.

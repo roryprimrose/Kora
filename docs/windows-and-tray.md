@@ -59,6 +59,13 @@ the response window visible; idle presence still uses its own timeout.
 
 ## Tray icon
 
+**Evidence (read-only)** offers an explicit **AuthorityAudit** source for
+committed typed interaction-store audits, separately from diagnostic **Audit**,
+**All**, **DailyLog** and **CombinedLog**. It shares the existing bounded native
+filter/page/citation display, without copying, export, execution or approval
+controls. [Privacy, limits and source distinctions](privacy-safety-and-logs.md#committed-authority-audit-inspection)
+describe its snapshot and recovery behavior.
+
 Kora keeps a notification-area icon while running.
 Windows may initially place it under **Show hidden icons**. You can drag or pin
 the Kora icon into the always-visible notification area using normal Windows

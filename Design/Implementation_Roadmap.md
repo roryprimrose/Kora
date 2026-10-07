@@ -18,6 +18,47 @@ Distribution-only addendum reviewed against R01 revision `7d5e6a3` and the
 this does not reclassify unrelated R02 branches or claim release acceptance.
 Update this baseline and the evidence below when implementation changes.
 
+### Bounded R04/R14 Committed Audit Inspection
+
+The native evidence inspector now has an explicit **AuthorityAudit** source
+for committed typed schema-v3 interaction-store security audit rows, independent
+of diagnostic projections and file mirrors. It reuses the native admission,
+query/citation/cursor/page services with a consumer-focused read-only store seam,
+the shared lease and immutable sequence ceiling. It does not widen **All** or
+**CombinedLog**, expose model tools/export, reconstruct historical payloads or
+grant execution/approval authority. See
+[the exact delivered source contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
+Tamper-resistant checkpoints, encryption, general conversation history and
+installed/native acceptance remain unimplemented/unaccepted.
+
+Validation rebased onto merged presence-fade #85 (`363ed6e`) passed Release
+with zero warnings/errors and all **3,485** tests: Core 675, Application 1,820,
+Tools 38, Definitions 6 and Windows 946. Fresh portable coverage, with the
+existing thresholds/exclusions unchanged, has exact line/branch rates of
+**1 / 1 (100% / 100%)**. Thirteen current-user, hardware-free source fixtures
+cover committed version-wait cancellation/audio admission, question answer/
+cancel, native/source/citation parity, snapshot paging/appends, corrupt/obsolete
+schema, migration/frozen-source isolation, replacement/permissions, current
+host/origin/session, tampered/expired/foreign cursors, cancellation/concurrent
+shared-lease reads and byte-for-byte no-write observation. This is automated
+source evidence, not installed/native or forensic acceptance.
+
+The merged playback-volume #84 follow-up (`b34c077`) preserved its admission,
+zero/no-replay recovery and native configuration behavior. Release again had
+zero warnings/errors; fresh portable suites passed Core 700, Application 1,903,
+Tools 38 and Definitions 6, with exact line/branch coverage **1 / 1**.
+One initial Windows invocation failed at the existing authority-loss fixture's
+`Directory.Move` with access denied. Its isolated **1/1** and complete
+**965/965** rerun passed with the same binaries and no source/test suppression.
+The complete combined passing suite count is **3,612**; the original #85
+validation receipt above is retained unchanged.
+
+No experiment is retired by this slice. It supplies no maintained executable
+equivalence for the unique storage-encryption/engine/artifact/key, containment,
+runtime/worker/provider or speech proofs. Their historical evidence and
+remaining executable consumers are unchanged; no cross-tree experiment result
+is treated as production authority.
+
 R17-D01's source **preview/build/staging/verification** slice was implemented
 on 2026-10-06 in isolated `agents/kora-r17-source-bootstrap-20261006`, based on
 `d1fc77f8083985c5d86ed0ef3496ac68c4a150ed`. The exact-base canonical source

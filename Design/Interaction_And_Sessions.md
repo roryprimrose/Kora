@@ -62,6 +62,14 @@ retention and model-facing session tools remain unimplemented.
 
 ### Bounded Authoritative Task Observation and Pre-dispatch Cancellation
 
+The independent native evidence inspector's opt-in **AuthorityAudit** source
+reads this same committed schema-v3 interaction authority, not a diagnostic
+copy. Task/question/grant changes are shown as their committed typed revision/
+digest references and recorded outcomes; no historical payload or effect is
+fabricated. It never records control intent, answers questions, retargets
+approvals, refreshes meaningful activity or queries the frozen legacy ledger.
+See [bounded source and cursor semantics](Information_Display.md#delivered-bounded-native-evidence-inspection).
+
 Exact typed and activated voice `task status <session-id> <task-id>` and
 `task inspect <session-id> <task-id>` expose only the addressed existing
 durable task, session generation, admitted source/current-run distinction

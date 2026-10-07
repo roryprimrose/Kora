@@ -1,5 +1,33 @@
 # Security and Data Flows
 
+## Passive Committed Authority Audit Inspection
+
+The native inspector's separate **AuthorityAudit** source reads real typed
+schema-v3 interaction-store commits through the initialized store's shared
+lease, strict current-user ownership and read-only connection. Source authority
+comes from that trusted commit path/table and validated serialization, never
+a diagnostic `SecurityAudit` property, model output, incoming trace or file
+mirror. **Audit**, **All** and **CombinedLog** retain their existing independent
+projection/diagnostic meanings. No second writer or audit copying is introduced.
+
+Live local-UI ownership/privacy is checked before and after queries and before
+native presentation; closure cancels/clears and suppresses late output.
+Queries use source-qualified citations and signed query/viewer-session-bound
+expiring cursors with immutable sequence/digest ceilings and current
+native-file/host-lifetime identity. Corrupt/missing commits, schema drift,
+replacement and access failures refuse rather than synthesize trusted outcomes.
+Recorded correlation is observation only, not executable identity or approval.
+Inspection neither extends meaningful session activity nor changes lifecycle,
+tasks, questions, grants, retention or audit outcomes.
+
+The 50-record/64-KiB output and 4,096-row scan bounds remain explicit.
+No arbitrary SQL, filesystem selection, export or model evidence tool is
+provided. Local consistency checks do not provide externally anchored forensic
+tamper resistance; private-profile files remain unencrypted/user-modifiable.
+Installed/native acceptance is not established. The
+[evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection)
+documents metadata actually committed and unavailable graph/history fields.
+
 Status: proposed full security contract. The current bootstrap implements host-validated
 model proposals and once/session/always model-action approvals, not the
 complete grant taxonomy or script/executable execution gate below. Controls

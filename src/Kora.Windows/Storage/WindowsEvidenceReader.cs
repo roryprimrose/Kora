@@ -1,14 +1,19 @@
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Storage;
 
 namespace Kora.Windows.Storage;
 
 public sealed class WindowsEvidenceReader(
-    WindowsSqliteEvidenceReader sqlite, WindowsDailyEvidenceReader daily) : IEvidenceReader
+    WindowsSqliteEvidenceReader sqlite, WindowsDailyEvidenceReader daily,
+    ICommittedAuthorityAuditReader? authority = null) : IEvidenceReader
 {
     public ValueTask<EvidenceReadBatch> ReadAsync(EvidenceQuery query, EvidenceReadCheckpoint? checkpoint,
         HostRequest request, DateTimeOffset now, CancellationToken cancellationToken) =>
-        query.Source == EvidenceSource.CombinedLog
+        query.Source == EvidenceSource.AuthorityAudit
+            ? (authority ?? throw new InvalidOperationException("Committed authority inspection is unavailable."))
+                .ReadAsync(query, checkpoint, request, now, cancellationToken)
+            : query.Source == EvidenceSource.CombinedLog
             ? ReadCombinedAsync(query, checkpoint, request, now, cancellationToken)
             : query.Source == EvidenceSource.DailyLog || query.Record?.Source == EvidenceSource.DailyLog
             ? daily.ReadAsync(query, checkpoint, request, now, cancellationToken)

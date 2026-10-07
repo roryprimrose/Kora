@@ -17,7 +17,8 @@ namespace Kora.Windows.Storage;
 
 /// <summary>
 /// Host-only durable authority. This stores decisions, not executable tokens or effect receipts.
-/// The task lease is always acquired before the interaction lease; neither store writes the other database.
+/// Tasks, questions and required authority audit share one lease and transaction.
+/// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
 public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore
 {
@@ -44,16 +45,31 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
         this.checkpoint = checkpoint;
         database = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
-            HostInteractionSchema.ApplicationId, HostInteractionSchema.MetadataTables,
-            new(1, 2, HostInteractionSchema.Tables, MigrateMetadata));
+            HostInteractionSchema.ApplicationId, HostInteractionSchema.AuthorityTables,
+            new(1, 2, HostInteractionSchema.Tables, MigrateMetadata),
+            new(2, 3, HostInteractionSchema.MetadataTables, ConsolidateTasks));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
         new(Task.Run(() =>
         {
+            if (!database.HasExistingPartition()) { tasks.RequireFreshAuthority(cancellationToken); }
             using var lease = database.AcquireLease(out var created, cancellationToken);
             using var connection = Open(created, cancellationToken);
+            tasks.BindAuthority(database, ValidateAuthority, runId);
         }, cancellationToken));
+
+    private void ConsolidateTasks(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
+    {
+        ValidateAudit(connection);
+        ValidateRows(connection);
+        ValidateMetadata(connection);
+        Execute(connection, transaction, string.Join(';', WindowsSqliteHostTaskStore.Schema) + ";"
+            + HostInteractionSchema.RunTable + ";" + HostInteractionSchema.WaitTable);
+        tasks.ImportAuthority(connection, transaction, token);
+        ValidateAuthority(connection);
+        checkpoint?.BeforeCommit(connection, transaction);
+    }
 
     public ValueTask<WorkSessionAuthorization?> ReadSessionAsync(HostId<SessionIdentity> sessionId,
         CancellationToken cancellationToken)
@@ -61,8 +77,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         sessionId.Validate();
         return new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             var session = ReadSession(connection, sessionId);
             return session?.Authority;
         }, cancellationToken));
@@ -75,8 +91,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         sessionId.Validate();
         return new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             return ReadQuestions(connection).Where(q => q.Key.Request.SessionId == sessionId).ToImmutableArray();
         }, cancellationToken));
     }
@@ -84,8 +100,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     public ValueTask<ImmutableArray<OperationGrant>> ReadGrantsAsync(CancellationToken cancellationToken) =>
         new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             return ReadGrants(connection);
         }, cancellationToken));
 
@@ -133,6 +149,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     public async ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
     {
         RequireLive(request);
+        await Task.Run(() =>
+        {
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
         var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
         await tasks.CommitControlIntentAsync(intent, cancellationToken).ConfigureAwait(false);
         return intent;
@@ -290,11 +311,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     {
         ArgumentNullException.ThrowIfNull(transition);
         RequireLive(request);
-        return new(Task.Run(() => tasks.WithCommittedIntent(request, intent =>
+        return new(Task.Run(() => tasks.WithCommittedIntent(request, (connection, intent) =>
         {
             using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            ValidateAuthority(connection);
             using var transaction = connection.BeginTransaction();
             var session = RequireSession(connection, request.SessionId).Authority;
             var observation = ReadObservation(connection, request.RequestId);
@@ -344,13 +364,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             using var activity = HostActivity.BeginAudit(request, audit);
             try
             {
-                T Mutate(HostTaskRecord intent)
+                T Mutate(SqliteConnection connection, HostTaskRecord intent)
                 {
                     using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
-                    var created = false;
-                    using var lease = canControl is null ? database.AcquireLease(out created, cancellationToken)
-                        : database.AcquireReadLease(cancellationToken);
-                    using var connection = Open(created, cancellationToken);
+                    ValidateAuthority(connection);
                     using var transaction = connection.BeginTransaction();
                     var value = mutation(connection, transaction, intent, audit);
                     Commit(transaction, request, cancellationToken, canControl);
@@ -405,18 +422,33 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         {
             if (created)
             {
-                Execute(connection, null, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                tasks.RequireFreshAuthority(cancellationToken);
+                using var transaction = connection.BeginTransaction();
+                tasks.ImportAuthority(connection, transaction, cancellationToken);
+                Execute(connection, transaction, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                transaction.Commit();
             }
-            ValidateAudit(connection);
-            ValidateRows(connection);
-            ValidateMetadata(connection);
+            tasks.RequireRetiredAuthority(cancellationToken);
+            ValidateAuthority(connection);
+            tasks.BindAuthority(database, ValidateAuthority, runId);
             return connection;
         }
+
         catch
         {
             connection.Dispose();
             throw;
         }
+    }
+
+    private static void ValidateAuthority(SqliteConnection connection)
+    {
+        ValidateAudit(connection);
+        ValidateRows(connection);
+        ValidateMetadata(connection);
+        WindowsSqliteHostTaskStore.ValidateTasks(connection);
+        ValidateQuestionTasks(connection);
+        ValidateWaits(connection);
     }
 
     private static void RequireLive(HostRequest request)

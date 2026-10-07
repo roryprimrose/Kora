@@ -20,8 +20,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         return entry;
     }, cancellationToken));
 
-    private void MigrateMetadata(SqliteConnection connection, SqliteTransaction transaction)
+    private void MigrateMetadata(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         ValidateAudit(connection);
         ValidateRows(connection);
         using var command = connection.CreateCommand();
@@ -122,7 +123,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private static void RequireFreshMetadataIntent(HostTaskRecord intent)
     {
-        if (intent.State != HostTaskState.IntentRecorded || intent.Revision.Value != 1)
+        if (intent.State != HostTaskState.IntentRecorded || intent.Revision.Value != 1
+            || intent.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
             throw new InvalidOperationException("Session metadata requires a fresh original-user control intent.");
         }

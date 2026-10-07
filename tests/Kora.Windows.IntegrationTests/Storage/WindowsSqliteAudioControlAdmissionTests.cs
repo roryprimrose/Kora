@@ -43,6 +43,32 @@ public sealed class WindowsSqliteAudioControlAdmissionTests
     }
 
     [Fact]
+    public async Task Consolidated_audio_consumer_uses_one_shared_lease_without_reentrant_acquisition_after_migration()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await using var admission = new AudioControlAdmission(fixture.Store, fixture.Store, new(fixture.Tasks));
+        var request = await admission.RunAsync(RequestOrigin.LocalUi, static () => true,
+            static (request, _) => request, fixture.Token);
+        var authority = await fixture.Store.ReadMetadataAsync(request.SessionId, fixture.Token);
+        fixture.StageLegacy(2);
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        fixture.Request = InteractionStorageFixture.NewRequest(request.SessionId);
+        var intent = await fixture.RunAsync(() => fixture.Store.RecordControlIntentAsync(fixture.Request, fixture.Token));
+        var callbacks = 0;
+        var result = await fixture.RunAsync(() => fixture.Store.WithAudioControlSessionAsync(fixture.Request,
+            authority.Authority.Generation, () => ++callbacks, fixture.Token));
+        result.Should().Be(1);
+        callbacks.Should().Be(1);
+        (await fixture.Store.ReadMetadataAsync(request.SessionId, fixture.Token)).Authority.Should().Be(authority.Authority);
+        fixture.Count("host_questions").Should().Be(0);
+        fixture.Count("scoped_grants").Should().Be(0);
+        await fixture.RunAsync(async () => await new HostTaskCoordinator(fixture.Tasks)
+            .RecordOutcomeAsync(intent, HostTaskState.Succeeded, fixture.Token));
+    }
+
+    [Fact]
     public async Task Missing_intent_unknown_host_and_denied_original_owner_do_not_create_audio_session()
     {
         using var fixture = new InteractionStorageFixture();

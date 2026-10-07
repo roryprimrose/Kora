@@ -153,6 +153,15 @@ public sealed partial class SessionWorkspaceServiceTests
 
     private sealed class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, IHostTaskStore, IDisposable
     {
+        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<HostTaskObservation?>(UnknownTask ? null : new(Task, Session.Generation, "unclassified", false, Question));
+        public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
+            Func<bool> canControl, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new HostTaskObservation(new(Request, new(2), HostTaskState.Cancelled),
+                Session.Generation, "host.local-version.v1", true, Question with { Key = Question.Key.Next(), Status = QuestionStatus.Cancelled }));
+        internal bool UnknownTask { get; init; }
+        internal bool ForeignTaskSession { get; init; }
+        internal bool RevokeDuringTaskResolution { get; init; }
         private readonly ActivityListener listener = new()
         {
             ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
@@ -205,8 +214,12 @@ public sealed partial class SessionWorkspaceServiceTests
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
             ValueTask.FromResult(MetadataPage ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null));
 
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new SessionWorkspaceEntry(Session, null));
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
+        {
+            if (RevokeDuringTaskResolution) { CanInspect = false; }
+            return ValueTask.FromResult(new SessionWorkspaceEntry(
+                ForeignTaskSession ? new(new(Guid.NewGuid()), new(1), true) : Session, null));
+        }
 
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
             Func<bool> canControl, CancellationToken cancellationToken) =>

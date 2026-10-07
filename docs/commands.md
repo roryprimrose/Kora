@@ -198,8 +198,30 @@ workspace clear/unavailable-call gate. Nothing is queued for later. Unknown
 ownership/privacy fails closed. Pending bootstrap questions/approvals block
 session commands without changing their targets; resolve them explicitly first.
 
+**Exact task controls** use the same typed/activated-voice grammar and limits:
+
+| Command | Actual bounded result |
+|---|---|
+| `task help` | Syntax and availability |
+| `task status <session-id> <task-id>` | Exact durable state/revision, session generation, source/current-run and pending/terminal question distinctions |
+| `task inspect <session-id> <task-id>` | The same complete bounded authoritative record, not inferred progress or remaining steps |
+| `task cancel <session-id> <task-id> <task-revision> <generation> <question-id> <question-revision>` | Atomically cancel only admitted current-run local-version work still waiting before dispatch |
+
+Copy exact IDs and all tokens from a fresh inspection. Only the tray's native
+local-version question currently admits that wait. Its question is now before
+dispatch; cancellation commits the terminal task, revised cancelled question,
+target capability revocation and required audit together. It never creates or
+consumes a grant, deletes a task, replays work or terminates a worker.
+Unknown/foreign IDs, stale/different questions or revisions, expiry, previous
+runs, answered/committed/dispatched/Unknown work and lost host authority refuse.
+Already terminal work stays terminal; inspect its real outcome. A confirmed
+pre-dispatch cancellation is not a claim that an already invoked effect stopped.
+A confirmed cancellation claims no effect termination. This safe cancellation is also available during a protected call with private
+ownership and eligible original activation; call/recovery revisions still gate
+commit. Pending legacy bootstrap questions/approvals remain unchanged.
+
 This is not conversation/transcript persistence, a queue/executor/scheduler,
-task cancellation, deletion/retention, routing inference, model tools, or a
+general effect cancellation, deletion/retention, routing inference, model tools, or a
 session-name inference feature. Native selected-ID Create/Rename/Done/resume
 continue to use the same host workspace service and guarded storage transaction.
 

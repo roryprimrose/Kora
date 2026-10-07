@@ -16,6 +16,7 @@ public sealed partial class MainViewModel
 
     internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator)
     {
+        if (disposed) { return; }
         if (command.Operation == SessionCommandOperation.Invalid)
         {
             ShowInformation("Session command not accepted.", command.Error!);
@@ -59,12 +60,14 @@ public sealed partial class MainViewModel
         try
         {
             var result = await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
+            if (!Eligible()) { return; }
             ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException
             or UnauthorizedAccessException or OperationCanceledException)
         {
             ApplicationLog.Error(logger, exception, "Running a bounded session command");
+            if (disposed || !IsHostInputEligible) { return; }
             var result = new SessionCommandResult("not-confirmed",
                 exception.Message + " Resolve current questions/work and privacy/ownership/storage gates, "
                 + "then inspect the exact ID and revisions before a fresh request. "

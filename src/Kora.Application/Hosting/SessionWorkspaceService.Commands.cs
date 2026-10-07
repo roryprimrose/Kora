@@ -15,16 +15,43 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidOperationException(command.Error);
         }
+        var exactTask = command.Operation is SessionCommandOperation.TaskStatus
+            or SessionCommandOperation.TaskInspect or SessionCommandOperation.TaskCancel;
+        if (exactTask && command.SessionId is null)
+        {
+            throw new InvalidOperationException("An exact existing task session ID is required.");
+        }
         var subject = new HostId<SessionIdentity>(command.SessionId ?? Guid.NewGuid());
         var inspection = command.Operation is SessionCommandOperation.Help or SessionCommandOperation.List
-            or SessionCommandOperation.Status or SessionCommandOperation.Inspect;
+            or SessionCommandOperation.Status or SessionCommandOperation.Inspect
+            or SessionCommandOperation.TaskStatus or SessionCommandOperation.TaskInspect;
         return ControlAsync(subject, origin, async (request, eligible) =>
         {
             SessionCommandResult result;
             switch (command.Operation)
             {
                 case SessionCommandOperation.Help:
-                    result = new("observed", SessionCommand.Syntax);
+                    result = new("observed", SessionCommand.Syntax + " " + SessionCommand.TaskSyntax);
+                    break;
+                case SessionCommandOperation.TaskStatus:
+                case SessionCommandOperation.TaskInspect:
+                    var observed = await store.ReadTaskAsync(subject, new(command.TaskId
+                        ?? throw new InvalidOperationException("An exact task ID is required.")), token).ConfigureAwait(false);
+                    result = observed is null ? new("unknown", "No task with that exact ID belongs to the addressed existing session.")
+                        : new("observed", "Authoritative durable task state; no inferred progress, steps, effects or ETA.")
+                        {
+                            TaskDetails = [observed],
+                        };
+                    break;
+                case SessionCommandOperation.TaskCancel:
+                    var cancelled = await store.CancelWaitingTaskAsync(request, new(subject,
+                        new(command.TaskId ?? throw new InvalidOperationException("An exact task ID is required.")),
+                        new(command.TaskRevision), new(command.Generation),
+                        new(command.QuestionId ?? throw new InvalidOperationException("An exact question ID is required.")),
+                        new(command.QuestionRevision)), eligible, token).ConfigureAwait(false);
+                    result = new("committed", "Exact pre-dispatch local-version work and question cancelled atomically. No effect was dispatched or termination claimed.")
+                    { TaskDetails = [cancelled] };
+                    NotifyCancellation(cancelled);
                     break;
                 case SessionCommandOperation.List:
                     var page = await store.ReadMetadataPageAsync(command.After, command.Limit, token).ConfigureAwait(false);
@@ -80,7 +107,7 @@ public sealed partial class SessionWorkspaceService
             }
             _ = SessionCommandResult.Serialize(result);
             return result;
-        }, token, admission, inspection);
+        }, token, admission, inspection || command.Operation == SessionCommandOperation.TaskCancel, existingSubject: exactTask);
     }
 
     private const string Observation =

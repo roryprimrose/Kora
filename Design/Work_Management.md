@@ -83,11 +83,22 @@ The delivered bounded session core now accepts exact typed/activated-voice
 through the existing guarded durable workspace service. IDs and explicit
 revisions, never titles or selected windows, address controls. Reads describe
 only existing authority and task/question records; they do not infer progress,
-queue work, cancel tasks or restore approvals. Fresh user lineage/control
+queue work, generally cancel effects or restore approvals. Fresh user lineage/control
 intents, live privacy/ownership/origin/revision checks and lifecycle blockers
 remain required. Protected-call voice mutations are explicitly unavailable.
 See [the bounded syntax](../docs/commands.md#bounded-exact-id-session-commands).
 This closes no scheduler, inference, concurrency or full work-routing gate.
+
+The delivered exact task extension adds factual `task status/inspect` by
+session/task ID and explicit revision/generation/question-bound cancellation
+of only the already admitted current-run local-version pre-dispatch wait.
+Native selection-bound inspect/cancel uses the same workspace workflow, not
+a model or separate executor. Task/question/audit authority is consolidated
+into one transactional store; answer/cancel/admission races cannot produce
+a dispatch after committed cancellation. Previously dispatched, terminal,
+Unknown, expired, foreign and previous-run work is not silently cancelled.
+No remaining-step inference, scheduling, workers, task tools or replay is
+added. See [the exact controls](../docs/commands.md#bounded-exact-id-session-commands).
 
 Exact session list/select/new/Done/delete and cancel/stop/pause/clear commands, direct session/task-ID operations, queue listing, and factual ledger status never require management inference.
 When inference is unavailable or budget-limited, an ambiguous request receives native choices such as Queue, Replace current, or Cancel; it is never guessed, dropped, or treated as task approval.

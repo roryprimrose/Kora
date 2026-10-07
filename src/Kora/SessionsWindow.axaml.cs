@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 
 using Kora.Core.Storage;
+using Kora.Core.Hosting;
 
 namespace Kora;
 
@@ -21,6 +22,10 @@ internal sealed partial class SessionsWindow : Window
         RenameSession.Click += async (_, _) => await model.RenameAsync();
         NextQuestions.Click += async (_, _) => await model.NextQuestionsAsync();
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
+        TaskRecords.SelectionChanged += (_, _) =>
+            model.SelectTask(TaskRecords.SelectedItem is HostTaskRecord task ? task : null);
+        InspectTask.Click += async (_, _) => await model.InspectTaskAsync();
+        CancelTask.Click += async (_, _) => await model.CancelTaskAsync();
         Evidence.Click += async (_, _) => await model.ReadEvidenceAsync();
         NextEvidence.Click += async (_, _) => await model.ReadEvidenceAsync(next: true);
         Done.Click += async (_, _) => await model.ChangeLifecycleAsync(active: false);

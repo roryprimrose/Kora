@@ -558,7 +558,10 @@ Existing Linux-hosted CI building Windows artifacts remains unchanged and does n
 
 R04 adds host contracts and a bounded standard-SQLite task-store implementation
 with actual private-folder/file checks and transactional versioned host records.
-Its distinct `HostStorageV1` partition has no Keys directory or DPAPI dependency.
+Its original `HostStorageV1` partition has no Keys directory or DPAPI dependency.
+The bounded task-control continuation migrates and freezes that ledger into
+the existing interaction authority store; it is then an inert required handoff
+receipt, not a second authority or worker execution source.
 New managed files receive explicit current-user ownership and a protected,
 user-only DACL at atomic creation, before any content is written; token-default
 ownership is not trusted, including on elevated Windows runners. Existing
@@ -640,17 +643,28 @@ registration binds the existing R05 services to
 [WindowsSqliteHostInteractionStore](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs).
 No native input route, generic dispatcher or OS effect is activated.
 
-Task intent is a committed prerequisite, not an eventual diagnostic: the
-interaction transaction holds the existing task admission lease while
-reading matching nonterminal intent and until its own COMMIT completes.
-All task mutations use that lease. Interaction state and its authoritative
+Task intent is a committed prerequisite, not an eventual diagnostic.
+The bounded task-control continuation consolidates task/event, question,
+session/grant and authoritative audit authority into schema v3 of
+`InteractionStorageV1/interaction.db`. Task and interaction adapters share
+one existing private lease and connection through COMMIT. Interaction state and its authoritative
 typed security audit commit in one database, with ordered hashes/head and
 record-digest bindings. There is no attached multi-database write, fallback
 receipt or authority inferred from the independent evidence/file projections.
-Lock order is task then interaction; passive reads never acquire the task
-lease. Fresh host snapshots are admitted under both leases, with optimistic
+There is no nested task/interaction lease acquisition. Fresh host snapshots
+are admitted under the shared lease, with optimistic
 revision checks and transactional content revocation. Previous adapter-run
 observations confer no restart authority.
+
+Validated v1 metadata maintenance precedes v2-to-v3 consolidation. The legacy
+`HostStorageV1/host.db` ledger is validated and durably frozen before copying
+its complete identities/events into one destination schema transaction.
+It is retained as an inert migration receipt, never an alternate execution
+source. Interrupted consolidation leaves the old destination schema intact;
+reopening revalidates the frozen source and completes only storage migration.
+Missing/corrupt destination authority cannot be rebuilt from that retired
+snapshot. Evidence projections and retention remain independent. See
+[the bounded control contract](Interaction_And_Sessions.md#bounded-authoritative-task-observation-and-pre-dispatch-cancellation).
 
 Session generation persists across Active restart and advances on Done,
 resume and authority removal. Perpetual records are a separate table without
@@ -662,7 +676,8 @@ R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit
 or private permissions fail explicitly without replacement or repair.
 
 The bounded [production interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
-uses those same adapters and exact version-1 schemas. Maintained disposable
+originally used those adapters and exact version-1 schemas; current maintained
+tests also qualify consolidated schema v3. Maintained disposable
 Windows tests terminate only their owned helper processes before or after
 task intent/dispatch/terminal/recovery, evidence envelope/span-link, and
 interaction approval/Once-consume/Done commits. Precommit checkpoints force

@@ -73,7 +73,7 @@ public sealed class WindowsSqliteInteractionInterruptionTests
                 OwnedStorageChildProcess.AssertHotJournal(journal);
                 var taskLease = () =>
                 {
-                    using var lease = new FileStream(Path.Combine(fixture.Paths.LocalRoot, "HostStorageV1", "operation.lock"),
+                    using var lease = new FileStream(Path.Combine(fixture.Paths.LocalRoot, HostInteractionSchema.Partition, "operation.lock"),
                         FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 };
                 taskLease.Should().Throw<IOException>();
@@ -179,7 +179,6 @@ public sealed class WindowsSqliteInteractionInterruptionTests
         }
         var paths = new ExistingPaths(root);
         var tasks = new WindowsSqliteHostTaskStore(paths);
-        var request = (await tasks.ReadIncompleteAsync(2, TestContext.Current.CancellationToken)).Single().Request;
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
@@ -189,6 +188,8 @@ public sealed class WindowsSqliteInteractionInterruptionTests
         var checkpoint = new InteractionTransactionCheckpoint();
         var time = new InteractionStorageFixture.Clock();
         var store = new WindowsSqliteHostInteractionStore(paths, tasks, time, checkpoint);
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+        var request = (await tasks.ReadIncompleteAsync(2, TestContext.Current.CancellationToken)).Single().Request;
         var question = (await store.ReadQuestionsAsync(request.SessionId, TestContext.Current.CancellationToken))
             .Single(q => q.Proposal is not null);
         var proposal = question.Proposal ?? throw new InvalidDataException("The owned child approval proposal is missing.");

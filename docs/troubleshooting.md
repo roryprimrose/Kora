@@ -22,7 +22,7 @@ does not block local reasoning or the C# built-in commands.
 
 ## Private durable storage cannot reopen after interruption
 
-The separate private task, interaction and evidence databases retain their
+The consolidated private task/question/authority-audit database and independent evidence database retain their
 rollback journals. A valid interrupted transaction is rolled back when the
 production store reopens; committed records remain committed. Startup recovery
 marks intent-only work **Interrupted** and dispatched work without a verified
@@ -36,6 +36,21 @@ files and review the reported storage failure with support. Do not copy a
 journal from another database. Daily JSON diagnostics remain an independent
 source when SQLite is unavailable. These recovery checks are not a guarantee
 against physical power loss or a complete backup/restore workflow.
+
+The validated upgrade freezes and retains the legacy task ledger before
+consolidating complete IDs/events with existing questions, generations,
+metadata, grants and audit. An interrupted migration can revalidate and
+complete storage maintenance, never replay work. A missing consolidated store
+cannot be rebuilt from that retired snapshot; retain both partitions for
+explicit support recovery, rather than deleting files to force initialization.
+
+For **task cancellation unavailable**, use `task inspect <session-id> <task-id>`
+or native **Inspect exact selected task**, then copy every current conflict
+token. Only admitted current-run local-version work still waiting for its
+native question before dispatch is cancellable. Already answered/dispatched,
+terminal, Unknown, expired or prior-run work is not reported stopped. Resolve
+privacy/ownership/channel failures and initiate a fresh action; uncertain
+commit/receipt failure is inspected, never automatically retried.
 
 ## PowerShell 7 is missing or failed its check
 

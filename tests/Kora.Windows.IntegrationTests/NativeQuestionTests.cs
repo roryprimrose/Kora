@@ -27,6 +27,43 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class NativeQuestionTests
 {
+    [WindowsFact]
+    public async Task Exact_text_cancellation_closes_the_same_native_wait_and_blocks_late_answer_without_dispatch()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        using var logs = LoggerFactory.Create(_ => { });
+        var query = new DurableVersionQuery(new(f.Tasks), new LoggerSecurityAuditLog(logs.CreateLogger<LoggerSecurityAuditLog>()),
+            logs.CreateLogger<DurableVersionQuery>());
+        var service = WindowsSqliteSessionWorkspaceTests.Service(f, new());
+        var host = new NativeQuestionHost(f.Store, f.Time, logs.CreateLogger<NativeQuestionViewModel>());
+        host.BindGate(static () => true);
+        host.BindWorkspace(service);
+        var displayed = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var invoked = false;
+        var run = query.RunAsync(RequestOrigin.LocalUi, () =>
+        {
+            invoked = true;
+            return Task.CompletedTask;
+        }, f.Token, _ => host.AskVersionAsync(async model =>
+        {
+            displayed.SetResult(model);
+            await model.Completion;
+        }, f.Token));
+        var model = await displayed.Task;
+        var key = model.Key;
+        var command = Kora.Core.Commands.SessionCommand.Parse(
+            $"task cancel {key.Request.SessionId.Value:D} {key.Request.TaskId.Value:D} 1 1 {key.QuestionId.Value:D} 1", "Kora")!;
+        (await service.ExecuteCommandAsync(command, RequestOrigin.ActivatedVoice, () => true, f.Token)).Outcome.Should().Be("committed");
+        (await run).State.Should().Be(HostTaskState.Cancelled);
+        invoked.Should().BeFalse();
+        model.CanSubmit.Should().BeFalse();
+        model.Edit(new(["show"]));
+        await model.SubmitAsync();
+        (await model.Completion).Outcome.Should().Be(HostInteractionOutcome.Cancelled);
+        (await f.Tasks.ReadTaskAsync(key.Request.TaskId, f.Token))!.State.Should().Be(HostTaskState.Cancelled);
+    }
+
     [Theory]
     [InlineData(QuestionKind.SingleChoice)]
     [InlineData(QuestionKind.MultipleChoice)]
@@ -315,12 +352,17 @@ public sealed class NativeQuestionTests
             logs.CreateLogger<DurableVersionQuery>());
         var host = new NativeQuestionHost(f.Store, f.Time, logs.CreateLogger<NativeQuestionViewModel>());
         host.BindGate(static () => true);
+        host.BindWorkspace(WindowsSqliteSessionWorkspaceTests.Service(f, new()));
         HostRequest? original = null;
         var invoked = false;
-        var run = async () => await query.RunAsync(RequestOrigin.LocalUi, async () =>
+        var run = async () => await query.RunAsync(RequestOrigin.LocalUi, () =>
+        {
+            invoked = true;
+            return Task.CompletedTask;
+        }, f.Token, async _ =>
         {
             original = HostActivity.RequireCurrent().Request;
-            await host.AskVersionAsync(async model =>
+            return await host.AskVersionAsync(async model =>
             {
                 model.Key.Request.Should().Be(original);
                 if (cancel) { await model.CancelAsync(); }
@@ -332,15 +374,14 @@ public sealed class NativeQuestionTests
                     await model.SubmitAsync();
                 }
             }, f.Token);
-            invoked = true;
-        }, f.Token);
+        });
         if (cancel)
         {
-            await run.Should().ThrowAsync<OperationCanceledException>();
+            (await run()).State.Should().Be(HostTaskState.Cancelled);
             invoked.Should().BeFalse();
-            (await f.Tasks.ReadTaskAsync(original!.TaskId, f.Token))!.State.Should().Be(HostTaskState.DispatchRecorded);
-            (await new HostTaskCoordinator(f.Tasks).RecoverAsync(10, f.Token)).Should().Contain(record =>
-                record.Request == original && record.State == HostTaskState.Unknown);
+            (await f.Tasks.ReadTaskAsync(original!.TaskId, f.Token))!.State.Should().Be(HostTaskState.Cancelled);
+            (await new HostTaskCoordinator(f.Tasks).RecoverAsync(10, f.Token)).Should().NotContain(record =>
+                record.Request == original);
         }
         else
         {

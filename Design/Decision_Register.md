@@ -361,6 +361,20 @@ row removal is not recoverable-copy deletion; full R12 retention/deletion,
 audit anchors/pruning/whole-store rollback and installed/power-loss acceptance
 remain open.
 
+**Owner-approved tightly coupled continuation:** safe pre-dispatch cancellation
+requires one transactional authority, not two pseudo-atomic database commits.
+Schema v3 therefore owns ordered task/event records, admitted current-run
+waits, questions/sessions/grants and required typed audit in the existing
+interaction store. A complete validated, quiescent frozen-ledger handoff
+preserves identities/events and existing authority without replay; interrupted
+storage migration is retried only after validation, and lost/corrupt authority
+cannot be silently initialized. The retired source remains an inert required
+handoff receipt. Independent diagnostic/evidence projections and retention
+are unchanged. Exact/native controls only observe addressed tasks and cancel
+the admitted current-run local-version question before dispatch; dispatched/
+Unknown work remains uncertain. This settles that prerequisite, not D-009
+backups/deletion/whole-store rollback or full R12/R13/A acceptance.
+
 The subsequent merged [minimal Sessions workspace and metadata slice](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07)
 adds passive pages, guarded idle Done/resume, durable names and explicit native
 empty Create/exact-ID revisioned Rename. Only the private interaction partition

@@ -35,14 +35,24 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>
-      <ScrollViewer Grid.Column="1">
-        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
-                   AutomationProperties.Name="Passive typed question, task and evidence details; no replies or approval controls" />
-      </ScrollViewer>
+      <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="10">
+        <ComboBox x:Name="TaskRecords" ItemsSource="{Binding TaskRecords}" IsEnabled="{Binding CanRead}"
+                  AutomationProperties.Name="Exact task records from the current selected session page; selection is passive">
+          <ComboBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Request.TaskId.Value}" /></DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <ScrollViewer Grid.Row="1">
+          <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
+                     AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
+        </ScrollViewer>
+      </Grid>
     </Grid>
     <WrapPanel Grid.Row="4">
       <Button x:Name="NextQuestions" Content="Next questions" IsEnabled="{Binding CanNextQuestions}" />
       <Button x:Name="NextTasks" Content="Next tasks" IsEnabled="{Binding CanNextTasks}" />
+      <Button x:Name="InspectTask" Content="Inspect exact selected task" IsEnabled="{Binding CanInspectTask}" />
+      <Button x:Name="CancelTask" Content="Cancel inspected pre-dispatch wait" IsEnabled="{Binding CanCancelTask}" />
       <Button x:Name="Evidence" Content="Read selected evidence" IsEnabled="{Binding CanEvidence}" />
       <Button x:Name="NextEvidence" Content="Next evidence" IsEnabled="{Binding CanNextEvidence}" />
       <Button x:Name="Done" Content="Mark selected ID _Done" IsEnabled="{Binding CanDone}" AutomationProperties.Name="Explicitly mark the displayed selected session ID Done using its expected generation" />

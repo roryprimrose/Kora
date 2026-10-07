@@ -15,9 +15,11 @@ internal sealed class RestrictedSqliteDatabase
     private readonly int applicationId;
     private readonly IReadOnlyList<string> schema;
     private readonly RestrictedSqliteMigration? migration;
+    private readonly RestrictedSqliteMigration? continuation;
 
     internal RestrictedSqliteDatabase(IApplicationDataPaths paths, string partition, string fileName,
-        int applicationId, IReadOnlyList<string> schema, RestrictedSqliteMigration? migration = null)
+        int applicationId, IReadOnlyList<string> schema, RestrictedSqliteMigration? migration = null,
+        RestrictedSqliteMigration? continuation = null)
     {
         directory = new RestrictedStorageDirectory(paths, includeKeys: false, partitionName: partition);
         databasePath = Path.Combine(directory.Root, fileName);
@@ -25,6 +27,7 @@ internal sealed class RestrictedSqliteDatabase
         this.applicationId = applicationId;
         this.schema = schema;
         this.migration = migration;
+        this.continuation = continuation;
     }
 
     internal FileStream AcquireLease(out bool created, CancellationToken cancellationToken = default)
@@ -45,8 +48,11 @@ internal sealed class RestrictedSqliteDatabase
         {
             throw new FileNotFoundException("The private evidence partition is unavailable. No replacement was created.");
         }
+
         return directory.AcquireBoundedLease(requireExisting: true, cancellationToken);
     }
+
+    internal bool HasExistingPartition() => directory.HasExistingPartition();
 
     internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken)
     {
@@ -130,7 +136,7 @@ internal sealed class RestrictedSqliteDatabase
                 using var transaction = connection.BeginTransaction();
                 using var create = connection.CreateCommand();
                 create.Transaction = transaction;
-                create.CommandText = string.Join(";\n", schema) + $"; PRAGMA application_id={applicationId}; PRAGMA user_version={migration?.ToVersion ?? 1};";
+                create.CommandText = string.Join(";\n", schema) + $"; PRAGMA application_id={applicationId}; PRAGMA user_version={continuation?.ToVersion ?? migration?.ToVersion ?? 1};";
                 create.ExecuteNonQuery();
                 VerifyFiles();
                 transaction.Commit();
@@ -184,18 +190,25 @@ internal sealed class RestrictedSqliteDatabase
 
     private void Migrate(SqliteConnection connection, CancellationToken token)
     {
-        if (migration is null) { return; }
+        ApplyMigration(connection, migration, continuation?.PreviousSchema ?? schema, token);
+        ApplyMigration(connection, continuation, schema, token);
+    }
+
+    private void ApplyMigration(SqliteConnection connection, RestrictedSqliteMigration? step,
+        IReadOnlyList<string> nextSchema, CancellationToken token)
+    {
+        if (step is null) { return; }
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version;";
-        if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != migration.FromVersion) { return; }
-        ValidateSchema(connection, migration.FromVersion, migration.PreviousSchema);
+        if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != step.FromVersion) { return; }
+        ValidateSchema(connection, step.FromVersion, step.PreviousSchema);
         ValidateIntegrity(connection);
         using var transaction = connection.BeginTransaction();
-        migration.Apply(connection, transaction);
+        step.Apply(connection, transaction, token);
         command.Transaction = transaction;
-        command.CommandText = $"PRAGMA user_version={migration.ToVersion};";
+        command.CommandText = $"PRAGMA user_version={step.ToVersion};";
         command.ExecuteNonQuery();
-        ValidateSchema(connection);
+        ValidateSchema(connection, step.ToVersion, nextSchema);
         VerifyFiles();
         token.ThrowIfCancellationRequested();
         transaction.Commit();
@@ -210,7 +223,7 @@ internal sealed class RestrictedSqliteDatabase
             throw new InvalidDataException("The private database identity is invalid.");
         }
         command.CommandText = "PRAGMA user_version;";
-        if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != (version ?? migration?.ToVersion ?? 1))
+        if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != (version ?? continuation?.ToVersion ?? migration?.ToVersion ?? 1))
         {
             throw new InvalidDataException("The private database schema version is unsupported.");
         }

@@ -68,8 +68,15 @@ mutations retain parity at the shared service/store. Protected-call voice
 mutations remain unavailable; originating voice enablement/privacy/call/recovery
 observations are rechecked, never relabelled by later UI input.
 See the [exact syntax and recovery reference](../docs/commands.md#bounded-exact-id-session-commands).
-No model descriptor/tool exposure, transcript persistence, inferred management,
-queue/executor, cancellation, deletion or retention is delivered.
+The same grammar/workspace now exposes exact `task status/inspect` and explicit
+`task cancel` with session/task/question IDs and all observed revisions and
+generation. Native task selection remains passive until a fresh inspect or
+separate deliberate cancellation. Only admitted current-run local-version
+work waiting before dispatch is cancellable, with task/question/typed audit
+committed atomically in the consolidated authority store. Dispatched/Unknown
+work is never relabelled stopped. No model descriptor/tool exposure, transcript
+persistence, inferred management, queue/executor, general effect cancellation,
+deletion or retention is delivered.
 
 ## Delivered Artifact Invocation
 

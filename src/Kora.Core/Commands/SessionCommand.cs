@@ -16,7 +16,7 @@ public sealed record SessionCommand(
     public const int DefaultPageSize = 25;
     public const int MaximumInputBytes = 1024;
     public const int MaximumResultBytes = 65536;
-    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list"];
+    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "task help"];
     public const string Syntax =
         "session help | session list [after <exact-id>] [limit <1-50>] | session status <exact-id> | "
         + "session inspect <exact-id> [tasks|questions] [after <exact-id>] [limit <1-50>] | "
@@ -27,6 +27,14 @@ public sealed record SessionCommand(
         + "No name, selected-window, delete, queue, executor or approval targeting.";
 
     public string PageKind { get; init; } = "tasks";
+    public Guid? TaskId { get; init; }
+    public Guid? QuestionId { get; init; }
+    public long TaskRevision { get; init; }
+    public long QuestionRevision { get; init; }
+    public const string TaskSyntax =
+        "task status <session-id> <task-id> | task inspect <session-id> <task-id> | "
+        + "task cancel <session-id> <task-id> <task-revision> <generation> <question-id> <question-revision>. "
+        + "Only an admitted current-run local-version wait is cancellable before dispatch; no worker termination or replay.";
 
     public static SessionCommand? Parse(string input, string assistantName)
     {
@@ -37,7 +45,9 @@ public sealed record SessionCommand(
         {
             text = text[prefix.Length..].TrimStart(' ', ',', '\t');
         }
-        if (!text.Equals("session", StringComparison.OrdinalIgnoreCase)
+        var taskCommand = text.Equals("task", StringComparison.OrdinalIgnoreCase)
+            || (text.StartsWith("task", StringComparison.OrdinalIgnoreCase) && text.Length > 4 && char.IsWhiteSpace(text[4]));
+        if (!taskCommand && !text.Equals("session", StringComparison.OrdinalIgnoreCase)
             && !(text.StartsWith("session", StringComparison.OrdinalIgnoreCase)
                 && char.IsWhiteSpace(text[7])))
         {
@@ -48,6 +58,32 @@ public sealed record SessionCommand(
             || input.Any(char.IsControl))
         {
             return Invalid("Input exceeds 1024 UTF-8 bytes or contains control characters.");
+        }
+        if (taskCommand)
+        {
+            var tokens = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 2 && tokens[1].Equals("help", StringComparison.OrdinalIgnoreCase))
+            {
+                return new(SessionCommandOperation.Help);
+            }
+            if (tokens.Length >= 4 && ExactId(tokens[2], out var session) && ExactId(tokens[3], out var task))
+            {
+                if (tokens.Length == 4 && tokens[1].ToLowerInvariant() is "status" or "inspect")
+                {
+                    return new(tokens[1].Equals("status", StringComparison.OrdinalIgnoreCase)
+                        ? SessionCommandOperation.TaskStatus : SessionCommandOperation.TaskInspect, session) { TaskId = task };
+                }
+                if (tokens.Length == 8 && tokens[1].Equals("cancel", StringComparison.OrdinalIgnoreCase)
+                    && Revision(tokens[4], true, out var revision) && Revision(tokens[5], true, out var taskGeneration)
+                    && ExactId(tokens[6], out var question) && Revision(tokens[7], true, out var questionRevision))
+                {
+                    return new(SessionCommandOperation.TaskCancel, session, taskGeneration)
+                    {
+                        TaskId = task, TaskRevision = revision, QuestionId = question, QuestionRevision = questionRevision,
+                    };
+                }
+            }
+            return Invalid(TaskSyntax);
         }
         var quote = text.IndexOf('"', StringComparison.Ordinal);
         SessionName? name = null;

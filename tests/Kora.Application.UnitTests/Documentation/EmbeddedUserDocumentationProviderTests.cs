@@ -20,10 +20,13 @@ public sealed class EmbeddedUserDocumentationProviderTests
         windows.Should().Contain("Create empty Active session").And.Contain("Rename selected ID")
             .And.Contain("120 Unicode scalars / 480 UTF-8 bytes").And.Contain("Duplicate names")
             .And.Contain("metadata revision").And.Contain("no execution task")
-            .And.Contain("v1-to-v2").And.Contain("meaningful activity");
+            .And.Contain("v1-to-v2").And.Contain("v3 task consolidation").And.Contain("meaningful activity")
+            .And.Contain("Inspect exact selected").And.Contain("Cancel inspected pre-dispatch wait");
         var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
         commands.Should().Contain("Bounded exact-ID session commands").And.Contain("selected window never redirects")
-            .And.Contain("session rename").And.Contain("During protected calls").And.Contain("1,024 UTF-8 bytes");
+            .And.Contain("session rename").And.Contain("During protected calls").And.Contain("1,024 UTF-8 bytes")
+            .And.Contain("task inspect").And.Contain("task cancel").And.Contain("no effect")
+            .And.Contain("previous").And.Contain("before dispatch");
         var privacy = pages.Single(page => string.Equals(page.Id, "privacy-safety-and-logs", StringComparison.Ordinal)).Markdown;
         privacy.Should().Contain("Names never").And.Contain("content digest").And.Contain("never invents titles");
     }

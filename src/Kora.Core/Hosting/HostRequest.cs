@@ -30,6 +30,16 @@ public sealed record HostRequest
     public RequestOrigin Origin { get; }
     public HostId<InvocationIdentity>? InvocationId { get; }
 
+    public bool IsWithinIntent(HostRequest intent)
+    {
+        ArgumentNullException.ThrowIfNull(intent);
+        // A root intent can own invocation-scoped children; a bound invocation never widens.
+        return RequestId == intent.RequestId && SessionId == intent.SessionId
+            && TaskId == intent.TaskId && Origin == intent.Origin
+            && (intent.InvocationId is not { } invocation
+                || (InvocationId is { } current && current == invocation));
+    }
+
     // Only the host calls this factory; provider correlation is never an argument.
     public static HostRequest Create(RequestOrigin origin) =>
         new(new(Guid.NewGuid()), new(Guid.NewGuid()), new(Guid.NewGuid()), origin);

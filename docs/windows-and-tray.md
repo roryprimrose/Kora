@@ -152,6 +152,16 @@ and generations with bounded user names and metadata revisions, 25 per page
 Selection reads actual typed question history and current task records, never
 a fabricated conversation or progress.
 Next session/question/task/evidence controls are independently bounded.
+Select an exact task from the current page and choose **Inspect exact selected
+task** for its current durable source/state/question and conflict tokens.
+Selection alone does nothing. **Cancel inspected pre-dispatch wait** is a
+separate deliberate action available only for an admitted current-run
+local-version question still waiting before dispatch. It shares the exact
+typed/activated-voice task workflow and commits task/question/audit atomically.
+Stale, expired, foreign, prior-run, answered, dispatched and Unknown work
+refuses; no worker termination or replay is claimed. The native question's
+Cancel button uses that same host workflow, and committed exact-text
+cancellation closes its outstanding native wait without a late answer.
 **Read selected evidence** uses the separate diagnostic/audit projection;
 missing conversation/session sources remain unavailable.
 
@@ -179,7 +189,7 @@ Names must be nonblank NFC Unicode with no surrounding whitespace, at most
 or line/paragraph separators. Invalid names are refused, never silently
 normalized/truncated. Names are intentional private content, stored only in
 the existing private interaction partition, not raw audit/log/activity content.
-The validated transactional v1-to-v2 schema upgrade preserves existing
+The validated transactional v1-to-v2 metadata upgrade and v3 task consolidation preserve existing
 authority/history and does not invent names. Missing/corrupt/unsupported data
 is unavailable, never replaced with empty authority. Create/Rename require
 the same fresh original-user ownership/privacy/call admission and required

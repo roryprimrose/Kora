@@ -5,6 +5,7 @@ using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
 using Kora.Application.Infrastructure;
 using Kora.Core.Authorization;
+using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -25,6 +26,8 @@ internal sealed partial class SessionsViewModel(
     private SessionPage<HostTaskRecord>? tasks;
     private EvidencePage? evidencePage;
     private SessionWorkspaceEntry? selected;
+    private HostTaskRecord? selectedTask;
+    private HostTaskObservation? inspectedTask;
     private string nameDraft = string.Empty;
     private string status = "Refresh to inspect bounded durable names and authority. No conversation or queue store is available.";
     private string detail = string.Empty;
@@ -32,6 +35,42 @@ internal sealed partial class SessionsViewModel(
     private bool closed;
 
     public IReadOnlyList<SessionWorkspaceEntry> Sessions => sessions?.Records ?? [];
+    public IReadOnlyList<HostTaskRecord> TaskRecords => tasks?.Records ?? [];
+    public bool CanInspectTask => CanRead && selectedTask is not null;
+    public bool CanCancelTask => CanInspectTask && inspectedTask is
+        { CurrentSource: true, Task.State: HostTaskState.IntentRecorded, Question.Status: QuestionStatus.Pending };
+
+    public void SelectTask(HostTaskRecord? task)
+    {
+        if (!CanRead || (task is not null && !TaskRecords.Contains(task))) { return; }
+        selectedTask = task;
+        inspectedTask = null;
+        Notify();
+    }
+
+    public Task InspectTaskAsync() => RunAsync(async () =>
+    {
+        var result = await service.ExecuteCommandAsync(new(SessionCommandOperation.TaskInspect,
+            RequireSelected().Authority.SessionId.Value)
+            { TaskId = selectedTask?.Request.TaskId.Value ?? throw new InvalidOperationException("Select an exact task from this page.") },
+            RequestOrigin.LocalUi, () => !closed && access.CanInspect, lifetime.Token);
+        inspectedTask = result.TaskDetails.SingleOrDefault();
+        detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(result));
+        status = "Exact task observation. Inspect is passive; cancellation is a separate deliberate action using these revisions.";
+    });
+
+    public Task CancelTaskAsync() => RunAsync(async () =>
+    {
+        var target = inspectedTask ?? throw new InvalidOperationException("Inspect the exact selected task before cancellation.");
+        var question = target.Question ?? throw new InvalidOperationException("No admitted question wait exists.");
+        var result = await service.CancelTaskAsync(new(target.Task.Request.SessionId, target.Task.Request.TaskId,
+            target.Task.Revision, target.Generation, question.Key.QuestionId, question.Key.Revision),
+            RequestOrigin.LocalUi, () => !closed && access.CanInspect, lifetime.Token);
+        inspectedTask = result;
+        detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("committed",
+            "Exact local-version wait cancelled before dispatch; no effect termination claimed.") { TaskDetails = [result] }));
+        status = "Durable terminal task, question cancellation and required audit committed atomically. Refresh to observe other work.";
+    });
     public string NameDraft
     {
         get => nameDraft;
@@ -91,6 +130,8 @@ internal sealed partial class SessionsViewModel(
 
     public Task NextTasksAsync() => RunAsync(async () =>
     {
+        selectedTask = null;
+        inspectedTask = null;
         tasks = await service.ReadTasksAsync(RequireSelected().Authority.SessionId,
             tasks?.Next ?? throw new InvalidOperationException("No next task page."), 25, lifetime.Token);
         Render();
@@ -227,6 +268,8 @@ internal sealed partial class SessionsViewModel(
     private void ClearSelection()
     {
         selected = null;
+        selectedTask = null;
+        inspectedTask = null;
         questions = null;
         tasks = null;
         evidencePage = null;
@@ -248,6 +291,9 @@ internal sealed partial class SessionsViewModel(
     private void Notify()
     {
         OnPropertyChanged(nameof(Sessions));
+        OnPropertyChanged(nameof(TaskRecords));
+        OnPropertyChanged(nameof(CanInspectTask));
+        OnPropertyChanged(nameof(CanCancelTask));
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(Detail));
         OnPropertyChanged(nameof(NameDraft));

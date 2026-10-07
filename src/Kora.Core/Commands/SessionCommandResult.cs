@@ -12,6 +12,7 @@ public sealed record SessionCommandResult(string Outcome, string Message)
     public ImmutableArray<SessionCommandTask> Tasks { get; init; } = [];
     public ImmutableArray<SessionCommandQuestion> Questions { get; init; } = [];
     public Guid? Next { get; init; }
+    public ImmutableArray<HostTaskObservation> TaskDetails { get; init; } = [];
     public static byte[] Serialize(SessionCommandResult result)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(result, Json);

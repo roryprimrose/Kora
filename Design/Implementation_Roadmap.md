@@ -18,6 +18,25 @@ Distribution-only addendum reviewed against R01 revision `7d5e6a3` and the
 this does not reclassify unrelated R02 branches or claim release acceptance.
 Update this baseline and the evidence below when implementation changes.
 
+### Bounded R04/R14 Committed Audit Inspection
+
+The native evidence inspector now has an explicit **AuthorityAudit** source
+for committed typed schema-v3 interaction-store security audit rows, independent
+of diagnostic projections and file mirrors. It reuses the native admission,
+query/citation/cursor/page services with a consumer-focused read-only store seam,
+the shared lease and immutable sequence ceiling. It does not widen **All** or
+**CombinedLog**, expose model tools/export, reconstruct historical payloads or
+grant execution/approval authority. See
+[the exact delivered source contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
+Tamper-resistant checkpoints, encryption, general conversation history and
+installed/native acceptance remain unimplemented/unaccepted.
+
+No experiment is retired by this slice. It supplies no maintained executable
+equivalence for the unique storage-encryption/engine/artifact/key, containment,
+runtime/worker/provider or speech proofs. Their historical evidence and
+remaining executable consumers are unchanged; no cross-tree experiment result
+is treated as production authority.
+
 R17-D01's source **preview/build/staging/verification** slice was implemented
 on 2026-10-06 in isolated `agents/kora-r17-source-bootstrap-20261006`, based on
 `d1fc77f8083985c5d86ed0ef3496ac68c4a150ed`. The exact-base canonical source

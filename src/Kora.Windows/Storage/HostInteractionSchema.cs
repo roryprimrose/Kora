@@ -5,6 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
+    internal const int Version = 3;
     internal static readonly string[] Tables =
     [
         """

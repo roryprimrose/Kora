@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Text;
@@ -9,8 +7,6 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Windows.Coordination;
-
-using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Storage;
 
@@ -329,14 +325,7 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
         new(new(0, 0, 0, 0, DailySnapshotId: snapshot), [], null, false, false, status,
             new(snapshot, 0, 0, 0, 0, 0, 0));
 
-    private static string Identity(FileStream stream)
-    {
-        if (!GetFileInformationByHandleEx(stream.SafeFileHandle, 18, out var id, Marshal.SizeOf<FileIdInfo>()))
-        {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "The daily evidence file identity is unavailable.");
-        }
-        return $"{id.Volume:x16}{id.Low:x16}{id.High:x16}";
-    }
+    private static string Identity(FileStream stream) => WindowsFileIdentity.Read(stream.SafeFileHandle);
 
     private sealed record Prefix(string Name, string Identity, int Length, string Digest);
     private sealed record Snapshot(string Id, HostId<SessionIdentity> Session, DateTimeOffset Expires,
@@ -347,16 +336,4 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
         internal EvidencePageStatus Status { get; } = status;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct FileIdInfo
-    {
-        internal ulong Volume;
-        internal ulong Low;
-        internal ulong High;
-    }
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetFileInformationByHandleEx(SafeFileHandle handle, int informationClass,
-        out FileIdInfo information, int size);
 }

@@ -18,6 +18,78 @@ namespace Kora.Application.UnitTests.Diagnostics;
 public sealed class DurableEvidenceQueryTests
 {
     [Fact]
+    public async Task Authority_source_preserves_typed_commit_metadata_and_explicit_separate_disclosure()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        var record = Record() with
+        {
+            Reference = new(EvidenceSource.AuthorityAudit, new(Guid.NewGuid())),
+            AuthorityProvenance = new(3, "security_audit_events", 1, new string('a', 64),
+                new string('b', 32), new string('c', 16), new(1), new(1),
+                Kora.Core.Interaction.HostInteractionOutcome.Answered,
+                new(Guid.NewGuid()), new(2), new(Guid.NewGuid()), new(1),
+                [new("question", Guid.NewGuid().ToString("D"), 2, new string('d', 64))]),
+        };
+        fixture.Reader.Batch = Batch(1) with
+        {
+            Candidates = [new(new(1, EvidenceSource.AuthorityAudit, record.Reference.Id.Value.ToString("D"), -1), record)],
+            Snapshot = new(0, 0, 0, 0, AuthorityCeiling: 1, AuthorityCeilingDigest: "digest", AuthorityStoreIdentity: "store"),
+        };
+        using var host = Root();
+        var page = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.AuthorityAudit, Record = record.Reference },
+            null, TestContext.Current.CancellationToken);
+        page.Records.Single().AuthorityProvenance.Should().Be(record.AuthorityProvenance);
+        page.Records.Single().Reference.Citation.Should().StartWith("kora-evidence:authorityaudit:");
+        page.Disclosure.Should().Be(EvidencePage.AuthorityDisclosure);
+        DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+        var bytes = DurableEvidenceQuery.Serialize(page);
+        Encoding.UTF8.GetString(bytes).Should().Contain("IntentRevision").And.Contain("AuthorityProvenance");
+        record.AuthorityProvenance!.Changes.Single().Kind.Should().Be("question");
+        fixture.Reader.Error = new FileNotFoundException();
+        var missing = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.AuthorityAudit }, null,
+            TestContext.Current.CancellationToken);
+        missing.Status.Should().Be(EvidencePageStatus.Unavailable);
+        missing.UnavailableSources.Should().Equal(EvidenceSource.AuthorityAudit);
+        missing.Disclosure.Should().Contain(EvidencePage.AuthorityDisclosure);
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.All, EvidenceSource.AuthorityAudit)]
+    [InlineData(EvidenceSource.AuthorityAudit, EvidenceSource.Log)]
+    public void Authority_citation_cannot_widen_other_sources(EvidenceSource source, EvidenceSource cited)
+    {
+        var action = () => DurableEvidenceQuery.Validate(new()
+        {
+            Source = source, Record = new(cited, new(Guid.NewGuid())),
+        });
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task Oversized_authority_change_payload_is_explicitly_omitted_with_commit_metadata_retained()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        var reference = new EvidenceReference(EvidenceSource.AuthorityAudit, new(Guid.NewGuid()));
+        var provenance = new AuthorityAuditProvenance(3, "security_audit_events", 1, new string('a', 64),
+            new string('b', 32), new string('c', 16), new(1), new(1), null, null, null, null, null,
+            Enumerable.Range(0, 1000).Select(_ => new AuthorityAuditChange("grant", Guid.NewGuid().ToString("D"),
+                1, new string('d', 64))).ToArray());
+        fixture.Reader.Batch = Batch(1) with
+        {
+            Candidates = [new(new(1, EvidenceSource.AuthorityAudit, reference.Id.Value.ToString("D"), -1, provenance.CommitDigest),
+                Record() with { Reference = reference, AuthorityProvenance = provenance })],
+        };
+        using var host = Root();
+        var result = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.AuthorityAudit }, null,
+            TestContext.Current.CancellationToken);
+        result.Records.Single().ContentOmitted.Should().BeTrue();
+        result.Records.Single().AuthorityProvenance.Should().Be(provenance with { Changes = [] });
+        DurableEvidenceQuery.Serialize(result).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+    }
+
+    [Fact]
     public async Task Daily_source_citations_status_and_report_survive_bounded_serialization()
     {
         using var listener = Listen();
@@ -68,6 +140,7 @@ public sealed class DurableEvidenceQueryTests
     [Theory]
     [InlineData(EvidenceSource.All)]
     [InlineData(EvidenceSource.CombinedLog)]
+    [InlineData(EvidenceSource.AuthorityAudit)]
     public async Task Fifty_record_limit_is_independent_of_byte_budget(EvidenceSource source)
     {
         using var listener = Listen();

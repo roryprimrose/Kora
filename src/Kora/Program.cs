@@ -251,7 +251,7 @@ internal static class Program
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
         services.AddSingleton<IEvidenceReader>(new WindowsEvidenceReader(
-            new WindowsSqliteEvidenceReader(evidence), new WindowsDailyEvidenceReader(paths)));
+            new WindowsSqliteEvidenceReader(evidence), new WindowsDailyEvidenceReader(paths), interactions));
         services.AddSingleton<IEvidenceQueryAccess, DesktopEvidenceAccess>();
         services.AddSingleton<DurableEvidenceQuery>();
         services.AddSingleton<DurableHostRecovery>();

@@ -27,6 +27,42 @@ full clipboard answering and real native acceptance remain unavailable/open.
 
 ### Delivered Bounded Native Evidence Inspection
 
+**AuthorityAudit** is a separate opt-in source for the real schema-v3
+interaction store's committed typed `security_audit_events`. It is not the
+SQLite diagnostic **Audit** projection or a daily audit mirror. **All** remains
+SQLite evidence-source-only and **CombinedLog** remains ordinary diagnostics
+only. No sources are merged, deduplicated or promoted by text, trace IDs or a
+`SecurityAudit` property. Source-qualified `kora-evidence:authorityaudit:...`
+citations identify the committed audit correlation ID within that source.
+
+The existing native inspector and complete 50-record/64-KiB page serializer
+show the original typed event/outcome/request/session/task/approval metadata,
+schema/table/sequence/commit digest, recorded trace/span IDs, intent revision,
+session generation, question/grant revision and typed change references/digests.
+These references are not historical payload reconstruction or a file graph.
+Only events actually committed by this interaction store are included:
+configuration/effect audits using other stores or the typed logging path are
+not imported or promoted, and the task ledger is not a fabricated audit stream.
+Only trace/span IDs were committed by this schema; diagnostic span metadata,
+parentage and links are not invented. Trace inspection remains in this source.
+If a single change-reference payload exceeds the complete page byte budget,
+`ContentOmitted` explicitly suppresses its change list while retaining the
+commit/source/outcome/revision metadata; no truncated trusted list is claimed.
+
+Reads use the initialized current store's shared lease and read-only connection,
+never its writing/migration API or the retired task ledger. Sequence ordering
+provides deterministic ties even when commit times are equal or go backwards.
+Each request scans at most 4,096 audit rows under existing five-second storage
+admission/query limits. The signed query/session-bound 15-minute continuation
+retains the original sequence/digest ceiling and native file/host-lifetime
+identity; appends do not expand it. Missing/inconsistent rows, obsolete schema,
+replacement, corruption, expired cursors and denied access are explicit errors,
+not an empty success or silent restart. Audit reads never prune or write.
+This is passive observation, not task/answer/grant admission, session activity
+or proof that an effect occurred. Local hash consistency is not forensic tamper
+resistance or an externally anchored checkpoint; files remain unencrypted and
+user-modifiable. Native installed/accessibility acceptance remains open.
+
 The tray's **Evidence (read-only)** entry opens a separate, non-topmost native
 window using the existing theme resources. It is not the clipboard-capable
 passive detail viewer. Source, safe-text, session/task GUID and W3C trace

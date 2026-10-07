@@ -7,7 +7,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.Storage;
 
-internal sealed class RestrictedSqliteDatabase
+internal sealed partial class RestrictedSqliteDatabase
 {
     private readonly RestrictedStorageDirectory directory;
     private readonly string databasePath;

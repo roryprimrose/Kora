@@ -9,7 +9,7 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
 {
     private static readonly string[] Tables =
         ["application_log_events", "security_audit_events", "activity_spans", "activity_links"];
-    private const int MaximumScannedRows = 4096;
+    internal const int MaximumScannedRows = 4096;
 
     public ValueTask<EvidenceReadBatch> ReadAsync(EvidenceQuery query, EvidenceReadCheckpoint? checkpoint,
         HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
@@ -258,7 +258,7 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
             : new(trace, span, EvidenceSegmentStatus.MissingOrRemoved, null);
     }
 
-    private static bool Matches(EvidenceRecord record, EvidenceQuery query)
+    internal static bool Matches(EvidenceRecord record, EvidenceQuery query)
     {
         if (query.Severity is { } severity && !string.Equals(record.Level, severity.ToString(), StringComparison.Ordinal)
             || query.EventId is { } eventId && record.EventId != eventId

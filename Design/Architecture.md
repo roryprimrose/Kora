@@ -6,6 +6,14 @@ Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_D
 
 ## Runtime Ownership Decision
 
+The bounded native inspector has a consumer-focused
+[`ICommittedAuthorityAuditReader`](../src/Kora.Core/Storage/ICommittedAuthorityAuditReader.cs)
+seam on the existing interaction store. Its **AuthorityAudit** source is
+explicitly separate from diagnostic evidence and mirrors; it admits only
+passive committed typed audit observation through host/private-profile access.
+It owns no writer or execution policy. See the
+[source, snapshot and limitation contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
+
 Kora owns persistent work sessions, task lifecycle, context selection, permission evaluation, approvals, and presentation.
 A runtime adapter may own model/tool iteration, but must not bypass those responsibilities.
 The canonical channel, routing, lifecycle, and history contract is [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).

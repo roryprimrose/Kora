@@ -94,8 +94,8 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         WindowsSqliteHostTaskStore.ValidatePage(after, limit);
         return new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT session_id,generation,state FROM work_sessions WHERE state<>2 AND session_id>$after ORDER BY session_id LIMIT $limit;";
             command.Parameters.AddWithValue("$after", after?.ToString("D") ?? string.Empty);
@@ -116,8 +116,8 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         WindowsSqliteHostTaskStore.ValidatePage(after, limit);
         return new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             var rows = ReadQuestions(connection, session, after, limit + 1);
             database.VerifyFiles();
             return new SessionPage<HostQuestionRecord>([.. rows.Take(limit)],

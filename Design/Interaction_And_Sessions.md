@@ -55,7 +55,9 @@ Evidence uses the existing bounded diagnostic/audit/span/link reader; missing
 session/conversation evidence remains explicitly unavailable. Pages default
 to 25 records and the store accepts at most 50. They are observations across
 independent partitions, not an atomic runtime ledger; refresh for concurrent
-changes. Removed authority tombstones are not offered as browsable sessions.
+changes. Passive pages require existing private partitions and never create a
+replacement when storage is missing. Removed authority tombstones are not
+offered as browsable sessions.
 
 Reading, selecting and keyboard navigation never admit a reply, select an
 approval target, update activity, resume, or restore model/provider context.
@@ -91,7 +93,7 @@ workspace, without revealing old content on unlock.
 
 On the isolated `281393c` baseline, root Release/analyzers completed with zero
 warnings/errors. Maintained suites passed: Core 411, Application 1,322 and
-Windows 727, with fresh-only portable **100% line and branch coverage**.
+Windows 728, with fresh-only portable **100% line and branch coverage**.
 Actual private production SQLite tests cover bounded pages, typed history,
 cross-session isolation, Pending/live/Unknown blockers, stale generations,
 call/ownership revision changes at commit, required audit failure, concurrent

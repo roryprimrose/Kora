@@ -17,6 +17,24 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteSessionWorkspaceTests
 {
     [WindowsFact]
+    public async Task Passive_pages_refuse_missing_partitions_without_creating_empty_authority()
+    {
+        using var fixture = new InteractionStorageFixture();
+        var sessions = () => fixture.Store.ReadSessionsAsync(null, 25, fixture.Token).AsTask();
+        var questions = () => fixture.Store.ReadQuestionPageAsync(fixture.Request.SessionId, null, 25, fixture.Token).AsTask();
+        var tasks = () => fixture.Store.ReadTaskPageAsync(fixture.Request.SessionId, null, 25, fixture.Token).AsTask();
+        await sessions.Should().ThrowAsync<FileNotFoundException>();
+        await questions.Should().ThrowAsync<FileNotFoundException>();
+        await tasks.Should().ThrowAsync<FileNotFoundException>();
+        Directory.Exists(Path.Combine(fixture.Paths.LocalRoot, "InteractionStorageV1")).Should().BeFalse();
+        Directory.Exists(Path.Combine(fixture.Paths.LocalRoot, "HostStorageV1")).Should().BeFalse();
+        await fixture.InitializeAsync();
+        var database = fixture.DatabasePath;
+        File.Delete(database);
+        await sessions.Should().ThrowAsync<InvalidDataException>().WithMessage("*replacement is forbidden*");
+        File.Exists(database).Should().BeFalse();
+    }
+    [WindowsFact]
     public async Task Actual_writer_passive_pages_show_typed_history_without_mutating_or_cross_session_records()
     {
         using var fixture = new InteractionStorageFixture();

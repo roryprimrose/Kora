@@ -143,8 +143,8 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         ValidatePage(after, limit);
         return new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = OpenDatabase(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = OpenDatabase(created: false, cancellationToken);
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT * FROM host_tasks WHERE session_id=$session AND task_id>$after ORDER BY task_id LIMIT $limit;";
             command.Parameters.AddWithValue("$session", session.Value.ToString("D"));

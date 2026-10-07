@@ -1965,3 +1965,9 @@ test and appended receipt. Fresh combined Release and all five suites passed:
 Core **601**, Application **1,477**, Tools **38**, Definitions **6**, Windows
 **831**; latest-only portable coverage remained exact **100% line/branch**.
 The earlier receipt remains historical, not current-base merge evidence.
+
+Final entry-point correction keeps the typed deterministic session namespace
+available while bootstrap work is busy, without cancellation or model dispatch.
+Fresh Application **1,478**, three focused native-session tests, root Release
+and latest-only exact **100% line/branch** coverage passed on the same base;
+the full five-suite base qualification above remains valid.

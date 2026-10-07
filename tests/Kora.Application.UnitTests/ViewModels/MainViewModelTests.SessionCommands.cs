@@ -15,6 +15,30 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Busy_bootstrap_keeps_exact_session_controls_available_without_cancelling_or_reasoning()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        BindSessions(fixture);
+        fixture.Probe.Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var busy = fixture.ViewModel.DetectMicrophonesAsync();
+        fixture.ViewModel.IsBusy.Should().BeTrue();
+        fixture.ViewModel.CommandText = "session list";
+        fixture.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
+        await fixture.RunAsync("session list");
+        fixture.ViewModel.ResponseTitle.Should().Be("Session command observed.");
+        fixture.ViewModel.IsBusy.Should().BeTrue();
+        fixture.ViewModel.CommandText = "session delete selected";
+        fixture.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
+        await fixture.RunAsync("session delete selected");
+        fixture.ViewModel.ResponseTitle.Should().Be("Session command not accepted.");
+        fixture.ViewModel.CommandText = "infer something";
+        fixture.ViewModel.RunTypedCommand.CanExecute(null).Should().BeFalse();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Probe.Gate.SetResult();
+        await busy;
+    }
+
+    [Fact]
     public async Task Session_typed_and_activated_voice_entry_points_share_exact_service_and_never_reason()
     {
         var fixture = await Fixture.CreateInitializedAsync();

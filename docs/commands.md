@@ -127,6 +127,9 @@ grant authority. Existing partitions must be present. Errors are explicit:
 refresh after conflict, resolve live/Unknown work or pending questions, or recover
 private storage/ownership before a new deliberate request. A receipt failure
 after a commit is not rollback; inspect current state before retrying.
+The typed Run entry remains available for this deterministic namespace while
+bootstrap work is busy; it does not cancel that work. Mutations still pass the
+same exact-subject live-work and current host gates, not a new executor lane.
 
 Activated voice uses the existing enablement/consent/capture/privacy boundary
 and retains its originating channel and observed call/recovery revision through

@@ -295,7 +295,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RunTypedCommand = CreateCommand(
             RunTypedCommandAsync,
             () => !string.IsNullOrWhiteSpace(CommandText)
-                  && (!IsBusy || IsSetupStatusCommand()));
+                  && (!IsBusy || IsSetupStatusCommand()
+                      || SessionCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null

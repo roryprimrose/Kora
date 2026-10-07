@@ -39,6 +39,38 @@ public sealed class TrayRecoveryTests
     }
 
     [Fact]
+    public void Tray_and_Settings_reach_the_same_passive_card_with_exact_native_click_binding()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
+        {
+            directory = directory.Parent;
+        }
+        var root = directory!.FullName;
+        string Read(string name) => File.ReadAllText(Path.Combine(root, "src", "Kora", name));
+        var app = Read("App.axaml.cs");
+        app.Should().Contain("microphoneRecovery.Open").And.Contain("microphoneRecovery?.Dispose()");
+        Read("SystemTrayController.cs").Should().Contain("Choose microphone (native recovery)")
+            .And.Contain("RunAfterNativeMenuCloses(chooseMicrophone)");
+        Read("SettingsWindow.axaml").Should().Contain("x:Name=\"ChooseMicrophone\"")
+            .And.NotContain("SelectedItem=\"{Binding SelectedMicrophone}\"");
+        Read("SettingsWindowController.cs").Should().Contain("new SettingsWindow(viewModel, chooseMicrophone)");
+        Read("MicrophoneRecoveryWindow.axaml.cs").Should().Contain("var exactChoice = model.Draft")
+            .And.Contain("model.SaveAsync(exactChoice)")
+            .And.Contain("var exactSelection = model.DisplayedSelection")
+            .And.Contain("model.EnableAsync(exactSelection)")
+            .And.Contain("model.Dispose()")
+            .And.Contain("Opened += (_, _) => Run(model.RefreshAsync)");
+        var card = Read("MicrophoneRecoveryWindow.axaml");
+        card.Should().Contain("Save preference only").And.Contain("PTT readiness only")
+            .And.Contain("IsEnabled=\"{Binding CanEnable}\"").And.Contain("Close without changes")
+            .And.NotContain("Topmost=\"True\"").And.NotContain("Test microphone");
+        Read("MicrophoneRecoveryWindowController.cs").Should().Contain("main.CanUseTrayMicrophoneRecovery")
+            .And.Contain("main.PrivacyClosureRequested -= OnPrivacyClosure")
+            .And.NotContain("NativeQuestionHost").And.NotContain("CreateSession");
+    }
+
+    [Fact]
     public void Native_tray_routes_preserve_existing_host_navigation_and_guard_delayed_actions()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

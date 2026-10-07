@@ -45,7 +45,8 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectEvidence = null,
         Action? inspectSkillPackages = null,
         Action? inspectSessions = null,
-        Action? reviewMaintenance = null)
+        Action? reviewMaintenance = null,
+        Action? chooseMicrophone = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -120,6 +121,12 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(voiceRecoveryItem);
         microphonesItem = new NativeMenuItem("Microphones");
         menu.Add(microphonesItem);
+        if (chooseMicrophone is not null)
+        {
+            var chooseItem = new NativeMenuItem("Choose microphone (native recovery)");
+            chooseItem.Click += (_, _) => RunAfterNativeMenuCloses(chooseMicrophone);
+            menu.Add(chooseItem);
+        }
         var refreshItem = new NativeMenuItem("Refresh microphones");
         refreshMicrophonesCommand = new AsyncCommand(viewModel.RefreshMicrophonesAsync,
             exception => viewModel.ReportHostInteractionFailure(

@@ -81,6 +81,22 @@ Related: [MVP Scope](MVP_Scope.md), [Decision Register](Decision_Register.md), [
 
 ## How to Read Status
 
+### Bounded R03/R05 passive native microphone recovery card
+
+Tray **Choose microphone** and speech Settings now share a passive native card
+with real endpoint IDs, System/default availability, retained unavailable pins,
+unsaved local highlight, explicit revision-bound Save and separate Enable,
+metadata Refresh, Disable and Stop speaking. The existing audited audio host
+services own all changes; native input rechecks current ownership, Windows
+privacy/permission, consent, readiness and original-channel/call revision.
+No capture/test, automatic replacement, model/network or OS permission write
+is introduced. Closing creates no durable answer, consent or session/task
+decision. The [exact availability and authority boundary](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+leaves genuine R05 device-question orchestration, combined consent/enable,
+first-run onboarding, production wake and native/hardware acceptance open.
+All experiment executables/evidence are preserved: the maintained card tests
+are not equivalent to historical synthetic speech proof or its live consumers.
+
 ### Bounded R17/R18 canonical maintenance foundation
 
 The app now composes metadata discovery/state and an explicit Settings/Tray

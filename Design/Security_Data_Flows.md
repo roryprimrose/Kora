@@ -103,6 +103,11 @@ The bootstrap now saves explicit ongoing consent and arms PTT only after
 eligible startup gates; it does not run a grammar recognizer on ambient audio.
 The [bounded native tray recovery](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
 enumerates/selects without capture and uses explicit revision-bound enablement.
+The [passive native recovery card](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+shares those host commands from tray and speech Settings. Its local highlight
+is not saved consent, an R05 answer or enablement authority. Save and Enable are
+distinct exact native inputs; missing permission/ownership fails closed. No
+combined consent/selection/enable or microphone test is admitted.
 The full matrix, production wake and native lifecycle acceptance remain
 required design/proof gates, not established by deterministic tray tests.
 

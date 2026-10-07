@@ -1943,7 +1943,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.InitializeAsync();
 
-        fixture.ViewModel.SelectedMicrophone.Should().BeNull();
+        fixture.ViewModel.SelectedMicrophone!.Id.Should().Be("microphone-removed");
         fixture.ViewModel.SelectedOutputDevice.Should().BeNull();
         fixture.ViewModel.MicrophoneAvailabilityMessage.Should().StartWith("The saved microphone is no longer available.");
         fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().StartWith("The saved audio output device is no longer available.");

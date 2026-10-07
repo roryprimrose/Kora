@@ -27,6 +27,7 @@ public sealed partial class MainViewModel
     public bool IsRefreshingMicrophones => isRefreshingMicrophones;
     public bool IsMicrophoneCatalogCurrent => microphoneCatalogCurrent;
     public bool IsSystemMicrophoneAvailable => systemDefaultMicrophone is not null;
+    public MicrophoneDevice? SystemMicrophone => systemDefaultMicrophone;
     public bool CanUseTrayMicrophoneRecovery => IsCallMutationHostEligible;
 
     public string TrayInputStatus => !IsCallMutationHostEligible
@@ -521,42 +522,54 @@ public sealed partial class MainViewModel
         }
     }
 
-    public async Task SelectMicrophoneAsync(MicrophoneDevice microphone, long topologyRevision)
+    public Task<bool> SelectMicrophoneAsync(MicrophoneDevice microphone, long topologyRevision) =>
+        SelectMicrophoneFromRecoveryAsync(microphone, topologyRevision, CancellationToken.None);
+
+    public async Task<bool> SelectMicrophoneFromRecoveryAsync(MicrophoneDevice microphone, long topologyRevision,
+        CancellationToken cancellationToken)
     {
-        if (disposed) { return; }
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+        if (disposed) { return false; }
+        var origin = OriginalOrigin();
+        var callRevision = CallPolicyRevision;
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(origin),
             HostActivityLayer.Application, HostOperation.Recovery);
-        var valid = await TryValidateMicrophoneRecoveryAsync(topologyRevision, microphone);
-        if (disposed) { activity.Complete(HostOperationOutcome.Failed); return; }
-        if (!valid || !Microphones.Contains(microphone))
+        var valid = await TryValidateMicrophoneRecoveryAsync(topologyRevision, microphone, cancellationToken);
+        if (disposed) { activity.Complete(HostOperationOutcome.Failed); return false; }
+        if (!valid || cancellationToken.IsCancellationRequested || !Microphones.Contains(microphone)
+            || communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible) is not null)
         {
             ApplicationLog.Information(logger, "Rejected stale or ineligible native microphone selection");
             ShowFailure("The microphone selection is no longer current.", "Refresh devices and choose an endpoint again.");
             OnPropertyChanged(nameof(SelectedMicrophone));
             activity.Complete(HostOperationOutcome.Failed);
-            return;
+            return false;
         }
 
         SelectedMicrophone = microphone;
         var released = IsVoiceEnabled || await TryStopFailedCaptureAsync("Releasing input after native microphone selection");
-        activity.Complete(released && Equals(SelectedMicrophone, microphone)
+        var saved = released && Equals(SelectedMicrophone, microphone);
+        activity.Complete(saved
             ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+        return saved;
     }
 
-    private async Task<bool> TryValidateMicrophoneRecoveryAsync(long revision, MicrophoneDevice? candidate = null)
+    private async Task<bool> TryValidateMicrophoneRecoveryAsync(long revision, MicrophoneDevice? candidate,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var snapshot = await microphoneCatalog.RefreshAsync(CancellationToken.None);
+            var snapshot = await microphoneCatalog.RefreshAsync(cancellationToken);
             var privacy = snapshot.Privacy;
             return !disposed && IsCallMutationHostEligible && !IsBusy && !IsRefreshingMicrophones
                 && microphoneCatalogCurrent && revision == MicrophoneTopologyRevision
                 && privacy.TopologyRevision == catalogPrivacyRevision
                 && privacy.TopologyRevision == privacyObservation.Current.TopologyRevision
+                && snapshot.DefaultMicrophone == systemDefaultMicrophone
                 && privacy.MicrophoneAccess == MicrophoneAccessState.Allowed
                 && snapshot.Access.State == MicrophoneAccessState.Allowed
                 && (candidate?.IsSystemDefault == true
-                    || (candidate ?? SelectedMicrophone) is { } microphone && privacy.CanCaptureFrom(microphone)
+                    || candidate is { } microphone && snapshot.Devices.Contains(microphone)
+                    && privacy.CanCaptureFrom(microphone)
                     && privacyObservation.Current.CanCaptureFrom(microphone));
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -570,12 +583,20 @@ public sealed partial class MainViewModel
         }
     }
 
-    public async Task EnableListeningFromTrayAsync(long revision)
+    public Task EnableListeningFromTrayAsync(long revision) =>
+        EnableListeningFromRecoveryAsync(revision, SelectedMicrophone, CancellationToken.None);
+
+    public async Task EnableListeningFromRecoveryAsync(long revision, MicrophoneDevice? displayedMicrophone,
+        CancellationToken cancellationToken)
     {
         if (disposed) { return; }
-        var valid = await TryValidateMicrophoneRecoveryAsync(revision);
+        var origin = OriginalOrigin();
+        var callRevision = CallPolicyRevision;
+        var microphone = displayedMicrophone;
+        var valid = await TryValidateMicrophoneRecoveryAsync(revision, microphone, cancellationToken);
         if (disposed) { return; }
-        if (!valid)
+        if (!valid || cancellationToken.IsCancellationRequested || microphone != SelectedMicrophone
+            || communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible) is not null)
         {
             ShowFailure("Listening cannot be enabled.", "The menu or privacy state changed. Refresh devices and review voice consent in Settings.");
             return;

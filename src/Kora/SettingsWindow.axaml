@@ -352,11 +352,9 @@
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                  <ComboBox
-                      ItemsSource="{Binding Microphones}"
-                      SelectedItem="{Binding SelectedMicrophone}"
-                      DisplayMemberBinding="{Binding Name}"
-                      PlaceholderText="No microphone detected" />
+                  <Button x:Name="ChooseMicrophone"
+                      Content="Choose microphone (native recovery)"
+                      HorizontalAlignment="Stretch" />
                   <Button
                       Content="Open Windows microphone settings"
                       Command="{Binding OpenMicrophonePrivacySettingsCommand}"

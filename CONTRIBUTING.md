@@ -18,6 +18,16 @@ license. By submitting a contribution, you confirm that:
 Public forks may be used to develop and propose contributions, subject to the
 license. Do not market or provide a fork as a practical substitute for Kora.
 
+## Extending Kora
+
+Read [Extending Kora](EXTENDING-KORA.md) for the tool/skill/prompt/instruction/agent
+decision guide, layer boundaries and delivered versus gated functionality.
+Use the [Tools guide](src/Kora.Tools/README.md) for action classes and gateway/DI
+wiring, and the [Definitions guide](src/Kora.Definitions/README.md) for explicit
+catalogue registration, immutable resources and package validation.
+These are contributor navigation guides; the linked design documents remain
+the authoritative policy sources.
+
 ## Development checks
 
 Restore, build, and test with the pinned SDK and locked dependencies:

@@ -419,6 +419,11 @@ The automated test boundary is:
 
 Issues and contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md)
 for development checks and the terms that apply to submitted contributions.
+Use [Extending Kora](EXTENDING-KORA.md) to choose and contribute tools, skills,
+prompts, scoped instructions or future agent profiles. The
+[Tools project guide](src/Kora.Tools/README.md) and
+[Definitions project guide](src/Kora.Definitions/README.md) map the current
+implementation and contribution steps, including unavailable execution gates.
 
 ## License
 

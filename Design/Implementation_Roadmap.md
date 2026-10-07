@@ -1147,15 +1147,15 @@ PR CI. General artifacts/backups, retention/deletion, generic dispatch, UI,
 source tooling, installed/power-loss guarantees and full R04 closure are outside
 this slice.
 
-**Combined local validation receipt:** based on merged R03/R17 main `3fc1417`; locked
+**Combined local validation receipt:** based on merged R03/R17/R05 main `40427e6`; locked
 solution dependencies unchanged; root Release build with zero warnings/errors;
-Core **365**, Application **1,080**, Windows **660** passed (**2,105 total**,
+Core **365**, Application **1,095**, Windows **682** passed (**2,142 total**,
 zero failed/skipped). The focused storage run passed **197**, including the
 resource-release barrier regressions. Only fresh Core/Application reports
-were aggregated: **6,457/6,457 lines, 2,821/2,821 branches and 773/773 methods**,
+were aggregated: **6,475/6,475 lines, 2,839/2,839 branches and 777/777 methods**,
 all 100%, with unchanged thresholds. Dependency-license/notice policy passed.
 Results are in this isolated worktree's
-`.net-test-artifacts/r04-r17-combined-{core,application,windows,coverage}`; no
+`.net-test-artifacts/r04-cohort-final-{core,application,windows,coverage}`; no
 disposable storage root remained after the completed run. Initial PR CI exposed
 post-kill fixture sharing violations before journal inspection; explicit
 exclusive-handle quiescence replaces the process-exit assumption without

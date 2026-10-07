@@ -152,9 +152,13 @@ and embedded commands/settings/voice/tray guidance state complete input/output
 limits and explicit failure recovery. This is not full R10/R03/R09/R05/A or
 native/hardware acceptance; no model tools or broader runtime authority.
 
-Validation on prerequisite base `90146f405ea9236a23ee2a95cd159efcd5fbf84f`:
-Release solution build **0 warnings / 0 errors**; Core **609**, Application
-**1,597**, Tools **38**, Definitions **6**, Windows integration **864** passed,
+Initial prerequisite base: `90146f405ea9236a23ee2a95cd159efcd5fbf84f`.
+After #76, #75 and #78 merged, the owned input-device branch was immediately
+rebased onto `2e54c892c3b63f2e8c96d7f89dbcb03a4f447015`, preserving both exact
+command grammars, the new assistant-name workflow and sibling documentation.
+Fresh combined validation: Release solution build **0 warnings / 0 errors**;
+Core **648**, Application **1,692**, Tools **38**, Definitions **6**, Windows
+integration **865** passed,
 **0 skipped**. Portable aggregate line/branch gates remain exact **100% / 100%**;
 existing coverage exclusions are unchanged. New deterministic coverage includes
 parser/output boundaries, native/typed/activated parity, missing pins/default

@@ -52,6 +52,17 @@ Releasing PTT while the microphone is still opening cancels that activation.
 A late native open or callback cannot restore it. Exit/disposal retires the
 activation before accepting any already queued command or completion.
 
+**Settings > Calls** now provides manual protection for this run. Default
+protected-call output, previews and approval readbacks are visual-only; pending
+speech is invalidated before UI work and is never replayed on clearance.
+Automatic detection remains unavailable. Saved activation preferences remain
+independent from output and consent. Protected calls reject voice-originated
+voice/in-call option writes and manual clear/reset; a later UI confirmation
+cannot relabel them. Initiate a new Settings change instead. Status, stop speech,
+disable listening and cancellation remain usable. New call-protection
+downgrades and temporary/speak-once exceptions are unavailable pending exact
+trusted review. See [manual call behavior](responses-and-calls.md#manual-call-mode-and-call-settings).
+
 Kora stops capture when:
 
 - you disable listening;

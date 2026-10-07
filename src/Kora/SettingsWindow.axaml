@@ -574,7 +574,7 @@
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Calls" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Control responses and listening when a configured detector reports call activity."
+                  Text="Use run-scoped manual call mode. Enabled automatic observations remain independent."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -585,8 +585,22 @@
                 <TextBlock Text="Call detection" Classes="settings-title" />
                 <TextBlock
                     Text="{Binding CallStateStatus}"
+                    AutomationProperties.Name="Current call status"
+                    AutomationProperties.LiveSetting="Polite"
                     Classes="settings-description"
                     TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Manual call mode" Classes="settings-title" />
+                <TextBlock Text="{Binding CallManualStatus}" AutomationProperties.Name="Manual call status" AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="I'm in a call" AutomationProperties.Name="Enable manual call mode for this run" TabIndex="0" Command="{Binding EnableManualCallCommand}" />
+                  <Button Content="Clear manual call mode" AutomationProperties.Name="Clear only manual call mode" TabIndex="1" Command="{Binding ClearManualCallCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding CallProtectionLimitations}" Classes="settings-description" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
 
@@ -603,6 +617,7 @@
                     Grid.Column="1"
                     Content="{Binding CallVisualOverrideButtonText}"
                     Command="{Binding ToggleCallVisualOverrideCommand}"
+                    IsEnabled="{Binding CanEnableCallVisualProtection}"
                     VerticalAlignment="Center" />
               </Grid>
             </Border>
@@ -620,6 +635,7 @@
                     Grid.Column="1"
                     Content="{Binding CallVoiceActivationButtonText}"
                     Command="{Binding ToggleCallVoiceActivationCommand}"
+                    IsEnabled="{Binding CanDisableCallVoiceActivation}"
                     VerticalAlignment="Center" />
               </Grid>
             </Border>

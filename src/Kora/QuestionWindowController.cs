@@ -31,6 +31,7 @@ internal sealed partial class QuestionWindowController : IDisposable
         this.renderer = renderer;
         this.logger = logger;
         host.BindGate(() => !disposed && ownsDesktop() && main.CanRevealPrivatePresentation);
+        host.BindCallObservation(() => main.CallObservation);
         main.PrivacyClosureRequested += OnPrivacyClosure;
     }
 

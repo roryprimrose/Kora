@@ -69,6 +69,17 @@ Single-choice, multi-choice checkbox, bounded text/form, draft, submit/cancel, a
 This also applies when speech recognition/wake assets are unavailable or the user intentionally closes the microphone.
 The fallback is always present in the native shell; it needs no model, skill, network, working microphone, or TTS engine.
 
+**Settings > Calls** now includes run-scoped manual Active/clear and separate
+automatic availability/status. Default protected-call output is visual-only;
+pending synthesis/playback is invalidated before UI work, and clearance replays
+nothing. Native input does not convert an earlier voice request into UI origin.
+A protected-call voice/in-call option change needs fresh UI initiation, original
+call revision and current ownership/privacy admission. Downgrades requiring
+complete exact review remain unavailable, rather than borrowing an ordinary
+question or legacy action-name approval. Stop/cancel and readable status need no
+spoken acknowledgement. Native accessibility and actual audio/call acceptance
+remain separate outstanding gates.
+
 All questions appear as readable native prompt cards with explicit submit/cancel controls and selectable typed answers where possible.
 Speech is an optional additional delivery channel when existing output consent/policy permits, not a prerequisite for answering.
 Hidden speech text, visual detail preferences, or an unavailable rich renderer cannot hide these controls.

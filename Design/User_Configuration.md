@@ -23,6 +23,16 @@ observe the same live state: mouse and validated verbal mutations publish the
 same change notifications, so neither surface requires reopening or polling to
 show the new effective value.
 
+Bounded R15 now supplies run-scoped manual call controls and truthful automatic
+availability in **Settings > Calls**, outside the future generic settings/tool
+registry. Original voice provenance, observed call revision and live ownership/
+privacy gate manual changes. Protected calls reject voice-originated voice and
+in-call option writes, including reset/clear semantics; read-only inspection and
+stop/cancel remain eligible. Saved output/activation preferences are retained.
+New call-protection downgrades and temporary/speak-once exceptions remain
+unavailable pending complete exact trusted review; they are not exposed as
+working verbal/model operations. See the [bounded R15 receipt](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07).
+
 Each registered option declares:
 
 - Stable ID/category, description, spoken names/aliases, type, units, allowed values/range, and default.

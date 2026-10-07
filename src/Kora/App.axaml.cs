@@ -80,6 +80,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
                 () => questionWindow.ReviewVersionAsync(window));
             var host = viewModel;
+            host.BindCallOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             var dispatcher = Services.GetRequiredService<IUiDispatcher>();
             Services.GetRequiredService<DesktopInstanceOwnershipBridge>().BindCallbacks(
                 cancellationToken => dispatcher.InvokeAsync(() =>

@@ -3114,10 +3114,11 @@ public sealed partial class MainViewModelTests : IDisposable
     [Fact]
     public async Task Disabling_call_visual_override_restores_the_normal_response_mode()
     {
-        var fixture = await Fixture.CreateInitializedAsync();
+        var fixture = new Fixture();
+        fixture.CallPreferences.Settings = new(false, true);
+        await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
 
-        await fixture.ViewModel.ToggleCallVisualOverrideCommand.ExecuteAsync();
         fixture.CallState.SetState(CallState.Suspected);
         await fixture.Dispatcher.LastInvocation;
 
@@ -3127,13 +3128,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeTrue();
         fixture.ViewModel.CallVisualOverrideButtonText.Should().Be("Show visual text during calls");
-        fixture.CallPreferences.SavedSettings.Should().Be(new CallAwareSettings(false, true));
-        AssertAuditPair(
-            fixture,
-            SecurityAuditCategory.ConfigurationWrite,
-            "configuration.call-aware-policy",
-            SecurityAuditInitiator.LocalUser,
-            SecurityAuditOutcome.Succeeded);
+        fixture.CallPreferences.SavedSettings.Should().BeNull();
 
         await fixture.RunAsync("unsupported");
 
@@ -3194,15 +3189,16 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.ToggleCallVoiceActivationCommand.ExecuteAsync();
 
-        fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeTrue();
-        fixture.ViewModel.CallVoiceActivationButtonText.Should().Be("Disable voice activation during calls");
+        fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeFalse();
+        fixture.ViewModel.ResponseBody.Should().Contain("exact trusted review");
     }
 
     [Fact]
     public async Task Enabling_visual_override_during_a_call_stops_current_speech()
     {
-        var fixture = await Fixture.CreateInitializedAsync();
-        await fixture.ViewModel.ToggleCallVisualOverrideCommand.ExecuteAsync();
+        var fixture = new Fixture();
+        fixture.CallPreferences.Settings = new(false, true);
+        await fixture.ViewModel.InitializeAsync();
         fixture.CallState.SetState(CallState.Active);
         await fixture.Dispatcher.LastInvocation;
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
@@ -3246,7 +3242,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.CallPreferences.SaveException = (Exception)Activator.CreateInstance(exceptionType)!;
 
-        await fixture.ViewModel.ToggleCallVisualOverrideCommand.ExecuteAsync();
+        await fixture.ViewModel.ToggleCallVoiceActivationCommand.ExecuteAsync();
 
         fixture.ViewModel.ResponseTitle.Should().Be("The call-aware settings could not be saved.");
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
@@ -3282,15 +3278,13 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.SetShowVisualTextDuringCallsAsync(false);
         await fixture.ViewModel.SetAllowVoiceActivationDuringCallsAsync(false);
 
-        fixture.ViewModel.ShowVisualTextDuringCalls.Should().BeFalse();
+        fixture.ViewModel.ShowVisualTextDuringCalls.Should().BeTrue();
         fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeFalse();
-        fixture.ViewModel.CallVisualOverrideStatus.Should().StartWith("Off");
+        fixture.ViewModel.CallVisualOverrideStatus.Should().StartWith("On");
         fixture.ViewModel.CallVoiceActivationStatus.Should().StartWith("Off");
-        changedProperties.Should().Contain(nameof(MainViewModel.ShowVisualTextDuringCalls));
-        changedProperties.Should().Contain(nameof(MainViewModel.CallVisualOverrideStatus));
         changedProperties.Should().Contain(nameof(MainViewModel.AllowVoiceActivationDuringCalls));
         changedProperties.Should().Contain(nameof(MainViewModel.CallVoiceActivationStatus));
-        fixture.CallPreferences.SavedSettings.Should().Be(new CallAwareSettings(false, false));
+        fixture.CallPreferences.SavedSettings.Should().Be(new CallAwareSettings(true, false));
     }
 
     [Fact]
@@ -3702,7 +3696,7 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.ViewModel.FallbackToVisualWhenOutputMuted = true;
         }
 
-        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().BeTrue();
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().Be(initializing);
         fixture.WindowActions.Should().NotContain(WindowAction.Show);
     }
 
@@ -7651,6 +7645,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Application.Tools.ReadOnlyCapabilityRegistry(
                     new CapabilityHostAccess(Session), ApplicationInfo, bootstrapper,
                     NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance));
+            ViewModel.BindCallOwnershipGate(static () => true);
             if (subscribeToWindowActions)
             {
                 ViewModel.WindowActionRequested += (_, action) =>
@@ -8223,7 +8218,9 @@ public sealed partial class MainViewModelTests : IDisposable
             AfterStart?.Invoke();
         }
 
-        public Task StopAsync(CancellationToken cancellationToken = default)
+        public TaskCompletionSource? StopGate { get; set; }
+
+        public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             events.Add("voice.stop");
             StopCalls++;
@@ -8233,7 +8230,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 throw StopException;
             }
             IsListening = false;
-            return Task.CompletedTask;
+            if (StopGate is not null) { await StopGate.Task.WaitAsync(cancellationToken); }
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
@@ -8263,8 +8260,10 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService
     {
+        private long outputGeneration;
         public void InvalidateOutput()
         {
+            Interlocked.Increment(ref outputGeneration);
             events.Add("speech.invalidate");
             IsSpeaking = false;
             PlaybackFrame = SpeechPlaybackFrame.Inactive;
@@ -8372,7 +8371,9 @@ public sealed partial class MainViewModelTests : IDisposable
             AudioOutputDevice outputDevice,
             CancellationToken cancellationToken = default)
         {
+            var generation = Interlocked.Read(ref outputGeneration);
             BeforeSpeak?.Invoke();
+            if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
             if (SpeakException is not null)
             {
                 throw SpeakException;
@@ -8387,6 +8388,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 await SpeakGate.Task.WaitAsync(cancellationToken);
             }
+            if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
 
             IsSpeaking = false;
         }
@@ -8982,6 +8984,12 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public CallState CurrentState { get; private set; } = CallState.Unavailable;
 
+        public void SetInvalidObservation()
+        {
+            CurrentState = (CallState)99;
+            StateChanged?.Invoke(this, new CallStateChangedEventArgs(CallState.Unknown));
+        }
+
         public void SetState(CallState state)
         {
             CurrentState = state;
@@ -9044,7 +9052,13 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         public List<SecurityAuditEvent> Events { get; } = [];
 
-        public void Write(SecurityAuditEvent auditEvent) => Events.Add(auditEvent);
+        public Action<SecurityAuditEvent>? BeforeWrite { get; set; }
+
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            BeforeWrite?.Invoke(auditEvent);
+            Events.Add(auditEvent);
+        }
     }
 
     private sealed class FakeApplicationInfo : IApplicationInfo

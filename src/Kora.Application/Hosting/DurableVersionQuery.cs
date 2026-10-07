@@ -15,7 +15,9 @@ public sealed class DurableVersionQuery(
     public const string StorageDisclosure =
         "Kora stores task and content-free diagnostic/audit records in private local Windows-profile SQLite files. "
         + "These files are not encrypted: copies outside the private location are readable, and same-user/admin access is not prevented. "
-        + "Database records receive 30-day diagnostic and 90-day audit due dates; database pruning/deletion is not yet implemented. "
+        + "Database records receive 30-day diagnostic and 90-day audit due dates. "
+        + "Each admitted startup prunes at most 128 due diagnostics and 32 due spans with their links; due backlog can remain. "
+        + "Audit, task and session deletion is not implemented. Reading evidence does not extend retention. "
         + "Daily files retain at most 30 days/30 files. Credentials remain Windows-protected.";
 
     public async Task<HostTaskRecord> RunAsync(

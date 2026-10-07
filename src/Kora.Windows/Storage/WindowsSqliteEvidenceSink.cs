@@ -12,7 +12,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.Storage;
 
-public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
+public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
 {
     internal const string PartitionName = "EvidenceStorageV1";
     internal const int MaximumEnvelopeBytes = 65536;

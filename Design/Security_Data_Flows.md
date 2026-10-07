@@ -936,6 +936,14 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.
+The delivered [bounded ordinary retention slice](Architecture.md#bounded-ordinary-diagnostic-retention)
+consumes existing effective due timestamps only. One admitted owner-startup
+transaction removes at most 128 due diagnostic logs and 32 due spans with all
+their at-most-1,024 owned links. Due backlog can remain; queries do not refresh
+it. No audit row/sequence/hash chain, session/task/interaction/grant or Perpetual
+record is pruned, and no retention preference is changed. This is logical
+row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
+and its continuation/checkpoint requirements remain independently unimplemented.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.
 The [approved storage baseline](Architecture.md#windows-durable-storage-direction) uses pinned standard SQLite, not mandatory page encryption or database DPAPI keys. Copies outside the private location are readable; same-user/admin access is not prevented. Credentials remain in Windows-protected credential storage.
 R04's partial [host evidence foundation](Implementation_Roadmap.md#r04-foundation-delivery)

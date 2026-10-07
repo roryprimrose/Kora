@@ -372,6 +372,16 @@ a replay. Missing or permissive journals are neither recreated nor repaired.
 The proof does not certify physical power-loss, installed loading, full
 retention/deletion, D-008 audit anchors or complete D-009/R04 closure.
 
+The [bounded ordinary diagnostic retention continuation](Architecture.md#bounded-ordinary-diagnostic-retention)
+uses existing standard-SQLite due dates and writer/reader admission leases;
+there is no new encryption/native/key prerequisite. One owner-startup batch
+removes at most 128 ordinary logs and 32 spans with their bounded owned links.
+It preserves every audit row/sequence and every task/interaction/session/grant
+partition, including Perpetual records. Existing due timestamps are not
+recomputed; passive reads do not extend retention. Backlog, missing references
+and invalidated snapshots remain explicit. Audit pruning/anchors, copy disposal,
+session deletion and complete D-009/R04 acceptance remain open.
+
 ### R02 Windows Storage Outcome - 2026-10-05
 
 **Historical, superseded encryption direction:** the investigation proposed:

@@ -250,6 +250,27 @@ all of its applicable behaviors have maintained equivalents and no consumer
 remains. Checked-in receipts are unchanged, not relabelled as current
 production results. No experiment was rerun as part of these production tests.
 
+## Bounded Ordinary Retention Equivalence Assessment - 2026-10-07
+
+[Maintained ordinary retention tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteDiagnosticRetentionTests.cs)
+exercise actual production standard SQLite: effective due boundaries, bounded
+log/span/link removal, atomic rollback/cancellation, concurrent writer/reader
+admission, restart/backlog, citation gaps and unchanged task/interaction/audit/
+Perpetual authority. The existing
+[owned-process interruption tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteEvidenceInterruptionTests.cs)
+also exercise before/after retention COMMIT and hot-journal reopening.
+
+No experiment executable is retired. `Program.cs` deletion routes in
+`StorageTests` still compare encrypted/enveloped samples, SQLCipher FTS,
+`secure_delete`/checkpoint/VACUUM and a backup that deliberately recovers
+deleted content. They are consumed by both candidate runs and share the
+cryptography, rekey, artifact, native-provider and backup runner paths.
+Ordinary production log/span pruning supplies no maintained equivalence for
+those key/content/copy/engine behaviors. `Crypto.cs`, `ScratchStore.cs`, runner/
+project/locked dependencies and original encryption/rekey/native/backup/deletion
+receipts remain unchanged. None were rerun, relabelled or promoted to current
+production evidence; physical power-loss and forensic erasure are not claimed.
+
 ## Optional Real Cross-User Handoff Protocol
 
 The [canonical profile-boundary contract](../../Design/Architecture.md#profile-boundary-and-validation-responsibility)

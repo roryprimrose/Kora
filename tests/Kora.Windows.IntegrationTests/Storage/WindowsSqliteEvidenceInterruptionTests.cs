@@ -31,6 +31,8 @@ public sealed class WindowsSqliteEvidenceInterruptionTests
     [InlineData("audit", "committed")]
     [InlineData("activity", "uncommitted")]
     [InlineData("activity", "committed")]
+    [InlineData("retention", "uncommitted")]
+    [InlineData("retention", "committed")]
     [InlineData("audit", "missing-journal")]
     [InlineData("audit", "permissive-journal")]
     [InlineData("activity", "held-lease")]
@@ -90,6 +92,13 @@ public sealed class WindowsSqliteEvidenceInterruptionTests
             var after = Snapshot(paths);
             foreach (var table in Tables)
             {
+                if (string.Equals(kind, "retention", StringComparison.Ordinal)
+                    && string.Equals(mode, "committed", StringComparison.Ordinal)
+                    && !string.Equals(table, "security_audit_events", StringComparison.Ordinal))
+                {
+                    after[table].Should().BeEmpty();
+                    continue;
+                }
                 var added = string.Equals(mode, "committed", StringComparison.Ordinal) ? AddedRows(kind, table) : 0;
                 after[table].Should().HaveCount(before[table].Length + added);
                 after[table].Should().Contain(before[table], "all previously committed envelopes and links must survive");
@@ -168,7 +177,7 @@ public sealed class WindowsSqliteEvidenceInterruptionTests
         OwnedStorageChildProcess.RequireOwnedRoot(root);
         var kind = Environment.GetEnvironmentVariable(KindVariable);
         var mode = Environment.GetEnvironmentVariable(ModeVariable);
-        if (kind is not ("diagnostic" or "audit" or "activity")
+        if (kind is not ("diagnostic" or "audit" or "activity" or "retention")
             || mode is not ("uncommitted" or "committed" or "missing-journal"
                 or "permissive-journal" or "held-lease" or "held-database"))
         {
@@ -274,6 +283,9 @@ public sealed class WindowsSqliteEvidenceInterruptionTests
                         ActivitySpanId.CreateRandom().ToHexString())).ToArray();
                 sink.WriteActivity(new(new(Guid.NewGuid()), TraceSnapshot.Capture(host.Activity)!, request,
                     now.AddSeconds(-1), now, HostOperationOutcome.Completed, links, host.CorrelationId, host.ApprovalId));
+                break;
+            case "retention":
+                sink.PruneOrdinaryDiagnostics(DateTimeOffset.UtcNow.AddDays(31), CancellationToken.None);
                 break;
             default:
                 throw new InvalidOperationException("An unknown fixture evidence kind was requested.");

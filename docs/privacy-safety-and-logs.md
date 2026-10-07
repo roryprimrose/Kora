@@ -262,9 +262,20 @@ Closing or privacy closure clears/cancels the view without changing retained
 sources. There is no copy, export, model reasoning, browser, deletion, grant
 use or remote transmission from this inspector.
 Database records receive independent 30-day diagnostic and 90-day audit
-due dates, but automatic database pruning/deletion is not yet implemented.
-The first-use greeting, settings and version response disclose this limitation;
-the daily-file 30-day/30-file retention remains active.
+due dates. Each admitted owner startup, after storage admission and recovery,
+prunes at most 128 due ordinary logs and 32 due spans with their at-most-1,024
+owned links in one transaction. Due backlog may remain until later startups;
+there is no periodic drain or pruning triggered by reading/searching.
+Audit records, tasks, sessions, questions and grants (including Perpetual)
+are never removed by this operation. Missing/corrupt/inaccessible storage fails
+visibly without replacement or permission repair. This is row pruning, not
+forensic erasure of journals, free pages, backups or external copies.
+The first-use greeting, settings and version response disclose these limits;
+daily-file 30-day/30-file retention is unchanged.
+An in-progress evidence cursor whose original snapshot ceiling was removed
+fails visibly and requires a new query; reused row IDs cannot supply replacement
+citations. Retained child/audit/link references to pruned spans report
+`MissingOrRemoved`, not a fabricated complete trace or proven deletion cause.
 The full durable design continues writing every permitted
 `ILogger` event to daily JSON files and private-profile standard SQLite.
 Ordinary records use a dedicated `application_log_events` table. Typed events
@@ -297,14 +308,15 @@ you can inspect its parent/linked trace. Trace and session identifiers are
 correlation only, never permission or authentication, and no remote telemetry
 export is enabled by this design.
 
-Diagnostic database retention defaults to 30 days under its independent
-configurable setting. Audit database retention defaults to 90 days and can be
-set from 30 through 365 days. Audit records are content-minimising and remain
+The delivered diagnostic database policy is 30 days; this slice adds no setting
+or apply-now UI. The audit policy defaults to 90 days and validates 30 through
+365 days, but this slice implements no audit pruning or configuration UI.
+Audit records are content-minimising and remain
 independent of session deletion; they do not retain deleted chat or argument
 content. Audit expiry does not delete perpetual grants. Reading, searching,
 exporting or asking questions over evidence never extends its retention.
-Reducing audit retention previews the affected range and requires confirmation
-before existing due dates are shortened.
+The future audit configuration flow must preview the affected range and require
+confirmation before shortening existing due dates.
 
 The delivered bounded native inspector lists, reads and searches actual
 SQLite Logs, Audit, spans and links without using a model. A future explicit

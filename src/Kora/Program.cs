@@ -98,6 +98,8 @@ internal static class Program
                             DesktopLog.Information(startupLogger, "Starting Kora desktop host");
                             Task.Run(() => provider.GetRequiredService<DurableHostRecovery>()
                                 .RecoverAsync(CancellationToken.None)).GetAwaiter().GetResult();
+                            Task.Run(() => provider.GetRequiredService<WindowsSqliteDiagnosticRetention>()
+                                .RunAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             startup.Complete(HostOperationOutcome.Completed);
                         }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -208,6 +210,8 @@ internal static class Program
         });
         services.AddSingleton<ArtifactCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
+        services.AddSingleton(evidence);
+        services.AddSingleton<WindowsSqliteDiagnosticRetention>();
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);

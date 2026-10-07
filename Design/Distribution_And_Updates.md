@@ -910,6 +910,14 @@ tests**, zero-warning/error Release, and fresh portable **8,125/8,125 lines
 and 4,052/4,052 branches**. Busy checks/navigation immediately disable native
 review actions; exact snapshot and privacy/call invalidation remain enforced.
 
+Final peer rebase at Clipboard #63 source
+`d1f7e554d1db6eadd49f73103a0dc48bd5cdbd29` preserves its Tools/CI and native
+routes, and uses the current quiescence-aware desktop admission gate.
+All **493 Core + 1,388 Application + 25 Tools + 764 Windows tests** passed.
+Fresh coverage includes all three current portable assemblies:
+**8,369/8,369 lines and 4,202/4,202 branches**; root Release has zero warnings/
+errors. No experiment evidence or peer capability implementation was changed.
+
 GitHub Releases is the sole current version host for both prerelease and
 production versions of `roryprimrose/Kora`. Use its release API, or future
 authenticated release metadata published with those releases, not arbitrary

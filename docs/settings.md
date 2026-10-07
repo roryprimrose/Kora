@@ -508,6 +508,9 @@ Stale choices and failed storage/evidence require a fresh inspection; corrupt
 saved state is unavailable, never silently Hybrid. Save/reset never plays or
 replays speech or opens capture. Required full visual response/preview remains
 available in VoiceOnly, including interrupted output, warnings and approvals.
+Unconfirmed write evidence survives restart; inspect saved state/audit receipts
+and explicitly repair it before refreshing. Inspection never silently clears
+an unconfirmed marker or reports success after failed apply evidence.
 
 ### Current queue
 

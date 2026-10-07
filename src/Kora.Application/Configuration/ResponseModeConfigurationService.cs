@@ -35,9 +35,9 @@ public sealed class ResponseModeConfigurationService(
         }
     }
 
-    private ResponseOutputMode? Read()
+    private ResponseOutputMode? Read(bool readBack = false)
     {
-        var value = preferences.LoadDefaultMode();
+        var value = readBack ? preferences.ReadBackDefaultMode() : preferences.LoadDefaultMode();
         _ = ResponseOutputModeResolver.Resolve(value ?? ResponseOutputMode.Hybrid, null, null);
         return value;
     }
@@ -150,8 +150,9 @@ public sealed class ResponseModeConfigurationService(
                             playback.InvalidateOutput();
                             try
                             {
+                                preferences.BeginDefaultModeWrite();
                                 preferences.SaveDefaultMode(choice.Mode);
-                                if (Read() != choice.Mode) { throw new InvalidDataException("Saved response mode readback does not match the exact selection."); }
+                                if (Read(readBack: true) != choice.Mode) { throw new InvalidDataException("Saved response mode readback does not match the exact selection."); }
                             }
                             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentOutOfRangeException)
                             {
@@ -178,6 +179,17 @@ public sealed class ResponseModeConfigurationService(
                 lock (gate)
                 {
                     if (revision != expectedRevision || !eligible()) { throw new InvalidOperationException("Response apply admission changed before its receipt completed."); }
+                    if (Read(readBack: true) != choice.Mode) { throw new InvalidDataException("Saved response mode changed before its completed receipt."); }
+                    preferences.ConfirmDefaultModeWrite();
+                    try
+                    {
+                        if (Read() != choice.Mode) { throw new InvalidDataException("Confirmed response mode readback does not match the exact selection."); }
+                    }
+                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentOutOfRangeException)
+                    {
+                        preferences.BeginDefaultModeWrite();
+                        throw;
+                    }
                     held = false;
                     recovery = null;
                     Changed?.Invoke(this, EventArgs.Empty);

@@ -180,4 +180,28 @@ public sealed partial class MainViewModelTests
         if (stage is "receipt") { fixture.ViewModel.ResponseModeConfigurationStatus.Should().Contain("\"available\":false"); }
         if (stage is "disposed") { fixture.ViewModel.CanChangeResponseMode.Should().BeFalse(); }
     }
+
+    [Fact]
+    public async Task Response_mode_preserves_merged_zero_volume_and_unity_reset_without_autoplay_or_microphone_changes()
+    {
+        var fixture = new Fixture(enablePlaybackVolume: true, enableResponseModeConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        var starts = fixture.Voice.StartCalls;
+        await fixture.RunAsync("set speech.playback-volume to 0");
+        await fixture.RunAsync("set responses.default-mode to VoiceOnly");
+        fixture.VolumePreferences.Value.Should().Be(new Kora.Core.Configuration.PlaybackVolume(0));
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Contain("\"speechEligible\":false").And.Contain("\"mandatoryVisual\":true");
+        await fixture.ViewModel.ResetResponseModeCommand.ExecuteAsync();
+        fixture.VolumePreferences.Value.Should().Be(new Kora.Core.Configuration.PlaybackVolume(0));
+        fixture.OutputPreferences.SavedMode.Should().Be(ResponseOutputMode.Hybrid);
+        await fixture.RunAsync("reset speech.playback-volume");
+        fixture.VolumePreferences.Value.Should().BeNull();
+        fixture.ViewModel.SelectedPlaybackVolume.Should().Be(100);
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.Voice.StartCalls.Should().Be(starts);
+    }
 }

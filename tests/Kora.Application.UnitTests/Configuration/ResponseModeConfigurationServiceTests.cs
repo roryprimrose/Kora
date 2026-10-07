@@ -129,6 +129,7 @@ public sealed class ResponseModeConfigurationServiceTests : IDisposable
         fixture.Playback.Failure = null;
         fixture.Preferences.SaveFailure = null;
         fixture.Preferences.LoadFailure = null;
+        fixture.Preferences.Pending = false;
         fixture.Preferences.Mode = ResponseOutputMode.VoiceOnly;
         fixture.Audit.BeforeWrite = null;
         fixture.Store.FailTerminal = false;
@@ -231,6 +232,41 @@ public sealed class ResponseModeConfigurationServiceTests : IDisposable
         await reentrant!.Invoking(async task => await task).Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Theory]
+    [InlineData("late-readback")]
+    [InlineData("confirm")]
+    [InlineData("confirmed-readback")]
+    [InlineData("confirmed-enum")]
+    [InlineData("confirmed-io")]
+    public async Task Evidence_confirmation_failure_retains_durable_unavailable_marker_even_after_restart(string stage)
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        fixture.Store.BeforeCommit = task =>
+        {
+            if (stage is "late-readback" && task.State == HostTaskState.Succeeded)
+            {
+                fixture.Preferences.Mode = ResponseOutputMode.VisualOnly;
+            }
+        };
+        fixture.Preferences.ConfirmFailure = stage is "confirm" ? new IOException() : null;
+        fixture.Preferences.AfterConfirm = () =>
+        {
+            if (stage is "confirmed-readback") { fixture.Preferences.Mode = ResponseOutputMode.Hybrid; }
+            if (stage is "confirmed-enum") { fixture.Preferences.Mode = (ResponseOutputMode)100; }
+            if (stage is "confirmed-io") { fixture.Preferences.LoadFailure = new IOException(); }
+        };
+        var apply = () => fixture.Select(ResponseOutputMode.VoiceOnly);
+        await apply.Should().ThrowAsync<Exception>();
+        fixture.Preferences.Pending.Should().BeTrue();
+        fixture.Service.Get().Available.Should().BeFalse();
+        var restarted = fixture.CreateService();
+        var observe = restarted.Observe;
+        observe.Should().Throw<InvalidDataException>();
+        restarted.Get().Source.Should().Be("unavailable");
+        restarted.Get().Desired.Should().BeNull();
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal Fixture()
@@ -259,12 +295,23 @@ public sealed class ResponseModeConfigurationServiceTests : IDisposable
     }
     private sealed class Preferences : IResponseOutputPreferences
     {
+        internal bool Pending { get; set; }
         internal ResponseOutputMode? Mode { get; set; }
         internal Exception? LoadFailure { get; set; }
         internal Exception? SaveFailure { get; set; }
         internal Action? AfterWrite { get; set; }
+        internal Action? AfterConfirm { get; set; }
+        internal Exception? ConfirmFailure { get; set; }
         internal int Writes { get; private set; }
-        public ResponseOutputMode? LoadDefaultMode() { if (LoadFailure is { } error) { throw error; } return Mode; }
+        public ResponseOutputMode? LoadDefaultMode() => Pending ? throw new InvalidDataException("Unconfirmed write") : ReadBackDefaultMode();
+        public ResponseOutputMode? ReadBackDefaultMode() { if (LoadFailure is { } error) { throw error; } return Mode; }
+        public void BeginDefaultModeWrite() => Pending = true;
+        public void ConfirmDefaultModeWrite()
+        {
+            if (ConfirmFailure is { } error) { throw error; }
+            Pending = false;
+            AfterConfirm?.Invoke();
+        }
         public void SaveDefaultMode(ResponseOutputMode mode) { if (SaveFailure is { } error) { throw error; } Mode = mode; Writes++; AfterWrite?.Invoke(); }
         public bool? LoadMutedOutputVisualFallback() => false;
         public void SaveMutedOutputVisualFallback(bool enabled) => throw new NotSupportedException();

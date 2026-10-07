@@ -9169,6 +9169,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeResponseOutputPreferences : IResponseOutputPreferences
     {
+        private bool unconfirmed;
         public ResponseOutputMode? Mode { get; set; }
 
         public ResponseOutputMode? SavedMode { get; private set; }
@@ -9179,7 +9180,12 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Exception? SaveException { get; set; }
 
-        public ResponseOutputMode? LoadDefaultMode() => Mode;
+        public ResponseOutputMode? LoadDefaultMode() => unconfirmed
+            ? throw new InvalidDataException("Unconfirmed response-mode write") : Mode;
+
+        public ResponseOutputMode? ReadBackDefaultMode() => Mode;
+        public void BeginDefaultModeWrite() => unconfirmed = true;
+        public void ConfirmDefaultModeWrite() => unconfirmed = false;
 
         public bool? LoadMutedOutputVisualFallback() => MutedOutputVisualFallback;
 

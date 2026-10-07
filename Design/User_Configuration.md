@@ -26,6 +26,11 @@ Missing storage is an unsaved Hybrid default; reset explicitly saves Hybrid,
 matching normal set-to-default semantics rather than claiming file deletion.
 The muted-output fallback file is untouched. Invalid/unreadable saved state,
 unknown authority or failed audit/readback cannot become defaults or success.
+A separate atomic `response-output-mode-unconfirmed.txt` marker precedes mode
+replacement and is removed only after successful audit, terminal receipt and
+exact readback. Interrupted/unconfirmed writes remain unavailable across restart;
+inspection cannot silently clear the marker. Explicit saved-state/evidence repair
+and fresh inspection are required before a new mutation.
 
 The genuine audio-control admission records original-user intent and resolves
 the persisted active session/generation. Host-held choices bind owner, revision,

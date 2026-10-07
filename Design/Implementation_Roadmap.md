@@ -2113,6 +2113,16 @@ thresholds. An earlier existing task-store post-commit cancellation test failed
 once, passed isolated recheck, and passed the fresh full Windows run; no control,
 test or exclusion was disabled. No live Kora/audio/OS/install trial was performed.
 
+After #84 merged as `b34c077`, immediate rebase preserved volume's shared audio
+admission, unity default/reset, zero/full-visual recovery, native controls,
+grammar/dispatcher and stale-output/no-replay behavior. A combined parity test
+proves response-mode set/reset cannot alter zero volume or replay when unity is
+restored. A separate atomic unconfirmed-mode marker now retains failed apply
+evidence across restart without changing the legacy mode or mute-fallback files.
+Fresh combined Release passed zero warnings/errors: Core **700**, Application
+**1,974**, Tools **38**, Definitions **6**, Windows **954**, no skips, exact
+**100% line / branch** portable coverage and unchanged exclusions/thresholds.
+
 ## R10 Bounded Assistant Display/PTT Prefix - 2026-10-08
 
 The already delivered assistant name now has schema-1 typed

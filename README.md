@@ -13,6 +13,9 @@ daily/SQLite evidence inspection are delivered foundations, not full
 conversation history, queues, a model tool loop or release acceptance. See the
 [exact merged implementation snapshot](Design/Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
 for source/PR boundaries and retained experiment evidence.
+Native and [exact typed/activated-voice session commands](docs/commands.md#bounded-exact-id-session-commands)
+share host lifecycle/metadata authority. They do not provide name-based routing,
+model session tools or concurrent scheduling.
 
 ## Requirements
 

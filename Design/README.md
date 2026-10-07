@@ -74,7 +74,11 @@ The merged bootstrap also delivers a bounded
 [explicit local clipboard preview](../docs/commands.md#explicit-local-clipboard-preview),
 six-ID [read-only host discovery](../docs/commands.md#read-only-host-discovery),
 and nine-option [typed appearance controls](../docs/settings.md#appearance).
-Sessions names/empty creation are not conversations or queues; clipboard
+The [bounded exact-ID session command path](../docs/commands.md#bounded-exact-id-session-commands)
+now shares native host lifecycle/metadata authority for typed and activated
+voice help/list/status/inspect/create/rename/done/resume. It adds no model
+session tools, name-based routing or independent scheduler. Sessions
+names/empty creation are not conversations or queues; clipboard
 preview/reuse never submits content to a model. The read-only catalogue does
 not qualify model execution.
 

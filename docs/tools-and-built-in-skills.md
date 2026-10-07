@@ -513,7 +513,9 @@ read every resource or send the results remotely without permission.
 opens passive durable ID/name/generation pages, actual typed question/current
 task records and selected-session evidence. Native empty Create, revisioned
 exact-ID Rename and guarded idle Done/resume use existing host authority;
-they are not name-based typed/voice commands or model tools. Selection never
+the same operations are also available through
+[exact-ID typed/activated-voice commands](commands.md#bounded-exact-id-session-commands),
+not name-based routing or model tools. Selection never
 redirects global input, questions or approvals, and reading/rename never resumes.
 The separate native local-version question/review route supports actual durable
 drafts/answers and exact-record review, not general conversation execution.

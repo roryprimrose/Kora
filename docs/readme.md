@@ -28,7 +28,9 @@ Other bounded native features are
 [appearance and installed speech choices](settings.md),
 [tray microphone/PTT recovery](windows-and-tray.md#microphone-and-listening-recovery),
 and [SQLite/independent DailyLog evidence inspection](privacy-safety-and-logs.md#logs).
-Names and empty sessions are not conversation history or queues; clipboard
+[Exact-ID session commands](commands.md#bounded-exact-id-session-commands)
+share the native workspace service without a model; names are labels, never
+selectors. Names and empty sessions are not conversation history or queues; clipboard
 explanation and model evidence tools remain unavailable. Ordinary diagnostic
 pruning never deletes audits, sessions or grants.
 

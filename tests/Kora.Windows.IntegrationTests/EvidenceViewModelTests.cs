@@ -73,8 +73,11 @@ public sealed class EvidenceViewModelTests
         await viewer.SearchAsync();
         reader.Calls.Should().Be(1);
         viewer.Close();
+        reader.Token.WaitHandle.SafeWaitHandle.IsClosed.Should().BeFalse();
         reader.Completion.SetResult(new(new(0, 0, 0, 0), [], null, false, false));
         await pending;
+        var retiredToken = () => reader.Token.WaitHandle;
+        retiredToken.Should().Throw<ObjectDisposedException>();
         viewer.ResultText.Should().BeEmpty();
         viewer.Status.Should().Contain("cancelled");
         var denied = new EvidenceViewModel(service, () => false, NullLogger<EvidenceViewModel>.Instance);
@@ -142,10 +145,12 @@ public sealed class EvidenceViewModelTests
     {
         internal TaskCompletionSource<EvidenceReadBatch> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Calls { get; private set; }
+        internal CancellationToken Token { get; private set; }
         public ValueTask<EvidenceReadBatch> ReadAsync(EvidenceQuery query, EvidenceReadCheckpoint? checkpoint,
             HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
         {
             Calls++;
+            Token = cancellationToken;
             return new(Completion.Task);
         }
     }

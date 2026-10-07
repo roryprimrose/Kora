@@ -106,7 +106,12 @@ internal sealed partial class EvidenceViewModel(
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
         }
-        finally { busy = false; Notify(); }
+        finally
+        {
+            busy = false;
+            if (closed) { lifetime.Dispose(); }
+            Notify();
+        }
     }
 
     public void Close()
@@ -114,7 +119,7 @@ internal sealed partial class EvidenceViewModel(
         if (closed) { return; }
         closed = true;
         lifetime.Cancel();
-        lifetime.Dispose();
+        if (!busy) { lifetime.Dispose(); }
         Clear("Evidence viewer closed; retained sources were not changed.");
         SafeText = string.Empty;
         SessionFilter = string.Empty;

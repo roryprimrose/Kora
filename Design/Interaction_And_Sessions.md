@@ -1,7 +1,9 @@
 # Human Interaction and Persistent Sessions
 
-Status: agreed product direction; bounded R04/R05 durable question/grant and
-minimal session-authority slice implemented; full interaction/session integration proposed.
+Status: agreed product direction; bounded durable question/grant/session metadata,
+exact session/task controls and consolidated schema-v3 task/question/required-audit
+authority implemented. Cancellation covers only the genuine current-run local-version
+pre-dispatch question wait; full interaction/session/queue/effect integration remains proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 

@@ -1,8 +1,10 @@
 # User Configuration and Verbal Settings
 
-Status: partial. The bounded appearance, installed speech-choice, assistant display/PTT prefix and exact input-device subsets below are delivered through a
-shared typed UI/exact local command path; the complete verbal preference and
-model-facing contract remains proposed, subject to protected-call origin gates
+Status: partial. Bounded appearance, installed speech choices, assistant display/PTT
+prefix, spoken-summary caps, exact input/output preferences, per-Kora playback
+volume and device-default response mode are delivered through shared native/
+exact typed and activated-voice workflows below. Broader scopes, setup and the
+complete verbal preference/model-facing contract remain proposed, subject to protected-call origin gates
 and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).

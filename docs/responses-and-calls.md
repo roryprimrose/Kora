@@ -19,28 +19,27 @@ Required questions/options and exact security-sensitive readback keep their
 existing mandatory bounds and privacy gates, not ordinary-summary truncation.
 See [the exact counting contract](settings.md#spoken-summary-limits).
 
-**Settings > Responses > Muted speaker fallback** controls whether audible-only
-responses fall back to text when the selected Windows output is muted or at zero
-volume. It is **enabled by default** and saved on this device. The original
-response is displayed, not replaced by a mute warning. Kora checks output
-availability before each response, so unmuting restores the configured response
-mode on the next response without a manual refresh. This applies to both
-**System** output and a selected speaker.
-
-Turning the option off leaves ordinary audible-only responses hidden while the
-speaker is muted. Failures, pending questions, approvals, and other safety or
-recovery information still remain visible.
+The independently stored legacy **Muted speaker fallback** preference remains
+outside the delivered mode registry. Its default and storage are unchanged;
+it cannot suppress mandatory complete visual recovery for missing, muted,
+zero-volume, unavailable or failed output. The original response remains available,
+not just a warning. A later eligible response uses the freshly resolved output;
+unmuting or changing configuration never replays retired speech. This applies
+to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
 
 ## Output precedence
 
-Three scopes can control the effective mode:
+The existing process-local presentation resolver has this precedence:
 
 1. **Current task** - highest precedence and temporary.
 2. **Current queue** - temporary and used when no task override exists.
 3. **Device default** - persisted locally.
 
 Choose **Inherit** for the task or queue choice to return to the next broader
-scope. Task and queue overrides are not retained after their scope ends.
+scope. These presentation controls are outside the admitted device-default
+registry, not delivered durable session/task/queue configuration or execution.
+Only the device default has the new shared admitted native/exact configuration
+workflow; it changes neither call policy nor the legacy fallback preference.
 
 ## Visual response window
 
@@ -79,14 +78,14 @@ Kora always displays text when:
 
 - no compatible speech voice is available;
 - no usable audio output is available;
-- the output is muted or at zero volume and **Muted speaker fallback** is enabled;
+- the output is muted, at zero volume or otherwise unavailable;
 - synthesis or playback fails;
 - microphone capture is active;
 - a response reports failure or safety information; or
 - detected-call policy requires visual output.
 
-These fallbacks override VoiceOnly. Only the muted-output fallback can be
-disabled with **Muted speaker fallback**.
+These mandatory recovery paths override VoiceOnly; the separately stored legacy
+preference cannot disable complete visual recovery or exact pending previews.
 
 ## Interrupting spoken responses
 

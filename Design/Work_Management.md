@@ -1,8 +1,10 @@
 # Work Management and Request Queue
 
-Status: proposed full Slice A capability. The current implementation tracks bootstrap setup
-tasks/progress and answers deterministic status commands; this is not proof
-that the contextual work-management lane and executor below are shipped.
+Status: proposed full Slice A capability. Bootstrap setup progress and deterministic
+status coexist with delivered exact session/task controls, bounded authoritative
+observation and atomic current-run local-version pre-dispatch wait cancellation
+in consolidated schema v3. This is not proof that contextual routing, queues,
+concurrent workers or the management/execution lanes below are shipped.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 

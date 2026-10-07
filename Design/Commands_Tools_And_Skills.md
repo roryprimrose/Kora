@@ -22,15 +22,19 @@ share the same broker, not separate model/provider clipboard implementations.
 Preview is not model-context selection or transmission consent. See
 [the bounded context boundary](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
 
-Delivered exception to the proposed full catalogue: R10 has a host-only,
-appearance-only typed registry shared by the existing native controls and
+Delivered exceptions to the proposed full catalogue: R10 has host-only typed
+configuration for appearance, installed provider/voice, spoken-summary caps,
+assistant display/PTT prefix, exact input/output preferences, per-Kora volume
+and device-default response mode. These share native and exact local workflows;
+none exposes a model-facing `settings.*` tool or arbitrary preference patch.
+For appearance, the nine-option subset shares the existing native controls and
 exact local `list appearance settings`, `get <appearance.id>`,
 `set <appearance.id> to <value>` and `reset <appearance.id>` commands.
 These nine options use domain validation, revision-checked one-file atomic
 save, audit and live notifications; malformed/ambiguous inputs are rejected
 locally, not handed to inference. The current assistant-name prefix is retained.
-No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
-reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
+The appearance subset grants no call/voice authority. Whole-profile reset and
+undo remain open. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
 and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
 
 The bounded R10 `speech.playback-volume` preference shares native Settings and
@@ -39,7 +43,8 @@ exact `list volume settings` / get/status/set/reset commands. Its
 uses genuine audio-control session/generation admission, original-channel
 host/privacy/call/input revalidation, host-held revisioned proposals and
 audited atomic readback. It accepts canonical integer 0-100 only, default 100;
-zero blocks synthesis with full visual recovery. No natural-language alias,
+zero blocks synthesis/autoplay with full visual recovery, and raising/resetting
+never replays retired speech. No natural-language alias,
 model tool, test playback, microphone effect or global volume mutation is added.
 
 The bounded R10 `speech.output-device` preference is shared by native Settings
@@ -50,6 +55,15 @@ eligibility, exact presented choice and topology/preference revisions.
 Endpoint names, indices, trace IDs and supplied records cannot authorize a change.
 This is metadata/preference-only, not a model tool, audio trial or global setting.
 Pending questions/approvals keep their exact preview; configuration cannot answer them.
+
+The independent `speech.input-device` workflow shares exact native/typed/
+activated preference selection with passive microphone recovery. Metadata
+refresh, preference Save and separate Enable retain distinct admission: selecting
+a microphone does not open capture, grant consent or change Windows permissions.
+Installed speech choices and independently lowerable summary caps likewise
+remain host-only; complete ordinary output must fit both caps or remain visual,
+never truncate required previews. See the
+[delivered configuration subsets](User_Configuration.md#configuration-contract).
 
 The device-default `responses.default-mode` addition admits only the existing
 Hybrid/VoiceOnly/VisualOnly enum through shared native Inspect/Save/Reset and
@@ -94,6 +108,14 @@ committed atomically in the consolidated authority store. Dispatched/Unknown
 work is never relabelled stopped. No model descriptor/tool exposure, transcript
 persistence, inferred management, queue/executor, general effect cancellation,
 deletion or retention is delivered.
+
+Exact `maintenance status/review/snooze` uses the shared cached native maintenance
+workflow and a dedicated original-user control session, not audio-session or
+trace authority. Immutable cached identity/revision/channel/age and existing
+current-run snooze eligibility are rechecked. These visual-only commands add no
+check, HTTP, browser, download/install or consent grant/renewal. Existing native
+Check/Open and separate network opt-in remain distinct. See
+[notify-only maintenance](Distribution_And_Updates.md#delivered-bounded-r17r18-native-foundation).
 
 ## Delivered Artifact Invocation
 

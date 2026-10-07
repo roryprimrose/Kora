@@ -528,15 +528,19 @@ an unconfirmed marker or reports success after failed apply evidence.
 
 ### Current queue
 
-Temporary response-mode override. It takes precedence over the device default.
+Existing process-local presentation override, outside the admitted device-default
+registry. It takes precedence over the device default.
 Select **Inherit** in the dropdown to remove the queue override and use the
-device default.
+device default. This is not a delivered durable session/queue workflow or exact
+configuration command.
 
 ### Current task
 
-Temporary response-mode override with the highest precedence.
+Existing process-local presentation override with the highest precedence,
+outside the admitted device-default registry.
 Select **Inherit** in the dropdown to remove the task override and use the
-queue override, or the device default when no queue override exists.
+queue override, or the device default when no queue override exists. This does
+not establish durable task-scoped configuration, a scheduler or task execution.
 
 ### Muted speaker fallback
 

@@ -267,11 +267,11 @@ confirmation, and application timing.
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
-| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial: host-only nine-option appearance and installed speech-choice registries; exact `list appearance settings` / `list speech settings`; model tool and other categories planned |
-| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial: exact `get <appearance.id>` / `get <speech.id>` reads value, revision, saved/default provenance and speech recovery; model tool and other options planned |
-| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; prior value retained on failure | M/E | Partial: appearance/installed-speech direct UI and exact setters share owned proposals, revision rechecks and one-file atomic saves; speech pairs retain original-channel/call-revision gates; no model tool |
+| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial host-only native/exact discovery: appearance, installed speech, assistant prefix, input/output, summary caps, volume and device-default mode; model tool and remaining categories planned |
+| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial host-only exact reads of admitted IDs report revision/provenance/recovery; audio/mode status is observational and scoped, not broader task/queue authority |
+| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; uncertain committed outcomes require inspection | M/E | Partial: admitted native/exact setters share host-owned proposals, revision rechecks, atomic persistence/audit/readback and original-channel gates where applicable; failed terminal evidence is not a rollback claim; no model tool |
 | `settings.propose_change` | Identified temporary preference, target default scope | Exact compatible default-change proposal; no grant promotion | M/E | Planned |
-| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Partial: direct UI/exact appearance/speech reset restores admitted defaults/declared affected selection with revision checks and speech origin gates; category/whole-profile reset and model tool planned |
+| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Partial: native/exact per-option reset retains declared affected selection, revision checks and applicable original-channel gates; volume resets to unity 100, device mode to Hybrid, without replay; category/whole-profile reset and model tool planned |
 | `settings.undo` | Compatible prior change ID, expected revision | Revalidate prior preference only; never restore consumed grants or effects | M/E | Planned |
 
 The complete option registry is specified in [User Configuration](User_Configuration.md):
@@ -293,21 +293,31 @@ Explicit provider-qualified voice choices atomically select the provider/voice
 pair; ambiguous, missing or uninstalled choices cannot be selected. The existing
 protected-call gate preserves original channel and observed call revision.
 This remains host-only: none of the proposed `settings.*` model tools is
-registered or executable, and rate/volume/summary caps remain planned.
+registered or executable. Rate remains planned; separately delivered per-Kora
+volume and spoken-summary caps do not extend provider/voice authority.
 See the [bounded contract](User_Configuration.md#delivered-bounded-installed-speech-choices-r10).
+
+The other delivered host-only subsets and exact IDs are authoritative in
+[User Configuration](User_Configuration.md#configuration-contract). Input/output
+selection is preference-only, not capture, consent, a trial or global mixer
+control. Volume 0 withholds synthesis/autoplay with complete visual recovery;
+raising/resetting never replays. `responses.default-mode` admits only the device
+default, not session/task/queue overrides, fallback or call-policy changes.
+The legacy muted-output fallback remains independently stored outside this registry.
 
 | Category | Covered options | Current host subset |
 |---|---|---|
-| Voice input | Device, listening, assistant name, PTT shortcut, activation cue, start wait, endpoint silence, utterance limit, language/model, owner-aware private speech | Device/listening/name UI; production wake profiles and other verbal controls planned |
-| Output/appearance | Mode/scope, output device, local voice, rate, Kora volume, summary length, detail, captions, theme, timeout, presence size/dot size/speed/placement, reduced motion | Mode/scope/device/provider/voice, theme, timeout, presence and response-window controls; remaining options planned |
+| Voice input | Device, listening, assistant name, PTT shortcut, activation cue, start wait, endpoint silence, utterance limit, language/model, owner-aware private speech | Exact input preference and assistant-prefix native/exact controls; separate listening/PTT UI; production wake profiles and remaining controls planned |
+| Output/appearance | Mode/scope, output device, local voice, rate, Kora volume, summary length, detail, captions, theme, timeout, presence size/dot size/speed/placement, reduced motion | Native/exact device-default mode, output preference, installed provider/voice, 0-100 Kora volume, summary caps and nine appearance options; broader scoped registry/rate/detail controls planned |
 | Calls/proactive | Speech mode, visual override, activation, Unknown handling, sources/accounts, Busy/DND, temporary override, consent, quiet hours/mode, categories, deferral | Detected-call visual/activation UI; automated/manual sources and richer preferences planned |
 | Work/context | Per-session queue capacity/dispatch/lifetime, admitted concurrency, active deadline, archive/deletion durations, clipboard/result limits | General work/context registry planned |
 | Providers/connections | Processing mode, default provider/model, endpoint, identity, connector enablement | Pinned local setup exists; general selection and secure connector flows planned |
 | Skills/local data | Shared sources, revision/default binding, refresh, audit retention, diagnostic verbosity | General skill registry/verbal controls planned; content-minimising logs exist |
-| Startup/updates | Logon registration, startup presentation, notify-only checks/interval/channel/reminders | General controls planned; no install-capable updater |
+| Startup/updates | Logon registration, startup presentation, notify-only checks/interval/channel/reminders | Native logon/notify-only maintenance and exact cached status/review/eligible current-run snooze; general registry planned, Check/Open remain native-only, no install-capable updater |
 | Content viewing | Captions/dismissal/placement, text scale, automatic detail, browser target, Markdown/source, Mermaid | Embedded documentation/basic response UI exists; general typed viewers planned |
 
-Task response override precedes queue/session, then device. Manual listening disablement
+The existing presentation resolver orders task then queue then device; this is
+not delivered durable session/task/queue override configuration. Manual listening disablement
 and temporary call state do not persist across restart. Remote/privacy expansion
 requires exact voice/UI confirmation; secure enrollment retains mandatory
 host/OS checks. In-call feedback defaults to UI-only and is separate from

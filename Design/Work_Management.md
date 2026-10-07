@@ -78,6 +78,17 @@ Local-only mode does not call a remote management model.
 ## Management Operating Envelope and Degraded Mode
 
 The management lane is optional inference around a mandatory deterministic host core.
+The delivered bounded session core now accepts exact typed/activated-voice
+`session list/status/inspect/create/rename/done/resume`, with `session help`,
+through the existing guarded durable workspace service. IDs and explicit
+revisions, never titles or selected windows, address controls. Reads describe
+only existing authority and task/question records; they do not infer progress,
+queue work, cancel tasks or restore approvals. Fresh user lineage/control
+intents, live privacy/ownership/origin/revision checks and lifecycle blockers
+remain required. Protected-call voice mutations are explicitly unavailable.
+See [the bounded syntax](../docs/commands.md#bounded-exact-id-session-commands).
+This closes no scheduler, inference, concurrency or full work-routing gate.
+
 Exact session list/select/new/Done/delete and cancel/stop/pause/clear commands, direct session/task-ID operations, queue listing, and factual ledger status never require management inference.
 When inference is unavailable or budget-limited, an ambiguous request receives native choices such as Queue, Replace current, or Cancel; it is never guessed, dropped, or treated as task approval.
 

@@ -71,14 +71,16 @@ public sealed partial class SessionWorkspaceService(
             (request, eligible) => store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, eligible, token), token);
 
     private async Task<T> ControlAsync<T>(HostId<SessionIdentity> session, RequestOrigin origin,
-        Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token)
+        Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token,
+        Func<bool>? additionalAdmission = null, bool inspection = false)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
             throw new InvalidOperationException("Only explicit original trusted user input may control a session.");
         }
         var revision = access.ControlRevision;
-        bool Eligible() => access.CanControl && access.ControlRevision == revision;
+        bool Eligible() => (inspection ? access.CanInspect : access.CanControl)
+            && access.ControlRevision == revision && (additionalAdmission?.Invoke() ?? true);
         var request = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         try

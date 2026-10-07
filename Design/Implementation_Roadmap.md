@@ -1920,3 +1920,41 @@ Tools **38**, Definitions **6**, the same three hardware-free native contracts,
 and exact portable **100% line/branch** coverage passed. The initial-baseline
 receipt above remains historical; session metadata and its independent proof
 remain owned by #70.
+
+## R12/R13 Bounded Exact-ID Session Entry Points - 2026-10-07
+
+Extends merged #70's durable names/native Create/Rename foundation, not full
+work routing or scheduler acceptance. One portable typed grammar/result contract
+and the shared host workspace service now admit exact typed/activated-voice
+help/list/status/inspect and explicit create/rename/Done/resume. Exact IDs,
+generations and metadata revisions remain authority; names/window selection
+never supply command or approval targets. Fresh original-user lineage and
+durable control intent/receipt accompany every accepted command. Existing
+private storage, host ownership/unlocked presentation, voice consent/origin/
+call/recovery revisions, required audit and live-work/Unknown/question
+blockers remain enforced. Protected-call voice mutations stay unavailable.
+Errors, unsupported grammar and recovery are explicit; committed work is not
+described as rolled back by later receipt failure.
+
+Bounds: 1,024-byte whole UTF-8 input, domain-owned NFC names (120 scalars/
+480 bytes), default 25/max 50 keyset records, 64 KiB complete structured JSON
+results. Task/question pages are durable observations, not atomic runtime
+progress. No transcript persistence, queue/executor/scheduler/cancellation
+claims, inference/model exposure, deletion/retention, audio capture or
+name-based inference is added. See [exact user commands](../docs/commands.md#bounded-exact-id-session-commands).
+
+Experiment equivalence: the control/runtime proof tests SDK isolation and
+authority boundaries; management proof tests provider byte/deadline/retry/
+quarantine limits; storage scratch explicitly uses opaque feasibility records,
+not the production session/task contracts. These are not executable equivalents
+of this local exact grammar/native workspace slice. No experiment is retired;
+unique and historical receipts and consumers remain intact.
+
+Maintained validation on refreshed main `c0c15ac`: root no-restore Release
+build, zero warnings/errors; Core 592, Application 1,423, Tools 38,
+Definitions 6 and Windows 829 tests. Fresh latest-only portable reports meet
+the unchanged exact 100% line/branch gate. Missing initial assets alone
+required locked restore using the owner-specified per-command source; no
+NuGet configuration or credentials changed. Tests use deterministic fakes/
+owned SQLite/native fixtures, not app/audio/OS-effect/install/account trials.
+Remote CI remains the source/publication/license/packaging gate.

@@ -35,6 +35,21 @@ and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted
 
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+Delivered bounded R12/R13 deterministic entry points: typed and activated voice
+`session help/list/status/inspect/create/rename/done/resume` use the single
+[typed exact-ID grammar/result contract](../src/Kora.Core/Commands/SessionCommand.cs)
+and [shared host workspace service](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs).
+They precede inference and legacy approval/question routing. Names are content
+only; exact IDs/generations/metadata revisions remain authority/conflict tokens.
+Each admitted command owns fresh original-user lineage and durable control intent;
+read results are bounded observations, not an atomic runtime ledger. Native
+mutations retain parity at the shared service/store. Protected-call voice
+mutations remain unavailable; originating voice enablement/privacy/call/recovery
+observations are rechecked, never relabelled by later UI input.
+See the [exact syntax and recovery reference](../docs/commands.md#bounded-exact-id-session-commands).
+No model descriptor/tool exposure, transcript persistence, inferred management,
+queue/executor, cancellation, deletion or retention is delivered.
+
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for the currently

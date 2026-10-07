@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Hosting;
 
-public sealed class SessionWorkspaceServiceTests
+public sealed partial class SessionWorkspaceServiceTests
 {
     [Fact]
     public async Task Metadata_controls_use_fresh_exact_subjects_and_passive_descriptors_never_write_intent()
@@ -182,6 +182,7 @@ public sealed class SessionWorkspaceServiceTests
         internal bool RevokeDuringControl { get; init; }
         internal bool ReviseDuringControl { get; init; }
         internal string? Failure { get; init; }
+        internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; init; }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;
@@ -202,7 +203,10 @@ public sealed class SessionWorkspaceServiceTests
         }
 
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null));
+            ValueTask.FromResult(MetadataPage ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null));
+
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new SessionWorkspaceEntry(Session, null));
 
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
             Func<bool> canControl, CancellationToken cancellationToken) =>

@@ -4137,7 +4137,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
-            .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases);
+            .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
+            .Concat(SessionCommand.DiscoveryPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))

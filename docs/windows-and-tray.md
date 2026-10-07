@@ -175,6 +175,14 @@ Full conversations, work queues, name-based voice targeting, automatic archive,
 delete/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
 
+The compact command box and activated voice also expose bounded
+[exact-ID session commands](commands.md#bounded-exact-id-session-commands).
+They share this host service/store, never inherit the selected row/window,
+and require explicit generation/metadata revisions for mutations. Structured
+results are observations rather than runtime progress or conversation history.
+Protected-call voice mutations remain unavailable; pending bootstrap questions
+and approvals are preserved and must be resolved explicitly.
+
 ### Local clipboard preview
 
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)

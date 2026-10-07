@@ -10,6 +10,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
+using Kora.Application.Voice;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Artifacts;
@@ -222,7 +223,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Clipboard.ClipboardSnapshotBroker clipboardPreview,
         Kora.Tools.Clipboard.ClipboardRead clipboardRead,
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
-        Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke)
+        Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
+        BoundedMicrophoneCatalog? microphoneCatalog = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -284,6 +286,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         WithdrawVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(false));
         EnableVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(true));
         RefreshMicrophonesCommand = CreateCommand(RefreshMicrophonesAsync);
+        this.microphoneCatalog = microphoneCatalog
+            ?? new BoundedMicrophoneCatalog(voiceRecognition, privacyObservation, microphoneAccessService, logger);
         RefreshCommand = CreateCommand(
             RefreshAsync,
             () => !IsBusy && !IsLocalModelSetupActive && !IsPowerShellSetupActive
@@ -1095,6 +1099,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (selectionChanged && !suppressAudioDevicePreferenceSave)
             {
                 HoldVoiceInput("Microphone changed · use Enable listening");
+                if (value is not null && !SaveMicrophonePreference(value))
+                {
+                    OnPropertyChanged(nameof(SelectedMicrophone));
+                    return;
+                }
             }
             if (SetProperty(ref selectedMicrophone, value))
             {
@@ -1103,10 +1112,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 if (selectionChanged
                     && !suppressAudioDevicePreferenceSave)
                 {
-                    if (value is not null)
-                    {
-                        SaveMicrophonePreference(value);
-                    }
+                    Interlocked.Increment(ref microphoneTopologyRevision);
+                    OnPropertyChanged(nameof(MicrophoneTopologyRevision));
                 }
             }
         }
@@ -2912,22 +2919,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (IsVoiceEnabled)
         {
-            HoldVoiceInput("Microphone closed · listening was disabled manually");
-            try
-            {
-                await StopListeningAsync();
-            }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            {
-                ApplicationLog.Error(logger, exception, "Disabling voice activation");
-                ShowFailure("Microphone cleanup needs attention.",
-                    exception.Message + " Restart Kora before using voice again.");
-                return;
-            }
-            SetListeningPauseReason(
-                "Microphone closed · listening was disabled manually");
-            ApplicationLog.Information(logger, "Voice activation was disabled by the user");
-            ShowInformation("Listening disabled.", "The microphone capture device has been released.");
+            await DisableListeningAsync();
             return;
         }
 
@@ -3410,9 +3402,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             $"The display name, command prefix, and spoken identity now use {AssistantName}.");
     }
 
-    private void SaveMicrophonePreference(MicrophoneDevice microphone)
+    private bool SaveMicrophonePreference(MicrophoneDevice microphone)
     {
-        _ = SavePreference(
+        return SavePreference(
             () =>
             {
                 if (microphone.IsSystemDefault)

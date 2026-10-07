@@ -16,6 +16,15 @@ Kora override. Choosing **System** removes that override. A missing pinned
 microphone is shown as unavailable and is not silently replaced by a same-name
 or newly-default device.
 
+The [tray microphone/listening recovery](windows-and-tray.md#microphone-and-listening-recovery)
+is available without a model, network or working microphone. Opening its menu
+refreshes metadata with a five-second single-flight deadline. A native selection
+mark means preference only; stale menu selections are refused and a failed save
+retains the old preference. Selecting a replacement closes input but does not
+record or release a recovery hold. System may be explicitly selected even
+without a default; enabling still requires a usable endpoint and all existing
+consent/privacy/readiness gates. No test capture or automatic selection is added.
+
 Changing the Windows default while System is selected automatically reroutes
 an already active WASAPI capture to the new available default microphone.
 Named endpoint selections remain pinned. A missing effective microphone closes

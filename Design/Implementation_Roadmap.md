@@ -1458,7 +1458,49 @@ equivalent to a model-free preview and remain useful unique evidence.
 | R06 - Implement the admitted tool registry and local tool/result loop | Bounded read-only host registry delivered in I02; JSON selector in I09/I10 remains partial; no runtime adapter qualification | P1 - natural requests can discover and use Kora capabilities | R02 (local runtime: L1-L5 qualification), R04, R05 | Delivered: six canonical versioned typed read-only handlers and exact local discovery, current-host/lane/request isolation, strict inputs, six-record and complete 4 KiB UTF-8 output bounds, recorded version/readiness/local-runtime facts with unavailable/unobserved reasons, trace and cancellation tests. Remaining: qualified adapters, per-destination admission/egress, skill summaries, approved model invocation/result loop and continued reasoning under the R02-L5 envelope. No settings/evidence/session tools or new execution authority; preserve exact offline lock/power behavior. |
 | R07 - Deliver explicit clipboard context and local-first explanation | **Partial integrated delivery:** explicit bounded local plain-text snapshot/native preview, same-ID reuse/revoke; [receipt](#r07-bounded-clipboard-preview---2026-10-07). Inference unavailable; no R02 real answer/offline-success proof | P1 - first useful private vertical slice | R03, R04, R05, R06; R02 local L5 evidence carried through L6 | Delivered: composed exact command/tray/native workflow, immutable source/snapshot/request/version/time provenance, 256 KiB strict UTF-8 whole-text bound, explicit format/contention/denied/change states, privacy/origin/call-generation cancellation and no content logging/persistence/provider submission. Remaining: qualified local tool/result loop, purpose/secret/destination classification, complete approved-envelope budgeting and actual offline clipboard-answering quality/cancellation/no-egress/native acceptance. Preview/reuse grants no egress or execution authority; no remote fallback. |
 | R08 - Integrate the controlled remote runtime and streaming path | Outstanding production adapter; I18 candidate only; RT2 all-path admission BLOCKED despite passing bounded tests; hook-only path rejected; local production inference remains buffered | P1 - complete A0 and provider-neutral interaction | R02-RT1/RT2 and execution R02-PV1; local L5 envelope for local streaming; R04, R05, R06, R07 | Carry the [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs), resolve native observation/prevention before exposure, and integrate the proved .NET/runtime profile through pre-effect authorization, all-status host result sanitization and a final serialized-request egress gate. Disable unverified built-ins/collection/storage/transports; keep credentials host-only and cancellation truthful. Pass Gate 0 including actual account/destination/diagnostic evidence, streamed output/backpressure and zero denied effects/markers. Reuse host contracts and the qualified local envelope for local streaming/iteration; measure user-visible first output and cancellation, not experimental token timing alone. No production Node bridge or alternate provider without an explicit D-001 decision. |
-| R09 - Complete production wake, endpointing and speech lifecycle | Partial I04-I06 | P0 - enable reliable voice-first use only after quality/privacy proof | R02 (speech/hardware), R03, R05, R06 | Package selected licensed detector/VAD/transcription assets; preserve immediate wake-and-command with at most two seconds of overwritten pre-roll and no unrelated pre-activation transcription. Bound command/audio lifetimes; prove playback/echo rejection, voice interruption, TTS stop/shutdown and device recovery. Implement configured activation-name profiles and lifecycle matrix. Meet actual A1 speech/CPU/memory/latency targets; optional learning/verifier is not required. |
+| R09 - Complete production wake, endpointing and speech lifecycle | Partial I04-I06; bounded native tray recovery below, not wake/native acceptance | P0 - enable reliable voice-first use only after quality/privacy proof | R02 (speech/hardware), R03, R05, R06 | Package selected licensed detector/VAD/transcription assets; preserve immediate wake-and-command with at most two seconds of overwritten pre-roll and no unrelated pre-activation transcription. Bound command/audio lifetimes; prove playback/echo rejection, voice interruption, TTS stop/shutdown and device recovery. Implement configured activation-name profiles and lifecycle matrix. Meet actual A1 speech/CPU/memory/latency targets; optional learning/verifier is not required. |
+
+### R03/R09 bounded native tray recovery - 2026-10-07
+
+Delivered on baseline `d0a8e82ef34b82c4d888803083050c2e9dff43cd` in isolated
+`agents/bounded-microphone-recovery-slice`: non-sensitive truthful input/PTT
+status; five-second single-flight metadata-only refresh; native saved-selection
+marks and available/System/retained-unavailable endpoints; revision-bound
+selection through existing audited preferences; explicit Enable/Disable
+listening and existing Stop speaking/Settings recovery. Selection never opens
+capture or grants consent. Timeout, stale revision, unknown/locked/disconnected
+privacy, lost ownership and retired callbacks fail closed. A saving failure
+retains the prior preference; no endpoint is silently substituted.
+
+Existing tray click, Settings, Sessions, maintenance, documentation, skill
+inspection, evidence and exit behavior is retained. See the
+[delivered boundary and remaining native gates](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
+and [mouse workflow](../docs/windows-and-tray.md#microphone-and-listening-recovery).
+Tests use deterministic clocks/catalogues and owned synthetic menu items,
+without app launch, microphone capture or playback. This does not close R03,
+R09, production wake, acoustic quality, permission/event latency, Explorer
+restart/tray failure, overflow/accessibility or installed/native acceptance.
+
+Experiment disposition: retain every executable and historical receipt in
+`r02-speech-proof`. Its annotation-driven pre-roll/endpointing, licensed
+synthetic audio, candidate benchmarks and acoustic gates are not equivalent
+to metadata/PTT tray recovery. `benchmark.py`, `test_benchmark.py` and
+`Validate.ps1` still consume `capture_probe.py`; canonical dependency/deferred
+validation documents still refer to this proof. No path is specifically
+superseded by equivalent maintained checks plus consumer/reference verification,
+so no removal is justified. This slice reruns none of its audio/model trials.
+
+Validation receipt on the stated baseline: root Release/no-restore build
+passed with zero warnings/errors after the new worktree's missing assets
+were restored in locked mode through the machine-required feed. Core **520**,
+Application **1,413**, Tools **38**, Definitions **6** and authorized Windows
+fixtures **751** passed (**2,728** total). Local Windows validation excluded
+`WindowsVoiceRecognitionServiceTests` and `WindowsTextToSpeechServiceTests`
+to avoid installed endpoint/voice and hardware-dependent trials; owned
+activated-capture and native-menu fixtures remain included. The latest
+per-suite coverage reports, merged with the repository tool and enforced by
+`Assert-CodeCoverage.ps1`, meet **100% portable line and branch coverage**.
+Earlier iterative reports are not validation evidence for the final build.
 
 ### R02 Local-Inference Continuation
 

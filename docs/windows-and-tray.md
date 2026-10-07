@@ -79,10 +79,11 @@ The right-click menu contains:
 - **Release maintenance (notify-only)**
 - **Evidence (read-only)**
 - **Review local version (native question)**
-- **Enable listening / Disable listening**
+- Read-only generic **input status** (no endpoint ID/name or transcript in the tooltip)
+- **Listening controls > Enable listening / Disable listening**
 - **Voice consent / push-to-talk**
-- **Microphones** (enumerated endpoint IDs, selected and unavailable state)
-- **Refresh microphones** (no model/network dependency)
+- **Microphones** (friendly endpoint labels, native selected-preference marks and availability)
+- **Refresh microphones** (metadata only; five-second deadline; no model/network dependency)
 - **Stop speaking**
 - **Exit Kora**
 
@@ -93,6 +94,35 @@ Selection does not release a privacy/manual-disable recovery hold. Tray clicks
 never implicitly activate capture. Windows privacy events hide sensitive
 Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
 launcher/tray to return to native status and recovery.
+
+### Microphone and listening recovery
+
+Open the right-click menu to refresh microphone metadata without recording.
+Refresh is single-flight and has a five-second caller deadline. If Windows
+enumeration is still finishing after a timeout, retry later; repeated clicks
+do not start more workers. Failure reports **Microphone recovery needs
+attention** with Refresh/Settings recovery, and capture stays closed.
+
+The tooltip distinguishes PTT-ready (**microphone closed; wake unavailable**)
+from actual PTT capture, disabled input, unavailable selection and denied/
+unknown Windows privacy. It contains no device identity or private content.
+The microphone submenu shows **System** and active named endpoints. A native
+selection mark means saved preference, not recording. A missing saved pin
+remains marked **unavailable; preference retained**, not replaced. System can
+explicitly clear an unavailable pin even when Windows has no usable default.
+
+Choosing an endpoint saves only that current revision's preference. Changed
+selection closes input and requires explicit **Enable listening** afterwards;
+it does not test the device, record audio or grant consent. A stale menu click,
+changed Windows topology, lost ownership, locked/disconnected/unknown privacy
+or a failed save reports refusal/recovery. Refresh and choose again.
+
+**Enable listening** requires saved consent and fresh existing host gates; it
+only arms PTT. **Disable listening** is always an explicit close, never a toggle
+that can accidentally enable from an old menu. **Stop speaking** stops only
+playback. **Voice consent / push-to-talk** opens existing Settings for consent,
+readiness and held PTT. These actions do not cancel tasks or approve work.
+No microphone test or ambient wake is provided by this recovery slice.
 
 ## Passive document details
 

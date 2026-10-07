@@ -1958,6 +1958,13 @@ CI gate and no new exclusions. Missing initial assets were restored in locked
 mode from the explicitly authorized feed, with no local feed settings committed.
 Full remote Windows/portable CI remains the merge gate.
 
+Before first push, daily JSON sibling #74 merged as
+`e3280388a4f6c2ce2dd1e6a7adaf925a3e6f3c7d`. The owned branch was immediately
+rebased without conflicts. Fresh combined Release validation passed with zero
+warnings/errors: Core **585**, Application **1,515**, Tools **38**, Definitions
+**6**, one static speech UI contract and exact **100% line/branch** portable
+coverage. No sibling implementation was modified.
+
 Experiment supersession assessment for this slice: the per-path executable
 speech harness (`prepare.py`, `fixtures.py`, `benchmark.py`, `capture_probe.py`,
 `Render-Fixtures.ps1`, `Validate.ps1` and `test_benchmark.py`) proves asset/fixture/model/acoustic properties,

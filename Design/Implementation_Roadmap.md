@@ -1502,6 +1502,15 @@ per-suite coverage reports, merged with the repository tool and enforced by
 `Assert-CodeCoverage.ps1`, meet **100% portable line and branch coverage**.
 Earlier iterative reports are not validation evidence for the final build.
 
+PR #71 merge follow-up: after the first complete push/PR CI run passed, main
+advanced through session-metadata #70. Rebase onto
+`0b667e91746e94c8157bc9ae90faf57be3b6d3b9` was clean; no sibling branch was
+merged. Fresh combined root Release/no-restore and coverage validation passed:
+Core **530**, Application **1,415**, Tools **38**, Definitions **6**, authorized
+Windows fixtures **785** (**2,774** total), zero warnings/errors and **100%
+portable line/branch coverage**. The same local hardware/voice exclusions
+apply; this is not native acceptance or closure of R03/R09.
+
 ### R02 Local-Inference Continuation
 
 The [technical outcomes and qualification contract](Local_Inference.md) turn

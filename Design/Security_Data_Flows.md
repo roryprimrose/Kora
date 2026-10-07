@@ -1075,6 +1075,12 @@ claim about the current bootstrap.
 
 ## Future Knowledge Indexing
 
+The canonical user workflow, source identity, local-file boundary, retrieval
+contract, settings/voice behavior and phased implementation are defined in
+[File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md).
+Indexing remains unavailable until its R26 prerequisites and acceptance gates
+pass.
+
 Before indexing enterprise or local sources:
 
 - Partition content by source/account and store source version, hash, freshness, and access-check information.

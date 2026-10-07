@@ -4139,7 +4139,8 @@ public sealed partial class MainViewModelTests : IDisposable
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
-            .Concat(AssistantNameCommand.DiscoveryPhrases);
+            .Concat(AssistantNameCommand.DiscoveryPhrases)
+            .Concat(InputDeviceCommand.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))

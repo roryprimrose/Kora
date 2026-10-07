@@ -77,6 +77,34 @@ An observed ready dependency does not grant execution permission. No hosted
 provider, MCP adapter, or model tool/result loop is delivered by this registry.
 Existing help, version, setup/status, lock and power phrases retain their behavior.
 
+## Exact input-device preference
+
+Typed input and **activated** voice use:
+
+- **list input settings** — metadata-only discovery with the existing
+  five-second single-flight deadline;
+- **get speech.input-device** — recorded desired/effective choice, source,
+  metadata/call revisions, availability/readiness and recovery;
+- **set speech.input-device to {exact listed endpoint ID}** — preference only;
+- **reset speech.input-device** — explicitly selects `system-default` (System).
+
+The configured-name prefix is supported. Option grammar is case-insensitive;
+endpoint IDs are exact and case-sensitive. Friendly names, indices, fuzzy
+targeting and natural-language aliases are not selectors. Duplicate friendly
+names are distinct IDs. System follows the Windows multimedia default;
+unavailable pins remain pinned. Complete versioned JSON results are at most
+64 KiB; original commands are at most 1,024 UTF-8 bytes without controls.
+Oversize results are rejected, not partially presented.
+
+These routes share the native Settings/tray/recovery-card preference workflow.
+Selection/reset never enables listening, grants consent/permission, tests audio
+or changes model/OS settings. Changed selection closes stale input; manual
+disablement and recovery holds remain closed. Protected/unknown calls reject
+original voice mutations; stale metadata, unknown ownership/privacy/permission,
+pending questions/approvals and failures require a new explicit operation.
+Terminal audit failure may follow a file replacement: inspect before retrying,
+not automatic rollback/replay. There is no model tool or pending-question bridge.
+
 ## Explicit local clipboard preview
 
 These exact commands and the tray's **Preview clipboard (local plain text)**

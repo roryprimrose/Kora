@@ -291,6 +291,12 @@ profile, learning/enrollment, assets, download or OS/global setting is added.
 
 ### Microphone
 
+The existing input preference is also available as exact `speech.input-device`
+[commands](commands.md#exact-input-device-preference). List/get reports
+desired/effective and saved/default/unavailable provenance; set/reset uses the
+same native audited atomic preference path. Reset selects System only and
+cannot grant consent/permission, enable listening or release a manual/run hold.
+
 - **Choose microphone (native recovery)** opens the same passive card as the
   tray entry. Opening/Refresh reads bounded device metadata only. Highlight an
   exact endpoint, then **Save preference only**; System and unavailable saved

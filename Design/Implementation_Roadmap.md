@@ -137,6 +137,40 @@ continues to distinguish unique proof from production and installed acceptance.
 
 ## How to Read Status
 
+### Bounded R10 exact input-device configuration
+
+The existing microphone preference now has typed and activated-voice exact
+discovery/get/status/set/per-option reset via `speech.input-device`, sharing
+native Settings/tray/#77 card atomic persistence and typed audit outcomes.
+Five-second single-flight metadata discovery, host-held exact objects,
+request/session lineage, input/recovery/call revisions and serialized live
+host/privacy/original-channel gates bound writes. System follows multimedia
+default; unavailable explicit pins stay pinned. Reset selects System only,
+never consent/permission, listening enablement or a reopened run hold.
+The [owning contract](User_Configuration.md#delivered-bounded-exact-input-device-preference-r10)
+and embedded commands/settings/voice/tray guidance state complete input/output
+limits and explicit failure recovery. This is not full R10/R03/R09/R05/A or
+native/hardware acceptance; no model tools or broader runtime authority.
+
+Validation on prerequisite base `90146f405ea9236a23ee2a95cd159efcd5fbf84f`:
+Release solution build **0 warnings / 0 errors**; Core **609**, Application
+**1,597**, Tools **38**, Definitions **6**, Windows integration **864** passed,
+**0 skipped**. Portable aggregate line/branch gates remain exact **100% / 100%**;
+existing coverage exclusions are unchanged. New deterministic coverage includes
+parser/output boundaries, native/typed/activated parity, missing pins/default
+changes/duplicate names, foreign/equal/stale context, pending interactions,
+call/owner/privacy/recovery races, cancellation/disposal/late metadata,
+atomic-format restart and failed storage/request/terminal audit evidence,
+no auto-arm, release failure and hostile incoming trace isolation. No live
+Kora, capture/playback/wake, setup, OS effects or hardware acceptance was run.
+
+Experiment disposition: retained all executable/evidence files. Inspected
+microphone consumers in `r02-speech-proof`, local-inference and storage proof
+references; none implements this exact metadata/preference command workflow.
+Speech fixture/wake/recognition, capture lifecycle, containment and historical
+receipts are unique evidence, not executable equivalents superseded by
+deterministic preference tests. No broad deletion or experiment execution.
+
 ### Bounded R03/R05 passive native microphone recovery card
 
 Tray **Choose microphone** and speech Settings now share a passive native card

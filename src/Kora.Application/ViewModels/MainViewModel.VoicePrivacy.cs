@@ -526,33 +526,10 @@ public sealed partial class MainViewModel
     public Task<bool> SelectMicrophoneAsync(MicrophoneDevice microphone, long topologyRevision) =>
         SelectMicrophoneFromRecoveryAsync(microphone, topologyRevision, CancellationToken.None);
 
-    public async Task<bool> SelectMicrophoneFromRecoveryAsync(MicrophoneDevice microphone, long topologyRevision,
-        CancellationToken cancellationToken)
-    {
-        if (disposed) { return false; }
-        var origin = OriginalOrigin();
-        var callRevision = CallPolicyRevision;
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(origin),
-            HostActivityLayer.Application, HostOperation.Recovery);
-        var valid = await TryValidateMicrophoneRecoveryAsync(topologyRevision, microphone, cancellationToken);
-        if (disposed) { activity.Complete(HostOperationOutcome.Failed); return false; }
-        if (!valid || cancellationToken.IsCancellationRequested || !Microphones.Contains(microphone)
-            || communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible) is not null)
-        {
-            ApplicationLog.Information(logger, "Rejected stale or ineligible native microphone selection");
-            ShowFailure("The microphone selection is no longer current.", "Refresh devices and choose an endpoint again.");
-            OnPropertyChanged(nameof(SelectedMicrophone));
-            activity.Complete(HostOperationOutcome.Failed);
-            return false;
-        }
-
-        SelectedMicrophone = microphone;
-        var released = IsVoiceEnabled || await TryStopFailedCaptureAsync("Releasing input after native microphone selection");
-        var saved = released && Equals(SelectedMicrophone, microphone);
-        activity.Complete(saved
-            ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-        return saved;
-    }
+    public Task<bool> SelectMicrophoneFromRecoveryAsync(MicrophoneDevice microphone, long topologyRevision,
+        CancellationToken cancellationToken) =>
+        SelectMicrophonePreferenceAsync(microphone, topologyRevision,
+            Kora.Core.Auditing.SecurityAuditInitiator.LocalUser, cancellationToken);
 
     private async Task<bool> TryValidateMicrophoneRecoveryAsync(long revision, MicrophoneDevice? candidate,
         CancellationToken cancellationToken)
@@ -628,18 +605,22 @@ public sealed partial class MainViewModel
 
     public Task StopSpeakingFromTrayAsync() => disposed ? Task.CompletedTask : StopSpeakingAsync();
 
-    public Task RefreshMicrophonesAsync()
+    public Task RefreshMicrophonesAsync() => RefreshInputMetadataAsync(CancellationToken.None);
+
+    private Task RefreshInputMetadataAsync(CancellationToken cancellationToken)
     {
         if (disposed) { return Task.CompletedTask; }
-        if (IsRefreshingMicrophones) { return microphoneRefreshTask; }
-        return microphoneRefreshTask = RefreshMicrophonesCoreAsync();
+        if (IsRefreshingMicrophones) { return microphoneRefreshTask.WaitAsync(cancellationToken); }
+        return microphoneRefreshTask = RefreshMicrophonesCoreAsync(cancellationToken);
     }
 
-    private async Task RefreshMicrophonesCoreAsync()
+    private async Task RefreshMicrophonesCoreAsync(CancellationToken cancellationToken)
     {
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
-            HostActivityLayer.Application, HostOperation.Recovery);
-        using var cancellation = new CancellationTokenSource();
+        using var activity = HostActivity.Current is not null
+            ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Recovery)
+            : HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+                HostActivityLayer.Application, HostOperation.Recovery);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         microphoneRefreshCancellation = cancellation;
         var recoveryRevision = Interlocked.Read(ref voiceRecoveryRevision);
         isRefreshingMicrophones = true;
@@ -700,6 +681,11 @@ public sealed partial class MainViewModel
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
+            if (!disposed)
+            {
+                HoldVoiceInput("Microphone closed · metadata refresh was canceled");
+                await TryStopFailedCaptureAsync("Releasing input after canceled metadata refresh");
+            }
             activity.Complete(HostOperationOutcome.Failed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

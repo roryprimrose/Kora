@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using System.Globalization;
 
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
@@ -10,6 +11,18 @@ namespace Kora.Windows.IntegrationTests.Audio;
 public sealed class WindowsTextToSpeechServiceTests(
     ITestOutputHelper output) : LoggingTestsBase<WindowsTextToSpeechService>(output)
 {
+    [Fact]
+    public void Windows_default_voice_cannot_be_supplied_by_an_optional_provider()
+    {
+        var optional = new SpeechVoice("af_heart", "Heart", "en-US", SpeechVoiceGender.Female)
+        {
+            ProviderId = SpeechProviderIds.Kokoro,
+        };
+        var windows = new SpeechVoice("windows", "Windows", "en-US", SpeechVoiceGender.Male);
+        var culture = CultureInfo.GetCultureInfo("en-US");
+        WindowsTextToSpeechService.SelectDefaultWindowsVoice([optional, windows], culture).Should().Be(windows);
+        WindowsTextToSpeechService.SelectDefaultWindowsVoice([optional], culture).Should().BeNull();
+    }
     [Fact]
     public void Generated_output_samples_are_clearable_even_after_the_reader_closes_the_stream()
     {

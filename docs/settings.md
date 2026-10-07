@@ -294,10 +294,14 @@ that hold.
 
 ### Speech provider
 
+- **Installed speech provider and voice** selects only ready installed choices.
+  The stable provider IDs are `windows-sapi` and `kokoro`.
+- **Speech provider assets (review only)** is separate. Reviewing a provider
+  never changes the saved selection or working voice.
 - **Windows** is built in, uses installed SAPI voices, and requires no download.
 - **Kokoro** is an optional local neural provider. Kora does not download it
   automatically.
-- Select Kokoro and choose **Download** to retrieve its pinned model and voice
+- Review Kokoro under provider assets and choose **Download** to retrieve its pinned model and voice
   assets. The download is approximately 219 MiB.
 - Kora validates both assets by exact size and SHA-256 before installing them.
 - Kokoro becomes available immediately after preparation; Kora does not need to
@@ -305,14 +309,35 @@ that hold.
 - **Remove downloaded model** deletes Kokoro's device-local model and voices
   without affecting the built-in Windows provider.
 
-Provider and voice selections are stored on this device.
+Provider and voice selections are stored as one atomic device-local choice.
+Completing a download makes choices available; explicitly select the installed
+provider or voice to change output. Missing assets and invalid saved state
+disable speech with a visible recovery message, never silently substitute.
 
 ### Speech voice
 
-- Select a voice supplied by the chosen provider.
+- Select an installed voice. The displayed `provider / ID` identifies the exact
+  choice; selecting a voice explicitly selects its provider too.
+- Without an explicit voice, Kora uses that provider's advertised default.
+  If no compatible default exists, select an exact installed voice instead.
+- **Reset speech provider** restores Windows and its advertised default voice.
+  **Reset speech voice** restores only the selected provider's advertised default.
+  Neither reset downloads missing assets or chooses an unrelated voice.
+- Exact typed/activated-voice commands use the same workflow:
+  `list speech settings`, `get speech.provider`, `get speech.voice`,
+  `set speech.provider to windows-sapi`,
+  `set speech.voice to kokoro / af_heart`, and `reset speech.voice`.
+  Use the IDs actually listed on your device. Unqualified voice IDs must be
+  unambiguous. Protected calls reject original voice-channel set/reset;
+  initiate a new eligible Settings/typed request rather than confirming later.
 - **Preview** speaks a short identity phrase with the selected voice and output.
   No ambient recognition is active.
 - **Stop** cancels active speech.
+
+Status shows desired/effective voice, saved/default provenance, revision and
+recovery. Save failure retains the previous selection. Concurrent or stale
+changes require a fresh inspection/request. This bounded configuration does not
+add rate, volume, summary caps, call exceptions or model settings tools.
 
 Push-to-talk stops current speech before opening command capture.
 **Stop speaking** is also available from the tray without speech or a model.

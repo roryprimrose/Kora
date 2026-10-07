@@ -140,7 +140,11 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     }
 
     public SpeechVoice? GetDefaultVoice() =>
-        SpeechVoiceSelector.SelectDefault(GetVoices(), CultureInfo.CurrentUICulture);
+        SelectDefaultWindowsVoice(GetVoices(), CultureInfo.CurrentUICulture);
+
+    internal static SpeechVoice? SelectDefaultWindowsVoice(IEnumerable<SpeechVoice> voices, CultureInfo culture) =>
+        SpeechVoiceSelector.SelectDefault(voices.Where(voice =>
+            string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal)), culture);
 
     public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
     {

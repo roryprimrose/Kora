@@ -1,15 +1,17 @@
 using Kora.Core.Dependencies;
 using Kora.Core.Voice;
 using Kora.Application.Diagnostics;
+using Kora.Core.Configuration;
 
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Configuration;
 
-public sealed class LocalTextToSpeechPreferences : ITextToSpeechPreferences
+public sealed partial class LocalTextToSpeechPreferences : ITextToSpeechPreferences
 {
     private const string ProviderFileName = "speech-provider.txt";
     private const string VoiceFileName = "speech-voice.txt";
+    private const string SelectionFileName = "speech-selection.txt";
     private readonly IPreferenceStore store;
     private readonly ILogger<LocalTextToSpeechPreferences> logger;
 
@@ -40,6 +42,41 @@ public sealed class LocalTextToSpeechPreferences : ITextToSpeechPreferences
     public void SaveVoiceId(string voiceId) =>
         SaveIdentifier(VoiceFileName, voiceId, "speech voice");
 
+    public SpeechSelection? LoadSelection()
+    {
+        var contents = store.ReadLines(SelectionFileName);
+        if (contents is null)
+        {
+            var provider = LoadProviderId();
+            var voice = LoadVoiceId();
+            if (provider is null && voice is null) { return null; }
+            return ValidateSaved(new(provider ?? SpeechProviderIds.Windows, voice));
+        }
+        if (contents.Length != 3 || !string.Equals(contents[0], "1", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("The saved speech selection format is unknown or malformed.");
+        }
+        return ValidateSaved(new(contents[1], contents[2].Length == 0 ? null : contents[2]));
+    }
+
+    public void SaveSelection(SpeechSelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        selection.Validate();
+        store.WriteLines(SelectionFileName, ["1", selection.ProviderId, selection.VoiceId ?? string.Empty]);
+        SelectionSaved(logger);
+    }
+
+    private static SpeechSelection ValidateSaved(SpeechSelection selection)
+    {
+        try { selection.Validate(); }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new InvalidDataException("The saved speech selection is invalid.", exception);
+        }
+        return selection;
+    }
+
     private string? LoadIdentifier(string fileName, string preferenceName)
     {
         var contents = store.ReadText(fileName);
@@ -52,7 +89,7 @@ public sealed class LocalTextToSpeechPreferences : ITextToSpeechPreferences
         var result = string.IsNullOrWhiteSpace(identifier)
             ? throw new InvalidDataException($"The saved {preferenceName} preference is empty.")
             : identifier;
-        ApplicationLog.Debug(logger, $"Loaded the saved {preferenceName} preference");
+        IdentifierLoaded(logger, preferenceName);
         return result;
     }
 
@@ -64,6 +101,6 @@ public sealed class LocalTextToSpeechPreferences : ITextToSpeechPreferences
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
 
         store.WriteText(fileName, identifier);
-        ApplicationLog.Information(logger, $"Saved the {preferenceName} preference");
+        IdentifierSaved(logger, preferenceName);
     }
 }

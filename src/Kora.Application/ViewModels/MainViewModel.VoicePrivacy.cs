@@ -141,6 +141,7 @@ public sealed partial class MainViewModel
         communicationPolicy.Dispose();
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
+        speechConfiguration.Changed -= OnSpeechConfigurationChanged;
     }
 
     public event EventHandler? PrivacyClosureRequested;

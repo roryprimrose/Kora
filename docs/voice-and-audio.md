@@ -108,28 +108,32 @@ of Kora, but its model and voices are not installed or downloaded by default.
 To enable it:
 
 1. Open **Settings > Speech & audio**.
-2. Select **Kokoro** under **Speech provider**.
+2. Review **Kokoro** under **Speech provider assets (review only)**.
 3. Select **Download**.
 4. Leave Kora running while it downloads, verifies, installs, and prepares
    approximately 219 MiB of assets.
+5. Explicitly select a ready **Installed speech provider** or an installed
+   voice identified by `provider / ID`.
 
 Kora pins the asset version, size, and SHA-256 digest. An incomplete, modified,
 or unexpected download is rejected rather than activated. After preparation,
-Kokoro's voices appear immediately without an application restart. Synthesis
+Kokoro's voices become selectable immediately without an application restart. Synthesis
 then runs on this device and continues to use the selected Windows audio output.
 
 Selecting a provider that still needs to be downloaded does not interrupt the
 working speech provider. Kora continues using the current installed voice for
-download results and failures. After a successful installation, Kora activates
-the downloaded provider and its default voice immediately.
+download results and failures. A successful installation does not silently
+change the saved provider or active voice; selection is a separate explicit
+configuration operation.
 
 Use **Remove downloaded model** to delete the optional assets. This leaves the
 Windows provider intact.
 
 ## Speech voice selection
 
-Kora never silently downloads a provider or voice. Without a saved voice
-choice, Kora ranks compatible voices from the selected provider in this order:
+Kora never silently downloads or substitutes a provider or voice. Without a
+saved voice choice it uses the selected provider's advertised default.
+For Windows that default ranks installed Windows voices in this order:
 
 1. female voice matching the exact Windows profile locale;
 2. female voice from the same language family;
@@ -140,6 +144,12 @@ choice, Kora ranks compatible voices from the selected provider in this order:
 
 Kora does not automatically select an unrelated language. An explicit voice
 selection is stored locally and remains selected while that voice is installed.
+The provider/voice pair is persisted atomically. Qualified choices select that
+exact installed pair; an unqualified voice ID must be unique. A provider with
+no compatible advertised default can still be selected by choosing an exact
+installed voice. Missing selected assets and malformed/unknown saved state are
+explicitly unavailable and require selection/reset or repair and refresh.
+No different voice is used while recovery is pending.
 
 If the Windows provider has no voice, install a Windows text-to-speech voice
 through Windows Settings. If Kokoro is selected but absent, download it from
@@ -147,8 +157,8 @@ Kora Settings. Typed commands and visual output continue to work.
 
 Select an installed voice and available output, then select **Preview** to test
 that explicit choice. Preview is disabled when no voice is selected and
-revalidates both selections before playback; a retained fallback voice used for
-ordinary responses is not an implicit Preview choice. No ambient recognizer
+revalidates both selections before playback. There is no retained substitute
+voice for a missing saved choice. No ambient recognizer
 runs during playback. Push-to-talk stops Kora playback before opening command
 capture. **Stop speaking** remains available from the tray without speech
 recognition. Exit also stops active playback before host teardown. Acoustic

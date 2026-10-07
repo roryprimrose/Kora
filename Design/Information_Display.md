@@ -285,6 +285,17 @@ identity; it is never silent truncation or a success-shaped empty view.
 
 ### Detail Routing and Offer Interaction
 
+The delivered bounded R10 ordinary-speech boundary measures the complete spoken
+title/body against device-local caps (default 3 sentences/80 words, independently
+lowerable). Current results do not carry trusted safe-omission metadata, so
+over-cap speech is explicitly refused with forced full visual recovery, never
+truncated or model-shortened. Full result/detail source is unchanged. Mandatory
+exact approval/proposal readback and required question/options retain their
+existing bounds/privacy behavior. See [the delivered contract](User_Configuration.md#delivered-bounded-spoken-summary-limits-r10)
+and [exact counting semantics](../docs/settings.md#spoken-summary-limits).
+This is not delivery of all routing/rendering/explicit full-content reading
+behavior proposed below.
+
 The host, not model prose or generated markup, decides whether a finalized
 response has a detailed representation. The response presenter evaluates the
 typed immutable item against one versioned presentation policy. A model/tool

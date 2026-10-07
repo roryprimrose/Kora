@@ -124,6 +124,12 @@ revalidate domain bounds and publish only after atomic save; failures retain
 the old value. No model/network or voice/audio/call settings authority is added.
 See [Settings](docs/settings.md#appearance) and [Commands](docs/commands.md).
 Whole-profile reset/undo and full verbal preferences remain open.
+Installed speech choices and independently lowerable spoken summary limits
+also share native/exact typed/activated-voice configuration. Ordinary complete
+speech must fit both caps (default 3 sentences/80 words); otherwise Kora retains
+the full visual result and explicitly withholds speech rather than truncating
+warnings or making another model call. Exact approval/questions keep their
+existing mandatory bounds. See [spoken summary limits](docs/settings.md#spoken-summary-limits).
 Drag the response title area to reposition it; its
 controls can keep the current response visible until dismissed and can disable
 the default stay-on-top behavior. The presence is click-through by default,

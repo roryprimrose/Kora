@@ -469,6 +469,25 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
+                  <TextBlock Text="Spoken summary limits" Classes="settings-title" />
+                  <TextBlock Text="Ordinary results must fit both caps, including the spoken title. Over-cap results remain fully visual; no truncation or extra model call. Exact approval/question readback keeps its existing bounds."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <TextBlock Text="Maximum sentences (1-3)" Classes="settings-description" />
+                  <ComboBox ItemsSource="{Binding SummarySentenceChoices}" SelectedItem="{Binding SelectedSummarySentences}" PlaceholderText="Invalid saved limits; repair and refresh" />
+                  <Button Content="Reset sentence cap" Command="{Binding ResetSummarySentencesCommand}" />
+                  <TextBlock Text="Maximum words (1-80)" Classes="settings-description" />
+                  <ComboBox ItemsSource="{Binding SummaryWordChoices}" SelectedItem="{Binding SelectedSummaryWords}" PlaceholderText="Invalid saved limits; repair and refresh" />
+                  <Button Content="Reset word cap" Command="{Binding ResetSummaryWordsCommand}" />
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
                   <TextBlock Text="Audio output" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding OutputDeviceAvailabilityMessage}"

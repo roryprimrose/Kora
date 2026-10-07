@@ -22,10 +22,18 @@ public sealed class SpeechConfigurationUiContractTests
         var voice = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,
             "{Binding SelectedVoice}", StringComparison.Ordinal));
         voice.Attribute("ItemsSource")!.Value.Should().Be("{Binding InstalledSpeechVoices}");
-        foreach (var command in new[] { "ResetSpeechProviderCommand", "ResetSpeechVoiceCommand" })
+        foreach (var command in new[] { "ResetSpeechProviderCommand", "ResetSpeechVoiceCommand", "ResetSummarySentencesCommand", "ResetSummaryWordsCommand" })
         {
             controls.Any(control => string.Equals(control.Attribute("Command")?.Value,
                 "{Binding " + command + "}", StringComparison.Ordinal)).Should().BeTrue();
+        }
+        foreach (var pair in new[] { ("SelectedSummarySentences", "SummarySentenceChoices"), ("SelectedSummaryWords", "SummaryWordChoices") })
+        {
+            var choice = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value,
+                "{Binding " + pair.Item1 + "}", StringComparison.Ordinal));
+            choice.Attribute("ItemsSource")!.Value.Should().Be("{Binding " + pair.Item2 + "}");
+            choice.Ancestors().Single(control => string.Equals(control.Name.LocalName, "TabItem", StringComparison.Ordinal))
+                .Attribute("Header")!.Value.Should().Be("Speech & audio");
         }
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value,
             "{Binding SpeechSettingStatus}", StringComparison.Ordinal)).Should().BeTrue();

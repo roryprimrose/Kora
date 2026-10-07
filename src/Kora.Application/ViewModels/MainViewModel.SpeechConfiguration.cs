@@ -18,6 +18,32 @@ public sealed partial class MainViewModel
             string.Equals(voice.ProviderId, provider.Id, StringComparison.Ordinal))).ToArray();
     public AsyncCommand ResetSpeechProviderCommand { get; }
     public AsyncCommand ResetSpeechVoiceCommand { get; }
+    public AsyncCommand ResetSummarySentencesCommand { get; }
+    public AsyncCommand ResetSummaryWordsCommand { get; }
+    public IReadOnlyList<int> SummarySentenceChoices { get; } = Enumerable.Range(1, SpokenSummaryLimits.MaximumSentences).ToArray();
+    public IReadOnlyList<int> SummaryWordChoices { get; } = Enumerable.Range(1, SpokenSummaryLimits.MaximumWords).ToArray();
+    public int? SelectedSummarySentences
+    {
+        get => speechConfiguration.Get().SummaryLimits?.Sentences;
+        set
+        {
+            if (!suppressVoicePreferenceSave && value is not null)
+            {
+                ApplySpeechChoice(SpeechOption.SummarySentences, value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+    }
+    public int? SelectedSummaryWords
+    {
+        get => speechConfiguration.Get().SummaryLimits?.Words;
+        set
+        {
+            if (!suppressVoicePreferenceSave && value is not null)
+            {
+                ApplySpeechChoice(SpeechOption.SummaryWords, value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+    }
     public string SpeechSettingStatus
     {
         get => speechSettingStatus;
@@ -35,7 +61,7 @@ public sealed partial class MainViewModel
 
     private void OnSpeechConfigurationChanged(object? sender, EventArgs args)
     {
-        if (!speechConfiguration.Get().IsAvailable) { textToSpeech.InvalidateOutput(); }
+        textToSpeech.InvalidateOutput();
         uiDispatcher.Post(SynchronizeSpeechConfiguration);
     }
 
@@ -55,6 +81,8 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(InstalledSpeechProviders));
             OnPropertyChanged(nameof(InstalledSpeechVoices));
             OnPropertyChanged(nameof(SelectedInstalledSpeechProvider));
+            OnPropertyChanged(nameof(SelectedSummarySentences));
+            OnPropertyChanged(nameof(SelectedSummaryWords));
         }
         finally { suppressVoicePreferenceSave = false; }
         SetActiveSpeechVoice(current.IsAvailable ? current.EffectiveVoice : null);
@@ -154,5 +182,9 @@ public sealed partial class MainViewModel
     private static string DescribeSpeechConfiguration(SpeechConfigurationState state) =>
         $"schema {SpeechOptionRegistry.SchemaVersion}; speech.provider = {state.Selection?.ProviderId ?? "invalid"}; speech.voice = {state.Selection?.VoiceId ?? "default"}; "
         + $"effective voice = {state.EffectiveVoice?.Id ?? "unavailable"}; revision {state.Revision}; "
-        + (state.IsSaved ? "saved. " : "unsaved defaults. ") + (state.Recovery ?? "Ready installed assets.");
+        + (state.IsSaved ? "saved selection. " : "unsaved selection defaults. ") + (state.Recovery ?? "Ready installed assets.")
+        + $" speech.summary-sentences = {state.SummaryLimits?.Sentences.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "invalid"}; "
+        + $"speech.summary-words = {state.SummaryLimits?.Words.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "invalid"}; "
+        + (state.AreSummaryLimitsSaved ? "saved limits. " : "unsaved limit defaults. ")
+        + (state.SummaryLimitsRecovery ?? "Ordinary speech must fit both caps; no truncation; full visual results are preserved.");
 }

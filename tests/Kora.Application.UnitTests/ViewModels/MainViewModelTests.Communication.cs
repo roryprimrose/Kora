@@ -166,7 +166,7 @@ public sealed partial class MainViewModelTests
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var response = fixture.RunAsync("unsupported");
+        var response = fixture.RunAsync("what power action is pending");
         await fixture.TextToSpeech.SpeakStarted.Task;
         fixture.Dispatcher.BeforeInvoke = () =>
         {

@@ -88,7 +88,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 4);
+        sections.Should().HaveCount(commands.Count + 5);
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -112,6 +112,15 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "set speech.provider to windows-sapi", "set speech.voice to kokoro / af_heart",
             "reset speech.provider", "reset speech.voice");
         speechPhrases.Should().OnlyContain(phrase => SpeechCommand.Parse(phrase, "Kora") != null);
+        var summaries = sections.Single(section => section.StartsWith(
+            "Inspect or lower spoken summary caps", StringComparison.Ordinal));
+        var summaryPhrases = Regex.Matches(summaries, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        summaryPhrases.Should().Equal("list speech settings", "get speech.summary-sentences", "get speech.summary-words",
+            "set speech.summary-sentences to 2", "set speech.summary-words to 40",
+            "reset speech.summary-sentences", "reset speech.summary-words");
+        summaryPhrases.Should().OnlyContain(phrase => SpeechCommand.Parse(phrase, "Kora") != null);
         var settings = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(item => string.Equals(item.Id, "settings", StringComparison.Ordinal));
         foreach (var descriptor in AppearanceOptionRegistry.Options)
@@ -124,7 +133,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
-            && !ReferenceEquals(section, sessionCommands)).ToArray();
+            && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

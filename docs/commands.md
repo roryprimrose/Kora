@@ -225,8 +225,30 @@ provider's advertised default. An unavailable default requires an explicit
 installed voice choice. Status reports saved/desired/effective values,
 revision and recovery. Protected calls reject original voice-channel set/reset,
 including a later UI confirmation; a new eligible Settings/typed request is
-required. Rate, volume, summary limits and model settings tools are not added.
+required. Rate, volume and model settings tools are not added.
 See [the shared native controls](settings.md#speech-provider).
+
+### Inspect or lower spoken summary caps
+
+- **list speech settings**
+- **get speech.summary-sentences**
+- **get speech.summary-words**
+- **set speech.summary-sentences to 2**
+- **set speech.summary-words to 40**
+- **reset speech.summary-sentences**
+- **reset speech.summary-words**
+
+The exact spoken names **speech summary sentences** and **speech summary words**
+also work, with the configured-name prefix for activated voice.
+Values are exact positive integers: sentences **1-3**, words **1-80**.
+Defaults are **3 sentences / 80 words**. Reset changes only that cap.
+These device-local settings share the installed-speech workflow, original-channel
+call/privacy/ownership gate, revisions, audit and live Settings notifications.
+Neither command permits a model interpretation, extra model call or asset change.
+Ordinary speech includes the title and retained warnings and must fit both caps.
+Over-cap results remain fully visual with an explicit refusal status, never
+truncated. Exact approval/question readback retains its own mandatory bounds.
+See [counting and recovery semantics](settings.md#spoken-summary-limits).
 
 ### Open settings
 - **open settings**

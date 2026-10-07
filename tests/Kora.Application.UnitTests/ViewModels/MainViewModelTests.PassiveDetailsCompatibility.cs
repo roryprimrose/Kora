@@ -8,7 +8,7 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
-    [InlineData(BuiltInAction.ShowVersion)]
+    [InlineData(BuiltInAction.ShowPowerStatus)]
     [InlineData(BuiltInAction.LockMachine)]
     public async Task Host_exit_waits_for_inflight_response_or_approval_prompt_not_viewer_closure(
         BuiltInAction action)

@@ -1938,6 +1938,36 @@ installed-app acceptance.
 
 ## R10 Bounded Installed Speech Choices - 2026-10-07
 
+Follow-on delivered slice: [bounded spoken summary caps](User_Configuration.md#delivered-bounded-spoken-summary-limits-r10)
+adds schema-2 native/exact typed/ACTIVATED get/set/reset parity for independently
+lowerable 1-3 sentence / 1-80 word device-local limits. The original speech
+workflow owns atomic preferences, provenance, revisions, audits and host/call
+gates. Complete ordinary output must fit both caps; owner-approved over-cap
+refusal preserves full visual results/warnings instead of unsafe shortening or
+extra inference. Exact readback/questions retain existing bounds. No full R10,
+acoustic, OS-effect, install or live-network acceptance is claimed.
+
+Local validation after immediate rebase onto merged tray recovery #71
+(`cf0057bef2858998ea4e893cee7f4372780b7f25`), with prerequisite #72
+(`640f28b2f91c106f2d84cb62193beca9961ca739`) verified in ancestry:
+root no-restore Release build, zero warnings/errors; Core **577**,
+Application **1,514**, Tools **38**, Definitions **6** and the hardware-free
+native summary/installed-speech UI contract pass. Fresh same-build portable
+reports merge to exact **100% line / 100% branch**, enforced with the unchanged
+CI gate and no new exclusions. Missing initial assets were restored in locked
+mode from the explicitly authorized feed, with no local feed settings committed.
+Full remote Windows/portable CI remains the merge gate.
+
+Experiment supersession assessment for this slice: the per-path executable
+speech harness (`prepare.py`, `fixtures.py`, `benchmark.py`, `capture_probe.py`,
+`Render-Fixtures.ps1`, `Validate.ps1` and `test_benchmark.py`) proves asset/fixture/model/acoustic properties,
+not summary counting or audited preferences. No equivalent summary-limit
+executable or production consumer was identified. Maintained portable domain,
+workflow, provider-fake output and static UI tests are new evidence, not
+equivalence for those unique trials. Preserve all speech executables,
+historical receipts and outstanding acceptance; no experiment is removed or
+rerun. Other experiment paths do not implement this slice and remain unchanged.
+
 Implemented in isolated `agents/bounded-r10-speech-provider-setup`, initially
 fetched/rebased on `d0a8e82ef34b82c4d888803083050c2e9dff43cd` (#68).
 Schema version 1 admits only delivered installed Windows SAPI/Kokoro

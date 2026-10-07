@@ -43,6 +43,16 @@ host/origin/session, tampered/expired/foreign cursors, cancellation/concurrent
 shared-lease reads and byte-for-byte no-write observation. This is automated
 source evidence, not installed/native or forensic acceptance.
 
+The merged playback-volume #84 follow-up (`b34c077`) preserved its admission,
+zero/no-replay recovery and native configuration behavior. Release again had
+zero warnings/errors; fresh portable suites passed Core 700, Application 1,903,
+Tools 38 and Definitions 6, with exact line/branch coverage **1 / 1**.
+One initial Windows invocation failed at the existing authority-loss fixture's
+`Directory.Move` with access denied. Its isolated **1/1** and complete
+**965/965** rerun passed with the same binaries and no source/test suppression.
+The complete combined passing suite count is **3,612**; the original #85
+validation receipt above is retained unchanged.
+
 No experiment is retired by this slice. It supplies no maintained executable
 equivalence for the unique storage-encryption/engine/artifact/key, containment,
 runtime/worker/provider or speech proofs. Their historical evidence and

@@ -70,7 +70,7 @@ public sealed partial class SessionWorkspaceService(
             {
                 throw new InvalidOperationException("Session control denied by privacy, call or ownership admission.");
             }
-            var intent = await tasks.RecordIntentAsync(request, token).ConfigureAwait(false);
+            var intent = await store.RecordControlIntentAsync(request, token).ConfigureAwait(false);
             WorkSessionAuthorization result;
             try
             {

@@ -68,7 +68,10 @@ retention/delete and full coordinated R14/native acceptance remain open.
 **Mark selected ID Done** and **Explicitly resume selected ID** are distinct
 trusted local-user initiations. The host creates a fresh exact subject-bound
 control intent and activity; the expected generation from the displayed
-observation is only an optimistic conflict token. Current private desktop
+observation is only an optimistic conflict token. Control intent requires an
+existing private task ledger, and lifecycle requires existing session authority;
+neither recreates missing storage and guesses that forgotten work is idle.
+Current private desktop
 ownership, unlocked privacy admission and unprotected known call policy,
 including its revision, must still hold at the authoritative commit.
 The existing task lease precedes the interaction lease and stays held
@@ -91,7 +94,7 @@ workspace, without revealing old content on unlock.
 
 #### Bounded validation and experiment disposition
 
-On the isolated `281393c` baseline, root Release/analyzers completed with zero
+On the original isolated `281393c` baseline, root Release/analyzers completed with zero
 warnings/errors. Maintained suites passed: Core 411, Application 1,322 and
 Windows 728, with fresh-only portable **100% line and branch coverage**.
 Actual private production SQLite tests cover bounded pages, typed history,
@@ -101,6 +104,12 @@ lifecycle/intent leases and before/after-COMMIT owned-process kill/reopen for
 Done/resume. Fake native state covers close/privacy and cancellation-ignoring
 late reads. No live app, user-data, microphone, clipboard or OS-session trial
 was run; native visual/screen-reader/DPI acceptance remains open.
+
+After rebasing onto peer-merged `1506b7e`, the combined maintained suites passed
+Core 450, Application 1,327 and Windows 731, again with fresh-only portable
+100% line/branch coverage. Missing-ledger lifecycle admission is now tested:
+control cannot initialize a replacement task ledger and infer forgotten work
+is idle, or recreate missing session authority.
 
 R02's generic atomicity and intent/no-receipt expectations are maintained
 against production semantics, rather than treated as production admission.

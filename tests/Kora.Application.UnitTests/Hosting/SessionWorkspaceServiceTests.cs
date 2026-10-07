@@ -161,6 +161,13 @@ public sealed class SessionWorkspaceServiceTests
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; private set; } = 1;
 
+        public async ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
+        {
+            var record = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            await CommitAsync(record, 0, cancellationToken);
+            return record;
+        }
+
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken cancellationToken)
         {
             if (RevokeAfterRead) { CanInspect = false; }

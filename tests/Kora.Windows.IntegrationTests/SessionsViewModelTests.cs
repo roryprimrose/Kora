@@ -112,6 +112,9 @@ public sealed class SessionsViewModelTests
 
     private sealed class HeldStore : ISessionWorkspaceStore
     {
+        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         internal TaskCompletionSource<SessionPage<WorkSessionAuthorization>> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Reads { get; private set; }
         internal int ControlCalls { get; private set; }

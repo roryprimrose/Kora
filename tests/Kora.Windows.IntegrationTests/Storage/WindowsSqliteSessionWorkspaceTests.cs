@@ -29,10 +29,29 @@ public sealed class WindowsSqliteSessionWorkspaceTests
         Directory.Exists(Path.Combine(fixture.Paths.LocalRoot, "InteractionStorageV1")).Should().BeFalse();
         Directory.Exists(Path.Combine(fixture.Paths.LocalRoot, "HostStorageV1")).Should().BeFalse();
         await fixture.InitializeAsync();
+        await FinishAsync(fixture, HostTaskState.Succeeded);
         var database = fixture.DatabasePath;
         File.Delete(database);
         await sessions.Should().ThrowAsync<InvalidDataException>().WithMessage("*replacement is forbidden*");
+        var control = () => Service(fixture, new()).ChangeLifecycleAsync(fixture.Request.SessionId, new(1), false,
+            RequestOrigin.LocalUi, fixture.Token);
+        await control.Should().ThrowAsync<InvalidDataException>().WithMessage("*replacement is forbidden*");
         File.Exists(database).Should().BeFalse();
+    }
+
+    [WindowsFact]
+    public async Task Missing_task_ledger_cannot_be_recreated_and_misclassified_as_idle_by_control_intent()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await FinishAsync(fixture, HostTaskState.Succeeded);
+        var ledger = Path.Combine(fixture.Paths.LocalRoot, "HostStorageV1");
+        Directory.Move(ledger, Path.Combine(fixture.Paths.LocalRoot, "OwnedSavedHostStorageV1"));
+        var act = () => Service(fixture, new()).ChangeLifecycleAsync(fixture.Request.SessionId, new(1), false,
+            RequestOrigin.LocalUi, fixture.Token);
+        await act.Should().ThrowAsync<FileNotFoundException>();
+        Directory.Exists(ledger).Should().BeFalse();
+        (await fixture.Store.ReadSessionAsync(fixture.Request.SessionId, fixture.Token))!.Generation.Value.Should().Be(1);
     }
     [WindowsFact]
     public async Task Actual_writer_passive_pages_show_typed_history_without_mutating_or_cross_session_records()

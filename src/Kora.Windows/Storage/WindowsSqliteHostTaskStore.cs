@@ -167,7 +167,14 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         }
     }
 
-    public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
+    public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken) =>
+        QueueCommit(record, expectedRevision, requireExisting: false, cancellationToken);
+
+    internal ValueTask CommitControlIntentAsync(HostTaskRecord record, CancellationToken cancellationToken) =>
+        QueueCommit(record, expectedRevision: 0, requireExisting: true, cancellationToken);
+
+    private ValueTask QueueCommit(HostTaskRecord record, long expectedRevision, bool requireExisting,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(record);
         var current = HostActivity.RequireCurrent();
@@ -179,7 +186,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             throw new InvalidOperationException("The expected task revision is invalid.");
         }
-        return new ValueTask(Task.Run(() => Commit(record, expectedRevision, cancellationToken), cancellationToken));
+        return new ValueTask(Task.Run(() => Commit(record, expectedRevision, requireExisting, cancellationToken), cancellationToken));
     }
 
     public ValueTask<IReadOnlyList<HostTaskRecord>> ReadIncompleteAsync(int limit, CancellationToken cancellationToken)
@@ -192,7 +199,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             Task.Run<IReadOnlyList<HostTaskRecord>>(() => ReadIncomplete(limit, cancellationToken), cancellationToken));
     }
 
-    private void Commit(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
+    private void Commit(HostTaskRecord record, long expectedRevision, bool requireExisting, CancellationToken cancellationToken)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Activity!.IsStopped || live.Request != record.Request)
@@ -201,7 +208,9 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         }
         using var boundary = new StorageOperation("storage.task.commit", cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        using var lease = database.AcquireLease(out var created, cancellationToken);
+        var created = false;
+        using var lease = requireExisting ? database.AcquireReadLease(cancellationToken)
+            : database.AcquireLease(out created, cancellationToken);
         using var connection = OpenDatabase(created, cancellationToken);
         using var transaction = connection.BeginTransaction();
         checkpoint?.BeforeWrite(connection, transaction);

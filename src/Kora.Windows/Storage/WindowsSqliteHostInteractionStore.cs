@@ -129,6 +129,14 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         Guid? after, int limit, CancellationToken cancellationToken) =>
         tasks.ReadSessionPageAsync(session, after, limit, cancellationToken);
 
+    public async ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
+    {
+        RequireLive(request);
+        var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+        await tasks.CommitControlIntentAsync(intent, cancellationToken).ConfigureAwait(false);
+        return intent;
+    }
+
     public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request,
         HostRevision expectedGeneration, bool active, Func<bool> canControl, CancellationToken cancellationToken)
     {
@@ -338,7 +346,9 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
                 T Mutate(HostTaskRecord intent)
                 {
                     using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
-                    using var lease = database.AcquireLease(out var created, cancellationToken);
+                    var created = false;
+                    using var lease = canControl is null ? database.AcquireLease(out created, cancellationToken)
+                        : database.AcquireReadLease(cancellationToken);
                     using var connection = Open(created, cancellationToken);
                     using var transaction = connection.BeginTransaction();
                     var value = mutation(connection, transaction, intent, audit);

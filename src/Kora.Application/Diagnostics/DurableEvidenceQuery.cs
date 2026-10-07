@@ -216,10 +216,4 @@ public sealed partial class DurableEvidenceQuery(
 
     private sealed record Continuation(string Fingerprint, HostId<SessionIdentity> Session,
         DateTimeOffset ExpiresUtc, EvidenceReadCheckpoint Checkpoint);
-
-    [LoggerMessage(180, LogLevel.Information, "Evidence query returned {RecordCount} records, {SerializedBytes} serialized bytes, status {QueryStatus}.")]
-    private static partial void Returned(ILogger logger, int recordCount, int serializedBytes, EvidencePageStatus queryStatus);
-
-    [LoggerMessage(181, LogLevel.Error, "Evidence query failed; exception type {ExceptionType}.")]
-    private static partial void Failed(ILogger logger, string exceptionType);
 }

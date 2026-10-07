@@ -222,8 +222,4 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSubmit));
         OnPropertyChanged(nameof(CanSaveDraft));
     }
-
-    [LoggerMessage(310, LogLevel.Error,
-        "Native question failed for {QuestionId} revision {QuestionRevision}; exception type {ExceptionType}.")]
-    private static partial void QuestionFailure(ILogger logger, Guid questionId, long questionRevision, string? exceptionType);
 }

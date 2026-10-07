@@ -133,11 +133,6 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
         return new(source, source, message, true, [], blocks, nodes, depth);
     }
 
-    [LoggerMessage(310, LogLevel.Warning,
-        "Native detail source fallback: {Reason}, ItemId {ItemId}, Revision {Revision}, Profile {Profile}, Blocks {Blocks}, Nodes {Nodes}, Depth {Depth}.")]
-    private static partial void RenderFallback(
-        ILogger logger, string reason, Guid? itemId, long? revision, string profile, int blocks, int nodes, int depth);
-
     private static string? Preflight(string source)
     {
         // Conservative lexical rejection complements Markdig's pre-parse nesting cap.

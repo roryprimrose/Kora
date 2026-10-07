@@ -224,7 +224,4 @@ internal sealed partial class SessionsViewModel(
         OnPropertyChanged(nameof(CanDone));
         OnPropertyChanged(nameof(CanResume));
     }
-
-    [LoggerMessage(313, LogLevel.Error, "Native Sessions workspace failed; exception type {ExceptionType}.")]
-    private static partial void Failure(ILogger logger, string exceptionType);
 }

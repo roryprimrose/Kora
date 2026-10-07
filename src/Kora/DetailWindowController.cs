@@ -185,8 +185,4 @@ public sealed partial class DetailWindowController : IDisposable
         if (viewModel is not null) { viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested; }
         ClearForPrivacy();
     }
-
-    [LoggerMessage(311, LogLevel.Warning,
-        "Native detail clipboard write failed for ItemId {ItemId}, Revision {Revision}, Profile {Profile}.")]
-    private static partial void ClipboardFailure(ILogger logger, Guid itemId, long revision, string profile);
 }

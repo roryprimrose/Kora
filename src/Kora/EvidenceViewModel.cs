@@ -147,7 +147,4 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(CanNext));
         OnPropertyChanged(nameof(CanReadTrace));
     }
-
-    [LoggerMessage(312, LogLevel.Error, "Native evidence inspection failed; exception type {ExceptionType}.")]
-    private static partial void Failure(ILogger logger, string exceptionType);
 }

@@ -109,7 +109,4 @@ internal sealed partial class QuestionWindowController : IDisposable
         host.BindGate(static () => false);
         OnPrivacyClosure(this, EventArgs.Empty);
     }
-
-    [LoggerMessage(311, LogLevel.Error, "Native version review failed; exception type {ExceptionType}.")]
-    private static partial void QueryFailure(ILogger logger, string? exceptionType);
 }

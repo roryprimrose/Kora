@@ -43,6 +43,22 @@ dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTe
 dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 
+## Logging conventions
+
+Always use source-generated `[LoggerMessage]` partial methods for `ILogger<T>`
+diagnostic messages instead of `Log*` extension methods or `LoggerMessage.Define`
+delegates. Keep the declarations in `{ClassName}.Logging.cs` beside the class's
+other source files, with the same namespace and a matching partial class.
+Logging-only helper classes follow the same filename convention; reuse the
+existing layer helpers for shared events.
+
+Use structured templates and typed properties, not interpolated messages.
+Preserve event IDs, levels, templates, property names, exception parameters, and
+callers when reorganizing definitions. Security audit events must continue
+through the trusted typed audit path, not ordinary diagnostic messages.
+
+## Test and dependency policies
+
 Tests that install process-wide activity listeners belong to the nonparallel
 `Host tracing` collection. Its collection definition prevents unrelated host
 requests in other test collections from entering a test's evidence sink or

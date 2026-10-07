@@ -411,7 +411,4 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanOpen));
         OnPropertyChanged(nameof(CanReview));
     }
-
-    [LoggerMessage(321, LogLevel.Error, "Native maintenance operation failed; exception type {ExceptionType}.")]
-    private static partial void Failure(ILogger logger, string exceptionType);
 }

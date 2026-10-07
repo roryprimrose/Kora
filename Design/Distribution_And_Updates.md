@@ -633,7 +633,16 @@ The maintained [publisher](../eng/Publish-GitHubRelease.ps1) follows this order:
    duplicate or extra content). Retain matching original ZIP, manifest and
    checksum bytes, including their original workflow-run provenance. This also
    admits matching older drafts without regenerating their ZIP containers.
-4. Recheck before draft creation. Verify every existing asset's name, completed
+4. Recheck before draft creation. Create a new draft through the supported
+   REST endpoint and retain its positive typed release ID from the successful
+   response. Verify exact source/channel/draft/body in that response and an
+   authenticated direct-ID readback. A pending draft can be absent from an
+   immediate tag/list response; list visibility is not the creation receipt.
+   Continue tag/list enumeration to reject visible conflicts/ambiguous versions,
+   and retain the known ID for subsequent readbacks and ID-addressed binary
+   uploads. Missing/unreadable/changed IDs or bodies, unexpected HTTP errors
+   and uncertain writes fail closed, with no blind delay or in-place retry.
+   Verify every existing asset's name, completed
    state, size and SHA-256 against staging; upload only missing names, without
    clobber or deletion. Re-read the same release ID and verify the complete
    nine-asset set (including exact-source tools), provenance and checksums before tag/publication writes.

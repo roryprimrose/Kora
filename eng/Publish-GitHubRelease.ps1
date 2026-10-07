@@ -29,19 +29,32 @@ $names = @("Kora-$Version-win-x64.zip", "Kora-$Version-win-x86.zip",
     "Kora-$Version-source-tools.zip")
 
 function Get-ReleaseState {
+    param([long] $KnownReleaseId = 0)
     # The tag endpoint excludes drafts. List all pages as well, and reject ambiguous pending tags.
     $published = Get-GitHubRecord "repos/$repository/releases/tags/$tag"
     $matches = @(Get-CanonicalReleases | Where-Object tag_name -eq $tag)
     if ($null -ne $published -and $published.id -notin @($matches | ForEach-Object id)) { $matches += $published }
+    $known = $null
+    if ($KnownReleaseId -gt 0) {
+        $known = Get-GitHubRecord "repos/$repository/releases/$KnownReleaseId"
+        if ($null -eq $known -or $known.id -ne $KnownReleaseId) {
+            throw 'Known release ID readback is missing or changed; retry from a fresh state.'
+        }
+        Assert-ReleaseIdentity $known
+        if ($known.id -notin @($matches | ForEach-Object id)) { $matches += $known }
+    }
     if ($matches.Count -gt 1) { throw 'Multiple releases claim this version; manual reconciliation is required.' }
     if ($matches.Count -eq 0) { return $null }
-    $release = Get-GitHubRecord "repos/$repository/releases/$($matches[0].id)"
-    if ($null -eq $release) { throw 'Release disappeared during lookup; retry from a fresh state.' }
+    $release = if ($null -ne $known) { $known } else { Get-GitHubRecord "repos/$repository/releases/$($matches[0].id)" }
+    if ($null -eq $release -or $release.id -ne $matches[0].id) { throw 'Release disappeared or changed during lookup; retry from a fresh state.' }
     return $release
 }
 
 function Assert-ReleaseIdentity {
     param($Release)
+    if (($Release.id -isnot [long] -and $Release.id -isnot [int]) -or $Release.id -le 0) {
+        throw 'Release has invalid typed ID.'
+    }
     Assert-CanonicalReleaseIdentity $Release $Version $SourceRevision
     $seen = @()
     foreach ($asset in $Release.assets) {
@@ -327,18 +340,33 @@ Source: $SourceRevision
 
 $($generated.body)
 "@
-        $notesFile = Join-Path $output 'release-notes.txt'
-        Set-Content -LiteralPath $notesFile -Value $notes -Encoding utf8NoBOM
-        $create = @('release', 'create', $tag, '--repo', $repository, '--target', $SourceRevision,
-            '--draft', '--title', "Kora $Version", '--notes-file', $notesFile)
-        if ($prerelease) { $create += '--prerelease' }
         $competing = Get-ReleaseState
-        if ($null -eq $competing) { Invoke-Gh -Arguments $create | Out-Null }
-        else { Assert-ReleaseIdentity $competing }
+        if ($null -eq $competing) {
+            $created = ((Invoke-Gh -Arguments @('api', '--method', 'POST', "repos/$repository/releases",
+                '-f', "tag_name=$tag", '-f', "target_commitish=$SourceRevision",
+                '-f', "name=Kora $Version", '-f', "body=$notes",
+                '-F', 'draft=true', '-F', "prerelease=$($prerelease.ToString().ToLowerInvariant())")) -join "`n") |
+                ConvertFrom-Json
+            if (($created.id -isnot [long] -and $created.id -isnot [int]) -or $created.id -le 0) {
+                throw 'Draft creation returned an invalid release ID; retry from a fresh state.'
+            }
+            Assert-ReleaseIdentity $created
+            if (-not $created.draft -or $created.body -cne $notes) {
+                throw 'Draft creation response differs from the requested draft/body.'
+            }
+            $existing = Get-ReleaseState -KnownReleaseId $created.id
+            if (-not $existing.draft -or $existing.body -cne $notes) {
+                throw 'Draft creation direct-ID readback differs from the requested draft/body.'
+            }
+        } else {
+            Assert-ReleaseIdentity $competing
+            $existing = $competing
+        }
     }
     # Never retry a failed write in-place: uncertain partial writes are reconciled on the next invocation.
-    $draft = Get-ReleaseState
+    $draft = if ($null -ne $existing) { Get-ReleaseState -KnownReleaseId $existing.id } else { Get-ReleaseState }
     if ($null -eq $draft) { throw 'Draft creation was not established.' }
+    if ($null -ne $existing -and $draft.body -cne $existing.body) { throw 'Draft body changed before staging verification.' }
     Assert-StagedAssets $draft $output
     if (-not $draft.draft) {
         Assert-PublishedRelease $draft
@@ -346,24 +374,29 @@ $($generated.body)
         return [pscustomobject] @{ AlreadyPublished = $true }
     }
     $draftId = $draft.id
+    $draftBody = $draft.body
     $obsoleteDisclosure = '- Installed lifecycle/protection and encrypted-storage/native admission remain separate gates.'
     if ($draft.body.Contains($obsoleteDisclosure)) {
         # Only the known obsolete draft disclosure changes; source markers and generated notes remain intact.
         $body = $draft.body.Replace($obsoleteDisclosure, $storageDisclosure)
         Invoke-Gh -Arguments @('api', '--method', 'PATCH', "repos/$repository/releases/$draftId",
             '-f', "body=$body") | Out-Null
-        $draft = Get-ReleaseState
+        $draft = Get-ReleaseState -KnownReleaseId $draftId
         if ($null -eq $draft -or $draft.id -ne $draftId -or -not $draft.draft -or $draft.body -cne $body) {
             throw 'Draft disclosure update was not established; retry from a fresh state.'
         }
         Assert-StagedAssets $draft $output
+        $draftBody = $body
     }
     foreach ($name in $names) {
         if ($name -cin @($draft.assets | ForEach-Object name)) { continue }
-        Invoke-Gh -Arguments @('release', 'upload', $tag, '--repo', $repository, (Join-Path $output $name)) | Out-Null
+        $encodedName = [Uri]::EscapeDataString($name)
+        Invoke-Gh -Arguments @('api', '--method', 'POST',
+            "https://uploads.github.com/repos/$repository/releases/$draftId/assets?name=$encodedName",
+            '-H', 'Content-Type: application/octet-stream', '--input', (Join-Path $output $name)) | Out-Null
     }
-    $draft = Get-ReleaseState
-    if ($null -eq $draft -or $draft.id -ne $draftId) { throw 'Draft identity changed during upload.' }
+    $draft = Get-ReleaseState -KnownReleaseId $draftId
+    if ($null -eq $draft -or $draft.id -ne $draftId -or $draft.body -cne $draftBody) { throw 'Draft identity/body changed during upload.' }
     Assert-StagedAssets $draft $output
     Assert-PublishedRelease $draft -AllowDraft
     if (-not $draft.draft) { return [pscustomobject] @{ AlreadyPublished = $true } }
@@ -376,15 +409,17 @@ $($generated.body)
     }
     Assert-TagSource $reference $SourceRevision
     # Recheck both identities after the last write and before removing the draft boundary.
-    $draft = Get-ReleaseState
-    if ($null -eq $draft -or $draft.id -ne $draftId) { throw 'Draft identity changed before publication.' }
+    $draft = Get-ReleaseState -KnownReleaseId $draftId
+    if ($null -eq $draft -or $draft.id -ne $draftId -or $draft.body -cne $draftBody) { throw 'Draft identity/body changed before publication.' }
     Assert-StagedAssets $draft $output
     Assert-PublishedRelease $draft -AllowDraft
     if (-not $draft.draft) { return [pscustomobject] @{ AlreadyPublished = $true } }
     $latest = if ($prerelease) { 'false' } else { 'true' }
     Invoke-Gh -Arguments @('api', '--method', 'PATCH', "repos/$repository/releases/$draftId",
         '-F', 'draft=false', '-f', "target_commitish=$SourceRevision", '-f', "make_latest=$latest") | Out-Null
-    Assert-PublishedRelease (Get-ReleaseState)
+    $published = Get-ReleaseState -KnownReleaseId $draftId
+    if ($published.body -cne $draftBody) { throw 'Published body changed; publication verification failed.' }
+    Assert-PublishedRelease $published
     Write-Host "Published unsigned POC release: $tag"
 } finally {
     Remove-Item -LiteralPath $output -Recurse -Force

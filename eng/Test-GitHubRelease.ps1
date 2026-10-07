@@ -93,7 +93,7 @@ try {
         @{ Action = 'Check'; Release = 404; Tag = 200; Exit = 0 }
         @{ Action = 'Publish'; Exit = 0 }
     )
-    foreach ($status in @(401, 403, 429, 500)) {
+    foreach ($status in @(401, 403, 429, 500, 503)) {
         $cases += @{ Action = 'Check'; Release = $status; Tag = 404; Exit = 1 }
         $cases += @{ Action = 'Check'; Release = 404; Tag = $status; Exit = 1 }
         $cases += @{ Action = 'Check'; List = $status; Exit = 1 }
@@ -109,6 +109,18 @@ try {
         @{ Action = 'Publish'; Fail = 'notes'; After = $true; Legacy = $true; Exit = 1 }
         @{ Action = 'Publish'; HardStop = 'notes'; Legacy = $true; Exit = 137 }
     )
+    $cases += @{ Action = 'Publish'; Hidden = $true; Exit = 0 }
+    $cases += @{ Action = 'Publish'; Stale = $true; Exit = 0 }
+    foreach ($status in @(404, 401, 403, 500, 503)) {
+        $cases += @{ Action = 'Publish'; Read = $status; Exit = 1 }
+    }
+    $cases += @{ Action = 'Publish'; Timeout = $true; Exit = 1 }
+    foreach ($response in @('malformed', 'missing-id', 'wrong-id', 'id-type', 'source', 'body', 'channel', 'published')) {
+        $cases += @{ Action = 'Publish'; Response = $response; Exit = 1 }
+    }
+    foreach ($change in @('id', 'id-type', 'source', 'body', 'marker', 'channel', 'published')) {
+        $cases += @{ Action = 'Publish'; Drift = $change; Exit = 1 }
+    }
     foreach ($case in $cases) {
         $state = if ($case.ContainsKey('Legacy')) { Copy-State $legacyDraft } else { New-ReleaseFixtureState }
         if ($case.ContainsKey('Release')) { $state.ReleaseStatus = $case.Release; $state.UseNativeExit = $true }
@@ -119,6 +131,12 @@ try {
         if ($case.ContainsKey('List')) { $state.ListStatus = $case.List }
         if ($case.ContainsKey('Fail')) { $state.Fail = $case.Fail; $state.FailAfter = $case.After }
         if ($case.ContainsKey('HardStop')) { $state.HardStop = $case.HardStop; $state.ResultPath = $resultPath }
+        if ($case.ContainsKey('Hidden')) { $state.HideCreatedDrafts = $true }
+        if ($case.ContainsKey('Stale')) { $state.Pages['1'] = @(@{ id = 999; tag_name = 'unrelated'; draft = $false }) }
+        if ($case.ContainsKey('Read')) { $state.ReadStatus = $case.Read }
+        if ($case.ContainsKey('Timeout')) { $state.ReadTimeout = $true }
+        if ($case.ContainsKey('Response')) { $state.CreateResponse = $case.Response }
+        if ($case.ContainsKey('Drift')) { $state.DirectReadChange = $case.Drift }
         $state | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath $statePath
         # Exact Actions pwsh prologue, dot-source command and native-status epilogue.
         [IO.File]::WriteAllText($wrapper, @"
@@ -198,6 +216,47 @@ try {
     Assert ((Invoke-Release).AlreadyPublished) 'Exact published release is not idempotent.'
     Invoke-Release Publish | Out-Null
     Assert ($global:KoraReleaseTestState.Writes.Count -eq $complete.Writes.Count) 'No-op publication changed assets.'
+
+    foreach ($visibility in @('hidden', 'stale')) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        if ($visibility -eq 'hidden') { $global:KoraReleaseTestState.HideCreatedDrafts = $true }
+        else { $global:KoraReleaseTestState.Pages['1'] = @(@{ id = 999; tag_name = 'unrelated'; draft = $false }) }
+        Invoke-Release Publish | Out-Null
+        Assert (-not $global:KoraReleaseTestState.Releases[0].draft) "Created draft with $visibility immediate listing was not published by verified ID."
+        Assert (@($global:KoraReleaseTestState.Calls | Where-Object { ($_ -join ' ') -like '*--include repos/roryprimrose/Kora/releases/123*' }).Count -gt 0) 'Creation did not use authenticated direct-ID readback.'
+        Assert (@($global:KoraReleaseTestState.Calls | Where-Object { $_[0] -eq 'release' -and $_[1] -in @('create', 'upload') }).Count -eq 0) 'Publication rediscovered a newly created draft by tag for a write.'
+    }
+    foreach ($response in @('malformed', 'missing-id', 'wrong-id', 'id-type', 'source', 'body', 'channel', 'published')) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        $global:KoraReleaseTestState.CreateResponse = $response
+        Reject { Invoke-Release Publish }
+        Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') "Hostile create response $response caused subsequent writes/retries."
+    }
+    foreach ($change in @('id', 'id-type', 'source', 'body', 'marker', 'channel', 'published')) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        $global:KoraReleaseTestState.DirectReadChange = $change
+        Reject { Invoke-Release Publish }
+        Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') "Hostile direct-ID $change caused subsequent writes/retries."
+    }
+    foreach ($status in @(404, 401, 403, 500, 503)) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        $global:KoraReleaseTestState.ReadStatus = $status
+        Reject { Invoke-Release Publish }
+        Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') "Direct-ID HTTP $status caused subsequent writes/retries."
+    }
+    $global:KoraReleaseTestState = New-ReleaseFixtureState
+    $global:KoraReleaseTestState.ReadTimeout = $true
+    Reject { Invoke-Release Publish } 'timeout'
+    Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') 'Direct-ID timeout caused retries or publication.'
+    $global:KoraReleaseTestState = New-ReleaseFixtureState
+    $global:KoraReleaseTestState.CompetingAfterCreate = $true
+    Reject { Invoke-Release Publish } 'Multiple releases'
+    Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') 'Known ID bypassed conflicting/ambiguous discovery.'
+    $global:KoraReleaseTestState = New-ReleaseFixtureState
+    $global:KoraReleaseTestState.DriftBodyOnUpload = $true
+    Reject { Invoke-Release Publish } 'identity/body changed'
+    Assert ($global:KoraReleaseTestState.Releases[0].draft -and $global:KoraReleaseTestState.Writes -notcontains 'tag' -and
+        $global:KoraReleaseTestState.Writes -notcontains 'publish') 'Body changed during upload crossed the tag/publication boundary.'
 
     $historical = Copy-State $complete
     $historical.Releases[0].assets = @($historical.Releases[0].assets | Where-Object name -CNE "Kora-$version-source-tools.zip")
@@ -342,8 +401,8 @@ try {
     $global:KoraReleaseTestState.ReadStatus = 500
     Reject { Invoke-Release } 'Cannot establish GitHub publication state'
     $global:KoraReleaseTestState = Copy-State $draftOnly
-    $global:KoraReleaseTestState.Pages[1] = @(@{ id = 999; tag_name = 'unrelated' }) * 100
-    $global:KoraReleaseTestState.Pages[2] = $draftOnly.Releases
+    $global:KoraReleaseTestState.Pages['1'] = @(@{ id = 999; tag_name = 'unrelated' }) * 100
+    $global:KoraReleaseTestState.Pages['2'] = $draftOnly.Releases
     Assert (-not (Invoke-Release).AlreadyPublished) 'Paginated draft lookup failed.'
     Assert (@($global:KoraReleaseTestState.Calls | Where-Object { ($_ -join ' ') -like '*page=2*' }).Count -gt 0) 'Lookup omitted the second page.'
     $global:KoraReleaseTestState = Copy-State $complete

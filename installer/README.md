@@ -436,6 +436,12 @@ Complete matches skip rebuilding/publication. Unknown lookups, mismatches and
 interrupted drafts fail closed for manual reconciliation; published assets
 are never overwritten or tags moved. A new release is assembled as a draft
 and published only after its complete upload.
+New drafts retain the supported creation response's validated release ID and
+require authenticated direct-ID source/channel/body readback. Missing/stale
+immediate listings do not discard that identity; visible version conflicts,
+missing/changed IDs, API failures and changed bodies still stop publication.
+Uploads are addressed by that ID, never by rediscovering a pending tag.
+Failed writes are reconciled only on a fresh invocation, not retried blindly.
 
 Validation is front-loaded and risk-based for this POC, not an exhaustive
 manual installed trial on every MSI. Each release still requires locked

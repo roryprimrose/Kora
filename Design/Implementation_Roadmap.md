@@ -1958,3 +1958,10 @@ required locked restore using the owner-specified per-command source; no
 NuGet configuration or credentials changed. Tests use deterministic fakes/
 owned SQLite/native fixtures, not app/audio/OS-effect/install/account trials.
 Remote CI remains the source/publication/license/packaging gate.
+
+After #72 merged, immediate rebase onto `640f28b` preserved both installed-speech
+and session documentation/contracts, reconciling only the added section-count
+test and appended receipt. Fresh combined Release and all five suites passed:
+Core **601**, Application **1,477**, Tools **38**, Definitions **6**, Windows
+**831**; latest-only portable coverage remained exact **100% line/branch**.
+The earlier receipt remains historical, not current-base merge evidence.

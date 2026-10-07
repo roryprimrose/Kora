@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "kora.computer.shutdown",
+  "version": "1.0.0",
+  "name": "Shut down the machine",
+  "description": "Fixed graceful Windows shutdown; inspection only, no forced shutdown.",
+  "action": "computer.shutdown",
+  "entryPoint": "scripts\\session\\shutdown.ps1",
+  "parameterContract": "computer.shutdown.v1",
+  "runtime": "powershell7",
+  "dependencies": ["kora.windows.session-control.v1", "kora.host.power-quiescence.v1"],
+  "helperLoadOrder": ["scripts\\shared\\session-control.ps1"],
+  "files": [
+    {"name": "skills\\session-shutdown\\skill.md", "resourceId": "Kora.Skills.Session.Shutdown.Instructions", "kind": "instructions"},
+    {"name": "skills\\session-shutdown\\fixtures.json", "resourceId": "Kora.Skills.Session.Shutdown.Fixtures", "kind": "fixture"},
+    {"name": "scripts\\session\\shutdown.ps1", "resourceId": "Kora.Scripts.Session.Shutdown", "kind": "entry"},
+    {"name": "scripts\\shared\\session-control.ps1", "resourceId": "Kora.Scripts.Shared.SessionControl", "kind": "helper"}
+  ]
+}

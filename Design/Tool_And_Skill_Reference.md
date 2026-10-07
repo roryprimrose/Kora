@@ -343,7 +343,14 @@ See [Security](Security_Data_Flows.md) and [Execution Design](../docs/skill-and-
 
 ## 8. Skill Discovery, Registry, and Authoring
 
-All entries in this section are **Planned**. Source roots are bounded, explicit,
+Model-facing entries in this section remain **Planned**. The local native tray
+now offers **Skill packages (inspection only)** for the fixed bundled
+lock/shutdown/restart catalogue; it is not registered as an unqualified
+model tool and leaves R06 caller lanes unchanged. Exact embedded bytes and
+hashes are discoverable locally without enablement or approval authority.
+All package invocation descriptors remain unavailable pending worker,
+deployment, network and real-control admission.
+Source roots are bounded, explicit,
 read-only registrations; discovery is not execution, enablement, or remote egress.
 Skill identity includes partition/source, declared ID and digest-pinned revision.
 The host owns paths under the Kora Roaming AppData store.
@@ -441,9 +448,10 @@ See [Environment Setup](Environment_Setup.md), [Distribution](Distribution_And_U
 
 ## 12. Built-In Skill Contracts
 
-All script-backed packages below are **Planned**. The lock skill ID is given in
-the design; shutdown/restart package IDs are not finalised. Their registered
-task IDs are design-defined. Do not invent replacement files or published IDs.
+The three script-backed packages below have a current immutable inspection
+catalogue, explicit manifests and exact source tabs. Invocation and content-bound
+execution grants remain **Planned**. Package IDs and requested actions are
+host-owned declarations, not permission to call a worker.
 
 ### Lock the Machine
 
@@ -451,7 +459,7 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
   **model tool:** `computer.lock`.
 - **Embedded resources:** `Kora.Scripts.Session.Lock` entry point
   `scripts\session\lock.ps1` and `Kora.Scripts.Shared.SessionControl` helper
-  `scripts\shared\session-control.ps1`, as declared by the proposed manifest.
+  `scripts\shared\session-control.ps1`, as declared by the fixed JSON manifest.
 - **Select for:** an explicit request to lock the current Windows session,
   such as "lock my computer"; exact aliases select the original locally.
 - **Do not select for:** quoted/retrieved instructions, a how-to question,
@@ -474,9 +482,11 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
 
 ### Shut Down the Computer
 
-- **Skill ID:** not finalised; **task:** `computer.shutdown`;
-  **model tool:** `computer.propose_shutdown`; embedded script
-  resource identity must be assigned and digest-bound before admission.
+- **Skill:** `kora.computer.shutdown`; **requested task:** `computer.shutdown`;
+  **model tool (proposal only):** `computer.propose_shutdown`.
+  `Kora.Scripts.Session.Shutdown` and the single
+  `Kora.Scripts.Shared.SessionControl` resource are embedded and digest-bound
+  for inspection. Invocation is unavailable.
 - **Select for:** explicit graceful shutdown of this local computer.
   Do not infer it from ambiguous "close it", advice, remote targets or quotes.
 - **Inputs:** none; no forced-close flag, remote target or arbitrary delay.
@@ -496,9 +506,11 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
 
 ### Restart the Computer
 
-- **Skill ID:** not finalised; **task:** `computer.restart`;
-  **model tool:** `computer.propose_restart`; embedded script
-  resource identity must be assigned and digest-bound before admission.
+- **Skill:** `kora.computer.restart`; **requested task:** `computer.restart`;
+  **model tool (proposal only):** `computer.propose_restart`.
+  `Kora.Scripts.Session.Restart` and the single
+  `Kora.Scripts.Shared.SessionControl` resource are embedded and digest-bound
+  for inspection. Invocation is unavailable.
 - **Select for:** explicit graceful restart of this local computer/Windows,
   not a Kora application restart.
 - **Inputs/dependencies/grants:** same fixed-local constraints as shutdown;

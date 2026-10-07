@@ -1,8 +1,12 @@
 # Out-of-the-Box Skills and Session Policy
 
-Status: proposed bundled-script design, not a shipped skill runner. The current
-bootstrap implements exact direct Windows-API lock and model-suggested lock approval,
-but not embedded `.ps1` skills, script review, or hash-bound execution grants.
+Status: bounded R11 embedded package catalogue and immutable native source review
+delivered; no skill runner. The current bootstrap retains exact direct
+Windows-API lock and model-suggested action-name lock approval unchanged.
+Lock/shutdown/restart manifests, Markdown, fixtures, entry scripts and one shared
+helper are embedded in `Kora.Application`. All package actions are explicitly
+unavailable for invocation. The tray's **Skill packages (inspection only)**
+entry opens every declared file in read-only native tabs.
 See [future execution design](../docs/skill-and-task-execution-design.md).
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Skill Storage](Skill_Storage.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
@@ -99,7 +103,8 @@ scripts:
     resourceId: Kora.Scripts.Shared.SessionControl
 ```
 
-This is the proposed schema contract, not an implemented manifest API.
+This YAML is conceptual design, not a supported loader format. The bounded R11
+catalogue uses a strict explicit JSON schema with no YAML/plugin loader.
 `parameterContract`, `runtime`, dependencies, and action names resolve through
 host-owned registrations. Declarations request capabilities; none grant them.
 The model receives the Markdown and admitted action description, not authority
@@ -344,9 +349,17 @@ The declared-resource digest must bind the complete declared set, resource
 mappings and per-file identities/digests, not just the entry point.
 Tracked-content identity describes the observed best-effort inventory, not
 a claim of complete transitive discovery or an exact executable allowlist.
-Catalogue/byte verification, actual script-set encoding, immutable native
-review and execution remain unimplemented production gates; these services
-run no scripts and do not weaken W2's separate containment/privacy boundaries.
+Catalogue/byte verification, actual script-set/definition encoding and immutable
+native source tabs are delivered by the bounded R11 foundation.
+`Kora.DeclaredResources.v1` frames every declared file including the manifest.
+It uses the same ordinal-name framing, inserting `UInt32BE(resource-ID UTF-8
+byte length)` and the exact UTF-8 resource ID after each logical name and before
+the content length/bytes. This binds the complete logical-name/resource-ID map
+(including the catalogue's manifest registration) and per-file contents.
+The read-only `HasSameDeclaredContent` comparison checks only declared content
+against an existing R05 exact record; it never creates or uses a grant, or
+asserts interpreter/invocation/identity validity. Execution remains unavailable.
+These services run no scripts and do not weaken W2's separate containment/privacy boundaries.
 These scopes follow the [work-session grant contract](Security_Data_Flows.md#grant-types-and-inheritance):
 Session binds the identified Kora work session, not the process lifetime.
 Revocation removes authorization, not the independently retained perpetual

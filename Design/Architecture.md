@@ -137,7 +137,8 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Voice controller | Wake-listening consent, local configured-name detection ("Kora" by default), bounded audio buffer, endpointing, transcript, playback-aware interruption | Ambient transcription or authorising actions based on wake detection/speaker verification |
 | Task controller | Task IDs, state transitions, deadlines, cancellation | Provider-specific model iteration |
 | Work manager/scheduler | Contextual session/request routing, per-session versioned ledger/queue, bounded fair dispatch and resource leases | Running task tools in management inference or bypassing task approvals |
-| Context broker | Snapshots, provenance, classification, context selection | Implicit background collection |
+| Context broker | Immutable clipboard/file/source snapshots, provenance, classification, bounded retrieval and context selection | Implicit background collection, arbitrary path access, or treating an index as authority |
+| Knowledge source service | Reviewed file/folder source registration, immutable revisions, refresh, format admission, citations, revocation and inventoried derived-data deletion | Original-file mutation, ambient filesystem monitoring, model-selected roots, or destination/egress approval |
 | Policy/approval service | Resource-scoped grants, outbound decisions, approval tokens | Trusting model-produced permission claims |
 | Runtime adapter | Provider session and event translation | Unreviewed tools, undisclosed egress, global policy |
 | Tool gateway | Validate, authorise, invoke, bound, and audit tools | Giving an adapter unrestricted OS access |

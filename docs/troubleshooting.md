@@ -3,8 +3,8 @@
 ## Local storage or model setup needs attention
 
 Open Settings > Readiness or use **what do you have left to do** to see the
-current setup task and blocker. Kora recreates missing Kora-owned directories
-and initializes its SQLite schema on startup or refresh. If SQLite fails its
+current setup task and blocker. Bootstrap readiness can recreate missing setup
+directories and initialize the setup-only SQLite schema. If SQLite fails its
 integrity check, the existing database is retained; restore a known-good
 backup rather than deleting it. The local Ollama probe checks only
 `127.0.0.1:11434`. A responding runtime or installed model does not mean
@@ -19,6 +19,23 @@ fails, Kora marks inference unavailable until you refresh readiness. There is
 no cloud fallback. Missing inference opens the Readiness tab on startup.
 PowerShell has its own setup task, but an unhealthy PowerShell installation
 does not block local reasoning or the C# built-in commands.
+
+## Private durable storage cannot reopen after interruption
+
+The separate private task, interaction and evidence databases retain their
+rollback journals. A valid interrupted transaction is rolled back when the
+production store reopens; committed records remain committed. Startup recovery
+marks intent-only work **Interrupted** and dispatched work without a verified
+receipt **Unknown**, without rerunning it or treating an approval as an effect.
+
+Missing databases/journals, unsupported or corrupt schemas, invalid private
+permissions and unavailable storage ownership/access are explicit blockers.
+Kora does not recreate a missing journal or silently repair its ACL. Do not
+delete or replace database/journal files to clear the error: retain the related
+files and review the reported storage failure with support. Do not copy a
+journal from another database. Daily JSON diagnostics remain an independent
+source when SQLite is unavailable. These recovery checks are not a guarantee
+against physical power loss or a complete backup/restore workflow.
 
 ## PowerShell 7 is missing or failed its check
 

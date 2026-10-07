@@ -140,7 +140,7 @@ to the production implementation:
 | Proof code | Retention decision and removal gate |
 |---|---|
 | Speech | Retain the deterministic capture/benchmark harness through wake-candidate selection and R09 packaged acoustic validation. Migrate reusable bounds/race assertions into production tests, then remove the Python/model-specific harness when its historical receipts are sufficient. |
-| Storage | Retain through maintained native selection and R04/R12 integration because it is the only repeatable crypto, interruption, migration and deletion comparison. Remove candidate-specific prototype paths after equivalent production recovery/native-load tests pass. |
+| Storage | Standard-SQLite task/evidence/interaction process-interruption and hot-journal cases now have maintained production tests; see the [specific migration/retention map](../experiments/r02-storage-proof/README.md#production-recovery-migration-and-retention---2026-10-07). Retain the shared executable because its SQLCipher/envelope WAL/journal comparisons, encryption/DPAPI/rekey, migration, artifacts/backups/deletion and native receipts are not equivalent to the PERSIST/FULL production baseline. No blanket retirement or relabelled receipt; retire an individual path only after its unique proof and consumers are superseded. |
 | Local inference | Retain through LI01-LI07 and R06-R08/R10 adapter delivery; it owns the exact candidate rubric and deferred measurement procedure. Remove it only after those cases are covered by production adapter/integration tests and final evidence. |
 | Runtime/provider | Retain and rerun on every SDK/runtime pin change until the isolated .NET fixture and production host-envelope tests supersede it. The known hook-only failure must remain executable until the unsupported path is impossible in production composition. |
 | Containment | Retain through W1-W4 and protected deployment integration. Migrate filesystem, credential, process-tree and receipt-classification assertions into Windows integration tests before deleting the standalone harness. |
@@ -159,7 +159,7 @@ The storage research may merge with these application/deployment gates open:
 |---|---|---|
 | S1 - Standard native closure | Storage/release leads, R17 | Existing pinned Microsoft.Data.Sqlite / e_sqlite3 is the approved standard-SQLite route. Review notices/servicing and offered architecture packaging/loading. Encrypted-native selection/authentication is superseded, not a current storage blocker. Installed loading remains separate evidence. |
 | S2 - Integrate the profile boundary | Storage/application leads, R04 | Supplied LocalApplicationData paths and effective folder/file ACLs now compose the bounded task/evidence partitions. First-use greeting/settings/version disclosure covers readable copies and same-user/admin access. No shared fallback, silent permission repair or replacement. Managed artifacts/backups and installed effective permissions remain separate open acceptance. |
-| S3 - Integrate recovery and migration | Storage/application leads, R04 | Exact local version-query intent/dispatch/terminal/evidence and Interrupted/Unknown no-replay startup recovery are composed. The new bounded receipt is not an OS effect. Complete backup/artifact publication, broader supported migrations, retention/checkpoints and applicable interruption/power-loss boundaries. No database key/rekey or encrypted legacy conversion is required. |
+| S3 - Integrate recovery and migration | Storage/application leads, R04 | Exact local version-query intent/dispatch/terminal/evidence and Interrupted/Unknown no-replay startup recovery are composed. [Production-store interruption/reopening](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07) now covers pre/postcommit task, evidence/link and interaction approval/use/Done writes, interrupted recovery, hot private journals and unsafe reopen refusal. The bounded receipt is not an OS effect. Backup/artifact publication, broader supported migrations, retention/checkpoints and installed/physical power-loss boundaries remain open. No database key/rekey or encrypted legacy conversion is required. |
 | S4 - Integrate deletion and lifecycle | Storage/security/application leads, R12 | Exercise source revocation, late appends, live/unknown-work holds and configured lifecycle; remove or rewrite managed recoverable copies while preserving unrelated sessions and independent grants. Disclose exported/provider/forensic limits. |
 
 The [2026-10-06 durable interaction continuation](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
@@ -171,6 +171,20 @@ actual audit-write failure, corrupt/schema/journal/ACL failures and owned-child
 hot-journal rollback. Perpetual records survive authority removal; restart
 never replays decisions or dispatch. This is partial S2/S3/S4 progress, not
 full R04/R05/R12 acceptance.
+
+The [2026-10-07 recovery continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+extends that disposable proof to actual production task writes (rather than a
+raw-SQL transaction proxy), diagnostic/audit/span-with-links transactions,
+approval/Once consumption/Done generation changes, and interruption during
+audited recovery. Both old committed state and exact all-or-none writes are
+checked after reopening. Hot headers are observed before killing only the
+fixture's child; missing/permissive journals and held ownership/access fail
+without repair or replacement. A foreign-owner descriptor is tested against
+the same production permission policy without changing OS ownership.
+Committed cancellation, fresh-run authority refusal, stale generations and
+repeated no-replay recovery remain maintained regressions. This closes only
+those process-interruption proof gaps, not hardware fsync/power-loss or
+installed acceptance, artifact/copy recovery or the remaining gates below.
 
 Remaining bounded-integration gates: immutable native operation review and
 trusted UI/foreground voice input; actual host snapshot acquisition and

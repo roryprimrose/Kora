@@ -543,6 +543,20 @@ whole-store rollback detection, installed/power-loss acceptance and broader
 R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit
 or private permissions fail explicitly without replacement or repair.
 
+The bounded [production interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+uses those same adapters and exact version-1 schemas. Maintained disposable
+Windows tests terminate only their owned helper processes before or after
+task intent/dispatch/terminal/recovery, evidence envelope/span-link, and
+interaction approval/Once-consume/Done commits. Precommit checkpoints force
+real pager writes and verify the rollback journal's hot header, not merely
+its retained PERSIST file size. Reopening preserves prior receipts and private
+journal permissions; a committed receipt is not converted to cancellation.
+Interrupted recovery may leave another truthful Unknown audit attempt, but
+never replays work or invents a successful effect. Missing/permissive journals
+and inaccessible or unowned storage remain explicit admission failures.
+These are process-interruption tests, not installed or physical power-loss
+guarantees, general artifact/backup recovery, or complete R04 acceptance.
+
 Implementation requirements:
 
 - Use the maintained pinned standard-SQLite distribution with reviewed provenance/licences and release-native closure. The rejected encrypted candidates are historical evidence, not admission blockers for this baseline. Installed native loading remains distribution evidence, not proof of database confidentiality.

@@ -44,13 +44,21 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
     private readonly RestrictedSqliteDatabase database;
     private readonly EvidenceRetentionPolicy retentionPolicy;
     private readonly TimeProvider timeProvider;
+    private readonly ISqliteTransactionCheckpoint? checkpoint;
 
     public WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
         EvidenceRetentionPolicy? retentionPolicy = null, TimeProvider? timeProvider = null)
+        : this(paths, retentionPolicy, timeProvider, checkpoint: null)
+    {
+    }
+
+    internal WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
+        EvidenceRetentionPolicy? retentionPolicy, TimeProvider? timeProvider, ISqliteTransactionCheckpoint? checkpoint)
     {
         database = new RestrictedSqliteDatabase(paths, PartitionName, "evidence.db", ApplicationId, Schema);
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
         this.timeProvider = timeProvider ?? TimeProvider.System;
+        this.checkpoint = checkpoint;
     }
 
     public string Name => "windows-sqlite";
@@ -100,6 +108,7 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
         using var lease = database.AcquireLease(out var created);
         using var connection = OpenDatabase(created);
         using var transaction = connection.BeginTransaction();
+        checkpoint?.BeforeWrite(connection, transaction);
         var committed = timeProvider.GetUtcNow().UtcTicks;
         var due = retentionPolicy.DiagnosticDue(new DateTimeOffset(committed, TimeSpan.Zero)).UtcTicks;
         Insert(connection, transaction, "activity_spans", values, payload, committed, due);
@@ -109,6 +118,7 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
             Insert(connection, transaction, "activity_links", LinkProjection(envelope, link, ordinal),
                 Serialize(link), committed, due);
         }
+        checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
         transaction.Commit();
     }
@@ -130,9 +140,11 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
         using var lease = database.AcquireLease(out var created);
         using var connection = OpenDatabase(created);
         using var transaction = connection.BeginTransaction();
+        checkpoint?.BeforeWrite(connection, transaction);
         var committed = timeProvider.GetUtcNow();
         var due = audit ? retentionPolicy.AuditDue(committed) : retentionPolicy.DiagnosticDue(committed);
         Insert(connection, transaction, table, values, payload, committed.UtcTicks, due.UtcTicks);
+        checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
         transaction.Commit();
     }

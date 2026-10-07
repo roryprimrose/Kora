@@ -11,6 +11,24 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class RestrictedStorageDirectoryTests
 {
     [WindowsFact]
+    public void Foreign_owner_is_rejected_even_with_a_protected_full_control_rule_for_the_current_user()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var identity = WindowsIdentity.GetCurrent();
+        var directory = new RestrictedStorageDirectory(fixture);
+        var descriptor = new FileSecurity();
+        descriptor.SetOwner(new SecurityIdentifier(WellKnownSidType.WorldSid, null));
+        descriptor.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        descriptor.AddAccessRule(new(identity.User ?? throw new InvalidOperationException("The fixture profile is unavailable."),
+            FileSystemRights.FullControl, AccessControlType.Allow));
+        var before = descriptor.GetSecurityDescriptorBinaryForm();
+        // Exercise the production owner policy in memory without changing an OS owner or requiring privilege.
+        var verify = () => directory.VerifyPermissions(descriptor, requireProtected: true, allowSystemAdministrators: false);
+        verify.Should().Throw<UnauthorizedAccessException>();
+        descriptor.GetSecurityDescriptorBinaryForm().Should().Equal(before);
+    }
+
+    [WindowsFact]
     public void Newly_created_lease_and_content_files_have_explicit_private_current_user_security()
     {
         using var fixture = new OwnedStorageFixture();

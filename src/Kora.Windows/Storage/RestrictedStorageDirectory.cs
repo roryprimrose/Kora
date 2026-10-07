@@ -235,7 +235,7 @@ internal sealed partial class RestrictedStorageDirectory
             requireProtected: true, allowSystemAdministrators: false);
     }
 
-    private void VerifyPermissions(FileSystemSecurity security, bool requireProtected, bool allowSystemAdministrators)
+    internal void VerifyPermissions(FileSystemSecurity security, bool requireProtected, bool allowSystemAdministrators)
     {
         if (!user.Equals(security.GetOwner(typeof(SecurityIdentifier)))
             || requireProtected && !security.AreAccessRulesProtected)

@@ -45,6 +45,9 @@ public sealed class PresenceControl : Control
         AvaloniaProperty.Register<PresenceControl, int>(
             nameof(MovementSpeedPercent), PresenceSettings.DefaultMovementSpeedPercent);
 
+    public static readonly StyledProperty<bool> IsPresenceVisibleProperty =
+        AvaloniaProperty.Register<PresenceControl, bool>(nameof(IsPresenceVisible), true);
+
     private readonly PresenceAnimation animation = new(AssistantState.Information);
     private readonly Particle[] particles;
     private readonly DispatcherTimer timer;
@@ -59,7 +62,8 @@ public sealed class PresenceControl : Control
             DotSizePercentProperty,
             DotDensityPercentProperty,
             IsSpeechScalingEnabledProperty,
-            SpeechScaleAmountPercentProperty);
+            SpeechScaleAmountPercentProperty,
+            IsPresenceVisibleProperty);
     }
 
     public PresenceControl()
@@ -124,6 +128,12 @@ public sealed class PresenceControl : Control
     {
         get => GetValue(SpeechScaleAmountPercentProperty);
         set => SetValue(SpeechScaleAmountPercentProperty, value);
+    }
+
+    public bool IsPresenceVisible
+    {
+        get => GetValue(IsPresenceVisibleProperty);
+        set => SetValue(IsPresenceVisibleProperty, value);
     }
 
     public event EventHandler? FrameUpdating;
@@ -201,7 +211,8 @@ public sealed class PresenceControl : Control
             SpeechOutputLevel,
             elapsed,
             IsSpeechScalingEnabled,
-            SpeechScaleAmountPercent);
+            SpeechScaleAmountPercent,
+            IsPresenceVisible);
         var activity = State switch
         {
             AssistantState.Listening => 0.8,

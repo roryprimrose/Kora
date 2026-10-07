@@ -243,34 +243,14 @@ public sealed partial class MainWindow : Window
                 CancelPendingHide();
                 EnsurePositionOnConnectedScreen();
                 Show();
+                Presence.IsPresenceVisible = true;
                 SchedulePresenceTimeout();
                 break;
             case WindowAction.Hide:
                 DesktopLog.Debug(logger, "Hiding the main window after its transition");
-                CancelPendingHide();
                 presenceTimeoutTimer.Stop();
                 presenceInactivity.Stop();
-                var hideRequest = new CancellationTokenSource();
-                pendingHide = hideRequest;
-                try
-                {
-                    await Task.Delay(
-                        PresenceAnimation.VisibilityTransitionDuration + PresenceAnimation.FrameInterval,
-                        hideRequest.Token);
-                    Hide();
-                }
-                catch (OperationCanceledException) when (hideRequest.IsCancellationRequested)
-                {
-                }
-                finally
-                {
-                    if (ReferenceEquals(pendingHide, hideRequest))
-                    {
-                        pendingHide = null;
-                    }
-
-                    hideRequest.Dispose();
-                }
+                await HidePresenceAfterTransitionAsync();
                 break;
             case WindowAction.Close:
                 DesktopLog.Information(logger, "Shutting down the desktop application");
@@ -297,6 +277,33 @@ public sealed partial class MainWindow : Window
     {
         pendingHide?.Cancel();
         pendingHide = null;
+    }
+
+    private async Task HidePresenceAfterTransitionAsync()
+    {
+        CancelPendingHide();
+        Presence.IsPresenceVisible = false;
+        var hideRequest = new CancellationTokenSource();
+        pendingHide = hideRequest;
+        try
+        {
+            await Task.Delay(
+                PresenceAnimation.VisibilityTransitionDuration + PresenceAnimation.FrameInterval,
+                hideRequest.Token);
+            Hide();
+        }
+        catch (OperationCanceledException) when (hideRequest.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(pendingHide, hideRequest))
+            {
+                pendingHide = null;
+            }
+
+            hideRequest.Dispose();
+        }
     }
 
     private void OnClosing(object? sender, WindowClosingEventArgs eventArgs)
@@ -397,8 +404,8 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        DesktopLog.Debug(logger, "Hiding the presence after its inactivity timeout");
-        Hide();
+        DesktopLog.Debug(logger, "Fading the presence after its inactivity timeout");
+        _ = HidePresenceAfterTransitionAsync();
     }
 
     private bool CanSchedulePresenceTimeout =>

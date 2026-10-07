@@ -2102,6 +2102,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void ShowDocumentation() =>
         DocumentationRequested?.Invoke(this, EventArgs.Empty);
 
+    public event EventHandler? SessionsRequested;
+
+    public void ShowSessions() => SessionsRequested?.Invoke(this, EventArgs.Empty);
+
     public string GetGrantDocument()
     {
         var builder = new StringBuilder()
@@ -3772,6 +3776,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
             ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
+        if (string.Equals(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript,
+            "open sessions", StringComparison.Ordinal))
+        {
+            ShowSessions();
+            return;
+        }
         var admittedCommand = commandRouter.Match(spokenText, AssistantName).Command;
         if (IsDurableVersionQueryEligible(true, pendingModelQuestion is not null, IsGrantChangePending, IsModelActionApprovalPending)
             && admittedCommand?.Action == BuiltInAction.ShowVersion)

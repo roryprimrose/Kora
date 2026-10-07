@@ -118,6 +118,17 @@ native/acoustic privacy acceptance is claimed.
 
 ## Visual safety fallback
 
+The [minimal Sessions workspace](windows-and-tray.md#minimal-durable-sessions)
+reads existing IDs/generations, typed question history and current durable
+task records. It is not general retained conversation, provider context or a
+work scheduler. Selection cannot authorize a reply or retarget an approval.
+Explicit Done/resume uses live ownership/privacy/call admission, exact fresh
+control intent and atomic authoritative lifecycle audit; a diagnostic
+projection is not that authority. Unknown/live work and unresolved questions
+remain blockers. Each transition advances generation, invalidates old scoped
+authority, preserves independent Perpetual records and replays nothing.
+No automatic archive, deletion, retention or export is added.
+
 The tray's **Review local version (native question)** uses trusted native
 input over the durable host question service, separately from legacy
 model-action approvals. Answers retain the exact original question/session

@@ -38,9 +38,85 @@ adapter. A bounded native question/review route now composes the existing
 durable local-version query; no effect dispatcher is activated. See the
 [native question boundary](Interaction_Fallback.md#delivered-bounded-native-question---2026-10-07).
 There is no general typed form service,
-session selection/history UI, concurrent task
+full session conversation/history UI, concurrent task
 scheduler, or model-facing session tool API.
 Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
+
+### Delivered Minimal Sessions Workspace - 2026-10-07
+
+**Sessions** in the tray, exact **open sessions** (configured-name prefix
+supported), and **Ctrl+Shift+S** in the compact response open a native
+workspace over the existing production authority partition. Refresh and
+keyset Next expose Active/Done IDs and authorization generations, not
+invented titles or general conversations. The selected passive detail reads
+actual typed questions/options/drafts/answers, request/task IDs, revisions,
+channels, generations and current durable task records. Separate selected-ID
+Evidence uses the existing bounded diagnostic/audit/span/link reader; missing
+session/conversation evidence remains explicitly unavailable. Pages default
+to 25 records and the store accepts at most 50. They are observations across
+independent partitions, not an atomic runtime ledger; refresh for concurrent
+changes. Passive pages require existing private partitions and never create a
+replacement when storage is missing. Removed authority tombstones are not
+offered as browsable sessions.
+
+Reading, selecting and keyboard navigation never admit a reply, select an
+approval target, update activity, resume, or restore model/provider context.
+No composer, rename/create metadata, scheduling, archive timer, deletion,
+retention, export or model lane is added. Full R12 conversation/work/queue/
+retention/delete and full coordinated R14/native acceptance remain open.
+
+**Mark selected ID Done** and **Explicitly resume selected ID** are distinct
+trusted local-user initiations. The host creates a fresh exact subject-bound
+control intent and activity; the expected generation from the displayed
+observation is only an optimistic conflict token. Control intent requires an
+existing private task ledger, and lifecycle requires existing session authority;
+neither recreates missing storage and guesses that forgotten work is idle.
+Current private desktop
+ownership, unlocked privacy admission and unprotected known call policy,
+including its revision, must still hold at the authoritative commit.
+The existing task lease precedes the interaction lease and stays held
+through COMMIT. A bounded maintained task query rejects any other
+nonterminal or Unknown task (including recovered outcome-unknown work);
+only the exact fresh revision-1 control intent is excepted. Pending questions
+also block, even when their deadline passed. Nothing is auto-abandoned or
+synthetically resolved to permit Done/resume. Unsupported work state or
+corrupt/overflowed authority is refusal, not an empty idle result.
+
+The existing lifecycle transaction commits generation advancement, scoped
+grant invalidation, fresh-observation removal and required typed authoritative
+audit together. Each Done/resume advances generation. Independent Perpetual
+records and typed history are preserved. Resume never replays tasks, revives
+old questions/approvals or transmits old context. Commit/audit/receipt failure
+is visible; cancellation is not a claimed rollback after a possible commit.
+Restart reads durable state and performs existing no-replay recovery, not
+automatic lifecycle completion. Privacy closure cancels and clears the
+workspace, without revealing old content on unlock.
+
+#### Bounded validation and experiment disposition
+
+On the original isolated `281393c` baseline, root Release/analyzers completed with zero
+warnings/errors. Maintained suites passed: Core 411, Application 1,322 and
+Windows 728, with fresh-only portable **100% line and branch coverage**.
+Actual private production SQLite tests cover bounded pages, typed history,
+cross-session isolation, Pending/live/Unknown blockers, stale generations,
+call/ownership revision changes at commit, required audit failure, concurrent
+lifecycle/intent leases and before/after-COMMIT owned-process kill/reopen for
+Done/resume. Fake native state covers close/privacy and cancellation-ignoring
+late reads. No live app, user-data, microphone, clipboard or OS-session trial
+was run; native visual/screen-reader/DPI acceptance remains open.
+
+After rebasing onto peer-merged `1506b7e`, the combined maintained suites passed
+Core 450, Application 1,327 and Windows 731, again with fresh-only portable
+100% line/branch coverage. Missing-ledger lifecycle admission is now tested:
+control cannot initialize a replacement task ledger and infer forgotten work
+is idle, or recreate missing session authority.
+
+R02's generic atomicity and intent/no-receipt expectations are maintained
+against production semantics, rather than treated as production admission.
+No executable proof file is removed: its intertwined SQLCipher/envelope,
+WAL engine comparison, crypto/artifact/keyed-backup/rekey/leakage/native-provider
+cases remain unique. See the
+[equivalence assessment](../experiments/r02-storage-proof/README.md#maintained-minimal-sessions-equivalence-assessment---2026-10-07).
 
 ### Bounded R05 Foundation Boundary
 

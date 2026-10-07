@@ -57,7 +57,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     // The interaction writer holds this same lease until its own SQLite COMMIT finishes.
     // No task cancellation/terminal transition can interleave with admitted authority.
     internal T WithCommittedIntent<T>(HostRequest request, Func<HostTaskRecord, T> operation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool requireIdle = false)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Activity!.IsStopped || live.Request != request)
@@ -79,6 +79,25 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             || (intent.Request.InvocationId is { } invocation && invocation != request.InvocationId))
         {
             throw new InvalidDataException("Interaction authority requires matching committed nonterminal intent.");
+        }
+        if (requireIdle)
+        {
+            command.CommandText = """
+                SELECT * FROM host_tasks WHERE session_id=$session AND state IN (0,1,7)
+                ORDER BY task_id LIMIT 101;
+                """;
+            command.Parameters.Clear();
+            command.Parameters.AddWithValue("$session", request.SessionId.Value.ToString("D"));
+            using var blockers = command.ExecuteReader();
+            var count = 0;
+            while (blockers.Read())
+            {
+                var blocker = Decode(blockers);
+                if (++count > 100 || blocker != intent)
+                {
+                    throw new InvalidOperationException("Session lifecycle is blocked by nonterminal/Unknown work or blocker overflow. No work was abandoned.");
+                }
+            }
         }
         var result = operation(intent);
         database.VerifyFiles();
@@ -103,7 +122,59 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         }, cancellationToken));
     }
 
-    public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
+    internal T WithCommittedIdleIntent<T>(HostRequest request, Func<HostTaskRecord, T> operation,
+        CancellationToken cancellationToken) =>
+        WithCommittedIntent(request, intent =>
+        {
+            if (intent.State != HostTaskState.IntentRecorded || intent.Revision.Value != 1
+                || request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            {
+                throw new InvalidOperationException("Lifecycle control requires a fresh original-user control intent.");
+            }
+            // WithCommittedIntent owns the task lease. Use that same connection/lease rather
+            // than a passive UI query or a second acquisition of the non-reentrant lease.
+            return operation(intent);
+        }, cancellationToken, requireIdle: true);
+
+    public ValueTask<SessionPage<HostTaskRecord>> ReadSessionPageAsync(HostId<SessionIdentity> session,
+        Guid? after, int limit, CancellationToken cancellationToken)
+    {
+        session.Validate();
+        ValidatePage(after, limit);
+        return new(Task.Run(() =>
+        {
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = OpenDatabase(created: false, cancellationToken);
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT * FROM host_tasks WHERE session_id=$session AND task_id>$after ORDER BY task_id LIMIT $limit;";
+            command.Parameters.AddWithValue("$session", session.Value.ToString("D"));
+            command.Parameters.AddWithValue("$after", after?.ToString("D") ?? string.Empty);
+            command.Parameters.AddWithValue("$limit", limit + 1);
+            using var reader = command.ExecuteReader();
+            var rows = new List<HostTaskRecord>();
+            while (reader.Read()) { rows.Add(Decode(reader)); }
+            database.VerifyFiles();
+            return new SessionPage<HostTaskRecord>([.. rows.Take(limit)],
+                rows.Count > limit ? rows[limit - 1].Request.TaskId.Value : null);
+        }, cancellationToken));
+    }
+
+    internal static void ValidatePage(Guid? after, int limit)
+    {
+        if (after == Guid.Empty || limit is < 1 or > SessionPage<HostTaskRecord>.MaximumRecords)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), "Use a nonempty cursor and a page limit between 1 and 50.");
+        }
+    }
+
+    public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken) =>
+        QueueCommit(record, expectedRevision, requireExisting: false, cancellationToken);
+
+    internal ValueTask CommitControlIntentAsync(HostTaskRecord record, CancellationToken cancellationToken) =>
+        QueueCommit(record, expectedRevision: 0, requireExisting: true, cancellationToken);
+
+    private ValueTask QueueCommit(HostTaskRecord record, long expectedRevision, bool requireExisting,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(record);
         var current = HostActivity.RequireCurrent();
@@ -115,7 +186,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             throw new InvalidOperationException("The expected task revision is invalid.");
         }
-        return new ValueTask(Task.Run(() => Commit(record, expectedRevision, cancellationToken), cancellationToken));
+        return new ValueTask(Task.Run(() => Commit(record, expectedRevision, requireExisting, cancellationToken), cancellationToken));
     }
 
     public ValueTask<IReadOnlyList<HostTaskRecord>> ReadIncompleteAsync(int limit, CancellationToken cancellationToken)
@@ -128,7 +199,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             Task.Run<IReadOnlyList<HostTaskRecord>>(() => ReadIncomplete(limit, cancellationToken), cancellationToken));
     }
 
-    private void Commit(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
+    private void Commit(HostTaskRecord record, long expectedRevision, bool requireExisting, CancellationToken cancellationToken)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Activity!.IsStopped || live.Request != record.Request)
@@ -137,7 +208,9 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         }
         using var boundary = new StorageOperation("storage.task.commit", cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        using var lease = database.AcquireLease(out var created, cancellationToken);
+        var created = false;
+        using var lease = requireExisting ? database.AcquireReadLease(cancellationToken)
+            : database.AcquireLease(out created, cancellationToken);
         using var connection = OpenDatabase(created, cancellationToken);
         using var transaction = connection.BeginTransaction();
         checkpoint?.BeforeWrite(connection, transaction);

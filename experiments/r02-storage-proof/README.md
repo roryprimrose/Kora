@@ -1,6 +1,27 @@
 # R02 storage/key feasibility supporting D-009
 
 Status: **partial measured evidence and canonical design outcome; not production admission or a closed D-009 decision**.
+
+## Maintained minimal Sessions equivalence assessment - 2026-10-07
+
+The generic lifecycle-adjacent intent/no-receipt and kill/reopen atomicity
+assertions are now exercised against actual production private standard
+SQLite by maintained
+[guarded Done/resume interruption tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionLifecycleInterruptionTests.cs)
+and [session workspace tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionWorkspaceTests.cs).
+They cover before/after authoritative COMMIT, restart generation/audit
+agreement, Interrupted control intent with no replay, Unknown/live/question
+blockers, revisions, cross-session reads and independent Perpetual preservation.
+These are maintained production semantics, not relabelled synthetic evidence.
+
+No executable experiment file is retired: the opaque sample harness has no
+Active/Done session schema, and its intertwined WAL/rollback engine comparison,
+SQLCipher/envelope cryptography, authenticated artifact stages, keyed backups/
+rekey, capacity/migration, leakage, DPAPI and native-provider evidence are not
+equivalent to this minimal standard-SQLite lifecycle slice. Historical receipts
+and provenance remain unchanged. General retention/deletion and complete
+artifact/backup disposal acceptance remain open.
+
 The approved R01 merge (`7d5e6a3`, PR #19) was verified before starting.
 An actual second-user Windows trial was initially left blocked with the
 owner's approval. Reassessment distinguishes OS isolation from application

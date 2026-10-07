@@ -27,6 +27,7 @@ public sealed partial class App : Avalonia.Application
     private QuestionWindowController? questionWindow;
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
+    private SessionsWindowController? sessionsWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
@@ -87,12 +88,19 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
                 () => questionWindow.ReviewVersionAsync(window),
                 () => evidenceWindow?.Open(),
-                () => skillPackagesWindow.Open());
+                () => skillPackagesWindow.Open(),
+                () => sessionsWindow?.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>());
             evidenceWindow.Bind();
+            sessionsWindow = new SessionsWindowController(viewModel,
+                Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
+                Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                Services.GetRequiredService<ILogger<SessionsViewModel>>());
+            sessionsWindow.Bind();
             var host = viewModel;
             host.BindCallOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
@@ -172,6 +180,8 @@ public sealed partial class App : Avalonia.Application
         evidenceWindow = null;
         skillPackagesWindow?.Dispose();
         skillPackagesWindow = null;
+        sessionsWindow?.Dispose();
+        sessionsWindow = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

@@ -14,6 +14,7 @@ internal static class HostInteractionCodec
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         RespectRequiredConstructorParameters = true,
+        AllowDuplicateProperties = false,
         MaxDepth = 16,
     };
 

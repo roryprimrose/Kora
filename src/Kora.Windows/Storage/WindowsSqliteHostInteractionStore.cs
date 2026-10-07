@@ -20,7 +20,7 @@ namespace Kora.Windows.Storage;
 /// Tasks, questions and required authority audit share one lease and transaction.
 /// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ICommittedAuthorityAuditReader
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -29,6 +29,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     private readonly TimeProvider time;
     private readonly EvidenceRetentionPolicy retentionPolicy;
     private readonly IHostInteractionTransactionCheckpoint? checkpoint;
+    private string? inspectionIdentity;
 
     public WindowsSqliteHostInteractionStore(IApplicationDataPaths paths, WindowsSqliteHostTaskStore tasks,
         TimeProvider? timeProvider = null, EvidenceRetentionPolicy? retentionPolicy = null)
@@ -47,7 +48,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         database = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
             HostInteractionSchema.ApplicationId, HostInteractionSchema.AuthorityTables,
             new(1, 2, HostInteractionSchema.Tables, MigrateMetadata),
-            new(2, 3, HostInteractionSchema.MetadataTables, ConsolidateTasks));
+            new(2, HostInteractionSchema.Version, HostInteractionSchema.MetadataTables, ConsolidateTasks));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -57,6 +58,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             using var lease = database.AcquireLease(out var created, cancellationToken);
             using var connection = Open(created, cancellationToken);
             tasks.BindAuthority(database, ValidateAuthority, runId);
+            var identity = database.ReadIdentity();
+            if (inspectionIdentity is not null && !Same(inspectionIdentity, identity))
+            {
+                throw new InvalidDataException("The initialized authority store was replaced.");
+            }
+            inspectionIdentity = identity;
         }, cancellationToken));
 
     private void ConsolidateTasks(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
@@ -551,25 +558,16 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             while (reader.Read())
             {
                 var json = reader.GetString(4);
-                var audit = HostInteractionCodec.Decode<AuthorityAudit>(json);
-                if (audit.Audit is null || audit.Request is null || audit.TraceId is null || audit.SpanId is null
-                    || audit.Changes is null || audit.Changes.Any(change => change is null))
-                {
-                    throw new InvalidDataException("The typed interaction audit has missing required fields.");
-                }
                 var next = checked(sequence + 1);
                 var calculated = Hash(next, hash, json);
-                if (reader.GetInt64(0) != next || !Same(reader.GetString(1), audit.Audit.CorrelationId.ToString("D"))
-                    || !Same(reader.GetString(2), hash) || !Same(reader.GetString(3), calculated)
-                    || audit.IntentRevision.Value <= 0 || audit.SessionGeneration.Value <= 0
-                    || audit.DueAt <= audit.CommittedAt
-                    || !IsHex(audit.TraceId, 32) || !IsHex(audit.SpanId, 16)
-                    || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
-                    || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
-                    || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0))
+                _ = DecodeAuthorityAudit(reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
+                    reader.GetString(3), json);
+                if (reader.GetInt64(0) != next
+                    || !Same(reader.GetString(2), hash) || !Same(reader.GetString(3), calculated))
                 {
                     throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
                 }
+
                 sequence = next;
                 hash = calculated;
             }
@@ -580,6 +578,38 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         {
             throw new InvalidDataException("The interaction audit head disagrees with its ordered chain.");
         }
+    }
+
+    private static AuthorityAudit DecodeAuthorityAudit(long sequence, string correlation, string previous,
+        string hash, string json)
+    {
+        var audit = HostInteractionCodec.Decode<AuthorityAudit>(json);
+        if (audit.Audit is null || audit.Request is null || audit.TraceId is null || audit.SpanId is null
+            || audit.Changes is null || audit.Changes.Any(change => change is null))
+        {
+            throw new InvalidDataException("The typed interaction audit has missing required fields.");
+        }
+        if (sequence <= 0 || !Same(correlation, audit.Audit.CorrelationId.ToString("D"))
+            || !Same(hash, Hash(sequence, previous, json))
+            || audit.IntentRevision.Value <= 0 || audit.SessionGeneration.Value <= 0
+            || audit.Outcome is { } outcome && !Enum.IsDefined(outcome)
+            || (audit.QuestionId is null) != (audit.QuestionRevision is null)
+            || (audit.ApprovalId is null) != (audit.GrantRevision is null)
+            || audit.QuestionRevision is { Value: <= 0 } || audit.GrantRevision is { Value: <= 0 }
+            || audit.QuestionId?.Value == Guid.Empty || audit.ApprovalId?.Value == Guid.Empty
+            || audit.Audit.ApprovalId == Guid.Empty
+            || audit.DueAt <= audit.CommittedAt
+            || !IsHex(audit.TraceId, 32) || !IsHex(audit.SpanId, 16)
+            || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
+            || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
+            || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait")
+                || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
+                || !Same(change.Id, id.ToString("D"))))
+        {
+            throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
+        }
+        return audit;
     }
 
     private static void ValidateRows(SqliteConnection connection)

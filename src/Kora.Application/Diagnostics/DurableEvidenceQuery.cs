@@ -36,6 +36,7 @@ public sealed partial class DurableEvidenceQuery(
             throw new InvalidOperationException("Evidence queries cannot reuse a stopped host activity.");
         }
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Evidence);
+        var disclosure = query.Source == EvidenceSource.AuthorityAudit ? EvidencePage.AuthorityDisclosure : EvidencePage.StorageDisclosure;
         try
         {
             RequireAccess(current.Request);
@@ -67,7 +68,9 @@ public sealed partial class DurableEvidenceQuery(
                     : records.Count == 0 && (query.Record is not null || query.TraceId is not null)
                         ? EvidencePageStatus.MissingOrRemoved : EvidencePageStatus.Available);
                 page = new(status,
-                    records.ToArray(), next, batch.UnavailableSources ?? unavailable, EvidencePage.StorageDisclosure, batch.DailyReport);
+                    records.ToArray(), next, batch.UnavailableSources ?? unavailable,
+                    disclosure,
+                    batch.DailyReport);
                 if (Serialize(page).Length <= EvidencePage.MaximumBytes) { break; }
                 if (records.Count == 1)
                 {
@@ -79,6 +82,8 @@ public sealed partial class DurableEvidenceQuery(
                     {
                         ContentOmitted = true, Text = null, Properties = new Dictionary<string, EvidenceValue>(StringComparer.Ordinal),
                         Scopes = null,
+                        AuthorityProvenance = records[0].AuthorityProvenance is { } provenance
+                            ? provenance with { Changes = [] } : null,
                     };
                 }
                 else { records.RemoveAt(records.Count - 1); }
@@ -101,7 +106,7 @@ public sealed partial class DurableEvidenceQuery(
                     EvidenceSource.Session, EvidenceSource.Conversation, EvidenceSource.DailyLog }
                 : query.Source == EvidenceSource.CombinedLog ? [EvidenceSource.Log, EvidenceSource.DailyLog] : [query.Source];
             return new(EvidencePageStatus.Unavailable, [], null, sources,
-                "The private evidence store is unavailable; no replacement was created. " + EvidencePage.StorageDisclosure);
+                "The private evidence store is unavailable; no replacement was created. " + disclosure);
         }
         catch (OperationCanceledException)
         {
@@ -181,7 +186,7 @@ public sealed partial class DurableEvidenceQuery(
         if (query.Record is { } record)
         {
             record.Id.Validate();
-            if (record.Source is not (EvidenceSource.Log or EvidenceSource.Audit or EvidenceSource.Span or EvidenceSource.Link or EvidenceSource.DailyLog)
+            if (record.Source is not (EvidenceSource.Log or EvidenceSource.Audit or EvidenceSource.Span or EvidenceSource.Link or EvidenceSource.DailyLog or EvidenceSource.AuthorityAudit)
                 || (record.Source == EvidenceSource.Link ? record.LinkOrdinal is not (>= 0 and <= 31) : record.LinkOrdinal is not null))
             {
                 throw new ArgumentException("The evidence citation is invalid.", nameof(query));
@@ -190,6 +195,10 @@ public sealed partial class DurableEvidenceQuery(
                 && record.Source is not (EvidenceSource.Log or EvidenceSource.DailyLog))
             {
                 throw new ArgumentException("Combined ordinary diagnostics require a source-qualified ordinary log citation.", nameof(query));
+            }
+            if ((query.Source == EvidenceSource.AuthorityAudit) != (record.Source == EvidenceSource.AuthorityAudit))
+            {
+                throw new ArgumentException("Committed authority requires its explicit separate source and citation.", nameof(query));
             }
         }
         if (query.Property is { } property)

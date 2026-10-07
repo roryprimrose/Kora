@@ -4138,7 +4138,8 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
-            .Concat(SessionCommand.DiscoveryPhrases);
+            .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(AssistantNameCommand.DiscoveryPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
@@ -7769,7 +7770,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 MicrophoneAccess,
                 Voice,
                 TextToSpeech,
-                NamePreferences,
+                new AssistantNameConfigurationService(NamePreferences, Catalog, Audit,
+                    NullLogger<AssistantNameConfigurationService>.Instance),
                 AppearancePreferences,
                 SpeechOffers,
                 AudioPreferences,

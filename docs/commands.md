@@ -15,6 +15,37 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+## Assistant display / PTT command-prefix setting
+
+Typed input and explicitly activated voice use the same host configuration
+workflow as **Settings > Speech & audio > Apply name / Reset name to Kora**:
+
+| Exact command | Result |
+|---|---|
+| `list assistant settings` | Schema/default/bounds/scope/effect/timing/reset and current revision/provenance/recovery for the one admitted setting |
+| `get assistant.name` | Current display/PTT prefix and saved/default provenance, or explicit unavailable recovery |
+| `set assistant.name to Nova Prime` | Validate with the existing name rules and atomically save one device-local value |
+| `reset assistant.name` | Restore Kora only; no durable identity, session-name, grant, approval, data-path or namespace reset |
+
+The spoken target **assistant name** is equivalent to `assistant.name`.
+The active configured prefix is optional: **Kora, set assistant name to Nova**.
+After success use **Nova, get assistant name**; Kora is no hidden alias.
+Input is bounded to 320 characters after prefix removal, and names retain
+their existing exact case/Unicode validation with whitespace trimming/collapse.
+Unknown targets and malformed grammar clarify locally; invalid names are
+audited denials, never inference or arbitrary configuration execution.
+
+Set/reset require current host ownership/privacy and configuration/call
+revisions. Protected/unknown calls reject original voice requests. These
+commands do not answer, replace or approve a pending exact question/approval.
+Mutation retires stale capture/transcript/completion generations and does not
+replay input or re-enable listening. Explicit **Enable listening** and a new PTT
+are required. Grammar-start failure is visible with no old-prefix fallback.
+Corrupt saved state disables prefix routing; native recovery and unprefixed
+get/set/reset, stop/cancel and Settings remain available.
+This is **not production wake-name capability**, a model settings tool, an
+acoustic acceptance result or completion of all R10.
+
 ## Read-only host discovery
 
 These exact local commands require the active, unlocked Kora host and do not

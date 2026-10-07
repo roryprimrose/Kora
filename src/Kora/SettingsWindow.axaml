@@ -317,21 +317,28 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Assistant name" Classes="settings-title" />
+                  <TextBlock Text="Display / PTT command-prefix name" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding AssistantNameSettingStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <TextBlock
+                      Text="{Binding AssistantNameConfigurationDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
                   <TextBox
                       Text="{Binding AssistantNameInput, Mode=TwoWay}"
-                      MaxLength="32"
                       PlaceholderText="Assistant name" />
                   <Button
                       Classes="primary"
                       Content="Apply name"
                       Command="{Binding ApplyAssistantNameCommand}"
+                      HorizontalAlignment="Stretch" />
+                  <Button
+                      Content="Reset name to Kora"
+                      Command="{Binding ResetAssistantNameCommand}"
                       HorizontalAlignment="Stretch" />
                 </StackPanel>
               </Grid>

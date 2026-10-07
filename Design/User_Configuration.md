@@ -1,6 +1,6 @@
 # User Configuration and Verbal Settings
 
-Status: partial. The bounded appearance and installed speech-choice subsets below are delivered through a
+Status: partial. The bounded appearance, installed speech-choice and assistant display/PTT prefix subsets below are delivered through a
 shared typed UI/exact local command path; the complete verbal preference and
 model-facing contract remains proposed, subject to protected-call origin gates
 and mandatory secure workflows.
@@ -8,6 +8,59 @@ and mandatory secure workflows.
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
+
+### Delivered bounded assistant display/PTT prefix (R10)
+
+Schema 1 admits only `assistant.name` (spoken: **assistant name**), the already
+delivered device-local presentation and explicitly activated PTT command-prefix
+name. [The descriptor](../src/Kora.Core/Configuration/AssistantNameOption.cs)
+references the existing `AssistantNameRules` defaults and exact bounds:
+1-3 words, at most 32 UTF-16 characters after whitespace trimming/collapse,
+letters/digits/spaces/apostrophes/hyphens and at least one letter/digit.
+Legacy Unicode semantics are preserved, not changed to session-name NFC rules.
+The existing command catalogue also rejects routing collisions.
+
+[One host workflow](../src/Kora.Application/Configuration/AssistantNameConfigurationService.cs)
+owns typed get/propose/apply/reset, process-local owned configuration revisions,
+original host/request/channel and observed call revisions, serialization,
+capture retirement, atomic domain persistence, audit and live notification.
+Native Apply/reset and [exact typed/activated voice list/get/set/reset](../docs/commands.md#assistant-display--ptt-command-prefix-setting)
+use it. The descriptor/current state reports schema, type/default/bounds,
+device-local scope, presentation/routing effect, after-save timing, per-option
+reset, revision, saved/default provenance and explicit recovery.
+No Tools/model settings exposure or arbitrary option/path/patch is added.
+
+The unchanged legacy `assistant-name.txt` format is read without rewriting.
+The existing preference domain and shared atomic preference store retain
+normalization and path/temporary-file/replacement ownership. Missing values are
+unsaved domain defaults; malformed/conflicting/unknown or unreadable saved
+state disables prefix routing and capture visibly, never silently substitutes
+Kora. Native and exact unprefixed recovery remains available.
+
+Before a changed value can commit, input/grammar/transcript/completion
+generations are retired and capture quiescence confirmed. After the awaited
+release, configuration revision and live ownership/privacy/original-channel/
+call revision are rechecked; the shared call-policy lock encloses the atomic
+write. Concurrent/stale proposals, invalid input, cancelled requests, failed
+shutdown/storage and denied host/call state have truthful terminal outcomes.
+Cancellation is admitted before synchronous replacement, not reported as
+unsaved after commit. Audit failure after replacement leaves routing unavailable
+and reports unconfirmed completion until explicit inspection/recovery.
+
+Publication updates all current name surfaces/help/catalogue/session/artifact
+prefixes. It never changes stored session names or durable host/session/task/
+grant/approval/instance identities, data paths, namespaces or authority.
+Exact pending questions/approvals retain their targets; rename is not a reply
+or approval. Old prefixes/captured callbacks are not recovery aliases. Listening
+remains held until explicit enablement and a new PTT; nothing replays or opens
+capture implicitly. Failure starting the new grammar reports capture unavailable
+without restoring an old prefix. Stop/cancel/native recovery remain available.
+Protected/unknown calls reject original voice set/reset, including a later UI
+dispatch; a new eligible UI/typed request remains separately gated.
+
+This slice does not qualify a production wake-name capability, custom profile,
+acoustic quality, assets/learning/enrollment, provider download, OS/global
+settings, consent/privacy downgrade, general registry or full R10/R09 acceptance.
 
 ### Delivered bounded appearance subset (R10)
 

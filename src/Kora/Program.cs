@@ -317,6 +317,7 @@ internal static class Program
         services.AddSingleton<AppearanceConfigurationService>();
         services.AddSingleton<ISpeechCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
         services.AddSingleton<SpeechConfigurationService>();
+        services.AddSingleton<AssistantNameConfigurationService>();
         services.AddSingleton<ITextToSpeechPreferences>(provider =>
             new LocalTextToSpeechPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),

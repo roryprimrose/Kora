@@ -21,7 +21,8 @@ public sealed partial class MainViewModelTests
     public async Task Native_manual_controls_layer_with_automatic_evidence(CallState automatic, bool remainsProtected)
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.CallState.SetState(automatic);
+        if (Enum.IsDefined(automatic)) { fixture.CallState.SetState(automatic); }
+        else { fixture.CallState.SetInvalidObservation(); }
         await fixture.ViewModel.CallClosureTask;
         await fixture.ViewModel.EnableManualCallCommand.ExecuteAsync();
         fixture.ViewModel.IsManualCallActive.Should().BeTrue();

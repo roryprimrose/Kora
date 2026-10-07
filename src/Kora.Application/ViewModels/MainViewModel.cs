@@ -5026,7 +5026,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Denied command dispatch outside the eligible host generation");
             return;
         }
-        if (ModelActionRequiresApproval(command.Action) && !IsModelCallDispatchEligible(initiator, observedCallRevision))
+        if (initiator == SecurityAuditInitiator.ModelSuggestion && ModelActionRequiresApproval(command.Action)
+            && !IsModelCallDispatchEligible(initiator, observedCallRevision))
         {
             ShowInformation("Call policy changed.", "The model authorization is no longer applicable. Initiate a fresh request; no action was dispatched.");
             return;

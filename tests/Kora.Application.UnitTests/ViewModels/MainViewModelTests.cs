@@ -8984,6 +8984,12 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public CallState CurrentState { get; private set; } = CallState.Unavailable;
 
+        public void SetInvalidObservation()
+        {
+            CurrentState = (CallState)99;
+            StateChanged?.Invoke(this, new CallStateChangedEventArgs(CallState.Unknown));
+        }
+
         public void SetState(CallState state)
         {
             CurrentState = state;

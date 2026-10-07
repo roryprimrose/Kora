@@ -114,6 +114,7 @@ public sealed partial class MainViewModel
             var previousOutput = selectedOutputDevice;
             var devices = textToSpeech.GetOutputDevices();
             systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
+            outputConfiguration?.Observe(new(devices, systemDefaultOutputDevice));
             var previous = SelectedOutputDevice;
             suppressAudioDevicePreferenceSave = true;
             try
@@ -177,6 +178,7 @@ public sealed partial class MainViewModel
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;
+        if (outputConfiguration is not null) { outputConfiguration.Changed -= OnOutputConfigurationChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
     }
 

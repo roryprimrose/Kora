@@ -505,14 +505,14 @@
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
-                <ComboBox
-                    Grid.Column="1"
-                    ItemsSource="{Binding OutputDevices}"
-                    SelectedItem="{Binding SelectedOutputDevice}"
-                    DisplayMemberBinding="{Binding Name}"
-                    IsEnabled="{Binding CanChangeAudioOutputDevice}"
-                    PlaceholderText="No audio output selected"
-                    VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding OutputDeviceChoices}" SelectedItem="{Binding SelectedOutputChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeAudioOutputDevice}"
+                      PlaceholderText="Refresh and choose exact output" />
+                  <Button Content="Refresh output metadata only" Command="{Binding RefreshOutputDevicesCommand}" />
+                  <Button Content="Save output preference only" Command="{Binding SaveOutputDeviceCommand}" />
+                  <Button Content="Reset output to System" Command="{Binding ResetOutputDeviceCommand}" />
+                </StackPanel>
               </Grid>
             </Border>
 

@@ -33,12 +33,14 @@ No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
 reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
 and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
 
-R10 exact audio output configuration is **unavailable**, not a tool or admitted
-registry. Native preference mutations and the reserved local `list audio output
-settings` / get/status/set/reset `audio.output-device` requests fail closed before
-inference or question/approval routing. The [output admission prerequisite](User_Configuration.md#exact-audio-output-registry-prerequisite-r10)
-requires real session/generation and presented-choice binding, not trace IDs,
-display names or caller-supplied endpoint records. No output change is claimed.
+The bounded R10 `speech.output-device` preference is shared by native Settings
+and exact `list output settings` / get/status/set/reset commands. Its
+[persisted audio admission](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+binds real session/generation, original channel, live host/privacy/call/input
+eligibility, exact presented choice and topology/preference revisions.
+Endpoint names, indices, trace IDs and supplied records cannot authorize a change.
+This is metadata/preference-only, not a model tool, audio trial or global setting.
+Pending questions/approvals keep their exact preview; configuration cannot answer them.
 
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 

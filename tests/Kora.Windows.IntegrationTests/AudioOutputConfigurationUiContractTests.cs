@@ -6,7 +6,7 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class AudioOutputConfigurationUiContractTests
 {
     [Fact]
-    public void Native_output_selector_is_closed_with_visible_admission_prerequisite()
+    public void Native_output_selector_uses_presented_choices_and_explicit_metadata_save_and_reset()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
@@ -17,9 +17,14 @@ public sealed class AudioOutputConfigurationUiContractTests
         var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
         var controls = document.Descendants().ToArray();
         var selector = controls.Single(control =>
-            string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding SelectedOutputDevice}", StringComparison.Ordinal));
+            string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding SelectedOutputChoice}", StringComparison.Ordinal));
         selector.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeAudioOutputDevice}");
-        selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding OutputDevices}");
+        selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding OutputDeviceChoices}");
+        foreach (var command in new[] { "SaveOutputDeviceCommand", "ResetOutputDeviceCommand", "RefreshOutputDevicesCommand" })
+        {
+            controls.Any(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
+                .Should().BeTrue();
+        }
         controls.Any(control =>
             string.Equals(control.Attribute("Text")?.Value, "{Binding AudioOutputConfigurationStatus}", StringComparison.Ordinal))
             .Should().BeTrue();

@@ -200,7 +200,6 @@ post-commit cancellation does not invent an unsaved result.
 This completes only bounded caps, not full R10 or speech/acoustic acceptance.
 The following complete model-facing contract remains future work.
 
-<<<<<<< HEAD
 ### Delivered bounded exact input-device preference (R10)
 
 Schema 1 admits only `speech.input-device`: an exact endpoint-ID choice,
@@ -242,47 +241,60 @@ grants consent/permission, opens capture, enables listening, tests audio,
 downloads assets, changes models/OS privacy, forwards provider text, or answers
 a pending question. Separate existing native Enable remains separate. No model
 tools, general registry, full R10/R03/R09/R05/A or hardware acceptance is claimed.
-=======
-### Exact audio output registry prerequisite (R10)
+### Delivered bounded exact output-device preference (R10)
 
-Audio output preference **mutation is closed**, including the native Settings
-selector. This is a fail-closed prerequisite repair, not delivery of an output
-registry or full R10 acceptance. Existing saved endpoint routing and unsaved
-System routing remain readable/usable under the existing playback/privacy gates;
-System follows the current Windows multimedia default, while missing pins remain
-unavailable and are never replaced.
+Schema 1 admits the existing `speech.output-device` preference through shared
+[configuration](../src/Kora.Application/Configuration/OutputDeviceConfigurationService.cs)
+and [audio-control admission](../src/Kora.Application/Voice/AudioControlAdmission.cs).
+Native Settings Refresh/Save/reset and exact typed/ACTIVATED commands share that
+workflow: `list output settings`, `get speech.output-device`,
+`status speech.output-device`, `set speech.output-device to <exact presented ID>`,
+and `reset speech.output-device`. Grammar is case-insensitive; endpoint IDs are
+ordinal exact. There are no spoken-name, friendly-name, index or fuzzy aliases.
+Original input retains the existing 1,024 UTF-8 byte/control limits; complete
+versioned results retain 64 KiB bounds and are rejected, never truncated.
 
-The former native setter changed live selection before saving and accepted
-arbitrary `AudioOutputDevice` instances. The current desktop transcript path uses
-[HostRequestRunner](../src/Kora.Application/Hosting/HostRequestRunner.cs), whose
-[request factory](../src/Kora.Core/Hosting/HostRequest.cs) generates correlation
-IDs without admitting a durable session/generation. Settings supplies neither a
-durable admitted session nor a presented-choice/revision binding. The separate
-Sessions workspace service is not a binding for desktop audio requests.
+The bridge records original local intent using existing authoritative host
+workspace/task services, commits a real active device-control session, and
+leases that persisted session/generation during each control operation.
+Fresh IDs propose identities only: durable admission, current host ownership,
+unlocked privacy, original input and current call/input/recovery revisions
+authorize the operation. Trace/provider/user fields cannot select the session
+or supply authority. This consumer-focused bridge grants no approval, question,
+tool, microphone, task cancellation or provisioning authority.
 
-The exact prerequisite is a shared original-user admission bridge for native,
-typed and ACTIVATED voice output requests: host-resolved durable session and
-generation, live instance/privacy/call admission and original provenance, plus
-bounded cancellable endpoint metadata snapshots and host-held exact choices
-bound to that session, topology/default and preference revisions. Trace fields,
-display names, indices and supplied endpoint records cannot replace it.
-Only after that bridge exists may revisioned audited select/reset activate a
-saved change and invalidate retired playback. No prospective registry, arbitrary
-aliases, model tools, audio trial or fabricated authority is introduced here.
+Five-second single-flight discovery enumerates endpoint metadata only. Host-held
+choices bind exact object identity, session/generation, original channel,
+captured live eligibility, topology/default and preference revisions.
+Cross-session, equal-but-unpresented, stale or changed saved preferences require
+a fresh discovery; SET cannot implicitly invent a never-presented choice.
+Get/status report desired, saved/default/unavailable source, effective route,
+live System default, metadata/call revisions, choices, mute and recovery.
+Duplicate friendly names remain distinct. Missing pins remain saved/unavailable;
+System follows the live multimedia default and reset removes only Kora's override.
 
-The reserved `list audio output settings` and get/status/set/reset
-`audio.output-device` namespace (including its normalized spoken form, audio
-output device) returns an explicit local unavailable failure before inference
-or question/approval routing. No read result, choice list, write, reset,
-successful audit, playback or microphone operation is claimed.
-An existing exact question/approval preview or in-flight response is not
-overwritten; its decision/output remains intact and the separate transcript/status
-reports the refusal.
-All speech/acoustic/hardware/provider experiment receipts and executables are
-retained: this refusal gate supersedes none of their maintained evidence.
+The existing atomic preference store/paths and original-channel call-policy lock
+enclose persistence and typed audit. Protected/unknown calls deny voice-originated
+writes, including UI-dispatched voice requests. Evidence or lifecycle failures
+hold output unavailable rather than claiming rollback or replaying an effect;
+a file may already be committed when terminal evidence fails. Inspect and refresh
+explicitly. Activation/live notification follows confirmed receipts.
+
+Changes retire stale queued/in-flight output and late provider callbacks without
+replaying speech or reopening capture. Selection/reset never plays a trial,
+changes Windows defaults/mute/volume, releases run holds, answers a question,
+grants consent or changes independent provider/voice/name/input/summary settings.
+Ordinary later speech freshly resolves the route. Missing, software-muted,
+zero-volume, open/playback or cancellation failures preserve the complete visual
+response under existing privacy gates; acoustic audibility is not claimed.
+The legacy muted-fallback preference remains stored independently but cannot
+suppress mandatory full visual recovery.
+
+This is a bounded preference feature, not full R10/I/A or acoustic acceptance.
+Unique speech/acoustic/hardware/provider experiment receipts and executables are
+retained: metadata, storage and native-binding fixtures do not supersede them.
 
 ### Proposed full configuration contract
->>>>>>> bb92f1d (audio: Close output mutations pending genuine host admission)
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.

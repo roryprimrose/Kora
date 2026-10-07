@@ -2755,8 +2755,9 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.SelectedVoice.Should().NotBeNull();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
-        fixture.ViewModel.ResponseTitle.Should().Be("Speech output failed.");
-        fixture.ViewModel.ResponseBody.Should().Contain("unexpected playback failure");
+        fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
+        fixture.ViewModel.ResponseBody.Should().Be("Power execution is intentionally disabled in this bootstrap proof.");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Speech playback failed");
         fixture.ViewModel.IsSpeaking.Should().BeFalse();
     }
 
@@ -3415,7 +3416,8 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.SelectedVoice.Should().BeNull();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
-        fixture.ViewModel.ResponseTitle.Should().Be(expectedTitle);
+        fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain(expectedTitle);
     }
 
     public static TheoryData<Exception, string> ResponsePlaybackFailures => new()
@@ -3445,7 +3447,8 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
-        fixture.ViewModel.ResponseTitle.Should().Be("The selected audio output is unavailable.");
+        fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Audio output is unavailable");
     }
 
     [Fact]
@@ -3513,10 +3516,10 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseBody.Should().NotBeNullOrWhiteSpace();
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
-        fixture.ViewModel.IsVisualResponseVisible.Should().Be(fallbackEnabled);
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.DefaultResponseMode.Should().Be(ResponseOutputMode.VoiceOnly);
         fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be(explicitOutput ? "0" : SystemAudioDevices.Output.Id);
-        fixture.WindowActions.Should().Equal(fallbackEnabled ? [WindowAction.Show] : []);
+        fixture.WindowActions.Should().Equal(WindowAction.Show);
     }
 
     [Theory]
@@ -3544,10 +3547,10 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
         fixture.ViewModel.ResponseBody.Should().NotBeNullOrWhiteSpace();
         fixture.ViewModel.State.Should().Be(AssistantState.Information);
-        fixture.ViewModel.IsVisualResponseVisible.Should().Be(fallbackEnabled);
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
         fixture.ViewModel.SelectedOutputDevice.Should().NotBeNull();
-        fixture.WindowActions.Should().Equal(fallbackEnabled ? [WindowAction.Show] : []);
+        fixture.WindowActions.Should().Equal(WindowAction.Show);
     }
 
     [Theory]
@@ -3613,7 +3616,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("Visual text is forced");
         changes.Should().Contain(nameof(MainViewModel.FallbackToVisualWhenOutputMuted));
         changes.Should().Contain(nameof(MainViewModel.IsVisualResponseVisible));
-        fixture.WindowActions.Should().Equal(WindowAction.Show);
+        fixture.WindowActions.Should().BeEmpty();
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -3623,8 +3626,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
         fixture.OutputPreferences.SavedMutedOutputVisualFallback.Should().BeFalse();
-        fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
-        fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("fallback for muted output is off");
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("Visual text is forced");
     }
 
     [Theory]
@@ -3677,8 +3680,9 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RunAsync("Kora, what power action is pending");
 
-        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.ResponseTitle.Should().Be("Text-to-speech is unavailable.");
+        fixture.ViewModel.State.Should().Be(AssistantState.Information);
+        fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Text-to-speech is unavailable");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.WindowActions.Should().Equal(WindowAction.Show);
     }
@@ -4064,7 +4068,9 @@ public sealed partial class MainViewModelTests : IDisposable
         Type exceptionType,
         string reasonCode)
     {
-        var fixture = await Fixture.CreateInitializedAsync();
+        var fixture = new Fixture(enableOutputConfiguration: !isMicrophone);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
         var exception = (Exception)Activator.CreateInstance(exceptionType)!;
         if (isMicrophone)
         {
@@ -4079,20 +4085,20 @@ public sealed partial class MainViewModelTests : IDisposable
         else
         {
             var output = new AudioOutputDevice("output-alternative", "Alternative output");
-            fixture.ViewModel.OutputDevices.Add(output);
+            fixture.TextToSpeech.OutputDevices = [output];
+            await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
             fixture.AudioPreferences.OutputDeviceSaveException = exception;
-            fixture.ViewModel.SelectedOutputDevice = output;
+            fixture.ViewModel.SelectedOutputChoice = fixture.ViewModel.OutputDeviceChoices.Single(item => string.Equals(item.Id, output.Id, StringComparison.Ordinal));
+            await fixture.ViewModel.SaveOutputDeviceCommand.ExecuteAsync();
         }
 
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
         if (!isMicrophone)
         {
-            fixture.ViewModel.ResponseTitle.Should().Be("Audio output preference change unavailable.");
+            fixture.ViewModel.ResponseTitle.Should().Be("Output preference not confirmed.");
             fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
-            fixture.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.audio-output");
-            return;
         }
-        fixture.ViewModel.ResponseTitle.Should().Be("The microphone preference could not be saved.");
+        else { fixture.ViewModel.ResponseTitle.Should().Be("The microphone preference could not be saved."); }
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -4142,7 +4148,8 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
-            .Concat(InputDeviceCommand.FixedPhrases);
+            .Concat(InputDeviceCommand.FixedPhrases)
+            .Concat(OutputDeviceCommand.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
@@ -7703,7 +7710,7 @@ public sealed partial class MainViewModelTests : IDisposable
     private sealed class Fixture
     {
         public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null,
-            Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null)
+            Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null, bool enableOutputConfiguration = false)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7715,6 +7722,12 @@ public sealed partial class MainViewModelTests : IDisposable
             Preferences = new FakeTextToSpeechPreferences();
             SpeechOffers = new FakeSpeechOfferPreferences();
             AudioPreferences = new FakeAudioDevicePreferences();
+            var audioStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
+            OutputAdmission = new(audioStore, audioStore, new HostTaskCoordinator(audioStore));
+            OutputConfiguration = enableOutputConfiguration ? new(
+                AudioPreferences, new Kora.Application.Voice.BoundedAudioOutputCatalog(
+                    TextToSpeech, NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
+                OutputAdmission, Audit = new FakeSecurityAuditLog(), TextToSpeech) : null;
             OutputPreferences = new FakeResponseOutputPreferences();
             CallPreferences = new FakeCallAwarePreferences();
             CallState = new FakeCallStateService();
@@ -7725,7 +7738,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.Microphones.Select(device => device.Id).ToArray(),
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
-            Audit = new FakeSecurityAuditLog();
+            Audit ??= new FakeSecurityAuditLog();
             Probe = new StubProbe(new DependencyStatus(
                 "storage",
                 "Storage",
@@ -7809,7 +7822,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
-                microphoneCatalog);
+                microphoneCatalog, OutputConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
@@ -7830,6 +7843,8 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public QueryTaskStore HostStore { get; } = new();
+        public Kora.Application.Voice.AudioControlAdmission OutputAdmission { get; }
+        public OutputDeviceConfigurationService? OutputConfiguration { get; }
 
         public ImmediateDispatcher Dispatcher { get; }
 
@@ -8499,7 +8514,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Action? BeforeStop { get; set; }
 
-        public IOException? OutputEnumerationException { get; set; }
+        public Exception? OutputEnumerationException { get; set; }
 
         public TaskCompletionSource? StopGate { get; set; }
 
@@ -8658,8 +8673,14 @@ public sealed partial class MainViewModelTests : IDisposable
             SpokenOutputDevice = null;
         }
 
+        public Action? BeforeOutputEnumeration { get; set; }
         public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
-            => OutputEnumerationException is { } exception ? throw exception : OutputDevices;
+        {
+            var callback = BeforeOutputEnumeration;
+            BeforeOutputEnumeration = null;
+            callback?.Invoke();
+            return OutputEnumerationException is { } exception ? throw exception : OutputDevices;
+        }
 
         public AudioOutputDevice? GetDefaultOutputDevice() =>
             OutputDevices.FirstOrDefault(device => string.Equals(

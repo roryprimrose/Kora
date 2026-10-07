@@ -1864,6 +1864,19 @@ all 13 final x64/x86 PE manifest-resource bytes with declared source bytes.
 | R18 - Implement trusted proactive and notify-only maintenance flows | Partial: composed canonical metadata/status and explicit Settings/Tray check/review/open/per-run snooze delivered; general proactive broker and voice replies outstanding | P1 - useful feedback without model-created prompts or updates | R05, R10, R13, R14, R15, R17 | Retain the [bounded native foundation](#bounded-r17r18-canonical-maintenance-foundation): per-run network consent, numeric stable/beta ordering, bounds, ETag re-verification, age/staleness, six-hour+jitter/backoff and ownership/privacy/protected-call invalidation. Production excludes drafts/prereleases; explicit Preview includes only published canonical beta releases; CI/default-branch outputs are not releases. Only a reviewed host-constructed canonical release page may open. Remote notes are not rendered. Models cannot trigger checks, invent availability, choose feeds/navigation or download/stage/activate updates. Complete separately the general trusted-event broker, shared question/voice targeting, deduplication, deferral/deadline/rejection/fatigue controls and native/acoustic acceptance. |
 | R19 - Accept the complete Slice A and platform/security gates | Proof outstanding | P0 - prevent a bootstrap/demo being released as the designed product | R07, R08, R09, R10, R11, R12, R13, R14, R15, R16, R17, R18 | Report A0-A4 separately with reference-machine actual results, synthetic offline/egress markers, exact provider versions, two-session resource/cancellation races, real containment and installer/lock/call/device trials. Meet each safety criterion and the measured latency/wake/hardware targets. Verify unsupported/disabled paths and no self-modification. Repeat earlier gates after later integration; resolve remaining initial-release decisions before sign-off. |
 
+### Bounded R10 exact output-device preference
+
+The [exact output preference slice](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+adds working native and typed/ACTIVATED discovery/get/status/select/per-option
+reset for the existing output override. Real persisted host audio-control
+session/generation admission, original-channel call/privacy/input revisions,
+host-held exact choices, bounded metadata, audited atomic writes and live output
+invalidation are shared; selection never starts audio or grants other authority.
+Missing/muted/open/playback failures retain full visual recovery and saved pins.
+Independent name/input/provider/voice/summary behavior and unique experiments
+remain maintained. Metadata/storage/binding fixtures are not native acoustic
+acceptance or full R10/I/A completion; no historical receipts are rewritten.
+
 ### R02 Distribution Follow-Up and R17 Delivery
 
 This is the actionable distribution branch of R02, not additional platform

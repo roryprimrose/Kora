@@ -443,12 +443,20 @@ Push-to-talk stops current speech before opening command capture.
 - **System** follows the live Windows multimedia-default output.
 - An existing saved endpoint remains pinned; a missing pin is not replaced.
 
-The selector is currently read-only. Preference changes/reset are unavailable
-until the desktop output workflow has admitted session/generation and exact
-host-held-choice binding. A caller-supplied endpoint or trace ID cannot authorize
-a change. The visible prerequisite message explains the closure. Refresh and
-existing routing remain available; this does not start playback or alter Windows
-settings, voice consent or microphone readiness.
+Choose **Refresh output metadata only**, select one exact endpoint choice, then
+**Save output preference only**. The draft alone changes nothing. **Reset output
+to System** removes only Kora's output override. The visible status distinguishes
+desired/saved/default, effective/unavailable route, mute and recovery.
+Metadata discovery has a five-second deadline and cannot accumulate workers.
+Names can duplicate; endpoint IDs, host-held choice, session/generation and
+current ownership/privacy/call/input revisions must match. Stale/foreign choices
+require fresh discovery. Selecting/resetting cancels retired speech but never
+plays a trial, resumes stopped output, changes Windows defaults/volume/mute,
+opens capture, grants consent or changes provider/voice/summary/input settings.
+Failed persistence/audit may leave a committed file; inspect saved status and
+refresh, not automatic retry. Missing/muted/open/playback failures retain full
+visual output regardless of the independently stored legacy muted-fallback option.
+No acoustic or full R10 acceptance is implied.
 
 ### Refresh devices and readiness
 

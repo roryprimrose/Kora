@@ -231,11 +231,16 @@ The audio output list contains:
 - **System** - follows the live Windows multimedia-default output;
 - each active Windows render endpoint - displays an existing exact saved pin.
 
-The native selector is read-only: output preference changes and reset currently
-fail closed because desktop audio has no admitted session/generation and exact
-host-held-choice bridge. Typed/activated output-setting requests also report
-unavailable locally, not through a model. Existing saved output files are not
-rewritten. This is not an output registry or acoustic acceptance claim.
+Refresh metadata, choose an exact presented endpoint, and explicitly save; reset
+selects System and removes only Kora's override. Native Settings and exact
+`list output settings` / get/status/set/reset `speech.output-device` commands
+share persisted host session/generation admission, original-channel call/privacy
+gates and audited atomic persistence. Neither draft selection nor save/reset
+starts audio or changes Windows defaults, global mute/volume, microphone consent,
+provider/voice or summary settings. Stale choices/evidence failures require
+explicit recovery, not substituted endpoints or replay. Full visual recovery is
+mandatory for missing/muted/zero-volume/open/playback failure; acoustic audibility
+and full R10/native audio acceptance are not claimed.
 
 For existing System routing, an available new Windows
 default automatically reroutes active WASAPI playback while System is selected.

@@ -173,7 +173,12 @@ not owner authentication or permission, and never learns from ambient audio or c
 
 ## 5. Clipboard and selected context
 
-These context tools and the complete clipboard explanation workflow are
+The explicit local plain-text [snapshot/preview/reuse/revoke commands](commands.md#explicit-local-clipboard-preview)
+are **Current** and model-free. **Explain the clipboard** currently provides
+only that preview and an unavailable-inference explanation. No clipboard
+tool is exposed to the JSON selector or a remote provider.
+
+The broader context tools and complete clipboard explanation workflow are
 **Planned**.
 
 | Ask | Intended behavior |

@@ -28,6 +28,14 @@ without inference. Readiness/runtime results are timestamped recorded probe
 observations, not fresh checks or runtime qualification. See
 [read-only discovery](docs/commands.md#read-only-host-discovery).
 
+Exact **preview clipboard** (also in the tray) captures one ephemeral,
+immutable Unicode plain-text snapshot, bounded to 256 KiB UTF-8. Native
+preview supports explicit same-ID reuse and revoke/clear without a clipboard
+write, history or model submission. **Explain the clipboard** shows that
+preview but explicitly reports explanation unavailable until local tool-loop
+and clipboard-answering qualification. See
+[clipboard commands](docs/commands.md#explicit-local-clipboard-preview).
+
 The requirements and commands here describe developer source use. Precompiled
 framework-dependent binary users do not need Git or an SDK; see the
 [distribution/runtime contract](Design/Distribution_And_Updates.md).
@@ -391,7 +399,7 @@ framework or test patterns where a rule is not applicable.
 
 The automated test boundary is:
 
-- `Kora.Core.UnitTests` and `Kora.Application.UnitTests` are portable unit tests. Linux CI collects coverage for `Kora.Core` and `Kora.Application`, requires 100% line and branch coverage, uploads the Cobertura report, and posts the Markdown summary to pull requests.
+- `Kora.Core.UnitTests`, `Kora.Application.UnitTests` and `Kora.Tools.UnitTests` are portable unit tests. Linux CI collects coverage for `Kora.Core`, `Kora.Application` and `Kora.Tools`, requires 100% line and branch coverage, uploads the Cobertura report, and posts the Markdown summary to pull requests.
 - `Kora.Windows.IntegrationTests` runs on a GitHub-hosted Windows runner. It covers native dependency probing, safe microphone enumeration/error boundaries, and the audio stream adapter without opening a real capture session or invoking session lock.
 - Physical microphone capture, recognition quality, device removal during capture, Windows session-lock notification, and real lock behavior require a controlled Windows machine and remain manual/end-to-end acceptance evidence. CI must never lock or restart its runner.
 
@@ -401,7 +409,8 @@ The automated test boundary is:
 - `src/Kora.Application` — portable application orchestration and view models.
 - `src/Kora.Windows` — Windows microphone, speech-recognition, text-to-speech, readiness, and session integrations.
 - `src/Kora` — Avalonia composition root and presence interface.
-- `tests/Kora.Core.UnitTests` and `tests/Kora.Application.UnitTests` — portable unit tests and CI coverage.
+- `src/Kora.Tools` — portable host-owned built-in actions, one class per action grouped by capability (for example `Clipboard/ClipboardRead.cs` and namespace `Kora.Tools.Clipboard`); shared brokers are not model authority. See [implementation guidance](Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
+- `tests/Kora.Core.UnitTests`, `tests/Kora.Application.UnitTests` and `tests/Kora.Tools.UnitTests` — portable unit tests and CI coverage.
 - `tests/Kora.Windows.IntegrationTests` — non-destructive Windows integration tests.
 - `Design` — product, architecture, safety, and interaction specifications.
 

@@ -70,6 +70,13 @@
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
         }
       },
+      "kora.tools": {
+        "type": "Project",
+        "dependencies": {
+          "Kora.Core": "[0.1.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+        }
+      },
       "Microsoft.Data.Sqlite": {
         "type": "CentralTransitive",
         "requested": "[10.0.12, )",

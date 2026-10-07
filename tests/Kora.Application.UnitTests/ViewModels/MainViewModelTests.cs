@@ -4128,7 +4128,8 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.BeginPushToTalkAsync();
 
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
-        var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases);
+        var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
+            .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
@@ -7610,6 +7611,8 @@ public sealed partial class MainViewModelTests : IDisposable
             ApprovalPreferences = new FakeModelApprovalPreferences();
             ModelExecutionPreferences = new FakeModelExecutionPreferences();
             ApplicationInfo = new FakeApplicationInfo();
+            var clipboard = new Kora.Tools.Clipboard.ClipboardSnapshotBroker(ClipboardReader, TimeProvider.System,
+                NullLogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>.Instance);
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
@@ -7647,8 +7650,13 @@ public sealed partial class MainViewModelTests : IDisposable
                     new CapabilityHostAccess(Session), ApplicationInfo, bootstrapper,
                     NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance),
                 new AppearanceConfigurationService(AppearancePreferences, Audit,
-                    NullLogger<AppearanceConfigurationService>.Instance));
+                    NullLogger<AppearanceConfigurationService>.Instance),
+                clipboard,
+                new Kora.Tools.Clipboard.ClipboardRead(clipboard),
+                new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
+                new Kora.Tools.Clipboard.ClipboardRevoke(clipboard));
             ViewModel.BindCallOwnershipGate(static () => true);
+            ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
             {
                 ViewModel.WindowActionRequested += (_, action) =>
@@ -7988,6 +7996,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 Settings = settings;
             }
         }
+
+        public FakeClipboardReader ClipboardReader { get; } = new();
 
         public async Task RunAsync(string command)
         {

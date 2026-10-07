@@ -280,7 +280,7 @@ retry or authorize an evidenced operation.
 
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
-| `context.capture_clipboard` | Explicit user-request lineage and text format; bounded immutable snapshot/provenance | E | Proposed A; not implemented in the current model protocol; no polling |
+| `context.capture_clipboard` | Explicit user-request lineage and text format; bounded immutable snapshot/provenance | E | Host-only explicit local snapshot/native preview delivered in R07; model tool unavailable pending qualified tool-loop/clipboard-answering/secret-egress gates; not in JSON selector; no polling |
 | `context.list`, `context.inspect`, `context.select` | Task/source IDs and approved range; permitted descriptors/selection and freshness | E | Proposed A; selection is not egress consent; no scan of every session/source |
 | `context.propose_transmission` | Exact source/derivation IDs and destination; reviewed outbound envelope/proposal | E | Proposed A; host adapter waits; model cannot approve transmission itself |
 | `context.select_file`, `context.read_file` | User-selected canonical scope, immutable revision and range; permitted snapshot | E | Proposed C for skill revisions; Deferred for general files; no arbitrary filesystem root |

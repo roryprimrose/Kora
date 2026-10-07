@@ -73,6 +73,12 @@ public sealed class SystemTrayController : IDisposable
             sessionsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSessions);
             menu.Add(sessionsItem);
         }
+        var previewClipboard = new NativeMenuItem("Preview clipboard (local plain text)");
+        var previewClipboardCommand = new AsyncCommand(viewModel.PreviewClipboardAsync,
+            exception => viewModel.ReportHostInteractionFailure(
+                "Local clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name));
+        previewClipboard.Click += (_, _) => RunAfterNativeMenuCloses(() => previewClipboardCommand.Execute(null));
+        menu.Add(previewClipboard);
         if (inspectEvidence is not null)
         {
             var evidenceItem = new NativeMenuItem("Evidence (read-only)");

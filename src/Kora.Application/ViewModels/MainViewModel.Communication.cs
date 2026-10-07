@@ -102,6 +102,7 @@ public sealed partial class MainViewModel
         try
         {
             var observation = communicationPolicy.Current;
+            ClearClipboardPreview();
             ApplicationLog.CallStateChanged(logger, observation.EffectiveState);
             // Invalidation precedes any dispatcher or asynchronous stop, including pending synthesis.
             if (observation.SuppressSpeech) { textToSpeech.InvalidateOutput(); }

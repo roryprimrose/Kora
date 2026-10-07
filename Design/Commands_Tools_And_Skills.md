@@ -13,6 +13,15 @@ Record and complete serialized UTF-8 bounds, strict input validation, cancellati
 and explicit unavailable/unobserved results are production-tested. Full R06
 continued reasoning, approved model adapters and runtime qualification remain open.
 
+R07 additionally composes the host-only explicit plain-text clipboard
+snapshot/native-preview/reuse/revoke workflow. The intended model-facing
+`context.capture_clipboard`/`context.inspect` tools remain unavailable:
+the current JSON selector has no qualified tool/result loop or clipboard
+answering/secret/egress envelope gate. Exact commands and native controls
+share the same broker, not separate model/provider clipboard implementations.
+Preview is not model-context selection or transmission consent. See
+[the bounded context boundary](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+
 Delivered exception to the proposed full catalogue: R10 has a host-only,
 appearance-only typed registry shared by the existing native controls and
 exact local `list appearance settings`, `get <appearance.id>`,
@@ -97,6 +106,63 @@ Keep their identities distinct in proposals, approvals, and receipts.
 Identifiers and payloads below are illustrative contract concepts, not a published SDK or manifest schema.
 
 ## Registries and Model Discovery
+
+### Built-In Tool Source Layout and Implementation
+
+Built-in tool action implementations belong in the portable `Kora.Tools`
+project. Group actions by capability in source control and mirror the grouping
+in the C# namespace:
+
+```text
+src/Kora.Tools/Clipboard/ClipboardRead.cs       -> Kora.Tools.Clipboard.ClipboardRead
+src/Kora.Tools/Clipboard/ClipboardReuse.cs      -> Kora.Tools.Clipboard.ClipboardReuse
+src/Kora.Tools/Clipboard/ClipboardRevoke.cs     -> Kora.Tools.Clipboard.ClipboardRevoke
+src/Kora.Tools/Clipboard/ClipboardSnapshotBroker.cs
+```
+
+Each registered action has its own concrete class with one typed execution
+entry point, consumer-focused dependencies, explicit outcomes and focused
+tests under `tests/Kora.Tools.UnitTests/<CapabilityGroup>`. Do not put every
+action in one `Clipboard` class with a method per tool. Do not create action
+classes for unavailable speculative capabilities merely to populate folders;
+`ClipboardWrite` is a separate effect and is not delivered by this read-only
+snapshot slice.
+
+An action class may delegate to a shared cohesive broker or domain service.
+Snapshot bounds, identity, origin, freshness, revocation and admission policy
+have one authoritative implementation, not copied policy in each action.
+Exact commands, native controls and any qualified model adapter converge on
+the same action class. Registries/gateways own dispatch and shared wire
+validation, not a growing set of capability-specific implementations.
+
+`Kora.Tools` targets portable .NET and references Core, not Application,
+Windows, Avalonia or model/provider SDKs. Portable contracts and authoritative
+domain rules remain in `Kora.Core`; native mechanisms and OS exceptions
+remain behind injected seams in `Kora.Windows`; Application owns request
+orchestration/presentation state, and the desktop host supplies composition
+and native controls. Application may reference Tools, never the reverse.
+Keep provider-specific schema binding separate from the host action.
+
+Canonical tool IDs (for example `context.capture_clipboard`) and schema
+versions are explicit catalogue contracts, not derived by reflecting class
+or method names. Having an implementation or action class does not enable
+model exposure or confer authority: unsupported caller lanes, missing
+qualification, privacy/egress and other mandatory gates still fail closed.
+Document the concrete unavailable reason and supported deterministic route.
+Tools, Core and Application are all subject to the existing 100% portable
+line/branch coverage gate; moving code cannot remove it from coverage.
+
+**Existing implementation migration:** the R06 `ReadOnlyCapabilityRegistry`
+currently combines gateway infrastructure and six implementations:
+`capabilities.list`, `capabilities.get`, `application.get_version`,
+`readiness.get`, `runtime.list` and `runtime.get_status`. Move their
+capability-specific implementations into corresponding Tools groups when
+that R06 work is explicitly undertaken, preserving descriptors, bounds,
+caller lanes, outcomes and tests. This R07 delivery does not refactor that
+peer-owned registry. Legacy built-in command handlers in `MainViewModel`
+are not yet generic model tools; migrate only a capability whose actual
+registered tool contract and shared authority path are in scope, rather than
+reclassifying all methods or helper services as tools.
 
 The host maintains related but distinct registries:
 

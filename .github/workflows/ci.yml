@@ -155,13 +155,25 @@ jobs:
           --coverlet-output-format cobertura
           --coverlet-file-prefix application
 
+      - name: Test built-in tools with coverage
+        run: >
+          dotnet test
+          --project tests/Kora.Tools.UnitTests/Kora.Tools.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --results-directory .net-test-artifacts/tools
+          --report-trx
+          --coverlet
+          --coverlet-output-format cobertura
+          --coverlet-file-prefix tools
+
       - name: Generate and enforce coverage report
         run: >
           dotnet reportgenerator
           "-reports:.net-test-artifacts/**/*.coverage.cobertura.*.xml"
           "-targetdir:.net-test-artifacts/coverage-report"
           "-reporttypes:Cobertura;MarkdownSummaryGithub;TextSummary"
-          "-assemblyfilters:+Kora.Core;+Kora.Application"
+          "-assemblyfilters:+Kora.Core;+Kora.Application;+Kora.Tools"
 
       - name: Enforce coverage thresholds
         shell: pwsh

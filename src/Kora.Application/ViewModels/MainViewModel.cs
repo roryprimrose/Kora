@@ -15,6 +15,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
+using Kora.Core.Context;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Platform;
@@ -213,7 +214,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IWindowsPrivacyObservationService privacyObservation,
         DurableVersionQuery durableVersionQuery,
         Kora.Application.Tools.ReadOnlyCapabilityRegistry capabilityRegistry,
-        AppearanceConfigurationService appearanceConfiguration)
+        AppearanceConfigurationService appearanceConfiguration,
+        Kora.Tools.Clipboard.ClipboardSnapshotBroker clipboardPreview,
+        Kora.Tools.Clipboard.ClipboardRead clipboardRead,
+        Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
+        Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -247,6 +252,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.capabilityRegistry = capabilityRegistry;
         this.appearanceConfiguration = appearanceConfiguration;
         appearanceConfiguration.Changed += OnAppearanceChanged;
+        this.clipboardPreview = clipboardPreview;
+        this.clipboardRead = clipboardRead;
+        this.clipboardReuse = clipboardReuse;
+        this.clipboardRevoke = clipboardRevoke;
+        clipboardPreview.Changed += OnClipboardPreviewChanged;
 
         AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
             new(execute, HandleCommandException, canExecute);
@@ -668,7 +678,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking;
+    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading;
 
     public bool IsLocalModelSetupActive
     {
@@ -2497,6 +2507,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
+        ClearClipboardPreview();
         HoldVoiceInput("Microphone closed · application exiting");
         textToSpeech.InvalidateOutput();
         try
@@ -2507,6 +2518,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
         }
+        await clipboardPreview.WaitForQuiescenceAsync();
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
@@ -3855,7 +3867,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             if (commandRouter.Match(spokenText, AssistantName).IsMatch
-                || AppearanceCommand.Parse(spokenText, AssistantName) is not null)
+                || AppearanceCommand.Parse(spokenText, AssistantName) is not null
+                || ClipboardCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is not null)
             {
                 await CancelModelQuestionAsync();
             }
@@ -3940,6 +3953,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var match = commandRouter.Match(spokenText, AssistantName);
+        if (ClipboardCommand.Parse(match.NormalizedTranscript) is { } clipboardCommand)
+        {
+            await ExecuteClipboardCommandAsync(clipboardCommand);
+            return;
+        }
         if (TryPresentCapabilityCommand(match.NormalizedTranscript))
         {
             return;
@@ -4341,6 +4359,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task CancelCurrentTaskAsync()
     {
+        ClearClipboardPreview();
         CancelPendingPowerAudit("task-cancelled");
         if (powerShellSetupCancellation is not null)
         {
@@ -4821,6 +4840,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     "Built-in commands are ready.",
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
+                    + "Use “preview clipboard” for an explicit local plain-text snapshot; clipboard explanation is unavailable. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -5005,6 +5025,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task LockCurrentSessionAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
+        ClearClipboardPreview();
         var audit = StartAudit(
             SecurityAuditCategory.ProtectedOperation,
             SessionLockAction,
@@ -5161,7 +5182,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string[] GetRecognitionPhrases()
     {
         var commands = commandCatalog.GetCommands(AssistantName)
-            .SelectMany(command => command.AllPhrases);
+            .SelectMany(command => command.AllPhrases)
+            .Concat(ClipboardCommand.FixedPhrases)
+            .Concat(ClipboardPreview is { } snapshot
+                ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands
             .SelectMany(phrase => new[] { phrase, $"{AssistantName} {phrase}" })
             .Concat(ModelApprovalSpeech.GetPhrases(AssistantName))

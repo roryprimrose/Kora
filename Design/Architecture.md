@@ -55,6 +55,7 @@ Linux GitHub Actions are build infrastructure, not evidence of Linux application
 Keep portable domain logic and shared Avalonia presentation separate from first-party Windows integrations:
 
 - Core: task/queue state, policy decisions, approvals, configuration, declarative skills, provider contracts, and presentation data.
+- Tools (`Kora.Tools`): portable host-owned built-in action implementations, grouped by capability folder/namespace with one class per registered action and shared cohesive brokers. Tools references Core; Application references Tools. Neither Windows/presentation nor provider SDK dependencies belong in Tools. See [implementation guidance](Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
 - Desktop presentation: native question models, captions, answer/navigation UI, and shared rendering orchestration.
 - Windows integration: actual device/session/clipboard APIs, native UI hooks, known folders, credential storage, containment, computer controls, startup, browser backend, and installer/maintenance execution.
 

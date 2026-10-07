@@ -400,6 +400,7 @@
         "type": "Project",
         "dependencies": {
           "Kora.Core": "[0.1.0, )",
+          "Kora.Tools": "[0.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
         }
       },
@@ -407,6 +408,13 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.12, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+        }
+      },
+      "kora.tools": {
+        "type": "Project",
+        "dependencies": {
+          "Kora.Core": "[0.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
         }
       },

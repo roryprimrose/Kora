@@ -1325,6 +1325,47 @@ No dependency/profile architecture or sibling merge is introduced.
 
 ### Core Foundations and First Useful Interaction
 
+### R07 Bounded Clipboard Preview - 2026-10-07
+
+Delivered host-only explicit plain-text snapshot/native preview, exact-ID
+reuse/revoke/clear through the same deterministic request workflow. The
+portable `Kora.Tools.Clipboard` grouping has one action class per supported
+tool (`ClipboardRead`, `ClipboardReuse`, `ClipboardRevoke`) and one immutable
+snapshot broker. [Implementation guidance](Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation)
+is also linked from repository instructions; existing six R06 implementations
+are documented migration candidates, not refactored in this delivery.
+Core owns strict Unicode/UTF-8/provenance contracts; Windows owns the
+request-owned STA/native borrowed-handle seam; desktop owns inert preview.
+
+Explicit admission and presentation/reuse revalidation reject unknown
+privacy/ownership, nonhuman origin, stale call/generation and late results.
+Whole-text 256 KiB UTF-8 and malformed-surrogate/terminator/format/version/
+contention/access failures are explicit, without truncation-success. Native
+release finishes before exit; a pending read blocks handoff and exposes
+cancellation. Clear/revoke/close/privacy/owner/call/exit/disposal suppress the
+selected content; clipboard changes never silently replace it.
+No watcher, clipboard write, URL/HTML/image/file acquisition, content history,
+persistence or model submission is added. Preview is neither approval nor
+proof that secrets were detected/redacted. Explanation is unavailable until
+qualified local tool-loop, clipboard-answering and complete secret/destination
+envelope gates pass.
+
+Maintained tests cover exact command/native action parity, private native
+format/contention/change/Unicode/size and release/cancellation seams,
+immutable reuse/revocation, stale callbacks and original origin/privacy,
+host tracing and content noncapture. Root Release/analyzers and all four
+suites pass; fresh Core/Application/Tools portable coverage is 100% line and
+branch. Tests never read/write the shared clipboard or launch Kora.
+Actual native clipboard/accessibility/latency trials and A0/A2 acceptance
+remain open, not inferred from deterministic tests.
+
+R02 experiment disposition: its six synthetic clipboard source cases are
+carried into maintained host-preview tests for exact bytes and non-dispatch/
+non-provider/non-persistence behavior. No executable experiment is removed:
+the original quality rubric, candidate identity, CPU-floor/resource,
+offline/provider transport and real-answer/cancellation proofs are not
+equivalent to a model-free preview and remain useful unique evidence.
+
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
 | R01 - Reconcile policy, scope and checkpoint contracts | Design reconciliation complete; approved 2026-10-05; no runtime changes | P0 - prevent incompatible authority and consent implementations | None | Initial-release authority, consent, optional privacy and standalone-lock binding recorded and aligned above; A2/A3 evidence remains required. Standalone application rollback remains deferred R27 work. Runtime/enforcement proof is not claimed by this package. |
@@ -1333,7 +1374,7 @@ No dependency/profile architecture or sibling merge is introduced.
 | R04 - Introduce durable identities, Activity tracing and authoritative host contracts | **Partial integrated delivery.** Exact version-query intent/evidence/receipt/no-replay recovery, durable interaction/session-authority transactions, production-store interruption/reopening proof and [bounded durable evidence inspection](#r04r14-bounded-durable-evidence-inspection---2026-10-07); [inventory](#r04-foundation-delivery) and [baseline](#r04-approved-standard-sqlite-continuation---2026-10-06). | P0 - stable attribution and crash-safe intent | R01, R03; approved D-009 standard SQLite/profile baseline | Complete broader supported migrations, backup/artifact publication/interruption, audit checkpoints/pruning/rollback, lifecycle/deletion and relevant runtime/tool boundaries. Read-only log/audit/span/link query-gap semantics are delivered, not full history, pruning or model tools. Preserve committed-intent and atomic authority/audit prerequisites and truthful query-only receipts. No encryption prerequisite or automatic replay. R04 remains open; installed/power-loss evidence is not inferred. |
 | R05 - Build the shared authorization/question gateway | **Partial integrated delivery**, including [bounded native question/exact-record review](#r05r14-bounded-native-shared-question---2026-10-07), [typed foundation](#r05-bounded-authorizationquestion-foundation) and [production durable adapter/service registration](#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06). | P0 - one authority path for direct/UI/model/skill requests | R03, R04 | Complete generic foreground voice targeting and canonical source/resource review beyond the delivered native record review; shared direct/model/tool/worker pre-effect revalidation, action-specific ownership/privacy/containment/deployment proof, effect receipt certainty and full lifecycle/deletion policy. Durable atomic use/audit and Session/independent Perpetual records exist; a consumption receipt is not an execution token. Legacy action-name preferences confer no new authority. Direct lock/power remain unchanged, not complete admission. |
 | R06 - Implement the admitted tool registry and local tool/result loop | Bounded read-only host registry delivered in I02; JSON selector in I09/I10 remains partial; no runtime adapter qualification | P1 - natural requests can discover and use Kora capabilities | R02 (local runtime: L1-L5 qualification), R04, R05 | Delivered: six canonical versioned typed read-only handlers and exact local discovery, current-host/lane/request isolation, strict inputs, six-record and complete 4 KiB UTF-8 output bounds, recorded version/readiness/local-runtime facts with unavailable/unobserved reasons, trace and cancellation tests. Remaining: qualified adapters, per-destination admission/egress, skill summaries, approved model invocation/result loop and continued reasoning under the R02-L5 envelope. No settings/evidence/session tools or new execution authority; preserve exact offline lock/power behavior. |
-| R07 - Deliver explicit clipboard context and local-first explanation | Outstanding context path; partial inference I09/I10; no R02 real answer/offline-success proof | P1 - first useful private vertical slice | R03, R04, R05, R06; R02 local L5 evidence carried through L6 | Implement request-triggered plain-text clipboard snapshot/preview, immutable context/source IDs, purpose/secret/destination classification, bounded excerpts and explicit reuse/revocation. Fit the complete approved envelope to the qualified context budget or reject explicitly. Reuse R02 fixtures/rubric and isolation evidence, then repeat actual quality/cancellation/no-egress proof on the integrated host; synthetic payload injection is not clipboard-broker acceptance. Local inference missing/unhealthy remains unavailable with no remote fallback. Unsupported clipboard formats are explicit. |
+| R07 - Deliver explicit clipboard context and local-first explanation | **Partial integrated delivery:** explicit bounded local plain-text snapshot/native preview, same-ID reuse/revoke; [receipt](#r07-bounded-clipboard-preview---2026-10-07). Inference unavailable; no R02 real answer/offline-success proof | P1 - first useful private vertical slice | R03, R04, R05, R06; R02 local L5 evidence carried through L6 | Delivered: composed exact command/tray/native workflow, immutable source/snapshot/request/version/time provenance, 256 KiB strict UTF-8 whole-text bound, explicit format/contention/denied/change states, privacy/origin/call-generation cancellation and no content logging/persistence/provider submission. Remaining: qualified local tool/result loop, purpose/secret/destination classification, complete approved-envelope budgeting and actual offline clipboard-answering quality/cancellation/no-egress/native acceptance. Preview/reuse grants no egress or execution authority; no remote fallback. |
 | R08 - Integrate the controlled remote runtime and streaming path | Outstanding production adapter; I18 candidate only; RT2 all-path admission BLOCKED despite passing bounded tests; hook-only path rejected; local production inference remains buffered | P1 - complete A0 and provider-neutral interaction | R02-RT1/RT2 and execution R02-PV1; local L5 envelope for local streaming; R04, R05, R06, R07 | Carry the [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs), resolve native observation/prevention before exposure, and integrate the proved .NET/runtime profile through pre-effect authorization, all-status host result sanitization and a final serialized-request egress gate. Disable unverified built-ins/collection/storage/transports; keep credentials host-only and cancellation truthful. Pass Gate 0 including actual account/destination/diagnostic evidence, streamed output/backpressure and zero denied effects/markers. Reuse host contracts and the qualified local envelope for local streaming/iteration; measure user-visible first output and cancellation, not experimental token timing alone. No production Node bridge or alternate provider without an explicit D-001 decision. |
 | R09 - Complete production wake, endpointing and speech lifecycle | Partial I04-I06 | P0 - enable reliable voice-first use only after quality/privacy proof | R02 (speech/hardware), R03, R05, R06 | Package selected licensed detector/VAD/transcription assets; preserve immediate wake-and-command with at most two seconds of overwritten pre-roll and no unrelated pre-activation transcription. Bound command/audio lifetimes; prove playback/echo rejection, voice interruption, TTS stop/shutdown and device recovery. Implement configured activation-name profiles and lifecycle matrix. Meet actual A1 speech/CPU/memory/latency targets; optional learning/verifier is not required. |
 

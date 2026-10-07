@@ -1799,3 +1799,11 @@ provider isolation test. Merged current-build portable coverage is exactly
 **100% line and branch** (rates `1` / `1`), enforced with unchanged CI thresholds
 and no new exclusions. Full remote Windows/portable CI remains the publication
 gate; this receipt does not claim hardware trials or acoustic acceptance.
+
+Before publication the branch was fetched/rebased onto merged session metadata
+#70 at `0b667e91746e94c8157bc9ae90faf57be3b6d3b9`, without conflicts or unpublished
+sibling imports. Fresh combined Release, Core **539**, Application **1,445**,
+Tools **38**, Definitions **6**, the same three hardware-free native contracts,
+and exact portable **100% line/branch** coverage passed. The initial-baseline
+receipt above remains historical; session metadata and its independent proof
+remain owned by #70.

@@ -95,6 +95,15 @@ approval, question, microphone, provisioning or OS authority. Evidence failure
 can follow a committed file: output remains unavailable until explicit recovery,
 never an invented rollback, substituted endpoint or automatic retry.
 
+The [device-default response-mode slice](User_Configuration.md#delivered-bounded-device-default-response-mode-r10)
+uses that same genuine audio admission and single shared session lease, with
+host-held enum choices, original channel, call/preference revisions and audited
+atomic readback. VoiceOnly changes presentation policy only: mandatory full
+visual warnings/security/questions/approval recovery cannot be hidden, silence
+is never approval, and setting input cannot answer an existing exact question.
+It grants no capture, consent, effect, provider, OS mixer or model-tool authority.
+Failure after a committed preference retains truthful unavailable recovery.
+
 ## Data Modes
 
 ### Local Only

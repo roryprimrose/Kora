@@ -9,6 +9,48 @@ Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.
 
 ## Configuration Contract
 
+### Delivered bounded device-default response mode (R10)
+
+Schema 1 admits only `responses.default-mode`: the existing `ResponseOutputMode`
+enum values `Hybrid`, `VoiceOnly` and `VisualOnly`, default `Hybrid`. Native
+Inspect/Save/Reset and [exact typed/activated commands](../docs/commands.md#inspect-or-change-the-device-default-response-mode)
+share the [response-mode workflow](../src/Kora.Application/Configuration/ResponseModeConfigurationService.cs).
+Discovery reports enum/default/device scope, reset/application timing, revision,
+saved/default/unavailable provenance, desired and configured effective mode
+(task > queue > device), with current host speech/mandatory-visual policy.
+No session, task, queue or in-call option is registered by this slice.
+
+The original `response-output-mode.txt` file, legacy case-insensitive defined-enum
+parsing and shared atomic preference paths/replacement remain authoritative.
+Missing storage is an unsaved Hybrid default; reset explicitly saves Hybrid,
+matching normal set-to-default semantics rather than claiming file deletion.
+The muted-output fallback file is untouched. Invalid/unreadable saved state,
+unknown authority or failed audit/readback cannot become defaults or success.
+
+The genuine audio-control admission records original-user intent and resolves
+the persisted active session/generation. Host-held choices bind owner, revision,
+original channel and live ownership/privacy/call/input admission; supplied enum
+values, reconstructed choices, traces or foreign sessions are not authority.
+The existing consolidated #83 connection/lease is consumed once; the callback
+does not reacquire task/session authority. The call-policy lock rechecks original
+channel and observed revision adjacent to audited atomic write and exact readback.
+Publication waits for the durable terminal receipt and rechecks live eligibility.
+Committed storage followed by audit/receipt failure remains explicitly unavailable
+until inspection/recovery; no fake rollback or blind retry is reported.
+
+Mutation invalidates stale queued/in-flight output before replacement and never
+autoplays, replays, opens capture or changes consent/permission. The complete
+interrupted visual response and mandatory warning/security/question/approval
+preview remain available even in VoiceOnly. Pending exact interactions remain
+untouched; configuration input is not an answer or approval. Protected/Unknown
+calls deny original activated-voice changes, including later UI dispatch.
+In-call/privacy and unavailable/muted/failed output suppression remain independent.
+
+This is bounded R10 preference delivery, not full R10, native/acoustic acceptance,
+new tools/grants/providers/gain/global mixer, or broader lifecycle authority.
+Maintained deterministic grammar/workflow/UI/SQLite tests are not replacements
+for unique speech/hardware/runtime/worker/storage experiments or historical receipts.
+
 ### Delivered bounded assistant display/PTT prefix (R10)
 
 Schema 1 admits only `assistant.name` (spoken: **assistant name**), the already

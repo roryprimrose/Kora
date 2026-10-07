@@ -60,6 +60,23 @@ public sealed class LocalResponseOutputPreferencesTests : IDisposable
         action.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    [Theory]
+    [InlineData(" hybrid ", ResponseOutputMode.Hybrid)]
+    [InlineData("VOICEONLY", ResponseOutputMode.VoiceOnly)]
+    [InlineData("VisualOnly\r\n", ResponseOutputMode.VisualOnly)]
+    [InlineData("0", ResponseOutputMode.Hybrid)]
+    [InlineData("1", ResponseOutputMode.VoiceOnly)]
+    [InlineData("2", ResponseOutputMode.VisualOnly)]
+    public void Existing_defined_enum_storage_semantics_are_read_without_rewriting(string content, ResponseOutputMode mode)
+    {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "response-output-mode.txt");
+        File.WriteAllText(path, content);
+        CreatePreferences().LoadDefaultMode().Should().Be(mode);
+        File.ReadAllText(path).Should().Be(content);
+    }
+
     [Fact]
     public void LoadMutedOutputVisualFallback_returns_null_when_no_preference_exists()
     {

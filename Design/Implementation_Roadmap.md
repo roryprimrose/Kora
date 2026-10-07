@@ -2072,6 +2072,47 @@ For each delivery, update this inventory, the [decision register](Decision_Regis
 Record source/test/provider/hardware evidence and the exact acceptance result, not just a merged PR.
 Remove proposed labels only for the admitted behavior actually delivered; preserve unavailable/unknown states and the distinction between current host equivalents and model tools.
 Keep dependencies explicit and re-run affected earlier gates when a later capability changes shared authority, storage, audio, egress or resource coordination.
+## R10 Bounded Device-Default Response Mode - 2026-10-08
+
+`responses.default-mode` exposes only the existing Hybrid/VoiceOnly/VisualOnly
+device default. [Canonical configuration](User_Configuration.md#delivered-bounded-device-default-response-mode-r10)
+and embedded Settings/voice/commands describe native Inspect/Save/Reset and exact
+typed/activated discovery/get/status/set/reset. One workflow reuses genuine
+original-user audio intent, persisted active session/generation, host-held
+revisioned choices, current owner/privacy/call/input admission, typed audit,
+atomic legacy preference save/readback and live notification. The consolidated
+#83 session connection/lease is consumed once without reentrant acquisition.
+Default/reset semantics, task/queue precedence, independent call/privacy
+suppression and required full visual warning/security/question/approval recovery
+are retained. Mutation invalidates stale output but never plays/replays speech,
+opens capture, answers a question or changes grants/consent/global settings.
+
+Maintained [grammar](../tests/Kora.Application.UnitTests/Configuration/ResponseModeCommandTests.cs),
+[workflow](../tests/Kora.Application.UnitTests/Configuration/ResponseModeConfigurationServiceTests.cs),
+[native/typed/activated presentation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseModeConfiguration.cs),
+[real migrated SQLite/atomic preference](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteResponseModeConfigurationTests.cs)
+and [static native bindings](../tests/Kora.Windows.IntegrationTests/ResponseModeConfigurationUiContractTests.cs)
+cover bounds, provenance/restart, corrupt/readback/audit/receipt failures,
+foreign/stale/session/generation/origin/call/ownership races, cancellation,
+disposal, exact pending previews and no autoplay/global or microphone mutation.
+These fake/private-storage/source contracts do not claim live native/audio
+acceptance or completion of full R10.
+
+Experiment assessment: repository-local search found no response-mode enum,
+preference file or VoiceOnly/VisualOnly executable in `experiments`. No
+specifically superseded maintained equivalent with no consumers was identified.
+The speech experiment retains unique acoustic/asset/capture trials and blocked
+packaged-host acceptance; runtime executables still have maintained `eng`
+consumers. Hardware/runtime/worker/containment/storage executables and historical
+receipts remain unchanged. Nothing is retired or rerun by this slice.
+
+Initial validation on merged `363ed6e` passed zero-warning Release, Core **675**,
+Application **1,884**, Tools **38**, Definitions **6**, Windows **935**, no skips,
+and fresh exact **100% line/branch** portable coverage with unchanged exclusions/
+thresholds. An earlier existing task-store post-commit cancellation test failed
+once, passed isolated recheck, and passed the fresh full Windows run; no control,
+test or exclusion was disabled. No live Kora/audio/OS/install trial was performed.
+
 ## R10 Bounded Assistant Display/PTT Prefix - 2026-10-08
 
 The already delivered assistant name now has schema-1 typed

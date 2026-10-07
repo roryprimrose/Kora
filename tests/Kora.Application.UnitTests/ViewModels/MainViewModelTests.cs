@@ -2873,6 +2873,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Removed_audio_output_is_not_silently_replaced_during_refresh()
     {
         var fixture = await Fixture.CreateInitializedAsync();
+        fixture.OutputPreferences.Mode = ResponseOutputMode.VoiceOnly;
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.WindowActions.Clear();
         await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
@@ -3500,6 +3501,7 @@ public sealed partial class MainViewModelTests : IDisposable
         bool explicitOutput)
     {
         var fixture = await Fixture.CreateInitializedAsync();
+        fixture.OutputPreferences.Mode = ResponseOutputMode.VoiceOnly;
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = fallbackEnabled;
         if (explicitOutput)
@@ -3786,6 +3788,7 @@ public sealed partial class MainViewModelTests : IDisposable
         bool explicitOutput, bool lockedDuringPlayback)
     {
         var fixture = await Fixture.CreateInitializedAsync(subscribeToWindowActions: false);
+        fixture.OutputPreferences.Mode = ResponseOutputMode.VoiceOnly;
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
         if (explicitOutput)
         {
@@ -3839,11 +3842,16 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Changing_the_device_default_persists_it()
+    public async Task Changing_the_device_default_persists_it()
     {
-        var fixture = new Fixture();
+        var fixture = new Fixture(enableResponseModeConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.RefreshResponseModeCommand.ExecuteAsync();
+        fixture.Audit.Events.Clear();
 
-        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VisualOnly;
+        fixture.ViewModel.SelectedResponseModeChoice = fixture.ViewModel.ResponseModeChoices.Single(choice => choice.Mode == ResponseOutputMode.VisualOnly);
+        await fixture.ViewModel.SaveResponseModeCommand.ExecuteAsync();
 
         fixture.OutputPreferences.SavedMode.Should().Be(ResponseOutputMode.VisualOnly);
         AssertAuditPair(
@@ -3856,15 +3864,20 @@ public sealed partial class MainViewModelTests : IDisposable
 
     [Theory]
     [MemberData(nameof(OutputModeSaveFailures))]
-    public void Changing_the_device_default_reports_save_failures(Exception exception)
+    public async Task Changing_the_device_default_reports_save_failures(Exception exception)
     {
-        var fixture = new Fixture();
+        var fixture = new Fixture(enableResponseModeConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.RefreshResponseModeCommand.ExecuteAsync();
+        fixture.Audit.Events.Clear();
         fixture.OutputPreferences.SaveException = exception;
 
-        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.ViewModel.SelectedResponseModeChoice = fixture.ViewModel.ResponseModeChoices.Single(choice => choice.Mode == ResponseOutputMode.VoiceOnly);
+        await fixture.ViewModel.SaveResponseModeCommand.ExecuteAsync();
 
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.ResponseTitle.Should().Be("The default response mode could not be saved.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Response preference not confirmed.");
         fixture.ViewModel.ResponseBody.Should().Be(exception.Message);
         AssertAuditPair(
             fixture,
@@ -3899,6 +3912,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Missing_speech_pack_forces_voice_only_output_to_the_ui()
     {
         var fixture = await Fixture.CreateInitializedAsync();
+        fixture.OutputPreferences.Mode = ResponseOutputMode.VoiceOnly;
         fixture.ViewModel.ConfiguredResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.WindowActions.Clear();
         fixture.TextToSpeech.Voices = [];
@@ -4150,7 +4164,8 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
-            .Concat(PlaybackVolumeCommand.FixedPhrases);
+            .Concat(PlaybackVolumeCommand.FixedPhrases)
+            .Concat(ResponseModeCommand.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
@@ -7712,7 +7727,8 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null,
             Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null, bool enableOutputConfiguration = false,
-            bool enablePlaybackVolume = false, Exception? volumeReadFailure = null)
+            bool enablePlaybackVolume = false, Exception? volumeReadFailure = null,
+            bool enableResponseModeConfiguration = false)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7826,7 +7842,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
-                microphoneCatalog, OutputConfiguration, VolumeConfiguration);
+                microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
+                    ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)

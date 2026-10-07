@@ -256,8 +256,10 @@ log/audit/span/link tables. The native current-user inspector requires a live
 local-UI request, proven desktop ownership and private-presentation admission.
 Session/task/trace fields are correlation filters, not a way to select host
 authority. Signed continuations bind the original query, viewer session,
-15-minute expiry and per-table snapshot ceilings; later query diagnostics and
-completed spans cannot expand an in-progress snapshot.
+15-minute expiry and per-table snapshot ceilings bound to their original ordinary
+evidence identities; later query diagnostics and completed spans cannot expand
+an in-progress snapshot. Removal/reuse of a ceiling invalidates its cursor
+explicitly and requires a fresh query.
 The [Windows reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs)
 reuses the sink's exact envelope/projection validation and private database
 schema/ACL/reparse/journal admission, then opens SQLite read-only. It creates
@@ -266,8 +268,9 @@ Up to 50 records and 64 KiB of the actual serialized page include citations,
 cursor, source availability and disclosure. Selective text/property searches
 scan at most 4,096 candidates per page, with explicit continuation/scan-limit
 status and the existing five-second SQLite progress deadline.
-Expired-but-present and missing-or-removed segments are distinct; no physical
-pruning or complete retained graph/history is claimed. Session/conversation
+Expired-but-present backlog and missing-or-removed segments are distinct.
+Bounded ordinary diagnostic pruning is implemented below; a complete retained
+graph/history is not claimed. Session/conversation
 sources and interaction-audit receipts are not supplied by this projection.
 Model tool exposure, Ask Evidence, export and remote transmission remain gated.
 
@@ -533,9 +536,44 @@ uses fresh traces joined by durable host IDs and never invokes an executor.
 Startup processes at most 100 incomplete records; remaining work fails startup
 explicitly rather than silently ignoring the excess.
 First-use greeting, settings and version response disclose the readable-copy,
-same-user/admin and independent 30/90-day due dates, explicitly disclosing that
-database pruning/deletion is not yet implemented. The new
+same-user/admin and independent 30/90-day due dates, bounded ordinary startup
+pruning and remaining audit/task/session deletion limitations. The new
 version-query records contain no transcript or answer body.
+
+#### Bounded Ordinary Diagnostic Retention
+
+[WindowsSqliteDiagnosticRetention](../src/Kora.Windows/Storage/WindowsSqliteDiagnosticRetention.cs)
+runs one batch per admitted owner startup, after exact storage admission and
+durable task recovery, before the UI lifetime opens. It requires a live
+host-system activity and opens only the existing `EvidenceStorageV1` partition.
+There is no timer, passive-query refresh, automatic backlog drain, storage
+replacement, permission repair, schema change or retention-setting rewrite.
+No new prerequisite is needed: existing policy-assigned effective `due_utc`
+values, due indexes, bounded span/link envelopes and the actual shared
+writer/reader lease supply admission and serialization.
+
+At a fixed UTC cutoff, `due_utc <= cutoff` selects at most 128 ordinary
+`application_log_events` and 32 `activity_spans`, ordered by due date/rowid.
+Their at-most-1,024 validated owned `activity_links` are removed before their
+spans in the same PERSIST/FULL transaction. An unexpired span's links are never
+independently removed. The existing five-second lease/SQLite progress bounds,
+cancellation before COMMIT, private ACL/reparse/schema/integrity/envelope checks
+and deterministic resource disposal remain enforced. Existing full-store
+validation also runs under that deadline; large or invalid stores can fail
+admission rather than bypass validation. A verified COMMIT returns exact
+removed counts and a due-backlog flag; subsequent startups can continue.
+Failures propagate to the independent startup/file error path. The generated
+structured completion event is emitted after releasing the storage lease
+under a typed Windows `retention.run` child activity, never an audit.
+
+This is logical ordinary-row pruning, not forensic erasure or a strict
+at-all-times 30-day cap. Retained references distinguish expired-but-present
+backlog from missing-or-removed targets without inventing deletion provenance.
+Audit due dates and sequences remain unchanged, including expired audit rows;
+`security_audit_events`, interaction audit/hash chains, tasks, questions,
+sessions and all grants/Perpetual records are outside this operation.
+Audit continuation anchors/pruning, session retention/deletion, configurable
+preview/apply, artifact/backup disposal and full R04/D-009 acceptance remain open.
 
 The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/

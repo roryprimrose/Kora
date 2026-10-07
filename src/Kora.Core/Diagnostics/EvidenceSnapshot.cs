@@ -1,3 +1,4 @@
 namespace Kora.Core.Diagnostics;
 
-public sealed record EvidenceSnapshot(long Log, long Audit, long Span, long Link);
+public sealed record EvidenceSnapshot(long Log, long Audit, long Span, long Link,
+    string? LogCeilingId = null, string? SpanCeilingId = null, string? LinkCeilingId = null);

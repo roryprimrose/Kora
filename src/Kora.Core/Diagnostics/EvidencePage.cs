@@ -7,6 +7,7 @@ public sealed record EvidencePage(EvidencePageStatus Status, IReadOnlyList<Evide
     public const int MaximumBytes = 65536;
     public const string StorageDisclosure =
         "Read-only diagnostic projection, not an atomic interaction audit or complete history. "
-        + "Due records remain physically present; pruning is not implemented. Missing segments may never have been recorded or may be removed. "
+        + "Bounded startup pruning removes due ordinary diagnostics and spans/links, never audit records. "
+        + "Due backlog may remain present. Missing segments may never have been recorded or may be removed. "
         + "Private-profile files are unencrypted; copies are readable. Session/conversation sources are unavailable.";
 }

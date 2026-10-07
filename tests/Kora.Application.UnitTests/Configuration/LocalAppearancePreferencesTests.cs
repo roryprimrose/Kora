@@ -3,6 +3,7 @@ using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
+using Kora.Core.Auditing;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -42,6 +43,34 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
 
         preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
         File.Exists(Path.Combine(root, "Preferences", "appearance-theme.tmp")).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Shared_registry_commits_one_real_atomic_file_and_restores_via_existing_domain_format()
+    {
+        var preferences = CreatePreferences();
+        var service = new AppearanceConfigurationService(preferences, new AppearanceAudit(),
+            NullLogger<AppearanceConfigurationService>.Instance);
+        var before = service.Get(AppearanceOption.ResponseTimeout);
+        var result = service.Apply(service.Propose(AppearanceOption.ResponseTimeout, new AppearanceValue.Number(15),
+            before.Revision, SecurityAuditInitiator.TypedCommand), TestContext.Current.CancellationToken);
+        result.Succeeded.Should().BeTrue();
+        Directory.GetFiles(Path.Combine(root, "Preferences")).Should().ContainSingle();
+        File.ReadAllText(Path.Combine(root, "Preferences", "response-timeout-seconds.txt")).Should().Be("15");
+        var restored = new AppearanceConfigurationService(CreatePreferences(), new AppearanceAudit(),
+            NullLogger<AppearanceConfigurationService>.Instance);
+        restored.Get(AppearanceOption.ResponseTimeout).Value.Should().Be(new AppearanceValue.Number(15));
+        restored.Get(AppearanceOption.PresenceTimeout).Value.Should().Be(new AppearanceValue.Number(PresenceSettings.DefaultTimeoutSeconds));
+        result = service.Apply(service.ProposeReset(AppearanceOption.ResponseTimeout, result.State.Revision,
+            SecurityAuditInitiator.LocalUser), TestContext.Current.CancellationToken);
+        result.Succeeded.Should().BeTrue();
+        preferences.LoadResponseTimeoutSeconds().Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+        Directory.GetFiles(Path.Combine(root, "Preferences")).Should().ContainSingle();
+    }
+
+    private sealed class AppearanceAudit : ISecurityAuditLog
+    {
+        public void Write(SecurityAuditEvent auditEvent) { }
     }
 
     [Theory]

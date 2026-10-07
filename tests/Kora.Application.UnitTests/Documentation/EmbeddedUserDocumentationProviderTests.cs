@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
 using Kora.Application.Documentation;
+using Kora.Application.Configuration;
+using Kora.Core.Configuration;
 using Kora.Core.Commands;
 
 namespace Kora.Application.UnitTests.Documentation;
@@ -70,7 +72,20 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count);
+        sections.Should().HaveCount(commands.Count + 1);
+        var appearance = sections.Single(section => section.StartsWith(
+            "Inspect or change an admitted appearance option", StringComparison.Ordinal));
+        var appearancePhrases = Regex.Matches(appearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        appearancePhrases.Should().Equal("list appearance settings", "get appearance.theme",
+            "set appearance.theme to dark", "reset appearance.theme");
+        appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
+        var settings = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(item => string.Equals(item.Id, "settings", StringComparison.Ordinal));
+        foreach (var descriptor in AppearanceOptionRegistry.Options)
+            settings.Markdown.Should().Contain(descriptor.Id);
+        sections = sections.Where(section => !ReferenceEquals(section, appearance)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

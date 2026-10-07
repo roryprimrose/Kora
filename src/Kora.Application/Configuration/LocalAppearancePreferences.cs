@@ -50,19 +50,23 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
 
         var value = contents.Trim();
         var result = Enum.TryParse<ApplicationThemeMode>(value, ignoreCase: true, out var mode)
-                     && Enum.IsDefined(mode)
             ? mode
             : throw new InvalidDataException("The saved appearance theme is invalid.");
+        try
+        {
+            ApplicationThemeSettings.Validate(result);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new InvalidDataException("The saved appearance theme is invalid.", exception);
+        }
         ApplicationLog.Debug(logger, "Loaded the appearance theme preference");
         return result;
     }
 
     public void SaveThemeMode(ApplicationThemeMode mode)
     {
-        if (!Enum.IsDefined(mode))
-        {
-            throw new ArgumentOutOfRangeException(nameof(mode), mode, "The appearance theme is invalid.");
-        }
+        ApplicationThemeSettings.Validate(mode);
 
         store.WriteText(FileName, mode.ToString());
         ApplicationLog.Information(logger, "Saved the appearance theme preference");

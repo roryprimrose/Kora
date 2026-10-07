@@ -86,6 +86,50 @@ required queued setup task.
 
 ## Appearance
 
+The existing controls and exact typed/activated-voice commands share one
+host-owned, typed appearance service. No model or network is needed. Enter
+**list appearance settings** to inspect the nine admitted options, units,
+defaults, bounds, scope and application timing.
+
+| ID | Default | Values / units |
+|---|---|---|
+| `appearance.theme` | `system` | `system`, `light`, `dark` |
+| `appearance.presence-timeout` | `10` | 1-60 seconds |
+| `appearance.response-timeout` | `5` | 1-60 seconds |
+| `appearance.presence-size` | `360` | 240-600 pixels |
+| `appearance.dot-size` | `100` | 50-200 percent |
+| `appearance.dot-density` | `100` | 25-200 percent |
+| `appearance.movement-speed` | `100` | 25-200 percent |
+| `appearance.speech-scaling` | `true` | `true`, `false` (visual sizing only) |
+| `appearance.speech-scale-amount` | `100` | 0-200 percent |
+
+Use **get appearance.theme**, **set appearance.theme to dark**, or
+**reset appearance.theme**; substitute another listed ID and its typed value.
+Voice input uses the currently configured assistant name, for example
+**"Kora, set appearance.presence-timeout to 15"**.
+The listed spoken names replace dots and hyphens with spaces:
+**"Kora, set appearance theme to dark"** or
+**"Kora, set appearance presence timeout to 15"**.
+Integer values are numeric
+and use the listed units; relative changes, number words and appended units
+are not interpreted. Ambiguous, unknown and out-of-range appearance commands
+show clarification instead of reaching a model or silently clamping.
+
+The Appearance tab also offers **Reset selected option**. Reset affects only
+that option, not a whole profile or undo history. Updates revalidate the
+typed value and current host revision before one atomic preference-file write.
+A stale proposal requires a fresh inspection/proposal. A save failure retains
+the previous saved/effective value and revision and shows the error.
+Get distinguishes a saved preference from an unsaved domain default.
+Successful changes update all open visual surfaces without reopening them.
+Speech scaling changes only animation, not audio output or call policy.
+
+Response pinning, topmost behavior and window placement retain their existing
+direct controls but are not registered: their shared-file writes are outside
+this bounded registry. Voice/audio/call, model, grants, retention, setup and
+startup settings are not admitted here. Full verbal preferences and
+model-facing settings tools remain future work.
+
 ### Application theme
 
 - **System** - default; follows live Windows light or dark appearance.

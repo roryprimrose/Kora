@@ -267,14 +267,22 @@ confirmation, and application timing.
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
-| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial: Settings lists implemented UI choices; verbal registry is planned |
-| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial: implemented UI values only |
-| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; prior value retained on failure | M/E | Partial: implemented native UI mutations; model/verbal setter is planned |
+| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial: host-only nine-option appearance registry and exact `list appearance settings`; model tool and other categories planned |
+| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial: exact `get <appearance.id>` reads typed value, revision and saved/default provenance; model tool and other options planned |
+| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; prior value retained on failure | M/E | Partial: appearance direct UI and exact `set <appearance.id> to <value>` share host-owned typed proposals, revision recheck and one-file atomic save; no model tool |
 | `settings.propose_change` | Identified temporary preference, target default scope | Exact compatible default-change proposal; no grant promotion | M/E | Planned |
-| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Planned |
+| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Partial: direct UI/exact `reset <appearance.id>` restores one admitted default with revision check; category/whole-profile reset and model tool planned |
 | `settings.undo` | Compatible prior change ID, expected revision | Revalidate prior preference only; never restore consumed grants or effects | M/E | Planned |
 
 The complete option registry is specified in [User Configuration](User_Configuration.md):
+
+The delivered appearance descriptors declare stable ID/type/units/default/bounds,
+device-local scope, appearance-only effect, local-host availability,
+immediate-after-save timing and per-option reset. They are not call-sensitive,
+including visual playback scaling. This is separate from the Tools registry
+and adds no model invocation authority. Response pin/topmost/position retain
+direct UX outside this independent-file registry; full verbal preferences,
+temporary scopes and undo remain open.
 
 | Category | Covered options | Current host subset |
 |---|---|---|

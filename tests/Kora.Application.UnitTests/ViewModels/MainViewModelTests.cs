@@ -5,6 +5,7 @@ using System.Diagnostics;
 using AwesomeAssertions;
 
 using Kora.Application;
+using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
 using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
@@ -7644,7 +7645,9 @@ public sealed partial class MainViewModelTests : IDisposable
                     NullLogger<DurableVersionQuery>.Instance),
                 new Kora.Application.Tools.ReadOnlyCapabilityRegistry(
                     new CapabilityHostAccess(Session), ApplicationInfo, bootstrapper,
-                    NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance));
+                    NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance),
+                new AppearanceConfigurationService(AppearancePreferences, Audit,
+                    NullLogger<AppearanceConfigurationService>.Instance));
             ViewModel.BindCallOwnershipGate(static () => true);
             if (subscribeToWindowActions)
             {

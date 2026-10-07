@@ -84,6 +84,27 @@ Windows.
 
 ## Settings and guidance tasks
 
+### Inspect or change an admitted appearance option
+
+- **list appearance settings**
+- **get appearance.theme**
+- **set appearance.theme to dark**
+- **reset appearance.theme**
+
+Substitute one of the nine exact IDs in [Appearance settings](settings.md#appearance).
+The configured assistant-name prefix is supported for typed input and activated
+voice. Exact spoken names also work: replace dots/hyphens in the ID with
+spaces, for example **"Kora, set appearance theme to dark"**.
+Capitalization is ignored, but this typed value grammar deliberately
+preserves signs and decimal punctuation: `-10` and `1.5` are rejected, never
+normalized into valid integers. Use numeric whole numbers without appended
+units, `system`/`light`/`dark`, or `true`/`false`. Extra words, invented IDs,
+relative changes and invalid ranges produce local clarification, without
+model/network interpretation. Changes and per-option reset share the direct
+UI service, domain validation, revision check, atomic persistence, audit and
+live notifications. There is no whole-profile reset or undo, model tool
+exposure, arbitrary JSON patch or configuration-file editing authority.
+
 ### Open settings
 - **open settings**
 - **show Kora settings**

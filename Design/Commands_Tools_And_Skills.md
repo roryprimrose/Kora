@@ -13,6 +13,17 @@ Record and complete serialized UTF-8 bounds, strict input validation, cancellati
 and explicit unavailable/unobserved results are production-tested. Full R06
 continued reasoning, approved model adapters and runtime qualification remain open.
 
+Delivered exception to the proposed full catalogue: R10 has a host-only,
+appearance-only typed registry shared by the existing native controls and
+exact local `list appearance settings`, `get <appearance.id>`,
+`set <appearance.id> to <value>` and `reset <appearance.id>` commands.
+These nine options use domain validation, revision-checked one-file atomic
+save, audit and live notifications; malformed/ambiguous inputs are rejected
+locally, not handed to inference. The current assistant-name prefix is retained.
+No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
+reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
+and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
+
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Responsibility and Terminology

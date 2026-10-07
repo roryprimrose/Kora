@@ -260,6 +260,7 @@ internal static class Program
             new LocalAppearancePreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
+        services.AddSingleton<AppearanceConfigurationService>();
         services.AddSingleton<ITextToSpeechPreferences>(provider =>
             new LocalTextToSpeechPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),

@@ -46,6 +46,17 @@ The design concerns are resolved under the chosen trust model by the following h
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
 
+The [bounded playback-volume workflow](User_Configuration.md#delivered-bounded-per-kora-playback-volume-r10)
+also consumes the existing persisted audio-control session/generation admission.
+Host-held validated 0-100 scalar proposals bind original input, live owner,
+unlocked privacy/call/input eligibility and revisions. Requested/terminal audit,
+atomic readback and task receipts must confirm before owned gain activates.
+Zero and unconfirmed evidence prevent synthesis with full original visual
+recovery; raising/resetting never replays output. Only owned Windows speech
+instance gain and Kokoro PCM attenuation are changed, never global/system/call
+volume, microphone/consent, grants, previews or retention. Invalid saved bytes
+are errors, not default authority. This does not qualify acoustic audibility.
+
 The [bounded output preference workflow](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
 uses persisted host-resolved audio-control session/generation admission, not
 desktop correlation IDs as authority. Exact host-held choices bind original

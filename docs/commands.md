@@ -299,6 +299,26 @@ play audio, change Windows defaults/volume, grant consent or answer an approval.
 Protected/unknown calls block original voice-channel mutations. Stale choices,
 ownership/privacy changes and failed evidence require explicit refresh/recovery.
 
+### Inspect or change Kora playback volume
+
+- **list volume settings**
+- **get speech.playback-volume**
+- **status speech.playback-volume**
+- **set speech.playback-volume to 30**
+- **reset speech.playback-volume**
+
+Use one canonical integer 0-100 (no `%`, fraction, sign, padding or leading
+zero). The current assistant-name prefix works; old names are not aliases.
+Native Settings shares the admitted, revisioned atomic/audited workflow.
+Default/reset **100** is original unscaled output; **0** blocks synthesis and
+keeps the complete visual response. Changes stop stale active/queued speech;
+raising/resetting never replays it. Original voice mutations are denied during
+protected/unknown calls. These commands never play a trial, change global/call
+volume, microphone/consent, other options, retention or pending approvals.
+Discovery is metadata only, not a model tool or acoustic test. Input is bounded
+to 1,024 UTF-8 bytes without controls; the complete result is bounded to 64 KiB.
+See [availability and recovery](settings.md#kora-playback-volume).
+
 ### Inspect or change an installed speech choice
 
 - **list speech settings**
@@ -323,7 +343,8 @@ provider's advertised default. An unavailable default requires an explicit
 installed voice choice. Status reports saved/desired/effective values,
 revision and recovery. Protected calls reject original voice-channel set/reset,
 including a later UI confirmation; a new eligible Settings/typed request is
-required. Rate, volume and model settings tools are not added.
+required. Rate and model settings tools are not added; volume uses the
+independent exact commands above.
 See [the shared native controls](settings.md#speech-provider).
 
 ### Inspect or lower spoken summary caps

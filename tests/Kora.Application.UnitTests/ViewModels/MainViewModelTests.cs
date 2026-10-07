@@ -4149,7 +4149,8 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
-            .Concat(OutputDeviceCommand.FixedPhrases);
+            .Concat(OutputDeviceCommand.FixedPhrases)
+            .Concat(PlaybackVolumeCommand.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
@@ -7710,7 +7711,8 @@ public sealed partial class MainViewModelTests : IDisposable
     private sealed class Fixture
     {
         public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null,
-            Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null, bool enableOutputConfiguration = false)
+            Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null, bool enableOutputConfiguration = false,
+            bool enablePlaybackVolume = false, Exception? volumeReadFailure = null)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7728,6 +7730,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 AudioPreferences, new Kora.Application.Voice.BoundedAudioOutputCatalog(
                     TextToSpeech, NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
                 OutputAdmission, Audit = new FakeSecurityAuditLog(), TextToSpeech) : null;
+            VolumePreferences = new() { ReadFailure = volumeReadFailure };
+            VolumeConfiguration = enablePlaybackVolume ? new(VolumePreferences, TextToSpeech, OutputAdmission, Audit ??= new FakeSecurityAuditLog()) : null;
             OutputPreferences = new FakeResponseOutputPreferences();
             CallPreferences = new FakeCallAwarePreferences();
             CallState = new FakeCallStateService();
@@ -7822,7 +7826,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
-                microphoneCatalog, OutputConfiguration);
+                microphoneCatalog, OutputConfiguration, VolumeConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
@@ -7845,6 +7849,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public QueryTaskStore HostStore { get; } = new();
         public Kora.Application.Voice.AudioControlAdmission OutputAdmission { get; }
         public OutputDeviceConfigurationService? OutputConfiguration { get; }
+        public FakePlaybackVolumePreferences VolumePreferences { get; }
+        public PlaybackVolumeConfigurationService? VolumeConfiguration { get; }
 
         public ImmediateDispatcher Dispatcher { get; }
 
@@ -8452,9 +8458,15 @@ public sealed partial class MainViewModelTests : IDisposable
         }
     }
 
-    private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService
+    private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService, IPlaybackVolumeControl
     {
         private long outputGeneration;
+        public PlaybackVolume? Volume { get; private set; } = PlaybackVolume.Default;
+        public void SetPlaybackVolume(PlaybackVolume? volume)
+        {
+            Volume = volume;
+            InvalidateOutput();
+        }
         public void InvalidateOutput()
         {
             Interlocked.Increment(ref outputGeneration);

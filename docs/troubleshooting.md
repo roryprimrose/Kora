@@ -107,11 +107,23 @@ Check:
 - a compatible Windows voice is selected;
 - System has an active Windows default output, or a specific output is selected;
 - Windows output is not muted and volume is above zero; and
+- **Kora playback volume** is available and above zero; and
 - detected-call policy is not forcing visual responses.
 
 Use **Preview voice** to test the selected voice and output. Kora cannot always
 detect powered-off speakers, disconnected analog cables, or unreported hardware
 mute.
+
+`status speech.playback-volume` reports the separate Kora-only percent and
+saved/default/unavailable source. Default/reset is original unscaled 100;
+zero intentionally prevents synthesis and keeps the full result visual.
+Use Settings > Speech & audio > **Refresh volume preference only** after
+repairing invalid/unreadable saved state or failed audit/readback evidence.
+A file may already be committed when terminal evidence fails; do not infer
+rollback or automatically retry. Save/reset never tests playback, replays
+stopped speech, opens input or changes Windows/call volume. If a playback
+adapter lacks qualified owned-gain support, continue visually. These software
+checks do not establish physical audibility or complete acoustic acceptance.
 
 ## The Windows default speaker changed
 

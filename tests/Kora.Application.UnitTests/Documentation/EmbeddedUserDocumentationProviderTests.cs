@@ -91,7 +91,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 6);
+        sections.Should().HaveCount(commands.Count + 7);
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -114,6 +114,14 @@ public sealed class EmbeddedUserDocumentationProviderTests
         outputPhrases.Should().Equal("list output settings", "get speech.output-device", "status speech.output-device",
             "set speech.output-device to &lt;exact presented endpoint ID&gt;", "reset speech.output-device");
         outputPhrases.Should().OnlyContain(phrase => OutputDeviceCommand.Parse(phrase, "Kora") != null);
+        var volume = sections.Single(section => section.StartsWith(
+            "Inspect or change Kora playback volume", StringComparison.Ordinal));
+        var volumePhrases = Regex.Matches(volume, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        volumePhrases.Should().Equal("list volume settings", "get speech.playback-volume", "status speech.playback-volume",
+            "set speech.playback-volume to 30", "reset speech.playback-volume");
+        volumePhrases.Should().OnlyContain(phrase => PlaybackVolumeCommand.Parse(phrase, "Kora") != null);
         var speech = sections.Single(section => section.StartsWith(
             "Inspect or change an installed speech choice", StringComparison.Ordinal));
         var speechPhrases = Regex.Matches(speech, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -144,6 +152,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
             && !ReferenceEquals(section, output)
+            && !ReferenceEquals(section, volume)
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         for (var index = 0; index < commands.Count; index++)

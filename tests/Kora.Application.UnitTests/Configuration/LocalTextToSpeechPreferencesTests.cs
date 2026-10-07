@@ -18,6 +18,46 @@ public sealed class LocalTextToSpeechPreferencesTests(ITestOutputHelper output)
         $"Kora.Tests.{Guid.NewGuid():N}");
 
     [Fact]
+    public void Summary_limits_have_independent_default_provenance_and_atomic_restart_without_selection_migration()
+    {
+        var preferences = CreatePreferences();
+        preferences.SaveProviderId(SpeechProviderIds.Kokoro);
+        preferences.SaveVoiceId("legacy");
+        preferences.LoadSummaryLimits().Should().BeNull();
+        preferences.SaveSummaryLimits(new(1, 40));
+        CreatePreferences().LoadSummaryLimits().Should().Be(new SpokenSummaryLimits(1, 40));
+        preferences.LoadSelection().Should().Be(new SpeechSelection(SpeechProviderIds.Kokoro, "legacy"));
+        File.Exists(Path.Combine(root, "Preferences", "speech-selection.txt")).Should().BeFalse();
+        preferences.SaveSummaryLimits(SpokenSummaryLimits.Default);
+        preferences.LoadSummaryLimits().Should().Be(SpokenSummaryLimits.Default);
+        Directory.GetFiles(Path.Combine(root, "Preferences"), "*.tmp").Should().BeEmpty();
+        var invalid = () => preferences.SaveSummaryLimits(new(4, 80));
+        invalid.Should().Throw<ArgumentOutOfRangeException>();
+        var missing = () => preferences.SaveSummaryLimits(null!);
+        missing.Should().Throw<ArgumentNullException>();
+        preferences.LoadSummaryLimits().Should().Be(SpokenSummaryLimits.Default);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("2\n3\n80")]
+    [InlineData("1\n3")]
+    [InlineData("1\n3\n80\nextra")]
+    [InlineData("1\n 3\n80")]
+    [InlineData("1\n3\nforty")]
+    [InlineData("1\n0\n80")]
+    [InlineData("1\n4\n80")]
+    [InlineData("1\n3\n0")]
+    [InlineData("1\n3\n81")]
+    public void Corrupt_summary_limits_are_not_reinterpreted(string contents)
+    {
+        Directory.CreateDirectory(Path.Combine(root, "Preferences"));
+        File.WriteAllText(Path.Combine(root, "Preferences", "speech-summary-limits.txt"), contents);
+        var load = CreatePreferences().LoadSummaryLimits;
+        load.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void LoadVoiceId_returns_null_when_no_preference_exists()
     {
         var preferences = CreatePreferences();

@@ -96,9 +96,56 @@ host gate; this slice changes no protection downgrade, exact consent or call
 override policy. System/pinned output routing, speech privacy and mandatory
 visual fallback are unchanged. Asset review/download/removal remains separate
 from ready selection; finishing a download does not silently switch output.
-No rate/volume/summary caps, microphone/tray recovery, model tools, provisioning
+No rate/volume, microphone/tray recovery, model tools, provisioning
 authority, general registry rewrite or full R10/acoustic acceptance is delivered.
-The following complete contract remains future work.
+Summary caps are delivered by the separate bounded slice below.
+
+### Delivered bounded spoken summary limits (R10)
+
+Registry schema version 2 adds `speech.summary-sentences` (positive integer
+1-3, default 3) and `speech.summary-words` (1-80, default 80), with exact spoken
+names speech summary sentences / speech summary words. One
+[validated domain contract](../src/Kora.Core/Configuration/SpokenSummaryLimits.cs)
+owns maxima, defaults and independent reset. Both use the existing speech
+configuration service, audited/revisioned proposal lifecycle, original-channel
+call lock, live host gate and notifications; no parallel registry or policy is
+introduced. Native choices and exact typed/ACTIVATED discovery/get/set/reset
+have parity. These settings remain usable without installed speech assets and
+do not repair, substitute or change an unavailable provider/voice.
+
+A separate versioned atomic device-local limit file preserves provider/voice
+formats and legacy migration. Absent limits are unsaved defaults, not a write.
+Malformed, unknown, out-of-range or unreadable saved values leave ordinary
+speech unavailable with visible recovery. Repair and refresh is explicit;
+per-option reset never guesses an unknown companion cap.
+
+At the host's single ordinary-response speech boundary, the complete spoken
+title/body/warnings must fit both caps. Current routes lack authoritative safe
+omission metadata, so this slice deliberately refuses over-cap speech and
+forces truthful full visual recovery rather than truncating or generating a
+replacement. The owner approved this bounded admission behavior. Full visual
+results/details remain unchanged; no new model request is made.
+Exact proposal/approval readback, required question/options and bounded voice
+previews retain existing mandatory bounds and privacy rules. No arbitrary
+full-content reading tool is added or weakened.
+
+The [Unicode measure](../src/Kora.Core/Voice/SpokenSummaryMeasure.cs) counts
+letter/digit runs with specified mark/apostrophe/hyphen joiners and word-bearing
+punctuation-delimited sentence segments, including trailing fragments.
+Digit-surrounded ASCII dots, initials and a fixed abbreviation list are
+nonterminal. [Exact supported semantics](../docs/settings.md#spoken-summary-limits)
+include CJK, repeated punctuation, line breaks, decimals and acronym word
+boundaries; these are deterministic text counts, not approximate characters,
+natural-language inference or acoustic duration.
+
+Configuration changes invalidate pending output before asynchronous UI
+notification. The configuration lock encloses counting and policy-locked
+provider enqueue, preventing stale limits at start; provider generations and
+existing stop/privacy/disposal paths retire queued synthesis/playback without
+replay. Cancellation is checked before admission/start and before writes;
+post-commit cancellation does not invent an unsaved result.
+This completes only bounded caps, not full R10 or speech/acoustic acceptance.
+The following complete model-facing contract remains future work.
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.

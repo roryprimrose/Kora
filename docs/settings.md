@@ -345,7 +345,61 @@ disable speech with a visible recovery message, never silently substitute.
 Status shows desired/effective voice, saved/default provenance, revision and
 recovery. Save failure retains the previous selection. Concurrent or stale
 changes require a fresh inspection/request. This bounded configuration does not
-add rate, volume, summary caps, call exceptions or model settings tools.
+add rate, volume, call exceptions or model settings tools.
+
+### Spoken summary limits
+
+Under **Speech & audio**, choose **Maximum sentences (1-3)** and **Maximum
+words (1-80)**. Defaults are **3 sentences / 80 words**; either cap can be
+lowered independently. **Reset sentence cap** restores 3 while preserving
+words; **Reset word cap** restores 80 while preserving sentences.
+
+The registry IDs are `speech.summary-sentences` and `speech.summary-words`;
+spoken names are **speech summary sentences** and **speech summary words**.
+Discovery/get/set/per-option reset use the same native/typed/activated-voice
+workflow. For example, **set speech.summary-words to 40**.
+Status distinguishes unsaved defaults from saved limits and reports revision
+and recovery. The host checks original channel, live privacy/ownership and call
+revision adjacent to audited atomic persistence. Protected calls reject
+voice-originated changes, including reset. No provider, voice, output routing,
+voice consent or call protection is changed.
+
+Ordinary finalized speech is admitted only if the complete spoken text
+(title, answer and retained warnings) fits **both** configured caps. The host
+does not infer safe omissions from model prose: over-cap results get a truthful
+**Speech withheld** status and forced full visual recovery, even in Audible
+only mode. No truncation, success paraphrase, extra model call or queued retry
+occurs. Full visual text/details remain unchanged. Exact proposal/approval
+readback, required questions/options and voice previews are not ordinary
+summaries; their existing exact/bounded/privacy rules still apply.
+No arbitrary full-content reading command is added.
+
+Counting is deterministic Unicode text counting, not acoustic duration or
+linguistic segmentation:
+
+- A word is a run of Unicode letters/digits. Combining marks and ASCII
+  apostrophe, right apostrophe, ASCII hyphen, U+2010 and U+2011 may join a run
+  (including repeated joiners). Other punctuation/whitespace splits runs.
+  Decimal dots, acronym dots, underscores, slashes and `@` split word runs.
+  Emoji/symbols alone are not words; unspaced CJK text is one word run.
+- A sentence is a segment containing a word, ended by `.`, `!`, `?`, `。`,
+  `！`, `？` or `．`. Repeated terminators/closing quotes do not add empty
+  sentences. A trailing word-bearing fragment counts as a sentence.
+  Line breaks alone do not end sentences.
+- ASCII dots between digits, single ASCII-letter initials and these case-insensitive
+  abbreviations do not end sentences: `Mr.`, `Mrs.`, `Ms.`, `Dr.`, `Prof.`,
+  `Sr.`, `Jr.`, `e.g.`, `i.e.`, `etc.`, `U.S.`, `U.K.`. Abbreviations must
+  end at a non-letter/digit boundary. Other abbreviations and punctuation use
+  the rules above; no dictionary/model guess is made.
+
+Limits are a versioned atomic device-local preference independent of the
+existing provider/voice file. Upgrades with no limit file use unsaved defaults
+without rewriting legacy speech choices. Corrupt/unreadable/unknown formats
+disable ordinary speech with visible recovery; they are not defaults.
+Repair the local preference file and refresh. A per-option mutation cannot
+silently default an unknown companion cap. Mandatory readback and visual output
+remain governed by their existing rules. Changes retire pending speech before
+UI dispatch; reset or call clearance never replays retired output.
 
 Push-to-talk stops current speech before opening command capture.
 **Stop speaking** is also available from the tray without speech or a model.

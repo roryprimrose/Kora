@@ -273,6 +273,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
         ResetSpeechProviderCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Provider));
         ResetSpeechVoiceCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Voice));
+        ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
+        ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
             ToggleListeningAsync,
             () => !lifecycleAdmissionClosed && !IsBusy
@@ -1528,7 +1530,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 : string.Empty;
             var modeLabel = ResponseModeOptions.Single(
                 option => option.Mode == EffectiveResponseMode).Label;
-            return $"{scope}: {modeLabel}.{callOverride}{fallback}";
+            return $"{scope}: {modeLabel}.{callOverride}{fallback} {spokenSummaryRecovery}".TrimEnd();
         }
     }
 
@@ -4164,7 +4166,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else
             {
                 ShowInformation("Local model response", $"Generated locally; verify important details.\n\n{decision.Answer}");
-                await SpeakCurrentResponseAsync();
+                await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token);
             }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -4339,6 +4341,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task CancelCurrentTaskAsync()
     {
+        textToSpeech.InvalidateOutput();
         ClearClipboardPreview();
         CancelPendingPowerAudit("task-cancelled");
         if (powerShellSetupCancellation is not null)
@@ -4574,23 +4577,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NotifyOutputPolicyChanged();
     }
 
-    private async Task SpeakCurrentResponseAsync(string? spokenText = null)
+    private string? spokenSummaryRecovery;
+
+    private async Task SpeakCurrentResponseAsync(string? spokenText = null, CancellationToken cancellationToken = default)
     {
         if (!IsSpeechResponseEnabled)
         {
             return;
         }
 
+        var exactReadback = spokenText is not null || IsResponseInteractionPending;
         spokenText ??= $"{ResponseTitle}. {ResponseBody}";
         IsSpeaking = true;
         activeSpokenText = spokenText;
         ApplicationLog.Debug(logger, "Starting spoken response output");
         try
         {
-            await communicationPolicy.StartSpeech(() => textToSpeech.SpeakAsync(
-                spokenText,
-                activeSpeechVoice!,
-                SelectedOutputDevice!), () => IsSpeechResponseEnabled);
+            // Admission checks cancellation; generation invalidation and StopAsync own resource release.
+            Task Start() => textToSpeech.SpeakAsync(spokenText, activeSpeechVoice!, SelectedOutputDevice!, CancellationToken.None);
+            if (exactReadback)
+            {
+                await communicationPolicy.StartSpeech(Start, () => IsSpeechResponseEnabled && !cancellationToken.IsCancellationRequested);
+            }
+            else
+            {
+                var recovery = await speechConfiguration.StartSummarySpeechAsync(spokenText, communicationPolicy,
+                    () => IsSpeechResponseEnabled, Start, cancellationToken);
+                if (recovery is not null)
+                {
+                    spokenSummaryRecovery = recovery;
+                    forceVisualResponse = true;
+                    NotifyOutputPolicyChanged();
+                    if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
+                }
+            }
         }
         catch (OperationCanceledException)
         {
@@ -5087,6 +5107,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         State = responseState;
+        spokenSummaryRecovery = null;
         ResponseTitle = title;
         ResponseBody = body;
         forceVisualResponse = ShouldForceVisualResponse(

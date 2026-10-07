@@ -11,8 +11,8 @@ public sealed class SpeechConfigurationTests
     {
         SpeechSelection.Default.Should().Be(new SpeechSelection(SpeechProviderIds.Windows, null));
         SpeechSelection.Default.Validate();
-        SpeechOptionRegistry.Options.Should().HaveCount(2);
-        SpeechOptionRegistry.SchemaVersion.Should().Be(1);
+        SpeechOptionRegistry.Options.Should().HaveCount(4);
+        SpeechOptionRegistry.SchemaVersion.Should().Be(2);
         new SpeechVoice("voice", "Voice", "en-US", SpeechVoiceGender.Unknown).ConfigurationId.Should().Be("windows-sapi / voice");
         foreach (var descriptor in SpeechOptionRegistry.Options)
         {
@@ -20,11 +20,11 @@ public sealed class SpeechConfigurationTests
             descriptor.Id.Should().StartWith("speech.");
             descriptor.SpokenName.Should().StartWith("speech ");
             descriptor.Default.Should().NotBeEmpty();
-            descriptor.ResetEffect.Should().Contain("default voice");
-            descriptor.Type.Should().Be("installed-choice");
+            descriptor.ResetEffect.Should().Contain(descriptor.IsSummaryLimit ? "cap" : "default voice");
+            descriptor.Type.Should().Be(descriptor.IsSummaryLimit ? "positive-integer" : "installed-choice");
             descriptor.Scope.Should().Be("device-local");
             descriptor.Effect.Should().Be("voice-output");
-            descriptor.Availability.Should().Be("ready-installed-assets");
+            descriptor.Availability.Should().Be(descriptor.IsSummaryLimit ? "local-host" : "ready-installed-assets");
             descriptor.ApplicationTiming.Should().Contain("atomic-save");
             descriptor.Confirmation.Should().Contain("original-channel");
             descriptor.AuditAction.Should().StartWith("configuration.");
@@ -32,6 +32,8 @@ public sealed class SpeechConfigurationTests
         var invalid = () => SpeechOptionRegistry.Get((SpeechOption)99);
         invalid.Should().Throw<InvalidOperationException>();
         new SpeechSelection(SpeechProviderIds.Kokoro, new string('v', SpeechSelection.MaximumVoiceIdLength)).Validate();
+        var invalidDescriptor = () => new SpeechOptionDescriptor((SpeechOption)99, "", "", "", "").AuditAction;
+        invalidDescriptor.Should().Throw<InvalidOperationException>();
     }
 
     [Theory]

@@ -191,6 +191,20 @@ recognition. Exit also stops active playback before host teardown. Acoustic
 playback rejection for a future production wake pipeline still requires
 separate real-hardware proof.
 
+## Ordinary spoken summary caps
+
+**Settings > Speech & audio > Spoken summary limits** and exact
+`speech.summary-sentences` / `speech.summary-words` commands share device-local
+caps: **1-3 sentences / 1-80 words**, default **3 / 80**.
+The complete ordinary result, including spoken title and warnings, must fit
+both. Over-cap text is not truncated or paraphrased: speech is withheld with
+truthful full visual recovery. No additional model call is made.
+Exact approval/proposal readback and required questions/options retain their
+existing mandatory bounds; these caps are not permission to shorten them.
+Provider/voice, System/pinned output, consent and call/privacy rules are
+unchanged. Changes invalidate pending speech; no reset or clearance replays it.
+See [exact counting, commands and recovery](settings.md#spoken-summary-limits).
+
 ## Audio output selection
 
 The audio output list contains:

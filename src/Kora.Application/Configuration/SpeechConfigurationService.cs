@@ -72,6 +72,18 @@ public sealed partial class SpeechConfigurationService(
                 next = new(selection, null, [], [], state?.Revision ?? 0, saved,
                     "Installed speech discovery failed. Repair the local assets/access and refresh. Visual responses remain available; no provider is substituted.");
             }
+            try
+            {
+                var limits = preferences.LoadSummaryLimits();
+                limits?.Validate();
+                next = next with { SummaryLimits = limits ?? SpokenSummaryLimits.Default, AreSummaryLimitsSaved = limits is not null };
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentOutOfRangeException)
+            {
+                SummaryLimitsReadFailed(logger, exception);
+                next = next with { SummaryLimits = null, AreSummaryLimitsSaved = true,
+                    SummaryLimitsRecovery = "Spoken summary limits could not be read or are invalid. Ordinary speech is unavailable; repair the local file and refresh. Unknown companion limits cannot be defaulted by a per-option reset. Full results remain visual." };
+            }
             if (state is null || !Equivalent(state, next))
             {
                 state = next with { Revision = checked(next.Revision + 1) };
@@ -89,7 +101,17 @@ public sealed partial class SpeechConfigurationService(
         {
             var current = Get();
             SpeechSelection selection;
-            if (option == SpeechOption.Provider)
+            SpokenSummaryLimits? limits = null;
+            if (SpeechOptionRegistry.Get(option).IsSummaryLimit)
+            {
+                if (current.SummaryLimits is null)
+                {
+                    throw new InvalidOperationException("Repair the saved summary limits file and refresh; unknown companion limits cannot be defaulted by a per-option reset.");
+                }
+                limits = current.SummaryLimits.With(option, value);
+                selection = current.Selection ?? SpeechSelection.Default;
+            }
+            else if (option == SpeechOption.Provider)
             {
                 selection = new(value ?? SpeechSelection.Default.ProviderId, null);
             }
@@ -114,7 +136,7 @@ public sealed partial class SpeechConfigurationService(
             // A later UI surface cannot relabel the original voice request.
             origin = HostActivity.Current?.Request.Origin ?? origin;
             if (initiator == SecurityAuditInitiator.VoiceCommand) { origin = RequestOrigin.ActivatedVoice; }
-            return new(owner, option, selection, expectedRevision, callRevision, origin, initiator);
+            return new(owner, option, selection, expectedRevision, callRevision, origin, initiator, limits);
         }
     }
 
@@ -181,11 +203,28 @@ public sealed partial class SpeechConfigurationService(
                     hostEligible, () =>
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        candidate = Discover(proposal.Selection, true, null, current.Revision);
-                        if (!candidate.IsAvailable) { return; }
-                        if (current.Selection != proposal.Selection || !current.IsSaved)
+                        if (descriptor.IsSummaryLimit)
                         {
-                            preferences.SaveSelection(proposal.Selection);
+                            var limits = proposal.SummaryLimits
+                                ?? throw new InvalidOperationException("The proposal has no summary limits.");
+                            candidate = current with { SummaryLimits = limits, AreSummaryLimitsSaved = true, SummaryLimitsRecovery = null };
+                            if (current.SummaryLimits != limits || !current.AreSummaryLimitsSaved)
+                            {
+                                preferences.SaveSummaryLimits(limits);
+                            }
+                        }
+                        else
+                        {
+                            candidate = Discover(proposal.Selection, true, null, current.Revision) with
+                            {
+                                SummaryLimits = current.SummaryLimits, AreSummaryLimitsSaved = current.AreSummaryLimitsSaved,
+                                SummaryLimitsRecovery = current.SummaryLimitsRecovery,
+                            };
+                            if (!candidate.IsAvailable) { return; }
+                            if (current.Selection != proposal.Selection || !current.IsSaved)
+                            {
+                                preferences.SaveSelection(proposal.Selection);
+                            }
                         }
                     });
                 if (denied is not null)
@@ -193,7 +232,7 @@ public sealed partial class SpeechConfigurationService(
                     return Reject(denied.Value.ToString().ToLowerInvariant(),
                         "The host or call policy changed, or rejects the original channel. Start a new eligible Settings request.");
                 }
-                if (!candidate.IsAvailable)
+                if (!descriptor.IsSummaryLimit && !candidate.IsAvailable)
                 {
                     Reload(preserveHold: true);
                     return Reject("assets-unavailable", candidate.Recovery!);
@@ -217,7 +256,7 @@ public sealed partial class SpeechConfigurationService(
             activity.Complete(HostOperationOutcome.Completed);
             if (!Equivalent(current, candidate))
             {
-                heldRecovery = null;
+                if (!descriptor.IsSummaryLimit) { heldRecovery = null; }
                 state = candidate with { Revision = checked(current.Revision + 1) };
                 Publish();
             }
@@ -238,8 +277,39 @@ public sealed partial class SpeechConfigurationService(
             error ?? (voice is null ? "The selected provider or voice is unavailable. Choose a ready installed choice or reset; visual responses remain available. Nothing is downloaded or substituted." : null));
     }
 
+    internal async Task<string?> StartSummarySpeechAsync(string text, CallCommunicationPolicy policy,
+        Func<bool> hostEligible, Func<Task> start, CancellationToken cancellationToken)
+    {
+        Task playback;
+        lock (gate)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var current = Get();
+            if (current.SummaryLimits is not { } limits)
+            {
+                SummarySpeechRefused(logger, "invalid-preferences");
+                return current.SummaryLimitsRecovery;
+            }
+            var measured = SpokenSummaryMeasure.Count(text);
+            if (!measured.Fits(limits))
+            {
+                SummarySpeechRefused(logger, "over-limit");
+                return $"Speech withheld: the complete result is {measured.Sentences} sentences/{measured.Words} words, exceeding the configured {limits.Sentences}-sentence/{limits.Words}-word caps. No text was shortened; the full result is available visually.";
+            }
+            playback = policy.StartSpeech(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return start();
+            }, hostEligible);
+        }
+        await playback;
+        return null;
+    }
+
     private static bool Equivalent(SpeechConfigurationState first, SpeechConfigurationState second) =>
         first.Selection == second.Selection && first.EffectiveVoice == second.EffectiveVoice
+        && first.SummaryLimits == second.SummaryLimits && first.AreSummaryLimitsSaved == second.AreSummaryLimitsSaved
+        && string.Equals(first.SummaryLimitsRecovery, second.SummaryLimitsRecovery, StringComparison.Ordinal)
         && first.IsSaved == second.IsSaved && string.Equals(first.Recovery, second.Recovery, StringComparison.Ordinal)
         && first.Providers.SequenceEqual(second.Providers) && first.Voices.SequenceEqual(second.Voices);
 

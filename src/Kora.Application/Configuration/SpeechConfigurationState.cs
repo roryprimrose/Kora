@@ -8,4 +8,7 @@ public sealed record SpeechConfigurationState(SpeechSelection? Selection, Speech
     long Revision, bool IsSaved, string? Recovery)
 {
     public bool IsAvailable => EffectiveVoice is not null && Recovery is null;
+    public SpokenSummaryLimits? SummaryLimits { get; init; } = SpokenSummaryLimits.Default;
+    public bool AreSummaryLimitsSaved { get; init; }
+    public string? SummaryLimitsRecovery { get; init; }
 }

@@ -7,7 +7,7 @@ public sealed record SpeechCommand(AppearanceCommandOperation Operation,
 {
     public const int MaximumLength = 320;
     private static readonly string[] Prefixes = ["list speech", "get speech", "set speech", "reset speech"];
-    public const string Syntax = "Use list speech settings, get <speech.id>, set <speech.id> to <exact installed ID>, or reset <speech.id>. Listed spoken names also work. Voice choices accept provider / ID, or an unambiguous exact voice ID, and explicitly select that provider too. Reset provider restores Windows/default voice; reset voice restores that provider's advertised default.";
+    public const string Syntax = "Use list speech settings, get <speech.id>, set <speech.id> to <exact installed ID or integer cap>, or reset <speech.id>. Listed spoken names also work. Voice choices accept provider / ID, or an unambiguous exact voice ID, and explicitly select that provider too. Reset provider restores Windows/default voice; reset voice restores that provider's advertised default. speech.summary-sentences accepts 1-3; speech.summary-words accepts 1-80. Reset a cap preserves the other cap. Ordinary results exceeding either cap remain fully visual, not truncated.";
 
     public static SpeechCommand? Parse(string transcript, string assistantName)
     {

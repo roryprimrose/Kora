@@ -14,7 +14,7 @@ using Neovolve.Logging.Xunit;
 namespace Kora.Application.UnitTests.Configuration;
 
 [Collection("Host tracing")]
-public sealed class SpeechConfigurationServiceTests(ITestOutputHelper output)
+public sealed partial class SpeechConfigurationServiceTests(ITestOutputHelper output)
     : LoggingTestsBase<SpeechConfigurationService>(output)
 {
     [Fact]
@@ -403,6 +403,16 @@ public sealed class SpeechConfigurationServiceTests(ITestOutputHelper output)
 
     private sealed class Preferences : ITextToSpeechPreferences
     {
+        public SpokenSummaryLimits? Limits { get; set; }
+        public Exception? LimitsLoadFailure { get; set; }
+        public SpokenSummaryLimits? LoadSummaryLimits() => LimitsLoadFailure is { } exception ? throw exception : Limits;
+        public void SaveSummaryLimits(SpokenSummaryLimits limits)
+        {
+            if (Failure is not null) { throw Failure; }
+            Limits = limits;
+            Writes++;
+            AfterWrite?.Invoke();
+        }
         public SpeechSelection? Selection { get; set; }
         public Exception? Failure { get; set; }
         public Exception? LoadFailure { get; set; }

@@ -20,6 +20,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
     private readonly SemaphoreSlim speechLock = new(1, 1);
     private readonly SpeechSynthesizer synthesizer = new();
     private readonly Action<int> setOwnedWindowsGain;
+    private readonly Action cancelOwnedSynthesis;
     private TaskCompletionSource? synthesisCompletion;
     private TaskCompletionSource? playbackCompletion;
     private Prompt? activePrompt;
@@ -53,11 +54,13 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
     internal WindowsTextToSpeechService(
         KokoroTextToSpeechProvider? kokoroProvider,
         ILogger<WindowsTextToSpeechService> logger,
-        Action<int>? setOwnedWindowsGain)
+        Action<int>? setOwnedWindowsGain,
+        Action? cancelOwnedSynthesis = null)
     {
         this.kokoroProvider = kokoroProvider;
         this.logger = logger;
         this.setOwnedWindowsGain = setOwnedWindowsGain ?? (percent => synthesizer.Volume = percent);
+        this.cancelOwnedSynthesis = cancelOwnedSynthesis ?? synthesizer.SpeakAsyncCancelAll;
         synthesizer.SpeakCompleted += OnSpeakCompleted;
     }
 
@@ -396,7 +399,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                 completionTask = synthesisCompletion?.Task ?? playbackCompletion?.Task;
             }
 
-            synthesizer.SpeakAsyncCancelAll();
+            cancelOwnedSynthesis();
             playback?.Stop();
         }
         finally
@@ -415,23 +418,36 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         WasapiPlayer? player;
         lock (stateLock)
         {
-            Interlocked.Increment(ref outputGeneration);
-            stopRequested = true;
-            player = playback;
+            player = RetireOutputLocked();
         }
-        player?.Stop();
-        synthesizer.SpeakAsyncCancelAll();
+        StopRetiredOutput(player);
     }
 
     public void SetPlaybackVolume(PlaybackVolume? volume)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        WasapiPlayer? player;
         lock (stateLock)
         {
             if (playbackVolume == volume) { return; }
             playbackVolume = volume;
-            InvalidateOutput();
+            player = RetireOutputLocked();
         }
+        StopRetiredOutput(player);
+    }
+
+    private WasapiPlayer? RetireOutputLocked()
+    {
+        Interlocked.Increment(ref outputGeneration);
+        stopRequested = true;
+        return playback;
+    }
+
+    private void StopRetiredOutput(WasapiPlayer? player)
+    {
+        // Native stop can synchronously wait for callbacks that need stateLock.
+        player?.Stop();
+        cancelOwnedSynthesis();
     }
 
     public async Task InstallProviderAsync(

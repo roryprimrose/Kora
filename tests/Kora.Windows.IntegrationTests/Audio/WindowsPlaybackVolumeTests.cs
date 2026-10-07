@@ -13,6 +13,35 @@ public sealed class WindowsPlaybackVolumeTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(100)]
+    public async Task Owned_cancellation_callbacks_can_reenter_state_after_atomic_volume_retirement(int percent)
+    {
+        WindowsTextToSpeechService? service = null;
+        var cancellations = 0;
+        service = new WindowsTextToSpeechService(null,
+            NullLogger<WindowsTextToSpeechService>.Instance, setOwnedWindowsGain: null,
+            cancelOwnedSynthesis: () =>
+            {
+                cancellations++;
+                Task.Run(() => service!.OnPlaybackStopped(new object(), new()),
+                    TestContext.Current.CancellationToken)
+                    .WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken)
+                    .GetAwaiter().GetResult();
+            });
+        await using (service)
+        {
+            service.SetPlaybackVolume(null);
+            service.SetPlaybackVolume(new(percent));
+            service.InvalidateOutput();
+            cancellations.Should().Be(3);
+            service.IsSpeaking.Should().BeFalse();
+            service.PlaybackFrame.Should().Be(SpeechPlaybackFrame.Inactive);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(100)]
     public async Task Windows_engine_gain_uses_the_bounded_owned_instance_setter_without_synthesis(int percent)
     {
         var applied = new List<int>();

@@ -127,7 +127,9 @@ capture, hardware/provider and acoustic receipts/executables are not superseded
 by these scalar, fake orchestration and generation tests.
 Validation on consolidated authority baseline `77deef4`: root Release build
 has zero warnings/errors; 700 Core, 1,897 Application, 38 Tools, 6 Definitions
-and 949 Windows fixture tests pass without skips. The unchanged portable gate
+and 952 Windows fixture tests pass without skips, including cancellation
+callbacks reentering state after atomic volume/generation retirement without
+holding the native callback state lock. The unchanged portable gate
 is exactly 100% lines and branches. Real SQLite volume controls run through the
 shared task/interaction lease before and after validated frozen-ledger migration,
 with native/typed/activated provenance and correlated audit receipts. The

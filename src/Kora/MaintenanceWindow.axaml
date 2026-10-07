@@ -22,6 +22,7 @@
       <TextBlock Text="{Binding NextCheck, StringFormat='Next eligible check: {0:u}'}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding ReleaseDetails}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding ReleasePage}" TextWrapping="Wrap" />
+      <Button Content="Review this exact verified release" Command="{Binding ReviewCommand}" IsEnabled="{Binding CanReview}" HorizontalAlignment="Left" />
       <StackPanel Orientation="Horizontal" Spacing="12">
         <Button Content="Open reviewed canonical release page" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}" />
         <Button Content="Snooze this version (24h)" Command="{Binding SnoozeCommand}" IsEnabled="{Binding CanOpen}" />

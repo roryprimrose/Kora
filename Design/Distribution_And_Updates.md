@@ -814,6 +814,9 @@ one explicit native review surface with running version, channel, truthful
 status, last-verification/staleness, expected application ZIP/digest, and an
 exact host-constructed canonical release page. **Check**, **Open reviewed
 canonical release page**, and **Snooze this version (24h)** are native-only.
+**Review this exact verified release** binds navigation/snooze to the current
+immutable snapshot; every refresh, expiry or admission closure invalidates
+that binding and requires a fresh native review, even for the same version.
 They are not model tools, task/skill execution, installation approvals or
 durable conversation questions. The existing local-version native question
 and external source-bootstrap/publisher workflows are unchanged.

@@ -25,8 +25,11 @@ checks use six hours plus jitter and explicit failure/rate-limit backoff.
 permission/channel changes.
 
 Read the exact version, immutable source, architecture, expected application
-ZIP digest, canonical page and unsigned disclosure before **Open reviewed
+ZIP digest, canonical page and unsigned disclosure, then select **Review this
+exact verified release** before **Open reviewed
 canonical release page**. Browser navigation is not download/install approval.
+Any refresh, changed snapshot, expiry or admission closure invalidates this
+review; Open/Snooze require a new explicit native review.
 **Snooze this version (24h)** affects only this run; there is no automatic
 speech, focus or prompt backlog. Lock/disconnect, unknown ownership and
 protected call mode close the review and invalidate pending callbacks.

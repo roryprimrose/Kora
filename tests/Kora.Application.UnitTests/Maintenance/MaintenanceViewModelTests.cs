@@ -27,6 +27,8 @@ public sealed class MaintenanceViewModelTests
         f.State.NetworkEnabled = true;
         await f.State.CheckCommand.ExecuteAsync();
         f.State.Availability.Should().Be(ReleaseAvailability.Available);
+        f.State.CanOpen.Should().BeFalse();
+        await f.State.ReviewCommand.ExecuteAsync();
         f.State.CanOpen.Should().BeTrue();
         f.State.ReleasePage.Should().Be("https://github.com/roryprimrose/Kora/releases/tag/v1.2.3");
         f.State.ReleaseDetails.Should().Contain("Expected SHA-256");
@@ -135,6 +137,7 @@ public sealed class MaintenanceViewModelTests
         f.Admitted = true;
         f.Client.Pending = null;
         await f.State.CheckAsync();
+        await f.State.ReviewAsync();
         f.State.CanOpen.Should().BeTrue();
         f.State.Dispose();
         f.State.Dispose();
@@ -191,6 +194,7 @@ public sealed class MaintenanceViewModelTests
         await ((Func<Task>)(() => f.State.CheckCommand.ExecuteAsync())).Should().ThrowAsync<InvalidDataException>();
         f.Jitter = 0;
         await f.State.CheckAsync();
+        await f.State.ReviewAsync();
         f.Opener.Failure = new IOException("fixture");
         await f.State.OpenAsync();
         f.State.Status.Should().Contain("failed");
@@ -210,6 +214,7 @@ public sealed class MaintenanceViewModelTests
         f.State.CanOpen.Should().BeFalse();
         f.State.NetworkEnabled = true;
         await f.State.CheckAsync();
+        await f.State.ReviewAsync();
         await f.State.SnoozeAsync();
         f.Time.Now = f.Time.Now.AddHours(6);
         f.Time.Timers[0].Fire();
@@ -273,6 +278,7 @@ public sealed class MaintenanceViewModelTests
         using var f = new Fixture();
         f.State.NetworkEnabled = true;
         await f.State.CheckAsync();
+        await f.State.ReviewAsync();
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         f.Opener.Pending = completion.Task;
         var opening = f.State.OpenAsync();
@@ -285,6 +291,38 @@ public sealed class MaintenanceViewModelTests
         await opening;
         f.State.CanOpen.Should().BeFalse();
         f.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Unknown);
+    }
+
+    [Fact]
+    public async Task Every_refresh_or_changed_release_requires_new_exact_native_review()
+    {
+        using var f = new Fixture();
+        await f.State.ReviewAsync();
+        f.State.CanReview.Should().BeFalse();
+        f.State.NetworkEnabled = true;
+        await f.State.CheckAsync();
+        f.State.CanReview.Should().BeTrue();
+        await f.State.OpenAsync();
+        f.Opener.Versions.Should().BeEmpty();
+        await f.State.ReviewAsync();
+        f.Time.Now = f.State.NextCheck!.Value;
+        f.Client.Result = f.Client.Success(f.Time.Now);
+        f.Time.Timers[0].Fire();
+        f.State.CanOpen.Should().BeFalse();
+        await f.State.ReviewAsync();
+        f.State.CanOpen.Should().BeTrue();
+        f.Time.Now = f.State.NextCheck!.Value;
+        f.Client.Result = f.Client.Success(f.Time.Now) with
+        {
+            Release = f.Client.Success(f.Time.Now).Release! with { Version = ReleaseVersion.Parse("2.0.0") },
+        };
+        f.Time.Timers[0].Fire();
+        f.State.CanOpen.Should().BeFalse();
+        await f.State.OpenAsync();
+        f.Opener.Versions.Should().BeEmpty();
+        using var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice), HostActivityLayer.Application, HostOperation.Request);
+        await f.State.ReviewAsync();
+        f.State.CanOpen.Should().BeFalse();
     }
 
     private sealed class Fixture : IDisposable

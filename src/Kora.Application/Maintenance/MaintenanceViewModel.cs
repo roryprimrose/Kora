@@ -25,6 +25,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? operation;
     private ReleaseCheck? result;
     private ReleaseCheck? lastVerified;
+    private ReleaseCheck? reviewed;
     private ReleaseChannel channel;
     private DateTimeOffset? nextCheck;
     private DateTimeOffset? snoozedUntil;
@@ -51,12 +52,14 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         this.jitterMinutes = jitterMinutes ?? (() => Random.Shared.Next(0, 31));
         timer = time.CreateTimer(_ => dispatcher.Post(OnTimer), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         CheckCommand = new(CheckAsync, ReportFailure);
+        ReviewCommand = new(ReviewAsync, ReportFailure);
         OpenCommand = new(OpenAsync, ReportFailure);
         SnoozeCommand = new(SnoozeAsync, ReportFailure);
     }
 
     public static IReadOnlyList<ReleaseChannel> Channels { get; } = Enum.GetValues<ReleaseChannel>();
     public AsyncCommand CheckCommand { get; }
+    public AsyncCommand ReviewCommand { get; }
     public AsyncCommand OpenCommand { get; }
     public AsyncCommand SnoozeCommand { get; }
     public string CurrentVersion => info.Version;
@@ -76,7 +79,8 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             + release.ArchitectureDisclosure + "\nExpected SHA-256: "
             + release.Assets.Single(asset => string.Equals(asset.Name, release.ArtifactName, StringComparison.Ordinal)).Sha256
         : "No currently verified release is available for review.";
-    public bool CanOpen => !disposed && !busy && admitted() && result?.Release is not null && !IsStale;
+    public bool CanReview => !disposed && !busy && admitted() && result?.Release is not null && !IsStale;
+    public bool CanOpen => CanReview && ReferenceEquals(result, reviewed);
 
     public ReleaseChannel Channel
     {
@@ -165,6 +169,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
                 return;
             }
             result = checkedRelease;
+            reviewed = null;
             if (result.VerifiedAt is not null)
             {
                 lastVerified = result;
@@ -270,6 +275,17 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         }
     }
 
+    public Task ReviewAsync()
+    {
+        Mutate("maintenance.review", () =>
+        {
+            if (!CanReview) { throw new InvalidOperationException("Fresh admitted metadata is required for native review."); }
+            reviewed = result;
+            message = "Native review bound to this exact verified snapshot. Any refresh, expiry or admission change invalidates navigation and snooze.";
+        });
+        return Task.CompletedTask;
+    }
+
     public Task SnoozeAsync()
     {
         Mutate("maintenance.snooze", () =>
@@ -366,6 +382,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         timer.Dispose();
         admitted = static () => false;
         result = null;
+        reviewed = null;
     }
 
     private void ReportFailure(Exception exception)
@@ -390,6 +407,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ReleasePage));
         OnPropertyChanged(nameof(ReleaseDetails));
         OnPropertyChanged(nameof(CanOpen));
+        OnPropertyChanged(nameof(CanReview));
     }
 
     [LoggerMessage(321, LogLevel.Error, "Native maintenance operation failed; exception type {ExceptionType}.")]

@@ -953,7 +953,7 @@ Before adding capabilities outside the initial release:
 
 | Capability | Additional required evidence |
 |---|---|
-| Knowledge indexing | Access revocation, deletion, freshness, identity partitioning, citation correctness, reindex behaviour |
+| File/folder ingestion and knowledge indexing | Complete the staged [R26 file/folder acceptance contract](File_And_Folder_Ingestion.md#acceptance-criteria): reviewed canonical roots, bounded immutable snapshots, Windows traversal/reparse/access/change handling, hostile-content instruction separation, source/session isolation, exact citations, local-only no-egress, hosted payload approval, refresh/revocation and inventoried deletion/rebuild |
 | General applications/user-provided executable skills | Deferred R27: resolve standalone application rollback/applicability before admission; complete dependency discovery/immutable snapshots, content-bound applicability/revocation, and adversarial filesystem, network, child-process, credential, and protected Kora-resource access tests against actual OS containment |
 | Screen/image context | Explicit capture, region/source provenance, secret handling, no ambient collection |
 | Kora MCP server | Authenticated clients, per-client scopes, no unattended reuse of interactive grants |

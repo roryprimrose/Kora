@@ -609,7 +609,11 @@ Restart recovers history/selection and Interrupted/Unknown work, not dispatch.
 | `approvals.revoke` | Exact grant IDs/revisions and removal preview | Trusted voice/UI-confirmed removal; not arbitrary expiry or retention cleanup | M/E |
 | `context.list` | Task/source IDs and approved range | Permitted descriptors and freshness; no scan across all sessions/sources | E |
 | `context.propose_transmission` | Exact source/derivation IDs and destination | Reviewed outbound envelope; adapter waits; model cannot approve it | E |
-| `context.select_file`, `context.read_file` | User-selected canonical scope, immutable revision and range | Proposed C for skill revisions; Deferred for general files; not arbitrary filesystem access | E |
+| `context.select_file`, `context.read_file` | User-selected canonical scope, immutable revision and range | Proposed C for skill revisions; general user files use the narrower R26 source/revision/search/excerpt contract; not arbitrary filesystem access | E |
+| `context.sources_list`, `context.source_inspect` | Exact permitted source/revision ID | Deferred R26: content-free source state, scope, freshness, formats, exclusions and recovery; no raw path/content in management inference | E; M content-free readiness only |
+| `context.propose_source`, `context.refresh_source` | Deliberate user lineage and reviewed file/folder proposal, or exact registered source/revision | Deferred R26: host picker/review confirms scope; the model cannot confirm or expand a root | E |
+| `context.disable_source`, `context.remove_source` | Exact source/revision and reviewed disable/deletion scope | Deferred R26: immediate new-use revocation and inventoried Kora-copy cleanup; never deletes originals | E |
+| `context.search`, `context.read_excerpt` | Exact admitted source/revision set plus bounded query/budget, or citation ID | Deferred R26: permission-checked citations/excerpts with freshness, retention, prompt-injection and egress gates | E |
 | `context.capture_screen` | Explicit selected window/region and intent | Deferred: bounded snapshot/provenance; no ambient collection or audio | E |
 | `skills.sources_list`, `skills.remove_source` | Registered bounded source ID and revision | Source metadata or confirmed registration removal; no deleting shared original bytes | E |
 | `skills.restore_revision` | Exact skill/base revision and digest | Confirmed compatible revision restoration; never restores content-revoked execution grants | E |
@@ -618,7 +622,6 @@ Restart recovers history/selection and Interrupted/Unknown work, not dispatch.
 | `maintenance.get_status`, `maintenance.get_release` | Host-published check/selected release ID | Read-only trusted maintenance snapshot and untrusted release notes; no check, navigation or updater authority | M/E |
 | `diagnostics.list`, `diagnostics.export` | Host-enumerated daily-log IDs; explicit destination for export | File metadata or separately approved export; structured retained evidence uses `evidence.search`/`evidence.export`; no silent upload | E |
 | `connectors.list`, `connectors.propose_configuration` | Registered connector/config schema and selected identity reference | Proposed B: admitted metadata or trusted setup proposal; secure sign-in stays host-only | E; M minimal status for list |
-| `knowledge.search`, `knowledge.read` | Explicit admitted source/query or document/range | Deferred: permission-checked bounded citations/content with freshness/deletion gates | E |
 
 Frequent-speaker learning is separately consented local personalization, not
 authentication, ambient/history training or authority. Protected verification

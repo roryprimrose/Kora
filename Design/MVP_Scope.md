@@ -172,7 +172,11 @@ Kora cannot update its own code, binaries, executable extensions, or security/up
 - Wake-word-free conversational follow-ups and unlimited/unvalidated activation names. Custom names with explicit custom-only/both choice follow [Custom Activation Names](Activation_Name.md).
 - Clipboard monitoring, clipboard images/HTML/file lists, or automatic URL fetching.
 - Screen capture, OCR, arbitrary desktop automation, or browser automation.
-- Full knowledge indexing, embeddings, PDF/Office ingestion, or enterprise content caches.
+- General file/folder ingestion, knowledge indexing, embeddings, PDF/Office
+  ingestion, or enterprise content caches. These remain staged R26 work under
+  [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md);
+  the initial release does not advertise even the narrower text/Markdown
+  snapshot foundation.
 - Work IQ as a mandatory dependency.
 - A skill marketplace, automatic extension updates, or shared repository synchronisation.
 - Arbitrary C# scripts, in-process third-party plugins, or unrestricted process execution.

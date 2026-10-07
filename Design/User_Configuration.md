@@ -288,12 +288,22 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 | Shared skill sources | User-selected bounded read-only roots | "Use skills from my Copilot profile" |
 | Skill enablement/default source binding | Reviewed digest/device-local binding | "Use the Kora-specific deployment skill when I say deployment" |
 | Source refresh preference | Revalidate before dispatch; optional bounded discovery refresh | "Refresh shared skill discovery every hour" |
+| Knowledge source registration | None by default; explicit reviewed file/folder and session/managed scope | "Add my Team TSGs folder as a knowledge source" |
+| Knowledge source refresh | Manual initially; later bounded scheduled refresh only after R26 background-work gates | "Refresh Team TSGs" |
+| Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
+| Knowledge source limits | Host defaults within verified file/source/context maxima; user may lower them | "Limit knowledge files to one megabyte" |
+| Knowledge citation detail | Source plus heading/page/line location | "Show detailed knowledge citations" |
 | Diagnostic database retention | 30 days by default; independently configurable within the registered bounded schema; daily JSON remains limited to 30 files/30 days | "Keep diagnostic events for fourteen days" |
 | Audit retention | 90 days by default; configurable from 30-365 days | "Keep audit metadata for six months" |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
 Do not require typing a path, but do not infer one from unrelated context.
+Long, ambiguous or low-confidence knowledge paths fall back to the native
+picker rather than being guessed. Adding a knowledge source, using its excerpts
+with a hosted model and deleting Kora's derived copies are separate decisions.
+The complete source, retrieval, settings and voice contract is
+[File and Folder Ingestion](File_And_Folder_Ingestion.md).
 The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
 Permitted conversation history uses durable standard SQLite under verified private profile permissions and session retention. Copies outside that boundary are readable; database encryption is not required. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports and secret logging remain unsupported.
 Diagnostic, audit and session retention are independent. Session deletion does

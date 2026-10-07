@@ -21,6 +21,13 @@ Typed built-in commands and visual responses work without speech hardware. No
 model, cloud account, or network connection is required for exact built-in
 commands. Unmatched requests require a verified local Ollama model.
 
+Exact **list capabilities**, **describe capability application.get_version**,
+**show registry version**, **show dependency readiness**, **list runtimes**,
+and **show local runtime status** expose the bounded read-only host registry
+without inference. Readiness/runtime results are timestamped recorded probe
+observations, not fresh checks or runtime qualification. See
+[read-only discovery](docs/commands.md#read-only-host-discovery).
+
 The requirements and commands here describe developer source use. Precompiled
 framework-dependent binary users do not need Git or an SDK; see the
 [distribution/runtime contract](Design/Distribution_And_Updates.md).

@@ -221,7 +221,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ILogger<MainViewModel> logger,
         IVoiceConsentPreferences voiceConsentPreferences,
         IWindowsPrivacyObservationService privacyObservation,
-        DurableVersionQuery durableVersionQuery)
+        DurableVersionQuery durableVersionQuery,
+        Kora.Application.Tools.ReadOnlyCapabilityRegistry capabilityRegistry)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -252,6 +253,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.voiceConsentPreferences = voiceConsentPreferences;
         this.privacyObservation = privacyObservation;
         this.durableVersionQuery = durableVersionQuery;
+        this.capabilityRegistry = capabilityRegistry;
 
         AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
             new(execute, HandleCommandException, canExecute);
@@ -3076,6 +3078,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ApplyDependencyStatus(DependencyStatus status)
     {
+        dependencyBootstrapper.RecordObservation(status);
         var previous = Dependencies.FirstOrDefault(item =>
             string.Equals(item.Id, status.Id, StringComparison.Ordinal));
         if (previous is null)
@@ -4212,6 +4215,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         BeginTranscriptPresentation(spokenText, confidence, initiator);
 
         var match = commandRouter.Match(spokenText, AssistantName);
+        if (TryPresentCapabilityCommand(match.NormalizedTranscript))
+        {
+            return;
+        }
         if (!match.IsMatch || match.Command is null)
         {
             await HandleUnmatchedRequestAsync(spokenText, initiator);
@@ -5061,6 +5068,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ShowInformation(
                     "Built-in commands are ready.",
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
+                    + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)

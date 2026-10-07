@@ -7647,7 +7647,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 VoiceConsent,
                 PrivacyObservation,
                 new DurableVersionQuery(new HostTaskCoordinator(HostStore), Audit,
-                    NullLogger<DurableVersionQuery>.Instance));
+                    NullLogger<DurableVersionQuery>.Instance),
+                new Kora.Application.Tools.ReadOnlyCapabilityRegistry(
+                    new CapabilityHostAccess(Session), ApplicationInfo, bootstrapper,
+                    NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance));
             if (subscribeToWindowActions)
             {
                 ViewModel.WindowActionRequested += (_, action) =>
@@ -7659,6 +7662,11 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public BuiltInCommandCatalog Catalog { get; }
+
+        private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess
+        {
+            public bool IsCurrentHost => session.IsUnlocked;
+        }
 
         public QueryTaskStore HostStore { get; } = new();
 

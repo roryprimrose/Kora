@@ -9,6 +9,34 @@ Internal means implemented/mediated by Kora, not every method or UI command in t
 External MCP tools, provider-native tools, and skill-defined workflows are separately admitted capabilities, not automatically internal tools.
 Being listed here does not enable a capability before its delivery, adapter, containment, and authorization gates pass.
 
+### Delivered bounded read-only host foundation
+
+The [authoritative production catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)
+and [direct registry handlers](../src/Kora.Application/Tools/ReadOnlyCapabilityRegistry.cs)
+compose exactly `capabilities.list`, `capabilities.get`, `application.get_version`,
+`readiness.get`, `runtime.list`, and `runtime.get_status`. These canonical IDs
+are now host contracts, not a live model SDK/MCP catalogue. Exact local native
+commands are documented in [Commands](../docs/commands.md#read-only-host-discovery).
+The descriptor schema is version 1: None/Page/Id typed inputs, corresponding
+typed result shapes, ReadOnlyObservation effects, handler availability,
+Native/Management/Execution lane classification, 1,024-byte input / six-record /
+4,096-byte complete serialized UTF-8 result limits. Pages have total count and
+explicit next offset; invalid fields/duplicates/IDs/ranges are denied.
+
+Management receives only these minimal read-only descriptors, never the current
+action enum, executable-task catalogue, source instructions, or new authority.
+Lane selection is host-owned, not an input field. Callers are registry-instance
+and live host-request bound; foreign, completed, disposed or unavailable host
+contexts fail closed. Only the Native route is presently composed; adapter
+admission/egress and full model tool/result iteration remain outstanding.
+Raw dependency names/details are not serialized. Readiness and `local.inference`
+runtime observations reuse the existing bootstrap/setup records, with timestamps
+and explicit NotObserved/Unavailable reasons; queries do not reprobe or generate.
+Version uses the existing running-version provider, which does not observe
+deployment mode. Runtime health is not permission or R02 qualification;
+ToolLoopQualified remains false. No settings/evidence/session/side-effect entries
+are added, and existing exact lock/power behavior is unchanged.
+
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 maps the current bootstrap and every catalogue family to dependency-ordered
 implementation and acceptance work. Roadmap inventory IDs are not tool IDs.
@@ -161,14 +189,15 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
-| `capabilities.list`, `capabilities.get` | Filter/category or admitted capability ID; supported tools/schemas, limits, dependencies, unavailable reasons | M/E | Proposed A; current help is UI presentation, not arbitrary registry access |
-| `application.get_version` | No target path; actual version/build and deployment mode | M/E | Proposed A; only actual host observations |
+| `capabilities.list`, `capabilities.get` | Bounded page or admitted capability ID; versioned minimal read-only schemas/limits | M/E | Delivered host-only bounded foundation above; broader discovery/model adapters remain proposed |
+| `application.get_version` | No fields; actual running version/build string, explicit unobserved deployment | M/E | Delivered host-only bounded foundation; no fabricated deployment facts |
 | `application.show`, `application.hide` | Exact existing surface ID; visibility outcome | M/E | Proposed A; no implicit mute, cancellation, or Done |
 | `application.open_settings`, `application.open_documentation` | Registered category/page ID; host surface reference | M/E | Proposed A; guide IDs, not file paths |
 | `application.request_exit`, `application.request_restart` | Exact current-app action; affected-session plan/proposal and outcome | M/E | Proposed A; confirm live-work consequences; never computer restart or update |
-| `readiness.get`, `readiness.refresh`, `readiness.show` | Registered capability/dependency ID; observations, freshness, missing prerequisites or setup surface | M/E | Proposed A; refresh is bounded probing, not recording/download |
+| `readiness.get` | Bounded page of admitted dependency observations, timestamps, unavailable/unobserved reasons | M/E | Delivered host-only recorded observations; no refresh or inference |
+| `readiness.refresh`, `readiness.show` | Registered capability/dependency ID; fresh probes or setup surface | M/E | Proposed typed tools; existing setup/refresh UI remains separate |
 | `readiness.propose_setup` | Selected supported capability IDs; host-owned prerequisite/setup plan | M/E | Proposed A; installation/sign-in/consent completed by trusted setup, not a model installer tool |
-| `runtime.list`, `runtime.get_status` | Admitted runtime ID; locality, healthy capabilities, configured identity reference, limits | M/E | Proposed A; no credentials, arbitrary endpoints, or automatic provider switching |
+| `runtime.list`, `runtime.get_status` | Bounded page / `local.inference` ID; locality, recorded readiness/time/reason, qualification false | M/E | Delivered host-only existing local adapter observations; broader provider/qualification contracts remain proposed |
 | `voice_profile.get_status`, `voice_profile.request_manage` | Current-profile capability/status or explicit Learned/Enrolled workflow and test/correct/reset/delete/replace/setup operation; coarse readiness and trusted workflow reference | M/E | Optional after evidence; no raw features/identity/sample arguments; independent learning consent, protected verification flow, and in-call origin gate |
 
 ### Sessions and History

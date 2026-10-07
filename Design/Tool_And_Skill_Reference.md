@@ -4,6 +4,10 @@ Status: design-defined capability reference, with current implementation labels.
 Tool names and input/result shapes are proposed documentation contracts,
 not a published SDK, MCP API, or claim that these tools are registered today.
 
+Exception: the six canonical read-only discovery/version/readiness/runtime IDs
+now have a [composed bounded host registry](Internal_Model_Tools.md#delivered-bounded-read-only-host-foundation).
+This is not a model tool/result loop or general registration of this reference.
+
 Related: [Canonical Tool Catalogue](Internal_Model_Tools.md), [Interaction Contract](Commands_Tools_And_Skills.md), [Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Phrase Catalogue](OOTB_Phrases.md), [Bundled Skills](Built_In_Skills.md), [User Guide](../docs/tools-and-built-in-skills.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Scope and Availability
@@ -141,8 +145,8 @@ active-work checks; essential direct controls remain locally reachable.
 | `application.open_settings` | Optional registered category | Open/activate native Settings; change no preference | M/E | Current: `OpenSettings`; category routing is planned |
 | `readiness.show` | None | Open readiness and supported setup choices; install nothing | M/E | Current: `OpenSetup` |
 | `application.open_documentation` | Optional known page ID | Open embedded user guide; never execute document content | M/E | Current: `OpenDocumentation`; model-selected page routing is planned |
-| `capabilities.list` | Optional category | Available tools, enabled skills, sources, limitations and dependencies; no grants implied | M/E | Partial: `ShowHelp` lists exact commands, not a skill/tool catalogue |
-| `application.get_version` | None | Version, revision/deployment/provider facts actually known | M/E | Partial: `ShowVersion` reports version and local readiness |
+| `capabilities.list`, `capabilities.get` | Bounded page / canonical ID | Six versioned read-only descriptors with shapes/effects/lanes/limits; no grants | M/E | Delivered bounded host registry and exact native commands; no model adapter/skills catalogue |
+| `application.get_version` | None | Actual running version/build string; deployment explicitly unobserved | M/E | Delivered bounded host handler; existing `ShowVersion` behavior preserved |
 
 Same-build activation and cross-build takeover/return belong to the host's
 [instance-coordination flow](Instance_Coordination.md), not a tool for another
@@ -162,7 +166,7 @@ cancel work, grant an action, or imply that a plan is complete.
 | `work.status` | Optional task ID | Observed stage and measured percentage, if available | M/E | Partial: `ShowCurrentTaskProgress` covers setup tasks |
 | `work.list` | Optional state filter | Ordered task IDs/safe labels/states, capacity, pause reason | M/E | Planned: current setup list is not the general request queue |
 | `computer.power_status` | None | Owned power proposal/confirmation/countdown and cancellation availability | M/E | Partial: `ShowPowerStatus` reports non-executing proposals |
-| `readiness.get` | Optional registered capability ID | Probe results, missing/blocked dependencies and supported next steps | M/E | Current: Readiness UI and status; full designed catalogue is planned |
+| `readiness.get` | Bounded page | Timestamped recorded probe/setup observations with safe missing/blocked/unobserved reasons | M/E | Delivered bounded host handler, no reprobe; full designed catalogue remains planned |
 | `readiness.refresh` | Optional registered requirement ID | Repeat bounded probes without capture or installation | M/E | Current: Refresh/device discovery; typed scoped contract is planned |
 
 Status snapshots carry observation time. Use a fresh host query when a model
@@ -578,7 +582,7 @@ Restart recovers history/selection and Interrupted/Unknown work, not dispatch.
 |---|---|---|---|
 | `capabilities.get` | Admitted capability ID | Descriptor, schema, limitations and unavailable reason; no protected paths or implicit enablement | M/E |
 | `readiness.propose_setup` | Supported capability IDs | Host-owned dependency/setup plan; installation/sign-in remain trusted host flows | M/E |
-| `runtime.list`, `runtime.get_status` | Admitted runtime ID | Locality, health, actual capabilities, identity reference and budgets; no credentials or provider substitution | M/E |
+| `runtime.list`, `runtime.get_status` | Bounded page / `local.inference` | Delivered host-only locality and recorded health/time/reason; qualification false. No credentials/provider substitution; qualified runtime budgets remain outstanding | M/E |
 | `voice_profile.get_status`, `voice_profile.request_manage` | Current-profile status or explicit learned/enrolled workflow and operation | Optional after evidence: coarse readiness/trusted workflow reference only; no samples, scores or inferred identity | M/E |
 | `approvals.show` | Grant/proposal/filter ID | Trusted inventory/editor surface; opening it creates no permission | M/E |
 | `approvals.request` | Exact invocation/resources/digests/identity/destination, lineage and scope/bound session | Host-classified decision-required proposal; M proposes management approval only | M/E |

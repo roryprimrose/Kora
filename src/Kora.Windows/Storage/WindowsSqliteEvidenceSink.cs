@@ -170,6 +170,16 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
     private SqliteConnection OpenDatabase(bool created)
     {
         var connection = database.Open(created);
+        return ValidateDatabase(connection);
+    }
+
+    internal FileStream AcquireReadLease(CancellationToken cancellationToken) => database.AcquireReadLease(cancellationToken);
+
+    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken) =>
+        ValidateDatabase(database.OpenReadOnly(cancellationToken));
+
+    private static SqliteConnection ValidateDatabase(SqliteConnection connection)
+    {
         try
         {
             ValidateRows(connection, "application_log_events");
@@ -212,16 +222,12 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
             Dictionary<string, object> projection;
             if (string.Equals(table, "application_log_events", StringComparison.Ordinal))
             {
-                var envelope = JsonSerializer.Deserialize<DiagnosticEnvelope>(payload, Serialization)
-                    ?? throw new InvalidDataException("A persisted diagnostic envelope is missing.");
-                ValidateDiagnostic(envelope);
+                var envelope = DecodeDiagnostic(payload);
                 projection = DiagnosticProjection(envelope);
             }
             else if (string.Equals(table, "security_audit_events", StringComparison.Ordinal))
             {
-                var envelope = JsonSerializer.Deserialize<AuditEnvelope>(payload, Serialization)
-                    ?? throw new InvalidDataException("A persisted audit envelope is missing.");
-                ValidateAudit(envelope);
+                var envelope = DecodeAudit(payload);
                 projection = AuditProjection(envelope);
                 if (rows.GetInt64(rows.GetOrdinal("audit_sequence")) <= 0)
                 {
@@ -230,12 +236,11 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
             }
             else
             {
-                var envelope = JsonSerializer.Deserialize<CompletedActivityEnvelope>(payload, Serialization)
-                    ?? throw new InvalidDataException("A persisted activity envelope is missing.");
-                ValidateActivity(envelope);
+                var envelope = DecodeActivity(payload);
                 projection = ActivityProjection(envelope);
                 ValidateLinks(connection, rows, envelope);
             }
+
             foreach (var pair in projection)
             {
                 if (!Equals(rows.GetValue(rows.GetOrdinal(pair.Key)), pair.Value))
@@ -253,6 +258,30 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
                 throw new InvalidDataException("The persisted effective retention due date is invalid.");
             }
         }
+    }
+
+    internal static DiagnosticEnvelope DecodeDiagnostic(string payload)
+    {
+        var envelope = JsonSerializer.Deserialize<DiagnosticEnvelope>(payload, Serialization)
+            ?? throw new InvalidDataException("A persisted diagnostic envelope is missing.");
+        ValidateDiagnostic(envelope);
+        return envelope;
+    }
+
+    internal static AuditEnvelope DecodeAudit(string payload)
+    {
+        var envelope = JsonSerializer.Deserialize<AuditEnvelope>(payload, Serialization)
+            ?? throw new InvalidDataException("A persisted audit envelope is missing.");
+        ValidateAudit(envelope);
+        return envelope;
+    }
+
+    internal static CompletedActivityEnvelope DecodeActivity(string payload)
+    {
+        var envelope = JsonSerializer.Deserialize<CompletedActivityEnvelope>(payload, Serialization)
+            ?? throw new InvalidDataException("A persisted activity envelope is missing.");
+        ValidateActivity(envelope);
+        return envelope;
     }
 
     private static void ValidateAuditSequence(SqliteConnection connection)
@@ -550,28 +579,7 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
         {
             Bounded(pair.Key, 128);
             var value = pair.Value ?? throw new InvalidDataException("A structured property value is missing.");
-            if (!Enum.IsDefined(value.Kind) || (value.Kind == EvidenceValueKind.Null) != (value.CanonicalValue is null))
-            {
-                throw new InvalidDataException("The structured property kind is invalid.");
-            }
-            OptionalBounded(value.CanonicalValue, 1024, allowEmpty: true);
-            var canonical = value.CanonicalValue;
-            var valid = value.Kind switch
-            {
-                EvidenceValueKind.Boolean => canonical is "true" or "false",
-                EvidenceValueKind.WholeNumber => decimal.TryParse(canonical, NumberStyles.AllowLeadingSign,
-                    CultureInfo.InvariantCulture, out var integer) && integer == decimal.Truncate(integer),
-                EvidenceValueKind.Real => double.TryParse(canonical, NumberStyles.Float,
-                    CultureInfo.InvariantCulture, out var number) && double.IsFinite(number),
-                EvidenceValueKind.Identifier => Guid.TryParseExact(canonical, "D", out _),
-                EvidenceValueKind.Timestamp => DateTimeOffset.TryParseExact(canonical, "O",
-                    CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
-                _ => true,
-            };
-            if (!valid)
-            {
-                throw new InvalidDataException("A structured property has an invalid canonical representation.");
-            }
+            EvidenceFieldPolicy.ValidateValue(value);
         }
     }
 

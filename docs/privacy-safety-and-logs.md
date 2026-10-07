@@ -185,6 +185,26 @@ Missing journals, corrupt/unsupported data, permissive permissions or unavailabl
 ownership/access stop admission explicitly, without file replacement or ACL
 repair. Process-interruption tests do not guarantee physical power-loss recovery.
 There is still no durable conversation/history UI or general task executor.
+The tray's **Evidence (read-only)** opens a native inspector for actual
+SQLite diagnostic, typed audit, completed span and explicit link records.
+Choose a source, optionally enter safe text or session/task/trace correlation
+filters, then select **Search / refresh**. **Next page** continues that exact
+snapshot; later records do not silently extend it. Each page includes stable
+`kora-evidence` citations and at most 50 records / 64 KiB of serialized output,
+including metadata. A record too large for one page is explicitly marked
+`ContentOmitted`; content is never silently truncated.
+Select a record to inspect parent/link status; **Read selected trace** shows
+its retained correlated records and **Open selected segment** follows an
+available cited span. Session/task IDs and traces are filters, not permission.
+`ExpiredButPresent` means a due record remains readable, not that it was
+deleted. `MissingOrRemoved` cannot distinguish an unrecorded segment from
+physical removal. Session/conversation sources report Unavailable. This view
+is not a complete history, interaction audit, authorization or effect receipt.
+Ownership/privacy denial, malformed filters/cursors, corrupt data and private
+access failures are visible; no store or permission repair is attempted.
+Closing or privacy closure clears/cancels the view without changing retained
+sources. There is no copy, export, model reasoning, browser, deletion, grant
+use or remote transmission from this inspector.
 Database records receive independent 30-day diagnostic and 90-day audit
 due dates, but automatic database pruning/deletion is not yet implemented.
 The first-use greeting, settings and version response disclose this limitation;
@@ -213,7 +233,7 @@ identities. Audit rows add fixed typed audit fields. Rendered text is retained
 only as a bounded display/search projection; Kora does not parse it to recover
 properties, outcomes or authorization evidence.
 
-The planned implementation also records local W3C activity trace/span
+The composed evidence sink also records local W3C activity trace/span
 relationships and host-owned session/task/invocation/approval identifiers on
 diagnostic and audit entries. A session may contain many traces. From a session,
 you can review its retained Logs, Audit, or combined evidence; from an entry,
@@ -230,8 +250,9 @@ exporting or asking questions over evidence never extends its retention.
 Reducing audit retention previews the affected range and requires confirmation
 before existing due dates are shortened.
 
-The planned Evidence workspace can list, read and search Logs, Audit, or both
-without using a model. An explicit Ask Evidence action can reason over a
+The delivered bounded native inspector lists, reads and searches actual
+SQLite Logs, Audit, spans and links without using a model. A future explicit
+Ask Evidence action would reason over a
 bounded selected set, with links to every supporting record and observed facts
 separated from inference. Local reasoning is preferred; sending selected
 evidence to a remote runtime requires preview and approval of that exact

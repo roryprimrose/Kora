@@ -247,6 +247,27 @@ The [R04 delivery inventory](Implementation_Roadmap.md#r04-foundation-delivery)
 tracks actual source/tests and downstream boundaries. File audit copies
 remain diagnostic evidence, never authorization or durable receipt proof.
 
+The bounded R04/R14 [durable evidence query](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)
+now composes one host-owned read-only service over those actual SQLite
+log/audit/span/link tables. The native current-user inspector requires a live
+local-UI request, proven desktop ownership and private-presentation admission.
+Session/task/trace fields are correlation filters, not a way to select host
+authority. Signed continuations bind the original query, viewer session,
+15-minute expiry and per-table snapshot ceilings; later query diagnostics and
+completed spans cannot expand an in-progress snapshot.
+The [Windows reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs)
+reuses the sink's exact envelope/projection validation and private database
+schema/ACL/reparse/journal admission, then opens SQLite read-only. It creates
+no store, repairs no permissions, recovers no hot journal and changes no schema.
+Up to 50 records and 64 KiB of the actual serialized page include citations,
+cursor, source availability and disclosure. Selective text/property searches
+scan at most 4,096 candidates per page, with explicit continuation/scan-limit
+status and the existing five-second SQLite progress deadline.
+Expired-but-present and missing-or-removed segments are distinct; no physical
+pruning or complete retained graph/history is claimed. Session/conversation
+sources and interaction-audit receipts are not supplied by this projection.
+Model tool exposure, Ask Evidence, export and remote transmission remain gated.
+
 ## Independent Management and Concurrent Sessions
 
 The work manager stays responsive independently of the task runtime's event loop, tool calls, and approval waits.

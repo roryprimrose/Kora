@@ -12,6 +12,36 @@ native answer/approval controls.
 
 ## Delivered Exact Host-Record Review - 2026-10-07
 
+### Delivered Bounded Native Evidence Inspection
+
+The tray's **Evidence (read-only)** entry opens a separate, non-topmost native
+window using the existing theme resources. It is not the clipboard-capable
+passive detail viewer. Source, safe-text, session/task GUID and W3C trace
+filters provide deterministic current-user SQLite inspection without a model,
+network, microphone or browser. Search starts a fresh bounded snapshot;
+Next page continues only that snapshot. Selecting a cited record exposes its
+parent/explicit link availability; Read selected trace and Open selected
+segment use the same typed query service, never paths or SQL.
+
+The complete compact serialized page, including correlation, typed values,
+stable citations and disclosure, is limited to 50 records / 64 KiB UTF-8.
+Over-budget individual content is explicitly marked `ContentOmitted`, not
+silently shortened. Missing records/trace segments, expired-but-present
+records, unavailable sources and storage/access/validation errors are visible.
+Due dates do not prove physical removal; absent segments may never have been
+recorded. The query is a diagnostic projection, not the atomic interaction
+audit or proof of authorization/effect. Session/conversation history is
+unavailable, not an empty successful fabricated store.
+
+Controls have native accessible labels and keyboard navigation. Result text
+is inert and non-selectable. Copy/cut clipboard paths and context menus are
+blocked; there are no export, Ask Evidence, execution or source-deletion
+controls. Ownership/privacy is checked before and after the read; privacy
+closure cancels the viewer and clears its page/filter state. Reading does not
+refresh retention, consume grants, change runtime admission or resume work.
+Automated real-store/view-model/XAML tests are not native visual, screen-reader,
+DPI, contrast, installed or power-loss acceptance; those trials remain open.
+
 The [bounded question window](UI_Workspace_And_Windows.md#delivered-bounded-question-window)
 has an explicit **Review exact record** route through the audited
 [review service](../src/Kora.Application/Interaction/HostQuestionReviewService.cs).

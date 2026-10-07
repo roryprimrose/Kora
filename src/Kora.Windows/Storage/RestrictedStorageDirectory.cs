@@ -84,6 +84,12 @@ internal sealed partial class RestrictedStorageDirectory
 
     internal FileStream AcquireLease() => AcquireBoundedLease(requireExisting: false, CancellationToken.None);
 
+    internal bool HasExistingPartition()
+    {
+        VerifyLocalRoot();
+        return EntryExists(Root);
+    }
+
     internal FileStream AcquireBoundedLease(bool requireExisting, CancellationToken cancellationToken)
     {
         Verify();

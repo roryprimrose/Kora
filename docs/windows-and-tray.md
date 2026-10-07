@@ -74,6 +74,7 @@ The right-click menu contains:
 - **Show Kora**
 - **Kora Settings**
 - **Documentation**
+- **Evidence (read-only)**
 - **Review local version (native question)**
 - **Enable listening / Disable listening**
 - **Voice consent / push-to-talk**

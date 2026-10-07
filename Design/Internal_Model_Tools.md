@@ -238,6 +238,20 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 ### Grants, Settings, and Evidence
 
+The R04/R14 native evidence slice delivers the deterministic host-service
+semantics behind list/get/search/read_trace for actual SQLite log/audit/span/link
+sources only. It does **not** register model-facing evidence tools or add them
+to the existing action selector. One typed query service supports exact cited
+record reads, bounded filters and trace navigation under live local-UI
+ownership/privacy admission. Session/conversation and interaction-receipt
+sources are unavailable. The proposed model lanes/catalogue below, daily-file
+adapter, Ask Evidence and export still require separate delivery/admission.
+Safe text searches only admitted templates and redacted structured values;
+properties use exact typed equality, not rendered-message parsing or SQL.
+Output uses the service's authoritative serialized page, including metadata
+and authenticated continuation, at most 50 records / 64 KiB. Due-but-present
+and absent segments never imply a complete history or pruning.
+
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
 | `approvals.list`, `approvals.inspect`, `approvals.explain` | Grant ID/scope/capability/resource filter or exact action proposal; hashes, applicability/use summary or why approval is needed | M/E | Proposed A3; distinguish consumed single-use, ended session, content-revoked grants, and independently retained perpetual records |

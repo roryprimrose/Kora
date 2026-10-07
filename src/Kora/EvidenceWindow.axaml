@@ -1,0 +1,71 @@
+<Window
+    x:Class="Kora.EvidenceWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Kora"
+    x:DataType="local:EvidenceViewModel"
+    Title="Evidence - read-only local inspection"
+    Icon="/Assets/Kora.ico"
+    Width="1120" Height="780" MinWidth="860" MinHeight="620"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}"
+    WindowStartupLocation="CenterScreen">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
+    <TextBlock Text="Evidence - diagnostic, audit, span and link records" FontSize="20" FontWeight="SemiBold" />
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
+      <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" MinWidth="130"
+                AutomationProperties.Name="Evidence source" />
+      <TextBox Text="{Binding SafeText}" PlaceholderText="Safe text contains (max 256 characters)" Width="330"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Safe evidence text filter" />
+      <Button x:Name="Search" Content="Search / refresh" IsEnabled="{Binding CanQuery}"
+              AutomationProperties.Name="Search a fresh bounded evidence snapshot" />
+      <Button x:Name="Next" Content="Next page" IsEnabled="{Binding CanNext}" />
+      <Button x:Name="Trace" Content="Read selected trace" IsEnabled="{Binding CanReadTrace}" />
+    </StackPanel>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10">
+      <TextBox Text="{Binding SessionFilter}" PlaceholderText="Session GUID (correlation filter only)" Width="300"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Session correlation filter" />
+      <TextBox Text="{Binding TaskFilter}" PlaceholderText="Task GUID" Width="300"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Task correlation filter" />
+      <TextBox Text="{Binding TraceFilter}" PlaceholderText="W3C trace ID" Width="300"
+               ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+               AutomationProperties.Name="Trace correlation filter" />
+    </StackPanel>
+    <TextBlock Grid.Row="3" Text="{Binding Status}" TextWrapping="Wrap"
+               AutomationProperties.Name="Evidence status and storage limitations" />
+    <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
+      <Grid RowDefinitions="*,Auto,*">
+        <ListBox x:Name="Records" ItemsSource="{Binding Records}" AutomationProperties.Name="Cited evidence records">
+          <ListBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Reference.Citation}" TextWrapping="Wrap" /></DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Grid.Row="1" Text="Parent / explicit links (select, then Open segment)" Margin="0,12" TextWrapping="Wrap" />
+        <ListBox x:Name="Segments" Grid.Row="2" ItemsSource="{Binding Segments}"
+                 AutomationProperties.Name="Trace parent and link segment availability">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel>
+                <TextBlock Text="{Binding TraceId}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SpanId}" />
+                <TextBlock Text="{Binding Status}" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+        <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
+                   AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
+      </ScrollViewer>
+    </Grid>
+    <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="10">
+      <Button x:Name="OpenSegment" Content="Open selected segment" IsEnabled="{Binding CanQuery}" />
+      <Button x:Name="CloseView" Content="Close" />
+      <TextBlock Text="No copy, export, model, browser, deletion or execution." VerticalAlignment="Center" />
+    </StackPanel>
+  </Grid>
+</Window>

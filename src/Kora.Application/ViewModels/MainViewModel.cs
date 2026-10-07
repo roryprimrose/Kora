@@ -3642,6 +3642,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
+        {
+            await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
+            return;
+        }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
             await ExecuteSessionCommandAsync(sessionCommand, initiator);
@@ -5095,6 +5100,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands

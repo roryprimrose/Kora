@@ -385,6 +385,7 @@ These are host-owned flows, not installer or approval tools given to the model.
 | Choose a microphone or recover listening by mouse | **Current** explicit UI flow; stronger production wake requirements remain planned |
 | Sign in to a supported provider or enroll/delete a speaker verifier | **Planned** separate secure native flow; the model never receives secrets/biometrics |
 | "Enable start at logon" / "Disable start at logon" | **Planned:** change only Kora's own startup registration after scoped consent |
+| `maintenance status` / `maintenance review` / `maintenance snooze` | **Current bounded cached parity:** truthful cached observation, exact existing native review, or eligible reviewed notice snooze for this run; no check/consent/browser/download/install/model authority. [Exact bounds and exclusions](commands.md#exact-cached-release-maintenance) |
 | "Check for updates" / "Is an update available?" / "What is the update doing?" | **Planned:** bounded metadata check and observed status; failure is Unknown, not "up to date" |
 | "What's new in that update?" | **Planned:** show release notes as untrusted information |
 | "Show that release" | **Planned:** review the exact canonical release URL before opening it |

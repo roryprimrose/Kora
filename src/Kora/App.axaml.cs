@@ -119,6 +119,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
+            var maintenanceCommands = Services.GetRequiredService<MaintenanceCommands>();
+            Services.GetRequiredService<MaintenanceViewModel>().BindCachedCommands(maintenanceCommands,
+                () => viewModel.CanRunMaintenanceCommands);
+            viewModel.BindMaintenanceCommands(maintenanceCommands);
             var host = viewModel;
             host.BindClipboardOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);

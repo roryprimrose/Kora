@@ -46,6 +46,36 @@ get/set/reset, stop/cancel and Settings remain available.
 This is **not production wake-name capability**, a model settings tool, an
 acoustic acceptance result or completion of all R10.
 
+## Exact cached release maintenance
+
+Typed input and explicitly activated voice use the same guarded native
+maintenance workflow:
+
+| Exact command | Result |
+|---|---|
+| `maintenance status` | Cached channel/status, last verification/staleness and review/snooze readiness; missing or failed checks remain Unknown/error, not "up to date" |
+| `maintenance review` | Review the exact fresh host-held canonical record/source/architecture/digest/unsigned disclosure and reveal the existing native review window |
+| `maintenance snooze` | Snooze only that fresh, reviewed Available notice for 24 hours within this run; no persistent reminder policy or other prompt change |
+
+The optional **Kora,** prefix uses the current configured name. The complete
+original input is at most 128 characters; phrases are case-insensitive with
+outer whitespace trimming, not fuzzy punctuation/extra-word matching.
+Complete visual results are at most 8,192 characters; oversized results fail
+explicitly, not by truncation. No command speaks, probes devices, activates
+capture, invokes a model/provider or treats release text/URLs as authority.
+
+Use native Maintenance to grant **public metadata checks for this run**, check
+or explicitly open an already reviewed canonical page. These cached commands
+never check/refresh, grant/renew consent, open a browser, download, install,
+elevate or activate source. Stale or failed metadata requires a deliberate
+native check after admission recovery, not automatic command fallback.
+Commands preserve the complete current exact question/approval and cannot
+answer it. Unknown ownership/privacy, protected/unknown calls, stale/foreign
+records, changed original voice generation/session or failed required audit/
+receipt deny success and require a fresh explicit request. This is bounded
+command parity, not a general notification broker, production wake or
+installed/native/runtime acceptance.
+
 ## Read-only host discovery
 
 These exact local commands require the active, unlocked Kora host and do not

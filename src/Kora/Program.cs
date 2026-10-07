@@ -217,6 +217,8 @@ internal static class Program
         services.AddSingleton<IHostInteractionStore>(interactions);
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
         services.AddSingleton<IAudioControlSessionStore>(interactions);
+        services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
+        services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
         services.AddSingleton<OutputDeviceConfigurationService>();

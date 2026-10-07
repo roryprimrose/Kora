@@ -48,6 +48,20 @@ source. Hashes are not publisher signatures. x86 has an application ZIP but
 no x86 installer/native capability acceptance. Deployment mode is unknown;
 replacement and prerequisite handling remain external/manual.
 
+Exact typed/activated **maintenance status**, **maintenance review** and
+**maintenance snooze** use this same cached native workflow. Status never
+checks or calls missing/failed metadata current; review displays the same
+exact immutable record/source/trust details and opens this native surface,
+not the browser. Snooze targets only the fresh reviewed Available notice
+for 24 hours in the current run, not approvals/security prompts or a saved
+reminder policy. Pending exact questions/approvals remain fully unchanged.
+Commands cannot grant/renew network permission or check/refresh/open/download/
+install/elevate/activate anything. They require current original input, owning
+private host, clear/unavailable call admission, durable session generation and
+exact cache revision/identity; failures require explicit recovery.
+See [exact cached commands and bounds](commands.md#exact-cached-release-maintenance).
+This does not complete the general R18 broker or R17 installed acceptance.
+
 ## Models
 
 The **Models** tab controls which model locations Kora may use for free-form

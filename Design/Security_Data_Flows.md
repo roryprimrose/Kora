@@ -694,6 +694,20 @@ The built-in environment controller is a separate trusted host path for exact ca
 It may initialise Kora data and offer approved external prerequisites, but cannot alter Kora code or use arbitrary supplied installer paths.
 See [Environment Setup](Environment_Setup.md).
 During the unsigned phase, application maintenance is notify-only with no model-callable or host-install-capable entry point.
+The delivered exact typed/activated `maintenance status`, `maintenance review`
+and `maintenance snooze` commands are original-user cached controls, not model
+tools. Native review/snooze share their dedicated maintenance-session durable
+intent and current-generation gateway; unrelated audio authority, incoming
+traces, release titles, source/model text and supplied URIs cannot select the
+cache record. Review binds the existing immutable canonical metadata only;
+snooze targets a fresh reviewed Available notice for this run, never an
+approval/security-required prompt. Pending exact questions/approvals are not
+answered, replaced or hidden. Ownership, original input/privacy/topology,
+protected call state, exact cache revision/identity and durable evidence are
+revalidated; failure/cancellation/late completion cannot become cached success.
+These commands cannot grant/renew network consent, check/refresh, navigate,
+download, install, elevate, activate source or start a runtime/provider.
+Full bounded visual output is preserved without audio/device probes.
 Any future updater requires an independently authenticated metadata trust root, native secure per-release approval, and separate acceptance evidence.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.
 The implemented external [source build-only interface](Distribution_And_Updates.md#source-bootstrap)

@@ -2,7 +2,14 @@
 
 Status: proposed product contract, not a list of implemented commands.
 Core lifecycle, computer controls, speech settings, and status ship in Slice A; integration/skill discovery and authoring follow Slices B/C.
-Maintenance phrases require the deployment's verified updater; capability unavailability must be explained, never silently substituted.
+Planned updater phrases require qualified deployment support; capability unavailability must be explained, never silently substituted.
+The delivered exact `maintenance status`, `maintenance review` and
+`maintenance snooze` phrases are cached original-user controls only, sharing
+the guarded native maintenance workflow. They have no check/network-consent/
+browser/download/install authority and cannot answer or replace a pending
+question/approval. See [bounded cached maintenance](Distribution_And_Updates.md#delivered-bounded-r17r18-native-foundation)
+and the [current exact grammar](../docs/commands.md#exact-cached-release-maintenance);
+the broader natural-language examples below remain planned.
 The current bootstrap supplies deterministic exact status/help and other registered
 commands, plus local-model answers, questions, and validated registered
 action/grant proposals when inference is ready. This catalogue does not imply

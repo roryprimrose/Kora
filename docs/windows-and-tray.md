@@ -99,6 +99,15 @@ The right-click menu contains:
 Tray labels use the configured assistant name except for the fixed
 Documentation label.
 
+**Release maintenance (notify-only)** shares the existing native cached
+review/snooze workflow with exact typed/activated **maintenance status**,
+**maintenance review** and **maintenance snooze**. Commands never check,
+refresh, grant/renew network consent or silently open a browser. Review
+reveals only the exact fresh native record; snooze affects only its eligible
+notice in this run, not pending questions/approvals or security prompts.
+Unknown/stale/error state stays explicit. [Command bounds and exclusions](commands.md#exact-cached-release-maintenance)
+apply; this is not a general notification broker or installed acceptance.
+
 Selection does not release a privacy/manual-disable recovery hold. Tray clicks
 never implicitly activate capture. Windows privacy events hide sensitive
 Kora surfaces; unlocking alone does not reveal them or reopen input. Use the

@@ -812,14 +812,43 @@ Never describe a failed check as proof that the installation is current.
 Settings **Maintenance** and Tray **Release maintenance (notify-only)** open
 one explicit native review surface with running version, channel, truthful
 status, last-verification/staleness, expected application ZIP/digest, and an
-exact host-constructed canonical release page. **Check**, **Open reviewed
-canonical release page**, and **Snooze this version (24h)** are native-only.
+exact host-constructed canonical release page. **Check** and **Open reviewed
+canonical release page** remain native-only. Exact typed/activated
+`maintenance status`, `maintenance review` and `maintenance snooze` share
+the cached native workflow; review reveals the existing native surface and
+snooze retains **Snooze this version (24h)**'s in-memory, current-run policy.
 **Review this exact verified release** binds navigation/snooze to the current
 immutable snapshot; every refresh, expiry or admission closure invalidates
 that binding and requires a fresh native review, even for the same version.
 They are not model tools, task/skill execution, installation approvals or
 durable conversation questions. The existing local-version native question
 and external source-bootstrap/publisher workflows are unchanged.
+
+The complete original command is bounded to 128 characters, including the
+optional current configured-name prefix. Only those three exact phrases are
+admitted (case-insensitive, with outer whitespace trimming); punctuation or
+extra words are not fuzzy selectors. Complete cached responses are bounded
+to 8,192 characters, never truncated. Status preserves Unknown, failed and
+stale observations and distinguishes review/snooze readiness; missing or
+failed metadata cannot become "up to date." Review displays the same canonical
+record, immutable source, architecture, digest and unsigned disclosure,
+without checks, notes-as-authority, arbitrary asset/URL opening or browser
+navigation. Only a fresh exact reviewed Available notice can be snoozed.
+
+Original native/typed/activated requests use a dedicated maintenance-control
+session and the same committed-intent/generation serialization as the current
+host gateway, not audio-session authority or trace/title/URI targeting.
+Current original channel, ownership, privacy/topology and protected-call
+admission are revalidated before dispatch, commit and presentation.
+Pending exact questions/approvals remain unchanged; no maintenance command is
+an answer. Audit/cancellation/receipt/lifecycle failures remain explicit
+unconfirmed recovery, never replay or success-shaped fallback. Cached command
+output is visual-only with no output-device probe or speech/capture request.
+There is no general notification broker, unsolicited voice, model tool,
+execution worker, production wake qualification or installed acceptance.
+Network opt-in/renewal, checks, browser opening, download, staging,
+installation/elevation, source activation and dependency/provider trials
+remain outside these commands.
 
 Public metadata network access is **off by default**, explicitly enabled for
 the current run only. Opt-in schedules an initial check; successful checks

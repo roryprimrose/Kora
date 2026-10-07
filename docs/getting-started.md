@@ -12,6 +12,35 @@
 Typed commands and visual responses remain available when microphone or speech
 components are unavailable.
 
+## Obtain source tools without installing
+
+Source-tool acquisition is an external operator workflow, not an in-app
+updater. From an independently reviewed maintained checkout, use
+[Resolve-SourceTools.ps1](../eng/Resolve-SourceTools.ps1) with PowerShell 7 and
+GitHub CLI:
+
+```powershell
+.\eng\Resolve-SourceTools.ps1                          # Metadata-only stable selection
+.\eng\Resolve-SourceTools.ps1 -Channel preview         # Explicit published-prerelease opt-in
+.\eng\Resolve-SourceTools.ps1 -Channel preview `
+    -Revision '<reviewed-full-lowercase-40-character-commit>' `
+    -Action Acquire -OutputDirectory 'C:\KoraToolReview\candidate-01'
+```
+
+The placeholder must be replaced by the exact resolved/reviewed commit.
+Drafts are never selected. Acquisition verifies the final asset and complete
+tool inventory against canonical exact-source Git bytes, rejects unsafe paths,
+and never executes downloaded code. Earlier releases without source tools or
+missing stable candidates produce an error, not a fallback to mutable main.
+Review every acquired helper, selected source and dependency/build code before
+explicitly opting into a build with `-Action Build -TrustBuildCode`. A build
+also needs Git and the exact source-pinned .NET SDK; binary users do not.
+
+Follow the [complete acquisition/build interface and trust limits](../Design/Distribution_And_Updates.md#immutable-tool-acquisition-and-channel-resolution).
+Checksums are not independent signatures; stable selection is not production
+acceptance. Builds produce local-source staging only. Source installation,
+activation, elevation, registration and launch are not provided by this path.
+
 ## First launch
 
 Kora performs a readiness check and discovers:

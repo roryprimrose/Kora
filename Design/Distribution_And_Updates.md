@@ -1,6 +1,6 @@
 # Distribution, Startup, and Application Maintenance
 
-Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. External managed-source preview/build/staging/verification is implemented; source activation, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
+Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. External managed-source preview/build/staging/verification and immutable source-tool packaging/channel resolution are implemented; source activation, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
 R02's partial NSIS 3.13 proof remains historical evidence, not the production installer. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
 The source host is a public source-available GitHub repository; use Linux GitHub Actions wherever feasible, with Windows jobs for WiX MSI/Burn packaging and other justified Windows-specific work.
 Initial binary and setup artifacts are intentionally unsigned.
@@ -127,17 +127,19 @@ source and dependency/build code, not a grant to the running assistant.
 The canonical repository is fixed to `https://github.com/roryprimrose/Kora.git`;
 the public interface does not accept forks, local repositories or arbitrary URLs.
 An operator must select a full lowercase 40-character commit from that source.
-Branches, abbreviated revisions and automatic mutable "latest" selection are
-not supported.
+Branches and abbreviated revisions are not supported. The separate static
+resolver selects a published release, then pins its full canonical commit and
+final tool-asset identity; it never builds from moving main or a tag name.
 
 The only admitted channel is **local-source**. It means a local build of exact
 canonical source, not an official beta/stable binary, release publication or
 protected deployment. Detached source builds use the existing feature/local
 version resolver (`0.1.0` at this baseline); the full commit, SDK and final-byte
 hashes, not that version number alone, identify the output. Official release
-channel resolution, immutable bootstrap-asset publication and protected
-installation remain future D01/D02 work. Stable-tag classification never
-confers activation authority.
+channel resolution now belongs to the static acquisition interface below;
+protected installation remains separate work. Acquisition channel and build
+channel are distinct: stable/preview acquisition still produces a
+**local-source** build. Stable-tag classification never confers activation authority.
 
 Review the script and its complete helper set from an independently selected
 immutable repository snapshot or source archive that contains this tooling.
@@ -146,7 +148,8 @@ it needs its relative `eng` helper files, not executable experiment files. Verif
 acquired bytes against the selected trusted snapshot before executing.
 Do not pipe a mutable URL to PowerShell, download/execute a helper on demand,
 or infer publisher authentication from a self-supplied checksum. This
-source delivery is not itself a published immutable bootstrap asset.
+source delivery can now be acquired as the complete immutable release asset
+described below. Published self-supplied checksums alone remain insufficient.
 
 From that reviewed tooling checkout:
 
@@ -166,6 +169,105 @@ neither Git nor an SDK**; their runtime/native requirements remain separate.
 Clone/history and locked NuGet acquisition use network access. Restore may
 read/write the normal configured per-user package cache; no machine-wide
 prerequisite setup, accounts, security settings or models are changed.
+
+### Immutable Tool Acquisition and Channel Resolution
+
+Run [Resolve-SourceTools.ps1](../eng/Resolve-SourceTools.ps1) from an
+independently acquired/reviewed maintained checkout, including its local
+[source-tool verification](../eng/SourceTools.Common.ps1),
+[shared GitHub release](../eng/GitHubRelease.Common.ps1) and
+[distribution helpers](../eng/Distribution.Common.ps1). Do not acquire this
+verifier by piping a mutable URL to PowerShell. PowerShell 7 and GitHub CLI
+(`gh`) are acquisition prerequisites; normal GitHub access/authentication may
+be needed for API limits. No SDK, Git clone, application prerequisites, model
+downloads or elevation are needed merely to resolve/acquire/review an asset.
+Git, PowerShell 7 and the exact SDK become prerequisites only for an explicitly
+trusted source build.
+
+The default `Preview` action queries metadata only: it creates no output and
+does not download or execute source-tool code. Default **production** excludes
+all drafts and prereleases. Explicit **preview** admits published prereleases
+as well as stable releases, never drafts. Semantic numeric versions and beta
+increments determine ordering, with a stable release winning at the same
+numeric version; release dates and GitHub's mutable `latest` pointer are not
+identity or ordering authority. An optional full lowercase `-Revision` selects
+only a release bound to that exact commit within the requested channel.
+Missing candidates/assets, legacy releases without the tool asset, ambiguous
+versions, unknown channel state and API/authentication errors fail visibly;
+there is no mutable-main or other-channel fallback. During the POC phase a
+stable source-tool release may not exist, so explicitly select preview when
+appropriate.
+
+Each new canonical main/tag release includes
+`Kora-<version>-source-tools.zip`. It contains exactly the eight maintained
+v1.1.0 bootstrap/build/staging/verification scripts and `source-tools.json`,
+not an installer, application binary, source checkout or another bootstrap
+orchestrator. The manifest declares exact canonical repository/commit,
+release and bootstrap versions, each tool's canonical Git blob ID, byte count
+and SHA-256, and truthful unsigned/non-production/unavailable-activation
+provenance. The outer ZIP's final SHA-256 is bound by GitHub asset metadata,
+the release manifest and checksums. CI packages raw blobs from the exact
+commit, not line-ending-transformed working-tree files or descriptive receipts.
+The pinned SDK/dependency inputs are obtained from that same selected source
+revision by the existing explicitly trusted build workflow.
+
+`Acquire` downloads by resolved **asset ID**, verifies final size/SHA-256,
+and compares every tool to the canonical repository's exact-commit Git tree,
+not just the downloaded manifest or moving tag. It resolves the published
+release/source marker and lightweight/annotated tag before acquisition and
+rechecks their identities afterward. A matching source marker alone cannot
+admit changed scripts. The closed inventory rejects omitted/extra tools,
+duplicate paths, traversal, absolute/ADS paths, separator/case/dot aliases,
+ZIP links/directories, reparse paths and oversized entries before extraction.
+It never loads or executes any acquired script.
+
+```powershell
+# Run only this independently reviewed local verifier.
+$candidate = .\eng\Resolve-SourceTools.ps1 -Channel preview
+$acquired = .\eng\Resolve-SourceTools.ps1 -Channel preview `
+    -Revision $candidate.revision -Action Acquire `
+    -OutputDirectory 'C:\KoraToolReview\candidate-01'
+# Review source-tools.json and every acquired helper, exact source and dependencies.
+Get-Content (Join-Path $acquired.tools 'source-tools.json')
+# Only after explicit review/trust; this remains build-only, never installation.
+& (Join-Path $acquired.tools 'eng\Invoke-SourceBootstrap.ps1') `
+    -Root 'C:\KoraSource\reviewed-01' -Revision $acquired.revision `
+    -Action Build -TrustBuildCode
+```
+
+Acquisition creates a new dedicated directory with the original ZIP,
+`acquisition.json` and extracted `tools`. A complete matching rerun rechecks
+the archive, manifest and all tool bytes without download/overwrite. Changed
+identities, altered/extraneous files, linked paths, unowned directories and
+partial acquisitions are retained and refused; choose a fresh directory for
+another candidate. The acquired build entry point also refuses a revision
+different from its tool manifest and changed tool bytes. Receipt/hash checks
+do not make subsequent arbitrary local edits trusted.
+
+These checks rely on the independently reviewed local verifier, GitHub HTTPS/API
+and canonical Git object identity. SHA-256 and Git blob matching establish
+consistency with that source, **not independent signatures**, an authenticated
+Windows publisher, anti-freeze/rollback guarantees, deterministic application
+builds or production acceptance. The channel name **production** is a stable
+selection policy, not a qualification claim. Explicit source-build trust
+covers executable source/dependency/build code; it does not grant the running
+assistant authority. Source activation/installation/elevation/registration/
+launch and native installed/runtime protection remain unavailable/open.
+
+[Build-SourceTools.ps1](../eng/Build-SourceTools.ps1) is the file-only packaging
+interface: `-Revision <full-sha> -Version <exact-release-version>
+-OutputDirectory <new-directory>`. It packages canonical-origin exact Git blobs,
+verifies its finished ZIP and refuses existing output; it never invokes the
+bootstrap or build. Portable CI runs
+[source-tool contracts](../eng/Test-SourceToolsContracts.ps1), packages every
+candidate and transfers only canonical main/tag artifacts to the existing
+serialized [publisher](../eng/Publish-GitHubRelease.ps1). The publisher verifies
+the transferred ZIP against exact source, retains matching draft bytes, uploads
+only missing names and verifies the complete nine-asset set before tag/publish.
+Old published eight-asset releases remain read-only historical no-ops and are
+not relabelled as source-tool releases. An older draft with incompatible
+immutable provenance requires manual reconciliation; existing assets/manifests
+are never replaced to append this asset.
 
 ### Ownership, Verification and Recovery
 
@@ -531,10 +633,19 @@ The maintained [publisher](../eng/Publish-GitHubRelease.ps1) follows this order:
    duplicate or extra content). Retain matching original ZIP, manifest and
    checksum bytes, including their original workflow-run provenance. This also
    admits matching older drafts without regenerating their ZIP containers.
-4. Recheck before draft creation. Verify every existing asset's name, completed
+4. Recheck before draft creation. Create a new draft through the supported
+   REST endpoint and retain its positive typed release ID from the successful
+   response. Verify exact source/channel/draft/body in that response and an
+   authenticated direct-ID readback. A pending draft can be absent from an
+   immediate tag/list response; list visibility is not the creation receipt.
+   Continue tag/list enumeration to reject visible conflicts/ambiguous versions,
+   and retain the known ID for subsequent readbacks and ID-addressed binary
+   uploads. Missing/unreadable/changed IDs or bodies, unexpected HTTP errors
+   and uncertain writes fail closed, with no blind delay or in-place retry.
+   Verify every existing asset's name, completed
    state, size and SHA-256 against staging; upload only missing names, without
    clobber or deletion. Re-read the same release ID and verify the complete
-   eight-asset set, provenance and checksums before tag/publication writes.
+   nine-asset set (including exact-source tools), provenance and checksums before tag/publication writes.
    A known obsolete mandatory-encryption sentence can be replaced in **draft
    notes only**, preserving source/generated notes and every asset; confirm
    the exact revised body before proceeding. Published notes are never edited.

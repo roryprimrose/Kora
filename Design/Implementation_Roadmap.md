@@ -1894,6 +1894,50 @@ For each delivery, update this inventory, the [decision register](Decision_Regis
 Record source/test/provider/hardware evidence and the exact acceptance result, not just a merged PR.
 Remove proposed labels only for the admitted behavior actually delivered; preserve unavailable/unknown states and the distinction between current host equivalents and model tools.
 Keep dependencies explicit and re-run affected earlier gates when a later capability changes shared authority, storage, audio, egress or resource coordination.
+## R10 Bounded Assistant Display/PTT Prefix - 2026-10-08
+
+The already delivered assistant name now has schema-1 typed
+`assistant.name` discovery/get/set/reset and native Apply/reset parity through
+one audited atomic host workflow. It reuses existing name validation and
+legacy preference bytes, command-collision validation and atomic preference
+storage. Discovery reports bounds/default/type/scope/effect/timing/reset,
+process-local revision, saved/default provenance and explicit recovery.
+Original host/channel/call and configuration revisions, confirmed capture
+quiescence and terminal audit precede publication. Name mutation retires
+captured/queued grammar/transcript/completion generations without reopening
+capture, clearing a run hold or replay. The next explicit PTT uses only the
+committed prefix, including merged exact session and artifact command routes.
+Native surfaces/help remain consistent; stop/cancel/recovery and exact pending
+question/approval targets remain independent.
+
+Deterministic portable and native-fake regressions cover legacy at/over bounds,
+Unicode semantics, invalid/corrupt state, storage/audit/cancellation failures,
+host/call/revision races, stale generations, per-option reset and no authority
+identity changes. No live audio, application launch, OS effect, install,
+elevation, account or security/network-policy trial is part of this receipt.
+Full R10 and R09/acoustic/packaged-host acceptance remain open.
+See [the exact contract](User_Configuration.md#delivered-bounded-assistant-displayptt-prefix-r10)
+and [wake distinction](Activation_Name.md).
+
+Direct synchronous validation on the combined #77 base
+`90146f405ea9236a23ee2a95cd159efcd5fbf84f`:
+Release no-restore build, zero warnings/errors; Core **610**, Application
+**1,578**, Tools **38**, Definitions **6**, Windows deterministic integration
+**865**, all passed with zero skips. The native activated-capture subset
+contains **51** passing tests and uses synthetic capture/privacy fixtures,
+not live devices. Merged portable coverage is exactly **9,536/9,536 lines**
+and **5,007/5,007 branches** (both unrounded **100%**); the CI threshold and
+coverage inclusion rules are unchanged. Initial no-restore validation found
+missing assets; locked restore used the explicitly approved feed only.
+No feed configuration, secrets or dependency manifest changed.
+
+**Experiment disposition:** retain all experiment executables and historical
+receipts. The speech proof's keyword/acoustic, synthesis-to-file, candidate and
+hardware measurements are not executable equivalents of typed preference or
+PTT generation tests. This slice adds no production detector/assets/enrollment;
+there is no specifically superseded name-configuration executable with verified
+equivalence and no consumers to retire. Unrelated experiment paths are unchanged.
+
 ## R10 Bounded Appearance Registry - 2026-10-07
 
 The [fixed descriptor registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)

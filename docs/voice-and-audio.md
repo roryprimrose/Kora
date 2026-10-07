@@ -70,6 +70,18 @@ capture. Each answer or approval requires a new activation. Transcripts use the
 same deterministic command pipeline as typed input; activation alone approves
 nothing.
 
+The configured [display / PTT command-prefix name](settings.md#assistant-display--ptt-command-prefix-name)
+is not a production wake profile. Native Apply/reset and exact
+`list assistant settings`, `get/set/reset assistant.name` share typed audited
+configuration. A name change closes and retires the old capture/grammar and
+queued transcript/completion generations, including session/artifact prefixes.
+It never replays a turn, reopens capture or releases a run hold. Explicitly
+enable listening, then start a new PTT with the current prefix.
+Invalid saved names disable prefix/capture with visible native/unprefixed
+recovery. Failed new grammar startup does not restore an old prefix. Original
+voice set/reset remains denied during protected/unknown calls. No custom wake
+assets, enrollment, acoustic validation or download is implemented.
+
 A result that arrives during microphone startup is staged as one bounded
 transcript until the application acknowledges that exact activation generation.
 Empty/timeout completion closes the recording and reports that no command was

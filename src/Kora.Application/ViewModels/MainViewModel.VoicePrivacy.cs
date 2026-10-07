@@ -177,6 +177,7 @@ public sealed partial class MainViewModel
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;
+        assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
     }
 
     public event EventHandler? PrivacyClosureRequested;

@@ -250,16 +250,44 @@ These choices and the window position are stored on this device.
 
 ## Speech and audio
 
-### Assistant name
+### Assistant display / PTT command-prefix name
 
 - Default: **Kora**
-- Length: 1 to 3 words and no more than 32 Unicode characters
+- Length: 1 to 3 words and no more than 32 UTF-16 characters after whitespace
+  trimming/collapse (the existing name rules, not session-name NFC rules)
 - Allowed: letters, numbers, spaces, apostrophes, and hyphens
 
-The name updates window titles, tray labels, command prefixes, recognition
-grammar, visual responses, spoken identity, and voice preview. Names that
-collide with built-in command phrases are rejected. The executable remains
-`Kora.exe`, and local data remains under `%LOCALAPPDATA%\Kora`.
+**Apply name** and **Reset name to Kora** use the same typed, audited atomic
+workflow as [exact assistant settings commands](commands.md#assistant-display--ptt-command-prefix-setting).
+Discovery/get show schema 1, `assistant.name` (spoken: **assistant name**),
+string type, bounds/default, device-local scope, effect/timing, process-local
+revision and saved-versus-unsaved-default provenance. Reset affects this option
+only; a missing file remains an unsaved domain default until a changed choice
+is explicitly saved.
+
+The name updates window titles, tray labels, command/help prefixes, visual
+responses, spoken identity and voice preview. The next explicitly activated
+PTT uses the new grammar; the old prefix is not an alias, including session
+and artifact commands. A mutation retires capture and queued transcript/
+completion generations and leaves listening held. Use **Enable listening**
+explicitly before a new PTT; rename/reset never opens the microphone or clears
+an existing run hold. Failed capture shutdown or persistence retains the prior
+name and reports failure. A later grammar-start failure keeps the saved name
+but capture unavailable; there is no old-grammar fallback.
+
+Invalid/corrupt/unknown saved state is visible and disables prefix routing and
+capture instead of silently using Kora. Native recovery and exact unprefixed
+get/set/reset remain available. Repair storage access, explicitly set/reset or
+refresh; an audit-completion failure after replacement requires inspection and
+explicit recovery, not a reported successful mutation.
+Protected/unknown call state rejects original voice-channel set/reset even
+when later delivered through a button; initiate a new eligible local request.
+
+This is presentation/routing, **not an authority identity or a qualified
+production wake name**. Reset does not change session/task/grant/approval/
+instance IDs or stored session names. The executable remains `Kora.exe`;
+namespaces and application data paths remain fixed. No wake detector, custom
+profile, learning/enrollment, assets, download or OS/global setting is added.
 
 ### Microphone
 

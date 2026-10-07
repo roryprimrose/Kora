@@ -32,7 +32,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string ApplicationRestartAction = "application.restart";
     private const string PresencePositionConfigurationAction = "configuration.presence-position";
     private const string ResponseWindowConfigurationAction = "configuration.response-window";
-    private const string AssistantNameConfigurationAction = "configuration.assistant-name";
     private const string CallAwareConfigurationAction = "configuration.call-aware-policy";
     private const string CurrentApplicationTarget = "application.current";
     private const string CurrentMachineTarget = "machine.current";
@@ -66,7 +65,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IMicrophoneAccessService microphoneAccessService;
     private readonly IActivatedVoiceRecognitionService voiceRecognition;
     private readonly ITextToSpeechService textToSpeech;
-    private readonly IAssistantNamePreferences assistantNamePreferences;
     private readonly IAppearancePreferences appearancePreferences;
     private readonly IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences;
     private readonly IAudioDevicePreferences audioDevicePreferences;
@@ -200,7 +198,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IMicrophoneAccessService microphoneAccessService,
         IActivatedVoiceRecognitionService voiceRecognition,
         ITextToSpeechService textToSpeech,
-        IAssistantNamePreferences assistantNamePreferences,
+        AssistantNameConfigurationService assistantNameConfiguration,
         IAppearancePreferences appearancePreferences,
         IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences,
         IAudioDevicePreferences audioDevicePreferences,
@@ -238,7 +236,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.microphoneAccessService = microphoneAccessService;
         this.voiceRecognition = voiceRecognition;
         this.textToSpeech = textToSpeech;
-        this.assistantNamePreferences = assistantNamePreferences;
+        this.assistantNameConfiguration = assistantNameConfiguration;
+        assistantNameConfiguration.Changed += OnAssistantNameConfigurationChanged;
         this.appearancePreferences = appearancePreferences;
         this.optionalSpeechOfferPreferences = optionalSpeechOfferPreferences;
         this.audioDevicePreferences = audioDevicePreferences;
@@ -319,6 +318,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplyAssistantNameCommand = CreateCommand(
             () => SetAssistantNameAsync(AssistantNameInput),
             CanApplyAssistantName);
+        ResetAssistantNameCommand = CreateCommand(ResetAssistantNameAsync);
         ApproveModelActionCommand = CreateCommand(
             () => ApproveModelActionAsync(ModelApprovalScope.Once),
             () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
@@ -1483,7 +1483,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         communicationPolicy.Current.SuppressSpeech;
 
     public bool IsVoiceActivationAvailable =>
-        communicationPolicy.Current.AllowActivation;
+        isAssistantNameAvailable && communicationPolicy.Current.AllowActivation;
 
     public string CallVisualOverrideButtonText => ShowVisualTextDuringCalls
         ? "Use normal response mode during calls"
@@ -2632,16 +2632,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(SetupTasks));
 
             MicrophoneAccessStatus = microphoneAccessService.GetStatus();
-            var savedAssistantName = assistantNamePreferences.LoadName();
-            try
+            assistantNameConfiguration.Reload();
+            SynchronizeAssistantNameConfiguration();
+            if (!isAssistantNameAvailable)
             {
-                ApplyAssistantNameState(savedAssistantName ?? AssistantNameRules.DefaultName);
-            }
-            catch (ArgumentException exception) when (savedAssistantName is not null)
-            {
-                throw new InvalidDataException(
-                    "The saved assistant name conflicts with a built-in command.",
-                    exception);
+                throw new InvalidDataException(assistantNameConfiguration.Get().Recovery);
             }
 
             alwaysAllowedModelActions.Clear();
@@ -3328,83 +3323,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Task SetAllowVoiceActivationDuringCallsAsync(bool value) =>
         SetCallSettingsAsync(communicationPolicy.Current.Settings with { AllowVoiceActivationDuringCalls = value });
 
-    public async Task SetAssistantNameAsync(
-        string value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        if (!AdmitVoiceOptionMutation(AssistantNameConfigurationAction, initiator)) { return; }
-        var origin = OriginalOrigin(initiator);
-        var callRevision = CallPolicyRevision;
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
-            AssistantNameConfigurationAction,
-            initiator,
-            DeviceLocalPreferencesTarget);
-        string normalizedName;
-        try
-        {
-            normalizedName = AssistantNameRules.Normalize(value);
-            commandCatalog.GetCommands(normalizedName);
-        }
-        catch (ArgumentException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Denied, "invalid-name");
-            ShowFailure("The assistant name is invalid.", exception.Message);
-            return;
-        }
-
-        if (string.Equals(normalizedName, AssistantName, StringComparison.Ordinal))
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "no-change");
-            AssistantNameInput = AssistantName;
-            return;
-        }
-
-        try
-        {
-            if (IsVoiceEnabled || IsListening)
-            {
-                HoldVoiceInput("Microphone closed · activation name changed; use Enable listening");
-                await StopListeningAsync();
-            }
-            var denied = communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible);
-            if (denied is { } outcome)
-            {
-                CompleteAudit(audit, SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
-                ReportCallMutation(outcome, AssistantNameConfigurationAction, origin);
-                return;
-            }
-            assistantNamePreferences.SaveName(normalizedName);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the assistant name preference because access was denied");
-            ShowFailure("The assistant name could not be saved.", exception.Message);
-            return;
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the assistant name preference due to an I/O error");
-            ShowFailure("The assistant name could not be saved.", exception.Message);
-            return;
-        }
-        catch (InvalidOperationException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "capture-stop-failed");
-            ApplicationLog.Error(logger, exception, "Closing input before changing the assistant name");
-            ShowFailure("The assistant name could not be changed.", exception.Message);
-            return;
-        }
-
-        ApplyAssistantNameState(normalizedName);
-        ShowSuccess(
-            $"{AssistantName} is ready.",
-            $"The display name, command prefix, and spoken identity now use {AssistantName}.");
-    }
-
     private bool SaveMicrophonePreference(MicrophoneDevice microphone)
     {
         return SavePreference(
@@ -3701,6 +3619,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsSpeaking = false;
         }
 
+        if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
+        {
+            ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");
+            return;
+        }
         await HandleTranscriptAsync(
             eventArgs.Transcript,
             eventArgs.Confidence,
@@ -3719,6 +3642,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
             ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
+        if (AssistantNameCommand.Parse(spokenText, AssistantName) is { } assistantCommand
+            && (isAssistantNameAvailable || !commandRouter.IsActivationPrefixed(spokenText, AssistantName)))
+        {
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+                () => ExecuteAssistantNameCommandAsync(assistantCommand, initiator));
+            return;
+        }
+        if (!isAssistantNameAvailable
+            && commandRouter.Match(spokenText, AssistantName).Command?.Action is not
+                (BuiltInAction.CancelTask or BuiltInAction.StopSpeaking or BuiltInAction.CancelPowerAction
+                or BuiltInAction.OpenSettings or BuiltInAction.OpenDocumentation or BuiltInAction.ExitApplication))
+        {
+            ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
+            return;
+        }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
             await ExecuteSessionCommandAsync(sessionCommand, initiator);
@@ -4791,6 +4729,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
+                    + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + "Use “preview clipboard” for an explicit local plain-text snapshot; clipboard explanation is unavailable. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
@@ -5137,6 +5076,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands
@@ -5196,6 +5136,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateAssistantNameSettingStatus()
     {
+        if (!isAssistantNameAvailable)
+        {
+            AssistantNameSettingStatus = assistantNameConfiguration.Get().Recovery!;
+            return;
+        }
         try
         {
             var normalizedName = AssistantNameRules.Normalize(AssistantNameInput);

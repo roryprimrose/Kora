@@ -35,6 +35,18 @@ and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted
 
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+The bounded R10 assistant-name addition registers only the existing
+`assistant.name` display/PTT command-prefix option. Native Apply/reset and exact
+typed/activated voice `list assistant settings`, `get/set/reset assistant.name`
+share typed discovery/default/bounds/revision/provenance and an audited atomic
+host workflow. Invalid commands are handled locally before inference and do not
+replace pending exact questions/approvals. Original channel/call/host revisions
+and confirmed capture retirement gate writes. All current session and artifact
+routes use the committed prefix; old prefixes are not aliases. No identity,
+grant or stored-session-name reset, model settings tools, arbitrary aliases,
+production wake profile or acoustic/full R10 acceptance is added. See
+[the bounded configuration contract](User_Configuration.md#delivered-bounded-assistant-displayptt-prefix-r10).
+
 Delivered bounded R12/R13 deterministic entry points: typed and activated voice
 `session help/list/status/inspect/create/rename/done/resume` use the single
 [typed exact-ID grammar/result contract](../src/Kora.Core/Commands/SessionCommand.cs)

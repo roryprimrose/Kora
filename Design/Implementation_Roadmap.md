@@ -1981,3 +1981,9 @@ passes without weakening its privacy assertions. Fresh root no-restore Release
 build has zero warnings/errors; Core **601**, Application **1,502**, Tools
 **38**, Definitions **6**, Windows **835** all pass. Latest-only portable
 coverage meets the unchanged exact **100% line/branch** gate.
+
+After #74 merged during checks, immediate rebase onto `e328038` required no
+conflict or unpublished-source integration. Fresh combined root no-restore
+Release build and all suites pass: Core **609**, Application **1,503**, Tools
+**38**, Definitions **6**, Windows **863**, with zero build warnings/errors
+and unchanged exact **100% line/branch** latest-only portable coverage.

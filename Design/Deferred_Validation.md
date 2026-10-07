@@ -210,11 +210,16 @@ R04 now has independently safe source/test contracts as recorded in the
 The owner-approved [D-009 baseline](Decision_Register.md#approved-profile-secured-sqlite-baseline---2026-10-06)
 supersedes mandatory encryption/key/native-codec admission. The actual
 [standard task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs)
-uses the existing provider, private ACL-verified `HostStorageV1`, transactional
+uses the existing provider and private ACL-verified authority, with transactional
 versioned intent/dispatch/terminal records and a bounded incomplete query.
 It has no database key dependency and rejects missing/corrupt existing data.
 It is now composed for exact typed/activated-voice version queries and required
-independent typed evidence. The bootstrap `kora.db` remains setup-only, not
+independent typed evidence. The bounded task-control continuation consolidates
+its exact ordered ledger with question/session/grant/typed-audit authority in
+interaction schema v3; `HostStorageV1` remains an inert frozen handoff receipt.
+Validated migration, task/question/audit cancellation and owned-process
+interruption fixtures do not qualify general workers or content deletion.
+The bootstrap `kora.db` remains setup-only, not
 a host-content migration. The composed-milestone receipt in the roadmap owns
 the exact automated process-interruption results and fixture scope; no power-loss,
 installed loading, backup or deletion acceptance is inferred from scratch tests.

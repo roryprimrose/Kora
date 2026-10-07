@@ -38,7 +38,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.TaskWrites[0].Request.TaskId.Should().NotBe(fixture.Request.TaskId);
         fixture.TaskWrites[0].Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         fixture.TaskWrites[1].State.Should().Be(HostTaskState.Succeeded);
-        if (verb is "help") { result.Message.Should().Be(SessionCommand.Syntax); }
+        if (verb is "help") { result.Message.Should().Be(SessionCommand.Syntax + " " + SessionCommand.TaskSyntax); }
         else { result.Sessions.Should().ContainSingle(); }
         if (verb is "done" or "resume")
         {
@@ -50,6 +50,117 @@ public sealed partial class SessionWorkspaceServiceTests
         SessionCommandResult.Serialize(result).Length.Should().BeLessThanOrEqualTo(SessionCommand.MaximumResultBytes);
     }
 
+    [Theory]
+    [InlineData(SessionCommandOperation.TaskStatus, false)]
+    [InlineData(SessionCommandOperation.TaskInspect, false)]
+    [InlineData(SessionCommandOperation.TaskInspect, true)]
+    public async Task Exact_task_reads_distinguish_unknown_and_complete_inspection_without_mutation(SessionCommandOperation operation, bool unknown)
+    {
+        using var fixture = new Fixture { UnknownTask = unknown, CanControl = false };
+        var result = await fixture.Service.ExecuteCommandAsync(new(operation, fixture.Request.SessionId.Value)
+        { TaskId = fixture.Request.TaskId.Value }, RequestOrigin.ActivatedVoice, () => true, fixture.Token);
+        result.Outcome.Should().Be(unknown ? "unknown" : "observed");
+        if (!unknown)
+        {
+            result.TaskDetails.Single().Task.Should().Be(fixture.Task);
+            result.TaskDetails.Single().Question.Should().Be(fixture.Question);
+        }
+        fixture.ControlCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Exact_command_and_native_cancellation_share_fresh_user_control_and_notification(bool command)
+    {
+        using var fixture = new Fixture { CanControl = false };
+        HostTaskObservation? notified = null;
+        fixture.Service.WaitingTaskCancelled += observation => notified = observation;
+        HostTaskObservation cancelled;
+        if (command)
+        {
+            var result = await fixture.Service.ExecuteCommandAsync(new(SessionCommandOperation.TaskCancel, fixture.Request.SessionId.Value, 1)
+            {
+                TaskId = fixture.Request.TaskId.Value,
+                TaskRevision = 1,
+                QuestionId = fixture.Question.Key.QuestionId.Value,
+                QuestionRevision = 1,
+            }, RequestOrigin.ActivatedVoice, () => true, fixture.Token);
+            cancelled = result.TaskDetails.Single();
+        }
+        else
+        {
+            cancelled = await fixture.Service.CancelTaskAsync(new(fixture.Request.SessionId, fixture.Request.TaskId,
+                new(1), new(1), fixture.Question.Key.QuestionId, new(1)), RequestOrigin.LocalUi, () => true, fixture.Token);
+        }
+        notified.Should().Be(cancelled);
+        cancelled.Task.State.Should().Be(HostTaskState.Cancelled);
+        fixture.TaskWrites[0].Request.RequestId.Should().NotBe(fixture.Request.RequestId);
+        fixture.TaskWrites.Last().State.Should().Be(HostTaskState.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(SessionCommandOperation.TaskStatus, false)]
+    [InlineData(SessionCommandOperation.TaskCancel, false)]
+    [InlineData(SessionCommandOperation.TaskCancel, true)]
+    public async Task Programmatic_commands_cannot_omit_exact_task_or_question_ids(SessionCommandOperation operation, bool supplyTask)
+    {
+        using var fixture = new Fixture();
+        var act = () => fixture.Service.ExecuteCommandAsync(new(operation, fixture.Request.SessionId.Value, 1)
+        { TaskId = supplyTask ? fixture.Request.TaskId.Value : null, TaskRevision = 1 },
+            RequestOrigin.LocalUi, () => true, fixture.Token);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("foreign")]
+    [InlineData("private")]
+    [InlineData("late")]
+    public async Task Task_subject_is_host_resolved_before_any_fresh_intent_not_fabricated_from_unknown_input(string scenario)
+    {
+        using var fixture = new Fixture
+        {
+            ForeignTaskSession = scenario is "foreign",
+            CanInspect = scenario is not "private",
+            RevokeDuringTaskResolution = scenario is "late",
+        };
+        var command = new SessionCommand(SessionCommandOperation.TaskInspect,
+            scenario is "missing" ? null : fixture.Request.SessionId.Value) { TaskId = fixture.Request.TaskId.Value };
+        var execute = () => fixture.Service.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
+        await execute.Should().ThrowAsync<Exception>();
+        fixture.TaskWrites.Should().BeEmpty();
+        fixture.ControlCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Confirmed_cancellation_is_not_relabelled_when_notification_cancels_caller_token(bool command)
+    {
+        using var fixture = new Fixture();
+        using var token = new CancellationTokenSource();
+        fixture.Service.WaitingTaskCancelled += _ => token.Cancel();
+        if (command)
+        {
+            var result = await fixture.Service.ExecuteCommandAsync(new(SessionCommandOperation.TaskCancel, fixture.Request.SessionId.Value, 1)
+            {
+                TaskId = fixture.Request.TaskId.Value,
+                TaskRevision = 1,
+                QuestionId = fixture.Question.Key.QuestionId.Value,
+                QuestionRevision = 1,
+            }, RequestOrigin.LocalUi, () => true, token.Token);
+            result.Outcome.Should().Be("committed");
+            result.TaskDetails.Single().Task.State.Should().Be(HostTaskState.Cancelled);
+        }
+        else
+        {
+            var result = await fixture.Service.CancelTaskAsync(new(fixture.Request.SessionId, fixture.Request.TaskId,
+                new(1), new(1), fixture.Question.Key.QuestionId, new(1)), RequestOrigin.LocalUi, () => true, token.Token);
+            result.Task.State.Should().Be(HostTaskState.Cancelled);
+        }
+        fixture.TaskWrites.Last().State.Should().Be(HostTaskState.Succeeded);
+    }
+
     [Fact]
     public async Task Reads_use_private_inspection_not_mutation_permission_and_do_not_change_session_authority()
     {
@@ -59,6 +170,15 @@ public sealed partial class SessionWorkspaceServiceTests
         result.Outcome.Should().Be("observed");
         result.Sessions[0].Generation.Should().Be(1);
         fixture.ControlCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Cancellation_without_an_open_presenter_still_returns_the_authoritative_result()
+    {
+        using var fixture = new Fixture();
+        var result = await fixture.Service.CancelTaskAsync(new(fixture.Request.SessionId, fixture.Request.TaskId,
+            new(1), new(1), fixture.Question.Key.QuestionId, new(1)), RequestOrigin.LocalUi, () => true, fixture.Token);
+        result.Task.State.Should().Be(HostTaskState.Cancelled);
     }
 
     [Theory]

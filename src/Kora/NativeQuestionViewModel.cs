@@ -21,6 +21,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private readonly TimeProvider time;
     private readonly ILogger<NativeQuestionViewModel> logger;
     private readonly ActivityLink[] links;
+    private readonly Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel;
     private readonly TaskCompletionSource<HostInteractionDecision> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private HostQuestionRecord question;
     private HostQuestionKey? reviewedKey;
@@ -34,7 +35,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 
     internal NativeQuestionViewModel(HostQuestionRecord question, HostQuestionService questions,
         HostAuthorizationService authorization, HostQuestionReviewService reviews, Func<bool> canInteract,
-        TimeProvider time, ILogger<NativeQuestionViewModel> logger)
+        TimeProvider time, ILogger<NativeQuestionViewModel> logger,
+        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null)
     {
         this.question = question;
         this.questions = questions;
@@ -43,6 +45,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         this.canInteract = canInteract;
         this.time = time;
         this.logger = logger;
+        this.cancel = cancel;
         links = Activity.Current is { } activity ? [new(activity.Context)] : [];
         answer = question.Draft ?? EmptyAnswer();
     }
@@ -91,7 +94,25 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             : questions.SubmitAsync(Key, answer, RequestOrigin.LocalUi, CancellationToken.None));
     }
 
-    internal Task CancelAsync() => DecideAsync(Key, () => questions.CancelAsync(Key, CancellationToken.None));
+    internal Task CancelAsync() => DecideAsync(Key, () => cancel is null
+        ? questions.CancelAsync(Key, CancellationToken.None) : new(cancel(Key)));
+
+    internal void AcceptCommittedCancellation(HostTaskObservation observation)
+    {
+        if (closed || !canInteract() || observation.Task.Request != Key.Request
+            || observation.Task.State != HostTaskState.Cancelled || observation.Question is not { } cancelled
+            || cancelled.Key.QuestionId != Key.QuestionId || cancelled.Status != QuestionStatus.Cancelled)
+        {
+            return;
+        }
+        question = cancelled;
+        closed = true;
+        answer = EmptyAnswer();
+        reviewText = string.Empty;
+        status = "Exact task and question cancelled atomically before dispatch.";
+        completion.TrySetResult(new(HostInteractionOutcome.Cancelled, "pre-dispatch-work-cancelled", cancelled));
+        Notify();
+    }
 
     internal Task ReviewAsync() => DecideAsync(Key, () => reviews.ReviewAsync(Key, CancellationToken.None), reviewing: true);
 

@@ -78,6 +78,55 @@ public sealed class SessionsViewModelTests
         viewer.Close();
     }
 
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("answered")]
+    [InlineData("closed")]
+    public async Task Native_exact_task_selection_inspection_and_separate_cancel_are_fresh_and_privacy_bound(string scenario)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var question = await WindowsSqliteTaskControlTests.WaitAsync(f);
+        var access = new WindowsSqliteSessionWorkspaceTests.Access { CanControl = false };
+        var sink = new WindowsSqliteEvidenceSink(f.Paths);
+        sink.Initialize();
+        var viewer = new SessionsViewModel(WindowsSqliteSessionWorkspaceTests.Service(f, access),
+            new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
+            access, NullLogger<SessionsViewModel>.Instance);
+        await viewer.RefreshAsync();
+        await viewer.SelectAsync(viewer.Sessions.Single());
+        var before = await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token);
+        var audits = f.Count("security_audit_events");
+        viewer.SelectTask(viewer.TaskRecords.Single());
+        viewer.CanInspectTask.Should().BeTrue();
+        viewer.CanCancelTask.Should().BeFalse();
+        f.Count("security_audit_events").Should().Be(audits);
+        await viewer.InspectTaskAsync();
+        viewer.Detail.Should().Contain(f.Request.TaskId.Value.ToString("D"))
+            .And.Contain(LocalVersionWait.Source).And.Contain(question.Key.QuestionId.Value.ToString("D"));
+        viewer.CanCancelTask.Should().BeTrue();
+        (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token)).Should().Be(before);
+        if (scenario is "answered")
+        {
+            await f.RunAsync(() => f.Questions.SubmitAsync(question.Key, new(["show"]), RequestOrigin.LocalUi, f.Token));
+        }
+        if (scenario is "closed") { viewer.Close(); }
+        await viewer.CancelTaskAsync();
+        var actual = (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token))!;
+        if (scenario is "cancel")
+        {
+            actual.State.Should().Be(HostTaskState.Cancelled);
+            viewer.Status.Should().Contain("committed atomically");
+        }
+        else
+        {
+            actual.Should().Be(before);
+            viewer.Detail.Should().BeEmpty();
+            viewer.CanCancelTask.Should().BeFalse();
+        }
+        viewer.Close();
+    }
+
     [Fact]
     public void Native_workspace_is_themed_keyboard_accessible_passive_on_selection_and_has_no_reply_or_context_surface()
     {
@@ -114,6 +163,10 @@ public sealed class SessionsViewModelTests
 
     private sealed class HeldStore : ISessionWorkspaceStore
     {
+        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+        public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
+            Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

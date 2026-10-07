@@ -26,11 +26,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IAudioControlSes
         Func<T> operation, CancellationToken cancellationToken)
     {
         RequireLive(request);
-        return new(Task.Run(() => tasks.WithCommittedIntent(request, _ =>
+        return new(Task.Run(() => tasks.WithCommittedIntent(request, (connection, _) =>
         {
             using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
-            using var lease = database.AcquireReadLease(cancellationToken);
-            using var connection = Open(created: false, cancellationToken);
             var session = RequireSession(connection, request.SessionId).Authority;
             if (!session.IsActive || session.Generation != generation)
             {

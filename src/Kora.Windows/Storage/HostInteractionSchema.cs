@@ -74,4 +74,18 @@ internal static class HostInteractionSchema
         """;
 
     internal static readonly string[] MetadataTables = [.. Tables, MetadataTable];
+    internal const string WaitTable = """
+        CREATE TABLE host_task_waits(
+            task_id TEXT PRIMARY KEY NOT NULL REFERENCES host_tasks(task_id),
+            question_id TEXT UNIQUE NOT NULL REFERENCES host_questions(question_id),
+            generation INTEGER NOT NULL CHECK(generation>0),
+            run_id TEXT NOT NULL,
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """;
+    internal const string RunTable = """
+        CREATE TABLE host_task_runs(
+            task_id TEXT PRIMARY KEY NOT NULL REFERENCES host_tasks(task_id),
+            run_id TEXT NOT NULL CHECK(length(run_id)=36)) STRICT
+        """;
+    internal static readonly string[] AuthorityTables = [.. MetadataTables, .. WindowsSqliteHostTaskStore.Schema, RunTable, WaitTable];
 }

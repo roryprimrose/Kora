@@ -137,6 +137,67 @@ public sealed partial class MainViewModelTests
         fixture.HostStore.Records.Last().State.Should().Be(HostTaskState.Denied);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Exact_task_typed_and_activated_voice_reads_and_protected_call_cancellation_share_host_workflow(bool closeAfterCommit)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = BindSessions(fixture);
+        var request = new HostRequest(new(Guid.NewGuid()), store.Session.Authority.SessionId,
+            new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        var question = new HostQuestionRecord(new(request, new(Guid.NewGuid()), new(1)),
+            LocalVersionWait.CreateSpec(), new(1), DateTimeOffset.UtcNow.AddMinutes(1));
+        store.TaskResult = new(new(request, new(1), HostTaskState.IntentRecorded), new(1),
+            LocalVersionWait.Source, true, question);
+        var ids = request.SessionId.Value.ToString("D") + " " + request.TaskId.Value.ToString("D");
+        await fixture.RunAsync("task status " + ids);
+        fixture.ViewModel.ResponseBody.Should().Contain(request.TaskId.Value.ToString("D"))
+            .And.Contain(LocalVersionWait.Source).And.Contain(question.Key.QuestionId.Value.ToString("D"));
+        await fixture.RaiseActivatedTranscriptAsync("Kora, task inspect " + ids, 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("Session command observed.");
+        fixture.CallState.SetState(CallState.Active);
+        await fixture.Dispatcher.LastInvocation;
+        if (closeAfterCommit) { store.AfterCancellation = fixture.ViewModel.Dispose; }
+        await fixture.RaiseActivatedTranscriptAsync("Kora, task cancel " + ids + " 1 1 "
+            + question.Key.QuestionId.Value.ToString("D") + " 1", 1);
+        if (!closeAfterCommit) { fixture.ViewModel.ResponseTitle.Should().Be("Session command committed."); }
+        store.TaskResult.Task.State.Should().Be(HostTaskState.Cancelled);
+        store.Origins.Should().Equal(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice, RequestOrigin.ActivatedVoice);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("task delete named", "Session command not accepted.")]
+    [InlineData("task help", "Session commands unavailable.")]
+    public async Task Task_namespace_never_falls_back_to_model_or_unbound_authority(string text, string title)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.RunAsync(text);
+        fixture.ViewModel.ResponseTitle.Should().Be(title);
+        fixture.HostStore.Records.Should().BeEmpty();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("disposed")]
+    [InlineData("late-disposed")]
+    [InlineData("late-locked")]
+    public async Task Disposed_task_entry_or_late_storage_failure_never_publishes_private_content(string scenario)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = BindSessions(fixture);
+        if (scenario is "late-disposed") { store.BeforeTaskRead = fixture.ViewModel.Dispose; }
+        else if (scenario is "late-locked") { store.BeforeTaskRead = () => fixture.Session.IsUnlocked = false; }
+        else { fixture.ViewModel.Dispose(); }
+        await fixture.ViewModel.ExecuteSessionCommandAsync(new(SessionCommandOperation.TaskInspect, store.Session.Authority.SessionId.Value)
+            { TaskId = Guid.NewGuid() }, Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand);
+        fixture.ViewModel.ResponseBody.Should().NotContain("No task with that exact ID");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        if (scenario is "disposed") { fixture.HostStore.Records.Should().BeEmpty(); }
+    }
+
     private static SessionCommandStore BindSessions(Fixture fixture)
     {
         var store = new SessionCommandStore(fixture);
@@ -199,6 +260,29 @@ public sealed partial class MainViewModelTests
 
     private sealed class SessionCommandStore(Fixture fixture) : ISessionWorkspaceStore, ISessionWorkspaceAccess
     {
+        internal HostTaskObservation? TaskResult { get; set; }
+        internal Action? BeforeTaskRead { get; set; }
+        internal Action? AfterCancellation { get; set; }
+        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken)
+        {
+            BeforeTaskRead?.Invoke();
+            return ValueTask.FromResult(TaskResult);
+        }
+        public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
+            Func<bool> canControl, CancellationToken cancellationToken)
+        {
+            canControl().Should().BeTrue();
+            var current = TaskResult ?? throw new InvalidOperationException("Unknown target.");
+            target.TaskId.Should().Be(current.Task.Request.TaskId);
+            target.QuestionRevision.Should().Be(current.Question!.Key.Revision);
+            TaskResult = current with
+            {
+                Task = current.Task.Next(HostTaskState.Cancelled),
+                Question = current.Question with { Key = current.Question.Key.Next(), Status = QuestionStatus.Cancelled },
+            };
+            AfterCancellation?.Invoke();
+            return ValueTask.FromResult(TaskResult);
+        }
         internal SessionWorkspaceEntry Session { get; private set; } =
             new(new(new(Guid.NewGuid()), new(1), true), null);
         internal List<RequestOrigin> Origins { get; } = [];

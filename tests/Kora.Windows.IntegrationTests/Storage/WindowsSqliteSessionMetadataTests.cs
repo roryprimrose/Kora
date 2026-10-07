@@ -95,7 +95,7 @@ public sealed class WindowsSqliteSessionMetadataTests
         var authority = await fixture.Store.ReadSessionAsync(fixture.Request.SessionId, fixture.Token);
         var questions = await fixture.Store.ReadQuestionsAsync(fixture.Request.SessionId, fixture.Token);
         var audits = fixture.Count("security_audit_events");
-        fixture.Mutate("DROP TABLE session_metadata; PRAGMA user_version=1;");
+        fixture.StageLegacy(1);
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
         var row = (await fixture.Store.ReadMetadataPageAsync(null, 25, fixture.Token)).Records.Single();
@@ -214,7 +214,7 @@ public sealed class WindowsSqliteSessionMetadataTests
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
         var audits = fixture.Count("security_audit_events");
-        fixture.Mutate("DROP TABLE session_metadata; PRAGMA user_version=1;");
+        fixture.StageLegacy(1);
         using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(fixture.Token);
         var checkpoint = new InteractionTransactionCheckpoint { Commit = (_, _) => cancelled.Cancel() };
         fixture.Reopen(checkpoint);

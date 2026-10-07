@@ -65,8 +65,8 @@ storage/audit abstraction. They have no dispatch callback and do not advance
 an actual task to Running. A foundation approval/use receipt is neither an
 execution token nor evidence of an observed effect.
 The [R04/R05 durable adapter](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)
-now serializes task cancellation using the existing task lease, held from
-committed-intent validation through interaction COMMIT. Questions/grants,
+now consolidates task/question/audit authority under one existing private
+lease, held from committed-intent validation through the single COMMIT. Questions/grants,
 typed audit, lifecycle generations and current host observations commit in a
 single interaction database. Done/resume/authority removal invalidate old
 scoped authority; Active restart preserves generation, but previous-run
@@ -78,6 +78,19 @@ admitted receipt; OperationCanceledException means rolled back, while lost
 commit certainty throws a storage error and prohibits blind retry.
 Real effect cancellation, interrupted-run reconciliation, native review and
 immediate pre-effect revalidation remain production integration gates.
+
+The delivered bounded local-version exception places its native question
+before `DispatchRecorded`. A host-owned current-run wait binds the exact
+task/question and session generation; labels are not admission authority.
+The exact answered-key gateway alone commits dispatch. Native selected-task
+and exact typed/activated-voice cancellation share the workspace workflow and
+atomically commit terminal `Cancelled`, the revised cancelled question,
+target observation revocation and required typed audit. Generic task writes
+cannot bypass that gateway. Previously dispatched and Unknown work remain
+unavailable for cancellation; ordinary callbacks/SDK acknowledgements never
+certify termination. Restart recovers incomplete work without replay or
+reactivating previous-run waits. No general queue, worker termination,
+task deletion or runtime management follows from this exception.
 
 ## Wake Listening and Command Capture
 

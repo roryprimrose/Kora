@@ -7,6 +7,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
+using Kora.Windows.Storage;
 using Kora.Windows.IntegrationTests.Audio;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -45,12 +46,13 @@ public sealed class WindowsSqliteSessionWorkspaceTests
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
         await FinishAsync(fixture, HostTaskState.Succeeded);
-        var ledger = Path.Combine(fixture.Paths.LocalRoot, "HostStorageV1");
+        var ledger = Path.Combine(fixture.Paths.LocalRoot, HostInteractionSchema.Partition);
         Directory.Move(ledger, Path.Combine(fixture.Paths.LocalRoot, "OwnedSavedHostStorageV1"));
         var act = () => Service(fixture, new()).ChangeLifecycleAsync(fixture.Request.SessionId, new(1), false,
             RequestOrigin.LocalUi, fixture.Token);
         await act.Should().ThrowAsync<FileNotFoundException>();
         Directory.Exists(ledger).Should().BeFalse();
+        Directory.Move(Path.Combine(fixture.Paths.LocalRoot, "OwnedSavedHostStorageV1"), ledger);
         (await fixture.Store.ReadSessionAsync(fixture.Request.SessionId, fixture.Token))!.Generation.Value.Should().Be(1);
     }
     [WindowsFact]

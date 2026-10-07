@@ -8,6 +8,10 @@ namespace Kora.Application.UnitTests.Configuration;
 
 internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IHostTaskStore
 {
+    public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
+        CancellationToken cancellationToken) => throw new NotSupportedException();
+    public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
+        Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
     internal WorkSessionAuthorization? Authority { get; set; }
     internal List<HostTaskRecord> Tasks { get; } = [];
     internal Action? BeforeOperation { get; set; }

@@ -24,13 +24,16 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
     [InlineData("rename-after")]
     [InlineData("migrate-before")]
     [InlineData("migrate-after")]
+    [InlineData("consolidate-before")]
+    [InlineData("consolidate-after")]
     public async Task Owned_metadata_or_migration_kill_reopens_one_atomic_schema_authority_and_audit_truth(string mode)
     {
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
-        var migration = mode.StartsWith("migrate-", StringComparison.Ordinal);
-        if (migration) { fixture.Mutate("DROP TABLE session_metadata; PRAGMA user_version=1;"); }
+        var consolidation = mode.StartsWith("consolidate-", StringComparison.Ordinal);
+        var migration = consolidation || mode.StartsWith("migrate-", StringComparison.Ordinal);
+        if (migration) { fixture.StageLegacy(consolidation ? 2 : 1); }
         var audits = fixture.Count("security_audit_events");
         var start = OwnedStorageChildProcess.CreateStart(typeof(WindowsSqliteSessionLifecycleInterruptionTests),
             nameof(Fixture_owned_child_metadata_only));
@@ -60,7 +63,7 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
                 using var connection = fixture.OpenRaw();
                 using var command = connection.CreateCommand();
                 command.CommandText = "PRAGMA user_version;";
-                ((long)command.ExecuteScalar()!).Should().Be(committed ? 2 : 1);
+                ((long)command.ExecuteScalar()!).Should().Be(committed ? 3 : consolidation ? 2 : 1);
             }
             fixture.Reopen();
             await fixture.Store.InitializeAsync(fixture.Token);
@@ -94,7 +97,8 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
         if (root is null) { return; }
         OwnedStorageChildProcess.RequireOwnedRoot(root);
         var mode = Environment.GetEnvironmentVariable(ModeVariable);
-        if (mode is not ("create-before" or "create-after" or "rename-before" or "rename-after" or "migrate-before" or "migrate-after"))
+        if (mode is not ("create-before" or "create-after" or "rename-before" or "rename-after" or "migrate-before" or "migrate-after"
+            or "consolidate-before" or "consolidate-after"))
         {
             throw new InvalidOperationException("Invalid owned metadata child mode.");
         }
@@ -113,7 +117,8 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
             checkpoint.Commit = (_, _) => OwnedStorageChildProcess.SignalAndBlock(root, Marker);
         }
         var token = TestContext.Current.CancellationToken;
-        if (mode.StartsWith("migrate-", StringComparison.Ordinal)) { await store.InitializeAsync(token); }
+        if (mode.StartsWith("migrate-", StringComparison.Ordinal) || mode.StartsWith("consolidate-", StringComparison.Ordinal))
+        { await store.InitializeAsync(token); }
         else
         {
             var session = (await store.ReadSessionsAsync(null, 1, token)).Records.Single();

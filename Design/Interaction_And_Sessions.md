@@ -57,8 +57,55 @@ Every accepted command owns fresh deliberate lineage and a durable control
 intent; observational reads never change authority. Voice enablement/consent,
 origin, private presentation and call/recovery revisions remain checked.
 Protected-call voice mutations are explicitly unavailable, not deferred.
-Full session routing, transcript persistence, scheduler, cancellation, deletion,
+Full session routing, transcript persistence, scheduler, general effect cancellation, deletion,
 retention and model-facing session tools remain unimplemented.
+
+### Bounded Authoritative Task Observation and Pre-dispatch Cancellation
+
+Exact typed and activated voice `task status <session-id> <task-id>` and
+`task inspect <session-id> <task-id>` expose only the addressed existing
+durable task, session generation, admitted source/current-run distinction
+and complete bounded question record when present. Unknown/foreign IDs do
+not resolve by title, window, model output or trace. States are receipts,
+not inferred progress, planned steps, ETAs or physical effect cessation.
+The single session-command grammar owns the 1,024-byte input and 64 KiB
+complete-output bounds; inspection does not extend meaningful activity.
+
+`task cancel <session-id> <task-id> <task-revision> <generation>
+<question-id> <question-revision>` and the native workspace's **Inspect exact
+selected task** / separate **Cancel inspected pre-dispatch wait** share one
+host service. Fresh deliberate original-user control intent, current
+ownership/privacy/channel/call-revision admission and all exact conflict
+tokens are required. Safe cancellation introduces no effect and does not
+promote unknown user IDs into a fabricated host session: the actual existing
+session is resolved under private admission before recording fresh control
+intent. Admission is checked again after resolution and at COMMIT. It does not
+require the lifecycle mutation's unprotected-call permission; voice still
+requires admitted activation. Legacy bootstrap questions/approvals keep their
+existing targets and blockers. Always-available stop/recovery is unchanged.
+
+Only an already admitted current-run native local-version wait is cancellable.
+Its question precedes dispatch. A separate host-owned run/wait record, not
+question purpose/source text, proves the admitted source. The answered exact
+key alone reaches the pre-dispatch gateway. Task terminal cancellation,
+question revision/status, target observation revocation and required trusted
+typed audit share one transactional store and COMMIT. No grant is created or
+consumed; unrelated work/sessions and independent Perpetual grants survive.
+Answer/cancel/dispatch/revision/expiry races have one truthful winner; stale,
+foreign, expired or previous-run targets refuse. Late/disposed input cannot
+resume or dispatch. A possible committed outcome followed by receipt failure
+requires inspection, never a rollback claim or automatic retry.
+
+Schema v3 consolidates the existing ordered task ledger into the private
+interaction partition, preserving identities/events, session generations,
+metadata, questions/grants and exact audit bytes. The fully validated legacy
+task ledger is frozen before a complete destination schema transaction and
+retained inert. Interrupted migration can revalidate/retry storage maintenance
+only; lost/corrupt authority is not reconstructed as empty state. Evidence
+projections/retention remain independent. Previously dispatched/Unknown work
+stays uncertain/quarantined and is never relabelled Cancelled. This bounded
+slice closes no full R12/R13/A acceptance, scheduling, queues, workers, content
+retention/deletion, runtime/model-management execution or model task tools.
 
 **Sessions** in the tray, exact **open sessions** (configured-name prefix
 supported), and **Ctrl+Shift+S** in the compact response open a native
@@ -70,7 +117,7 @@ channels, generations and current durable task records. Separate selected-ID
 Evidence uses the existing bounded diagnostic/audit/span/link reader; missing
 session/conversation evidence remains explicitly unavailable. Pages default
 to 25 records and the store accepts at most 50. They are observations across
-independent partitions, not an atomic runtime ledger; refresh for concurrent
+separate bounded reads and independent evidence projection, not an atomic runtime ledger; refresh for concurrent
 changes. Passive pages require existing private partitions and never create a
 replacement when storage is missing. Removed authority tombstones are not
 offered as browsable sessions.
@@ -90,8 +137,8 @@ neither recreates missing storage and guesses that forgotten work is idle.
 Current private desktop
 ownership, unlocked privacy admission and unprotected known call policy,
 including its revision, must still hold at the authoritative commit.
-The existing task lease precedes the interaction lease and stays held
-through COMMIT. A bounded maintained task query rejects any other
+The consolidated authority lease/connection stays held through the single
+COMMIT; no second nested interaction lease is acquired. A bounded maintained task query rejects any other
 nonterminal or Unknown task (including recovered outcome-unknown work);
 only the exact fresh revision-1 control intent is excepted. Pending questions
 also block, even when their deadline passed. Nothing is auto-abandoned or

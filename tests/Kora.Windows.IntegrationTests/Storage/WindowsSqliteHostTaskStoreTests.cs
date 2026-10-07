@@ -231,7 +231,7 @@ public sealed class WindowsSqliteHostTaskStoreTests
         command.CommandText = "SELECT count(*) FROM host_task_events;";
         command.ExecuteScalar().Should().Be(3L);
         command.CommandText = "PRAGMA user_version;";
-        command.ExecuteScalar().Should().Be(1L);
+        command.ExecuteScalar().Should().Be(2L);
         command.CommandText = "PRAGMA journal_mode;";
         command.ExecuteScalar().Should().Be("persist");
         command.CommandText = "PRAGMA synchronous;";

@@ -2362,3 +2362,10 @@ and branch**: raw rates `1` / `1`, **10,454 / 10,454 lines** and **5,698 /
 5,698 branches**. Unchanged thresholds/exclusions enforce the gate. Full
 current-head remote CI and actual merge remain the publication gates;
 these receipts do not claim acoustic, installed, effect or broader acceptance.
+
+During current-head checks, #81 staged runtime-validation automation merged.
+The branch immediately rebased verified `d297c3a`, preserved its source/docs/
+automation and reran root Release plus all five suites and fresh portable
+coverage: the same **675 / 1,814 / 38 / 6 / 933** passing counts, zero
+warnings/errors and raw line/branch rates **1 / 1**. Its preparation scripts
+were not run; no provider/account/runtime acceptance or effect trial is inferred.

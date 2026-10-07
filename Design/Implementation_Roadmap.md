@@ -169,6 +169,12 @@ changing its disposal/input guards or privacy documentation. Combined Release
 and licence checks passed; full Core/Application/Windows suites passed
 **365 / 1,095 / 647**, zero failed/skipped, with fresh unchanged **100% line
 and branch** portable coverage under `r05-r03-rebase-*`.
+The subsequent clean rebase onto R17 #55 (`3fc1417`) retained its immutable
+source/publisher changes and all R03 privacy guards. Fresh combined Release,
+licence and full-suite validation again passed **365 / 1,095 / 647** with
+zero warnings/errors/failures/skips and **100% line/branch** portable coverage
+under `r05-r17-rebase-*`. Publication ordering remains a coordinator-owned
+hold until actual corrected main publication is verified, not a waived gate.
 
 ## R14 Native Passive Detail Slice - 2026-10-06
 

@@ -17,6 +17,7 @@ public sealed partial class DurableEvidenceQuery(
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         MaxDepth = 32,
+        Converters = { new JsonStringEnumConverter() },
     };
     private readonly byte[] cursorKey = RandomNumberGenerator.GetBytes(32);
 

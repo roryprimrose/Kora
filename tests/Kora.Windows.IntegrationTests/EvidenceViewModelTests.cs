@@ -36,7 +36,8 @@ public sealed class EvidenceViewModelTests
         };
         await viewer.SearchAsync();
         viewer.Records.Should().ContainSingle();
-        viewer.ResultText.Should().Contain("kora-evidence:span:");
+        viewer.ResultText.Should().Contain("kora-evidence:span:")
+            .And.Contain("\"Source\":\"Span\"").And.Contain("\"Retention\":\"Present\"");
         viewer.Select(viewer.Records[0]);
         viewer.CanReadTrace.Should().BeTrue();
         viewer.Segments.Should().ContainSingle();

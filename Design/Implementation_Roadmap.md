@@ -488,6 +488,14 @@ scratch/app-free tests, not a live application trial. Actual required remote
 CI and merge/ancestry remain the completion gate. Native visual/screen-reader,
 installed, hardware/provider and power-loss acceptance remains separate.
 
+After discovery #56 merged, this slice rebased cleanly onto main `614e891`.
+Combined root Release and full Core/Application/Windows suites passed
+**398 / 1,206 / 704**, zero warnings/errors/failures/skips, with fresh-only
+portable **100% line/branch** coverage. The native structured result now uses
+readable source/retention/value-kind labels; actual serialized-byte limits were
+retested with the full Application suite and all **65** evidence-focused
+Windows tests. No sibling worktree or unpublished source was consumed.
+
 ### R04 Foundation Delivery
 
 The first bounded **durable** milestone now composes one actual exact local

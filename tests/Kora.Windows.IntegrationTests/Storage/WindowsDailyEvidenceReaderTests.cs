@@ -319,6 +319,7 @@ public sealed class WindowsDailyEvidenceReaderTests
                 var bytes = await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken);
                 File.Move(path, path + ".old");
                 await File.WriteAllBytesAsync(path, bytes, TestContext.Current.CancellationToken);
+                OwnFile(path);
                 break;
             case "rewrite":
                 var text = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
@@ -368,7 +369,7 @@ public sealed class WindowsDailyEvidenceReaderTests
             case "oversize-line": line = new string(' ', WindowsDailyEvidenceReader.MaximumLineBytes + 1) + "\n"; break;
         }
         if (corruption is "schema" or "missing-field" or "hostile-trace" or "hostile-host") { line = Outer(payload.ToJsonString()); }
-        Directory.CreateDirectory(Path.GetDirectoryName(Log(fixture))!);
+        Write(fixture, "kora-20261007.log", []);
         await File.WriteAllTextAsync(Log(fixture), Line(envelope) + line, new UTF8Encoding(false),
             TestContext.Current.CancellationToken);
         if (string.Equals(corruption, "invalid-utf8", StringComparison.Ordinal))
@@ -553,12 +554,29 @@ public sealed class WindowsDailyEvidenceReaderTests
 
     internal static void Write(OwnedStorageFixture fixture, string name, IEnumerable<DiagnosticEnvelope> envelopes)
     {
-        Directory.CreateDirectory(Path.Combine(fixture.LocalRoot, "Logs"));
-        using var logger = new LoggerConfiguration().MinimumLevel.Verbose()
-            .WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(fixture.LocalRoot, "Logs", name))
-            .CreateLogger();
-        var sink = new Kora.FileEvidenceSink(logger, new FileEvidenceHealth());
-        foreach (var envelope in envelopes) { sink.WriteDiagnostic(envelope); }
+        var directory = Path.Combine(fixture.LocalRoot, "Logs");
+        if (!Directory.Exists(directory))
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            RestrictedStorageDirectory.CreateRestrictedDirectory(directory, identity.User!);
+        }
+        var path = Path.Combine(directory, name);
+        using (var logger = new LoggerConfiguration().MinimumLevel.Verbose()
+            .WriteTo.File(new JsonFormatter(renderMessage: true), path).CreateLogger())
+        {
+            var sink = new Kora.FileEvidenceSink(logger, new FileEvidenceHealth());
+            foreach (var envelope in envelopes) { sink.WriteDiagnostic(envelope); }
+        }
+        OwnFile(path);
+    }
+
+    private static void OwnFile(string path)
+    {
+        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+        var file = new FileInfo(path);
+        var security = file.GetAccessControl();
+        security.SetOwner(identity.User!);
+        file.SetAccessControl(security);
     }
 
     internal static string Line(DiagnosticEnvelope envelope) => Outer(WindowsSqliteEvidenceSink.EncodeDailyDiagnostic(envelope));

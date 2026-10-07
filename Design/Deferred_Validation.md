@@ -242,6 +242,101 @@ Merging the experiment closes no remaining gate or production acceptance.
 
 ### Preparation and Approval
 
+- For offline automation, run
+  `.\eng\Prepare-RuntimeValidation.ps1 -OutputDirectory <new-directory-outside-repository>`
+  in a linked isolated worktree based on main
+  `d0a8e82ef34b82c4d888803083050c2e9dff43cd` (2026-10-07; CI run
+  `37597127017` succeeded). The runner checks retained historical identities,
+  runs deterministic preparation/receipt contracts, and emits redacted
+  `readiness.json` and unapproved `operator-requests.json`. Optional
+  `-SourceBuiltPackagePath`, `-ReleasedPackagePath` and
+  `-NativeRuntimeDirectory` verify explicitly supplied bytes without loading
+  them; no ambient package/credential discovery or acquisition occurs.
+  Exit **2** means preparation completed but runtime/provider admission is
+  still Blocked; a terminating error means preparation failed. This does not
+  launch native trials, trace, sign in, call a provider or update historical
+  evidence. With `-RunHostComponentTests`, it also builds and runs all 22
+  existing MG1 host-component tests (including synthetic loopback HTTP, no
+  Copilot SDK/native launch), requires exact SDK/runtime versions and writes
+  current TRX outside the repository. Missing restored assets/packages require
+  an explicit external `-PackageConfigPath` for locked restore. On the current
+  machine use a temporary Networking-AAA-only source/mapping configuration;
+  do not encode machine routing in repository NuGet configuration or locks.
+  Feed/authentication failures stop without alternate-feed fallback. Explicitly
+  supplied missing/mismatched artifacts fail preparation, not just admission.
+  Existing fixture runners must later run in private staged copies
+  with separately approved launch/collection/account scope and machine-local
+  Networking-AAA feed routing, not directly over retained receipts. Collector,
+  native mediation, live-account transport and enforceable billed-spend hooks
+  remain missing, not implemented by the offline runner. Billing alerts are
+  not hard caps; SDK cancellation is not physical or billing termination.
+- After explicit pinned-acquisition/native-launch approval,
+  `.\eng\Invoke-SyntheticRuntimeValidation.ps1 -ApproveSyntheticNativeTrials -OutputDirectory <new-external-directory> -PackageConfigPath <external-approved-feed-config>`
+  coordinates separate source-built RT1/RT2 and released RT1/MG1 trials in
+  exact-base disposable copies beneath the isolated worktree's ignored test
+  artifacts, with short uniquely owned temporary source/management fixture
+  roots to avoid long-path failures without host policy changes. Only private
+  preparation-script config and source-repository metadata references change;
+  SDK/native/control code and original fixtures remain
+  unchanged. Short uniquely owned source staging retains the original clean
+  reproduction recipe and strict byte/lock gates. A source-profile blocker
+  never selects released bytes as a substitute; the independently approved
+  released lane has its own receipts. Failed/blocked candidates do not launch
+  their trials. Staging is retained for diagnosis/reproduction; individual
+  trials must confirm owned cleanup. This coordinator does not implement or
+  approve the privileged collector, native prevention or live PV1.
+  `-ReleasedOnly` permits an independent released-profile continuation without
+  resolving or relabelling a source-built blocker.
+  `-VerifiedArchiveDirectory` reuses only explicitly supplied source/runtime
+  archives after exact hash checks, never ambient caches. Fresh released
+  case receipts and TRX are copied into the external output directory.
+  The 2026-10-07 approved synthetic continuation retained the historical
+  source-built Pass but rejected its newly rebuilt candidate at NU1403:
+  package and assembly hashes differed from the approved pins, so source
+  RT1/RT2 trials did not start. The independent released-profile continuation
+  passed all 45 RT1 regressions, 22 host components and 16 actual MG1 cases
+  after shortening owned staging paths (no policy change or suppression).
+  Original fixture/evidence bytes remain unchanged. These fresh released
+  results do not resolve source reproduction or run PV1; they did not include
+  released RT2 lifecycle observations. All-path RT2 and production gates remain
+  Blocked.
+  Subsequent owned-input diagnosis reproduced the approved package/assembly
+  once, then another distinct rejected identity. Package-entry and portable
+  PDB comparisons localized the variation to generated `LoggerMessage.g.cs`:
+  the same 129-line multiset was emitted in different class/method order.
+  The algorithmic trigger remains unproved. Do not infer equivalence,
+  normalize/reorder generated SDK code, repin, or launch a mismatching
+  candidate. Historical source-built evidence and independently approved
+  released-profile evidence remain separate.
+- With separate released-profile bounded RT2 approval,
+  `.\eng\Invoke-ReleasedRuntimeLifecycle.ps1 -ApproveReleasedBoundedTrials -PreparedReleasedFixtureRoot <explicit-qualified-released-MG1-copy> -OutputDirectory <new-external-directory> -PackageConfigPath <external-approved-feed-config>`
+  derives a short uniquely owned fixture without modifying historical
+  experiments. It verifies exact released SDK/native bytes and completed
+  released RT1/MG1 prerequisites, reuses the five byte-qualified released RT1
+  control files and approved central package metadata, and requires locked
+  restore against that profile's existing regression lock. Only the private
+  observer receipt profile label and project/package binding change; lifecycle
+  assertions and observer logic do not. The 2026-10-07 released continuation
+  passed **20/20** (13 actual native lifecycle cases, six deterministic observer
+  cases and one live synthetic file/socket/managed-diagnostic positive control)
+  with zero build warnings/errors. It recorded 14 synthetic provider requests,
+  zero denied-model/credential markers, zero watcher overflows/query gaps,
+  zero sampled owned survivors and empty owned trial scratch. Its 52 observed
+  process records included 39 descendant observations; these are per-trial
+  observations, not proof of complete descendant coverage. The initial and
+  finalized coordinator runs both passed 20/20; their maximum sample gaps were
+  92.8 ms and 143.0 ms respectively. Two initial-run unknown/unreviewed helper
+  observations remain unqualified (none sampled in the finalized run).
+  Fresh explicitly labelled JSON/TRX, fixture/lock/deployed dependency hashes
+  and byte-verified evidence exports remain outside the repository. Staging
+  stays available for diagnosis; no privileged collector, live account,
+  provider inference or native containment change is performed.
+  Exit **2** retains all-path RT2 Blocked and PV1 Not run. Sampling, file
+  notifications without writer attribution and managed diagnostic events
+  cannot establish all-native privacy, write/egress prevention or physical
+  computation termination. Applicable released-profile tracing/prevention,
+  historical source reproduction, R08 and model-assisted R13 gates remain open;
+  deterministic R13 core remains independent.
 - Start with the existing [no-account reproduction](../experiments/r02-runtime-proof/README.md#reproduce-on-windows)
   on the exact pinned Windows/Node/runtime versions. Use only synthetic context,
   credential sentinels and harmless tools. These checks do not need hosted

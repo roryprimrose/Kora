@@ -1313,7 +1313,7 @@ proof's measurements.
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
-| R10 - Implement typed configuration and capability-scoped setup | Partial native preferences/setup I03/I04/I08/I11/I14; [dependency design inventory](Dependency_Catalogue.md) recorded, executable catalogue incomplete; R02 identifies unmeasured total-install budget and runtime-compatibility gaps | P1 - consistent voice/UI controls without unsafe mutations | R04, R05, R06, R09; R02-L2/L5 evidence for local-model setup claims | Register schemas/defaults/bounds/scopes/revisions for speech/devices/output, queues/deadlines/retention/concurrency, runtimes, grants/calls, appearance/startup and admitted extensions. Supply discovery/get/propose-set/reset, exact previews, safe apply/recovery and audited rollback/conflicts. Turn admitted inventory entries into versioned source/identity/verification/ownership/probe/consent/refusal records; keep experimental and unimplemented adapters unavailable. For local inference, distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance; permit declining all optional providers and preserve the dependency-qualified deterministic subset without repeated prompts/downloads or cloud fallback. Keep installation/sign-in/secure workflows host-owned. Preserve device-local choices and protected-call origin/option gates. |
+| R10 - Implement typed configuration and capability-scoped setup | **Bounded appearance registry delivered**: nine independent-file options, shared direct UI/exact local discovery/get/set/per-option reset, typed domain validation, revisions, atomic save/audit/live notifications. Full R10 remains open beyond this subset and native preferences/setup I03/I04/I08/I11/I14; [dependency design inventory](Dependency_Catalogue.md) recorded, executable catalogue incomplete; R02 install-budget/compatibility gaps remain | P1 - consistent voice/UI controls without unsafe mutations | R04, R05, R06, R09; R02-L2/L5 evidence for local-model setup claims | Register schemas/defaults/bounds/scopes/revisions for speech/devices/output, queues/deadlines/retention/concurrency, runtimes, grants/calls, appearance/startup and admitted extensions. Supply discovery/get/propose-set/reset, exact previews, safe apply/recovery and audited rollback/conflicts. Turn admitted inventory entries into versioned source/identity/verification/ownership/probe/consent/refusal records; keep experimental and unimplemented adapters unavailable. For local inference, distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance; permit declining all optional providers and preserve the dependency-qualified deterministic subset without repeated prompts/downloads or cloud fallback. Keep installation/sign-in/secure workflows host-owned. Preserve device-local choices and protected-call origin/option gates. |
 | R11 - Deliver registered embedded multi-script skills and containment | Outstanding runner/packages; I17 partial proof is not admission; partial readiness/lock I08/I12 | P0 - finish lock without admitting arbitrary execution | R02 (applicable W1-W3 worker/deployment gates, D-013), R03, R04, R05, R06, R10 | Embed lock manifest/instructions/fixtures, entry script and shared helper; verify `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1` complete framed identities and dependent-grant revocation. Direct/model/skill routes use the same pinned task exactly once with immutable source review. Complete W4: admit only fixed profiled workers with exact declared-resource review, best-effort transitive tracking/gap disclosure, protected required runtime/adapter admission, attributable network denial, bounded output/cancellation/Unknown receipts and real OS filesystem/child-process/credential/Kora-resource isolation. Prove observed lock outcome. Reject unsupported profiles or an unapproved broker substitution. Prepare power packages but do not enable OS power until R16. |
 | R12 - Complete session lifecycle, history and per-session work/queues | **Minimal durable authority only**: [create/Active/Done/resume/tombstone generations](#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06), scoped invalidation and independent Perpetual separation. Full package remains outstanding beyond I07/I13. | P1 - durable, inspectable long-running work | R04, R05, R06, R10, R11 | Implement lifecycle UI/rename/select/disposition/delete, paged history/search/immutable artifacts and authoritative task state. Add ordered per-session queues, admission/deadlines/user waits/pause/cancel/remove/clear controls and no restart replay. Implement configurable 24-hour archive/30-day deletion on the same meaningful-activity clock, source revocation, late-append/live/uncertain-work holds and inventoried deletion/rewrite across journals/caches/indexes/artifacts/staging/managed backups. Prove preservation of unrelated content and independent Perpetual records; authority row removal alone is not deletion acceptance. |
 | R13 - Add bounded independent management and concurrent execution | Outstanding production core; released-profile MG1 envelope/topology proof passes, not production integration | P1 - remain responsive while useful work runs | Deterministic core: R05, R06, R10, R12 and applicable R02 local concurrency budgets. Model-assisted stage additionally: R08, R02-MG1 and management R02-PV1 | Deliver deterministic routing/status/choices/cancel first without hosted inference. Carry MG1's complete serialized 32 KiB input/4 KiB typed output, host 15-second dispatch deadline independent of send/abort ack, one in-flight, 30 attempts including failures per rolling hour/profile, fresh conversations and no forwarded retry into the R04-backed host. Reject unknown fields/targets/revisions and late output; Unknown remains quarantined until applicable observed receipts, not SDK ack. Add model assistance only after applicable runtime/account admission. Independently prove two task slots, isolated identities/contexts/grants, resource leases/fairness and reconciliation; synthetic conversation count is not scheduler/account evidence. No management task tools or approval authority; power follows R01. |
@@ -1438,6 +1438,7 @@ Track each admitted descriptor and its tests against the package that implements
 | Session lifecycle/history/search/artifacts, cross-source evidence query and grounded work/status/queue/routing | R04, R06, R12, R13, R14 |
 | Structured questions/presentation/details/navigation/speech, approvals/grants and receipt/audit evidence/export | R04, R05, R09, R14, R15; optional R24/R25 |
 | Typed configuration, call feedback/origin/reusable-grant controls | R10, R15 |
+| Delivered nine-option typed appearance inventory: direct UI/exact local list/get/set/per-option reset, domain bounds/defaults, revision/proposal provenance and audit/live notifications; no Tools catalogue or model authority | R10; [bounded receipt](#r10-bounded-appearance-registry---2026-10-07) |
 | Explicit context and destination egress | R07, R08; deferred R26 |
 | Bundled skills/execution/computer controls | R11, R16; deferred R27/R28 |
 | Dual file/database logging, dedicated audit table and storage recovery | R04 |
@@ -1451,3 +1452,44 @@ For each delivery, update this inventory, the [decision register](Decision_Regis
 Record source/test/provider/hardware evidence and the exact acceptance result, not just a merged PR.
 Remove proposed labels only for the admitted behavior actually delivered; preserve unavailable/unknown states and the distinction between current host equivalents and model tools.
 Keep dependencies explicit and re-run affected earlier gates when a later capability changes shared authority, storage, audio, egress or resource coordination.
+## R10 Bounded Appearance Registry - 2026-10-07
+
+The [fixed descriptor registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)
+and [host service](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)
+admit nine existing independent-file appearance preferences. Existing direct
+controls and exact local typed/activated-voice list/get/set/reset share the
+service, domain validation, revision check, one-file atomic persistence,
+typed audit outcomes and live notifications. Get identifies saved/default
+provenance; reset affects only one option. Particle playback scaling is
+appearance-only, not audio/call policy.
+
+[Maintained domain tests](../tests/Kora.Core.UnitTests/Configuration/AppearanceOptionRegistryTests.cs),
+[service tests](../tests/Kora.Application.UnitTests/Configuration/AppearanceConfigurationServiceTests.cs),
+[grammar tests](../tests/Kora.Application.UnitTests/Configuration/AppearanceCommandTests.cs)
+and [actual presentation/command tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Appearance.cs)
+cover bounded discovery, validation/defaults, saved-format round trips,
+stale/race/reload/provenance, cancellation before write versus after commit,
+per-option reset, foreign proposals/origins, invalid persisted state, failure
+recovery and parented truthful persistence activities.
+All tests use owned paths/fakes; no Kora launch, live capture/playback or
+existing user-preference mutation is acceptance evidence.
+
+Shared response pin/topmost/position and presence placement remain direct UX
+outside this registry. Full verbal preferences, model tools, temporary scopes,
+whole-profile reset/undo, call/voice settings and capability-scoped setup remain
+open R10 work; this receipt does not close R15, hardware/acoustic/privacy,
+provider, installed-app or power-loss acceptance.
+
+Experiment disposition: no executable appearance/preference registry cases
+were found in the existing proof harnesses. No experiment is retired and no
+unrelated evidence is relabelled as production acceptance. Independent
+model/control/management/lifecycle, speech, containment, storage, dependency,
+runtime and distribution proofs and historical receipts are retained.
+
+Local validation: root Release build with zero warnings/errors; Core 367,
+Application 1,142 and Windows 683 tests passed. Fresh merged portable coverage
+is exactly 100% line and branch without exclusions or threshold changes.
+Maintained version/publication/source-tool contract tests and both Windows
+x64/x86 publishes passed without application launch. Remote CI additionally
+owns dependency-license and publication gates; a local publish is not
+installed-app acceptance.

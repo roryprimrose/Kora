@@ -87,6 +87,15 @@ The unpinned response window has its own timeout, default **5 seconds**.
 Change **Presence timeout** and **Response timeout** independently under
 Settings > Appearance; each accepts 1-60 seconds and applies without restarting.
 Hiding the presence does not stop listening or ongoing work.
+The nine existing independent-file appearance options also have a bounded
+typed registry shared by those direct controls and exact local commands:
+`list appearance settings`, `get appearance.theme`,
+`set appearance.theme to dark`, and `reset appearance.theme`.
+The Appearance tab resets one selected option. Updates check the host revision,
+revalidate domain bounds and publish only after atomic save; failures retain
+the old value. No model/network or voice/audio/call settings authority is added.
+See [Settings](docs/settings.md#appearance) and [Commands](docs/commands.md).
+Whole-profile reset/undo and full verbal preferences remain open.
 Drag the response title area to reposition it; its
 controls can keep the current response visible until dismissed and can disable
 the default stay-on-top behavior. The presence is click-through by default,

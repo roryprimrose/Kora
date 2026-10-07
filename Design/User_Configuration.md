@@ -1,10 +1,50 @@
 # User Configuration and Verbal Settings
 
-Status: proposed. Every supported user preference must be discoverable, inspected, and set verbally once local voice input is ready, subject to the explicit protected-call origin gate and mandatory secure workflows.
+Status: partial. The bounded appearance subset below is delivered through a
+shared typed UI/exact local command path; the complete verbal preference and
+model-facing contract remains proposed, subject to protected-call origin gates
+and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
+
+### Delivered bounded appearance subset (R10)
+
+Nine existing independently persisted options are admitted:
+`appearance.theme`, `appearance.presence-timeout`,
+`appearance.response-timeout`, `appearance.presence-size`,
+`appearance.dot-size`, `appearance.dot-density`,
+`appearance.movement-speed`, `appearance.speech-scaling` and
+`appearance.speech-scale-amount`. The [end-user reference](../docs/settings.md#appearance)
+lists their exact types, units, defaults and bounds. Each descriptor declares
+device-local scope, appearance-only effect, local-host availability,
+immediate-after-save timing and per-option reset. Animation driven by playback
+is not a voice-output or call-sensitive option.
+
+The host-owned [registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)
+reuses existing domain validation; the
+[service](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)
+owns get/propose/apply/reset, a process-local revision, proposal provenance,
+serialized revalidation/write/notification and typed audit outcomes.
+Revision and proposal identity are not durable cross-process authority.
+The instance-owner boundary admits the local host. No arbitrary option,
+path, JSON patch, external configuration file or model proposal is accepted.
+Saved-format parsing stays in the preference domain; malformed saved state
+still throws `InvalidDataException`. Missing preferences use declared defaults
+without claiming those defaults were written.
+
+Direct appearance controls and exact deterministic discovery/get/set/reset
+use the same service and notify all open surfaces. Cancellation is checked
+before the existing synchronous atomic write; cancellation after commit does
+not report an unsaved change. Save failure retains the previous value/revision
+and produces visible failure; stale proposals require a new operation.
+Reset restores one admitted default; no multi-file transaction, whole-profile
+reset or undo is implemented. Shared response-window pin/topmost/position
+and presence placement remain direct UX outside the registry.
+Voice/audio/call/manual state, grants, models, retention, dependencies and
+startup are not registered. No model tools or broader execution authority
+are exposed by this slice. The following complete contract remains future work.
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.

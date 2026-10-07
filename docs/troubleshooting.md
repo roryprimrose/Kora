@@ -56,14 +56,23 @@ Kora does not run user-created scripts during this check.
 3. Confirm the microphone card says Windows desktop-app microphone access is
    allowed. If blocked, select **Open Windows microphone settings** in Kora,
    then enable microphone and desktop-app access.
-4. Confirm **System** has an active Windows default microphone, or select a
-   specific active microphone.
+4. Open **Choose microphone (native recovery)** from the tray or speech Settings.
+   Refresh devices, confirm **System** has an active Windows default microphone,
+   or highlight a specific active endpoint and choose **Save preference only**.
+   Duplicate names are distinguished by exact endpoint IDs; unavailable pins
+   are retained, never automatically replaced. This does not test or record.
 5. Read the Voice activation status. It identifies a locked-session safety
    pause, call-policy pause, or manual disablement.
 6. Select **Refresh microphones** (no model/network/speech dependency).
 7. Review saved voice consent. After manual disablement, lock, disconnect,
    suspend or device/permission loss, select **Enable listening** explicitly.
 8. Hold **Push to talk**, use an exact phrase, then release.
+
+The recovery card cannot grant Windows permission or combine new consent with
+selection/enable. Missing/unknown permission, ownership or session state fails
+closed. Review the explanation and existing Settings consent separately. A stale
+choice or refresh timeout requires a fresh refresh/input; late results cannot
+restore closed card authority. Closing/Escape grants nothing and cancels no task.
 
 Production wake is unavailable in this build. Safe startup with saved consent
 arms push-to-talk; it never opens an ambient command recognizer.

@@ -63,6 +63,50 @@ visual/keyboard/screen-reader/DPI and speech acceptance require separate approva
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Environment Setup](Environment_Setup.md), [Task Lifecycle](Task_Lifecycle.md), [User Configuration](User_Configuration.md), [Information Display](Information_Display.md).
 
+## Delivered Bounded Native Microphone Recovery Card - 2026-10-07
+
+Tray **Choose microphone (native recovery)** and **Settings > Speech & audio >
+Choose microphone (native recovery)** open the same passive, non-topmost native
+card. Opening/Refresh performs the existing five-second, single-flight metadata
+refresh, not capture. Current endpoints have friendly names and exact IDs in
+this private card to distinguish duplicate names; the tray tooltip remains
+generic. System shows default availability. A missing saved pin remains visible
+as unavailable and is never substituted. Highlighting is an unsaved local draft;
+**Save preference only** commits the exact current endpoint/revision through the
+existing audited host service. A changed choice invalidates/releases capture
+and retains ongoing consent, requiring separate fresh **Enable listening**.
+Enable is bound to the displayed saved endpoint, topology and call revision and
+fresh ownership/privacy/permission/consent/readiness checks. It only arms PTT;
+it neither opens capture nor tests a microphone. Stale, foreign/equal-but-not-
+presented choice objects, device changes and late/disposed input fail closed.
+Metadata failure/timeout reports Refresh/Settings recovery; closing retires
+card input and late presentation without cancelling the shared refresh worker.
+Disable and Stop speaking use the existing idempotent host controls.
+
+This is **not an authoritative R05 durable question bridge**. The available
+native question presenter is admitted through a committed local-version query;
+audio recovery has no actual committed session/task/question orchestration with
+atomic answer, consent, configuration and enablement authority/audit. It does
+not fabricate those identities, pending authority, a restored answer or a grant.
+Combined consent/selection/enable is absent. Saved consent is neither broadened
+nor obtained here; its existing Settings flow remains separate. Viewing,
+highlighting, closing/Escape or returning to Settings does not grant consent,
+cancel work, mark a session Done or produce a question answer.
+
+First-run onboarding/full consent matrix, generic device questions, production
+wake, native accessibility/DPI/keyboard acceptance, permission-transition timing
+and hardware capture/release acceptance remain open. No microphone-test control,
+voice/model answer, automatic replacement, OS privacy write, or native hardware
+acceptance is claimed. Deterministic maintained tests cover the card and shared
+commands without launching the app, opening devices or playing audio.
+
+Experiment disposition: no executable is retired by this slice.
+`experiments/r02-speech-proof/capture_probe.py` remains consumed by its benchmark,
+tests and validation script and is historical synthetic wake/pre-roll evidence,
+not an equivalent native recovery-card check. Its benchmark/fixture/preparation/
+validation scripts and evidence remain unchanged. Maintained card/catalog/
+privacy tests do not replace unique speech, runtime or distribution evidence.
+
 ## Product Requirement
 
 Kora can ask questions and receive mouse input when no microphone is configured, permitted, connected, or usable.

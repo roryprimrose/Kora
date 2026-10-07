@@ -8,15 +8,18 @@ public sealed class SettingsWindowController : IDisposable
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<SettingsWindowController> logger;
+    private readonly Action? chooseMicrophone;
     private SettingsWindow? window;
     private bool disposed;
 
     public SettingsWindowController(
         MainViewModel viewModel,
-        ILogger<SettingsWindowController> logger)
+        ILogger<SettingsWindowController> logger,
+        Action? chooseMicrophone = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
+        this.chooseMicrophone = chooseMicrophone;
         viewModel.SettingsRequested += OnSettingsRequested;
         viewModel.ReadinessRequested += OnReadinessRequested;
         viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
@@ -72,7 +75,7 @@ public sealed class SettingsWindowController : IDisposable
 
     private SettingsWindow CreateWindow()
     {
-        var settingsWindow = new SettingsWindow(viewModel);
+        var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone);
         settingsWindow.Closed += OnWindowClosed;
         return settingsWindow;
     }

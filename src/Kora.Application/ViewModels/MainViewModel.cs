@@ -2727,7 +2727,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             try
             {
                 SelectedMicrophone = savedMicrophoneId is not null
-                    ? savedMicrophone
+                    ? savedMicrophone ?? new MicrophoneDevice(savedMicrophoneId, "Unavailable saved microphone")
                     : SystemAudioDevices.Microphone;
                 SelectedOutputDevice = savedOutputDeviceId is not null
                     ? savedOutputDevice
@@ -3593,6 +3593,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 $"System is selected and follows the Windows default microphone for {AssistantName} capture.",
             { IsSystemDefault: true } =>
                 "System is selected, but Windows has no active default microphone.",
+            not null when !Microphones.Contains(SelectedMicrophone) =>
+                "The saved microphone is no longer available. Select another microphone.",
             not null => $"{SelectedMicrophone.Name} is selected for {AssistantName} capture.",
             null when selectedMicrophoneUnavailable =>
                 "The saved microphone is no longer available. Select another microphone.",

@@ -83,6 +83,7 @@ The right-click menu contains:
 - **Listening controls > Enable listening / Disable listening**
 - **Voice consent / push-to-talk**
 - **Microphones** (friendly endpoint labels, native selected-preference marks and availability)
+- **Choose microphone (native recovery)** (the same passive card as speech Settings)
 - **Refresh microphones** (metadata only; five-second deadline; no model/network dependency)
 - **Stop speaking**
 - **Exit Kora**
@@ -96,6 +97,16 @@ Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
 launcher/tray to return to native status and recovery.
 
 ### Microphone and listening recovery
+
+**Choose microphone (native recovery)** opens a non-topmost card with real current
+endpoint names/IDs, System/default availability and the retained unavailable pin.
+**Refresh devices** is metadata only. Highlight a current endpoint, then choose
+**Save preference only**; highlighting/closing is not consent or enablement.
+Use a separate fresh **Enable listening (PTT readiness only)** for the displayed
+saved endpoint after all current host gates pass. No model, network, working
+microphone, test capture or durable question bridge is required or claimed.
+Close/Escape does not cancel a task or mark a session Done. Speech Settings
+opens the same card and retains its separate consent and held PTT controls.
 
 Open the right-click menu to refresh microphone metadata without recording.
 Refresh is single-flight and has a five-second caller deadline. If Windows

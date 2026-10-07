@@ -2,6 +2,23 @@
 
 ## Microphone selection
 
+Choose **Settings > Speech & audio > Choose microphone (native recovery)** or
+the same **Choose microphone** tray entry. This native card works without voice,
+a model or network. Opening it refreshes metadata only. Review System and active
+endpoint names/IDs (duplicate names remain distinct); an unavailable saved pin
+stays visible. Highlighting changes only a local draft. **Save preference only**
+saves that exact current choice without capture or new consent. Changed selection
+closes input; **Enable listening (PTT readiness only)** is a separate fresh input
+for the displayed saved endpoint, available only with existing consent and current
+ownership/privacy/permission/readiness gates. Refresh after stale input or device
+changes. Disable and Stop speaking remain explicit separate actions.
+
+The card has no microphone test or combined consent/selection/enable. Review
+consent separately in existing speech Settings; absent/withdrawn consent cannot
+be renewed by the card. Closing/Escape changes no consent, task, session or
+question. Full first-run onboarding, shared durable device questions, production
+wake and native/hardware acceptance are still pending.
+
 The Settings microphone card reports the current Windows privacy state
 separately from device selection. An available **System** or named endpoint does
 not by itself prove that desktop microphone access is allowed.

@@ -1,0 +1,45 @@
+<Window
+    x:Class="Kora.MicrophoneRecoveryWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Kora.Application.ViewModels"
+    x:DataType="vm:MicrophoneRecoveryViewModel"
+    Title="Choose microphone - native recovery"
+    Icon="/Assets/Kora.ico"
+    Width="780" Height="660" MinWidth="640" MinHeight="520"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}"
+    WindowStartupLocation="CenterScreen">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto" RowSpacing="12">
+    <TextBlock Text="Choose microphone - review and recovery" FontSize="22" FontWeight="SemiBold" />
+    <StackPanel Grid.Row="1" Spacing="8">
+      <TextBlock Text="{Binding Readiness}" TextWrapping="Wrap" AutomationProperties.Name="Current microphone readiness and privacy" />
+      <TextBlock Text="{Binding Consent}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding DisplayedSelection.Label, StringFormat='Saved preference (not recording): {0}'}" TextWrapping="Wrap" />
+    </StackPanel>
+    <TextBlock Grid.Row="2" Text="Review current endpoints. Highlighting is only a local draft; Save commits that exact preference, never enables capture." TextWrapping="Wrap" />
+    <ListBox Grid.Row="3" ItemsSource="{Binding Choices}" SelectedItem="{Binding Draft, Mode=TwoWay}"
+             AutomationProperties.Name="Microphone choices including System and unavailable saved pin">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:MicrophoneRecoveryChoice">
+          <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+    <StackPanel Grid.Row="4" Spacing="8">
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Microphone recovery outcome" />
+      <WrapPanel>
+        <Button x:Name="RefreshDevices" Content="Refresh devices" IsEnabled="{Binding CanRefresh}" Margin="0,0,8,8" />
+        <Button x:Name="SaveChoice" Content="Save preference only" IsEnabled="{Binding CanSave}" Margin="0,0,8,8" />
+        <Button x:Name="EnableInput" Content="Enable listening (PTT readiness only)" IsEnabled="{Binding CanEnable}" Margin="0,0,8,8" />
+        <Button x:Name="DisableInput" Content="Disable listening" Margin="0,0,8,8" />
+        <Button x:Name="StopOutput" Content="Stop speaking" Margin="0,0,8,8" />
+      </WrapPanel>
+    </StackPanel>
+    <TextBlock Grid.Row="5" Text="{x:Static vm:MicrophoneRecoveryViewModel.Limitations}" TextWrapping="Wrap" FontSize="12" />
+    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="12">
+      <Button x:Name="ReviewSettings" Content="Review speech Settings / consent" />
+      <Button x:Name="CloseView" Content="Close without changes" />
+    </StackPanel>
+  </Grid>
+</Window>

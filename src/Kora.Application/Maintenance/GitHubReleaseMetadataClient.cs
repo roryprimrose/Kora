@@ -81,7 +81,7 @@ public sealed partial class GitHubReleaseMetadataClient(
             result = new(ReleaseAvailability.Unknown, cancellationToken.IsCancellationRequested
                 ? "Metadata check cancelled; no current-version claim." : "Metadata check exceeded its total timeout.", attempted);
         }
-        catch (Exception exception) when (exception is InvalidDataException or JsonException or HttpRequestException or IOException)
+        catch (Exception exception) when (exception is InvalidDataException or JsonException or HttpRequestException or IOException or RegexMatchTimeoutException)
         {
             result = new(ReleaseAvailability.Unknown, exception is InvalidDataException
                 ? exception.Message : "Metadata transport/JSON failed: " + exception.GetType().Name + ".", attempted);

@@ -193,6 +193,8 @@ public sealed class GitHubReleaseMetadataClientTests
         (await fixture.CheckAsync()).Reason.Should().Contain("HttpRequestException");
         fixture.AsyncOverride = (_, _) => throw new IOException("fixture");
         (await fixture.CheckAsync()).Reason.Should().Contain("IOException");
+        fixture.AsyncOverride = (_, _) => throw new System.Text.RegularExpressions.RegexMatchTimeoutException();
+        (await fixture.CheckAsync()).Reason.Should().Contain("RegexMatchTimeoutException");
         fixture.AsyncOverride = (_, _) => throw new OperationCanceledException("timeout fixture");
         (await fixture.CheckAsync()).Reason.Should().Contain("timeout");
         (await fixture.CheckAsync((ReleaseChannel)99)).Status.Should().Be(ReleaseAvailability.Unknown);

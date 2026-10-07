@@ -894,6 +894,15 @@ their correctly rejected in-tree first attempt did not weaken that boundary.
 This is deterministic/static/public-metadata evidence, not interactive native
 acceptance, unsigned installer execution, protected loading or release sign-off.
 
+The subsequent exact-review/rebase validation preserves merged R11 #60 at
+`1506b7e4633b4291bcf6c222837cb133a12e5530` and both native tray routes.
+Every refresh (including unchanged metadata) invalidates navigation/snooze
+until a new native review. Root Release and **467 Core + 1,347 Application
++ 713 Windows tests** passed; fresh portable coverage was **8,069/8,069
+lines and 4,040/4,040 branches**. This extends, rather than rewrites, the
+original-base receipt above. Browser status acknowledges a shell navigation
+request, including existing-browser reuse, not a new process or visible page.
+
 GitHub Releases is the sole current version host for both prerelease and
 production versions of `roryprimrose/Kora`. Use its release API, or future
 authenticated release metadata published with those releases, not arbitrary

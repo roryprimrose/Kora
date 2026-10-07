@@ -32,7 +32,7 @@ public sealed class WindowsReleasePageOpener : ICanonicalReleasePageOpener
 
     private static void StartBrowser(ProcessStartInfo info)
     {
+        // Successful shell navigation can reuse a browser and return no new process handle.
         using var process = Process.Start(info);
-        if (process is null) { throw new InvalidOperationException("Windows did not accept the browser navigation request."); }
     }
 }

@@ -11,6 +11,18 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
     private bool quiescenceActive;
     private bool abortFailed;
 
+    public bool IsCapabilityAdmissionOpen
+    {
+        get
+        {
+            lock (sync)
+            {
+                return activate is not null && quiesce is not null
+                    && !quiescenceActive && !abortFailed;
+            }
+        }
+    }
+
     public bool IsReady
     {
         get

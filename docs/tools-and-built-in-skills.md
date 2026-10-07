@@ -53,6 +53,18 @@ Selecting a window never grants permission or silently redirects a voice request
 These exact commands are **Current**. Optional category/page selection and the
 full tool/skill discovery catalogue are **Planned**.
 
+**Current bounded host registry:** the six canonical IDs `capabilities.list`,
+`capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`,
+and `runtime.get_status` have direct read-only handlers and exact local commands.
+See [read-only host discovery](commands.md#read-only-host-discovery). Discovery
+contains only those admitted descriptors, not all planned tools/skills.
+Readiness and local-runtime health come from recorded, timestamped observations;
+no probe or inference runs for these queries. Unknown/unavailable state is
+explicit, and deployment facts not supplied by the version provider remain unknown.
+This does not add tool definitions to the current local JSON selector or qualify
+a management/execution runtime. Management may receive only this minimal
+read-only subset when a future adapter is independently admitted.
+
 | Ask or choose | What happens |
 |---|---|
 | "Show Kora" | Show the existing instance, not a duplicate |

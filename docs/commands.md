@@ -15,6 +15,37 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+## Read-only host discovery
+
+These exact local commands require the active, unlocked Kora host and do not
+invoke a model, install anything, or refresh probes:
+
+| Exact command | Result |
+|---|---|
+| **list capabilities** / **capabilities.list** | Six admitted read-only descriptors with schema version, typed input/output shape, read-only effect, caller lanes, availability and limits |
+| **describe capability** followed by a canonical ID / **capabilities.get** followed by that ID | The single admitted descriptor; unknown IDs are denied |
+| **show registry version** / **application.get_version** | Actual running version; deployment information is explicitly not observed by the current provider |
+| **show dependency readiness** / **readiness.get** | Recorded dependency observations and timestamps; unobserved dependencies are explicit |
+| **list runtimes** / **runtime.list** | The existing local inference adapter's recorded status, not a catalogue of planned providers |
+| **show local runtime status** / **runtime.get_status** | The same `local.inference` observation; tool-loop qualification remains false |
+
+Optional configured-name prefixes and normal exact-command punctuation/case
+handling apply. For example, **Kora, describe capability runtime.get_status**.
+The complete serialized UTF-8 response is at most 4,096 bytes; lists contain
+at most six records. The host API accepts only `{}` for version,
+`{"offset":0,"count":6}` (both fields optional) for lists, and a required
+`{"id":"..."}` for descriptor/runtime lookup. Unknown fields, duplicate fields,
+invalid ranges, foreign/expired host context and unknown lanes are denied.
+The native commands supply those inputs deterministically, rather than accepting
+arbitrary JSON from the command box.
+
+These results do not contain raw probe details, paths, endpoints, credentials,
+model content, skill instructions, or execution tools. Observations are cached:
+use the existing Readiness UI for a deliberate fresh check and recovery details.
+An observed ready dependency does not grant execution permission. No hosted
+provider, MCP adapter, or model tool/result loop is delivered by this registry.
+Existing help, version, setup/status, lock and power phrases retain their behavior.
+
 ## Window and application tasks
 
 ### Show the Kora window

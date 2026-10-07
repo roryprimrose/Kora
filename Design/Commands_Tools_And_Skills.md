@@ -2,6 +2,17 @@
 
 Status: proposed interaction contract, not a shipped tool loop or skill runner.
 
+The bounded R06 host foundation now composes six direct read-only handlers over
+the [authoritative descriptor catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs):
+`capabilities.list/get`, `application.get_version`, `readiness.get`,
+`runtime.list/get_status`. Exact local discovery uses those same descriptors;
+existing help points to it. The current JSON selector receives no new tools.
+Host activity/current ownership and known caller lanes are required; management
+gets only the minimal read-only descriptors, never execution tools/instructions.
+Record and complete serialized UTF-8 bounds, strict input validation, cancellation
+and explicit unavailable/unobserved results are production-tested. Full R06
+continued reasoning, approved model adapters and runtime qualification remain open.
+
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Responsibility and Terminology

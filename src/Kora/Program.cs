@@ -227,6 +227,8 @@ internal static class Program
         services.AddSingleton<IDependencyProbe, WindowsVoiceDependencyProbe>();
         services.AddSingleton<IDependencyProbe, WindowsTextToSpeechDependencyProbe>();
         services.AddSingleton<DependencyBootstrapper>();
+        services.AddSingleton<Kora.Core.Tools.ICapabilityHostAccess, DesktopCapabilityHostAccess>();
+        services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
         services.AddSingleton<DependencySetupWorkflow>();
         services.AddKeyedSingleton(

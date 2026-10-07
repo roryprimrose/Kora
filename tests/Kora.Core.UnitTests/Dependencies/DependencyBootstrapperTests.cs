@@ -10,6 +10,36 @@ public sealed class DependencyBootstrapperTests(
     ITestOutputHelper output) : LoggingTestsBase<DependencyBootstrapper>(output)
 {
     [Fact]
+    public async Task Observations_are_per_host_immutable_and_replaced_by_actual_completed_checks()
+    {
+        using var bootstrapper = new DependencyBootstrapper([new StubProbe("storage", DependencyReadiness.Ready)], Logger);
+        using var otherHost = new DependencyBootstrapper([], Logger, TimeProvider.System);
+        bootstrapper.RecordObservation(new("local.inference", "runtime", DependencyReadiness.Ready, "observed"));
+        var prior = bootstrapper.Observations;
+        bootstrapper.RecordObservation(new("local.inference", "runtime", DependencyReadiness.Failed, "failed"));
+        prior.Single().Status.Readiness.Should().Be(DependencyReadiness.Ready);
+        bootstrapper.Observations.Single().Status.Readiness.Should().Be(DependencyReadiness.Failed);
+        otherHost.Observations.Should().BeEmpty();
+        await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
+        bootstrapper.Observations.Single().Status.Id.Should().Be("storage");
+        bootstrapper.Observations.Single().ObservedAt.Should().BeOnOrBefore(DateTimeOffset.UtcNow);
+        var invalid = () => bootstrapper.RecordObservation(new("storage", "Storage", (DependencyReadiness)99, "invalid"));
+        invalid.Should().Throw<ArgumentOutOfRangeException>();
+        var missing = () => bootstrapper.RecordObservation(null!);
+        missing.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task Interrupted_probe_does_not_retain_a_previously_ready_runtime()
+    {
+        using var bootstrapper = new DependencyBootstrapper([new ThrowingProbe()], Logger);
+        bootstrapper.RecordObservation(new("local.inference", "runtime", DependencyReadiness.Ready, "ready"));
+        var check = () => bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
+        await check.Should().ThrowAsync<IOException>();
+        bootstrapper.Observations.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ProbeAsync_returns_probe_results_in_registration_order()
     {
         IDependencyProbe[] probes =

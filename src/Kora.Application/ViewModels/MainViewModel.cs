@@ -38,7 +38,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string CurrentWindowsSessionTarget = "windows-session.current";
     private const string DeviceLocalPreferencesTarget = "preferences.device-local";
     private const string MicrophoneConfigurationAction = InputDevicePreferenceService.AuditAction;
-    private const string OutputDeviceConfigurationAction = "configuration.audio-output";
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
     private const string MutedOutputFallbackConfigurationAction = "configuration.muted-output-visual-fallback";
     private const string SpeechProviderInstallAction = "speech-provider.install";
@@ -222,7 +221,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Clipboard.ClipboardRead clipboardRead,
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
         Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
-        BoundedMicrophoneCatalog? microphoneCatalog = null)
+        BoundedMicrophoneCatalog? microphoneCatalog = null,
+        OutputDeviceConfigurationService? outputConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -261,6 +261,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         appearanceConfiguration.Changed += OnAppearanceChanged;
         this.speechConfiguration = speechConfiguration;
         speechConfiguration.Changed += OnSpeechConfigurationChanged;
+        this.outputConfiguration = outputConfiguration;
+        if (outputConfiguration is not null)
+        {
+            outputConfiguration.Changed += OnOutputConfigurationChanged;
+        }
         this.clipboardPreview = clipboardPreview;
         this.clipboardRead = clipboardRead;
         this.clipboardReuse = clipboardReuse;
@@ -273,6 +278,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
         ResetSpeechProviderCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Provider));
         ResetSpeechVoiceCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Voice));
+        RefreshOutputDevicesCommand = CreateCommand(RefreshOutputConfigurationAsync);
+        SaveOutputDeviceCommand = CreateCommand(() => SaveOutputChoiceAsync(false));
+        ResetOutputDeviceCommand = CreateCommand(() => SaveOutputChoiceAsync(true));
         ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
         ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
@@ -1145,23 +1153,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedOutputDevice;
         set
         {
-            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(OutputDeviceConfigurationAction)) { return; }
-            var selectionChanged = !string.Equals(
-                selectedOutputDevice?.Id,
-                value?.Id,
-                StringComparison.Ordinal);
-            if (SetProperty(ref selectedOutputDevice, value))
-            {
-                PreviewVoiceCommand.NotifyCanExecuteChanged();
-                NotifyOutputPolicyChanged();
-                UpdateOutputDeviceAvailability();
-                if (selectionChanged
-                    && !suppressAudioDevicePreferenceSave
-                    && value is not null)
-                {
-                    SaveOutputDevicePreference(value);
-                }
-            }
+            // Native mutation uses the presented choice + explicit Save command; device records are observations only.
+            if (!synchronizingOutput && !ReferenceEquals(selectedOutputDevice, value)) { OnPropertyChanged(nameof(SelectedOutputDevice)); }
         }
     }
 
@@ -1308,14 +1301,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var wasVisible = IsVisualResponseVisible;
             SetProperty(ref fallbackToVisualWhenOutputMuted, value);
             UpdateOutputDeviceAvailability();
             NotifyOutputPolicyChanged();
-            if (!wasVisible && IsVisualResponseVisible && CanRevealPrivatePresentation && !isInitializing)
-            {
-                WindowActionRequested?.Invoke(this, WindowAction.Show);
-            }
         }
     }
 
@@ -1374,6 +1362,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsSpeechOutputAvailable =>
         activeSpeechVoice is not null
+        && (outputConfiguration is null || outputConfiguration.Get(CallPolicyRevision).Available)
         && EffectiveOutputDevice is not null
         && !EffectiveOutputDevice.IsMuted;
 
@@ -1397,10 +1386,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         || IsSpeechOutputVisualFallbackRequired;
 
     private bool IsSpeechOutputVisualFallbackRequired =>
-        !IsSpeechOutputAvailable
-        && (activeSpeechVoice is null
-            || EffectiveOutputDevice?.IsMuted != true
-            || FallbackToVisualWhenOutputMuted);
+        !IsSpeechOutputAvailable;
 
     public bool IsSpeechResponseEnabled =>
         IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
@@ -2708,6 +2694,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
+            outputConfiguration?.Observe(new(outputDevices, systemDefaultOutputDevice));
             var savedOutputDevice = OutputDevices.FirstOrDefault(
                 item => string.Equals(item.Id, savedOutputDeviceId, StringComparison.Ordinal));
             var savedOutputDeviceUnavailable =
@@ -2718,9 +2705,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 SelectedMicrophone = savedMicrophoneId is not null
                     ? savedMicrophone ?? new MicrophoneDevice(savedMicrophoneId, "Unavailable saved microphone")
                     : SystemAudioDevices.Microphone;
-                SelectedOutputDevice = savedOutputDeviceId is not null
-                    ? savedOutputDevice
-                    : SystemAudioDevices.Output;
+                SetOutputDeviceSnapshot(savedOutputDeviceId is not null
+                    ? savedOutputDevice ?? (outputConfiguration is not null
+                        ? new AudioOutputDevice(savedOutputDeviceId, "Unavailable saved output") : null)
+                    : SystemAudioDevices.Output);
             }
             finally
             {
@@ -3317,25 +3305,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Task SetAllowVoiceActivationDuringCallsAsync(bool value) =>
         SetCallSettingsAsync(communicationPolicy.Current.Settings with { AllowVoiceActivationDuringCalls = value });
 
-    private void SaveOutputDevicePreference(AudioOutputDevice outputDevice)
-    {
-        _ = SavePreference(
-            () =>
-            {
-                if (outputDevice.IsSystemDefault)
-                {
-                    audioDevicePreferences.ClearOutputDeviceId();
-                }
-                else
-                {
-                    audioDevicePreferences.SaveOutputDeviceId(outputDevice.Id);
-                }
-            },
-            OutputDeviceConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "audio output preference");
-    }
-
     private void SaveResponseOutputPreference(ResponseOutputMode value)
     {
         _ = SavePreference(
@@ -3499,9 +3468,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateOutputDeviceAvailability(bool selectedDeviceUnavailable = false)
     {
-        var mutedOutputStatus = FallbackToVisualWhenOutputMuted
-            ? "Visual text is forced."
-            : "Automatic visual fallback for muted output is off.";
+        const string mutedOutputStatus = "Visual text is forced. Acoustic audibility is not guaranteed.";
         OutputDeviceAvailabilityMessage = SelectedOutputDevice switch
         {
             { IsSystemDefault: true } when systemDefaultOutputDevice is { IsMuted: true } =>
@@ -3613,6 +3580,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
+            return;
+        }
+        if (OutputDeviceCommand.Parse(spokenText, AssistantName) is { } outputCommand)
+        {
+            await ExecuteOutputDeviceCommandAsync(outputCommand, initiator);
             return;
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
@@ -4533,12 +4505,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException)
         {
             ApplicationLog.Information(logger, "Spoken response was invalidated by a privacy transition");
+            forceVisualResponse = true;
+            NotifyOutputPolicyChanged();
+            if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
         }
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Playing a response with the selected speech voice");
             ClearActiveSpeechVoice();
-            ShowFailure("The selected speech voice is unavailable.", exception.Message);
+            PreserveSpokenResponseFailure("The selected speech voice is unavailable. Refresh installed voices; the complete visual response is retained.");
         }
         catch (AudioOutputDeviceUnavailableException exception)
         {
@@ -4549,12 +4524,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             ApplicationLog.Error(logger, exception, "Playing a response with text-to-speech");
             ClearActiveSpeechVoice();
-            ShowFailure("Text-to-speech is unavailable.", exception.Message);
+            PreserveSpokenResponseFailure("Text-to-speech is unavailable. Refresh speech readiness; the complete visual response is retained.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Playing a spoken response unexpectedly");
-            ShowFailure("Speech output failed.", exception.Message);
+            PreserveSpokenResponseFailure("Speech playback failed. The complete visual response is retained; no automatic retry.");
         }
         finally
         {
@@ -4588,6 +4563,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         string unavailableTitle,
         bool preserveResponseOnMute = false)
     {
+        outputConfiguration?.HoldUnavailable("Native output open, mute or playback failure. Full visual output is retained; refresh before using the saved route.");
         if (SelectedOutputDevice?.IsSystemDefault == true)
         {
             systemDefaultOutputDevice = exception.Reason == AudioOutputFailureReason.Muted
@@ -4597,9 +4573,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
             UpdateOutputDeviceAvailability();
-            if (exception.Reason == AudioOutputFailureReason.Muted && preserveResponseOnMute)
+            if (preserveResponseOnMute)
             {
-                RevealMutedResponse();
+                PreserveSpokenResponseFailure("Audio output is unavailable or muted. The complete visual response is retained; no endpoint is substituted.");
                 return;
             }
             ShowFailure(
@@ -4622,7 +4598,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     OutputDevices[outputIndex] = mutedOutput;
                 }
-                SelectedOutputDevice = mutedOutput;
+                SetOutputDeviceSnapshot(mutedOutput);
             }
             finally
             {
@@ -4630,20 +4606,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             if (preserveResponseOnMute)
             {
-                RevealMutedResponse();
+                PreserveSpokenResponseFailure("Audio output is muted or volume is zero. The complete visual response is retained.");
                 return;
             }
             ShowFailure("Audio output is muted.", exception.Message);
             return;
         }
 
-        SelectedOutputDevice = null;
+        if (preserveResponseOnMute)
+        {
+            PreserveSpokenResponseFailure("The selected output could not be opened or playback failed. The saved pin is retained; no endpoint is substituted.");
+            return;
+        }
+        SetOutputDeviceSnapshot(null);
         ShowFailure(unavailableTitle, exception.Message);
     }
 
-    private void RevealMutedResponse()
+    private void PreserveSpokenResponseFailure(string recovery)
     {
-        if (IsVisualResponseVisible && CanRevealPrivatePresentation)
+        spokenSummaryRecovery = recovery;
+        forceVisualResponse = true;
+        NotifyOutputPolicyChanged();
+        if (CanRevealPrivatePresentation)
         {
             WindowActionRequested?.Invoke(this, WindowAction.Show);
         }
@@ -5013,10 +4997,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AssistantState responseState,
         string title,
         string body,
-        bool requestWindow = true)
+        bool requestWindow = true,
+        bool refreshOutput = true)
     {
         ClearResponseActions();
-        if (!isInitializing
+        if (!isInitializing && refreshOutput
             && responseState is not (AssistantState.Failure or AssistantState.Listening)
             && EffectiveResponseMode != ResponseOutputMode.VisualOnly
             && SelectedOutputDevice is not null
@@ -5048,6 +5033,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsVisualResponseVisible));
         OnPropertyChanged(nameof(IsSpeechResponseEnabled));
         OnPropertyChanged(nameof(ResponseOutputStatus));
+        OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
+        OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
     }
 
     private string[] GetRecognitionPhrases()
@@ -5058,6 +5045,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
+            .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands

@@ -114,6 +114,15 @@ documentation/source review, not a new build, trial or acceptance receipt.
 | #71, #77: R03/R05/R09 native recovery | [Native tray](../src/Kora/SystemTrayController.cs) and [passive microphone card](../src/Kora.Application/ViewModels/MicrophoneRecoveryViewModel.cs): generic input state, bounded metadata refresh, revision-bound System/pinned preference selection, explicit PTT enable/disable and Stop speaking. Tray/Settings share exact displayed choices, unsaved highlight, Save preference only and a separate fresh endpoint-bound Enable. [User recovery](../docs/windows-and-tray.md#microphone-and-listening-recovery). | Enable arms readiness with the microphone closed; actual capture requires held PTT. The card is not a durable R05 question/task/session bridge, combined consent/selection/enable, microphone test, ambient/wake capture or Windows permission change. Full hardware/native acceptance remains separate. |
 
 This snapshot does not close full R04/R06/R07/R10/R12/R13/R14/R19 or A0-A4.
+The [current bounded audio output feature](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+shares working native/exact discovery/get/status/select/reset through persisted
+audio session/generation and host-held-choice admission. Original channel,
+ownership/privacy/call/input revisions, audited atomic persistence and receipt-safe
+activation remain fail-closed; metadata-only configuration never starts audio.
+Saved/System routing and independent installed speech/summary/input/name settings
+are preserved. No experiment is retired: deterministic metadata/storage/binding
+tests do not replace unique speech/acoustic/hardware/provider evidence, and no
+historical receipt or full R10/I/A acceptance is rewritten.
 Safe independent foundations can continue once their actual prerequisites
 are satisfied; downstream model/effect exposure remains gated by the relevant
 R02 qualification, host authority, privacy, resource and installed boundaries.
@@ -1856,6 +1865,19 @@ all 13 final x64/x86 PE manifest-resource bytes with declared source bytes.
 | R17 - Finish supported distribution, setup and startup behavior | Binary MSI/custom Burn, scoped logon/completion, release automation, managed-source build-only tooling, immutable source-tool distribution/channel resolution and bounded native notify-only release discovery implemented; source activation, upgrade limitations and installed/protection acceptance outstanding | P1 - users can install/run safely without a development checkout | R02 (distribution/hardware: D01/D03 admission; D02 direction selected), R03, R09, R10, R11, R16 | Complete R17-D01/D02/D03 below without another standalone feasibility project. Retain the delivered binary/CI/version/prerequisite/optional-consent, exact-source-tool and native metadata slices; finish separately approved source activation, supported upgrades/recovery, protected deployment and per-release native/licence qualification. Risk-based installed trials must cover logon/removal, repair/uninstall/all-users/completion and runtime-only launch against exact hashes after applicable resource/privacy/worker gates exist. Current per-user installs do not establish independent protection. Existing win-x86 output is not x86 acceptance; certify each offered architecture. NSIS-only paths are retired; historical receipts remain, with no executable experiment dependency. No in-app updater/download/install authority is added; reviewed dependency setup remains available. |
 | R18 - Implement trusted proactive and notify-only maintenance flows | Partial: composed canonical metadata/status and explicit Settings/Tray check/review/open/per-run snooze delivered; general proactive broker and voice replies outstanding | P1 - useful feedback without model-created prompts or updates | R05, R10, R13, R14, R15, R17 | Retain the [bounded native foundation](#bounded-r17r18-canonical-maintenance-foundation): per-run network consent, numeric stable/beta ordering, bounds, ETag re-verification, age/staleness, six-hour+jitter/backoff and ownership/privacy/protected-call invalidation. Production excludes drafts/prereleases; explicit Preview includes only published canonical beta releases; CI/default-branch outputs are not releases. Only a reviewed host-constructed canonical release page may open. Remote notes are not rendered. Models cannot trigger checks, invent availability, choose feeds/navigation or download/stage/activate updates. Complete separately the general trusted-event broker, shared question/voice targeting, deduplication, deferral/deadline/rejection/fatigue controls and native/acoustic acceptance. |
 | R19 - Accept the complete Slice A and platform/security gates | Proof outstanding | P0 - prevent a bootstrap/demo being released as the designed product | R07, R08, R09, R10, R11, R12, R13, R14, R15, R16, R17, R18 | Report A0-A4 separately with reference-machine actual results, synthetic offline/egress markers, exact provider versions, two-session resource/cancellation races, real containment and installer/lock/call/device trials. Meet each safety criterion and the measured latency/wake/hardware targets. Verify unsupported/disabled paths and no self-modification. Repeat earlier gates after later integration; resolve remaining initial-release decisions before sign-off. |
+
+### Bounded R10 exact output-device preference
+
+The [exact output preference slice](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+adds working native and typed/ACTIVATED discovery/get/status/select/per-option
+reset for the existing output override. Real persisted host audio-control
+session/generation admission, original-channel call/privacy/input revisions,
+host-held exact choices, bounded metadata, audited atomic writes and live output
+invalidation are shared; selection never starts audio or grants other authority.
+Missing/muted/open/playback failures retain full visual recovery and saved pins.
+Independent name/input/provider/voice/summary behavior and unique experiments
+remain maintained. Metadata/storage/binding fixtures are not native acoustic
+acceptance or full R10/I/A completion; no historical receipts are rewritten.
 
 ### R02 Distribution Follow-Up and R17 Delivery
 

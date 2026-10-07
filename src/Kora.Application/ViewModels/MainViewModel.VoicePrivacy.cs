@@ -114,6 +114,7 @@ public sealed partial class MainViewModel
             var previousOutput = selectedOutputDevice;
             var devices = textToSpeech.GetOutputDevices();
             systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
+            outputConfiguration?.Observe(new(devices, systemDefaultOutputDevice));
             var previous = SelectedOutputDevice;
             suppressAudioDevicePreferenceSave = true;
             try
@@ -126,8 +127,8 @@ public sealed partial class MainViewModel
                 }
                 if (previousOutput is not null)
                 {
-                    SelectedOutputDevice = OutputDevices.FirstOrDefault(device =>
-                        string.Equals(device.Id, previousOutput.Id, StringComparison.Ordinal)) ?? previousOutput;
+                    SetOutputDeviceSnapshot(OutputDevices.FirstOrDefault(device =>
+                        string.Equals(device.Id, previousOutput.Id, StringComparison.Ordinal)) ?? previousOutput);
                 }
             }
             finally
@@ -177,6 +178,7 @@ public sealed partial class MainViewModel
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;
+        if (outputConfiguration is not null) { outputConfiguration.Changed -= OnOutputConfigurationChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
     }
 
@@ -308,6 +310,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(IsVoiceEnabled));
         OnPropertyChanged(nameof(ListeningButtonText));
         OnPropertyChanged(nameof(ListeningStatus));
+        OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         ToggleListeningCommand.NotifyCanExecuteChanged();
         BeginPushToTalkCommand.NotifyCanExecuteChanged();
     }

@@ -229,10 +229,22 @@ See [exact counting, commands and recovery](settings.md#spoken-summary-limits).
 The audio output list contains:
 
 - **System** - follows the live Windows multimedia-default output;
-- each active Windows render endpoint - pins Kora to that endpoint.
+- each active Windows render endpoint - displays an existing exact saved pin.
 
-Choosing System removes a saved Kora speaker override. An available new Windows
-default automatically reroutes active WASAPI playback while System is selected.
+Refresh metadata, choose an exact presented endpoint, and explicitly save; reset
+selects System and removes only Kora's override. Native Settings and exact
+`list output settings` / get/status/set/reset `speech.output-device` commands
+share persisted host session/generation admission, original-channel call/privacy
+gates and audited atomic persistence. Neither draft selection nor save/reset
+starts audio or changes Windows defaults, global mute/volume, microphone consent,
+provider/voice or summary settings. Stale choices/evidence failures require
+explicit recovery, not substituted endpoints or replay. Full visual recovery is
+mandatory for missing/muted/zero-volume/open/playback failure; acoustic audibility
+and full R10/native audio acceptance are not claimed.
+
+System resolves the current multimedia default for each fresh eligible request.
+Changed output metadata retires stale queued/in-flight Kora output without replay;
+the underlying System WASAPI route follows Windows routing, not a saved endpoint pin.
 Named endpoint selections remain pinned, even when Windows defaults or unrelated
 devices change. A missing or muted effective output stops speech without replay;
 subsequent eligible speech resolves the selected endpoint. A pinned endpoint is

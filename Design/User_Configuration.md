@@ -241,6 +241,60 @@ grants consent/permission, opens capture, enables listening, tests audio,
 downloads assets, changes models/OS privacy, forwards provider text, or answers
 a pending question. Separate existing native Enable remains separate. No model
 tools, general registry, full R10/R03/R09/R05/A or hardware acceptance is claimed.
+### Delivered bounded exact output-device preference (R10)
+
+Schema 1 admits the existing `speech.output-device` preference through shared
+[configuration](../src/Kora.Application/Configuration/OutputDeviceConfigurationService.cs)
+and [audio-control admission](../src/Kora.Application/Voice/AudioControlAdmission.cs).
+Native Settings Refresh/Save/reset and exact typed/ACTIVATED commands share that
+workflow: `list output settings`, `get speech.output-device`,
+`status speech.output-device`, `set speech.output-device to <exact presented ID>`,
+and `reset speech.output-device`. Grammar is case-insensitive; endpoint IDs are
+ordinal exact. There are no spoken-name, friendly-name, index or fuzzy aliases.
+Original input retains the existing 1,024 UTF-8 byte/control limits; complete
+versioned results retain 64 KiB bounds and are rejected, never truncated.
+
+The bridge records original local intent using existing authoritative host
+workspace/task services, commits a real active device-control session, and
+leases that persisted session/generation during each control operation.
+Fresh IDs propose identities only: durable admission, current host ownership,
+unlocked privacy, original input and current call/input/recovery revisions
+authorize the operation. Trace/provider/user fields cannot select the session
+or supply authority. This consumer-focused bridge grants no approval, question,
+tool, microphone, task cancellation or provisioning authority.
+
+Five-second single-flight discovery enumerates endpoint metadata only. Host-held
+choices bind exact object identity, session/generation, original channel,
+captured live eligibility, topology/default and preference revisions.
+Cross-session, equal-but-unpresented, stale or changed saved preferences require
+a fresh discovery; SET cannot implicitly invent a never-presented choice.
+Get/status report desired, saved/default/unavailable source, effective route,
+live System default, metadata/call revisions, choices, mute and recovery.
+Duplicate friendly names remain distinct. Missing pins remain saved/unavailable;
+System follows the live multimedia default and reset removes only Kora's override.
+
+The existing atomic preference store/paths and original-channel call-policy lock
+enclose persistence and typed audit. Protected/unknown calls deny voice-originated
+writes, including UI-dispatched voice requests. Evidence or lifecycle failures
+hold output unavailable rather than claiming rollback or replaying an effect;
+a file may already be committed when terminal evidence fails. Inspect and refresh
+explicitly. Activation/live notification follows confirmed receipts.
+
+Changes retire stale queued/in-flight output and late provider callbacks without
+replaying speech or reopening capture. Selection/reset never plays a trial,
+changes Windows defaults/mute/volume, releases run holds, answers a question,
+grants consent or changes independent provider/voice/name/input/summary settings.
+Ordinary later speech freshly resolves the route. Missing, software-muted,
+zero-volume, open/playback or cancellation failures preserve the complete visual
+response under existing privacy gates; acoustic audibility is not claimed.
+The legacy muted-fallback preference remains stored independently but cannot
+suppress mandatory full visual recovery.
+
+This is a bounded preference feature, not full R10/I/A or acoustic acceptance.
+Unique speech/acoustic/hardware/provider experiment receipts and executables are
+retained: metadata, storage and native-binding fixtures do not supersede them.
+
+### Proposed full configuration contract
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.

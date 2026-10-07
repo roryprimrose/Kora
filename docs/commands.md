@@ -260,6 +260,23 @@ UI service, domain validation, revision check, atomic persistence, audit and
 live notifications. There is no whole-profile reset or undo, model tool
 exposure, arbitrary JSON patch or configuration-file editing authority.
 
+### Inspect or change an exact output choice
+
+Audio **output endpoint** preference changes are separate:
+
+- **list output settings**
+- **get speech.output-device**
+- **status speech.output-device**
+- **set speech.output-device to &lt;exact presented endpoint ID&gt;**
+- **reset speech.output-device**
+
+Discover first, then use one exact ID; no name/index/fuzzy alias is accepted.
+Native Settings uses the same admitted choice/save/reset workflow. System is
+`system-default`; reset removes only Kora's output override. These commands never
+play audio, change Windows defaults/volume, grant consent or answer an approval.
+Protected/unknown calls block original voice-channel mutations. Stale choices,
+ownership/privacy changes and failed evidence require explicit refresh/recovery.
+
 ### Inspect or change an installed speech choice
 
 - **list speech settings**

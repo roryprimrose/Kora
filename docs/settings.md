@@ -441,7 +441,22 @@ Push-to-talk stops current speech before opening command capture.
 ### Audio output
 
 - **System** follows the live Windows multimedia-default output.
-- A named endpoint creates a pinned local override.
+- An existing saved endpoint remains pinned; a missing pin is not replaced.
+
+Choose **Refresh output metadata only**, select one exact endpoint choice, then
+**Save output preference only**. The draft alone changes nothing. **Reset output
+to System** removes only Kora's output override. The visible status distinguishes
+desired/saved/default, effective/unavailable route, mute and recovery.
+Metadata discovery has a five-second deadline and cannot accumulate workers.
+Names can duplicate; endpoint IDs, host-held choice, session/generation and
+current ownership/privacy/call/input revisions must match. Stale/foreign choices
+require fresh discovery. Selecting/resetting cancels retired speech but never
+plays a trial, resumes stopped output, changes Windows defaults/volume/mute,
+opens capture, grants consent or changes provider/voice/summary/input settings.
+Failed persistence/audit may leave a committed file; inspect saved status and
+refresh, not automatic retry. Missing/muted/open/playback failures retain full
+visual output regardless of the independently stored legacy muted-fallback option.
+No acoustic or full R10 acceptance is implied.
 
 ### Refresh devices and readiness
 
@@ -469,15 +484,12 @@ queue override, or the device default when no queue override exists.
 
 ### Muted speaker fallback
 
-Default: **on**. Show audible-only responses as text when the selected Windows
-speaker is muted or its endpoint volume is zero. Applies to the device default
-and task/queue overrides, using either **System** output or a selected endpoint.
-The configured response mode is unchanged; unmuting restores it on the next
-response without refreshing devices.
-
-Turning this off suppresses ordinary visual fallback for muted output only.
-Failures, pending questions, approvals, missing devices, and unavailable speech
-voices still use visual output.
+Default: **on**. This independently stored legacy preference is retained for
+compatibility; it cannot suppress mandatory complete visual recovery when the
+effective output is missing, software-muted, zero-volume, unavailable or failed.
+The configured response mode is unchanged. A fresh eligible route can restore
+normal voice-only presentation; no recovery or setting change replays speech.
+Pending questions and approvals retain their exact visual preview.
 
 ### Effective output
 

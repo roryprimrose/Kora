@@ -46,6 +46,16 @@ The design concerns are resolved under the chosen trust model by the following h
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
 
+The [bounded output preference workflow](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+uses persisted host-resolved audio-control session/generation admission, not
+desktop correlation IDs as authority. Exact host-held choices bind original
+channel, current host/privacy/call/input eligibility and topology/preference
+revisions. Native, typed and activated routes share audited atomic persistence;
+unknown/stale/foreign inputs fail closed. This device-local control grants no
+approval, question, microphone, provisioning or OS authority. Evidence failure
+can follow a committed file: output remains unavailable until explicit recovery,
+never an invented rollback, substituted endpoint or automatic retry.
+
 ## Data Modes
 
 ### Local Only

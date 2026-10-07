@@ -88,7 +88,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 5);
+        sections.Should().HaveCount(commands.Count + 6);
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -103,6 +103,14 @@ public sealed class EmbeddedUserDocumentationProviderTests
         appearancePhrases.Should().Equal("list appearance settings", "get appearance.theme",
             "set appearance.theme to dark", "reset appearance.theme");
         appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
+        var output = sections.Single(section => section.StartsWith(
+            "Inspect or change an exact output choice", StringComparison.Ordinal));
+        var outputPhrases = Regex.Matches(output, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        outputPhrases.Should().Equal("list output settings", "get speech.output-device", "status speech.output-device",
+            "set speech.output-device to &lt;exact presented endpoint ID&gt;", "reset speech.output-device");
+        outputPhrases.Should().OnlyContain(phrase => OutputDeviceCommand.Parse(phrase, "Kora") != null);
         var speech = sections.Single(section => section.StartsWith(
             "Inspect or change an installed speech choice", StringComparison.Ordinal));
         var speechPhrases = Regex.Matches(speech, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -132,6 +140,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session inspect").And.Contain("session create").And.Contain("session rename")
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
+            && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         for (var index = 0; index < commands.Count; index++)

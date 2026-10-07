@@ -106,10 +106,21 @@ pinned.
 
 ## A saved device disappeared
 
-Kora does not replace a pinned device silently. Open Settings and choose:
+Kora does not replace a pinned device silently. Microphone recovery can choose:
 
 - **System** to return to Windows default routing; or
 - another explicit endpoint.
+
+For audio **output**, reconnect the exact saved endpoint and refresh, or explicitly
+choose a fresh presented endpoint and **Save output preference only**. **Reset output
+to System** removes Kora's override; it does not change the Windows default.
+No alternative is silently substituted. `list output settings` and
+`status speech.output-device` show saved/effective/unavailable state and exact IDs.
+Stale choices, changed owner/privacy/call/input revisions, detection/persistence/
+audit failures require explicit refresh/recovery. A file may be committed before
+terminal evidence fails: inspect before a fresh request, not automatic retry.
+Continue visually if output cannot be confirmed; recovery never starts a trial,
+replays speech or opens a microphone.
 
 ## No speech voice is available
 

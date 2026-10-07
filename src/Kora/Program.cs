@@ -216,6 +216,10 @@ internal static class Program
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
+        services.AddSingleton<IAudioControlSessionStore>(interactions);
+        services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
+        services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
+        services.AddSingleton<OutputDeviceConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton(TimeProvider.System);
@@ -316,6 +320,8 @@ internal static class Program
                 provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
         services.AddSingleton<AppearanceConfigurationService>();
         services.AddSingleton<ISpeechCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<IAudioOutputDeviceCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<ISpeechPlaybackService>(provider => provider.GetRequiredService<ITextToSpeechService>());
         services.AddSingleton<SpeechConfigurationService>();
         services.AddSingleton<AssistantNameConfigurationService>();
         services.AddSingleton<ITextToSpeechPreferences>(provider =>

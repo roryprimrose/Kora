@@ -22,6 +22,7 @@ public sealed partial class App : Avalonia.Application
 {
     private SystemTrayController? systemTray;
     private SettingsWindowController? settingsWindow;
+    private MicrophoneRecoveryWindowController? microphoneRecovery;
     private DocumentationWindowController? documentationWindow;
     private DetailWindowController? detailWindow;
     private ResponseWindowController? responseWindow;
@@ -55,9 +56,12 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<MainWindow>>());
             desktop.MainWindow = window;
+            microphoneRecovery = new MicrophoneRecoveryWindowController(viewModel,
+                Services.GetRequiredService<ILogger<MicrophoneRecoveryWindow>>());
             settingsWindow = new SettingsWindowController(
                 viewModel,
-                Services.GetRequiredService<ILogger<SettingsWindowController>>());
+                Services.GetRequiredService<ILogger<SettingsWindowController>>(),
+                microphoneRecovery.Open);
             MarkdownDocumentRenderer.Renderer = new NativeDetailRenderer(
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
             detailWindow = new DetailWindowController(
@@ -94,7 +98,8 @@ public sealed partial class App : Avalonia.Application
                 () => evidenceWindow?.Open(),
                 () => skillPackagesWindow.Open(),
                 () => sessionsWindow?.Open(),
-                () => maintenanceWindow?.Open());
+                () => maintenanceWindow?.Open(),
+                microphoneRecovery.Open);
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -106,6 +111,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SessionsViewModel>>());
             sessionsWindow.Bind();
+            viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
@@ -178,6 +184,8 @@ public sealed partial class App : Avalonia.Application
         systemTray = null;
         settingsWindow?.Dispose();
         settingsWindow = null;
+        microphoneRecovery?.Dispose();
+        microphoneRecovery = null;
         documentationWindow?.Dispose();
         documentationWindow = null;
         detailWindow?.Dispose();

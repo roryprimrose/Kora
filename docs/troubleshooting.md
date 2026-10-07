@@ -56,14 +56,23 @@ Kora does not run user-created scripts during this check.
 3. Confirm the microphone card says Windows desktop-app microphone access is
    allowed. If blocked, select **Open Windows microphone settings** in Kora,
    then enable microphone and desktop-app access.
-4. Confirm **System** has an active Windows default microphone, or select a
-   specific active microphone.
+4. Open **Choose microphone (native recovery)** from the tray or speech Settings.
+   Refresh devices, confirm **System** has an active Windows default microphone,
+   or highlight a specific active endpoint and choose **Save preference only**.
+   Duplicate names are distinguished by exact endpoint IDs; unavailable pins
+   are retained, never automatically replaced. This does not test or record.
 5. Read the Voice activation status. It identifies a locked-session safety
    pause, call-policy pause, or manual disablement.
 6. Select **Refresh microphones** (no model/network/speech dependency).
 7. Review saved voice consent. After manual disablement, lock, disconnect,
    suspend or device/permission loss, select **Enable listening** explicitly.
 8. Hold **Push to talk**, use an exact phrase, then release.
+
+The recovery card cannot grant Windows permission or combine new consent with
+selection/enable. Missing/unknown permission, ownership or session state fails
+closed. Review the explanation and existing Settings consent separately. A stale
+choice or refresh timeout requires a fresh refresh/input; late results cannot
+restore closed card authority. Closing/Escape grants nothing and cancels no task.
 
 Production wake is unavailable in this build. Safe startup with saved consent
 arms push-to-talk; it never opens an ambient command recognizer.
@@ -97,10 +106,21 @@ pinned.
 
 ## A saved device disappeared
 
-Kora does not replace a pinned device silently. Open Settings and choose:
+Kora does not replace a pinned device silently. Microphone recovery can choose:
 
 - **System** to return to Windows default routing; or
 - another explicit endpoint.
+
+For audio **output**, reconnect the exact saved endpoint and refresh, or explicitly
+choose a fresh presented endpoint and **Save output preference only**. **Reset output
+to System** removes Kora's override; it does not change the Windows default.
+No alternative is silently substituted. `list output settings` and
+`status speech.output-device` show saved/effective/unavailable state and exact IDs.
+Stale choices, changed owner/privacy/call/input revisions, detection/persistence/
+audit failures require explicit refresh/recovery. A file may be committed before
+terminal evidence fails: inspect before a fresh request, not automatic retry.
+Continue visually if output cannot be confirmed; recovery never starts a trial,
+replays speech or opens a microphone.
 
 ## No speech voice is available
 
@@ -145,3 +165,10 @@ Open:
 `%LOCALAPPDATA%\Kora\Logs`
 
 Logs are structured JSON, roll daily, and are retained for up to 30 days.
+The tray's **Evidence (read-only)** source **DailyLog** can inspect an independent
+bounded prefix of existing daily diagnostic envelopes even when SQLite is
+unavailable. **All** remains SQLite-only. A scan limit is not a complete-file
+search; missing/changed/expired snapshots require a fresh search, while corrupt
+or truncated data is reported without an empty-success fallback. Audit mirrors
+and activity/legacy copies are unsupported and counted explicitly. See
+[privacy and evidence limits](privacy-safety-and-logs.md) for exact bounds.

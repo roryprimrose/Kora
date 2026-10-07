@@ -181,8 +181,10 @@ public sealed class WindowsSqliteEvidenceQueryTests
         fresh.Records.Should().HaveCount(3);
     }
 
-    [WindowsFact]
-    public async Task Selective_real_store_search_stops_at_the_scan_bound_and_continues_without_lost_rows()
+    [Theory]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.CombinedLog)]
+    public async Task Selective_real_store_search_stops_at_the_scan_bound_and_continues_without_lost_rows(EvidenceSource source)
     {
         using var fixture = new OwnedStorageFixture();
         using var listener = Listen();
@@ -226,8 +228,12 @@ public sealed class WindowsSqliteEvidenceQueryTests
             }
             transaction.Commit();
         }
-        var service = Service(sink, clock);
-        var query = new EvidenceQuery { Source = EvidenceSource.Log, Text = "absent-safe-text" };
+        WindowsDailyEvidenceReaderTests.Write(fixture, "kora-20261007.log", []);
+        var service = source == EvidenceSource.CombinedLog
+            ? new DurableEvidenceQuery(new WindowsEvidenceReader(new(sink), new(fixture)), new Access(), clock,
+                NullLogger<DurableEvidenceQuery>.Instance)
+            : Service(sink, clock);
+        var query = new EvidenceQuery { Source = source, Text = "absent-safe-text" };
         var first = await service.QueryAsync(query, null, TestContext.Current.CancellationToken);
         first.Status.Should().Be(EvidencePageStatus.ScanLimitReached);
         first.Records.Should().BeEmpty();
@@ -238,8 +244,10 @@ public sealed class WindowsSqliteEvidenceQueryTests
         second.Cursor.Should().BeNull();
     }
 
-    [WindowsFact]
-    public async Task Real_query_logging_and_completed_spans_cannot_recursively_extend_a_page_snapshot()
+    [Theory]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.CombinedLog)]
+    public async Task Real_query_logging_and_completed_spans_cannot_recursively_extend_a_page_snapshot(EvidenceSource source)
     {
         using var fixture = new OwnedStorageFixture();
         using var provider = new EvidenceLoggerProvider([new WindowsSqliteEvidenceSink(fixture)], new Gaps());
@@ -251,10 +259,13 @@ public sealed class WindowsSqliteEvidenceQueryTests
             sink.WriteDiagnostic(Diagnostic(producer, 2));
             producer.Complete(HostOperationOutcome.Completed);
         }
+        WindowsDailyEvidenceReaderTests.Write(fixture, "kora-20261007.log", []);
         using var inspection = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Evidence);
-        var service = new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), new Access(), TimeProvider.System,
+        IEvidenceReader reader = source == EvidenceSource.CombinedLog
+            ? new WindowsEvidenceReader(new(sink), new(fixture)) : new WindowsSqliteEvidenceReader(sink);
+        var service = new DurableEvidenceQuery(reader, new Access(), TimeProvider.System,
             factory.CreateLogger<DurableEvidenceQuery>());
-        var query = new EvidenceQuery { Limit = 1, Source = EvidenceSource.Log };
+        var query = new EvidenceQuery { Limit = 1, Source = source };
         var first = await service.QueryAsync(query, null, TestContext.Current.CancellationToken);
         var second = await service.QueryAsync(query, first.Cursor, TestContext.Current.CancellationToken);
         second.Cursor.Should().BeNull();

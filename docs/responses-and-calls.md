@@ -10,6 +10,15 @@ Kora supports three response modes:
 
 Safety and recovery information remains visible even in VoiceOnly mode.
 
+Ordinary speech is additionally admitted only when its complete title/body
+fits the device-local spoken summary caps (default **3 sentences / 80 words**).
+Either cap can be lowered in Speech & audio. Over-cap results retain their full
+visual text, with an explicit **Speech withheld** status even in Audible only
+mode; there is no truncation, extra model call or replay.
+Required questions/options and exact security-sensitive readback keep their
+existing mandatory bounds and privacy gates, not ordinary-summary truncation.
+See [the exact counting contract](settings.md#spoken-summary-limits).
+
 **Settings > Responses > Muted speaker fallback** controls whether audible-only
 responses fall back to text when the selected Windows output is muted or at zero
 volume. It is **enabled by default** and saved on this device. The original

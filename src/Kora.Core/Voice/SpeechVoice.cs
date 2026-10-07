@@ -7,4 +7,6 @@ public sealed record SpeechVoice(
     SpeechVoiceGender Gender)
 {
     public string ProviderId { get; init; } = SpeechProviderIds.Windows;
+
+    public string ConfigurationId => $"{ProviderId} / {Id}";
 }

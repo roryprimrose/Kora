@@ -256,8 +256,10 @@ log/audit/span/link tables. The native current-user inspector requires a live
 local-UI request, proven desktop ownership and private-presentation admission.
 Session/task/trace fields are correlation filters, not a way to select host
 authority. Signed continuations bind the original query, viewer session,
-15-minute expiry and per-table snapshot ceilings; later query diagnostics and
-completed spans cannot expand an in-progress snapshot.
+15-minute expiry and per-table snapshot ceilings bound to their original ordinary
+evidence identities; later query diagnostics and completed spans cannot expand
+an in-progress snapshot. Removal/reuse of a ceiling invalidates its cursor
+explicitly and requires a fresh query.
 The [Windows reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs)
 reuses the sink's exact envelope/projection validation and private database
 schema/ACL/reparse/journal admission, then opens SQLite read-only. It creates
@@ -266,10 +268,65 @@ Up to 50 records and 64 KiB of the actual serialized page include citations,
 cursor, source availability and disclosure. Selective text/property searches
 scan at most 4,096 candidates per page, with explicit continuation/scan-limit
 status and the existing five-second SQLite progress deadline.
-Expired-but-present and missing-or-removed segments are distinct; no physical
-pruning or complete retained graph/history is claimed. Session/conversation
+Expired-but-present backlog and missing-or-removed segments are distinct.
+Bounded ordinary diagnostic pruning is implemented below; a complete retained
+graph/history is not claimed. Session/conversation
 sources and interaction-audit receipts are not supplied by this projection.
 Model tool exposure, Ask Evidence, export and remote transmission remain gated.
+
+The independent **DailyLog** source now reads existing daily JSON diagnostic
+envelopes beneath `IApplicationDataPaths.LocalRoot/Logs`, with the writer's
+shared exact daily-name policy and version-1 diagnostic serializer/validator.
+`All` still means the existing SQLite projection; it does not merge file copies
+into database counts or claim an atomic cross-source ledger. Explicit opt-in
+**CombinedLog** selects only SQLite ordinary logs plus DailyLog ordinary
+records, preserving each original source-qualified citation, envelope ID and
+provenance. It pairs the existing immutable SQLite ceiling with the independently
+captured host-held daily prefix, never an atomic cross-sink snapshot. Ordering
+is source-major: SQLite commit time/evidence ID, then exact daily name/byte
+offset. Observation time is not reinterpreted as database commit time; no
+deduplication, causal ranking or file-derived span/link graph is introduced.
+List/search/cited reads share the existing filters, original expiry and complete
+50-record/64-KiB serialized budget. Time filters retain source semantics
+(SQLite commit time versus daily observation time). Both original sources are
+admitted and verified on each page, even when only one contributes that page;
+an unavailable, corrupt, changed, removed or expired included source yields
+no fallback content. Its source status is explicit; permission/identity and
+malformed/foreign/tampered cursor failures remain fail-closed and require an
+explicit fresh search after recovery. Independent retention still applies.
+**All**, individual sources, audit citations and old continuations are unchanged.
+File names are discovered by the trusted
+store, never accepted as query paths. Read-only file handles reuse current-user
+owner/ACL and reparse admission, validate their final path, and retain volume/
+file identity. There are no directory/file/lease writes or permission repairs.
+
+Each daily snapshot admits at most 32 files, an 8-MiB earliest byte prefix
+ordered by exact daily name and byte offset, 4,096 physical lines, and 256-KiB
+lines excluding LF. A five-second cancellation/deadline bounds each read.
+Prefix capture and final verification each read at most 8 MiB (16 MiB total
+source I/O); no unbounded tail or full-file read is implied. A byte ceiling
+stops at the last complete LF, reports `ScanLimitReached`, and does not page
+beyond that ceiling. Too many files report the same limit without a subset
+success. Eight host-held manifests expire after 15 minutes or earlier bounded
+cache eviction; signed continuations retain the original query/viewer binding.
+Every page reopens the original names and verifies file identities and prefix
+SHA-256 digests before returning any content. Appends/new days cannot expand
+that snapshot; changed/replaced, pruned/rotated, expired, corrupt, truncated,
+unavailable and timed-out sources are explicit, with no partial-success
+fallback. Snapshots are not an OS-atomic filesystem ledger.
+
+Daily citations are source-specific hashes of file identity, byte offset and
+exact line digest, not aliases for SQLite citations. Provenance also retains
+the envelope evidence ID. Typed fields and admitted envelope correlation are
+validated, not reconstructed from outer rendered Serilog properties.
+Observation time, event name, exception type and redacted typed scopes are
+preserved; database commit/due times are absent and
+retention is `RetentionUnknown`. File audit mirrors are unsupported and counted
+separately, never returned as authoritative audit rows. Legacy/unstructured/
+activity copies and ingestion-gap markers have explicit counts and `Partial`
+status; file trace navigation keeps DailyLog selected and reports the activity
+graph unavailable. User-modifiable file correlation never establishes identity,
+intent, permission, an audit commit, execution outcome or a complete history.
 
 ## Independent Management and Concurrent Sessions
 
@@ -509,9 +566,11 @@ files are verified, never silently repaired. The database and rollback journal
 are privately pre-created; each connection uses `PERSIST` journaling with
 `synchronous=FULL` so normal commits/reopens retain the owned journal rather
 than recreating it with a different default owner. A missing managed journal
-requires explicit recovery, not automatic replacement. This is not hot-journal/
-process-kill acceptance, and earlier uncomposed prototype databases without
-this journal are not silently migrated.
+requires explicit recovery, not automatic replacement. Maintained
+[production interruption/reopening tests](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+now exercise actual PERSIST/FULL hot-journal and owned-process interruption
+semantics, not physical power-loss or installed acceptance. Earlier uncomposed
+prototype databases without this journal are not silently migrated.
 The store is composed for the bounded exact local version-query milestone,
 not for arbitrary model/skill/OS effects. Earlier
 internal key/artifact primitives remain uncomposed and are not database prerequisites.
@@ -533,9 +592,44 @@ uses fresh traces joined by durable host IDs and never invokes an executor.
 Startup processes at most 100 incomplete records; remaining work fails startup
 explicitly rather than silently ignoring the excess.
 First-use greeting, settings and version response disclose the readable-copy,
-same-user/admin and independent 30/90-day due dates, explicitly disclosing that
-database pruning/deletion is not yet implemented. The new
+same-user/admin and independent 30/90-day due dates, bounded ordinary startup
+pruning and remaining audit/task/session deletion limitations. The new
 version-query records contain no transcript or answer body.
+
+#### Bounded Ordinary Diagnostic Retention
+
+[WindowsSqliteDiagnosticRetention](../src/Kora.Windows/Storage/WindowsSqliteDiagnosticRetention.cs)
+runs one batch per admitted owner startup, after exact storage admission and
+durable task recovery, before the UI lifetime opens. It requires a live
+host-system activity and opens only the existing `EvidenceStorageV1` partition.
+There is no timer, passive-query refresh, automatic backlog drain, storage
+replacement, permission repair, schema change or retention-setting rewrite.
+No new prerequisite is needed: existing policy-assigned effective `due_utc`
+values, due indexes, bounded span/link envelopes and the actual shared
+writer/reader lease supply admission and serialization.
+
+At a fixed UTC cutoff, `due_utc <= cutoff` selects at most 128 ordinary
+`application_log_events` and 32 `activity_spans`, ordered by due date/rowid.
+Their at-most-1,024 validated owned `activity_links` are removed before their
+spans in the same PERSIST/FULL transaction. An unexpired span's links are never
+independently removed. The existing five-second lease/SQLite progress bounds,
+cancellation before COMMIT, private ACL/reparse/schema/integrity/envelope checks
+and deterministic resource disposal remain enforced. Existing full-store
+validation also runs under that deadline; large or invalid stores can fail
+admission rather than bypass validation. A verified COMMIT returns exact
+removed counts and a due-backlog flag; subsequent startups can continue.
+Failures propagate to the independent startup/file error path. The generated
+structured completion event is emitted after releasing the storage lease
+under a typed Windows `retention.run` child activity, never an audit.
+
+This is logical ordinary-row pruning, not forensic erasure or a strict
+at-all-times 30-day cap. Retained references distinguish expired-but-present
+backlog from missing-or-removed targets without inventing deletion provenance.
+Audit due dates and sequences remain unchanged, including expired audit rows;
+`security_audit_events`, interaction audit/hash chains, tasks, questions,
+sessions and all grants/Perpetual records are outside this operation.
+Audit continuation anchors/pruning, session retention/deletion, configurable
+preview/apply, artifact/backup disposal and full R04/D-009 acceptance remain open.
 
 The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/

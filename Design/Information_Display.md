@@ -46,6 +46,27 @@ recorded. The query is a diagnostic projection, not the atomic interaction
 audit or proof of authorization/effect. Session/conversation history is
 unavailable, not an empty successful fabricated store.
 
+The source selector also admits **DailyLog**, independently of SQLite.
+**All** remains SQLite-only; daily mirrors do not alter its counts. Daily
+records use independent file/offset/digest citations, retain their original
+envelope evidence ID and typed observation/correlation fields, and have no
+database commit/due time (`RetentionUnknown`). **Read selected trace** stays
+within DailyLog; span/parent/link records are unavailable there. Audit mirrors
+are unsupported, not promoted to database audit records. The serialized
+`DailyReport` labels the snapshot, scanned files/bytes/lines, unsupported copies,
+audit mirrors and ingestion gaps; skipped copies produce `Partial`.
+
+Daily reads admit at most 32 files / 8 MiB of earliest complete-line prefix /
+4,096 physical lines / 256 KiB per line (excluding LF) and five seconds per
+request. The existing 50-record/64-KiB output limit still applies. Next page
+uses one of eight bounded 15-minute host-held manifests; eviction requires a
+fresh search. Active appends/new daily files do not expand it. Source changes,
+replacement, pruning/rotation, corruption, incomplete final lines, expired
+snapshots, timeout and access failure are visible. `ScanLimitReached` is not a
+complete-file claim and does not imply paging beyond the admitted prefix.
+No combined cross-source ranking, file audit/graph, export or Ask Evidence is
+delivered by this slice; native installed/accessibility acceptance remains open.
+
 Controls have native accessible labels and keyboard navigation. Result text
 is inert and non-selectable. Copy/cut clipboard paths and context menus are
 blocked; there are no export, Ask Evidence, execution or source-deletion
@@ -263,6 +284,17 @@ Limit failure is an explicit presentation outcome with retained source
 identity; it is never silent truncation or a success-shaped empty view.
 
 ### Detail Routing and Offer Interaction
+
+The delivered bounded R10 ordinary-speech boundary measures the complete spoken
+title/body against device-local caps (default 3 sentences/80 words, independently
+lowerable). Current results do not carry trusted safe-omission metadata, so
+over-cap speech is explicitly refused with forced full visual recovery, never
+truncated or model-shortened. Full result/detail source is unchanged. Mandatory
+exact approval/proposal readback and required question/options retain their
+existing bounds/privacy behavior. See [the delivered contract](User_Configuration.md#delivered-bounded-spoken-summary-limits-r10)
+and [exact counting semantics](../docs/settings.md#spoken-summary-limits).
+This is not delivery of all routing/rendering/explicit full-content reading
+behavior proposed below.
 
 The host, not model prose or generated markup, decides whether a finalized
 response has a detailed representation. The response presenter evaluates the

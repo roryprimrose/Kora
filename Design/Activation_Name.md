@@ -39,11 +39,15 @@ user-facing assistant identity.
 
 ## Settings and Persistence
 
-The single-instance Settings window exposes the same observable assistant-name
-state intended for future validated verbal/model mutations. The user enters a
-name and explicitly chooses **Apply name**.
+The single-instance Settings window exposes the shared typed `assistant.name`
+state. Native **Apply name / Reset name to Kora**, exact typed commands and
+explicitly activated voice share the same audited host configuration workflow.
+Schema/default/bounds/revision/provenance are discoverable with
+`list assistant settings` and `get assistant.name`; exact `set/reset` accepts
+only this one existing display/PTT command-prefix option. Model mutation remains
+unavailable. See [the bounded contract](User_Configuration.md#delivered-bounded-assistant-displayptt-prefix-r10).
 
-Implemented validation accepts 1-3 words and at most 32 Unicode characters.
+Implemented legacy validation accepts 1-3 words and at most 32 UTF-16 characters.
 Letters, numbers, spaces, apostrophes, and hyphens are supported. Whitespace is
 trimmed and collapsed. Blank, over-length, over-word-count, punctuation, and
 separator-only values are rejected visibly without changing the active name.
@@ -67,19 +71,24 @@ engine with an exact host-owned grammar. It recognizes catalogue phrases with
 or without the configured name prefix; it is not the final continuous
 wake-word detector.
 
-When a rename is committed while listening is active, capture is stopped and
-restarted with grammar generated from the new name under the existing explicit
-listening consent. The old name is absent from the replacement grammar. A
-rename while listening is disabled never opens the microphone.
+Before a changed name is persisted, capture is retired and confirmed quiescent;
+stale transcripts/completions and queued callbacks cannot route or replay.
+Listening remains held until explicit **Enable listening** recovery and a new
+PTT. A rename/reset never opens the microphone or clears an existing run hold.
+The next activation generates grammar from the new name, including session
+discovery and artifact routing. The old prefix is absent and is no hidden alias.
 
-Until persistence succeeds, the previous name remains authoritative. If the
-new grammar cannot start, the saved/display identity remains committed, capture
+Until persistence and terminal audit succeed, the previous name remains effective.
+After replacement with unconfirmed audit/application completion, prefix routing
+is unavailable until explicit inspection/recovery; no success is claimed.
+Malformed/unreadable saved state likewise disables prefix/capture visibly.
+If the new grammar cannot start on the next explicit PTT, the saved/display name remains committed, capture
 stays unavailable, and the failure is shown visually; the old grammar is not
 silently restored.
 
-## Future Verbal Rename
+## Future Natural-Language / Model Rename
 
-Once model-backed verbal settings are added, verbal rename must call the same
+Once model-backed natural-language settings are added, rename must call the same
 validated setting operation as the native Apply control. The model may propose
 a value but cannot write the preference file, alter binary/product identity,
 retain aliases, or bypass validation and audit.

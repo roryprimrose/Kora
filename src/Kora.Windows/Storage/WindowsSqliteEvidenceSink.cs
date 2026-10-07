@@ -12,7 +12,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.Storage;
 
-public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
+public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
 {
     internal const string PartitionName = "EvidenceStorageV1";
     internal const int MaximumEnvelopeBytes = 65536;
@@ -260,12 +260,56 @@ public sealed class WindowsSqliteEvidenceSink : IEvidenceSink
         }
     }
 
-    internal static DiagnosticEnvelope DecodeDiagnostic(string payload)
+    public static string EncodeDailyDiagnostic(DiagnosticEnvelope envelope)
     {
+        ArgumentNullException.ThrowIfNull(envelope);
+        ValidateDiagnostic(envelope);
+        return Serialize(envelope);
+    }
+
+    public static DiagnosticEnvelope DecodeDiagnostic(string payload)
+    {
+        if (Encoding.UTF8.GetByteCount(payload) > MaximumEnvelopeBytes)
+        {
+            throw new InvalidDataException("The serialized diagnostic exceeds its byte bound.");
+        }
+        using (var document = JsonDocument.Parse(payload, new() { MaxDepth = 16 }))
+        {
+            RequireUnique(document.RootElement);
+            foreach (var field in new[]
+            {
+                "SchemaVersion", "EvidenceId", "ObservedUtc", "EventId", "EventName", "Level", "Category",
+                "MessageTemplate", "Properties", "Scopes", "Trace", "Host", "ExceptionType",
+                "AuditCorrelationId", "ApprovalId",
+            })
+            {
+                if (!document.RootElement.TryGetProperty(field, out _))
+                {
+                    throw new InvalidDataException("A versioned diagnostic envelope field is missing.");
+                }
+            }
+        }
         var envelope = JsonSerializer.Deserialize<DiagnosticEnvelope>(payload, Serialization)
             ?? throw new InvalidDataException("A persisted diagnostic envelope is missing.");
         ValidateDiagnostic(envelope);
         return envelope;
+    }
+
+    internal static void RequireUnique(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name)) { throw new InvalidDataException("Duplicate evidence JSON fields are not admitted."); }
+                RequireUnique(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray()) { RequireUnique(item); }
+        }
     }
 
     internal static AuditEnvelope DecodeAudit(string payload)

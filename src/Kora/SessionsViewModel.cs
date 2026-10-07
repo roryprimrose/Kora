@@ -20,17 +20,23 @@ internal sealed partial class SessionsViewModel(
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
-    private SessionPage<WorkSessionAuthorization>? sessions;
+    private SessionPage<SessionWorkspaceEntry>? sessions;
     private SessionPage<HostQuestionRecord>? questions;
     private SessionPage<HostTaskRecord>? tasks;
     private EvidencePage? evidencePage;
-    private WorkSessionAuthorization? selected;
-    private string status = "Refresh to inspect existing minimal durable authority. No conversation or queue store is available.";
+    private SessionWorkspaceEntry? selected;
+    private string nameDraft = string.Empty;
+    private string status = "Refresh to inspect bounded durable names and authority. No conversation or queue store is available.";
     private string detail = string.Empty;
     private bool busy;
     private bool closed;
 
-    public IReadOnlyList<WorkSessionAuthorization> Sessions => sessions?.Records ?? [];
+    public IReadOnlyList<SessionWorkspaceEntry> Sessions => sessions?.Records ?? [];
+    public string NameDraft
+    {
+        get => nameDraft;
+        set { nameDraft = value; OnPropertyChanged(); Notify(); }
+    }
     public string Status => status;
     public string Detail => detail;
     public bool CanRead => !busy && !closed && access.CanInspect;
@@ -39,12 +45,14 @@ internal sealed partial class SessionsViewModel(
     public bool CanNextTasks => CanRead && tasks?.Next is not null;
     public bool CanEvidence => CanRead && selected is not null;
     public bool CanNextEvidence => CanEvidence && evidencePage?.Cursor is not null;
-    public bool CanDone => CanRead && access.CanControl && selected?.IsActive == true;
-    public bool CanResume => CanRead && access.CanControl && selected?.IsActive == false;
+    public bool CanDone => CanRead && access.CanControl && selected?.Authority.IsActive == true;
+    public bool CanResume => CanRead && access.CanControl && selected?.Authority.IsActive == false;
+    public bool CanCreate => CanRead && access.CanControl && !string.IsNullOrWhiteSpace(nameDraft);
+    public bool CanRename => CanCreate && selected is not null;
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
-        sessions = await service.ReadSessionsAsync(null, 25, lifetime.Token);
+        sessions = await service.ReadMetadataAsync(null, 25, lifetime.Token);
         ClearSelection();
         status = "Active/Done minimal authority: " + sessions.Records.Length.ToString(CultureInfo.InvariantCulture)
             + " records on this page. " + (sessions.Next is null ? "End of current list." : "More pages available.");
@@ -52,13 +60,13 @@ internal sealed partial class SessionsViewModel(
 
     public Task NextAsync() => RunAsync(async () =>
     {
-        sessions = await service.ReadSessionsAsync(sessions?.Next
+        sessions = await service.ReadMetadataAsync(sessions?.Next
             ?? throw new InvalidOperationException("Refresh before requesting a next page."), 25, lifetime.Token);
         ClearSelection();
         status = "Next bounded authority page. Refresh for concurrent additions/changes.";
     });
 
-    public Task SelectAsync(WorkSessionAuthorization? record) => RunAsync(async () =>
+    public Task SelectAsync(SessionWorkspaceEntry? record) => RunAsync(async () =>
     {
         if (record is not null && !Sessions.Contains(record))
         {
@@ -67,29 +75,30 @@ internal sealed partial class SessionsViewModel(
         ClearSelection();
         selected = record;
         if (record is null) { return; }
-        questions = await service.ReadQuestionsAsync(record.SessionId, null, 25, lifetime.Token);
-        tasks = await service.ReadTasksAsync(record.SessionId, null, 25, lifetime.Token);
+        nameDraft = record.Metadata?.Name.Value ?? string.Empty;
+        questions = await service.ReadQuestionsAsync(record.Authority.SessionId, null, 25, lifetime.Token);
+        tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
         Render();
         status = "Passive selected detail. Selection never targets a question, approval or command. Pages are observations, not an atomic work ledger.";
     });
 
     public Task NextQuestionsAsync() => RunAsync(async () =>
     {
-        questions = await service.ReadQuestionsAsync(RequireSelected().SessionId,
+        questions = await service.ReadQuestionsAsync(RequireSelected().Authority.SessionId,
             questions?.Next ?? throw new InvalidOperationException("No next question page."), 25, lifetime.Token);
         Render();
     });
 
     public Task NextTasksAsync() => RunAsync(async () =>
     {
-        tasks = await service.ReadTasksAsync(RequireSelected().SessionId,
+        tasks = await service.ReadTasksAsync(RequireSelected().Authority.SessionId,
             tasks?.Next ?? throw new InvalidOperationException("No next task page."), 25, lifetime.Token);
         Render();
     });
 
     public Task ReadEvidenceAsync(bool next = false) => RunAsync(async () =>
     {
-        evidencePage = await evidence.QueryAsync(new() { SessionId = RequireSelected().SessionId },
+        evidencePage = await evidence.QueryAsync(new() { SessionId = RequireSelected().Authority.SessionId },
             next ? evidencePage?.Cursor ?? throw new InvalidOperationException("No next evidence page.") : null, lifetime.Token);
         Render();
     });
@@ -97,9 +106,9 @@ internal sealed partial class SessionsViewModel(
     public Task ChangeLifecycleAsync(bool active) => RunAsync(async () =>
     {
         var target = RequireSelected();
-        var changed = await service.ChangeLifecycleAsync(target.SessionId, target.Generation, active,
+        var changed = await service.ChangeLifecycleAsync(target.Authority.SessionId, target.Authority.Generation, active,
             RequestOrigin.LocalUi, lifetime.Token);
-        selected = changed;
+        selected = new(changed, target.Metadata);
         questions = await service.ReadQuestionsAsync(changed.SessionId, null, 25, lifetime.Token);
         tasks = await service.ReadTasksAsync(changed.SessionId, null, 25, lifetime.Token);
         evidencePage = null;
@@ -108,15 +117,40 @@ internal sealed partial class SessionsViewModel(
             + ". Generation advanced. No task, approval or context replay. Refresh the list to observe the new state.";
     });
 
-    private WorkSessionAuthorization RequireSelected() =>
+    public Task CreateAsync() => RunAsync(async () =>
+    {
+        var created = await service.CreateAsync(new(nameDraft), RequestOrigin.LocalUi, lifetime.Token);
+        sessions = null;
+        ClearSelection();
+        selected = created;
+        nameDraft = created.Metadata!.Name.Value;
+        Render();
+        status = "Committed empty Active session " + created.Authority.SessionId.Value.ToString("D")
+            + ". No executor, model context, work dispatch or permission created. Refresh to list it.";
+    });
+
+    public Task RenameAsync() => RunAsync(async () =>
+    {
+        var target = RequireSelected();
+        selected = await service.RenameAsync(target.Authority.SessionId, target.Authority.Generation,
+            target.Metadata?.Revision.Value ?? 0, new(nameDraft), RequestOrigin.LocalUi, lifetime.Token);
+        Render();
+        status = "Committed rename for exact ID " + selected.Authority.SessionId.Value.ToString("D")
+            + ". Lifecycle, generation, work and approvals unchanged. Refresh for the current list.";
+    });
+
+    private SessionWorkspaceEntry RequireSelected() =>
         selected ?? throw new InvalidOperationException("Select the exact subject session first.");
 
     private void Render()
     {
-        var record = RequireSelected();
+        var entry = RequireSelected();
+        var record = entry.Authority;
         var text = new StringBuilder().Append("Session ").Append(record.SessionId.Value.ToString("D"))
             .Append(record.IsActive ? " | Active" : " | Done").Append(" | generation ").Append(record.Generation.Value)
-            .AppendLine().AppendLine("Minimal authority only; no title, conversation, queue, scheduler or restored context.")
+            .AppendLine().Append("Name: ").AppendLine(entry.Metadata?.Name.Value ?? "Unnamed session (metadata not yet set)")
+            .Append("Metadata revision: ").Append(entry.Metadata?.Revision.Value ?? 0).AppendLine()
+            .AppendLine("Name is user content, never authority. No conversation, queue, scheduler or restored context.")
             .AppendLine("Task records (current durable state, not inferred runtime progress):");
         foreach (var task in tasks?.Records ?? [])
         {
@@ -197,6 +231,7 @@ internal sealed partial class SessionsViewModel(
         tasks = null;
         evidencePage = null;
         detail = string.Empty;
+        nameDraft = string.Empty;
     }
 
     public void Close()
@@ -215,6 +250,9 @@ internal sealed partial class SessionsViewModel(
         OnPropertyChanged(nameof(Sessions));
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(Detail));
+        OnPropertyChanged(nameof(NameDraft));
+        OnPropertyChanged(nameof(CanCreate));
+        OnPropertyChanged(nameof(CanRename));
         OnPropertyChanged(nameof(CanRead));
         OnPropertyChanged(nameof(CanNext));
         OnPropertyChanged(nameof(CanNextQuestions));

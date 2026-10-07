@@ -250,19 +250,61 @@ These choices and the window position are stored on this device.
 
 ## Speech and audio
 
-### Assistant name
+### Assistant display / PTT command-prefix name
 
 - Default: **Kora**
-- Length: 1 to 3 words and no more than 32 Unicode characters
+- Length: 1 to 3 words and no more than 32 UTF-16 characters after whitespace
+  trimming/collapse (the existing name rules, not session-name NFC rules)
 - Allowed: letters, numbers, spaces, apostrophes, and hyphens
 
-The name updates window titles, tray labels, command prefixes, recognition
-grammar, visual responses, spoken identity, and voice preview. Names that
-collide with built-in command phrases are rejected. The executable remains
-`Kora.exe`, and local data remains under `%LOCALAPPDATA%\Kora`.
+**Apply name** and **Reset name to Kora** use the same typed, audited atomic
+workflow as [exact assistant settings commands](commands.md#assistant-display--ptt-command-prefix-setting).
+Discovery/get show schema 1, `assistant.name` (spoken: **assistant name**),
+string type, bounds/default, device-local scope, effect/timing, process-local
+revision and saved-versus-unsaved-default provenance. Reset affects this option
+only; a missing file remains an unsaved domain default until a changed choice
+is explicitly saved.
+
+The name updates window titles, tray labels, command/help prefixes, visual
+responses, spoken identity and voice preview. The next explicitly activated
+PTT uses the new grammar; the old prefix is not an alias, including session
+and artifact commands. A mutation retires capture and queued transcript/
+completion generations and leaves listening held. Use **Enable listening**
+explicitly before a new PTT; rename/reset never opens the microphone or clears
+an existing run hold. Failed capture shutdown or persistence retains the prior
+name and reports failure. A later grammar-start failure keeps the saved name
+but capture unavailable; there is no old-grammar fallback.
+
+Invalid/corrupt/unknown saved state is visible and disables prefix routing and
+capture instead of silently using Kora. Native recovery and exact unprefixed
+get/set/reset remain available. Repair storage access, explicitly set/reset or
+refresh; an audit-completion failure after replacement requires inspection and
+explicit recovery, not a reported successful mutation.
+Protected/unknown call state rejects original voice-channel set/reset even
+when later delivered through a button; initiate a new eligible local request.
+
+This is presentation/routing, **not an authority identity or a qualified
+production wake name**. Reset does not change session/task/grant/approval/
+instance IDs or stored session names. The executable remains `Kora.exe`;
+namespaces and application data paths remain fixed. No wake detector, custom
+profile, learning/enrollment, assets, download or OS/global setting is added.
 
 ### Microphone
 
+The existing input preference is also available as exact `speech.input-device`
+[commands](commands.md#exact-input-device-preference). List/get reports
+desired/effective and saved/default/unavailable provenance; set/reset uses the
+same native audited atomic preference path. Reset selects System only and
+cannot grant consent/permission, enable listening or release a manual/run hold.
+
+- **Choose microphone (native recovery)** opens the same passive card as the
+  tray entry. Opening/Refresh reads bounded device metadata only. Highlight an
+  exact endpoint, then **Save preference only**; System and unavailable saved
+  pins remain visible, including after restart.
+- Separate **Enable listening (PTT readiness only)** uses the displayed saved
+  endpoint and fresh host gates, not the highlight or an old answer. Consent
+  remains in the existing separate Settings flow. No combined consent/enable,
+  microphone test or durable device-question bridge is available.
 - The card reports whether Windows microphone access for desktop applications
   is **allowed**, **blocked**, or could not be confirmed.
 - **System** follows the live Windows multimedia-default microphone.
@@ -294,10 +336,14 @@ that hold.
 
 ### Speech provider
 
+- **Installed speech provider and voice** selects only ready installed choices.
+  The stable provider IDs are `windows-sapi` and `kokoro`.
+- **Speech provider assets (review only)** is separate. Reviewing a provider
+  never changes the saved selection or working voice.
 - **Windows** is built in, uses installed SAPI voices, and requires no download.
 - **Kokoro** is an optional local neural provider. Kora does not download it
   automatically.
-- Select Kokoro and choose **Download** to retrieve its pinned model and voice
+- Review Kokoro under provider assets and choose **Download** to retrieve its pinned model and voice
   assets. The download is approximately 219 MiB.
 - Kora validates both assets by exact size and SHA-256 before installing them.
 - Kokoro becomes available immediately after preparation; Kora does not need to
@@ -305,14 +351,89 @@ that hold.
 - **Remove downloaded model** deletes Kokoro's device-local model and voices
   without affecting the built-in Windows provider.
 
-Provider and voice selections are stored on this device.
+Provider and voice selections are stored as one atomic device-local choice.
+Completing a download makes choices available; explicitly select the installed
+provider or voice to change output. Missing assets and invalid saved state
+disable speech with a visible recovery message, never silently substitute.
 
 ### Speech voice
 
-- Select a voice supplied by the chosen provider.
+- Select an installed voice. The displayed `provider / ID` identifies the exact
+  choice; selecting a voice explicitly selects its provider too.
+- Without an explicit voice, Kora uses that provider's advertised default.
+  If no compatible default exists, select an exact installed voice instead.
+- **Reset speech provider** restores Windows and its advertised default voice.
+  **Reset speech voice** restores only the selected provider's advertised default.
+  Neither reset downloads missing assets or chooses an unrelated voice.
+- Exact typed/activated-voice commands use the same workflow:
+  `list speech settings`, `get speech.provider`, `get speech.voice`,
+  `set speech.provider to windows-sapi`,
+  `set speech.voice to kokoro / af_heart`, and `reset speech.voice`.
+  Use the IDs actually listed on your device. Unqualified voice IDs must be
+  unambiguous. Protected calls reject original voice-channel set/reset;
+  initiate a new eligible Settings/typed request rather than confirming later.
 - **Preview** speaks a short identity phrase with the selected voice and output.
   No ambient recognition is active.
 - **Stop** cancels active speech.
+
+Status shows desired/effective voice, saved/default provenance, revision and
+recovery. Save failure retains the previous selection. Concurrent or stale
+changes require a fresh inspection/request. This bounded configuration does not
+add rate, volume, call exceptions or model settings tools.
+
+### Spoken summary limits
+
+Under **Speech & audio**, choose **Maximum sentences (1-3)** and **Maximum
+words (1-80)**. Defaults are **3 sentences / 80 words**; either cap can be
+lowered independently. **Reset sentence cap** restores 3 while preserving
+words; **Reset word cap** restores 80 while preserving sentences.
+
+The registry IDs are `speech.summary-sentences` and `speech.summary-words`;
+spoken names are **speech summary sentences** and **speech summary words**.
+Discovery/get/set/per-option reset use the same native/typed/activated-voice
+workflow. For example, **set speech.summary-words to 40**.
+Status distinguishes unsaved defaults from saved limits and reports revision
+and recovery. The host checks original channel, live privacy/ownership and call
+revision adjacent to audited atomic persistence. Protected calls reject
+voice-originated changes, including reset. No provider, voice, output routing,
+voice consent or call protection is changed.
+
+Ordinary finalized speech is admitted only if the complete spoken text
+(title, answer and retained warnings) fits **both** configured caps. The host
+does not infer safe omissions from model prose: over-cap results get a truthful
+**Speech withheld** status and forced full visual recovery, even in Audible
+only mode. No truncation, success paraphrase, extra model call or queued retry
+occurs. Full visual text/details remain unchanged. Exact proposal/approval
+readback, required questions/options and voice previews are not ordinary
+summaries; their existing exact/bounded/privacy rules still apply.
+No arbitrary full-content reading command is added.
+
+Counting is deterministic Unicode text counting, not acoustic duration or
+linguistic segmentation:
+
+- A word is a run of Unicode letters/digits. Combining marks and ASCII
+  apostrophe, right apostrophe, ASCII hyphen, U+2010 and U+2011 may join a run
+  (including repeated joiners). Other punctuation/whitespace splits runs.
+  Decimal dots, acronym dots, underscores, slashes and `@` split word runs.
+  Emoji/symbols alone are not words; unspaced CJK text is one word run.
+- A sentence is a segment containing a word, ended by `.`, `!`, `?`, `。`,
+  `！`, `？` or `．`. Repeated terminators/closing quotes do not add empty
+  sentences. A trailing word-bearing fragment counts as a sentence.
+  Line breaks alone do not end sentences.
+- ASCII dots between digits, single ASCII-letter initials and these case-insensitive
+  abbreviations do not end sentences: `Mr.`, `Mrs.`, `Ms.`, `Dr.`, `Prof.`,
+  `Sr.`, `Jr.`, `e.g.`, `i.e.`, `etc.`, `U.S.`, `U.K.`. Abbreviations must
+  end at a non-letter/digit boundary. Other abbreviations and punctuation use
+  the rules above; no dictionary/model guess is made.
+
+Limits are a versioned atomic device-local preference independent of the
+existing provider/voice file. Upgrades with no limit file use unsaved defaults
+without rewriting legacy speech choices. Corrupt/unreadable/unknown formats
+disable ordinary speech with visible recovery; they are not defaults.
+Repair the local preference file and refresh. A per-option mutation cannot
+silently default an unknown companion cap. Mandatory readback and visual output
+remain governed by their existing rules. Changes retire pending speech before
+UI dispatch; reset or call clearance never replays retired output.
 
 Push-to-talk stops current speech before opening command capture.
 **Stop speaking** is also available from the tray without speech or a model.
@@ -320,7 +441,22 @@ Push-to-talk stops current speech before opening command capture.
 ### Audio output
 
 - **System** follows the live Windows multimedia-default output.
-- A named endpoint creates a pinned local override.
+- An existing saved endpoint remains pinned; a missing pin is not replaced.
+
+Choose **Refresh output metadata only**, select one exact endpoint choice, then
+**Save output preference only**. The draft alone changes nothing. **Reset output
+to System** removes only Kora's output override. The visible status distinguishes
+desired/saved/default, effective/unavailable route, mute and recovery.
+Metadata discovery has a five-second deadline and cannot accumulate workers.
+Names can duplicate; endpoint IDs, host-held choice, session/generation and
+current ownership/privacy/call/input revisions must match. Stale/foreign choices
+require fresh discovery. Selecting/resetting cancels retired speech but never
+plays a trial, resumes stopped output, changes Windows defaults/volume/mute,
+opens capture, grants consent or changes provider/voice/summary/input settings.
+Failed persistence/audit may leave a committed file; inspect saved status and
+refresh, not automatic retry. Missing/muted/open/playback failures retain full
+visual output regardless of the independently stored legacy muted-fallback option.
+No acoustic or full R10 acceptance is implied.
 
 ### Refresh devices and readiness
 
@@ -348,15 +484,12 @@ queue override, or the device default when no queue override exists.
 
 ### Muted speaker fallback
 
-Default: **on**. Show audible-only responses as text when the selected Windows
-speaker is muted or its endpoint volume is zero. Applies to the device default
-and task/queue overrides, using either **System** output or a selected endpoint.
-The configured response mode is unchanged; unmuting restores it on the next
-response without refreshing devices.
-
-Turning this off suppresses ordinary visual fallback for muted output only.
-Failures, pending questions, approvals, missing devices, and unavailable speech
-voices still use visual output.
+Default: **on**. This independently stored legacy preference is retained for
+compatibility; it cannot suppress mandatory complete visual recovery when the
+effective output is missing, software-muted, zero-volume, unavailable or failed.
+The configured response mode is unchanged. A fresh eligible route can restore
+normal voice-only presentation; no recovery or setting change replays speech.
+Pending questions and approvals retain their exact visual preview.
 
 ### Effective output
 

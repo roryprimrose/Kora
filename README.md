@@ -3,10 +3,19 @@
 A Windows voice-first, local-first assistant.
 
 The runnable bootstrap includes an Avalonia desktop shell with an ambient
-particle-cloud presence, deterministic C# built-in handlers, Windows speech
+particle-cloud presence, deterministic host-owned C# built-in actions, Windows speech
 and optional local Kokoro speech output, local storage and SQLite, and a
 consented, verified Ollama model for unmatched requests. Script-backed skills
-and general application launching are not yet available.
+and general application launching are not yet available. Bounded durable
+session authority/workspace/names, explicit local clipboard preview,
+read-only host discovery, installed speech/appearance settings and independent
+daily/SQLite evidence inspection are delivered foundations, not full
+conversation history, queues, a model tool loop or release acceptance. See the
+[exact merged implementation snapshot](Design/Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+for source/PR boundaries and retained experiment evidence.
+Native and [exact typed/activated-voice session commands](docs/commands.md#bounded-exact-id-session-commands)
+share host lifecycle/metadata authority. They do not provide name-based routing,
+model session tools or concurrent scheduling.
 
 ## Requirements
 
@@ -83,8 +92,19 @@ context menu uses the configured assistant name for **Show**, **Settings**, and
 Windows may place the icon under **Show hidden icons** until the user promotes
 it to the always-visible notification area.
 After successful startup Kora hides its borderless transparent presence and
-continues listening in the background. The presence appears while the user
+remains available in the background. With consent and fresh gates, PTT is armed
+but the microphone stays closed until held activation; there is no production
+ambient/wake capture. The presence appears while the user
 is interacting with Kora or when Kora has information/results to provide.
+The tray also offers [bounded microphone/listening recovery](docs/windows-and-tray.md#microphone-and-listening-recovery),
+minimal Sessions, local clipboard preview, skill-package inspection, read-only
+Evidence and notify-only release maintenance. Refreshing/selecting microphone
+metadata never records or grants consent; Enable listening only arms PTT.
+**Choose microphone (native recovery)** in Tray/Settings opens the same passive
+card: highlighting is a local draft, Save commits only the displayed preference,
+and Enable is separate fresh input for the saved endpoint. It is not a durable
+question/session/task bridge or combined consent flow; no microphone test or
+Windows permission change is provided.
 Visual text uses a separate compact response surface; configuration remains in
 Settings. Closing visible surfaces returns to the background state, while only
 **Exit** stops the process.
@@ -104,6 +124,12 @@ revalidate domain bounds and publish only after atomic save; failures retain
 the old value. No model/network or voice/audio/call settings authority is added.
 See [Settings](docs/settings.md#appearance) and [Commands](docs/commands.md).
 Whole-profile reset/undo and full verbal preferences remain open.
+Installed speech choices and independently lowerable spoken summary limits
+also share native/exact typed/activated-voice configuration. Ordinary complete
+speech must fit both caps (default 3 sentences/80 words); otherwise Kora retains
+the full visual result and explicitly withholds speech rather than truncating
+warnings or making another model call. Exact approval/questions keep their
+existing mandatory bounds. See [spoken summary limits](docs/settings.md#spoken-summary-limits).
 Drag the response title area to reposition it; its
 controls can keep the current response visible until dismissed and can disable
 the default stay-on-top behavior. The presence is click-through by default,
@@ -260,8 +286,10 @@ Windows-session, permission and voice-policy gates. Normal startup arms
 push-to-talk without opening ambient capture. Choosing a specific
 microphone or speaker in Settings persists its stable Windows Core Audio endpoint
 ID as a device-local Kora override.
-Selecting System again removes that override. Future validated verbal/model
-setting changes use these same observable properties and persistence path.
+Selecting System again removes that override. Tray selection shares the
+existing preference/recovery path with revision checks. Exact verbal/typed
+appearance and installed provider/voice changes are delivered through shared
+host services; general device/model settings authority remains future work.
 
 A saved specific-device override takes precedence on later starts, but if that
 endpoint disappears Kora does not silently switch to another same-name or
@@ -311,42 +339,53 @@ enables general write, process, script, or approval execution, the same typed
 `ILogger` event must also be committed to the dedicated host-owned
 `security_audit_events` table described by the security design.
 
-The target instrumentation design does not make SQLite the only failure
-diagnostic path. Every permitted `ILogger` event goes to both the retained
-daily JSON files and encrypted SQLite. Ordinary records use
-`application_log_events`; records marked `SecurityAudit=true` use the separate
-authoritative `security_audit_events` table and also appear in the JSON file.
-Both tables preserve structured `ILogger` data: event identity, level/category,
-original message template, typed named properties and scopes. Audit rows add
-fixed typed audit columns. Rendered text is only a display/full-text projection,
-not the database record model or a source of audit authority.
-The target codebase uses versioned `System.Diagnostics.ActivitySource`
-instrumentation with W3C trace/span IDs throughout request, session/task,
-approval, runtime/tool, storage and evidence boundaries. Every diagnostic and
-audit row captures its activity plus host-owned session/task/invocation/
-approval/correlation IDs. Sessions span many traces; session evidence can show
-all related Logs and Audit entries, while any row can open its parent/linked
-trace graph.
-Diagnostic database retention defaults to 30 days under its independent
-configurable setting. Audit retention defaults to 90 days and can be configured
-from 30 through 365 days. Session deletion does not remove content-minimising
-audit rows, audit expiry does not remove perpetual grants, and viewing/searching
-evidence does not extend either retention clock.
-The file sink remains independent for bootstrap, database/key/migration
-failure, fatal crash, and evidence-store recovery. The planned Evidence mode
-has Logs, Audit and All Evidence views that list, read and search retained
-records without a model. Its Ask Evidence flow reasons over an explicit bounded
-selection, cites exact records and separates observations from inference;
-remote reasoning requires preview/approval of the selected payload. Ordinary
-diagnostics, file audit copies and retrieved record text never become
-authorization, instructions or receipt evidence.
+The composed evidence providers independently retain daily JSON and private
+standard-SQLite diagnostic/audit/span/link projections. Ordinary records use
+`application_log_events`; only trusted typed audit events marked
+`SecurityAudit=true` route to `security_audit_events` and the file sink.
+Lookalike properties and file copies acquire no audit authority. The separate
+interaction store commits its own authoritative question/grant/session audit
+atomically; the diagnostic projection cannot substitute for that transaction.
+Structured templates, typed properties/scopes, event identities and admitted
+host/W3C correlation are captured at the log call. Rendered text is a bounded
+display/search projection, never permission or an effect receipt.
+`ILogger<T>` diagnostics use source-generated `[LoggerMessage]` methods in
+class-named companion files; this does not alter the trusted audit path.
 
-SQLite itself is built-in application infrastructure, not an optional external
-dependency. Binary releases must include Kora's pinned managed provider and
-architecture-matched admitted native encrypted engine; the startup probe checks
-that packaged storage and schema rather than offering a SQLite installation.
-Kora does not require a SQLite server, download SQLite at runtime, use an
-ambient machine installation, or silently fall back to plaintext storage.
+Exact typed/activated-voice version queries commit durable intent, dispatch,
+terminal evidence and receipt. Owner startup recovers intent-only work as
+Interrupted and dispatch without verified receipt as Unknown, without replay.
+These bounded records prove a local query returned, not an OS effect,
+conversation history or speech completion. Native
+[Sessions](docs/windows-and-tray.md#minimal-durable-sessions) additionally
+exposes passive typed records and explicit guarded lifecycle/name controls.
+
+The tray's [Evidence inspector](docs/privacy-safety-and-logs.md#logs) reads
+SQLite Logs/Audit/spans/links with exact citations and at most 50 records /
+64 KiB serialized pages. Independent DailyLog reads bounded immutable daily
+diagnostic prefixes and reports source/scan gaps; All remains SQLite-only.
+Unsupported file audit mirrors never become authoritative audit rows.
+Combined-source ranking, session/conversation content, Ask Evidence/model
+tools, export and remote transmission remain unavailable.
+
+SQLite diagnostic due dates default to 30 days and audit due dates to 90 days;
+the audit domain validates 30-365 days, but no retention configuration/apply
+UI or audit pruning is delivered. One admitted owner-startup transaction
+prunes at most 128 due ordinary logs and 32 due spans with their bounded owned
+links. Backlog can remain. Audit rows and all tasks/interaction/session/grant
+records, including Perpetual, are untouched. Reading/searching never extends
+due dates. Logical row pruning is not forensic erasure or session/copy deletion.
+Daily-file 30-day/30-file retention remains independent.
+
+SQLite is built-in infrastructure, not an optional server/download. Binary
+packages carry the pinned managed provider and architecture-matched native
+standard engine. Supplied profile paths, current-user ownership, private
+permissions, schema/integrity and retained journals are verified; missing,
+corrupt or inaccessible existing stores are not replaced or silently repaired.
+Copies outside that private location are readable, and same-user/admin access
+is not prevented. Database encryption/key/rekey is not a current prerequisite.
+Installed loading/protection, physical power-loss, managed backup/artifact
+disposal and full storage/audit/session acceptance remain separate gates.
 
 ## Build and test
 

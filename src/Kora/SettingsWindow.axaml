@@ -317,21 +317,28 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Assistant name" Classes="settings-title" />
+                  <TextBlock Text="Display / PTT command-prefix name" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding AssistantNameSettingStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <TextBlock
+                      Text="{Binding AssistantNameConfigurationDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
                   <TextBox
                       Text="{Binding AssistantNameInput, Mode=TwoWay}"
-                      MaxLength="32"
                       PlaceholderText="Assistant name" />
                   <Button
                       Classes="primary"
                       Content="Apply name"
                       Command="{Binding ApplyAssistantNameCommand}"
+                      HorizontalAlignment="Stretch" />
+                  <Button
+                      Content="Reset name to Kora"
+                      Command="{Binding ResetAssistantNameCommand}"
                       HorizontalAlignment="Stretch" />
                 </StackPanel>
               </Grid>
@@ -352,11 +359,9 @@
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                  <ComboBox
-                      ItemsSource="{Binding Microphones}"
-                      SelectedItem="{Binding SelectedMicrophone}"
-                      DisplayMemberBinding="{Binding Name}"
-                      PlaceholderText="No microphone detected" />
+                  <Button x:Name="ChooseMicrophone"
+                      Content="Choose microphone (native recovery)"
+                      HorizontalAlignment="Stretch" />
                   <Button
                       Content="Open Windows microphone settings"
                       Command="{Binding OpenMicrophonePrivacySettingsCommand}"
@@ -391,7 +396,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Speech provider" Classes="settings-title" />
+                  <TextBlock Text="Speech provider assets (review only)" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding SpeechProviderAvailabilityMessage}"
                       Classes="settings-description"
@@ -431,7 +436,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Speech voice" Classes="settings-title" />
+                  <TextBlock Text="Installed speech provider and voice" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding VoiceAvailabilityMessage}"
                       Classes="settings-description"
@@ -439,13 +444,22 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
                   <ComboBox
-                      ItemsSource="{Binding Voices}"
+                      ItemsSource="{Binding InstalledSpeechProviders}"
+                      SelectedItem="{Binding SelectedInstalledSpeechProvider}"
+                      DisplayMemberBinding="{Binding Name}"
+                      PlaceholderText="Choose a ready installed provider" />
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                  <Button Content="Reset speech provider" Command="{Binding ResetSpeechProviderCommand}" />
+                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
+                  <ComboBox
+                      ItemsSource="{Binding InstalledSpeechVoices}"
                       SelectedItem="{Binding SelectedVoice}"
                       PlaceholderText="No voice selected">
                     <ComboBox.ItemTemplate>
                       <DataTemplate>
                         <StackPanel>
                           <TextBlock Text="{Binding Name}" />
+                          <TextBlock Text="{Binding ConfigurationId}" Classes="muted" FontSize="10" />
                           <TextBlock Text="{Binding Culture}" Classes="muted" FontSize="10" />
                         </StackPanel>
                       </DataTemplate>
@@ -462,19 +476,43 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
+                  <TextBlock Text="Spoken summary limits" Classes="settings-title" />
+                  <TextBlock Text="Ordinary results must fit both caps, including the spoken title. Over-cap results remain fully visual; no truncation or extra model call. Exact approval/question readback keeps its existing bounds."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <TextBlock Text="Maximum sentences (1-3)" Classes="settings-description" />
+                  <ComboBox ItemsSource="{Binding SummarySentenceChoices}" SelectedItem="{Binding SelectedSummarySentences}" PlaceholderText="Invalid saved limits; repair and refresh" />
+                  <Button Content="Reset sentence cap" Command="{Binding ResetSummarySentencesCommand}" />
+                  <TextBlock Text="Maximum words (1-80)" Classes="settings-description" />
+                  <ComboBox ItemsSource="{Binding SummaryWordChoices}" SelectedItem="{Binding SelectedSummaryWords}" PlaceholderText="Invalid saved limits; repair and refresh" />
+                  <Button Content="Reset word cap" Command="{Binding ResetSummaryWordsCommand}" />
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
                   <TextBlock Text="Audio output" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding AudioOutputConfigurationStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
                   <TextBlock
                       Text="{Binding OutputDeviceAvailabilityMessage}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
-                <ComboBox
-                    Grid.Column="1"
-                    ItemsSource="{Binding OutputDevices}"
-                    SelectedItem="{Binding SelectedOutputDevice}"
-                    DisplayMemberBinding="{Binding Name}"
-                    PlaceholderText="No audio output selected"
-                    VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding OutputDeviceChoices}" SelectedItem="{Binding SelectedOutputChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeAudioOutputDevice}"
+                      PlaceholderText="Refresh and choose exact output" />
+                  <Button Content="Refresh output metadata only" Command="{Binding RefreshOutputDevicesCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                  <Button Content="Save output preference only" Command="{Binding SaveOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                  <Button Content="Reset output to System" Command="{Binding ResetOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                </StackPanel>
               </Grid>
             </Border>
 
@@ -556,13 +594,13 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Muted speaker fallback" Classes="settings-title" />
                   <TextBlock
-                      Text="Show audible-only responses as text when the selected speaker is muted or its volume is zero."
+                      Text="Retained legacy preference. Unavailable, muted, zero-volume or failed output always keeps the complete visual response."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <CheckBox
                     Grid.Column="1"
-                    Content="Fall back to visual"
+                    Content="Stored legacy preference"
                     IsChecked="{Binding FallbackToVisualWhenOutputMuted}"
                     VerticalAlignment="Center" />
               </Grid>

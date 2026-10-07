@@ -3,8 +3,10 @@
 Status: source-backed implementation inventory and proposed delivery order;
 R01 policy reconciliation approved; R02 Windows storage direction and
 local-inference/runtime partial outcomes and distribution delivery plan recorded;
-standard profile-storage integration/runtime admission, real inference qualification, production
-implementation and acceptance proof remain open.
+full profile-storage/session integration, runtime admission, reference-floor
+inference qualification and complete production/acceptance proof remain open.
+The current merged inventory below supersedes older unversioned gap statements;
+the dated original/rebase receipts remain evidence of their own exact snapshots.
 Bootstrap inventory reviewed on 2026-10-05 against repository revision `e4688c3`;
 R02 storage evidence reviewed against `59d1eb9` and incorporated into the contracts below.
 Local-inference follow-up reviewed against `1bb6dc3` and its recorded evidence.
@@ -79,7 +81,124 @@ work imported, and no push or PR was authorized by this rebase.
 
 Related: [MVP Scope](MVP_Scope.md), [Decision Register](Decision_Register.md), [Acceptance Criteria](Acceptance_Criteria.md), [Canonical Tool Catalogue](Internal_Model_Tools.md), [Technical Capability Reference](Tool_And_Skill_Reference.md).
 
+## Current Merged Snapshot - 2026-10-07
+
+Refreshed on 2026-10-08 after the session-command and native recovery merges.
+Source reviewed at exact main
+[`90146f405ea9236a23ee2a95cd159efcd5fbf84f`](https://github.com/roryprimrose/Kora/commit/90146f405ea9236a23ee2a95cd159efcd5fbf84f).
+The required first-wave merges are ancestors:
+[#70](https://github.com/roryprimrose/Kora/pull/70)
+(`0b667e91746e94c8157bc9ae90faf57be3b6d3b9`),
+[#69](https://github.com/roryprimrose/Kora/pull/69)
+(`c0c15ac2a74a865bbd7540a7a0cf5c00c2d3a21b`),
+[#72](https://github.com/roryprimrose/Kora/pull/72)
+(`640f28b2f91c106f2d84cb62193beca9961ca739`) and
+[#71](https://github.com/roryprimrose/Kora/pull/71)
+(`cf0057bef2858998ea4e893cee7f4372780b7f25`).
+[#74](https://github.com/roryprimrose/Kora/pull/74)
+(`e3280388a4f6c2ce2dd1e6a7adaf925a3e6f3c7d`) adds independent daily JSON inspection;
+[#73](https://github.com/roryprimrose/Kora/pull/73)
+(`3bf1951ad6517cc2d3fa0b713e0a7fd23d4b18c8`) adds bounded exact-ID session
+commands, and [#77](https://github.com/roryprimrose/Kora/pull/77) adds passive
+native microphone recovery at the reviewed main SHA. Only merged main is included; this is a
+documentation/source review, not a new build, trial or acceptance receipt.
+
+| Merged foundation | Delivered boundary and maintained source | Still outside that boundary |
+|---|---|---|
+| [#61](https://github.com/roryprimrose/Kora/pull/61), #70, #73: R12/R13/R14 sessions | [Shared workspace service](../src/Kora.Application/Hosting/SessionWorkspaceService.cs), [deterministic command path](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs) and [private interaction store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs): passive bounded ID pages, typed questions/current durable tasks, guarded idle Done/resume, durable names and empty Create/revisioned exact-ID Rename. Exact typed/activated-voice help/list/status/inspect/create/rename/done/resume share guarded host transactions and fresh lineage. [User syntax](../docs/commands.md#bounded-exact-id-session-commands). | Names/creation are not conversations, context restoration, queues, a scheduler or name-based authority. No automatic archive/retention/delete/export, model session tools or approval retargeting. Typed commands can run while bootstrap work is busy without cancelling it; protected-call voice mutations remain unavailable. |
+| [#63](https://github.com/roryprimrose/Kora/pull/63): R07 context | [Tools clipboard broker](../src/Kora.Tools/Clipboard/ClipboardSnapshotBroker.cs) and three per-action classes: explicit immutable local plain-text preview, same-ID reuse and revoke, at most 256 KiB UTF-8. [User commands](../docs/commands.md#explicit-local-clipboard-preview). | No watcher, write, persistence, explanation or provider submission. Local tool-loop/answering and complete secret/egress-envelope gates remain open. |
+| [#56](https://github.com/roryprimrose/Kora/pull/56), [#64](https://github.com/roryprimrose/Kora/pull/64): R06/tools/definitions | [Application registry gateway](../src/Kora.Application/Tools/ReadOnlyCapabilityRegistry.cs) admits six read-only host descriptors; [Kora.Tools](../src/Kora.Tools/README.md) owns portable per-action implementations; [Kora.Definitions](../src/Kora.Definitions/README.md) owns immutable bundled resources. | Cached discovery is not model execution, fresh probing or runtime admission. No remote SDK/MCP adapter, mediated result loop, bundled script executor or agent runtime is composed. |
+| [#57](https://github.com/roryprimrose/Kora/pull/57), #72, [#78](https://github.com/roryprimrose/Kora/pull/78): R10 configuration | [Appearance service](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [speech service](../src/Kora.Application/Configuration/SpeechConfigurationService.cs) and [assistant display/PTT prefix service](../src/Kora.Application/Configuration/AssistantNameConfigurationService.cs): shared native/exact typed/activated-voice discovery/get/set/reset, bounded revisions, atomic persistence and audit. [Settings guide](../docs/settings.md). | Only nine appearance options, installed provider/voice choices and the existing display/PTT prefix are registered. Name mutation retires capture and preserves all authority identities; it does not qualify production wake. No general model settings tools, whole-profile reset/undo, new speech maxima, provisioning authority or acoustic acceptance. |
+| [#65](https://github.com/roryprimrose/Kora/pull/65): artifact invocation | [Explicit bundled catalogue](../src/Kora.Definitions/ArtifactInvocation/EmbeddedArtifactCatalogue.cs), [bounded disk discovery](../src/Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs) and [router](../src/Kora.Core/ArtifactInvocation/ArtifactCommandRouter.cs): source-qualified slash/activated-voice instruction selection into the existing verified local-model request, with a filtered slash dropdown. [User syntax](../docs/commands.md#run-skills-and-future-artifacts). | Instruction selection is not execution of embedded/profile scripts, generic skill enablement/authoring, a tool loop or agent delegation. Existing action/grant gates still apply. |
+| [#68](https://github.com/roryprimrose/Kora/pull/68), #69, #74: diagnostics/evidence | Source-generated class-companion diagnostics preserve typed audit authority. [Owner startup](../src/Kora/Program.cs) composes recovery then one [ordinary retention batch](../src/Kora.Windows/Storage/WindowsSqliteDiagnosticRetention.cs). [Evidence reader routing](../src/Kora.Windows/Storage/WindowsEvidenceReader.cs) supplies SQLite and independent DailyLog inspection. [User evidence limits](../docs/privacy-safety-and-logs.md#logs). | Retention preserves audits/tasks/sessions/grants; it is not session deletion or forensic erasure. All remains SQLite-only; no combined file/database ranking, authoritative file audit, Ask Evidence/model tools or export. |
+| #71, #77: R03/R05/R09 native recovery | [Native tray](../src/Kora/SystemTrayController.cs) and [passive microphone card](../src/Kora.Application/ViewModels/MicrophoneRecoveryViewModel.cs): generic input state, bounded metadata refresh, revision-bound System/pinned preference selection, explicit PTT enable/disable and Stop speaking. Tray/Settings share exact displayed choices, unsaved highlight, Save preference only and a separate fresh endpoint-bound Enable. [User recovery](../docs/windows-and-tray.md#microphone-and-listening-recovery). | Enable arms readiness with the microphone closed; actual capture requires held PTT. The card is not a durable R05 question/task/session bridge, combined consent/selection/enable, microphone test, ambient/wake capture or Windows permission change. Full hardware/native acceptance remains separate. |
+
+This snapshot does not close full R04/R06/R07/R10/R12/R13/R14/R19 or A0-A4.
+The [current bounded audio output feature](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+shares working native/exact discovery/get/status/select/reset through persisted
+audio session/generation and host-held-choice admission. Original channel,
+ownership/privacy/call/input revisions, audited atomic persistence and receipt-safe
+activation remain fail-closed; metadata-only configuration never starts audio.
+Saved/System routing and independent installed speech/summary/input/name settings
+are preserved. No experiment is retired: deterministic metadata/storage/binding
+tests do not replace unique speech/acoustic/hardware/provider evidence, and no
+historical receipt or full R10/I/A acceptance is rewritten.
+Safe independent foundations can continue once their actual prerequisites
+are satisfied; downstream model/effect exposure remains gated by the relevant
+R02 qualification, host authority, privacy, resource and installed boundaries.
+The existing [Needs graph](#ordered-outstanding-work), not PR numbering or
+experiment success alone, controls that dependency order.
+
+**Experiment disposition at this snapshot:** the distribution-only NSIS path
+and six superseded distribution executables are already retired, with
+[maintained equivalents and original receipts](../experiments/r02-distribution-proof/README.md#executable-disposition-after-maintained-equivalence).
+Maintained production tests now cover applicable storage atomicity/recovery,
+session lifecycle/metadata and ordinary retention semantics; the
+[storage equivalence map](../experiments/r02-storage-proof/README.md#production-recovery-migration-and-retention---2026-10-07)
+and [retention assessment](../experiments/r02-storage-proof/README.md#bounded-ordinary-retention-equivalence-assessment---2026-10-07)
+retain shared executables for unique encrypted-engine/FTS/DPAPI/rekey/artifact/
+backup/native comparisons and their consumers. Clipboard preview, read-only
+discovery, speech choices and DailyLog inspection do not supersede actual
+inference, RT1/RT2/MG1/provider, speech/acoustic or containment/W2 proofs.
+No additional executable retirement or experiment rerun is claimed. The
+[deferred proof register](Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition)
+continues to distinguish unique proof from production and installed acceptance.
+
 ## How to Read Status
+
+### Bounded R10 exact input-device configuration
+
+The existing microphone preference now has typed and activated-voice exact
+discovery/get/status/set/per-option reset via `speech.input-device`, sharing
+native Settings/tray/#77 card atomic persistence and typed audit outcomes.
+Five-second single-flight metadata discovery, host-held exact objects,
+request/session lineage, input/recovery/call revisions and serialized live
+host/privacy/original-channel gates bound writes. System follows multimedia
+default; unavailable explicit pins stay pinned. Reset selects System only,
+never consent/permission, listening enablement or a reopened run hold.
+The [owning contract](User_Configuration.md#delivered-bounded-exact-input-device-preference-r10)
+and embedded commands/settings/voice/tray guidance state complete input/output
+limits and explicit failure recovery. This is not full R10/R03/R09/R05/A or
+native/hardware acceptance; no model tools or broader runtime authority.
+
+Initial prerequisite base: `90146f405ea9236a23ee2a95cd159efcd5fbf84f`.
+After #76, #75 and #78 merged, the owned input-device branch was immediately
+rebased onto `2e54c892c3b63f2e8c96d7f89dbcb03a4f447015`, preserving both exact
+command grammars, the new assistant-name workflow and sibling documentation.
+Fresh combined validation: Release solution build **0 warnings / 0 errors**;
+Core **648**, Application **1,692**, Tools **38**, Definitions **6**, Windows
+integration **865** passed,
+**0 skipped**. Portable aggregate line/branch gates remain exact **100% / 100%**;
+existing coverage exclusions are unchanged. New deterministic coverage includes
+parser/output boundaries, native/typed/activated parity, missing pins/default
+changes/duplicate names, foreign/equal/stale context, pending interactions,
+call/owner/privacy/recovery races, cancellation/disposal/late metadata,
+atomic-format restart and failed storage/request/terminal audit evidence,
+no auto-arm, release failure and hostile incoming trace isolation. No live
+Kora, capture/playback/wake, setup, OS effects or hardware acceptance was run.
+
+Experiment disposition: retained all executable/evidence files. Inspected
+microphone consumers in `r02-speech-proof`, local-inference and storage proof
+references; none implements this exact metadata/preference command workflow.
+Speech fixture/wake/recognition, capture lifecycle, containment and historical
+receipts are unique evidence, not executable equivalents superseded by
+deterministic preference tests. No broad deletion or experiment execution.
+
+### Bounded R03/R05 passive native microphone recovery card
+
+Tray **Choose microphone** and speech Settings now share a passive native card
+with real endpoint IDs, System/default availability, retained unavailable pins,
+unsaved local highlight, explicit revision-bound Save and separate Enable,
+metadata Refresh, Disable and Stop speaking. The existing audited audio host
+services own all changes; native input rechecks current ownership, Windows
+privacy/permission, consent, readiness and original-channel/call revision.
+No capture/test, automatic replacement, model/network or OS permission write
+is introduced. Closing creates no durable answer, consent or session/task
+decision. The [exact availability and authority boundary](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+leaves genuine R05 device-question orchestration, combined consent/enable,
+first-run onboarding, production wake and native/hardware acceptance open.
+All experiment executables/evidence are preserved: the maintained card tests
+are not equivalent to historical synthetic speech proof or its live consumers.
 
 ### Bounded R17/R18 canonical maintenance foundation
 
@@ -314,32 +433,35 @@ The identifiers in this table are inventory references, not new capability or mo
 
 | Ref | Status | What exists and its boundary | Source and test evidence |
 |---|---|---|---|
-| I01 | Delivered bootstrap; deployment proof outstanding | .NET 10/Avalonia Windows composition with portable Core/Application projects and first-party Windows services. No Copilot SDK adapter or MCP runtime is composed. | [Composition](../src/Kora/Program.cs), [desktop project](../src/Kora/Kora.csproj), [dependency versions](../Directory.Packages.props) |
-| I02 | Delivered bootstrap and bounded read-only registry | All 25 built-in actions retain normalized whole-phrase routing, configured-name prefixes and C# dispatch. Six canonical read-only descriptors now compose direct host handlers and separate exact local discovery before inference; help points to that authoritative catalogue. The JSON selector action inventory, lock/power behavior and skill execution are unchanged. | [Actions](../src/Kora.Core/Commands/BuiltInAction.cs), [command catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [read-only descriptors](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs), [registry/tests](../tests/Kora.Application.UnitTests/Tools/ReadOnlyCapabilityRegistryTests.cs), [native wiring/tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Capabilities.cs) |
-| I03 | Delivered bootstrap; A4 partial | Presence, Settings, compact response, embedded documentation and grant windows; themes, assistant naming, native controls, response pin/topmost/timeout and device-local placement/preferences. The tray exposes Show, Settings, Documentation and Exit with single/double-click behavior. It has no direct microphone-selection/listening-recovery menu, Sessions workspace or full conversation history. | [Desktop composition](../src/Kora/App.axaml.cs), [tray](../src/Kora/SystemTrayController.cs), [response surface](../src/Kora/ResponseWindow.axaml), [application view model](../src/Kora.Application/ViewModels/MainViewModel.cs), [embedded-guide tests](../tests/Kora.Application.UnitTests/Documentation/EmbeddedUserDocumentationProviderTests.cs) |
+| I01 | Delivered bootstrap; deployment proof outstanding | .NET 10/Avalonia Windows composition with portable Core, Tools, Definitions and Application projects and first-party Windows services. Tools/Definitions depend on Core, not Application/Windows/desktop. No Copilot SDK adapter or MCP runtime is composed. | [Composition](../src/Kora/Program.cs), [desktop project](../src/Kora/Kora.csproj), [tool layout](../src/Kora.Tools/README.md), [definitions](../src/Kora.Definitions/README.md), [dependency versions](../Directory.Packages.props) |
+| I02 | Delivered bootstrap and bounded read-only registry | All 25 built-in actions retain normalized whole-phrase routing, configured-name prefixes and C# dispatch. Six canonical read-only descriptors compose per-action Kora.Tools implementations behind the Application gateway and exact local discovery before inference; help points to that catalogue. Separate clipboard/settings/session controls and artifact instruction selection do not extend this six-ID registry or admit a model tool/result loop. Existing lock/power handlers remain unchanged. | [Actions](../src/Kora.Core/Commands/BuiltInAction.cs), [command catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [read-only descriptors](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs), [tool implementations](../src/Kora.Tools/README.md), [registry/tests](../tests/Kora.Application.UnitTests/Tools/ReadOnlyCapabilityRegistryTests.cs), [native wiring/tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Capabilities.cs) |
+| I03 | Delivered bootstrap and bounded native surfaces; A4 partial | Presence, Settings, compact response, embedded documentation/passive details, legacy grant editor, durable native version question/review, minimal Sessions workspace, clipboard preview, read-only Evidence and notify-only maintenance. Tray includes metadata-only refresh/selection, explicit listening enable/disable and playback stop; Tray/Settings share a passive exact-endpoint microphone recovery card with separate Save and Enable. Full conversation/history, work/queue and durable generic recovery questions remain open. | [Desktop composition](../src/Kora/App.axaml.cs), [tray](../src/Kora/SystemTrayController.cs), [passive card](../src/Kora.Application/ViewModels/MicrophoneRecoveryViewModel.cs), [response surface](../src/Kora/ResponseWindow.axaml), [application view model](../src/Kora.Application/ViewModels/MainViewModel.cs), [tray tests](../tests/Kora.Windows.IntegrationTests/TrayRecoveryTests.cs), [embedded-guide tests](../tests/Kora.Application.UnitTests/Documentation/EmbeddedUserDocumentationProviderTests.cs) |
 | I04 | Implemented PTT/ownership foundation; deterministic privacy lifecycle regressions; native acceptance partial | Microphone/output enumeration, device preferences, consent/readiness and Enable/Disable listening are wired. Startup may enable readiness after fresh gates; capture remains closed until held PTT. Settings supports mouse/Space/Enter PTT with release/focus-loss closure. A per-SID global owner coordinates cross-build activation/takeover/return; only Owner composes services. Existing WTS/power/MMDevice observation and the one-second permission polling fallback have deterministic observer/capture regression coverage, including negative closure before session requery and query/disposal ordering. Complete native lock/disconnect/suspend/device and polling acceptance remains unproved. | [Application orchestration](../src/Kora.Application/ViewModels/MainViewModel.cs), [PTT controls](../src/Kora/SettingsWindow.axaml.cs), [owner coordinator](../src/Kora.Windows/Coordination/WindowsInstanceCoordinator.cs), [Owner-only composition](../src/Kora/Program.cs), [observer regressions](../tests/Kora.Windows.IntegrationTests/Session/WindowsPrivacyObservationServiceTests.cs), [bounded R03 evidence and remaining trials](Deferred_Validation.md#r03-windows-ownership-and-audio-privacy) |
 | I05 | Partial voice proof; deterministic lifecycle coverage | Windows phrase grammar and assistant-name-prefixed dictation produce local transcripts during an explicit activated capture, not automatically at startup. Held PTT, bounded capture and stale-generation rejection are implemented. Observer-to-capture tests cover negative sessions, permission polling, pending native opens, System versus pinned endpoint loss and held-activation shutdown; application disposal retires already queued transcripts/completions and cancellation-ignoring opens. This is not the designed wake-only ambient pipeline; production wake/pre-roll/acoustic quality and complete packaged-native acceptance remain outstanding. | [Recognition service](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs), [activation/privacy orchestration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [audio stream](../src/Kora.Windows/Audio/BlockingAudioStream.cs), [composed capture regressions](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs), [application privacy regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs) |
 | I06 | Delivered bootstrap; deterministic privacy/output ordering; acoustic proof outstanding | Windows TTS plus separately offered optional Kokoro assets/provider; local installation/hash checks, voice/device selection, preview, playback stop and visual fallback for unavailable/muted output. PTT stops output before opening command capture. An observed unavailable System output invalidates active speech before queued endpoint enumeration; pinned output and eligible default reroutes are preserved. Queued recovery presentation is rejected after disposal. These regressions do not prove acoustic echo/playback rejection or optional owner-aware privacy. | [Speech service](../src/Kora.Windows/Audio/WindowsTextToSpeechService.cs), [Kokoro](../src/Kora.Windows/Audio/KokoroTextToSpeechProvider.cs), [privacy coordination/tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs), [speech tests](../tests/Kora.Windows.IntegrationTests/Audio/WindowsTextToSpeechServiceTests.cs), [Kokoro tests](../tests/Kora.Windows.IntegrationTests/Audio/KokoroTextToSpeechProviderTests.cs) |
-| I07 | Delivered bootstrap and first bounded durable milestone; full R04 partial | Bootstrap setup ledger remains separate. Standalone exact local version-query input composes private standard-SQLite intent/dispatch/evidence/terminal records and Interrupted/Unknown no-replay startup recovery. Log/audit/span/link due dates are independent; automatic database pruning, history/session lifecycle and managed copy/deletion acceptance remain open. | [Storage probe](../src/Kora.Core/Dependencies/StorageDependencyProbe.cs), [actual task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs), [composed fixtures](../tests/Kora.Windows.IntegrationTests/Storage/DurableStorageCompositionTests.cs), [current receipt](#composed-milestone-validation-receipt) |
+| I07 | Delivered bootstrap and bounded durable milestones; full R04 partial | Bootstrap setup ledger remains separate. Standalone exact local version-query input composes private standard-SQLite intent/dispatch/evidence/terminal records and Interrupted/Unknown no-replay startup recovery. Log/audit/span/link due dates are independent; bounded ordinary startup pruning is delivered, not audit/session/copy deletion acceptance. | [Storage probe](../src/Kora.Core/Dependencies/StorageDependencyProbe.cs), [actual task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs), [composed fixtures](../tests/Kora.Windows.IntegrationTests/Storage/DurableStorageCompositionTests.cs), [bounded retention](#r04-bounded-ordinary-diagnostic-retention---2026-10-07) |
 | I08 | Delivered bootstrap | Capability readiness and separate consented setup orchestration; PowerShell 7.4+ probing/install/re-probe is independent of local inference. Open Setup installs nothing. No general PowerShell task worker or executable grant is supplied by readiness. | [Application setup](../src/Kora.Application/ViewModels/MainViewModel.cs), [PowerShell setup/tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsPowerShellSetupServiceTests.cs), [dependency bootstrap](../src/Kora.Core/Dependencies/DependencyBootstrapper.cs) |
 | I09 | Delivered bootstrap; bounded production evidence, D-003 open | Consented per-user Ollama 0.35.1 setup and pinned `qwen3:1.7b` download; loopback runtime/model/digest checks, no automatic cloud fallback. R02 identity/licence/unavailable-path evidence and 31 deterministic harness tests remain distinct from the later actual production-host setup, simple/long answers and active model/speech cancellation without stale completion. CPU-floor quality, latency/resource/context budgets, repeated race/computation-cessation timing, installer provisioning and independently network-blocked offline qualification remain open. | [Ollama setup](../src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs), [inference probe](../src/Kora.Windows/Dependencies/LocalInferenceDependencyProbe.cs), [setup tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaSetupServiceTests.cs), [probe tests](../tests/Kora.Windows.IntegrationTests/Dependencies/LocalInferenceDependencyProbeTests.cs), [bounded production result](Deferred_Validation.md#2026-10-05-bounded-local-inference-result), [R02 technical plan](Local_Inference.md) |
-| I10 | Partial model interaction; bounded host discovery separate | Unmatched requests still use one local reasoning operation with bounded status context and exactly one answer, question, action or grant-change response. Request length is 4,096 characters; inference deadline is two minutes; question prompts/options and three follow-ups are bounded. Generation is buffered, not streamed. Busy guards reject competing requests; handler results are not returned for tool-loop continuation. The six-ID native read-only registry is not advertised to this unqualified selector, remote SDK or MCP. | [Reasoner](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), [reasoner tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaReasonerTests.cs), [application/tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs), [current protocol](Internal_Model_Tools.md#implemented-bootstrap-surface) |
-| I11 | Partial authorization and questions | Native model-action Once/Session/Always approval, bounded clarification choices, grant Add/Remove/Move/revoke and a grant document/editor. Session is an in-memory action-name set, cleared on Kora's lock path; Always is JSON action-name preference storage. Neither is the content/invocation-bound grant store or durable Kora work-session scope. | [Application/tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs), [approval preferences](../src/Kora.Application/Configuration/LocalModelApprovalPreferences.cs), [response controls](../src/Kora/ResponseWindow.axaml) |
+| I10 | Partial model interaction; bounded host discovery separate | Unmatched requests use one local reasoning operation with bounded status context, optionally explicitly selected artifact instructions/source identity, and exactly one answer, question, action or grant-change response. User request length is 4,096 characters; inference deadline is two minutes; question prompts/options and three follow-ups are bounded. Generation is buffered, not streamed. Busy guards reject competing requests; handler results are not returned for tool-loop continuation. The six-ID native read-only registry is not advertised to this unqualified selector, remote SDK or MCP. | [Reasoner](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), [reasoner tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaReasonerTests.cs), [application/tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs), [current protocol](Internal_Model_Tools.md#implemented-bootstrap-surface), [selected instructions](../docs/commands.md#run-skills-and-future-artifacts) |
+| I11 | Bounded durable questions/authorization foundation; general execution partial | Legacy model-action Once/Session/Always preferences remain separate: Session is an in-memory action-name set; Always is JSON storage. The production interaction store additionally persists exact proposals/grants, typed questions/drafts/answers and session generations with atomic typed audit, through the native local-version review route. This does not migrate legacy grants or admit general content-bound effect/script execution. | [Legacy preferences](../src/Kora.Application/Configuration/LocalModelApprovalPreferences.cs), [question service](../src/Kora.Application/Interaction/HostQuestionService.cs), [authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs), [actual interaction store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs), [native production-store tests](../tests/Kora.Windows.IntegrationTests/NativeQuestionTests.cs) |
 | I12 | Partial computer controls | Exact lock stops owned audio then calls the Windows lock API without the model-action gate; model-proposed lock uses that gate. API acceptance is not independent observation of lock completion. Shutdown/restart create inspectable, cancellable proposals only; no OS power request is sent. No embedded lock/power scripts or all-session power coordination are implemented. | [Host action handlers](../src/Kora.Application/ViewModels/MainViewModel.cs), [Windows session controller](../src/Kora.Windows/Session/WindowsSessionController.cs), [application tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs), [session-helper tests](../tests/Kora.Windows.IntegrationTests/Session/WindowsSessionControllerTests.cs) |
-| I13 | Partial lifecycle/work controls | Show/hide/exit/current-app restart, stop speaking and cancellation of current setup/inference. Cross-build ownership handoff/return and controlled shutdown are implemented, with bounded x64 trials; x86 installed-runtime and full failure/privacy acceptance remain open. Status/progress describe setup/activity, not a general authoritative work ledger. The R04 no-replay store/recovery foundation is not composed into current work; general queues and integrated crash-safe work recovery remain outstanding. | [Host controls](../src/Kora.Application/ViewModels/MainViewModel.cs), [process controller](../src/Kora/DesktopApplicationProcessController.cs), [owner coordinator](../src/Kora.Windows/Coordination/WindowsInstanceCoordinator.cs), [bounded lifecycle evidence](../docs/voice-and-audio.md#r03-validation-evidence), [application tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs) |
+| I13 | Partial lifecycle/work controls with bounded durable recovery | Show/hide/exit/current-app restart, stop speaking and cancellation of current setup/inference. Cross-build handoff/return and controlled shutdown have bounded x64 observations; x86 installed-runtime and complete failure/privacy acceptance remain open. Exact local version queries and session control intents use the composed durable ledger/recovery; intent-only becomes Interrupted, dispatch without verified receipt becomes Unknown, without replay. Bootstrap status is not a general work ledger; model/OS effects, queues and concurrent scheduling are not promoted to that durable path. | [Host controls](../src/Kora.Application/ViewModels/MainViewModel.cs), [durable query](../src/Kora.Application/Hosting/DurableVersionQuery.cs), [recovery](../src/Kora.Application/Hosting/DurableHostRecovery.cs), [process controller](../src/Kora/DesktopApplicationProcessController.cs), [owner coordinator](../src/Kora.Windows/Coordination/WindowsInstanceCoordinator.cs), [bounded lifecycle evidence](../docs/voice-and-audio.md#r03-validation-evidence) |
 | I14 | Bounded manual call mode delivered; full R15 partial | Native run-scoped manual Active/clear layers with automatic Active/Suspected/Unknown, never fabricating Clear or availability. Default protected-call output/preview is visual-only; pending audio is invalidated before UI work without clearance replay. Original origin/revision/ownership/privacy gate voice/in-call mutations; later UI confirmation cannot relabel voice. Legacy reusable grants are ignored with final dispatch checks and no exact-authority migration. Existing saved preferences are retained; new protection downgrades/exceptions remain unavailable pending complete exact review. The composed Windows adapter still reports Unavailable; real detection, native/audio/call acceptance remain outstanding. | [Communication policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs), [native controls](../src/Kora/SettingsWindow.axaml), [host races](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Communication.cs), [durable gates](../tests/Kora.Windows.IntegrationTests/CallPolicyCompositionTests.cs), [bounded receipt](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07) |
-| I15 | Delivered bounded diagnostics/evidence; full history/audit acceptance partial | Structured daily JSON and actual private SQLite log/audit/span/link projections; one host-owned typed read-only query service and native inspector with authenticated snapshot pagination, stable citations, correlation filters and truthful expired/missing/unavailable status. At most 50 records / 64 KiB actual serialized output. No model evidence tools, atomic interaction-audit projection, full session/conversation history, pruning, export or Ask Evidence. | [Query service](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs), [real-store reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs), [native viewer](../src/Kora/EvidenceViewModel.cs), [real-store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteEvidenceQueryTests.cs), [bounded receipt](#r04r14-bounded-durable-evidence-inspection---2026-10-07) |
-| I16 | Delivered binary installer, source build-only tooling and release configuration; installed/production acceptance outstanding | WiX 7 MSI/custom Avalonia Burn packages win-x64 with scoped startup, completion launch, read-only preflight and required/optional dependency handling. Linux builds/cross-publishes; Windows packages exact transferred bytes. Shared GitVersion policy and beta/stable GitHub publication with notes/hashes/provenance are configured, not evidence of an actual published release. Maintained source/native tooling and contracts supersede distribution-only proof executables; NSIS remains retired and historical receipts remain unchanged. Source activation/immutable tool distribution, silent related-bundle upgrades, beta numeric upgrade ordering, external-asset qualification and protected/runtime-only/resource acceptance remain open; win-x86 static output explicitly lacks ONNX native inference closure and is not x86 installer acceptance. | [Installer](../installer/README.md), [CI workflow](../.github/workflows/ci.yml), [archived R02 results](../experiments/r02-distribution-proof/README.md), [maintained migration](Distribution_And_Updates.md#maintained-proof-migration-verification-2026-10-07), [follow-up delivery plan](#r02-distribution-follow-up-and-r17-delivery) |
+| I15 | Delivered bounded diagnostics/evidence and ordinary pruning; full history/audit acceptance partial | Source-generated structured diagnostics, daily JSON and private SQLite log/audit/span/link projections; typed read-only query/native inspector with authenticated pagination, stable citations and explicit gaps. Independent DailyLog reads bounded immutable prefixes; All stays SQLite-only, file audit mirrors are unsupported and no file span graph is invented. At most 50 records / 64 KiB serialized output. Ordinary startup pruning preserves audits/authority and rejects removed/reused snapshot ceilings. No combined source ranking, model evidence tools, atomic interaction-audit projection, full history, audit pruning, export or Ask Evidence. | [Query service](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs), [reader routing](../src/Kora.Windows/Storage/WindowsEvidenceReader.cs), [daily reader](../src/Kora.Windows/Storage/WindowsDailyEvidenceReader.cs), [native viewer](../src/Kora/EvidenceViewModel.cs), [daily tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsDailyEvidenceReaderTests.cs), [bounded retention](#r04-bounded-ordinary-diagnostic-retention---2026-10-07) |
+| I16 | Delivered binary installer, source build-only/tool distribution and notify-only maintenance; installed/production acceptance outstanding | WiX 7 MSI/custom Avalonia Burn packages win-x64 with scoped startup, completion launch, preflight and required/optional dependency handling. Linux builds/cross-publishes; Windows packages exact transferred bytes. Recorded main publication proves an unsigned POC release at its own exact revision, not acceptance of every later main. Immutable source-tool acquisition/channel resolution and native canonical metadata review are delivered, without activation/updater authority. Maintained source/native tooling supersedes distribution-only executables; NSIS stays retired and receipts unchanged. Source activation, silent related-bundle upgrades, beta numeric upgrade ordering, external-asset and protected/runtime-only/resource acceptance remain open; x86 static output lacks ONNX native inference closure and is not x86 installer acceptance. | [Installer](../installer/README.md), [CI workflow](../.github/workflows/ci.yml), [publication receipt](Distribution_And_Updates.md#merge-and-ci-follow-up-2026-10-06), [archival disposition](../experiments/r02-distribution-proof/README.md), [source acquisition](Distribution_And_Updates.md#immutable-tool-acquisition-and-channel-resolution), [native maintenance](#bounded-r17r18-canonical-maintenance-foundation) |
 | I17 | Experimental containment evidence; production admission blocked | Fixed AppContainer/Job Object/PowerShell proof: 63/71 OS assertions met; protected stand-ins/credential denied, descendant identity/lifetime observed, lost/malformed receipts remain Unknown. Eight network-denial assertions unproven; executable dependency allowlisting and normal-host deployment protection not established. No production worker or bundled catalogue. | [Measured snapshot](../experiments/r02-containment-proof/evidence/README.md), [canonical outcomes](Security_Data_Flows.md#r02-windows-containment-outcomes), [continuation gates](Security_Data_Flows.md#windows-containment-continuation-gates) |
 | I18 | Experimental Node/.NET RT1, bounded RT2 observations and released MG1; production Gate 0 incomplete | Historical Node/source-built RT1 unchanged; 45/45 RT1 controls with rejected hook-only FAIL. RT2 final source reproduction and staged controls pass; 20/20 tests plus two locale contracts pass, but native helpers/transient writes and observer limits keep all-path admission BLOCKED. Separately approved released SDK 1.0.16 / unchanged native 1.0.90 MG1 repeats 45 controls, 22 host and 16 actual runtime cases: complete bytes, stalled-ack dispatch deadline, monotonic admission/races/no retry, held topology and Unknown quarantine pass. MG1's initial local source reproduction blocker retained; no artifact equivalence claimed. PV1 and production adapter/scheduler remain gated. | [Historical Node evidence](../experiments/r02-runtime-proof/evidence/results.json), [historical .NET RT1](../experiments/r02-dotnet-control-proof/README.md), [RT2 evidence/handoffs](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md), [MG1 fixture/disposition](../experiments/r02-dotnet-management-proof/evidence/disposition.json), [technical outcome](Runtime_Provider_Feasibility.md) |
+| I19 | Bounded sessions workspace/metadata/exact commands delivered; full R12/R13/R14 partial | Durable Active/Done IDs/generations, typed questions/current task pages, selected-session evidence, guarded idle Done/resume, bounded names and empty Create/exact-ID Rename with validated v1/v2 interaction migration. Native and exact typed/activated-voice operations share host authority; pending decisions, live/Unknown work and stale revisions remain blockers. No conversations/queues, name routing, scheduler, automatic lifecycle/deletion or model session tools. | [Shared service](../src/Kora.Application/Hosting/SessionWorkspaceService.cs), [command path](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs), [workspace tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionWorkspaceTests.cs), [metadata tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionMetadataTests.cs), [command tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionCommandTests.cs), [user syntax](../docs/commands.md#bounded-exact-id-session-commands) |
+| I20 | Bounded appearance/installed speech registries delivered; full R10 partial | Nine appearance preferences plus installed provider/voice choices share native/exact typed/activated-voice discovery/get/set/reset, domain bounds, revisions, atomic save and typed audit. Desired/effective/default speech state and invalid/missing selection recovery remain explicit; no settings model tools or general configuration authority. | [Appearance service](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [speech service](../src/Kora.Application/Configuration/SpeechConfigurationService.cs), [user configuration](User_Configuration.md), [user settings](../docs/settings.md) |
+| I21 | Bounded clipboard preview and artifact invocation delivered; full R07/R11 partial | Explicit immutable plain-text preview/same-ID reuse/revoke is model-free. Separately, source-qualified slash/activated-voice artifact selection supplies instructions to the existing local JSON selector. Neither path enables scripts, arbitrary effects, a mediated tool loop, clipboard explanation/egress or agents. | [Clipboard broker](../src/Kora.Tools/Clipboard/ClipboardSnapshotBroker.cs), [artifact router](../src/Kora.Core/ArtifactInvocation/ArtifactCommandRouter.cs), [embedded catalogue](../src/Kora.Definitions/ArtifactInvocation/EmbeddedArtifactCatalogue.cs), [disk discovery](../src/Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs), [user invocation](../docs/commands.md#run-skills-and-future-artifacts) |
 
 ### Most Important Design-to-Code Gaps
 
 1. **Privacy and ownership acceptance:** startup arms gated PTT without ambient capture. External WTS/power/MMDevice observation and a one-second permission polling fallback already exist; deterministic production observer/capture/application tests cover closure, run holds, stale callbacks and disposal. The remaining gap is complete native event/detection/release timing, routing, ownership and hardware acceptance, including every reference lock release within 500 ms. Production wake remains unavailable; regression tests do not certify continuous listening.
 2. **Authority:** exact lock and model lock use different gates. Existing reusable preferences are not complete execution grants. Future direct, UI, model and skill paths must converge on the same host-owned gateway; do not migrate action-name preferences into broader script authority implicitly.
-3. **Useful model tools:** no formal typed registry, mediated tool/result iteration, explicit clipboard broker, remote runtime or model-result streaming is delivered. A model answer or action enum is not this contract.
-4. **Managed sessions:** there is no durable Kora work-session/event store, full history, general queue, resource-leased scheduler or independent management lane. Bootstrap status cannot answer the proposed session-state tools authoritatively.
-5. **Skills and integrations:** no bundled multi-script runner/review, admitted MCP connector, shared-source skill discovery or declarative authoring workflow is delivered.
+3. **Useful model tools:** the six-ID read-only host registry, explicit clipboard broker and bounded appearance/installed speech registries are delivered foundations, not model admission. Mediated tool/result iteration, qualified clipboard answering/egress, remote runtime and model-result streaming remain absent. A selector answer, action enum or read-only catalogue is not this contract.
+4. **Managed sessions:** durable task/event and interaction/session authority, minimal workspace/lifecycle and bounded names/native creation exist. Full conversations/history/artifacts, general queues, resource-leased scheduling, automatic lifecycle/deletion and independent management remain open. Passive pages and bootstrap status are not a concurrent work ledger or proposed model session tools.
+5. **Skills and integrations:** immutable bundled package/native file review and source-qualified bundled/profile instruction invocation exist. No admitted multi-script executor, MCP connector, general skill enablement/source-management registry, declarative authoring or agent runtime is delivered. Inspection/selection never promotes script content to execution trust.
 6. **Release proof:** unit/fake-backed tests, endpoint enumeration, local digest/readiness checks and downloadable CI archives do not close the real Windows, runtime, containment, installation or performance gates.
    The next local-inference action is to assign/approve a reference test owner,
    environment and budgets, then consent to pinned provisioning; it is not to
@@ -479,8 +601,9 @@ Query logging/completed spans cannot expand an in-progress snapshot.
 The current-user native host admits access; query filters and record text
 never select a session's authority. The evidence projection is not the atomic
 interaction audit. Due dates do not prove pruning or complete retained history.
-Session/conversation sources, model tools/Ask Evidence, daily-file cross-source
-queries, export, deletion and richer history/artifacts remain unavailable.
+Session/conversation sources, model tools/Ask Evidence, exact combined
+daily-file/database queries, export, deletion and richer history/artifacts
+remain unavailable. Independent daily diagnostic inspection is delivered below.
 No live application/installer/audio/provider/privileged trial was performed.
 
 Experiment disposition: no executable is retired by this slice.
@@ -525,6 +648,170 @@ batch deliveries. Root Release/analyzers and full suites
 portable **100% line/branch** coverage. Evidence remains a native read-only
 host service, not a registry/model tool or an appearance/call mutation.
 
+### R14 Opt-in Combined Ordinary Diagnostic Inspection - 2026-10-08
+
+The bounded **CombinedLog** source adds native selection and the existing
+host-owned list/search/source-qualified cited read service over SQLite ordinary
+logs and independent DailyLog ordinary records. **All** remains SQLite-only;
+individual sources, audit queries/citations and old cursor layouts remain
+unchanged. A selector is not a record source: results keep their original Log
+or DailyLog citations, IDs, exact provenance and retention semantics.
+
+Ordering is explicitly source-major: SQLite commit time/evidence ID, followed
+by exact daily name/byte offset. The existing SQLite ceiling and independently
+captured daily immutable prefix form a truthful snapshot pair, not an atomic
+cross-sink snapshot or causal/chronological ranking. Observation time does not
+become commit time. Overlapping text/timestamps/IDs/trace IDs do not deduplicate
+or equate records. Both readers re-admit and verify their source on every page,
+including after the source boundary. Failure of either source cannot return
+the other as success or an authoritative empty result; source failures/gaps are
+explicit and fresh search is an explicit recovery, never an automatic restart.
+
+The implementation reuses source parsing/validation/retention/access policies,
+source-qualified positions, signed query/viewer/expiry-bound cursors and eight
+15-minute host-held daily manifests. No extra cache, renewal, file write,
+permission repair, pruning or database schema is introduced. Existing 50-record/
+64-KiB complete serialized output and daily 32-file/8-MiB-prefix/4,096-line/
+256-KiB-line/five-second/16-MiB-verification bounds remain authoritative.
+Byte-limited pages continue exactly from the last emitted source position.
+
+Architecture, evidence contracts and embedded privacy/evidence inspection
+guidance describe actual opt-in availability and independent snapshot/time/
+retention semantics. This does not deliver full R14, model evidence tools/
+Ask Evidence/provider submission/export, generic session/history sources,
+authoritative file audit, invented file spans/links, or native/installed
+acceptance. No live application/audio/OS/provider/elevation/account trial occurs.
+
+Experiment assessment: no maintained executable equivalence supersedes a unique
+experiment contract or consumer. Storage/engine/encryption/DPAPI/rekey/backup/
+interruption, artifact, speech and runtime/worker receipts remain distinct;
+all experiment executables and historical receipts are retained. The production
+reader is not qualification evidence for those contracts. Older dated delivery
+receipts below describe their own snapshots and are intentionally not rewritten.
+
+Local validation on merged base `c6d4449`: root no-restore Release/analyzers
+passed with zero warnings/errors; full Core/Application/Tools/Definitions/
+Windows suites passed **648 / 1,700 / 38 / 6 / 886**, zero failures/skips.
+Fresh-only combined portable coverage enforced the unchanged exact
+**100% line / 100% branch** thresholds and exclusions. Nineteen new real-store/
+native composition cases plus reused scanner/call-time-capture cases cover
+source boundaries, same-time/ID/text provenance, exact citations, full pages,
+serialized-byte trimming, source failure/change/expiry/access, retention and
+old continuations. Portable tests additionally exercise the exact 65,536-byte
+complete result and one-byte-over shape and truthful failure activity status.
+Required remote CI, review and actual merged ancestry remain lifecycle gates;
+these app-free deterministic tests do not claim installed/native acceptance.
+
+### R14 Bounded Independent Daily JSON Diagnostic Inspection - 2026-10-07
+
+Implemented in `agents/bounded-daily-json-inspection-slice`, rebased onto
+`c0c15ac2a74a865bbd7540a7a0cf5c00c2d3a21b`; #69 ordinary retention and #70
+session metadata are verified ancestors. The native evidence source selector
+now admits independently useful **DailyLog** list/search/exact cited reads and
+trace filtering through the existing host-owned query service. `All` remains
+SQLite-only with unchanged record counts. There is no speculative merged rank
+or atomic cross-source snapshot.
+
+The actual file writer and reader share the exact daily-name policy and
+version-1 diagnostic envelope serialization/validation. Existing files only,
+supplied application-data roots, current-user ownership/ACL/reparse admission
+and opened-handle final-path/volume/file identity are required. No storage,
+lease, pruning, schema, policy, protection, audit-chain or retention mutation
+occurs. Eight 15-minute host-held prefix manifests are bound by existing signed
+query/viewer cursors. Reopened identity/prefix hashes reject replacement,
+mutation, rotation and pruning; append/new-day events do not extend a snapshot.
+
+Bounds: 32 files, 8-MiB earliest complete-line prefix, 4,096 physical lines,
+256-KiB lines excluding LF, five seconds per request and the existing
+50-record/64-KiB serialized page. Capture and final prefix verification each
+read at most 8 MiB. Scan ceilings, corruption, truncation, changed/missing/
+expired/unavailable/timed-out sources are explicit. Unsupported legacy/activity
+copies, ingestion gaps and audit mirrors have separate reported counts and
+partial status. No audit mirror/lookalike acquires audit authority. Typed
+observation/session/W3C fields are preserved; file commit/due times and span
+graph are unavailable. Stable source-specific citations retain exact
+file/offset/digest provenance and original envelope evidence IDs.
+
+Experiment disposition: no executable removal is justified. The maintained
+production source supersedes no exact experimental daily-envelope consumer:
+storage proof FTS/HMAC/encryption/DPAPI/rekey/backup/child-kill paths and runtime
+RT1/RT2/management diagnostic capture remain different contracts with unique
+and historical receipts. Reference consumers and those receipts remain intact.
+Only this slice's design and user evidence/privacy guides are updated.
+
+Validation uses synthetic actual-writer files, private SQLite and native
+view-model fixtures, not the app, audio, accounts, install, elevation, network
+policy or live trials. Complete R14, combined search, session/conversation
+contents, file audit/graph, Ask Evidence, export and native/installed acceptance
+remain outstanding. Exact final test/coverage and CI outcomes are recorded in
+the pull request, not inferred from implementation.
+
+### R04 Bounded Ordinary Diagnostic Retention - 2026-10-07
+
+Dispatch baseline: `d0a8e82` (#68), clean isolated
+`agents/bounded-sqlite-retention-slice`. The no-restore baseline first reported
+missing assets; locked restore used the machine-required Azure Artifacts source
+without repository configuration/credential or dependency changes. The restored
+Release baseline passed with zero warnings/errors.
+
+[Production retention](../src/Kora.Windows/Storage/WindowsSqliteDiagnosticRetention.cs)
+runs one existing-partition batch after owner-only startup storage admission and
+durable recovery, before the UI lifetime. No genuine new prerequisite is unmet:
+the existing policy-assigned `due_utc`, due indexes, exact bounded envelopes and
+shared actual writer/reader lease support safe pruning. The batch holds that
+lease and atomically removes at most 128 due ordinary logs and 32 due spans
+with their at-most-1,024 owned links. Inclusive due cutoff, five-second admission/
+SQLite progress deadline, cancellation before COMMIT and exact-schema/ACL/
+reparse/integrity checks remain enforced. Full-store validation is not bypassed
+and may fail the bounded deadline on a large store.
+
+The committed counts and due-backlog flag are structured generated diagnostics
+after lease release, under typed host/Windows `retention.run` context. There is
+no timer, unbounded drain, passive retention refresh, new setting, schema rewrite,
+storage replacement or permission repair. Next startups can continue backlog.
+Audit rows/due dates/sequences, interaction audit/hash heads and every task,
+interaction, session and grant/Perpetual record remain outside this operation.
+Retained citations truthfully distinguish due-but-present from missing targets.
+Signed snapshot ceilings now bind original evidence identities; pruning/reuse
+invalidates affected continuations explicitly instead of admitting replacement
+rows. A fresh query is required.
+
+[Deterministic real private fixtures](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteDiagnosticRetentionTests.cs)
+cover exact boundaries, all batch limits, audit/authority/Perpetual preservation,
+restart/backlog/idempotence, rollback/cancellation, concurrent actual writers/
+readers, malformed/missing/ACL failures, passive read bytes and retained citations.
+[Owned-process interruption](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteEvidenceInterruptionTests.cs)
+covers pre/post retention COMMIT and actual hot-journal reopen. These are not
+live-app, installed, account, device, OS-effect or hardware power-loss trials.
+
+The [specific experiment disposition](../experiments/r02-storage-proof/README.md#bounded-ordinary-retention-equivalence-assessment---2026-10-07)
+retires no executable: encrypted sample/FTS/rekey/native/artifact/backup/deletion
+paths still have consumers and unique behaviors absent from ordinary pruning.
+Original receipts remain unchanged. This is logical row pruning, not forensic
+erasure, full R04/D-009 acceptance, audit pruning/anchors, session retention/
+deletion, configured preview/apply or artifact/backup disposal.
+
+#### Bounded Retention Local Validation Receipt
+
+Validated the working slice on dispatch/main `d0a8e82`, Windows/x64 and SDK
+10.0.401, without a dependency, lockfile, native-provider or CI-policy change.
+Release solution build: zero warnings/errors. Storage selection: 246 passed.
+Full maintained suites: Core 520, Application 1,389, Tools 38, Definitions 6,
+Windows 791; **2,744 passed, zero failed/skipped**. Fresh reports for only the
+four portable assemblies cover **8,635/8,635 lines, 4,340/4,340 branches and
+1,076/1,076 methods, all 100%**. Dependency-license policy, Git whitespace and
+all 13 immutable embedded definition-resource byte checks passed. Owned private
+fixtures were disposed. Early fixture/selector errors were corrected; a
+zero-test selector run is not counted as validation.
+
+Commands used the repository's direct Release `--no-restore` build and
+`dotnet test --project` / `--no-build` paths; portable tests added `--coverlet
+--coverlet-output-format cobertura`, and the existing report generator and
+`eng/Assert-CodeCoverage.ps1` enforced unchanged 100% line/branch thresholds.
+No app/device/OS-effect, install/elevation, account, network/security-policy,
+hardware power-loss or forensic-erasure trial was performed. This local
+receipt is distinct from subsequent PR CI/merge evidence.
+
 ### R04 Foundation Delivery
 
 The first bounded **durable** milestone now composes one actual exact local
@@ -546,7 +833,7 @@ are added to that database by R04.
 | Causal and business correlation | Implemented versioned four-source [host activities](../src/Kora.Core/Diagnostics/HostActivity.cs); request routing and typed audit boundaries; ordinary async child context and explicit deferred links; [trace/isolation/spoof tests](../tests/Kora.Application.UnitTests/Diagnostics/EvidenceLoggerProviderTests.cs) | Runtime/tool/queue/presentation/evidence/retention implementations must add their actual boundaries as delivered; operation completion is not proof of OS effect. |
 | Independent diagnostic/audit contracts | Implemented [formatter-independent capture](../src/Kora.Application/Diagnostics/EvidenceLoggerProvider.cs), bounded typed properties/scopes, call-time context, spans/links and gaps; production composes [private SQLite evidence](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.cs) and the [bounded read-only query/native inspector](#r04r14-bounded-durable-evidence-inspection---2026-10-07). [Daily JSON](../src/Kora/FileEvidenceSink.cs) preserves trusted categories/IDs independently. Only internal typed audit state routes audits; file copies/lookalikes confer no authority. Required delivery/capture failures report and propagate after independent sink attempts. | Audit tamper checkpoints/pruning, daily-file cross-source queries and full history/evidence UI remain. No authorization is inferred from SQLite, file copies or correlation metadata; interaction-audit transactions are not this projection. |
 | Intent, dispatch marker, terminal receipt and recovery | Implemented [coordinator](../src/Kora.Application/Hosting/HostTaskCoordinator.cs), actual [standard SQLite store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs), [bounded query runner](../src/Kora.Application/Hosting/DurableVersionQuery.cs) and [startup recovery](../src/Kora.Application/Hosting/DurableHostRecovery.cs). Exact typed/activated-voice version input uses required correlated evidence and revision-checked state/event commits. Intent-only becomes Interrupted; dispatched/no receipt becomes Unknown; no executor/replay callback. [Production interruption/reopening](#r04-production-store-interruption-and-reopening---2026-10-07) tests pre/postcommit task/evidence/interaction writes and interrupted audited recovery with actual hot private journals. | The receipt proves only that this local query returned. General dispatch/grants/session registry, managed copies, broader migration/retention/deletion and installed/power-loss acceptance remain. Existing model/OS routes are not promoted to durable effect executors. |
-| Retention semantics | Implemented 30-day diagnostic/daily-file and 90-day audit defaults, audit 30-365 validation, UTC due-date and explicit apply-now calculation; [tests](../tests/Kora.Core.UnitTests/Diagnostics/EvidenceRetentionPolicyTests.cs). Composed SQLite evidence receives independent effective due dates transactionally. Queries explicitly distinguish expired-but-present records from missing-or-removed segments. | Configured diagnostic schema, preview/apply UI and actual pruning/anchors remain R04/R12 work. Due dates alone are not automatic deletion or proof of complete history. |
+| Retention semantics | Implemented 30-day diagnostic/daily-file and 90-day audit defaults, audit 30-365 validation, UTC due-date and explicit apply-now calculation; [tests](../tests/Kora.Core.UnitTests/Diagnostics/EvidenceRetentionPolicyTests.cs). Composed SQLite evidence receives independent effective due dates transactionally. [Bounded ordinary startup pruning](#r04-bounded-ordinary-diagnostic-retention---2026-10-07) removes at most 128 logs and 32 spans with owned links, reports backlog and preserves all audits/authority. Queries distinguish expired-but-present from missing-or-removed and reject replaced snapshot ceilings. | Configured diagnostic schema, preview/apply UI, audit pruning/anchors and session/copy deletion remain R04/R12 work. Logical row pruning is not forensic erasure or proof of complete history. |
 | Profile/artifact primitives | Actual supplied-root/owner/ACL/reparse checks compose the standard task/evidence partitions. Earlier uncomposed [DPAPI keys](../src/Kora.Windows/Storage/WindowsStorageKeyStore.cs) and [encrypted artifacts](../src/Kora.Windows/Storage/WindowsEncryptedArtifactStore.cs) retain historical scratch evidence. | Database key/rekey/encrypted conversion is no longer required. Standard managed backup/artifact provisioning/composition, their process-interruption and deletion boundaries remain; optional crypto primitives do not establish those workflows. |
 
 Artifact reconciliation is observation-only: at most 256 entries/references,
@@ -1387,12 +1674,80 @@ equivalent to a model-free preview and remain useful unique evidence.
 | R01 - Reconcile policy, scope and checkpoint contracts | Design reconciliation complete; approved 2026-10-05; no runtime changes | P0 - prevent incompatible authority and consent implementations | None | Initial-release authority, consent, optional privacy and standalone-lock binding recorded and aligned above; A2/A3 evidence remains required. Standalone application rollback remains deferred R27 work. Runtime/enforcement proof is not claimed by this package. |
 | R02 - Run release-blocking feasibility proofs | Partial candidates in I01/I06/I09/I16; storage/inference/distribution outcomes recorded; containment I17/runtime I18 retain open gates | P0 - discover runtime/hardware/containment limits | R01 | Complete runtime RT1/RT2/MG1/PV1 as applicable, retaining rejected hook-only and blocked account/global paths as unavailable. Qualify local model/licence/CPU floor, wake, worker containment and deployment. D-009 now selects standard SQLite/private profile permissions; encrypted-native/key admission is superseded. Complete [local L1-L5/L6](#r02-local-inference-continuation), W1-W3 and R02-D01/D02/D03 evidence; historical NSIS assembly is not D-005 closure. Use actual SDK/provider/OS evidence, not aggregate R02 success; preserve unrelated proof gates. |
 | R03 - Establish Windows/audio ownership and privacy foundation | PTT/cross-build ownership, existing external observation/one-second permission polling and deterministic lifecycle/disposal regressions delivered; bounded x64/audio trials pass; full native acceptance open in I03-I06/I12/I13 | P0 - stop unauthorized capture and overlapping owners | R01 | Complete acceptance of cross-build single-owner activation/handoff/return, consent/enablement generations, explicit PTT, bounded audio/transcript buffers and stale-callback rejection. Enforce wake-only versus activated-transcription separation; never label activated grammar capture as production wake. Retain deterministic observer/capture/application tests while proving native lock/disconnect/suspend/permission-polling/device observation and capture/audio/output closure on every required event. Release capture within 500 ms of observed lock in every reference trial. Provide native/tray recovery without model/network/speech. |
-| R04 - Introduce durable identities, Activity tracing and authoritative host contracts | **Partial integrated delivery.** Exact version-query intent/evidence/receipt/no-replay recovery, durable interaction/session-authority transactions, production-store interruption/reopening proof and [bounded durable evidence inspection](#r04r14-bounded-durable-evidence-inspection---2026-10-07); [inventory](#r04-foundation-delivery) and [baseline](#r04-approved-standard-sqlite-continuation---2026-10-06). | P0 - stable attribution and crash-safe intent | R01, R03; approved D-009 standard SQLite/profile baseline | Complete broader supported migrations, backup/artifact publication/interruption, audit checkpoints/pruning/rollback, lifecycle/deletion and relevant runtime/tool boundaries. Read-only log/audit/span/link query-gap semantics are delivered, not full history, pruning or model tools. Preserve committed-intent and atomic authority/audit prerequisites and truthful query-only receipts. No encryption prerequisite or automatic replay. R04 remains open; installed/power-loss evidence is not inferred. |
+| R04 - Introduce durable identities, Activity tracing and authoritative host contracts | **Partial integrated delivery.** Exact version-query intent/evidence/receipt/no-replay recovery, durable interaction/session-authority transactions, production-store interruption/reopening proof, [bounded durable evidence inspection](#r04r14-bounded-durable-evidence-inspection---2026-10-07) and [ordinary startup pruning](#r04-bounded-ordinary-diagnostic-retention---2026-10-07); [inventory](#r04-foundation-delivery) and [baseline](#r04-approved-standard-sqlite-continuation---2026-10-06). | P0 - stable attribution and crash-safe intent | R01, R03; approved D-009 standard SQLite/profile baseline | Complete broader supported migrations, backup/artifact publication/interruption, audit checkpoints/pruning/rollback, session lifecycle/deletion and relevant runtime/tool boundaries. Bounded ordinary pruning and read-only query-gap semantics are delivered, not full history, audit/copy deletion or model tools. Preserve committed-intent and atomic authority/audit prerequisites and truthful receipts. No encryption prerequisite or automatic replay. R04 remains open; installed/power-loss evidence is not inferred. |
 | R05 - Build the shared authorization/question gateway | **Partial integrated delivery**, including [bounded native question/exact-record review](#r05r14-bounded-native-shared-question---2026-10-07), [typed foundation](#r05-bounded-authorizationquestion-foundation) and [production durable adapter/service registration](#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06). | P0 - one authority path for direct/UI/model/skill requests | R03, R04 | Complete generic foreground voice targeting and canonical source/resource review beyond the delivered native record review; shared direct/model/tool/worker pre-effect revalidation, action-specific ownership/privacy/containment/deployment proof, effect receipt certainty and full lifecycle/deletion policy. Durable atomic use/audit and Session/independent Perpetual records exist; a consumption receipt is not an execution token. Legacy action-name preferences confer no new authority. Direct lock/power remain unchanged, not complete admission. |
 | R06 - Implement the admitted tool registry and local tool/result loop | Bounded read-only host registry delivered in I02; JSON selector in I09/I10 remains partial; no runtime adapter qualification | P1 - natural requests can discover and use Kora capabilities | R02 (local runtime: L1-L5 qualification), R04, R05 | Delivered: six canonical versioned typed read-only handlers and exact local discovery, current-host/lane/request isolation, strict inputs, six-record and complete 4 KiB UTF-8 output bounds, recorded version/readiness/local-runtime facts with unavailable/unobserved reasons, trace and cancellation tests. Remaining: qualified adapters, per-destination admission/egress, skill summaries, approved model invocation/result loop and continued reasoning under the R02-L5 envelope. No settings/evidence/session tools or new execution authority; preserve exact offline lock/power behavior. |
 | R07 - Deliver explicit clipboard context and local-first explanation | **Partial integrated delivery:** explicit bounded local plain-text snapshot/native preview, same-ID reuse/revoke; [receipt](#r07-bounded-clipboard-preview---2026-10-07). Inference unavailable; no R02 real answer/offline-success proof | P1 - first useful private vertical slice | R03, R04, R05, R06; R02 local L5 evidence carried through L6 | Delivered: composed exact command/tray/native workflow, immutable source/snapshot/request/version/time provenance, 256 KiB strict UTF-8 whole-text bound, explicit format/contention/denied/change states, privacy/origin/call-generation cancellation and no content logging/persistence/provider submission. Remaining: qualified local tool/result loop, purpose/secret/destination classification, complete approved-envelope budgeting and actual offline clipboard-answering quality/cancellation/no-egress/native acceptance. Preview/reuse grants no egress or execution authority; no remote fallback. |
 | R08 - Integrate the controlled remote runtime and streaming path | Outstanding production adapter; I18 candidate only; RT2 all-path admission BLOCKED despite passing bounded tests; hook-only path rejected; local production inference remains buffered | P1 - complete A0 and provider-neutral interaction | R02-RT1/RT2 and execution R02-PV1; local L5 envelope for local streaming; R04, R05, R06, R07 | Carry the [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs), resolve native observation/prevention before exposure, and integrate the proved .NET/runtime profile through pre-effect authorization, all-status host result sanitization and a final serialized-request egress gate. Disable unverified built-ins/collection/storage/transports; keep credentials host-only and cancellation truthful. Pass Gate 0 including actual account/destination/diagnostic evidence, streamed output/backpressure and zero denied effects/markers. Reuse host contracts and the qualified local envelope for local streaming/iteration; measure user-visible first output and cancellation, not experimental token timing alone. No production Node bridge or alternate provider without an explicit D-001 decision. |
-| R09 - Complete production wake, endpointing and speech lifecycle | Partial I04-I06 | P0 - enable reliable voice-first use only after quality/privacy proof | R02 (speech/hardware), R03, R05, R06 | Package selected licensed detector/VAD/transcription assets; preserve immediate wake-and-command with at most two seconds of overwritten pre-roll and no unrelated pre-activation transcription. Bound command/audio lifetimes; prove playback/echo rejection, voice interruption, TTS stop/shutdown and device recovery. Implement configured activation-name profiles and lifecycle matrix. Meet actual A1 speech/CPU/memory/latency targets; optional learning/verifier is not required. |
+| R09 - Complete production wake, endpointing and speech lifecycle | Partial I04-I06; bounded native tray recovery below, not wake/native acceptance | P0 - enable reliable voice-first use only after quality/privacy proof | R02 (speech/hardware), R03, R05, R06 | Package selected licensed detector/VAD/transcription assets; preserve immediate wake-and-command with at most two seconds of overwritten pre-roll and no unrelated pre-activation transcription. Bound command/audio lifetimes; prove playback/echo rejection, voice interruption, TTS stop/shutdown and device recovery. Implement configured activation-name profiles and lifecycle matrix. Meet actual A1 speech/CPU/memory/latency targets; optional learning/verifier is not required. |
+
+### R03/R09 bounded native tray recovery - 2026-10-07
+
+Delivered on baseline `d0a8e82ef34b82c4d888803083050c2e9dff43cd` in isolated
+`agents/bounded-microphone-recovery-slice`: non-sensitive truthful input/PTT
+status; five-second single-flight metadata-only refresh; native saved-selection
+marks and available/System/retained-unavailable endpoints; revision-bound
+selection through existing audited preferences; explicit Enable/Disable
+listening and existing Stop speaking/Settings recovery. Selection never opens
+capture or grants consent. Timeout, stale revision, unknown/locked/disconnected
+privacy, lost ownership and retired callbacks fail closed. A saving failure
+retains the prior preference; no endpoint is silently substituted.
+
+Existing tray click, Settings, Sessions, maintenance, documentation, skill
+inspection, evidence and exit behavior is retained. See the
+[delivered boundary and remaining native gates](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
+and [mouse workflow](../docs/windows-and-tray.md#microphone-and-listening-recovery).
+Tests use deterministic clocks/catalogues and owned synthetic menu items,
+without app launch, microphone capture or playback. This does not close R03,
+R09, production wake, acoustic quality, permission/event latency, Explorer
+restart/tray failure, overflow/accessibility or installed/native acceptance.
+
+Experiment disposition: retain every executable and historical receipt in
+`r02-speech-proof`. Its annotation-driven pre-roll/endpointing, licensed
+synthetic audio, candidate benchmarks and acoustic gates are not equivalent
+to metadata/PTT tray recovery. `benchmark.py`, `test_benchmark.py` and
+`Validate.ps1` still consume `capture_probe.py`; canonical dependency/deferred
+validation documents still refer to this proof. No path is specifically
+superseded by equivalent maintained checks plus consumer/reference verification,
+so no removal is justified. This slice reruns none of its audio/model trials.
+
+Validation receipt on the stated baseline: root Release/no-restore build
+passed with zero warnings/errors after the new worktree's missing assets
+were restored in locked mode through the machine-required feed. Core **520**,
+Application **1,413**, Tools **38**, Definitions **6** and authorized Windows
+fixtures **751** passed (**2,728** total). Local Windows validation excluded
+`WindowsVoiceRecognitionServiceTests` and `WindowsTextToSpeechServiceTests`
+to avoid installed endpoint/voice and hardware-dependent trials; owned
+activated-capture and native-menu fixtures remain included. The latest
+per-suite coverage reports, merged with the repository tool and enforced by
+`Assert-CodeCoverage.ps1`, meet **100% portable line and branch coverage**.
+Earlier iterative reports are not validation evidence for the final build.
+
+PR #71 merge follow-up: after the first complete push/PR CI run passed, main
+advanced through session-metadata #70. Rebase onto
+`0b667e91746e94c8157bc9ae90faf57be3b6d3b9` was clean; no sibling branch was
+merged. Fresh combined root Release/no-restore and coverage validation passed:
+Core **530**, Application **1,415**, Tools **38**, Definitions **6**, authorized
+Windows fixtures **785** (**2,774** total), zero warnings/errors and **100%
+portable line/branch coverage**. The same local hardware/voice exclusions
+apply; this is not native acceptance or closure of R03/R09.
+
+Main subsequently advanced through ordinary diagnostic retention #69 while
+the rebased CI run passed. Rebase onto
+`c0c15ac2a74a865bbd7540a7a0cf5c00c2d3a21b` was also clean. Fresh combined
+validation passed Core **530**, Application **1,415**, Tools **38**,
+Definitions **6**, authorized Windows fixtures **806** (**2,795** total),
+root Release/no-restore with zero warnings/errors, and **100% portable
+line/branch coverage**. No retention behavior was changed by this slice.
+
+After installed speech choices #72 merged, rebase onto
+`640f28b2f91c106f2d84cb62193beca9961ca739` preserved both adjacent Design README
+delivery summaries; shared source auto-merged. Fresh combined validation passed
+Core **539**, Application **1,469**, Tools **38**, Definitions **6** and
+authorized Windows fixtures **807** (**2,859** total), root Release/no-restore
+with zero warnings/errors, and **100% portable line/branch coverage**. Speech
+provider/voice settings remain owned by that separate slice; tray recovery
+adds no speech registry, provisioning or acoustic trial.
 
 ### R02 Local-Inference Continuation
 
@@ -1500,16 +1855,29 @@ all 13 final x64/x86 PE manifest-resource bytes with declared source bytes.
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
-| R10 - Implement typed configuration and capability-scoped setup | **Bounded appearance registry delivered**: nine independent-file options, shared direct UI/exact local discovery/get/set/per-option reset, typed domain validation, revisions, atomic save/audit/live notifications. Full R10 remains open beyond this subset and native preferences/setup I03/I04/I08/I11/I14; [dependency design inventory](Dependency_Catalogue.md) recorded, executable catalogue incomplete; R02 install-budget/compatibility gaps remain | P1 - consistent voice/UI controls without unsafe mutations | R04, R05, R06, R09; R02-L2/L5 evidence for local-model setup claims | Register schemas/defaults/bounds/scopes/revisions for speech/devices/output, queues/deadlines/retention/concurrency, runtimes, grants/calls, appearance/startup and admitted extensions. Supply discovery/get/propose-set/reset, exact previews, safe apply/recovery and audited rollback/conflicts. Turn admitted inventory entries into versioned source/identity/verification/ownership/probe/consent/refusal records; keep experimental and unimplemented adapters unavailable. For local inference, distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance; permit declining all optional providers and preserve the dependency-qualified deterministic subset without repeated prompts/downloads or cloud fallback. Keep installation/sign-in/secure workflows host-owned. Preserve device-local choices and protected-call origin/option gates. |
+| R10 - Implement typed configuration and capability-scoped setup | **Bounded appearance, installed speech choices and existing assistant display/PTT prefix delivered**: nine independent-file appearance options, coherent installed provider/voice selection and `assistant.name`, shared native/exact discovery/get/set/reset, domain validation, revisions, atomic save/audit/live notifications, explicit recovery and protected-call original-channel checks. Name mutation retires capture without replay/reopening and changes no authority identity or production wake capability. Full R10 remains open beyond these subsets and native preferences/setup I03/I04/I08/I11/I14; [dependency design inventory](Dependency_Catalogue.md) recorded, executable catalogue incomplete; R02 install-budget/compatibility gaps remain | P1 - consistent voice/UI controls without unsafe mutations | R04, R05, R06, R09; R02-L2/L5 evidence for local-model setup claims | Register schemas/defaults/bounds/scopes/revisions for other speech/devices/output, queues/deadlines/retention/concurrency, runtimes, grants/calls, appearance/startup and admitted extensions. Supply discovery/get/propose-set/reset, exact previews, safe apply/recovery and audited rollback/conflicts. Turn admitted inventory entries into versioned source/identity/verification/ownership/probe/consent/refusal records; keep experimental and unimplemented adapters unavailable. For local inference, distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance; permit declining all optional providers and preserve the dependency-qualified deterministic subset without repeated prompts/downloads or cloud fallback. Keep installation/sign-in/secure workflows host-owned. Preserve device-local choices and protected-call origin/option gates. |
 | R11 - Deliver registered embedded multi-script skills and containment | **Bounded catalogue/identity/native review delivered**; runner unavailable; I17 partial proof is not admission; partial readiness/lock I08/I12 | P0 - finish lock without admitting arbitrary execution | R02 (applicable W1-W3 worker/deployment gates, D-013), R03, R04, R05, R06, R10 | Embed lock manifest/instructions/fixtures, entry script and shared helper; verify `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1` complete framed identities and dependent-grant revocation. Direct/model/skill routes use the same pinned task exactly once with immutable source review. Complete W4: admit only fixed profiled workers with exact declared-resource review, best-effort transitive tracking/gap disclosure, protected required runtime/adapter admission, attributable network denial, bounded output/cancellation/Unknown receipts and real OS filesystem/child-process/credential/Kora-resource isolation. Prove observed lock outcome. Reject unsupported profiles or an unapproved broker substitution. Prepare power packages but do not enable OS power until R16. |
-| R12 - Complete session lifecycle, history and per-session work/queues | **Bounded minimal authority workspace delivered**: [passive paged IDs/typed questions/current durable tasks and guarded idle Done/resume](Interaction_And_Sessions.md#delivered-minimal-sessions-workspace---2026-10-07), generation invalidation and independent Perpetual preservation. Full conversation/work/queue/retention/delete package remains open beyond I07/I13. | P1 - durable, inspectable long-running work | R04, R05, R06, R10, R11 | Implement lifecycle UI/rename/select/disposition/delete, paged history/search/immutable artifacts and authoritative task state. Add ordered per-session queues, admission/deadlines/user waits/pause/cancel/remove/clear controls and no restart replay. Implement configurable 24-hour archive/30-day deletion on the same meaningful-activity clock, source revocation, late-append/live/uncertain-work holds and inventoried deletion/rewrite across journals/caches/indexes/artifacts/staging/managed backups. Prove preservation of unrelated content and independent Perpetual records; authority row removal alone is not deletion acceptance. |
-| R13 - Add bounded independent management and concurrent execution | Outstanding production core; released-profile MG1 envelope/topology proof passes, not production integration | P1 - remain responsive while useful work runs | Deterministic core: R05, R06, R10, R12 and applicable R02 local concurrency budgets. Model-assisted stage additionally: R08, R02-MG1 and management R02-PV1 | Deliver deterministic routing/status/choices/cancel first without hosted inference. Carry MG1's complete serialized 32 KiB input/4 KiB typed output, host 15-second dispatch deadline independent of send/abort ack, one in-flight, 30 attempts including failures per rolling hour/profile, fresh conversations and no forwarded retry into the R04-backed host. Reject unknown fields/targets/revisions and late output; Unknown remains quarantined until applicable observed receipts, not SDK ack. Add model assistance only after applicable runtime/account admission. Independently prove two task slots, isolated identities/contexts/grants, resource leases/fairness and reconciliation; synthetic conversation count is not scheduler/account evidence. No management task tools or approval authority; power follows R01. |
-| R14 - Build the coordinated Sessions workspace and interaction surfaces | Bounded [minimal Sessions list/passive details/explicit guarded lifecycle](Interaction_And_Sessions.md#delivered-minimal-sessions-workspace---2026-10-07), compact/native windows I03/I11, passive details, durable native question/exact-record review and [native read-only evidence inspector](#r04r14-bounded-durable-evidence-inspection---2026-10-07) delivered; full workspace remains open | P1 - make sessions, decisions and results understandable | R05, R09, R12, R13 | Complete list-plus-full-conversation/history, work/queue and immutable detail/script surfaces. Actual SQLite log/audit/span/link deterministic inspection, citations and trace navigation are delivered; daily-file cross-source reads, session/conversation sources, model evidence tools and full coordinated Evidence workspace remain open. Add separately admitted Ask Evidence with exact selected-record/egress scope and cited observation-versus-inference answers, native/voice targeting and scoped export. Switching windows never retargets approvals. Native visual/screen-reader/DPI acceptance remains open. |
+| R12 - Complete session lifecycle, history and per-session work/queues | **Bounded authority workspace and metadata delivered**: [passive pages and guarded idle Done/resume](Interaction_And_Sessions.md#delivered-minimal-sessions-workspace---2026-10-07), generation invalidation, independent Perpetual preservation and [durable bounded names/native explicit empty Create/exact-ID revisioned Rename with validated v1/v2 migration](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07). Full R12/A3 conversation/work/queue/retention/delete acceptance remains open. | P1 - durable, inspectable long-running work | R04, R05, R06, R10, R11 | Implement remaining disposition/delete, paged conversation/history/search/immutable artifacts and authoritative task state. Name-based voice targeting/routing remains gated; passive browse/rename never resumes or extends meaningful activity. Add ordered per-session queues, admission/deadlines/user waits/pause/cancel/remove/clear controls and no restart replay. Implement configurable 24-hour archive/30-day deletion on the same meaningful-activity clock, source revocation, late-append/live/uncertain-work holds and inventoried deletion/rewrite across journals/caches/indexes/artifacts/staging/managed backups. Prove preservation of unrelated content and independent Perpetual records; authority row removal alone is not deletion acceptance. |
+| R13 - Add bounded independent management and concurrent execution | Bounded deterministic exact-ID session observation/lifecycle/metadata commands delivered through the existing workspace host; independent routing/scheduler/resource core remains outstanding. Released-profile MG1 envelope/topology proof passes, not production model-management integration. | P1 - remain responsive while useful work runs | Deterministic core: R05, R06, R10, R12 and applicable R02 local concurrency budgets. Model-assisted stage additionally: R08, R02-MG1 and management R02-PV1 | Retain [bounded session commands](#r12r13-bounded-exact-id-session-entry-points---2026-10-07); complete deterministic routing/status/choices/cancel without hosted inference. Carry MG1's complete serialized 32 KiB input/4 KiB typed output, host 15-second dispatch deadline independent of send/abort ack, one in-flight, 30 attempts including failures per rolling hour/profile, fresh conversations and no forwarded retry into the R04-backed host. Reject unknown fields/targets/revisions and late output; Unknown remains quarantined until applicable observed receipts, not SDK ack. Add model assistance only after applicable runtime/account admission. Independently prove two task slots, isolated identities/contexts/grants, resource leases/fairness and reconciliation; synthetic conversation count is not scheduler/account evidence. No management task tools or approval authority; power follows R01. |
+| R14 - Build the coordinated Sessions workspace and interaction surfaces | Bounded [Sessions list/passive details/guarded lifecycle](Interaction_And_Sessions.md#delivered-minimal-sessions-workspace---2026-10-07) and [durable name/native Create/Rename](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07), compact/native windows I03/I11, passive details, durable native question/exact-record review, [SQLite inspector](#r04r14-bounded-durable-evidence-inspection---2026-10-07) and [independent DailyLog](#r14-bounded-independent-daily-json-diagnostic-inspection---2026-10-07) delivered; full coordinated workspace remains open | P1 - make sessions, decisions and results understandable | R05, R09, R12, R13 | Complete list-plus-full-conversation/history, work/queue and immutable detail/script surfaces. SQLite inspection/citations/trace navigation and independent daily diagnostic prefix reads are delivered; All remains SQLite-only. Exact combined-source queries, session/conversation sources, model evidence tools and full coordinated Evidence workspace remain open. Add separately admitted Ask Evidence with exact selected-record/egress scope and cited observation-versus-inference answers, native/voice targeting and scoped export. Switching windows never retargets approvals; names never resolve authority. Native visual/screen-reader/DPI acceptance remains open. |
 | R15 - Complete call-aware feedback, authorization and request-origin gates | Bounded manual mode, native status/controls, conservative speech/origin and legacy reuse checks delivered; full R15 partial, detector unavailable I14 | P0 - prevent call leakage and reusable-authority surprises | R03, R05, R09, R10, R13, R14 | Maintained deterministic/manual/durable tests cover mixed evidence, Unknown, revisions, original origin, audit admission, pending output and reuse/dispatch/disposal races. Saved preferences retain compatibility; new protection downgrades and exceptions are unavailable pending complete exact review. Remaining: capability-qualified real detectors, generic voice/call registry, production exact effect dispatch/generation wiring and native/acoustic/call acceptance. No automatic detector, authority migration or A0-A4 completion is claimed. See bounded call receipt. |
 | R16 - Enable graceful protected power and all-session app controls | Partial proposals and current-app lifecycle I12/I13 | P0 - make disruptive actions safe and truthful | R01, R05, R11, R12, R13, R15 | Register/verify fixed shutdown/restart packages and helpers. Implement all-session impact review, fresh action-specific voice or equivalent UI confirmation, 30-second foreground prompt, two-minute single-use approval and 30-second cancellable host countdown. Perform mandatory real OS/provider checks; no extra UI click solely because risk is high, no forced close and no unrelated OS cancellation. Coordinate exit/restart and resource ownership; reconcile observed receipts rather than claiming success from a proposal. |
 | R17 - Finish supported distribution, setup and startup behavior | Binary MSI/custom Burn, scoped logon/completion, release automation, managed-source build-only tooling, immutable source-tool distribution/channel resolution and bounded native notify-only release discovery implemented; source activation, upgrade limitations and installed/protection acceptance outstanding | P1 - users can install/run safely without a development checkout | R02 (distribution/hardware: D01/D03 admission; D02 direction selected), R03, R09, R10, R11, R16 | Complete R17-D01/D02/D03 below without another standalone feasibility project. Retain the delivered binary/CI/version/prerequisite/optional-consent, exact-source-tool and native metadata slices; finish separately approved source activation, supported upgrades/recovery, protected deployment and per-release native/licence qualification. Risk-based installed trials must cover logon/removal, repair/uninstall/all-users/completion and runtime-only launch against exact hashes after applicable resource/privacy/worker gates exist. Current per-user installs do not establish independent protection. Existing win-x86 output is not x86 acceptance; certify each offered architecture. NSIS-only paths are retired; historical receipts remain, with no executable experiment dependency. No in-app updater/download/install authority is added; reviewed dependency setup remains available. |
 | R18 - Implement trusted proactive and notify-only maintenance flows | Partial: composed canonical metadata/status and explicit Settings/Tray check/review/open/per-run snooze delivered; general proactive broker and voice replies outstanding | P1 - useful feedback without model-created prompts or updates | R05, R10, R13, R14, R15, R17 | Retain the [bounded native foundation](#bounded-r17r18-canonical-maintenance-foundation): per-run network consent, numeric stable/beta ordering, bounds, ETag re-verification, age/staleness, six-hour+jitter/backoff and ownership/privacy/protected-call invalidation. Production excludes drafts/prereleases; explicit Preview includes only published canonical beta releases; CI/default-branch outputs are not releases. Only a reviewed host-constructed canonical release page may open. Remote notes are not rendered. Models cannot trigger checks, invent availability, choose feeds/navigation or download/stage/activate updates. Complete separately the general trusted-event broker, shared question/voice targeting, deduplication, deferral/deadline/rejection/fatigue controls and native/acoustic acceptance. |
 | R19 - Accept the complete Slice A and platform/security gates | Proof outstanding | P0 - prevent a bootstrap/demo being released as the designed product | R07, R08, R09, R10, R11, R12, R13, R14, R15, R16, R17, R18 | Report A0-A4 separately with reference-machine actual results, synthetic offline/egress markers, exact provider versions, two-session resource/cancellation races, real containment and installer/lock/call/device trials. Meet each safety criterion and the measured latency/wake/hardware targets. Verify unsupported/disabled paths and no self-modification. Repeat earlier gates after later integration; resolve remaining initial-release decisions before sign-off. |
+
+### Bounded R10 exact output-device preference
+
+The [exact output preference slice](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+adds working native and typed/ACTIVATED discovery/get/status/select/per-option
+reset for the existing output override. Real persisted host audio-control
+session/generation admission, original-channel call/privacy/input revisions,
+host-held exact choices, bounded metadata, audited atomic writes and live output
+invalidation are shared; selection never starts audio or grants other authority.
+Missing/muted/open/playback failures retain full visual recovery and saved pins.
+Independent name/input/provider/voice/summary behavior and unique experiments
+remain maintained. Metadata/storage/binding fixtures are not native acoustic
+acceptance or full R10/I/A completion; no historical receipts are rewritten.
 
 ### R02 Distribution Follow-Up and R17 Delivery
 
@@ -1626,6 +1994,7 @@ Track each admitted descriptor and its tests against the package that implements
 | Structured questions/presentation/details/navigation/speech, approvals/grants and receipt/audit evidence/export | R04, R05, R09, R14, R15; optional R24/R25 |
 | Typed configuration, call feedback/origin/reusable-grant controls | R10, R15 |
 | Delivered nine-option typed appearance inventory: direct UI/exact local list/get/set/per-option reset, domain bounds/defaults, revision/proposal provenance and audit/live notifications; no Tools catalogue or model authority | R10; [bounded receipt](#r10-bounded-appearance-registry---2026-10-07) |
+| Delivered installed speech provider/voice schema: shared native/exact local discovery/get/set/reset, coherent atomic provider/voice selection, desired/effective/default/recovery, owned revisions and protected-call original-channel revalidation; no provisioning/model/call-override authority | R10; [bounded speech receipt](#r10-bounded-installed-speech-choices---2026-10-07) |
 | Explicit context and destination egress | R07, R08; deferred R26 |
 | Bundled skills/execution/computer controls | R11, R16; deferred R27/R28 |
 | Dual file/database logging, dedicated audit table and storage recovery | R04 |
@@ -1639,6 +2008,68 @@ For each delivery, update this inventory, the [decision register](Decision_Regis
 Record source/test/provider/hardware evidence and the exact acceptance result, not just a merged PR.
 Remove proposed labels only for the admitted behavior actually delivered; preserve unavailable/unknown states and the distinction between current host equivalents and model tools.
 Keep dependencies explicit and re-run affected earlier gates when a later capability changes shared authority, storage, audio, egress or resource coordination.
+## R10 Bounded Assistant Display/PTT Prefix - 2026-10-08
+
+The already delivered assistant name now has schema-1 typed
+`assistant.name` discovery/get/set/reset and native Apply/reset parity through
+one audited atomic host workflow. It reuses existing name validation and
+legacy preference bytes, command-collision validation and atomic preference
+storage. Discovery reports bounds/default/type/scope/effect/timing/reset,
+process-local revision, saved/default provenance and explicit recovery.
+Original host/channel/call and configuration revisions, confirmed capture
+quiescence and terminal audit precede publication. Name mutation retires
+captured/queued grammar/transcript/completion generations without reopening
+capture, clearing a run hold or replay. The next explicit PTT uses only the
+committed prefix, including merged exact session and artifact command routes.
+Native surfaces/help remain consistent; stop/cancel/recovery and exact pending
+question/approval targets remain independent.
+
+Deterministic portable and native-fake regressions cover legacy at/over bounds,
+Unicode semantics, invalid/corrupt state, storage/audit/cancellation failures,
+host/call/revision races, stale generations, per-option reset and no authority
+identity changes. No live audio, application launch, OS effect, install,
+elevation, account or security/network-policy trial is part of this receipt.
+Full R10 and R09/acoustic/packaged-host acceptance remain open.
+See [the exact contract](User_Configuration.md#delivered-bounded-assistant-displayptt-prefix-r10)
+and [wake distinction](Activation_Name.md).
+
+Direct synchronous validation on the combined #77 base
+`90146f405ea9236a23ee2a95cd159efcd5fbf84f`:
+Release no-restore build, zero warnings/errors; Core **610**, Application
+**1,578**, Tools **38**, Definitions **6**, Windows deterministic integration
+**865**, all passed with zero skips. The native activated-capture subset
+contains **51** passing tests and uses synthetic capture/privacy fixtures,
+not live devices. Merged portable coverage is exactly **9,536/9,536 lines**
+and **5,007/5,007 branches** (both unrounded **100%**); the CI threshold and
+coverage inclusion rules are unchanged. Initial no-restore validation found
+missing assets; locked restore used the explicitly approved feed only.
+No feed configuration, secrets or dependency manifest changed.
+
+Rebased immediately onto merged current-status documentation #76
+(`632f416f0b371dcf0fc7652edc32fcfbeb8db3ff`) while #78 CI ran.
+The combined Release build and all **1,578** Application tests were rerun.
+The admitted-input/speech-stop race fixture now explicitly awaits the preview
+command leaving its busy scope before requesting mutation, while the transcript
+remains blocked on its separate stop gate; no timing-dependent admission is
+assumed. The bounded delivered-name entry above supplements, rather than
+overwrites, #76's dated source-review snapshot.
+
+Final combined rebase also preserves merged spoken-summary caps #75 at
+`cd99241516b782525732fc2a4627af5b6af54f95`. Release no-restore build remains
+zero warnings/errors. All five suites were rerun directly: Core **648**,
+Application **1,623**, Tools **38**, Definitions **6**, Windows **865**
+(**3,180** total, zero failures/skips). Fresh combined portable coverage is
+exactly **9,702/9,702 lines** and **5,190/5,190 branches**, both unrounded
+**100%**, with no threshold/inclusion change. Prior counts above are dated
+snapshots, not a claim that the separately merged speech-cap scope was absent.
+
+**Experiment disposition:** retain all experiment executables and historical
+receipts. The speech proof's keyword/acoustic, synthesis-to-file, candidate and
+hardware measurements are not executable equivalents of typed preference or
+PTT generation tests. This slice adds no production detector/assets/enrollment;
+there is no specifically superseded name-configuration executable with verified
+equivalence and no consumers to retire. Unrelated experiment paths are unchanged.
+
 ## R10 Bounded Appearance Registry - 2026-10-07
 
 The [fixed descriptor registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)
@@ -1680,3 +2111,182 @@ Maintained version/publication/source-tool contract tests and both Windows
 x64/x86 publishes passed without application launch. Remote CI additionally
 owns dependency-license and publication gates; a local publish is not
 installed-app acceptance.
+
+## R10 Bounded Installed Speech Choices - 2026-10-07
+
+Follow-on delivered slice: [bounded spoken summary caps](User_Configuration.md#delivered-bounded-spoken-summary-limits-r10)
+adds schema-2 native/exact typed/ACTIVATED get/set/reset parity for independently
+lowerable 1-3 sentence / 1-80 word device-local limits. The original speech
+workflow owns atomic preferences, provenance, revisions, audits and host/call
+gates. Complete ordinary output must fit both caps; owner-approved over-cap
+refusal preserves full visual results/warnings instead of unsafe shortening or
+extra inference. Exact readback/questions retain existing bounds. No full R10,
+acoustic, OS-effect, install or live-network acceptance is claimed.
+
+Local validation after immediate rebase onto merged tray recovery #71
+(`cf0057bef2858998ea4e893cee7f4372780b7f25`), with prerequisite #72
+(`640f28b2f91c106f2d84cb62193beca9961ca739`) verified in ancestry:
+root no-restore Release build, zero warnings/errors; Core **577**,
+Application **1,514**, Tools **38**, Definitions **6** and the hardware-free
+native summary/installed-speech UI contract pass. Fresh same-build portable
+reports merge to exact **100% line / 100% branch**, enforced with the unchanged
+CI gate and no new exclusions. Missing initial assets were restored in locked
+mode from the explicitly authorized feed, with no local feed settings committed.
+Full remote Windows/portable CI remains the merge gate.
+
+Before first push, daily JSON sibling #74 merged as
+`e3280388a4f6c2ce2dd1e6a7adaf925a3e6f3c7d`. The owned branch was immediately
+rebased without conflicts. Fresh combined Release validation passed with zero
+warnings/errors: Core **585**, Application **1,515**, Tools **38**, Definitions
+**6**, one static speech UI contract and exact **100% line/branch** portable
+coverage. No sibling implementation was modified.
+
+While #75 checks ran, session commands #73 merged as
+`3bf1951ad6517cc2d3fa0b713e0a7fd23d4b18c8`. Immediate rebase retained both
+session and summary documentation contracts; the sole conflict was their
+section-filter/count assertion. Fresh combined validation again passed with
+zero warnings/errors: Core **647**, Application **1,548**, Tools **38**,
+Definitions **6**, the static native speech contract and exact **100% line /
+branch** portable coverage. Only the owned summary branch is pushed with lease.
+
+External native microphone-card #77 subsequently merged as
+`90146f405ea9236a23ee2a95cd159efcd5fbf84f`. The owned summary branch was
+immediately rebased without conflicts and freshly revalidated: zero-warning
+Release build, Core **647**, Application **1,573**, Tools **38**, Definitions
+**6**, one static native speech contract and exact **100% line/branch**
+portable coverage. The card's behavior is unchanged by this slice.
+
+Experiment supersession assessment for this slice: the per-path executable
+speech harness (`prepare.py`, `fixtures.py`, `benchmark.py`, `capture_probe.py`,
+`Render-Fixtures.ps1`, `Validate.ps1` and `test_benchmark.py`) proves asset/fixture/model/acoustic properties,
+not summary counting or audited preferences. No equivalent summary-limit
+executable or production consumer was identified. Maintained portable domain,
+workflow, provider-fake output and static UI tests are new evidence, not
+equivalence for those unique trials. Preserve all speech executables,
+historical receipts and outstanding acceptance; no experiment is removed or
+rerun. Other experiment paths do not implement this slice and remain unchanged.
+
+Implemented in isolated `agents/bounded-r10-speech-provider-setup`, initially
+fetched/rebased on `d0a8e82ef34b82c4d888803083050c2e9dff43cd` (#68).
+Schema version 1 admits only delivered installed Windows SAPI/Kokoro
+provider/voice choices. [Canonical configuration](User_Configuration.md#delivered-bounded-installed-speech-choices-r10)
+and [native/exact user controls](../docs/settings.md#speech-provider) share one
+host-owned workflow, coherent atomic selection file, process-local revisions,
+desired/effective/saved/default state, explicit unavailable recovery, typed
+request/terminal audit and live notifications. Legacy files are read without
+rewrite and shadowed only by a successful explicit coherent save.
+
+Provider set/reset selects its advertised default; provider reset restores
+Windows. Voice reset affects the current provider. Explicit provider-qualified
+voice selection supports installed voices even without a compatible default;
+ambiguous/unknown/missing choices cannot become substitutions. Asset review
+remains separate, and download completion no longer silently changes output.
+The original channel and observed call revision are checked under the existing
+policy lock adjacent to persistence. Privacy/ownership, System/pinned output,
+mandatory visual fallback and unavailable protection downgrades are preserved.
+
+Maintained [domain/schema tests](../tests/Kora.Core.UnitTests/Configuration/SpeechConfigurationTests.cs),
+[workflow tests](../tests/Kora.Application.UnitTests/Configuration/SpeechConfigurationServiceTests.cs),
+[grammar tests](../tests/Kora.Application.UnitTests/Configuration/SpeechCommandTests.cs),
+[actual UI/typed/activated-voice tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SpeechConfiguration.cs)
+and [static native UI contracts](../tests/Kora.Windows.IntegrationTests/SpeechConfigurationUiContractTests.cs)
+cover limits/invalid/ambiguous choices, cancellation, atomic persistence,
+missing/invalid/unreadable saved state, audit failure, ownership/call/catalogue
+races and live synchronization. Validation uses fakes/owned temporary paths;
+no application launch, capture/playback, provisioning, elevation, account,
+OS/policy or acoustic trials are acceptance evidence.
+
+This completes only the bounded installed speech-choice registry slice.
+Rate/volume/summary caps, microphone/tray recovery, diagnostics/metadata sibling
+work, general registry/tools, consent changes, call overrides and full
+R10/D-002/D-007/acoustic/installed-host acceptance remain outside it.
+
+Experiment disposition: the existing
+[speech proof](../experiments/r02-speech-proof/README.md) executables concern
+model/fixture/capture/acoustic measurements and their reproducible historical
+evidence, not provider/voice configuration equivalents. No maintained
+configuration test supersedes those unique measurements or outstanding trials;
+all executables and receipts are preserved. No experiment retirement is claimed.
+
+Local validation on this baseline: root Release build, zero warnings/errors;
+Core **529**, Application **1,443**, Tools **38** and Definitions **6** tests
+passed, plus two hardware-free native UI contracts and the pure Windows-default
+provider isolation test. Merged current-build portable coverage is exactly
+**100% line and branch** (rates `1` / `1`), enforced with unchanged CI thresholds
+and no new exclusions. Full remote Windows/portable CI remains the publication
+gate; this receipt does not claim hardware trials or acoustic acceptance.
+
+Before publication the branch was fetched/rebased onto merged session metadata
+#70 at `0b667e91746e94c8157bc9ae90faf57be3b6d3b9`, without conflicts or unpublished
+sibling imports. Fresh combined Release, Core **539**, Application **1,445**,
+Tools **38**, Definitions **6**, the same three hardware-free native contracts,
+and exact portable **100% line/branch** coverage passed. The initial-baseline
+receipt above remains historical; session metadata and its independent proof
+remain owned by #70.
+
+## R12/R13 Bounded Exact-ID Session Entry Points - 2026-10-07
+
+Extends merged #70's durable names/native Create/Rename foundation, not full
+work routing or scheduler acceptance. One portable typed grammar/result contract
+and the shared host workspace service now admit exact typed/activated-voice
+help/list/status/inspect and explicit create/rename/Done/resume. Exact IDs,
+generations and metadata revisions remain authority; names/window selection
+never supply command or approval targets. Fresh original-user lineage and
+durable control intent/receipt accompany every accepted command. Existing
+private storage, host ownership/unlocked presentation, voice consent/origin/
+call/recovery revisions, required audit and live-work/Unknown/question
+blockers remain enforced. Protected-call voice mutations stay unavailable.
+Errors, unsupported grammar and recovery are explicit; committed work is not
+described as rolled back by later receipt failure.
+
+Bounds: 1,024-byte whole UTF-8 input, domain-owned NFC names (120 scalars/
+480 bytes), default 25/max 50 keyset records, 64 KiB complete structured JSON
+results. Task/question pages are durable observations, not atomic runtime
+progress. No transcript persistence, queue/executor/scheduler/cancellation
+claims, inference/model exposure, deletion/retention, audio capture or
+name-based inference is added. See [exact user commands](../docs/commands.md#bounded-exact-id-session-commands).
+
+Experiment equivalence: the control/runtime proof tests SDK isolation and
+authority boundaries; management proof tests provider byte/deadline/retry/
+quarantine limits; storage scratch explicitly uses opaque feasibility records,
+not the production session/task contracts. These are not executable equivalents
+of this local exact grammar/native workspace slice. No experiment is retired;
+unique and historical receipts and consumers remain intact.
+
+Maintained validation on refreshed main `c0c15ac`: root no-restore Release
+build, zero warnings/errors; Core 592, Application 1,423, Tools 38,
+Definitions 6 and Windows 829 tests. Fresh latest-only portable reports meet
+the unchanged exact 100% line/branch gate. Missing initial assets alone
+required locked restore using the owner-specified per-command source; no
+NuGet configuration or credentials changed. Tests use deterministic fakes/
+owned SQLite/native fixtures, not app/audio/OS-effect/install/account trials.
+Remote CI remains the source/publication/license/packaging gate.
+
+After #72 merged, immediate rebase onto `640f28b` preserved both installed-speech
+and session documentation/contracts, reconciling only the added section-count
+test and appended receipt. Fresh combined Release and all five suites passed:
+Core **601**, Application **1,477**, Tools **38**, Definitions **6**, Windows
+**831**; latest-only portable coverage remained exact **100% line/branch**.
+The earlier receipt remains historical, not current-base merge evidence.
+
+Final entry-point correction keeps the typed deterministic session namespace
+available while bootstrap work is busy, without cancellation or model dispatch.
+Fresh Application **1,478**, three focused native-session tests, root Release
+and latest-only exact **100% line/branch** coverage passed on the same base;
+the full five-suite base qualification above remains valid.
+
+After #71 merged, immediate rebase onto `cf0057b` retained the native recovery
+boundaries. Qualification exposed an existing disposal-order race: cancelling
+the awaited microphone refresh could release its caller before input was held.
+With owner approval, disposal now closes lifecycle admission and holds input
+before releasing refresh waiters; the maintained disposed-callback regression
+passes without weakening its privacy assertions. Fresh root no-restore Release
+build has zero warnings/errors; Core **601**, Application **1,502**, Tools
+**38**, Definitions **6**, Windows **835** all pass. Latest-only portable
+coverage meets the unchanged exact **100% line/branch** gate.
+
+After #74 merged during checks, immediate rebase onto `e328038` required no
+conflict or unpublished-source integration. Fresh combined root no-restore
+Release build and all suites pass: Core **609**, Application **1,503**, Tools
+**38**, Definitions **6**, Windows **863**, with zero build warnings/errors
+and unchanged exact **100% line/branch** latest-only portable coverage.

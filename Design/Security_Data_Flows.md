@@ -46,6 +46,16 @@ The design concerns are resolved under the chosen trust model by the following h
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
 
+The [bounded output preference workflow](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+uses persisted host-resolved audio-control session/generation admission, not
+desktop correlation IDs as authority. Exact host-held choices bind original
+channel, current host/privacy/call/input eligibility and topology/preference
+revisions. Native, typed and activated routes share audited atomic persistence;
+unknown/stale/foreign inputs fail closed. This device-local control grants no
+approval, question, microphone, provisioning or OS authority. Evidence failure
+can follow a committed file: output remains unavailable until explicit recovery,
+never an invented rollback, substituted endpoint or automatic retry.
+
 ## Data Modes
 
 ### Local Only
@@ -99,8 +109,17 @@ First launch must explain local wake processing, activated transcription, and
 the default bounded prefix-free capture after Kora asks a question,
 then obtain consent before ongoing capture. Declining or withdrawing that
 consent keeps capture closed across restart until renewed explicitly.
-The bootstrap currently auto-starts its grammar recognizer without this full
-consent/lifecycle contract; this matrix is the required design, not shipped proof.
+The bootstrap now saves explicit ongoing consent and arms PTT only after
+eligible startup gates; it does not run a grammar recognizer on ambient audio.
+The [bounded native tray recovery](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
+enumerates/selects without capture and uses explicit revision-bound enablement.
+The [passive native recovery card](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+shares those host commands from tray and speech Settings. Its local highlight
+is not saved consent, an R05 answer or enablement authority. Save and Enable are
+distinct exact native inputs; missing permission/ownership fails closed. No
+combined consent/selection/enable or microphone test is admitted.
+The full matrix, production wake and native lifecycle acceptance remain
+required design/proof gates, not established by deterministic tray tests.
 
 Every ongoing capture open requires exclusive assistant ownership, authoritative unlocked and
 connected Windows state, ongoing consent, a usable selected endpoint, OS
@@ -112,6 +131,7 @@ Revalidate these gates and the audio generation immediately before acquisition.
 | First launch; no ongoing consent | Enumerate/select System without recording; remain closed and show native consent/continue-without-voice choices | Explicit Enable voice consent can also enable capture after all gates pass; selection or a test is not ongoing consent |
 | Ordinary launch, logon, or application restart with saved consent | Fresh gates may automatically enable listening; no task, approval, audio, or dispatch-token replay | If a gate fails, show its blocker and use explicit recovery; startup is not a permission override |
 | Manual Disable listening / mute | Close capture, invalidate callbacks/transcripts and clear buffers; retain consent but hold enablement for this run | Explicit native Enable listening after fresh gates; selecting devices, PTT, or settings reset cannot unmute |
+| Exact `speech.input-device` selection / per-option reset | Shares native audited preference persistence; reset removes only the microphone override and selects System. Changed selection invalidates/releases stale input; missing pins and manual/run holds are retained. Metadata inspection opens no capture | No auto-arm, consent/permission change, question answer or OS write; separate fresh native Enable after current gates. Protected/unknown calls deny original voice mutations; stale or foreign context, audit/storage/detection failure needs explicit recovery |
 | Lock, disconnect, or unknown Windows state; later unlock/reconnect | Close/deny capture and clear audio; retain consent but hold enablement for this run | Unlock/reconnect alone cannot reopen; explicit native Enable listening in an eligible session is required |
 | Suspend; later resume | Close capture and clear audio; retain consent but hold enablement for this run | Resume alone cannot reopen; explicit native Enable listening after fresh gates |
 | Permission loss, endpoint loss, capture failure, or unavailable voice assets | Close capture, clear audio and invalidate its generation; retain the requested endpoint and consent, not recording authority | Restored permission, hot-plug, repaired assets or replacement selection alone cannot reopen; explicit native Enable listening is required |
@@ -936,6 +956,14 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.
+The delivered [bounded ordinary retention slice](Architecture.md#bounded-ordinary-diagnostic-retention)
+consumes existing effective due timestamps only. One admitted owner-startup
+transaction removes at most 128 due diagnostic logs and 32 due spans with all
+their at-most-1,024 owned links. Due backlog can remain; queries do not refresh
+it. No audit row/sequence/hash chain, session/task/interaction/grant or Perpetual
+record is pruned, and no retention preference is changed. This is logical
+row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
+and its continuation/checkpoint requirements remain independently unimplemented.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.
 The [approved storage baseline](Architecture.md#windows-durable-storage-direction) uses pinned standard SQLite, not mandatory page encryption or database DPAPI keys. Copies outside the private location are readable; same-user/admin access is not prevented. Credentials remain in Windows-protected credential storage.
 R04's partial [host evidence foundation](Implementation_Roadmap.md#r04-foundation-delivery)
@@ -1024,11 +1052,28 @@ labels, incoming trace headers and selected-window state cannot assign or change
 it. After session deletion, independently retained audit rows may keep the
 opaque session ID and a deleted-session marker, but no title, request text or
 other deleted session content.
-The same service may read the complete daily application files only through an
-adapter that validates Kora daily-log names, rejects arbitrary paths, and bounds
-each tail read to 1,000,000 characters. File audit copies remain operational
+The same service now independently inspects the application's existing daily
+diagnostic JSON envelopes through the native **DailyLog** source, not a merged
+cross-source search. It shares exact daily-name and versioned envelope rules
+with the actual writer, rejects arbitrary paths/reparse or unowned/permissive
+sources, validates opened-handle final paths and file identities, and performs
+no writes or permission repair. It captures/revalidates at most 8 MiB of prefix
+each (16 MiB total I/O), 32 files, 4,096 lines and 256 KiB per line excluding LF,
+within a five-second deadline. Signed query/viewer-bound continuations refer to
+one of eight bounded 15-minute manifests. Prefix hashes/identities reject
+replacement and mutation, while appends/new days cannot expand a cursor.
+Failures and scan ceilings are explicit; no atomic filesystem or complete
+history claim is made. The older raw-tail adapter's separate 1,000,000-character
+limit is unchanged and is not used as the structured inspection contract.
+Daily record observation time is not a database commit or due date; correlation
+cannot grant identity or permission. Unsupported activity/legacy copies,
+ingestion-gap markers and audit mirrors are counted, not silently omitted.
+File audit copies remain operational
 evidence only and cannot satisfy the required `security_audit_events` commit,
-approval or receipt requirement.
+approval or receipt requirement; the inspector does not return them as audit
+rows or parse their copied audit payload. `SecurityAudit` lookalikes in ordinary
+properties remain ordinary properties. Exact All/Log/Audit/Span/Link SQLite
+behavior and counts, audit chain and independent retention are unchanged.
 Content-bearing diagnostic export requires explicit preview/consent; OS or third-party crash dumps remain a deployment concern.
 In-memory disposal is best-effort, not a guarantee of forensic erasure from OS paging.
 

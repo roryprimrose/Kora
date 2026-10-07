@@ -74,15 +74,18 @@ The right-click menu contains:
 - **Show Kora**
 - **Kora Settings**
 - **Documentation**
+- **Skill packages (inspection only)**
 - **Sessions**
 - **Preview clipboard (local plain text)**
 - **Release maintenance (notify-only)**
 - **Evidence (read-only)**
 - **Review local version (native question)**
-- **Enable listening / Disable listening**
+- Read-only generic **input status** (no endpoint ID/name or transcript in the tooltip)
+- **Listening controls > Enable listening / Disable listening**
 - **Voice consent / push-to-talk**
-- **Microphones** (enumerated endpoint IDs, selected and unavailable state)
-- **Refresh microphones** (no model/network dependency)
+- **Microphones** (friendly endpoint labels, native selected-preference marks and availability)
+- **Choose microphone (native recovery)** (the same passive card as speech Settings)
+- **Refresh microphones** (metadata only; five-second deadline; no model/network dependency)
 - **Stop speaking**
 - **Exit Kora**
 
@@ -94,14 +97,60 @@ never implicitly activate capture. Windows privacy events hide sensitive
 Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
 launcher/tray to return to native status and recovery.
 
+### Microphone and listening recovery
+
+The native selections share the same audited preference seam as the bounded
+[`speech.input-device` commands](commands.md#exact-input-device-preference).
+Commands do not combine selection with Enable or renew consent/permission;
+reset explicitly selects System without releasing manual/run holds.
+
+**Choose microphone (native recovery)** opens a non-topmost card with real current
+endpoint names/IDs, System/default availability and the retained unavailable pin.
+**Refresh devices** is metadata only. Highlight a current endpoint, then choose
+**Save preference only**; highlighting/closing is not consent or enablement.
+Use a separate fresh **Enable listening (PTT readiness only)** for the displayed
+saved endpoint after all current host gates pass. No model, network, working
+microphone, test capture or durable question bridge is required or claimed.
+Close/Escape does not cancel a task or mark a session Done. Speech Settings
+opens the same card and retains its separate consent and held PTT controls.
+
+Open the right-click menu to refresh microphone metadata without recording.
+Refresh is single-flight and has a five-second caller deadline. If Windows
+enumeration is still finishing after a timeout, retry later; repeated clicks
+do not start more workers. Failure reports **Microphone recovery needs
+attention** with Refresh/Settings recovery, and capture stays closed.
+
+The tooltip distinguishes PTT-ready (**microphone closed; wake unavailable**)
+from actual PTT capture, disabled input, unavailable selection and denied/
+unknown Windows privacy. It contains no device identity or private content.
+The microphone submenu shows **System** and active named endpoints. A native
+selection mark means saved preference, not recording. A missing saved pin
+remains marked **unavailable; preference retained**, not replaced. System can
+explicitly clear an unavailable pin even when Windows has no usable default.
+
+Choosing an endpoint saves only that current revision's preference. Changed
+selection closes input and requires explicit **Enable listening** afterwards;
+it does not test the device, record audio or grant consent. A stale menu click,
+changed Windows topology, lost ownership, locked/disconnected/unknown privacy
+or a failed save reports refusal/recovery. Refresh and choose again.
+
+**Enable listening** requires saved consent and fresh existing host gates; it
+only arms PTT. **Disable listening** is always an explicit close, never a toggle
+that can accidentally enable from an old menu. **Stop speaking** stops only
+playback. **Voice consent / push-to-talk** opens existing Settings for consent,
+readiness and held PTT. These actions do not cancel tasks or approve work.
+No microphone test or ambient wake is provided by this recovery slice.
+
 ## Passive document details
 
 ### Minimal durable Sessions
 
 Choose **Sessions**, use exact **open sessions**, or press **Ctrl+Shift+S**
 in the compact response. **Refresh** lists existing Active/Done durable IDs
-and generations, 25 per page. Selection reads actual typed question history
-and current task records, never a conversation title or fabricated progress.
+and generations with bounded user names and metadata revisions, 25 per page
+(50 maximum at the store). Preserved legacy sessions are explicitly unnamed.
+Selection reads actual typed question history and current task records, never
+a fabricated conversation or progress.
 Next session/question/task/evidence controls are independently bounded.
 **Read selected evidence** uses the separate diagnostic/audit projection;
 missing conversation/session sources remain unavailable.
@@ -115,12 +164,41 @@ privacy, call policy/revision, committed control intent and atomic authoritative
 audit are checked by the writer, not inferred from the display. A conflict or
 failure reports refusal/recovery; refresh before retrying.
 
+Enter a name and choose **Create empty Active session** to deliberately create
+a new immutable session ID, Active generation 1 and metadata revision 1.
+This creates no execution task, executor, model context, question, approval or
+permission; Kora retains an administrative control intent/receipt for audit.
+**Rename selected ID** applies only to the displayed exact ID and its observed
+generation/metadata revision. Duplicate names are permitted, never ambiguous
+authority. A stale edit is refused: refresh and select the exact ID again.
+Rename is allowed on Done or unresolved-work sessions without resuming,
+abandoning or resolving work, changing grants or extending meaningful activity.
+
+Names must be nonblank NFC Unicode with no surrounding whitespace, at most
+**120 Unicode scalars / 480 UTF-8 bytes**, with no control/format characters
+or line/paragraph separators. Invalid names are refused, never silently
+normalized/truncated. Names are intentional private content, stored only in
+the existing private interaction partition, not raw audit/log/activity content.
+The validated transactional v1-to-v2 schema upgrade preserves existing
+authority/history and does not invent names. Missing/corrupt/unsupported data
+is unavailable, never replaced with empty authority. Create/Rename require
+the same fresh original-user ownership/privacy/call admission and required
+atomic audit as lifecycle controls; protected/unknown call state denies them.
+
 Done/resume each advance generation and invalidate old scoped authority.
 Perpetual records remain independent. Resume does not rerun tasks, revive
 approvals or restore/transmit old context. Privacy closure clears this window.
-Full conversations, work queues, rename/create metadata, automatic archive,
+Full conversations, work queues, name-based voice targeting, automatic archive,
 delete/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
+
+The compact command box and activated voice also expose bounded
+[exact-ID session commands](commands.md#bounded-exact-id-session-commands).
+They share this host service/store, never inherit the selected row/window,
+and require explicit generation/metadata revisions for mutations. Structured
+results are observations rather than runtime progress or conversation history.
+Protected-call voice mutations remain unavailable; pending bootstrap questions
+and approvals are preserved and must be resolved explicitly.
 
 ### Local clipboard preview
 

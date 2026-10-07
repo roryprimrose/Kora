@@ -2,6 +2,30 @@
 
 ## Microphone selection
 
+The bounded [exact input-device commands](commands.md#exact-input-device-preference)
+also expose this same preference through typed or already **activated** voice.
+They do not provide wake listening or receive speech while input is closed.
+Use exact listed endpoint IDs, not names/indices. Per-option reset selects
+System only; it does not enable listening, change consent/permission or reopen
+a run hold. Protected/unknown calls deny original voice mutations.
+
+Choose **Settings > Speech & audio > Choose microphone (native recovery)** or
+the same **Choose microphone** tray entry. This native card works without voice,
+a model or network. Opening it refreshes metadata only. Review System and active
+endpoint names/IDs (duplicate names remain distinct); an unavailable saved pin
+stays visible. Highlighting changes only a local draft. **Save preference only**
+saves that exact current choice without capture or new consent. Changed selection
+closes input; **Enable listening (PTT readiness only)** is a separate fresh input
+for the displayed saved endpoint, available only with existing consent and current
+ownership/privacy/permission/readiness gates. Refresh after stale input or device
+changes. Disable and Stop speaking remain explicit separate actions.
+
+The card has no microphone test or combined consent/selection/enable. Review
+consent separately in existing speech Settings; absent/withdrawn consent cannot
+be renewed by the card. Closing/Escape changes no consent, task, session or
+question. Full first-run onboarding, shared durable device questions, production
+wake and native/hardware acceptance are still pending.
+
 The Settings microphone card reports the current Windows privacy state
 separately from device selection. An available **System** or named endpoint does
 not by itself prove that desktop microphone access is allowed.
@@ -15,6 +39,15 @@ Choosing a specific microphone stores its stable Windows endpoint ID as a local
 Kora override. Choosing **System** removes that override. A missing pinned
 microphone is shown as unavailable and is not silently replaced by a same-name
 or newly-default device.
+
+The [tray microphone/listening recovery](windows-and-tray.md#microphone-and-listening-recovery)
+is available without a model, network or working microphone. Opening its menu
+refreshes metadata with a five-second single-flight deadline. A native selection
+mark means preference only; stale menu selections are refused and a failed save
+retains the old preference. Selecting a replacement closes input but does not
+record or release a recovery hold. System may be explicitly selected even
+without a default; enabling still requires a usable endpoint and all existing
+consent/privacy/readiness gates. No test capture or automatic selection is added.
 
 Changing the Windows default while System is selected automatically reroutes
 an already active WASAPI capture to the new available default microphone.
@@ -43,6 +76,18 @@ command, then release to finish. Losing the capture control/window also ends
 capture. Each answer or approval requires a new activation. Transcripts use the
 same deterministic command pipeline as typed input; activation alone approves
 nothing.
+
+The configured [display / PTT command-prefix name](settings.md#assistant-display--ptt-command-prefix-name)
+is not a production wake profile. Native Apply/reset and exact
+`list assistant settings`, `get/set/reset assistant.name` share typed audited
+configuration. A name change closes and retires the old capture/grammar and
+queued transcript/completion generations, including session/artifact prefixes.
+It never replays a turn, reopens capture or releases a run hold. Explicitly
+enable listening, then start a new PTT with the current prefix.
+Invalid saved names disable prefix/capture with visible native/unprefixed
+recovery. Failed new grammar startup does not restore an old prefix. Original
+voice set/reset remains denied during protected/unknown calls. No custom wake
+assets, enrollment, acoustic validation or download is implemented.
 
 A result that arrives during microphone startup is staged as one bounded
 transcript until the application acknowledges that exact activation generation.
@@ -108,28 +153,32 @@ of Kora, but its model and voices are not installed or downloaded by default.
 To enable it:
 
 1. Open **Settings > Speech & audio**.
-2. Select **Kokoro** under **Speech provider**.
+2. Review **Kokoro** under **Speech provider assets (review only)**.
 3. Select **Download**.
 4. Leave Kora running while it downloads, verifies, installs, and prepares
    approximately 219 MiB of assets.
+5. Explicitly select a ready **Installed speech provider** or an installed
+   voice identified by `provider / ID`.
 
 Kora pins the asset version, size, and SHA-256 digest. An incomplete, modified,
 or unexpected download is rejected rather than activated. After preparation,
-Kokoro's voices appear immediately without an application restart. Synthesis
+Kokoro's voices become selectable immediately without an application restart. Synthesis
 then runs on this device and continues to use the selected Windows audio output.
 
 Selecting a provider that still needs to be downloaded does not interrupt the
 working speech provider. Kora continues using the current installed voice for
-download results and failures. After a successful installation, Kora activates
-the downloaded provider and its default voice immediately.
+download results and failures. A successful installation does not silently
+change the saved provider or active voice; selection is a separate explicit
+configuration operation.
 
 Use **Remove downloaded model** to delete the optional assets. This leaves the
 Windows provider intact.
 
 ## Speech voice selection
 
-Kora never silently downloads a provider or voice. Without a saved voice
-choice, Kora ranks compatible voices from the selected provider in this order:
+Kora never silently downloads or substitutes a provider or voice. Without a
+saved voice choice it uses the selected provider's advertised default.
+For Windows that default ranks installed Windows voices in this order:
 
 1. female voice matching the exact Windows profile locale;
 2. female voice from the same language family;
@@ -140,6 +189,12 @@ choice, Kora ranks compatible voices from the selected provider in this order:
 
 Kora does not automatically select an unrelated language. An explicit voice
 selection is stored locally and remains selected while that voice is installed.
+The provider/voice pair is persisted atomically. Qualified choices select that
+exact installed pair; an unqualified voice ID must be unique. A provider with
+no compatible advertised default can still be selected by choosing an exact
+installed voice. Missing selected assets and malformed/unknown saved state are
+explicitly unavailable and require selection/reset or repair and refresh.
+No different voice is used while recovery is pending.
 
 If the Windows provider has no voice, install a Windows text-to-speech voice
 through Windows Settings. If Kokoro is selected but absent, download it from
@@ -147,23 +202,49 @@ Kora Settings. Typed commands and visual output continue to work.
 
 Select an installed voice and available output, then select **Preview** to test
 that explicit choice. Preview is disabled when no voice is selected and
-revalidates both selections before playback; a retained fallback voice used for
-ordinary responses is not an implicit Preview choice. No ambient recognizer
+revalidates both selections before playback. There is no retained substitute
+voice for a missing saved choice. No ambient recognizer
 runs during playback. Push-to-talk stops Kora playback before opening command
 capture. **Stop speaking** remains available from the tray without speech
 recognition. Exit also stops active playback before host teardown. Acoustic
 playback rejection for a future production wake pipeline still requires
 separate real-hardware proof.
 
+## Ordinary spoken summary caps
+
+**Settings > Speech & audio > Spoken summary limits** and exact
+`speech.summary-sentences` / `speech.summary-words` commands share device-local
+caps: **1-3 sentences / 1-80 words**, default **3 / 80**.
+The complete ordinary result, including spoken title and warnings, must fit
+both. Over-cap text is not truncated or paraphrased: speech is withheld with
+truthful full visual recovery. No additional model call is made.
+Exact approval/proposal readback and required questions/options retain their
+existing mandatory bounds; these caps are not permission to shorten them.
+Provider/voice, System/pinned output, consent and call/privacy rules are
+unchanged. Changes invalidate pending speech; no reset or clearance replays it.
+See [exact counting, commands and recovery](settings.md#spoken-summary-limits).
+
 ## Audio output selection
 
 The audio output list contains:
 
 - **System** - follows the live Windows multimedia-default output;
-- each active Windows render endpoint - pins Kora to that endpoint.
+- each active Windows render endpoint - displays an existing exact saved pin.
 
-Choosing System removes a saved Kora speaker override. An available new Windows
-default automatically reroutes active WASAPI playback while System is selected.
+Refresh metadata, choose an exact presented endpoint, and explicitly save; reset
+selects System and removes only Kora's override. Native Settings and exact
+`list output settings` / get/status/set/reset `speech.output-device` commands
+share persisted host session/generation admission, original-channel call/privacy
+gates and audited atomic persistence. Neither draft selection nor save/reset
+starts audio or changes Windows defaults, global mute/volume, microphone consent,
+provider/voice or summary settings. Stale choices/evidence failures require
+explicit recovery, not substituted endpoints or replay. Full visual recovery is
+mandatory for missing/muted/zero-volume/open/playback failure; acoustic audibility
+and full R10/native audio acceptance are not claimed.
+
+System resolves the current multimedia default for each fresh eligible request.
+Changed output metadata retires stale queued/in-flight Kora output without replay;
+the underlying System WASAPI route follows Windows routing, not a saved endpoint pin.
 Named endpoint selections remain pinned, even when Windows defaults or unrelated
 devices change. A missing or muted effective output stops speech without replay;
 subsequent eligible speech resolves the selected endpoint. A pinned endpoint is

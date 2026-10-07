@@ -36,7 +36,7 @@ public sealed class SessionsViewModelTests
         await viewer.RefreshAsync();
         held.Reads.Should().Be(1);
         viewer.Close();
-        held.Completion.SetResult(new([new(fixture.Request.SessionId, new(1), true)], null));
+        held.Completion.SetResult(new([new(new(fixture.Request.SessionId, new(1), true), null)], null));
         await read;
         viewer.Sessions.Should().BeEmpty();
         viewer.Detail.Should().BeEmpty();
@@ -86,7 +86,9 @@ public sealed class SessionsViewModelTests
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
             .And.Contain("Mark selected ID _Done").And.Contain("Explicitly res_ume selected ID");
         document.Descendants().Should().NotContain(element =>
-            element.Name.LocalName == "TextBox" || element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
+            element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
+        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().ContainSingle();
+        source.Should().Contain("NameDraft").And.Contain("CanCreate").And.Contain("CanRename");
         var code = Read("SessionsWindow.axaml.cs");
         code.Should().Contain("model.SelectAsync").And.Contain("Key.Escape").And.NotContain("SubmitAsync")
             .And.NotContain("ApproveAsync").And.NotContain("Clipboard").And.NotContain("Reasoner");
@@ -112,18 +114,29 @@ public sealed class SessionsViewModelTests
 
     private sealed class HeldStore : ISessionWorkspaceStore
     {
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        internal TaskCompletionSource<SessionPage<WorkSessionAuthorization>> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource<SessionPage<SessionWorkspaceEntry>> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Reads { get; private set; }
         internal int ControlCalls { get; private set; }
 
-        public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken cancellationToken)
+        public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken)
         {
             Reads++;
             return new(Completion.Task);
         }
+        public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
+            Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision expectedGeneration,
+            long expectedMetadataRevision, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
         public ValueTask<SessionPage<HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
         public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken cancellationToken) =>

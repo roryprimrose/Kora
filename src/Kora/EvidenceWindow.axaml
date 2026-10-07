@@ -11,7 +11,7 @@
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
   <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
-    <TextBlock Text="Evidence - diagnostic, audit, span and link records" FontSize="20" FontWeight="SemiBold" />
+    <TextBlock Text="Evidence - SQLite; DailyLog; opt-in CombinedLog ordinary diagnostics" FontSize="20" FontWeight="SemiBold" />
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" MinWidth="130"
                 AutomationProperties.Name="Evidence source" />

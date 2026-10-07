@@ -49,7 +49,12 @@ unmatched request, the built-in action names/descriptions, and a limited
 snapshot of dependency readiness, task state/progress, listening state, and
 pending power-proposal status to the pinned Ollama model on `127.0.0.1`. It
 does not include earlier conversations, logs, files, clipboard contents,
-device identifiers, or account data. For a clarification, Kora sends the
+device identifiers, or account data. Explicit
+[artifact invocation](commands.md#run-skills-and-future-artifacts) separately
+includes the selected bundled/compatible profile instruction content and its
+source/version/digest identity in the local-model request, not arbitrary files
+or the instruction's scripts. That content remains untrusted guidance and
+cannot bypass host action/grant policy. For a clarification, Kora sends the
 original request, its question, and the option you selected back to that same
 local model; no unrelated conversation history is sent. The model can return
 a text answer, a bounded question with choices, a grant-change proposal,
@@ -162,6 +167,17 @@ projection is not that authority. Unknown/live work and unresolved questions
 remain blockers. Each transition advances generation, invalidates old scoped
 authority, preserves independent Perpetual records and replays nothing.
 No automatic archive, deletion, retention or export is added.
+Native **Create empty Active session** and **Rename selected ID** store bounded
+intentional private names in the existing interaction partition. Names never
+enter activity tags/names, diagnostic messages or raw audit envelopes; required
+typed audit commits retain exact identity/revision and a content digest.
+Duplicate names are not authority keys. Rename does not resume, revive old
+questions, change scoped/Perpetual grants or extend meaningful activity.
+Create grants no permission and creates no executor/model context. Both require
+fresh original-user admission, privacy/ownership and call policy/revision at
+COMMIT. Privacy closure clears name drafts and late content. Missing/corrupt/
+unsupported data is refused rather than replaced; validated v1-to-v2 schema
+maintenance preserves authority and never invents titles.
 
 The tray's **Review local version (native question)** uses trusted native
 input over the durable host question service, separately from legacy
@@ -232,6 +248,23 @@ repair. Process-interruption tests do not guarantee physical power-loss recovery
 There is still no durable conversation/history UI or general task executor.
 The tray's **Evidence (read-only)** opens a native inspector for actual
 SQLite diagnostic, typed audit, completed span and explicit link records.
+**DailyLog** additionally inspects existing daily diagnostic JSON independently;
+**All** still selects SQLite only and does not count mirrored file copies.
+Explicit **CombinedLog** opt-in selects only SQLite ordinary logs and independent
+DailyLog ordinary records. It does not change the default or include database
+audit/span/link records or file audit mirrors. The pair is independently captured,
+not an atomic cross-sink snapshot: SQLite records are ordered by commit time/ID,
+then daily records by exact daily name/byte offset. Overlapping IDs, text,
+timestamps and trace IDs do not deduplicate records or establish causality.
+Each citation keeps its original source/provenance; time filters use database
+commit time for SQLite and observation time for daily records. Read selected
+trace in CombinedLog remains combined ordinary diagnostics, not a merged graph.
+Both sources are re-admitted/verified on every page, even before or after the
+source boundary. An included source failure discards the combined content and
+reports its status; it cannot fall back to a working source or claim empty
+success. Restore original access/source availability and explicitly search
+again. Expired/evicted/malformed/foreign/tampered cursors never silently restart
+or renew expiry; appends/new days do not widen either captured half.
 Choose a source, optionally enter safe text or session/task/trace correlation
 filters, then select **Search / refresh**. **Next page** continues that exact
 snapshot; later records do not silently extend it. Each page includes stable
@@ -250,10 +283,47 @@ access failures are visible; no store or permission repair is attempted.
 Closing or privacy closure clears/cancels the view without changing retained
 sources. There is no copy, export, model reasoning, browser, deletion, grant
 use or remote transmission from this inspector.
+
+DailyLog reads only exact Kora daily names from the supplied application-data
+Logs directory; it accepts no path, creates no file and repairs no permissions.
+It checks current-user source ownership/access, rejects redirected paths, and
+verifies opened file identity and captured-prefix hashes before presenting a
+page. Its limits are 32 files, an 8-MiB earliest complete-line prefix, 4,096
+physical lines, 256 KiB per line excluding the final LF and five seconds per
+read. Capture plus final prefix verification reads at most 16 MiB total.
+The existing 50-record/64-KiB output limit applies. `ScanLimitReached` does not
+mean the full file was searched; paging cannot go beyond the captured prefix.
+Next page is tied to one of eight host-held 15-minute snapshots. Appends/new
+days do not extend it; eviction/expiry requires a fresh search.
+
+Daily citations are separate from SQLite citations and include trusted
+file/offset/digest provenance and the original envelope evidence ID.
+Observation time, event name, exception type and redacted typed scopes are
+retained, but database commit/due dates are absent:
+`RetentionUnknown` does not claim expiry or removal. Audit mirrors are
+unsupported, never database audit evidence. Activity/legacy copies and gap
+markers are explicitly counted in `DailyReport`; skipped copies show `Partial`.
+Corrupt/truncated/changed/missing/expired/unavailable/timed-out sources show
+explicit status without partial-success content. Read selected trace remains
+in DailyLog; the activity graph is unavailable there. These user-modifiable
+records and their correlation never supply identity, permission, an execution
+receipt or a complete history. CombinedLog's explicit source-major order is not
+cross-source chronological or causal ranking.
 Database records receive independent 30-day diagnostic and 90-day audit
-due dates, but automatic database pruning/deletion is not yet implemented.
-The first-use greeting, settings and version response disclose this limitation;
-the daily-file 30-day/30-file retention remains active.
+due dates. Each admitted owner startup, after storage admission and recovery,
+prunes at most 128 due ordinary logs and 32 due spans with their at-most-1,024
+owned links in one transaction. Due backlog may remain until later startups;
+there is no periodic drain or pruning triggered by reading/searching.
+Audit records, tasks, sessions, questions and grants (including Perpetual)
+are never removed by this operation. Missing/corrupt/inaccessible storage fails
+visibly without replacement or permission repair. This is row pruning, not
+forensic erasure of journals, free pages, backups or external copies.
+The first-use greeting, settings and version response disclose these limits;
+daily-file 30-day/30-file retention is unchanged.
+An in-progress evidence cursor whose original snapshot ceiling was removed
+fails visibly and requires a new query; reused row IDs cannot supply replacement
+citations. Retained child/audit/link references to pruned spans report
+`MissingOrRemoved`, not a fabricated complete trace or proven deletion cause.
 The full durable design continues writing every permitted
 `ILogger` event to daily JSON files and private-profile standard SQLite.
 Ordinary records use a dedicated `application_log_events` table. Typed events
@@ -286,17 +356,20 @@ you can inspect its parent/linked trace. Trace and session identifiers are
 correlation only, never permission or authentication, and no remote telemetry
 export is enabled by this design.
 
-Diagnostic database retention defaults to 30 days under its independent
-configurable setting. Audit database retention defaults to 90 days and can be
-set from 30 through 365 days. Audit records are content-minimising and remain
+The delivered diagnostic database policy is 30 days; this slice adds no setting
+or apply-now UI. The audit policy defaults to 90 days and validates 30 through
+365 days, but this slice implements no audit pruning or configuration UI.
+Audit records are content-minimising and remain
 independent of session deletion; they do not retain deleted chat or argument
 content. Audit expiry does not delete perpetual grants. Reading, searching,
 exporting or asking questions over evidence never extends its retention.
-Reducing audit retention previews the affected range and requires confirmation
-before existing due dates are shortened.
+The future audit configuration flow must preview the affected range and require
+confirmation before shortening existing due dates.
 
 The delivered bounded native inspector lists, reads and searches actual
-SQLite Logs, Audit, spans and links without using a model. A future explicit
+SQLite Logs, Audit, spans and links, independent DailyLog diagnostics, or opt-in
+CombinedLog ordinary diagnostics,
+without using a model. A future explicit
 Ask Evidence action would reason over a
 bounded selected set, with links to every supporting record and observed facts
 separated from inference. Local reasoning is preferred; sending selected

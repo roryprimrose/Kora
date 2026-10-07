@@ -25,7 +25,7 @@ public sealed partial class SettingsWindow : Window
     {
     }
 
-    public SettingsWindow(MainViewModel viewModel)
+    public SettingsWindow(MainViewModel viewModel, Action? chooseMicrophone = null)
     {
         AvaloniaXamlLoader.Load(this);
         settingsTabs = this.FindControl<TabControl>("SettingsTabs")
@@ -59,6 +59,10 @@ public sealed partial class SettingsWindow : Window
             handledEventsToo: true);
 #pragma warning restore MA0147
         DataContext = viewModel;
+        var recovery = this.FindControl<Button>("ChooseMicrophone")
+            ?? throw new InvalidOperationException("The microphone recovery control is unavailable.");
+        recovery.IsEnabled = chooseMicrophone is not null;
+        recovery.Click += (_, _) => chooseMicrophone?.Invoke();
         Deactivated += OnCaptureSurfaceUnavailable;
         Closed += OnCaptureSurfaceUnavailable;
     }

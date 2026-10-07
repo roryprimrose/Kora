@@ -64,4 +64,14 @@ internal static class HostInteractionSchema
             hash TEXT NOT NULL CHECK(length(hash)=64)) STRICT
         """,
     ];
+
+    internal const string MetadataTable = """
+        CREATE TABLE session_metadata(
+            session_id TEXT PRIMARY KEY NOT NULL REFERENCES work_sessions(session_id),
+            revision INTEGER NOT NULL CHECK(revision>0),
+            name TEXT NOT NULL CHECK(length(CAST(name AS BLOB)) BETWEEN 1 AND 480),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """;
+
+    internal static readonly string[] MetadataTables = [.. Tables, MetadataTable];
 }

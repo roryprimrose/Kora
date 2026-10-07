@@ -14,15 +14,17 @@ internal sealed class RestrictedSqliteDatabase
     private readonly string journalPath;
     private readonly int applicationId;
     private readonly IReadOnlyList<string> schema;
+    private readonly RestrictedSqliteMigration? migration;
 
     internal RestrictedSqliteDatabase(IApplicationDataPaths paths, string partition, string fileName,
-        int applicationId, IReadOnlyList<string> schema)
+        int applicationId, IReadOnlyList<string> schema, RestrictedSqliteMigration? migration = null)
     {
         directory = new RestrictedStorageDirectory(paths, includeKeys: false, partitionName: partition);
         databasePath = Path.Combine(directory.Root, fileName);
         journalPath = string.Concat(databasePath, "-journal");
         this.applicationId = applicationId;
         this.schema = schema;
+        this.migration = migration;
     }
 
     internal FileStream AcquireLease(out bool created, CancellationToken cancellationToken = default)
@@ -120,6 +122,7 @@ internal sealed class RestrictedSqliteDatabase
             VerifyFiles();
             if (!created)
             {
+                Migrate(connection, cancellationToken);
                 ValidateSchema(connection);
             }
             if (created)
@@ -127,7 +130,7 @@ internal sealed class RestrictedSqliteDatabase
                 using var transaction = connection.BeginTransaction();
                 using var create = connection.CreateCommand();
                 create.Transaction = transaction;
-                create.CommandText = string.Join(";\n", schema) + $"; PRAGMA application_id={applicationId}; PRAGMA user_version=1;";
+                create.CommandText = string.Join(";\n", schema) + $"; PRAGMA application_id={applicationId}; PRAGMA user_version={migration?.ToVersion ?? 1};";
                 create.ExecuteNonQuery();
                 VerifyFiles();
                 transaction.Commit();
@@ -179,7 +182,26 @@ internal sealed class RestrictedSqliteDatabase
         }
     }
 
-    private void ValidateSchema(SqliteConnection connection)
+    private void Migrate(SqliteConnection connection, CancellationToken token)
+    {
+        if (migration is null) { return; }
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA user_version;";
+        if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != migration.FromVersion) { return; }
+        ValidateSchema(connection, migration.FromVersion, migration.PreviousSchema);
+        ValidateIntegrity(connection);
+        using var transaction = connection.BeginTransaction();
+        migration.Apply(connection, transaction);
+        command.Transaction = transaction;
+        command.CommandText = $"PRAGMA user_version={migration.ToVersion};";
+        command.ExecuteNonQuery();
+        ValidateSchema(connection);
+        VerifyFiles();
+        token.ThrowIfCancellationRequested();
+        transaction.Commit();
+    }
+
+    private void ValidateSchema(SqliteConnection connection, int? version = null, IReadOnlyList<string>? expectedSchema = null)
     {
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA application_id;";
@@ -188,7 +210,7 @@ internal sealed class RestrictedSqliteDatabase
             throw new InvalidDataException("The private database identity is invalid.");
         }
         command.CommandText = "PRAGMA user_version;";
-        if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != 1)
+        if (Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != (version ?? migration?.ToVersion ?? 1))
         {
             throw new InvalidDataException("The private database schema version is unsupported.");
         }
@@ -203,7 +225,7 @@ internal sealed class RestrictedSqliteDatabase
             }
             actual.Add(Normalize(reader.GetString(0)));
         }
-        var expected = schema.Select(Normalize).Order(StringComparer.Ordinal).ToArray();
+        var expected = (expectedSchema ?? schema).Select(Normalize).Order(StringComparer.Ordinal).ToArray();
         if (!actual.Order(StringComparer.Ordinal).SequenceEqual(expected, StringComparer.Ordinal))
         {
             throw new InvalidDataException("The private database tables, constraints, indexes or triggers are invalid.");

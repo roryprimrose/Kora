@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 using Kora.Core.Dependencies;
@@ -14,9 +13,7 @@ public sealed class LocalApplicationLogReader(
 {
     public const int MaximumReadCharacters = 1_000_000;
 
-    private const string FileNamePrefix = "kora-";
-    private const string FileNameSuffix = ".log";
-    private readonly string logDirectory = Path.Combine(paths.LocalRoot, "Logs");
+    private readonly string logDirectory = Path.Combine(paths.LocalRoot, DailyLogFilePolicy.DirectoryName);
 
     public IReadOnlyList<ApplicationLogFile> GetAvailableLogs()
     {
@@ -26,7 +23,7 @@ public sealed class LocalApplicationLogReader(
         }
 
         var logs = Directory
-            .EnumerateFiles(logDirectory, $"{FileNamePrefix}*{FileNameSuffix}", SearchOption.TopDirectoryOnly)
+            .EnumerateFiles(logDirectory, DailyLogFilePolicy.Pattern, SearchOption.TopDirectoryOnly)
             .Select(path => TryCreateLogFile(path, out var logFile) ? logFile : null)
             .OfType<ApplicationLogFile>()
             .OrderByDescending(file => file.Date)
@@ -49,7 +46,7 @@ public sealed class LocalApplicationLogReader(
                 $"The maximum character count must be between 1 and {MaximumReadCharacters}.");
         }
 
-        if (!TryParseFileName(fileName, out _))
+        if (!DailyLogFilePolicy.TryParseName(fileName, out _))
         {
             throw new ArgumentException("The file name is not a Kora daily log file.", nameof(fileName));
         }
@@ -93,7 +90,7 @@ public sealed class LocalApplicationLogReader(
     private static bool TryCreateLogFile(string path, out ApplicationLogFile? logFile)
     {
         var fileName = Path.GetFileName(path);
-        if (!TryParseFileName(fileName, out var date))
+        if (!DailyLogFilePolicy.TryParseName(fileName, out var date))
         {
             logFile = null;
             return false;
@@ -108,21 +105,4 @@ public sealed class LocalApplicationLogReader(
         return true;
     }
 
-    private static bool TryParseFileName(string fileName, out DateOnly date)
-    {
-        if (fileName.Length != FileNamePrefix.Length + 8 + FileNameSuffix.Length
-            || !fileName.StartsWith(FileNamePrefix, StringComparison.Ordinal)
-            || !fileName.EndsWith(FileNameSuffix, StringComparison.Ordinal))
-        {
-            date = default;
-            return false;
-        }
-
-        return DateOnly.TryParseExact(
-            fileName.AsSpan(FileNamePrefix.Length, 8),
-            "yyyyMMdd",
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.None,
-            out date);
-    }
 }

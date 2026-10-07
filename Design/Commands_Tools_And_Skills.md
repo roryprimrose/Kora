@@ -33,7 +33,43 @@ No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
 reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
 and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
 
+The bounded R10 `speech.output-device` preference is shared by native Settings
+and exact `list output settings` / get/status/set/reset commands. Its
+[persisted audio admission](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+binds real session/generation, original channel, live host/privacy/call/input
+eligibility, exact presented choice and topology/preference revisions.
+Endpoint names, indices, trace IDs and supplied records cannot authorize a change.
+This is metadata/preference-only, not a model tool, audio trial or global setting.
+Pending questions/approvals keep their exact preview; configuration cannot answer them.
+
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+The bounded R10 assistant-name addition registers only the existing
+`assistant.name` display/PTT command-prefix option. Native Apply/reset and exact
+typed/activated voice `list assistant settings`, `get/set/reset assistant.name`
+share typed discovery/default/bounds/revision/provenance and an audited atomic
+host workflow. Invalid commands are handled locally before inference and do not
+replace pending exact questions/approvals. Original channel/call/host revisions
+and confirmed capture retirement gate writes. All current session and artifact
+routes use the committed prefix; old prefixes are not aliases. No identity,
+grant or stored-session-name reset, model settings tools, arbitrary aliases,
+production wake profile or acoustic/full R10 acceptance is added. See
+[the bounded configuration contract](User_Configuration.md#delivered-bounded-assistant-displayptt-prefix-r10).
+
+Delivered bounded R12/R13 deterministic entry points: typed and activated voice
+`session help/list/status/inspect/create/rename/done/resume` use the single
+[typed exact-ID grammar/result contract](../src/Kora.Core/Commands/SessionCommand.cs)
+and [shared host workspace service](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs).
+They precede inference and legacy approval/question routing. Names are content
+only; exact IDs/generations/metadata revisions remain authority/conflict tokens.
+Each admitted command owns fresh original-user lineage and durable control intent;
+read results are bounded observations, not an atomic runtime ledger. Native
+mutations retain parity at the shared service/store. Protected-call voice
+mutations remain unavailable; originating voice enablement/privacy/call/recovery
+observations are rechecked, never relabelled by later UI input.
+See the [exact syntax and recovery reference](../docs/commands.md#bounded-exact-id-session-commands).
+No model descriptor/tool exposure, transcript persistence, inferred management,
+queue/executor, cancellation, deletion or retention is delivered.
 
 ## Delivered Artifact Invocation
 

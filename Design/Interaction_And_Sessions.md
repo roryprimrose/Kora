@@ -44,6 +44,22 @@ Existing proposals for native questions, rich details, a work ledger, and scoped
 
 ### Delivered Minimal Sessions Workspace - 2026-10-07
 
+The bounded deterministic command extension now shares this workspace's host
+service and guarded transactions: typed and activated voice expose
+`session help/list/status/inspect/create/rename/done/resume`. The single
+[typed grammar](../src/Kora.Core/Commands/SessionCommand.cs) owns quoting and
+input/page/result limits; [user syntax and recovery](../docs/commands.md#bounded-exact-id-session-commands)
+describe actual availability. Exact immutable IDs and explicit generations/
+metadata revisions are required; names remain labels only. No implicit
+selected-window, title or approval target exists. Pending bootstrap questions
+and approvals block these commands without cancellation or retargeting.
+Every accepted command owns fresh deliberate lineage and a durable control
+intent; observational reads never change authority. Voice enablement/consent,
+origin, private presentation and call/recovery revisions remain checked.
+Protected-call voice mutations are explicitly unavailable, not deferred.
+Full session routing, transcript persistence, scheduler, cancellation, deletion,
+retention and model-facing session tools remain unimplemented.
+
 **Sessions** in the tray, exact **open sessions** (configured-name prefix
 supported), and **Ctrl+Shift+S** in the compact response open a native
 workspace over the existing production authority partition. Refresh and
@@ -61,7 +77,7 @@ offered as browsable sessions.
 
 Reading, selecting and keyboard navigation never admit a reply, select an
 approval target, update activity, resume, or restore model/provider context.
-No composer, rename/create metadata, scheduling, archive timer, deletion,
+The original minimal slice had no composer, rename/create metadata, scheduling, archive timer, deletion,
 retention, export or model lane is added. Full R12 conversation/work/queue/
 retention/delete and full coordinated R14/native acceptance remain open.
 
@@ -117,6 +133,73 @@ No executable proof file is removed: its intertwined SQLCipher/envelope,
 WAL engine comparison, crypto/artifact/keyed-backup/rekey/leakage/native-provider
 cases remain unique. See the
 [equivalence assessment](../experiments/r02-storage-proof/README.md#maintained-minimal-sessions-equivalence-assessment---2026-10-07).
+
+### Delivered Bounded Session Metadata and Explicit Creation - 2026-10-07
+
+On dispatch baseline `d0a8e82` (#68), the native **Sessions** surface adds a
+name draft, **Create empty Active session**, and **Rename selected ID** over
+the shared [workspace service](../src/Kora.Application/Hosting/SessionWorkspaceService.cs).
+Create deliberately allocates a new immutable ID, Active generation 1 and
+metadata revision 1. It creates no executor, execution task/context, model
+conversation, question, approval or permission. The fresh administrative
+control intent/terminal receipt is retained by the existing task ledger for
+audit and no-replay recovery; it is not dispatched work.
+
+Names are intentional private user content, persisted only in the interaction
+partition, never diagnostic messages, activity names/tags or raw audit
+envelopes. The authoritative [domain rule](../src/Kora.Core/Hosting/SessionName.cs)
+requires nonblank NFC Unicode, no surrounding whitespace, valid UTF-16,
+at most **120 Unicode scalars / 480 UTF-8 bytes**, and no control, format,
+line-separator or paragraph-separator characters. Invalid input is rejected,
+not truncated, trimmed or normalized silently. Duplicate names are allowed:
+neither a title nor the selected window resolves authority. Bounded keyset
+pages expose name, metadata revision, exact ID, generation and lifecycle;
+selection remains passive and retains the existing separately paged typed
+question/task detail. No transcript, summary or arbitrary history schema is added.
+
+Rename requires the exact subject ID, expected authorization generation and
+expected metadata revision (0 only for explicitly unnamed legacy records).
+Its atomic transaction changes only metadata/revision and the required
+content-minimizing typed audit commitment. It does not resume Done sessions,
+alter generation/grants, revive questions, dispatch work or extend a meaningful
+activity clock. Rename can label a session with Pending/Unknown work without
+resolving it; those records still block Done/resume. No inactivity clock or
+automatic retention behavior is delivered by this slice.
+
+Create and rename require fresh original LocalUi/ActivatedVoice lineage,
+existing private task/interaction stores, current ownership/privacy and known
+unprotected call policy/revision, rechecked immediately before COMMIT. Native
+controls use the same host service; only **open sessions** is currently admitted
+as a typed/voice session command. Name-based targeting, spoken Create/Rename,
+model routing and a session composer remain unadmitted. Selection never
+retargets global input or approval. Privacy closure clears the draft and all
+late content. Failure/cancellation is visible; a possible committed outcome
+is inspected before retry, not replayed or claimed rolled back.
+
+The private interaction application ID and partition remain unchanged.
+Schema **v1 -> v2** validates exact legacy schema, integrity and all existing
+authority/audit records before transactionally adding the bounded metadata
+table and version. Legacy IDs remain explicitly unnamed, not fabricated
+titles. The migration preserves generations, questions, observations, scoped
+and independent Perpetual grants, task records and audit bytes. Unknown/old
+unsupported versions, malformed schema/content, downgraded metadata commits,
+missing committed metadata, stale row/audit commitments and missing files
+refuse without initializing replacement authority. Schema maintenance is
+not session admission or meaningful activity.
+
+Maintained tests cover actual owned SQLite durable reopen/migration,
+preservation, stale/competing revisions, duplicate-name exact-ID isolation,
+privacy/call revision races, cancellation and required audit failure; native
+VM/static composition covers explicit controls, passive selection and content
+clearing. Owned-process kills before/after Create, Rename and migration COMMIT
+verify atomic reopen and no automatic replay. Release/analyzers and portable
+**100% line/branch** coverage pass. Native visual/screen-reader/DPI and installed
+privacy trials remain open. This is not full R12, R14 or A3 acceptance.
+
+No storage experiment executable is removed: production metadata/migration
+and kill/reopen checks supersede only the matching generic expectations,
+not unique SQLCipher/envelope, WAL comparison, artifact/backup/rekey/leakage,
+DPAPI or native-provider evidence. Historical receipts remain unchanged.
 
 ### Bounded R05 Foundation Boundary
 

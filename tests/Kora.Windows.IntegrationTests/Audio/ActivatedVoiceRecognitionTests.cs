@@ -15,6 +15,44 @@ public sealed class ActivatedVoiceRecognitionTests(
 {
     private static readonly MicrophoneDevice Microphone = new("mic", "Synthetic microphone");
 
+    [Fact]
+    public async Task Prefix_retirement_discards_queued_native_audio_and_transcript_before_new_explicit_grammar()
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var oldCapture = new FakeCapture();
+        factory.OpenResult.SetResult(oldCapture);
+        await using var service = Create(privacy, factory);
+        var transcripts = new List<VoiceTranscriptEventArgs>();
+        service.TranscriptRecognized += (_, args) => transcripts.Add(args);
+        await service.BeginPushToTalkAsync(Microphone,
+            ["Kora session help", "Kora get assistant name"], "Kora",
+            TestContext.Current.CancellationToken);
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+        var oldGeneration = service.Generation;
+        var oldTranscript = oldCapture.QueueTranscript("Kora session help");
+        var oldAudio = oldCapture.QueueAudio([1, 2, 3]);
+        service.InvalidateCapture();
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        oldTranscript();
+        oldAudio();
+        service.AcceptCaptureGeneration(oldGeneration).Should().BeFalse();
+        transcripts.Should().BeEmpty();
+        service.IsCaptureQuiescent.Should().BeTrue();
+        factory.OpenCount.Should().Be(1);
+        var newCapture = new FakeCapture();
+        factory.OpenResult = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        factory.OpenResult.SetResult(newCapture);
+        await service.BeginPushToTalkAsync(Microphone,
+            ["Nova session help", "Nova get assistant name"], "Nova",
+            TestContext.Current.CancellationToken);
+        factory.Phrases.Should().Contain("Nova session help").And.NotContain("Kora session help");
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+        oldTranscript();
+        newCapture.Transcript("Nova session help");
+        transcripts.Should().ContainSingle().Which.Transcript.Should().Be("Nova session help");
+    }
+
     [Theory]
     [InlineData(WindowsSessionState.Unknown, MicrophoneAccessState.Allowed)]
     [InlineData(WindowsSessionState.Locked, MicrophoneAccessState.Allowed)]
@@ -927,6 +965,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         public int OpenCount { get; private set; }
         public BlockingAudioStream? Stream { get; private set; }
         public MicrophoneDevice? SelectedMicrophone { get; private set; }
+        public IReadOnlyList<string> Phrases { get; private set; } = [];
 
         public Task<IActivatedCapture> OpenAsync(
             MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen)
@@ -938,6 +977,7 @@ public sealed class ActivatedVoiceRecognitionTests(
 
             OpenCount++;
             SelectedMicrophone = microphone;
+            Phrases = phrases;
             Stream = stream;
             Entered.TrySetResult();
             return OpenResult.Task;

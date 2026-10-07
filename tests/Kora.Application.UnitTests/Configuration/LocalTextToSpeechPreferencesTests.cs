@@ -2,16 +2,60 @@ using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Dependencies;
+using Kora.Core.Configuration;
+using Kora.Core.Voice;
 
 using Microsoft.Extensions.Logging.Abstractions;
+using Neovolve.Logging.Xunit;
 
 namespace Kora.Application.UnitTests.Configuration;
 
-public sealed class LocalTextToSpeechPreferencesTests : IDisposable
+public sealed class LocalTextToSpeechPreferencesTests(ITestOutputHelper output)
+    : LoggingTestsBase<LocalTextToSpeechPreferences>(output), IDisposable
 {
     private readonly string root = Path.Combine(
         Path.GetTempPath(),
         $"Kora.Tests.{Guid.NewGuid():N}");
+
+    [Fact]
+    public void Summary_limits_have_independent_default_provenance_and_atomic_restart_without_selection_migration()
+    {
+        var preferences = CreatePreferences();
+        preferences.SaveProviderId(SpeechProviderIds.Kokoro);
+        preferences.SaveVoiceId("legacy");
+        preferences.LoadSummaryLimits().Should().BeNull();
+        preferences.SaveSummaryLimits(new(1, 40));
+        CreatePreferences().LoadSummaryLimits().Should().Be(new SpokenSummaryLimits(1, 40));
+        preferences.LoadSelection().Should().Be(new SpeechSelection(SpeechProviderIds.Kokoro, "legacy"));
+        File.Exists(Path.Combine(root, "Preferences", "speech-selection.txt")).Should().BeFalse();
+        preferences.SaveSummaryLimits(SpokenSummaryLimits.Default);
+        preferences.LoadSummaryLimits().Should().Be(SpokenSummaryLimits.Default);
+        Directory.GetFiles(Path.Combine(root, "Preferences"), "*.tmp").Should().BeEmpty();
+        var invalid = () => preferences.SaveSummaryLimits(new(4, 80));
+        invalid.Should().Throw<ArgumentOutOfRangeException>();
+        var missing = () => preferences.SaveSummaryLimits(null!);
+        missing.Should().Throw<ArgumentNullException>();
+        preferences.LoadSummaryLimits().Should().Be(SpokenSummaryLimits.Default);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("2\n3\n80")]
+    [InlineData("1\n3")]
+    [InlineData("1\n3\n80\nextra")]
+    [InlineData("1\n 3\n80")]
+    [InlineData("1\n3\nforty")]
+    [InlineData("1\n0\n80")]
+    [InlineData("1\n4\n80")]
+    [InlineData("1\n3\n0")]
+    [InlineData("1\n3\n81")]
+    public void Corrupt_summary_limits_are_not_reinterpreted(string contents)
+    {
+        Directory.CreateDirectory(Path.Combine(root, "Preferences"));
+        File.WriteAllText(Path.Combine(root, "Preferences", "speech-summary-limits.txt"), contents);
+        var load = CreatePreferences().LoadSummaryLimits;
+        load.Should().Throw<InvalidDataException>();
+    }
 
     [Fact]
     public void LoadVoiceId_returns_null_when_no_preference_exists()
@@ -31,6 +75,63 @@ public sealed class LocalTextToSpeechPreferencesTests : IDisposable
         var result = preferences.LoadProviderId();
 
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public void Coherent_selection_migrates_legacy_without_writing_then_shadows_it_atomically()
+    {
+        var preferences = CreatePreferences();
+        preferences.LoadSelection().Should().BeNull();
+        preferences.SaveVoiceId("voice");
+        preferences.LoadSelection().Should().Be(new SpeechSelection(SpeechProviderIds.Windows, "voice"));
+        preferences.SaveProviderId(SpeechProviderIds.Kokoro);
+        preferences.LoadSelection().Should().Be(new SpeechSelection(SpeechProviderIds.Kokoro, "voice"));
+        preferences.SaveSelection(SpeechSelection.Default);
+        preferences.LoadSelection().Should().Be(SpeechSelection.Default);
+        preferences.SaveSelection(new(SpeechProviderIds.Kokoro, new string('v', SpeechSelection.MaximumVoiceIdLength)));
+        CreatePreferences().LoadSelection()!.VoiceId!.Length.Should().Be(SpeechSelection.MaximumVoiceIdLength);
+        Directory.GetFiles(Path.Combine(root, "Preferences"), "*.tmp").Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("2\nwindows-sapi\n")]
+    [InlineData("1\nunknown\nvoice")]
+    [InlineData("1\nwindows-sapi\n padded")]
+    [InlineData("1\nwindows-sapi\nvoice\nunexpected")]
+    public void Coherent_unknown_or_malformed_formats_are_explicit_errors(string contents)
+    {
+        Directory.CreateDirectory(Path.Combine(root, "Preferences"));
+        File.WriteAllText(Path.Combine(root, "Preferences", "speech-selection.txt"), contents);
+        var load = CreatePreferences().LoadSelection;
+        load.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void Unknown_legacy_provider_is_not_defaulted_and_invalid_saves_do_not_replace_valid_state()
+    {
+        var preferences = CreatePreferences();
+        preferences.SaveProviderId("unknown");
+        var legacy = preferences.LoadSelection;
+        legacy.Should().Throw<InvalidDataException>();
+        preferences.SaveSelection(SpeechSelection.Default);
+        var invalid = () => preferences.SaveSelection(new("unknown", null));
+        invalid.Should().Throw<ArgumentOutOfRangeException>();
+        var missing = () => preferences.SaveSelection(null!);
+        missing.Should().Throw<ArgumentNullException>();
+        preferences.LoadSelection().Should().Be(SpeechSelection.Default);
+    }
+
+    [Fact]
+    public void Structured_preference_diagnostics_do_not_record_voice_identifiers()
+    {
+        var preferences = new LocalTextToSpeechPreferences(
+            new TestPaths(root, Path.Combine(root, "Roaming")), Logger);
+        preferences.SaveProviderId(SpeechProviderIds.Windows);
+        preferences.SaveVoiceId("private voice");
+        preferences.LoadSelection().Should().Be(new SpeechSelection(SpeechProviderIds.Windows, "private voice"));
+        preferences.SaveSelection(SpeechSelection.Default);
+        preferences.LoadSelection().Should().Be(SpeechSelection.Default);
     }
 
     [Fact]
@@ -107,12 +208,16 @@ public sealed class LocalTextToSpeechPreferencesTests : IDisposable
         action.Should().Throw<ArgumentException>();
     }
 
-    public void Dispose()
+    public new void Dispose()
     {
-        if (Directory.Exists(root))
+        try
         {
-            Directory.Delete(root, recursive: true);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
         }
+        finally { base.Dispose(); }
     }
 
     private LocalTextToSpeechPreferences CreatePreferences() =>

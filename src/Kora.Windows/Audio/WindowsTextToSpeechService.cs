@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Audio;
 
-public sealed class WindowsTextToSpeechService : ITextToSpeechService
+public sealed partial class WindowsTextToSpeechService : ITextToSpeechService
 {
     private readonly Lock stateLock = new();
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
@@ -140,7 +140,11 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     }
 
     public SpeechVoice? GetDefaultVoice() =>
-        SpeechVoiceSelector.SelectDefault(GetVoices(), CultureInfo.CurrentUICulture);
+        SelectDefaultWindowsVoice(GetVoices(), CultureInfo.CurrentUICulture);
+
+    internal static SpeechVoice? SelectDefaultWindowsVoice(IEnumerable<SpeechVoice> voices, CultureInfo culture) =>
+        SpeechVoiceSelector.SelectDefault(voices.Where(voice =>
+            string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal)), culture);
 
     public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
     {
@@ -153,11 +157,13 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             var devices = new List<AudioOutputDevice>(endpoints.Count);
             foreach (var endpoint in endpoints)
             {
-                devices.Add(new AudioOutputDevice(
-                    endpoint.ID,
-                    endpoint.FriendlyName,
-                    IsEndpointMuted(endpoint)));
-                endpoint.Dispose();
+                using (endpoint)
+                {
+                    devices.Add(new AudioOutputDevice(
+                        endpoint.ID,
+                        endpoint.FriendlyName,
+                        IsEndpointMuted(endpoint)));
+                }
             }
 
             var result = devices
@@ -197,33 +203,12 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         }
     }
 
-    public async Task SpeakAsync(
+    public Task SpeakAsync(
         string text,
         SpeechVoice voice,
         AudioOutputDevice outputDevice,
         CancellationToken cancellationToken = default)
-    {
-        var generation = Interlocked.Read(ref outputGeneration);
-        await speechLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (generation != Interlocked.Read(ref outputGeneration))
-            {
-                throw new OperationCanceledException("Speech output was invalidated by a privacy event.");
-            }
-            await SpeakCoreAsync(
-                text,
-                voice,
-                outputDevice,
-                generation,
-                cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            speechLock.Release();
-        }
-    }
+        => RunCurrentOutputAsync((generation, token) => SpeakCoreAsync(text, voice, outputDevice, generation, token), cancellationToken);
 
     private async Task SpeakCoreAsync(
         string text,
@@ -339,6 +324,10 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             if (!IsStopRequested() && generation == Interlocked.Read(ref outputGeneration))
             {
                 await StartPlaybackAsync(generation, cancellationToken).ConfigureAwait(false);
+            }
+            if (generation != Interlocked.Read(ref outputGeneration))
+            {
+                throw new OperationCanceledException("Speech output route was invalidated.");
             }
         }
         catch (OperationCanceledException)
@@ -636,11 +625,12 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         }
     }
 
-    private void OnPlaybackStopped(object? sender, StoppedEventArgs eventArgs)
+    internal void OnPlaybackStopped(object? sender, StoppedEventArgs eventArgs)
     {
         TaskCompletionSource? completion;
         lock (stateLock)
         {
+            if (sender is null || !ReferenceEquals(sender, playback)) { return; }
             completion = playbackCompletion;
             playbackCompletion = null;
             outputEnvelope?.Clear();

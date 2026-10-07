@@ -98,6 +98,8 @@ internal static class Program
                             DesktopLog.Information(startupLogger, "Starting Kora desktop host");
                             Task.Run(() => provider.GetRequiredService<DurableHostRecovery>()
                                 .RecoverAsync(CancellationToken.None)).GetAwaiter().GetResult();
+                            Task.Run(() => provider.GetRequiredService<WindowsSqliteDiagnosticRetention>()
+                                .RunAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             startup.Complete(HostOperationOutcome.Completed);
                         }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -208,10 +210,16 @@ internal static class Program
         });
         services.AddSingleton<ArtifactCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
+        services.AddSingleton(evidence);
+        services.AddSingleton<WindowsSqliteDiagnosticRetention>();
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
+        services.AddSingleton<IAudioControlSessionStore>(interactions);
+        services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
+        services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
+        services.AddSingleton<OutputDeviceConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton(TimeProvider.System);
@@ -242,7 +250,8 @@ internal static class Program
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
-        services.AddSingleton<IEvidenceReader>(new WindowsSqliteEvidenceReader(evidence));
+        services.AddSingleton<IEvidenceReader>(new WindowsEvidenceReader(
+            new WindowsSqliteEvidenceReader(evidence), new WindowsDailyEvidenceReader(paths)));
         services.AddSingleton<IEvidenceQueryAccess, DesktopEvidenceAccess>();
         services.AddSingleton<DurableEvidenceQuery>();
         services.AddSingleton<DurableHostRecovery>();
@@ -310,6 +319,11 @@ internal static class Program
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
         services.AddSingleton<AppearanceConfigurationService>();
+        services.AddSingleton<ISpeechCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<IAudioOutputDeviceCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<ISpeechPlaybackService>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<SpeechConfigurationService>();
+        services.AddSingleton<AssistantNameConfigurationService>();
         services.AddSingleton<ITextToSpeechPreferences>(provider =>
             new LocalTextToSpeechPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
@@ -362,7 +376,7 @@ internal static class Program
 
     private static Serilog.Core.Logger CreateFileLogger(ApplicationDataPaths paths, FileEvidenceHealth health)
     {
-        var logDirectory = Path.Combine(paths.LocalRoot, "Logs");
+        var logDirectory = Path.Combine(paths.LocalRoot, DailyLogFilePolicy.DirectoryName);
         Directory.CreateDirectory(logDirectory);
 
         // Serilog normally self-reports file errors instead of throwing. A sticky admission
@@ -374,7 +388,7 @@ internal static class Program
             .Enrich.FromLogContext()
             .WriteTo.File(
                 new JsonFormatter(renderMessage: true),
-                Path.Combine(logDirectory, "kora-.log"),
+                Path.Combine(logDirectory, DailyLogFilePolicy.RollingName),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30,
                 retainedFileTimeLimit: TimeSpan.FromDays(30),

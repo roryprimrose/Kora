@@ -13,8 +13,34 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Hosting;
 
-public sealed class SessionWorkspaceServiceTests
+public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task Metadata_controls_use_fresh_exact_subjects_and_passive_descriptors_never_write_intent()
+    {
+        using var fixture = new Fixture();
+        using (var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            (await fixture.Service.ReadMetadataAsync(null, 25, fixture.Token)).Records.Should().ContainSingle()
+                .Which.Authority.Should().Be(fixture.Session);
+            fixture.TaskWrites.Should().BeEmpty();
+        }
+        var name = new SessionName("User content");
+        var created = await fixture.Service.CreateAsync(name, RequestOrigin.LocalUi, fixture.Token);
+        created.Authority.SessionId.Should().NotBe(fixture.Request.SessionId);
+        created.Authority.IsActive.Should().BeTrue();
+        created.Metadata!.Name.Should().Be(name);
+        fixture.TaskWrites[0].Request.SessionId.Should().Be(created.Authority.SessionId);
+        fixture.TaskWrites[1].State.Should().Be(HostTaskState.Succeeded);
+        var renamed = await fixture.Service.RenameAsync(fixture.Request.SessionId, new(1), 0, name,
+            RequestOrigin.ActivatedVoice, fixture.Token);
+        renamed.Authority.Should().Be(fixture.Session);
+        renamed.Metadata!.Revision.Value.Should().Be(1);
+        fixture.TaskWrites[2].Request.SessionId.Should().Be(fixture.Request.SessionId);
+        fixture.TaskWrites[2].Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        fixture.TaskWrites[3].State.Should().Be(HostTaskState.Succeeded);
+    }
+
     [Fact]
     public async Task Passive_pages_preserve_exact_typed_records_without_committing_intent()
     {
@@ -156,6 +182,7 @@ public sealed class SessionWorkspaceServiceTests
         internal bool RevokeDuringControl { get; init; }
         internal bool ReviseDuringControl { get; init; }
         internal string? Failure { get; init; }
+        internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; init; }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;
@@ -174,6 +201,20 @@ public sealed class SessionWorkspaceServiceTests
             return ValueTask.FromResult(after is null
                 ? new SessionPage<WorkSessionAuthorization>([Session], Session.SessionId.Value) : new([], null));
         }
+
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(MetadataPage ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null));
+
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new SessionWorkspaceEntry(Session, null));
+
+        public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
+            Func<bool> canControl, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new SessionWorkspaceEntry(new(request.SessionId, new(1), true), new(request.SessionId, new(1), name)));
+
+        public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision expectedGeneration,
+            long expectedMetadataRevision, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new SessionWorkspaceEntry(Session, new(request.SessionId, new(expectedMetadataRevision + 1), name)));
 
         public ValueTask<SessionPage<HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken cancellationToken) =>
             ValueTask.FromResult(new SessionPage<HostQuestionRecord>([Question], null));

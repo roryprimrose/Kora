@@ -13,6 +13,36 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Missing_exact_selection_is_not_filled_from_a_default_or_prior_answer()
+    {
+        var f = CreateVoicePrivacyFixture();
+        await f.ViewModel.InitializeAsync();
+        await f.ViewModel.DisableListeningFromTrayAsync();
+        await f.ViewModel.EnableListeningFromRecoveryAsync(f.ViewModel.MicrophoneTopologyRevision, null,
+            TestContext.Current.CancellationToken);
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.ViewModel.SelectedMicrophone = null;
+        using var card = new MicrophoneRecoveryViewModel(f.ViewModel);
+        card.DisplayedSelection.Should().BeNull();
+        card.CanEnable.Should().BeFalse();
+        await f.ViewModel.EnableListeningFromTrayAsync(f.ViewModel.MicrophoneTopologyRevision);
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Already_queued_host_notification_cannot_repopulate_a_disposed_card()
+    {
+        var f = CreateVoicePrivacyFixture();
+        await f.ViewModel.InitializeAsync();
+        MicrophoneRecoveryViewModel? card = null;
+        f.ViewModel.PropertyChanged += (_, _) => card?.Dispose();
+        card = new(f.ViewModel);
+        await card.DisableAsync();
+        card.Choices.Should().BeEmpty();
+        card.Status.Should().Contain("Closed without consent");
+    }
+
+    [Fact]
     public async Task Saved_unavailable_pin_survives_startup_and_metadata_refresh_without_a_substitute()
     {
         var f = CreateVoicePrivacyFixture();
@@ -292,6 +322,9 @@ public sealed partial class MainViewModelTests
         };
         card.CanRefresh.Should().BeFalse();
         await card.RefreshAsync();
+        await card.StopSpeakingAsync();
+        await card.DisableAsync();
+        card.CanRefresh.Should().BeFalse();
         card.Dispose();
         completion.SetResult(TraySnapshot());
         await operation;

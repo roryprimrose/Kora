@@ -97,7 +97,13 @@ public sealed class MicrophoneRecoveryViewModel : ObservableObject, IDisposable
     private async Task RunAsync(Func<Task> action, bool stop = false)
     {
         if (disposed) { return; }
-        if (!stop && (busy || !host.CanUseTrayMicrophoneRecovery))
+        if (stop)
+        {
+            await action();
+            if (!disposed) { Update(); }
+            return;
+        }
+        if (busy || !host.CanUseTrayMicrophoneRecovery)
         {
             status = "Recovery is unavailable. Return to the owning unlocked host and refresh devices.";
             Update();

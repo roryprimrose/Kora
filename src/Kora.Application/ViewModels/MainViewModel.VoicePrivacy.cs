@@ -553,8 +553,8 @@ public sealed partial class MainViewModel
         return saved;
     }
 
-    private async Task<bool> TryValidateMicrophoneRecoveryAsync(long revision, MicrophoneDevice? candidate = null,
-        CancellationToken cancellationToken = default)
+    private async Task<bool> TryValidateMicrophoneRecoveryAsync(long revision, MicrophoneDevice? candidate,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -568,7 +568,7 @@ public sealed partial class MainViewModel
                 && privacy.MicrophoneAccess == MicrophoneAccessState.Allowed
                 && snapshot.Access.State == MicrophoneAccessState.Allowed
                 && (candidate?.IsSystemDefault == true
-                    || (candidate ?? SelectedMicrophone) is { } microphone && snapshot.Devices.Contains(microphone)
+                    || candidate is { } microphone && snapshot.Devices.Contains(microphone)
                     && privacy.CanCaptureFrom(microphone)
                     && privacyObservation.Current.CanCaptureFrom(microphone));
         }
@@ -592,7 +592,7 @@ public sealed partial class MainViewModel
         if (disposed) { return; }
         var origin = OriginalOrigin();
         var callRevision = CallPolicyRevision;
-        var microphone = displayedMicrophone ?? SelectedMicrophone;
+        var microphone = displayedMicrophone;
         var valid = await TryValidateMicrophoneRecoveryAsync(revision, microphone, cancellationToken);
         if (disposed) { return; }
         if (!valid || cancellationToken.IsCancellationRequested || microphone != SelectedMicrophone

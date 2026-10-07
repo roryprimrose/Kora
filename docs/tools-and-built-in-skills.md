@@ -402,6 +402,12 @@ Further code and changes may go undetected. A future granting user accepts
 responsibility for the overall actions within separately admitted scope.
 Profile discovery, authoring and content-bound execution remain **Planned**.
 
+The bundled resources now ship in `Kora.Definitions.dll`, separate from the
+C# actions in `Kora.Tools.dll`. This source organization changes no package
+bytes, hashes, availability, approval or execution behavior. Named agent
+profiles are a design direction, not a released loader or autonomous runtime;
+they cannot expand tools, acquire context or approve effects.
+
 ### Lock the machine
 
 **Ask:** "Kora, lock the machine", "lock my computer", or "lock Windows".

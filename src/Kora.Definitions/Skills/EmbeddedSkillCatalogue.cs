@@ -1,6 +1,6 @@
 using Kora.Core.Skills;
 
-namespace Kora.Application.Skills;
+namespace Kora.Definitions.Skills;
 
 public static class EmbeddedSkillCatalogue
 {

@@ -11,6 +11,7 @@ using Kora.Application.ViewModels;
 using Kora.Application;
 using Kora.Application.Maintenance;
 using Kora.Core.Configuration;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

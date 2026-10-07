@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Kora.Core\Kora.Core.csproj" />
+    <ProjectReference Include="..\Kora.Definitions\Kora.Definitions.csproj" />
     <ProjectReference Include="..\Kora.Windows\Kora.Windows.csproj" />
     <ProjectReference Include="..\Kora.Application\Kora.Application.csproj" />
   </ItemGroup>

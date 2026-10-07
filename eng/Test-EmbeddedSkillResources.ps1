@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string] $AssemblyPath,
-    [string] $ProjectPath = (Join-Path $PSScriptRoot '..\src\Kora.Application\Kora.Application.csproj')
+    [string] $ProjectPath = (Join-Path $PSScriptRoot '..\src\Kora.Definitions\Kora.Definitions.csproj')
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest

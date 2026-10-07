@@ -2,10 +2,10 @@ using System.Security.Cryptography;
 
 using AwesomeAssertions;
 
-using Kora.Application.Skills;
+using Kora.Definitions.Skills;
 using Kora.Core.Skills;
 
-namespace Kora.Application.UnitTests.Skills;
+namespace Kora.Definitions.UnitTests.Skills;
 
 public sealed class EmbeddedSkillCatalogueTests
 {

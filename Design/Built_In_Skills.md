@@ -4,10 +4,17 @@ Status: bounded R11 embedded package catalogue and immutable native source revie
 delivered; no skill runner. The current bootstrap retains exact direct
 Windows-API lock and model-suggested action-name lock approval unchanged.
 Lock/shutdown/restart manifests, Markdown, fixtures, entry scripts and one shared
-helper are embedded in `Kora.Application`. All package actions are explicitly
+helper are embedded in `Kora.Definitions`. All package actions are explicitly
 unavailable for invocation. The tray's **Skill packages (inspection only)**
 entry opens every declared file in read-only native tabs.
 See [future execution design](../docs/skill-and-task-execution-design.md).
+
+The structural migration preserves all 13 resource IDs/bytes and package
+digest golden vectors. `Kora.Definitions.Skills` owns the explicit embedded
+catalogue; Core retains the package validation/digest rules and desktop
+retains native inspection. This assembly move enables no runner or new model
+capability. Shared prompt/instruction and future agent-profile organization
+follows [definition guidance](Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles).
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Skill Storage](Skill_Storage.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 

@@ -2,7 +2,7 @@ using Avalonia.Controls;
 
 using AwesomeAssertions;
 
-using Kora.Application.Skills;
+using Kora.Definitions.Skills;
 using Kora.Core.Skills;
 
 using Microsoft.Extensions.Logging.Abstractions;

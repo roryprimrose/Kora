@@ -260,6 +260,13 @@ internal static class Program
         services.AddSingleton<IDependencyProbe, WindowsTextToSpeechDependencyProbe>();
         services.AddSingleton<DependencyBootstrapper>();
         services.AddSingleton<Kora.Core.Tools.ICapabilityHostAccess, DesktopCapabilityHostAccess>();
+        services.AddSingleton<Kora.Tools.Capabilities.CapabilitiesList>();
+        services.AddSingleton<Kora.Tools.Capabilities.CapabilitiesGet>();
+        services.AddSingleton<Kora.Tools.Application.ApplicationGetVersion>();
+        services.AddSingleton<Kora.Tools.Readiness.ReadinessGet>();
+        services.AddSingleton<Kora.Tools.Runtime.RecordedRuntimeObservation>();
+        services.AddSingleton<Kora.Tools.Runtime.RuntimeList>();
+        services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
         services.AddSingleton<DependencySetupWorkflow>();

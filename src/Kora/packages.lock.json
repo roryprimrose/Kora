@@ -411,6 +411,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
         }
       },
+      "kora.definitions": {
+        "type": "Project",
+        "dependencies": {
+          "Kora.Core": "[0.1.0, )"
+        }
+      },
       "kora.tools": {
         "type": "Project",
         "dependencies": {

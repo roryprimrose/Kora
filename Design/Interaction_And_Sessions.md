@@ -44,6 +44,22 @@ Existing proposals for native questions, rich details, a work ledger, and scoped
 
 ### Delivered Minimal Sessions Workspace - 2026-10-07
 
+The bounded deterministic command extension now shares this workspace's host
+service and guarded transactions: typed and activated voice expose
+`session help/list/status/inspect/create/rename/done/resume`. The single
+[typed grammar](../src/Kora.Core/Commands/SessionCommand.cs) owns quoting and
+input/page/result limits; [user syntax and recovery](../docs/commands.md#bounded-exact-id-session-commands)
+describe actual availability. Exact immutable IDs and explicit generations/
+metadata revisions are required; names remain labels only. No implicit
+selected-window, title or approval target exists. Pending bootstrap questions
+and approvals block these commands without cancellation or retargeting.
+Every accepted command owns fresh deliberate lineage and a durable control
+intent; observational reads never change authority. Voice enablement/consent,
+origin, private presentation and call/recovery revisions remain checked.
+Protected-call voice mutations are explicitly unavailable, not deferred.
+Full session routing, transcript persistence, scheduler, cancellation, deletion,
+retention and model-facing session tools remain unimplemented.
+
 **Sessions** in the tray, exact **open sessions** (configured-name prefix
 supported), and **Ctrl+Shift+S** in the compact response open a native
 workspace over the existing production authority partition. Refresh and

@@ -295,7 +295,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RunTypedCommand = CreateCommand(
             RunTypedCommandAsync,
             () => !string.IsNullOrWhiteSpace(CommandText)
-                  && (!IsBusy || IsSetupStatusCommand()));
+                  && (!IsBusy || IsSetupStatusCommand()
+                      || SessionCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null
@@ -3714,6 +3715,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
             ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
+        if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
+        {
+            await ExecuteSessionCommandAsync(sessionCommand, initiator);
+            return;
+        }
         if (string.Equals(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript,
             "open sessions", StringComparison.Ordinal))
         {
@@ -4762,6 +4768,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     "Built-in commands are ready.",
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
+                    + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + "Use “preview clipboard” for an explicit local plain-text snapshot; clipboard explanation is unavailable. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
@@ -5106,6 +5113,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var commands = commandCatalog.GetCommands(AssistantName)
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
+            .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands

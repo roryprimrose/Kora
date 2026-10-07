@@ -22,7 +22,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("metadata revision").And.Contain("no execution task")
             .And.Contain("v1-to-v2").And.Contain("meaningful activity");
         var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
-        commands.Should().Contain("not admitted typed/voice phrases").And.Contain("selected window never redirects");
+        commands.Should().Contain("Bounded exact-ID session commands").And.Contain("selected window never redirects")
+            .And.Contain("session rename").And.Contain("During protected calls").And.Contain("1,024 UTF-8 bytes");
         var privacy = pages.Single(page => string.Equals(page.Id, "privacy-safety-and-logs", StringComparison.Ordinal)).Markdown;
         privacy.Should().Contain("Names never").And.Contain("content digest").And.Contain("never invents titles");
     }
@@ -87,7 +88,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 3);
+        sections.Should().HaveCount(commands.Count + 4);
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -117,8 +118,13 @@ public sealed class EmbeddedUserDocumentationProviderTests
             settings.Markdown.Should().Contain(descriptor.Id);
         foreach (var descriptor in SpeechOptionRegistry.Options)
             settings.Markdown.Should().Contain(descriptor.Id);
+        var sessionCommands = sections.Single(section => section.StartsWith("Bounded exact-ID session commands", StringComparison.Ordinal));
+        sessionCommands.Should().Contain("session help").And.Contain("session list").And.Contain("session status")
+            .And.Contain("session inspect").And.Contain("session create").And.Contain("session rename")
+            .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
-            && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)).ToArray();
+            && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
+            && !ReferenceEquals(section, sessionCommands)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

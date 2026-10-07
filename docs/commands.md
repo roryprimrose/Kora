@@ -89,9 +89,60 @@ Done/resume are explicit selected-ID native actions, not inferred from words
 in history or from selecting a row.
 The native workspace also offers **Create empty Active session** and **Rename
 selected ID** with bounded durable names and optimistic revisions. These are
-not admitted typed/voice phrases or model tools. A name never selects authority,
+also available through the bounded exact commands below, but not model tools. A name never selects authority,
 and the selected window never redirects global commands. Creation grants no
 execution permission; rename/browse never resumes or changes approvals.
+
+### Bounded exact-ID session commands
+
+Typed input and **activated** voice share one grammar, with the configured
+assistant-name prefix supported. Use **session help** for the full syntax:
+
+| Command | Actual bounded result |
+|---|---|
+| `session list [after <exact-id>] [limit <1-50>]` | Active/Done IDs, names, authorization generations and metadata revisions |
+| `session status <exact-id>` | Exact authority and optional durable name; not inferred runtime progress |
+| `session inspect <exact-id> [tasks\|questions] [after <exact-id>] [limit <1-50>]` | A page of existing task IDs/request IDs/states/revisions/origins or question IDs/revisions/states |
+| `session create "<name>"` | Empty named Active session with a fresh host-owned ID |
+| `session rename <exact-id> <generation> <metadata-revision> "<name>"` | Rename only, including a Done session |
+| `session done <exact-id> <generation>` | Guarded idle lifecycle transition; not cancellation or proof of success |
+| `session resume <exact-id> <generation>` | Explicit Active transition; never reruns work or revives approvals |
+
+IDs must be nonempty canonical hyphenated GUIDs. Revisions are unsigned decimal
+integers (generation positive, metadata revision zero for absent legacy metadata).
+Copy the exact observation; a stale revision fails and requires a fresh request.
+Names are NFC single-line Unicode, at most 120 scalars and 480 UTF-8 bytes,
+without surrounding whitespace or control/format characters. Names must be
+quoted; double an interior quote, e.g. `session create "A ""quoted"" label"`.
+No punctuation stripping, name lookup, ordinal/window selection or fuzzy matching
+applies to this grammar. Whole input is limited to 1,024 UTF-8 bytes, pages
+default to 25/max 50, and the complete structured JSON result is at most 64 KiB.
+Overflow fails explicitly rather than truncating. Cursors are exact IDs, not
+saved snapshots; refresh for concurrent changes. Lifecycle results omit
+unobserved metadata; request status to observe it.
+
+Each accepted command has fresh original-user lineage and a durable host control
+intent/terminal receipt; reads do not change lifecycle, metadata, question or
+grant authority. Existing partitions must be present. Errors are explicit:
+refresh after conflict, resolve live/Unknown work or pending questions, or recover
+private storage/ownership before a new deliberate request. A receipt failure
+after a commit is not rollback; inspect current state before retrying.
+The typed Run entry remains available for this deterministic namespace while
+bootstrap work is busy; it does not cancel that work. Mutations still pass the
+same exact-subject live-work and current host gates, not a new executor lane.
+
+Activated voice uses the existing enablement/consent/capture/privacy boundary
+and retains its originating channel and observed call/recovery revision through
+commit. During protected calls, reads require permitted activation and private
+presentation; voice mutations are explicitly unavailable under the existing
+workspace clear/unavailable-call gate. Nothing is queued for later. Unknown
+ownership/privacy fails closed. Pending bootstrap questions/approvals block
+session commands without changing their targets; resolve them explicitly first.
+
+This is not conversation/transcript persistence, a queue/executor/scheduler,
+task cancellation, deletion/retention, routing inference, model tools, or a
+session-name inference feature. Native selected-ID Create/Rename/Done/resume
+continue to use the same host workspace service and guarded storage transaction.
 
 ### Show the Kora window
 - **show Kora**

@@ -8,6 +8,18 @@ namespace Kora.Windows.Storage;
 
 public sealed partial class WindowsSqliteHostInteractionStore
 {
+    public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session,
+        CancellationToken cancellationToken) => new(Task.Run(() =>
+    {
+        using var lease = database.AcquireReadLease(cancellationToken);
+        using var connection = Open(created: false, cancellationToken);
+        var record = RequireSession(connection, session);
+        if (record.State == 2) { throw new InvalidOperationException("Removed sessions are not browsable."); }
+        var entry = new SessionWorkspaceEntry(record.Authority, ReadMetadata(connection, session));
+        database.VerifyFiles();
+        return entry;
+    }, cancellationToken));
+
     private void MigrateMetadata(SqliteConnection connection, SqliteTransaction transaction)
     {
         ValidateAudit(connection);

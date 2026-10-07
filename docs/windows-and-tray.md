@@ -100,8 +100,10 @@ launcher/tray to return to native status and recovery.
 
 Choose **Sessions**, use exact **open sessions**, or press **Ctrl+Shift+S**
 in the compact response. **Refresh** lists existing Active/Done durable IDs
-and generations, 25 per page. Selection reads actual typed question history
-and current task records, never a conversation title or fabricated progress.
+and generations with bounded user names and metadata revisions, 25 per page
+(50 maximum at the store). Preserved legacy sessions are explicitly unnamed.
+Selection reads actual typed question history and current task records, never
+a fabricated conversation or progress.
 Next session/question/task/evidence controls are independently bounded.
 **Read selected evidence** uses the separate diagnostic/audit projection;
 missing conversation/session sources remain unavailable.
@@ -115,10 +117,31 @@ privacy, call policy/revision, committed control intent and atomic authoritative
 audit are checked by the writer, not inferred from the display. A conflict or
 failure reports refusal/recovery; refresh before retrying.
 
+Enter a name and choose **Create empty Active session** to deliberately create
+a new immutable session ID, Active generation 1 and metadata revision 1.
+This creates no execution task, executor, model context, question, approval or
+permission; Kora retains an administrative control intent/receipt for audit.
+**Rename selected ID** applies only to the displayed exact ID and its observed
+generation/metadata revision. Duplicate names are permitted, never ambiguous
+authority. A stale edit is refused: refresh and select the exact ID again.
+Rename is allowed on Done or unresolved-work sessions without resuming,
+abandoning or resolving work, changing grants or extending meaningful activity.
+
+Names must be nonblank NFC Unicode with no surrounding whitespace, at most
+**120 Unicode scalars / 480 UTF-8 bytes**, with no control/format characters
+or line/paragraph separators. Invalid names are refused, never silently
+normalized/truncated. Names are intentional private content, stored only in
+the existing private interaction partition, not raw audit/log/activity content.
+The validated transactional v1-to-v2 schema upgrade preserves existing
+authority/history and does not invent names. Missing/corrupt/unsupported data
+is unavailable, never replaced with empty authority. Create/Rename require
+the same fresh original-user ownership/privacy/call admission and required
+atomic audit as lifecycle controls; protected/unknown call state denies them.
+
 Done/resume each advance generation and invalidate old scoped authority.
 Perpetual records remain independent. Resume does not rerun tasks, revive
 approvals or restore/transmit old context. Privacy closure clears this window.
-Full conversations, work queues, rename/create metadata, automatic archive,
+Full conversations, work queues, name-based voice targeting, automatic archive,
 delete/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
 

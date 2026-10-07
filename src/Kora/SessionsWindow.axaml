@@ -1,26 +1,36 @@
 <Window x:Class="Kora.SessionsWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Sessions - minimal durable authority" Icon="/Assets/Kora.ico"
+    Title="Sessions - bounded durable workspace" Icon="/Assets/Kora.ico"
     Width="1050" Height="760" MinWidth="800" MinHeight="560"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
     </StackPanel>
     <TextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
-    <Grid Grid.Row="2" ColumnDefinitions="320,*" ColumnSpacing="14">
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+      <TextBox Text="{Binding NameDraft, Mode=TwoWay}" MaxLength="240" IsEnabled="{Binding CanRead}"
+               PlaceholderText="Name: NFC Unicode, up to 120 scalars / 480 UTF-8 bytes"
+               AutomationProperties.Name="Session name draft; names never resolve authority" />
+      <Button Grid.Column="1" x:Name="CreateSession" Content="_Create empty Active session" IsEnabled="{Binding CanCreate}" />
+      <Button Grid.Column="2" x:Name="RenameSession" Content="Re_name selected ID" IsEnabled="{Binding CanRename}"
+              AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
+    </Grid>
+    <Grid Grid.Row="3" ColumnDefinitions="320,*" ColumnSpacing="14">
       <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" IsEnabled="{Binding CanRead}"
-               AutomationProperties.Name="Existing durable session IDs and lifecycle">
+               AutomationProperties.Name="Durable session names, exact IDs, lifecycle and optimistic revisions">
         <ListBox.ItemTemplate>
           <DataTemplate>
             <StackPanel>
-              <TextBlock Text="{Binding SessionId.Value}" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding IsActive, StringFormat='Active: {0} (false means Done)'}" />
-              <TextBlock Text="{Binding Generation.Value, StringFormat='Generation: {0}'}" />
+              <TextBlock Text="{Binding Metadata.Name.Value, TargetNullValue='Unnamed session', FallbackValue='Unnamed session'}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Authority.SessionId.Value}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Authority.IsActive, StringFormat='Active: {0} (false means Done)'}" />
+              <TextBlock Text="{Binding Authority.Generation.Value, StringFormat='Generation: {0}'}" />
+              <TextBlock Text="{Binding Metadata.Revision.Value, TargetNullValue='Metadata not yet set', FallbackValue='Metadata not yet set', StringFormat='Metadata revision: {0}'}" />
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
@@ -30,7 +40,7 @@
                    AutomationProperties.Name="Passive typed question, task and evidence details; no replies or approval controls" />
       </ScrollViewer>
     </Grid>
-    <WrapPanel Grid.Row="3">
+    <WrapPanel Grid.Row="4">
       <Button x:Name="NextQuestions" Content="Next questions" IsEnabled="{Binding CanNextQuestions}" />
       <Button x:Name="NextTasks" Content="Next tasks" IsEnabled="{Binding CanNextTasks}" />
       <Button x:Name="Evidence" Content="Read selected evidence" IsEnabled="{Binding CanEvidence}" />

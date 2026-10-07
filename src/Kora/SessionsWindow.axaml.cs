@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 
-using Kora.Core.Authorization;
+using Kora.Core.Storage;
 
 namespace Kora;
 
@@ -15,8 +15,10 @@ internal sealed partial class SessionsWindow : Window
         Next.Click += async (_, _) => await model.NextAsync();
         Records.SelectionChanged += async (_, _) =>
         {
-            if (model.CanRead) { await model.SelectAsync(Records.SelectedItem as WorkSessionAuthorization); }
+            if (model.CanRead) { await model.SelectAsync(Records.SelectedItem as SessionWorkspaceEntry); }
         };
+        CreateSession.Click += async (_, _) => await model.CreateAsync();
+        RenameSession.Click += async (_, _) => await model.RenameAsync();
         NextQuestions.Click += async (_, _) => await model.NextQuestionsAsync();
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         Evidence.Click += async (_, _) => await model.ReadEvidenceAsync();

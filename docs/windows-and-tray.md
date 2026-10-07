@@ -74,6 +74,7 @@ The right-click menu contains:
 - **Show Kora**
 - **Kora Settings**
 - **Documentation**
+- **Skill packages (inspection only)**
 - **Sessions**
 - **Preview clipboard (local plain text)**
 - **Release maintenance (notify-only)**

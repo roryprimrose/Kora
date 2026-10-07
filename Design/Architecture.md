@@ -550,9 +550,11 @@ files are verified, never silently repaired. The database and rollback journal
 are privately pre-created; each connection uses `PERSIST` journaling with
 `synchronous=FULL` so normal commits/reopens retain the owned journal rather
 than recreating it with a different default owner. A missing managed journal
-requires explicit recovery, not automatic replacement. This is not hot-journal/
-process-kill acceptance, and earlier uncomposed prototype databases without
-this journal are not silently migrated.
+requires explicit recovery, not automatic replacement. Maintained
+[production interruption/reopening tests](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+now exercise actual PERSIST/FULL hot-journal and owned-process interruption
+semantics, not physical power-loss or installed acceptance. Earlier uncomposed
+prototype databases without this journal are not silently migrated.
 The store is composed for the bounded exact local version-query milestone,
 not for arbitrary model/skill/OS effects. Earlier
 internal key/artifact primitives remain uncomposed and are not database prerequisites.

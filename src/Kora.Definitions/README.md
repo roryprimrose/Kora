@@ -16,7 +16,7 @@ project per definition type, and it does not implement C# tool effects.
 
 | Kind | Purpose | Current source/status |
 |---|---|---|
-| Skills | Versioned outcome, selection guidance, instructions, fixtures and registered task/tool references. | [Skills](Skills): delivered fixed embedded catalogue; inspection only. |
+| Skills | Versioned outcome, selection guidance, instructions, fixtures and registered task/tool references. | [Skills](Skills): fixed embedded package inspection plus explicit instruction selection for local-model requests; scripts remain unavailable. |
 | Prompts | Reusable bounded task/response templates with explicit inputs. | Planned category when real resources and consumers are implemented; no folder/loader yet. |
 | Instructions | Shared scoped guidance reused by tasks or profiles. | Planned category; a skill's own instructions remain in its package. |
 | Agents | Named declarative task profiles referencing guidance, skills, admitted tools and runtime/locality/budget constraints. | Planned/gated; no profile loader or agent runtime exists. |
@@ -147,8 +147,11 @@ are unchanged. A self-declared checksum or content match is not execution trust.
 
 ## Execution and discovery boundaries
 
-**Delivered:** read-only native inspection of all declared files.
-**Unavailable:** invocation of every bundled package action.
+**Delivered:** read-only native inspection of all declared files and
+[explicit bundled artifact instruction selection](ArtifactInvocation/EmbeddedArtifactCatalogue.cs)
+through [slash/activated-voice routing](../../docs/commands.md#run-skills-and-future-artifacts)
+into the existing verified local-model request.
+**Unavailable:** execution of every bundled package script action.
 [SkillPackageSnapshot](../Kora.Core/Skills/SkillPackageSnapshot.cs) explicitly
 reports no admitted interpreter/adapter identity and outstanding worker,
 protected-deployment, network and real-control gates. Script resources are inert;
@@ -165,11 +168,13 @@ loading a profile authorizes no recursive delegation, concurrency,
 auto-enablement or provider fallback. See the
 [agent guide and runtime prerequisites](../../EXTENDING-KORA.md#agent-profiles).
 
-Bundled definitions are distinct from future
-[user/profile discovery](../../Design/Skill_Storage.md#shared-profile-discovery)
-and [declarative authoring](../../Design/Skill_Authoring.md). Those proposed
-source partitions cannot overwrite embedded originals, shadow reserved controls,
-or promote discovered scripts to first-party execution trust.
+Bundled definitions are distinct from delivered bounded
+[compatible disk instruction discovery](../Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs),
+the broader planned [source management](../../Design/Skill_Storage.md#shared-profile-discovery)
+and [declarative authoring](../../Design/Skill_Authoring.md). Disk instructions
+remain untrusted content, not first-party execution trust. Full source
+registration/enablement and agent profiles remain gated; discovery cannot
+overwrite embedded originals or bypass existing action/grant gates.
 
 ## Validation
 

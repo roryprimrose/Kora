@@ -5,15 +5,20 @@ using System.Text;
 using System.Text.Json;
 
 using Kora.Application.Dependencies;
+using Kora.Application.Communication;
+using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
+using Kora.Core.Context;
 using Kora.Core.Dependencies;
+using Kora.Core.Hosting;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 
@@ -24,16 +29,7 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private const string ApplicationRestartAction = "application.restart";
-    private const string AppearanceThemeConfigurationAction = "configuration.appearance-theme";
-    private const string PresenceDotSizeConfigurationAction = "configuration.presence-dot-size";
-    private const string PresenceDotDensityConfigurationAction = "configuration.presence-dot-density";
-    private const string PresenceMovementSpeedConfigurationAction = "configuration.presence-movement-speed";
     private const string PresencePositionConfigurationAction = "configuration.presence-position";
-    private const string PresenceSizeConfigurationAction = "configuration.presence-size";
-    private const string PresenceSpeechScalingConfigurationAction = "configuration.presence-speech-scaling";
-    private const string PresenceSpeechScaleAmountConfigurationAction = "configuration.presence-speech-scale-amount";
-    private const string PresenceTimeoutConfigurationAction = "configuration.presence-timeout";
-    private const string ResponseTimeoutConfigurationAction = "configuration.response-timeout";
     private const string ResponseWindowConfigurationAction = "configuration.response-window";
     private const string AssistantNameConfigurationAction = "configuration.assistant-name";
     private const string CallAwareConfigurationAction = "configuration.call-aware-policy";
@@ -60,6 +56,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly BuiltInCommandCatalog commandCatalog;
     private readonly BuiltInCommandRouter commandRouter;
+    private readonly ArtifactCommandRouter artifactCommandRouter;
+    private readonly ArtifactCatalogue artifactCatalogue;
     private readonly DependencyBootstrapper dependencyBootstrapper;
     private readonly DependencySetupWorkflow dependencySetup;
     private readonly ILocalModelReasoner localModelReasoner;
@@ -75,7 +73,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IAudioDevicePreferences audioDevicePreferences;
     private readonly IResponseOutputPreferences responseOutputPreferences;
     private readonly ICallAwarePreferences callAwarePreferences;
-    private readonly ICallStateService callStateService;
     private readonly ISessionController sessionController;
     private readonly IApplicationProcessController applicationProcessController;
     private readonly IUiDispatcher uiDispatcher;
@@ -130,10 +127,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private int stoppingAudioOperations;
     private BuiltInAction? pendingModelAction;
     private SecurityAuditEvent? pendingModelActionAudit;
+    private long pendingModelActionCallRevision;
     private GrantChange? pendingGrantChange;
     private SecurityAuditEvent? pendingGrantChangeAudit;
     private LocalModelQuestion? pendingModelQuestion;
     private string? pendingQuestionRequest;
+    private LocalModelArtifact? pendingQuestionArtifact;
     private int pendingQuestionDepth;
     private bool isGrantEditorVisible;
     private CommandDefinition? selectedGrantAction;
@@ -151,13 +150,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool suppressVoicePreferenceSave;
     private bool suppressSpeechProviderPreferenceSave;
     private bool suppressAudioDevicePreferenceSave;
-    private bool suppressAppearancePreferenceSave;
     private bool suppressPresenceAppearancePreferenceSave;
-    private bool suppressPresencePreferenceSave;
-    private bool suppressResponseTimeoutPreferenceSave;
     private bool suppressResponseWindowPreferenceSave;
     private bool suppressResponseModeSave;
-    private bool suppressCallAwarePreferenceSave;
     private bool isInitializing;
     private bool forceVisualResponse;
     private string microphoneAvailabilityMessage = "Checking Windows microphone input devices.";
@@ -196,6 +191,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(
         BuiltInCommandCatalog commandCatalog,
         BuiltInCommandRouter commandRouter,
+        ArtifactCatalogue artifactCatalogue,
+        ArtifactCommandRouter artifactCommandRouter,
         DependencyBootstrapper dependencyBootstrapper,
         DependencySetupWorkflow dependencySetup,
         ILocalModelReasoner localModelReasoner,
@@ -221,10 +218,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ILogger<MainViewModel> logger,
         IVoiceConsentPreferences voiceConsentPreferences,
         IWindowsPrivacyObservationService privacyObservation,
-        DurableVersionQuery durableVersionQuery)
+        DurableVersionQuery durableVersionQuery,
+        Kora.Application.Tools.ReadOnlyCapabilityRegistry capabilityRegistry,
+        AppearanceConfigurationService appearanceConfiguration,
+        Kora.Tools.Clipboard.ClipboardSnapshotBroker clipboardPreview,
+        Kora.Tools.Clipboard.ClipboardRead clipboardRead,
+        Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
+        Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
+        this.artifactCatalogue = artifactCatalogue;
+        this.artifactCommandRouter = artifactCommandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
         this.dependencySetup = dependencySetup;
         this.localModelReasoner = localModelReasoner;
@@ -240,7 +245,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.audioDevicePreferences = audioDevicePreferences;
         this.responseOutputPreferences = responseOutputPreferences;
         this.callAwarePreferences = callAwarePreferences;
-        this.callStateService = callStateService;
+        communicationPolicy = new CallCommunicationPolicy(callStateService);
         currentCallState = callStateService.CurrentState;
         this.sessionController = sessionController;
         this.applicationProcessController = applicationProcessController;
@@ -252,10 +257,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.voiceConsentPreferences = voiceConsentPreferences;
         this.privacyObservation = privacyObservation;
         this.durableVersionQuery = durableVersionQuery;
+        this.capabilityRegistry = capabilityRegistry;
+        this.appearanceConfiguration = appearanceConfiguration;
+        appearanceConfiguration.Changed += OnAppearanceChanged;
+        this.clipboardPreview = clipboardPreview;
+        this.clipboardRead = clipboardRead;
+        this.clipboardReuse = clipboardReuse;
+        this.clipboardRevoke = clipboardRevoke;
+        clipboardPreview.Changed += OnClipboardPreviewChanged;
 
         AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
             new(execute, HandleCommandException, canExecute);
 
+        ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
         ToggleListeningCommand = CreateCommand(
             ToggleListeningAsync,
             () => !lifecycleAdmissionClosed && !IsBusy
@@ -291,6 +305,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             () => CanRemoveSpeechProvider);
         ToggleCallVisualOverrideCommand = CreateCommand(ToggleCallVisualOverrideAsync);
         ToggleCallVoiceActivationCommand = CreateCommand(ToggleCallVoiceActivationAsync);
+        EnableManualCallCommand = CreateCommand(() => SetManualCallAsync(true, RequestOrigin.LocalUi, CallPolicyRevision));
+        ClearManualCallCommand = CreateCommand(() => SetManualCallAsync(false, RequestOrigin.LocalUi, CallPolicyRevision));
         OpenMicrophonePrivacySettingsCommand = CreateCommand(OpenMicrophonePrivacySettingsAsync);
         ApplyAssistantNameCommand = CreateCommand(
             () => SetAssistantNameAsync(AssistantNameInput),
@@ -357,7 +373,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         voiceRecognition.RecognitionFailed += OnRecognitionFailed;
         voiceRecognition.CaptureStateChanged += OnCaptureStateChanged;
         voiceRecognition.RecognitionCompleted += OnRecognitionCompleted;
-        callStateService.StateChanged += OnCallStateChanged;
+        communicationPolicy.Changed += OnCommunicationPolicyChanged;
         dependencyBootstrapper.Tasks.Changed += (_, _) =>
             uiDispatcher.Post(() => OnPropertyChanged(nameof(SetupTasks)));
         privacyObservation.Changed += OnWindowsPrivacyChanged;
@@ -383,54 +399,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsMicrophoneAccessDenied =>
         MicrophoneAccessStatus.State == MicrophoneAccessState.Denied;
 
-    private async void OnCallStateChanged(object? sender, CallStateChangedEventArgs eventArgs)
-    {
-        try
-        {
-            ApplicationLog.CallStateChanged(logger, eventArgs.State);
-            await uiDispatcher.InvokeAsync(() => ApplyCallStateAsync(eventArgs.State));
-        }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
-        {
-            ApplicationLog.Error(logger, exception, "Applying the call-aware output policy");
-            ShowFailure("The call-aware output policy could not be applied.", exception.Message);
-        }
-    }
-
-    private async Task ApplyCallStateAsync(CallState callState)
-    {
-        CurrentCallState = callState;
-        if (!IsCallDetected)
-        {
-            return;
-        }
-
-        if (!AllowVoiceActivationDuringCalls && IsVoiceEnabled)
-        {
-            HoldVoiceInput("Microphone closed · call policy blocks voice activation");
-            await StopListeningAsync();
-        }
-
-        await ApplyCallVisualOverrideAsync();
-    }
-
-    private async Task ApplyCallVisualOverrideAsync()
-    {
-        if (!IsCallVisualOverrideActive)
-        {
-            return;
-        }
-
-        if (IsSpeaking)
-        {
-            await textToSpeech.StopAsync();
-            IsSpeaking = false;
-            activeSpokenText = null;
-        }
-
-        WindowActionRequested?.Invoke(this, WindowAction.Show);
-    }
-
     public event EventHandler<WindowAction>? WindowActionRequested;
 
     public event EventHandler? SettingsRequested;
@@ -450,6 +418,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = [];
 
     public ObservableCollection<DependencyStatus> Dependencies { get; } = [];
+
+    public ObservableCollection<ArtifactCommandOption> ArtifactCommandOptions { get; } = [];
 
     public IReadOnlyList<SetupTask> SetupTasks => dependencyBootstrapper.Tasks.Tasks;
 
@@ -523,6 +493,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => requireAssistantNameForVoiceApproval;
         set
         {
+            if (!AdmitVoiceOptionMutation(ModelApprovalPreferenceAction)) { return; }
             if (value == requireAssistantNameForVoiceApproval)
             {
                 return;
@@ -717,7 +688,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking;
+    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading;
 
     public bool IsLocalModelSetupActive
     {
@@ -842,6 +813,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public AsyncCommand ToggleCallVoiceActivationCommand { get; }
 
+    public AsyncCommand EnableManualCallCommand { get; }
+
+    public AsyncCommand ClearManualCallCommand { get; }
+
     public AsyncCommand OpenMicrophonePrivacySettingsCommand { get; }
 
     public AsyncCommand ApplyAssistantNameCommand { get; }
@@ -941,27 +916,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetThemeMode(
         ApplicationThemeMode value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        if (!Enum.IsDefined(value))
-        {
-            throw new ArgumentOutOfRangeException(nameof(value), value, "The appearance theme is invalid.");
-        }
-
-        if (ThemeMode == value)
-        {
-            return true;
-        }
-
-        if (!suppressAppearancePreferenceSave
-            && !SaveAppearancePreference(value, initiator))
-        {
-            OnPropertyChanged(nameof(ThemeMode));
-            return false;
-        }
-
-        return SetProperty(ref themeMode, value, nameof(ThemeMode));
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.Theme, new AppearanceValue.Theme(value), initiator, nameof(ThemeMode));
 
     public int PresenceTimeoutSeconds
     {
@@ -971,26 +927,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetPresenceTimeoutSeconds(
         int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        PresenceSettings.ValidateTimeoutSeconds(value);
-        if (PresenceTimeoutSeconds == value)
-        {
-            return true;
-        }
-
-        if (!suppressPresencePreferenceSave
-            && !SavePresenceTimeoutPreference(value, initiator))
-        {
-            OnPropertyChanged(nameof(PresenceTimeoutSeconds));
-            return false;
-        }
-
-        return SetProperty(
-            ref presenceTimeoutSeconds,
-            value,
-            nameof(PresenceTimeoutSeconds));
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.PresenceTimeout, new AppearanceValue.Number(value), initiator, nameof(PresenceTimeoutSeconds));
 
     public int ResponseTimeoutSeconds
     {
@@ -1000,26 +938,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetResponseTimeoutSeconds(
         int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        ResponseWindowSettings.ValidateTimeoutSeconds(value);
-        if (ResponseTimeoutSeconds == value)
-        {
-            return true;
-        }
-
-        if (!suppressResponseTimeoutPreferenceSave
-            && !SaveResponseTimeoutPreference(value, initiator))
-        {
-            OnPropertyChanged(nameof(ResponseTimeoutSeconds));
-            return false;
-        }
-
-        return SetProperty(
-            ref responseTimeoutSeconds,
-            value,
-            nameof(ResponseTimeoutSeconds));
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.ResponseTimeout, new AppearanceValue.Number(value), initiator, nameof(ResponseTimeoutSeconds));
 
     public bool IsResponseAlwaysVisible
     {
@@ -1068,29 +988,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetPresenceSizePixels(
         int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        PresenceSettings.ValidateSizePixels(value);
-        if (PresenceSizePixels == value)
-        {
-            return true;
-        }
-
-        if (!suppressPresenceAppearancePreferenceSave
-            && !SavePreference(
-                () => appearancePreferences.SavePresenceSizePixels(value),
-                PresenceSizeConfigurationAction,
-                initiator,
-                "presence size"))
-        {
-            OnPropertyChanged(nameof(PresenceSizePixels));
-            return false;
-        }
-
-        SetProperty(ref presenceSizePixels, value, nameof(PresenceSizePixels));
-        OnPropertyChanged(nameof(PresenceSizeDescription));
-        return true;
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.PresenceSize, new AppearanceValue.Number(value), initiator, nameof(PresenceSizePixels));
 
     public int PresenceDotSizePercent
     {
@@ -1100,32 +999,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetPresenceDotSizePercent(
         int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        PresenceSettings.ValidateDotSizePercent(value);
-        if (PresenceDotSizePercent == value)
-        {
-            return true;
-        }
-
-        if (!suppressPresenceAppearancePreferenceSave
-            && !SavePreference(
-                () => appearancePreferences.SavePresenceDotSizePercent(value),
-                PresenceDotSizeConfigurationAction,
-                initiator,
-                "presence dot size"))
-        {
-            OnPropertyChanged(nameof(PresenceDotSizePercent));
-            return false;
-        }
-
-        SetProperty(
-            ref presenceDotSizePercent,
-            value,
-            nameof(PresenceDotSizePercent));
-        OnPropertyChanged(nameof(PresenceDotSizeDescription));
-        return true;
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.DotSize, new AppearanceValue.Number(value), initiator, nameof(PresenceDotSizePercent));
 
     public int PresenceDotDensityPercent
     {
@@ -1135,32 +1010,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetPresenceDotDensityPercent(
         int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        PresenceSettings.ValidateDotDensityPercent(value);
-        if (PresenceDotDensityPercent == value)
-        {
-            return true;
-        }
-
-        if (!suppressPresenceAppearancePreferenceSave
-            && !SavePreference(
-                () => appearancePreferences.SavePresenceDotDensityPercent(value),
-                PresenceDotDensityConfigurationAction,
-                initiator,
-                "presence dot density"))
-        {
-            OnPropertyChanged(nameof(PresenceDotDensityPercent));
-            return false;
-        }
-
-        SetProperty(
-            ref presenceDotDensityPercent,
-            value,
-            nameof(PresenceDotDensityPercent));
-        OnPropertyChanged(nameof(PresenceDotDensityDescription));
-        return true;
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.DotDensity, new AppearanceValue.Number(value), initiator, nameof(PresenceDotDensityPercent));
 
     public int PresenceMovementSpeedPercent
     {
@@ -1170,32 +1021,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetPresenceMovementSpeedPercent(
         int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        PresenceSettings.ValidateMovementSpeedPercent(value);
-        if (PresenceMovementSpeedPercent == value)
-        {
-            return true;
-        }
-
-        if (!suppressPresenceAppearancePreferenceSave
-            && !SavePreference(
-                () => appearancePreferences.SavePresenceMovementSpeedPercent(value),
-                PresenceMovementSpeedConfigurationAction,
-                initiator,
-                "presence movement speed"))
-        {
-            OnPropertyChanged(nameof(PresenceMovementSpeedPercent));
-            return false;
-        }
-
-        SetProperty(
-            ref presenceMovementSpeedPercent,
-            value,
-            nameof(PresenceMovementSpeedPercent));
-        OnPropertyChanged(nameof(PresenceMovementSpeedDescription));
-        return true;
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.MovementSpeed, new AppearanceValue.Number(value), initiator, nameof(PresenceMovementSpeedPercent));
 
     public bool IsPresenceSpeechScalingEnabled
     {
@@ -1205,31 +1032,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetPresenceSpeechScalingEnabled(
         bool value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        if (IsPresenceSpeechScalingEnabled == value)
-        {
-            return true;
-        }
-
-        if (!suppressPresenceAppearancePreferenceSave
-            && !SavePreference(
-                () => appearancePreferences.SavePresenceSpeechScalingEnabled(value),
-                PresenceSpeechScalingConfigurationAction,
-                initiator,
-                "presence speech scaling"))
-        {
-            OnPropertyChanged(nameof(IsPresenceSpeechScalingEnabled));
-            return false;
-        }
-
-        SetProperty(
-            ref isPresenceSpeechScalingEnabled,
-            value,
-            nameof(IsPresenceSpeechScalingEnabled));
-        OnPropertyChanged(nameof(PresenceSpeechScalingDescription));
-        return true;
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.SpeechScaling, new AppearanceValue.Toggle(value), initiator, nameof(IsPresenceSpeechScalingEnabled));
 
     public int PresenceSpeechScaleAmountPercent
     {
@@ -1239,32 +1043,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool SetPresenceSpeechScaleAmountPercent(
         int value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        PresenceSettings.ValidateSpeechScaleAmountPercent(value);
-        if (PresenceSpeechScaleAmountPercent == value)
-        {
-            return true;
-        }
-
-        if (!suppressPresenceAppearancePreferenceSave
-            && !SavePreference(
-                () => appearancePreferences.SavePresenceSpeechScaleAmountPercent(value),
-                PresenceSpeechScaleAmountConfigurationAction,
-                initiator,
-                "presence speech scale amount"))
-        {
-            OnPropertyChanged(nameof(PresenceSpeechScaleAmountPercent));
-            return false;
-        }
-
-        SetProperty(
-            ref presenceSpeechScaleAmountPercent,
-            value,
-            nameof(PresenceSpeechScaleAmountPercent));
-        OnPropertyChanged(nameof(PresenceSpeechScaleAmountDescription));
-        return true;
-    }
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.SpeechScaleAmount, new AppearanceValue.Number(value), initiator, nameof(PresenceSpeechScaleAmountPercent));
 
     public PresencePosition? PresencePosition => presencePosition;
 
@@ -1300,6 +1080,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedMicrophone;
         set
         {
+            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(MicrophoneConfigurationAction)) { return; }
             if (!suppressAudioDevicePreferenceSave && value is not null && !Microphones.Contains(value))
             {
                 ApplicationLog.Information(logger, "Rejected a stale microphone selection; refresh devices");
@@ -1335,6 +1116,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedSpeechProvider;
         set
         {
+            if (!suppressSpeechProviderPreferenceSave && !AdmitVoiceOptionMutation(SpeechProviderSelectionConfigurationAction)) { return; }
             if (SetProperty(ref selectedSpeechProvider, value))
             {
                 NotifySpeechProviderStateChanged();
@@ -1363,6 +1145,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedVoice;
         set
         {
+            if (!suppressVoicePreferenceSave && !AdmitVoiceOptionMutation(VoiceSelectionConfigurationAction)) { return; }
             if (SetProperty(ref selectedVoice, value))
             {
                 if (SelectedSpeechProvider is { IsInstalled: true })
@@ -1387,6 +1170,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedOutputDevice;
         set
         {
+            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(OutputDeviceConfigurationAction)) { return; }
             var selectionChanged = !string.Equals(
                 selectedOutputDevice?.Id,
                 value?.Id,
@@ -1492,6 +1276,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => defaultResponseMode;
         set
         {
+            if (!suppressResponseModeSave && !AdmitVoiceOptionMutation(ResponseOutputConfigurationAction)) { return; }
             if (!Enum.IsDefined(value))
             {
                 throw new ArgumentOutOfRangeException(nameof(value), value, "The response output mode is invalid.");
@@ -1536,6 +1321,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => fallbackToVisualWhenOutputMuted;
         set
         {
+            if (!suppressResponseModeSave && !AdmitVoiceOptionMutation(MutedOutputFallbackConfigurationAction)) { return; }
             if (value == fallbackToVisualWhenOutputMuted)
             {
                 return;
@@ -1563,6 +1349,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => queueResponseMode;
         set
         {
+            if (!AdmitVoiceOptionMutation(ResponseOutputConfigurationAction)) { return; }
             ValidateResponseModeOverride(value, nameof(value));
             if (SetProperty(ref queueResponseMode, value))
             {
@@ -1587,6 +1374,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => taskResponseMode;
         set
         {
+            if (!AdmitVoiceOptionMutation(ResponseOutputConfigurationAction)) { return; }
             ValidateResponseModeOverride(value, nameof(value));
             if (SetProperty(ref taskResponseMode, value))
             {
@@ -1639,7 +1427,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             || FallbackToVisualWhenOutputMuted);
 
     public bool IsSpeechResponseEnabled =>
-        !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
+        IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
         && !voiceRecognition.IsListening
         && EffectiveResponseMode != ResponseOutputMode.VisualOnly
@@ -1665,7 +1453,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool IsCallDetected =>
-        CurrentCallState is CallState.Active or CallState.Suspected;
+        communicationPolicy.Current.EffectiveState is CallState.Active or CallState.Suspected;
 
     public bool ShowVisualTextDuringCalls
     {
@@ -1677,7 +1465,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(IsCallVisualOverrideActive));
                 OnPropertyChanged(nameof(CallVisualOverrideButtonText));
                 OnPropertyChanged(nameof(CallVisualOverrideStatus));
-                SaveCallAwareSettings();
                 NotifyOutputPolicyChanged();
             }
         }
@@ -1694,17 +1481,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(CallVoiceActivationButtonText));
                 OnPropertyChanged(nameof(CallVoiceActivationStatus));
                 OnPropertyChanged(nameof(ListeningStatus));
-                SaveCallAwareSettings();
                 ToggleListeningCommand.NotifyCanExecuteChanged();
             }
         }
     }
 
     public bool IsCallVisualOverrideActive =>
-        IsCallDetected && ShowVisualTextDuringCalls;
+        communicationPolicy.Current.SuppressSpeech;
 
     public bool IsVoiceActivationAvailable =>
-        !IsCallDetected || AllowVoiceActivationDuringCalls;
+        communicationPolicy.Current.AllowActivation;
 
     public string CallVisualOverrideButtonText => ShowVisualTextDuringCalls
         ? "Use normal response mode during calls"
@@ -1722,14 +1508,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ? $"On · {AssistantName} can continue listening during detected calls"
         : "Off · listening closes and remains unavailable during detected calls";
 
-    public string CallStateStatus => CurrentCallState switch
+    public string CallStateStatus => (IsManualCallActive ? "Manual call mode is active. " : string.Empty) + (AutomaticCallState switch
     {
         CallState.Active => "A call is active.",
         CallState.Suspected => "Call activity is suspected.",
         CallState.Clear => "No call is currently detected.",
         CallState.Unknown => "Call detection is enabled but its current state is unknown.",
-        _ => "Automatic call detection is unavailable. Normal response settings remain active.",
-    };
+        CallState.Unavailable => "Automatic call detection is unavailable.",
+        _ => "Automatic call observation is invalid; protection remains active.",
+    });
 
     public string ResponseOutputStatus
     {
@@ -1793,9 +1580,70 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (SetProperty(ref commandText, value))
             {
+                RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
         }
+    }
+
+    public bool IsArtifactCommandDropdownVisible => ArtifactCommandOptions.Count > 0;
+
+    public void ApplyArtifactCommandOption(ArtifactCommandOption option)
+    {
+        ArgumentNullException.ThrowIfNull(option);
+        if (!ArtifactCommandOptions.Contains(option))
+        {
+            return;
+        }
+        CommandText = option.Command + " ";
+    }
+
+    public void DismissArtifactCommandOptions()
+    {
+        ArtifactCommandOptions.Clear();
+        OnPropertyChanged(nameof(IsArtifactCommandDropdownVisible));
+    }
+
+    private void RefreshArtifactCommandOptions()
+    {
+        ArtifactCommandOptions.Clear();
+        foreach (var option in FilterArtifactCommandOptions(CommandText, artifactCatalogue.Artifacts))
+        {
+            ArtifactCommandOptions.Add(option);
+        }
+        OnPropertyChanged(nameof(IsArtifactCommandDropdownVisible));
+    }
+
+    internal static IReadOnlyList<ArtifactCommandOption> FilterArtifactCommandOptions(
+        string input,
+        IReadOnlyList<ArtifactDefinition> artifacts)
+    {
+        if (!input.StartsWith('/'))
+        {
+            return [];
+        }
+        var query = input[1..];
+        ArtifactKind? kind = null;
+        foreach (var candidate in Enum.GetValues<ArtifactKind>())
+        {
+            var prefix = candidate.ToString().ToLowerInvariant();
+            if (query.StartsWith(prefix + " ", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = candidate;
+                query = query[(prefix.Length + 1)..];
+                break;
+            }
+        }
+        if (query.Any(char.IsWhiteSpace))
+        {
+            return [];
+        }
+        return artifacts
+            .Where(artifact => (kind is null || artifact.Kind == kind)
+                && artifact.CommandName.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(artifact => artifact.CommandName, StringComparer.OrdinalIgnoreCase)
+            .Select(ArtifactCommandOption.From)
+            .ToArray();
     }
 
     private bool IsSetupStatusCommand() =>
@@ -2315,6 +2163,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ShowFailure("Presence mouse routing is unavailable.",
             $"The presence has been hidden to avoid blocking other windows. Restart Kora to try again. {detail}");
 
+    public void ReportHostInteractionFailure(string detail) =>
+        ShowFailure("Native question unavailable.", detail);
+
     public void ShowSettings()
     {
         if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
@@ -2332,6 +2183,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void ShowDocumentation() =>
         DocumentationRequested?.Invoke(this, EventArgs.Empty);
 
+    public event EventHandler? SessionsRequested;
+
+    public void ShowSessions() => SessionsRequested?.Invoke(this, EventArgs.Empty);
+
     public string GetGrantDocument()
     {
         var builder = new StringBuilder()
@@ -2341,6 +2196,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .AppendLine();
         AppendGrantSection(builder, "This session", sessionAllowedModelActions);
         AppendGrantSection(builder, "Always on this device", alwaysAllowedModelActions);
+        if (AreReusableGrantsIgnored)
+        {
+            builder.AppendLine("Ignored during call; single-use approval required. Stored reusable grants are unchanged.")
+                .AppendLine();
+        }
         builder.AppendLine("## Change a grant")
             .AppendLine()
             .AppendLine("Say \"manage grants\" to prepare an add, edit, or removal. Every proposed change must be confirmed in the response window.");
@@ -2586,10 +2446,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NotifyOutputPolicyChanged();
     }
 
-    private void PresentModelQuestion(LocalModelQuestion question, string request, int depth)
+    private void PresentModelQuestion(
+        LocalModelQuestion question,
+        string request,
+        int depth,
+        LocalModelArtifact? artifact)
     {
         pendingModelQuestion = question;
         pendingQuestionRequest = request;
+        pendingQuestionArtifact = artifact;
         pendingQuestionDepth = depth;
         ModelQuestionChoices = question.Options.Select((text, index) =>
             new ModelQuestionChoice(index + 1, text)).ToArray();
@@ -2607,6 +2472,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         pendingModelQuestion = null;
         pendingQuestionRequest = null;
+        pendingQuestionArtifact = null;
         ModelQuestionChoices = [];
         OnPropertyChanged(nameof(ModelQuestionChoices));
         OnPropertyChanged(nameof(IsModelQuestionPending));
@@ -2625,6 +2491,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var answer = choice.Text;
+        var artifact = pendingQuestionArtifact;
         var followup = JsonSerializer.Serialize(new
         {
             OriginalRequest = original,
@@ -2649,7 +2516,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await HandleUnmatchedRequestAsync(followup, SecurityAuditInitiator.TypedCommand, depth);
+        await HandleUnmatchedRequestAsync(
+            followup,
+            SecurityAuditInitiator.TypedCommand,
+            depth,
+            artifact: artifact);
     }
 
     public async Task CancelModelQuestionAsync()
@@ -2718,6 +2589,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
+        ClearClipboardPreview();
         HoldVoiceInput("Microphone closed · application exiting");
         textToSpeech.InvalidateOutput();
         try
@@ -2728,6 +2600,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
         }
+        await clipboardPreview.WaitForQuiescenceAsync();
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
@@ -2798,48 +2671,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 nameof(HostedModelsEnabled));
             OnPropertyChanged(nameof(HostedModelExecutionDescription));
 
-            var savedThemeMode = appearancePreferences.LoadThemeMode();
-            var savedPresenceTimeoutSeconds = appearancePreferences.LoadPresenceTimeoutSeconds();
-            var savedResponseTimeoutSeconds = appearancePreferences.LoadResponseTimeoutSeconds();
-            var savedPresenceSizePixels = appearancePreferences.LoadPresenceSizePixels();
-            var savedPresenceDotSizePercent = appearancePreferences.LoadPresenceDotSizePercent();
-            var savedPresenceDotDensityPercent = appearancePreferences.LoadPresenceDotDensityPercent();
-            var savedPresenceMovementSpeedPercent =
-                appearancePreferences.LoadPresenceMovementSpeedPercent();
-            var savedPresenceSpeechScalingEnabled =
-                appearancePreferences.LoadPresenceSpeechScalingEnabled();
-            var savedPresenceSpeechScaleAmountPercent =
-                appearancePreferences.LoadPresenceSpeechScaleAmountPercent();
             var savedPresencePosition =
                 appearancePreferences.LoadPresencePosition();
             var savedResponseWindowSettings = appearancePreferences.LoadResponseWindowSettings();
-            suppressAppearancePreferenceSave = true;
-            suppressPresencePreferenceSave = true;
-            suppressResponseTimeoutPreferenceSave = true;
+            appearanceConfiguration.Reload();
+            SynchronizeAppearance();
             suppressPresenceAppearancePreferenceSave = true;
             suppressResponseWindowPreferenceSave = true;
             try
             {
-                ThemeMode = savedThemeMode ?? ApplicationThemeMode.System;
-                PresenceTimeoutSeconds =
-                    savedPresenceTimeoutSeconds ?? PresenceSettings.DefaultTimeoutSeconds;
-                ResponseTimeoutSeconds =
-                    savedResponseTimeoutSeconds ?? ResponseWindowSettings.DefaultTimeoutSeconds;
-                PresenceSizePixels =
-                    savedPresenceSizePixels ?? PresenceSettings.DefaultSizePixels;
-                PresenceDotSizePercent =
-                    savedPresenceDotSizePercent ?? PresenceSettings.DefaultDotSizePercent;
-                PresenceDotDensityPercent =
-                    savedPresenceDotDensityPercent ?? PresenceSettings.DefaultDotDensityPercent;
-                PresenceMovementSpeedPercent =
-                    savedPresenceMovementSpeedPercent
-                    ?? PresenceSettings.DefaultMovementSpeedPercent;
-                IsPresenceSpeechScalingEnabled =
-                    savedPresenceSpeechScalingEnabled
-                    ?? PresenceSettings.DefaultSpeechScalingEnabled;
-                PresenceSpeechScaleAmountPercent =
-                    savedPresenceSpeechScaleAmountPercent
-                    ?? PresenceSettings.DefaultSpeechScaleAmountPercent;
                 SetProperty(
                     ref presencePosition,
                     savedPresencePosition,
@@ -2850,9 +2690,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             finally
             {
-                suppressAppearancePreferenceSave = false;
-                suppressPresencePreferenceSave = false;
-                suppressResponseTimeoutPreferenceSave = false;
                 suppressPresenceAppearancePreferenceSave = false;
                 suppressResponseWindowPreferenceSave = false;
             }
@@ -2925,8 +2762,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var savedResponseMode = responseOutputPreferences.LoadDefaultMode();
             var savedMutedOutputFallback = responseOutputPreferences.LoadMutedOutputVisualFallback();
             var savedCallAwareSettings = callAwarePreferences.Load() ?? CallAwareSettings.Default;
+            communicationPolicy.LoadSettings(savedCallAwareSettings);
             suppressResponseModeSave = true;
-            suppressCallAwarePreferenceSave = true;
             try
             {
                 DefaultResponseMode = savedResponseMode ?? ResponseOutputMode.Hybrid;
@@ -2937,10 +2774,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             finally
             {
                 suppressResponseModeSave = false;
-                suppressCallAwarePreferenceSave = false;
             }
 
-            CurrentCallState = callStateService.CurrentState;
+            CurrentCallState = communicationPolicy.Current.EffectiveState;
             var preferredProviderId = selectedSpeechProviderId
                 ?? savedSpeechProviderId
                 ?? SpeechProviderIds.Windows;
@@ -3073,6 +2909,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ApplyDependencyStatus(DependencyStatus status)
     {
+        dependencyBootstrapper.RecordObservation(status);
         var previous = Dependencies.FirstOrDefault(item =>
             string.Equals(item.Id, status.Id, StringComparison.Ordinal));
         if (previous is null)
@@ -3120,10 +2957,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await StartListeningAsync();
+        var origin = OriginalOrigin();
+        var callRevision = CallPolicyRevision;
+        if (AdmitVoiceOptionMutation("configuration.listening-enabled"))
+        {
+            await StartListeningAsync(origin, callRevision);
+        }
     }
 
-    private async Task StartListeningAsync()
+    private async Task StartListeningAsync(RequestOrigin? originalOrigin = null, long observedCallRevision = 0)
     {
         IsBusy = true;
         try
@@ -3146,6 +2988,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
                 return;
+            }
+            if (originalOrigin is { } origin)
+            {
+                var denied = communicationPolicy.CheckMutation(origin, observedCallRevision, () => IsCallMutationHostEligible);
+                if (denied is { } outcome)
+                {
+                    ReportCallMutation(outcome, "configuration.listening-enabled", origin);
+                    return;
+                }
             }
             Interlocked.Exchange(ref voiceEnabled, 1);
             Interlocked.Exchange(ref privacyPresentationHeld, 0);
@@ -3191,6 +3042,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task DownloadSpeechProviderAsync()
     {
+        if (!AdmitVoiceOptionMutation(SpeechProviderSelectionConfigurationAction)) { return; }
         var provider = SelectedSpeechProvider!;
         var audit = StartAudit(
             SecurityAuditCategory.ResourceWrite,
@@ -3265,6 +3117,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task RemoveSpeechProviderAsync()
     {
+        if (!AdmitVoiceOptionMutation(SpeechProviderSelectionConfigurationAction)) { return; }
         var provider = SelectedSpeechProvider!;
         var audit = StartAudit(
             SecurityAuditCategory.ResourceWrite,
@@ -3441,9 +3294,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task PreviewVoiceAsync()
     {
-        if (!IsHostInputEligible)
+        if (!IsCallMutationHostEligible)
         {
             ApplicationLog.Information(logger, "Denied voice preview outside the eligible host generation");
+            return;
+        }
+        if (communicationPolicy.Current.SuppressSpeech)
+        {
+            ShowInformation("Voice preview is suppressed.", "Protected call policy requires visual-only output.");
             return;
         }
         if (SelectedVoice is not { } voice || SelectedOutputDevice is not { } outputDevice
@@ -3460,10 +3318,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         activeSpokenText = previewText;
         try
         {
-            await textToSpeech.SpeakAsync(
+            await communicationPolicy.StartSpeech(() => textToSpeech.SpeakAsync(
                 previewText,
                 voice,
-                outputDevice);
+                outputDevice), () => IsCallMutationHostEligible);
         }
         catch (OperationCanceledException)
         {
@@ -3578,26 +3436,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await SetAllowVoiceActivationDuringCallsAsync(!AllowVoiceActivationDuringCalls);
     }
 
-    public async Task SetShowVisualTextDuringCallsAsync(bool value)
-    {
-        ShowVisualTextDuringCalls = value;
-        await ApplyCallVisualOverrideAsync();
-    }
+    public Task SetShowVisualTextDuringCallsAsync(bool value) =>
+        SetCallSettingsAsync(communicationPolicy.Current.Settings with { ShowVisualTextDuringCalls = value });
 
-    public async Task SetAllowVoiceActivationDuringCallsAsync(bool value)
-    {
-        AllowVoiceActivationDuringCalls = value;
-        if (!AllowVoiceActivationDuringCalls && IsCallDetected && IsVoiceEnabled)
-        {
-            HoldVoiceInput("Microphone closed · voice activation paused during detected call");
-            await StopListeningAsync();
-        }
-    }
+    public Task SetAllowVoiceActivationDuringCallsAsync(bool value) =>
+        SetCallSettingsAsync(communicationPolicy.Current.Settings with { AllowVoiceActivationDuringCalls = value });
 
     public async Task SetAssistantNameAsync(
         string value,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
+        if (!AdmitVoiceOptionMutation(AssistantNameConfigurationAction, initiator)) { return; }
+        var origin = OriginalOrigin(initiator);
+        var callRevision = CallPolicyRevision;
         var audit = StartAudit(
             SecurityAuditCategory.ConfigurationWrite,
             AssistantNameConfigurationAction,
@@ -3625,6 +3476,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
+            if (IsVoiceEnabled || IsListening)
+            {
+                HoldVoiceInput("Microphone closed · activation name changed; use Enable listening");
+                await StopListeningAsync();
+            }
+            var denied = communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible);
+            if (denied is { } outcome)
+            {
+                CompleteAudit(audit, SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
+                ReportCallMutation(outcome, AssistantNameConfigurationAction, origin);
+                return;
+            }
             assistantNamePreferences.SaveName(normalizedName);
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
         }
@@ -3642,11 +3505,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowFailure("The assistant name could not be saved.", exception.Message);
             return;
         }
-
-        if (IsVoiceEnabled || IsListening)
+        catch (InvalidOperationException exception)
         {
-            HoldVoiceInput("Microphone closed · activation name changed; use Enable listening");
-            await StopListeningAsync();
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "capture-stop-failed");
+            ApplicationLog.Error(logger, exception, "Closing input before changing the assistant name");
+            ShowFailure("The assistant name could not be changed.", exception.Message);
+            return;
         }
 
         ApplyAssistantNameState(normalizedName);
@@ -3749,39 +3613,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private bool SaveAppearancePreference(
-        ApplicationThemeMode value,
-        SecurityAuditInitiator initiator)
-    {
-        return SavePreference(
-            () => appearancePreferences.SaveThemeMode(value),
-            AppearanceThemeConfigurationAction,
-            initiator,
-            "appearance theme");
-    }
-
-    private bool SavePresenceTimeoutPreference(
-        int value,
-        SecurityAuditInitiator initiator)
-    {
-        return SavePreference(
-            () => appearancePreferences.SavePresenceTimeoutSeconds(value),
-            PresenceTimeoutConfigurationAction,
-            initiator,
-            "presence timeout");
-    }
-
-    private bool SaveResponseTimeoutPreference(
-        int value,
-        SecurityAuditInitiator initiator)
-    {
-        return SavePreference(
-            () => appearancePreferences.SaveResponseTimeoutSeconds(value),
-            ResponseTimeoutConfigurationAction,
-            initiator,
-            "response timeout");
-    }
-
     private bool SetResponseWindowSettings(
         ResponseWindowSettings value,
         SecurityAuditInitiator initiator)
@@ -3847,25 +3678,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 $"Saving the {settingName}");
             ShowFailure($"The {settingName} could not be saved.", exception.Message);
             return false;
-        }
-    }
-
-    private void SaveCallAwareSettings()
-    {
-        if (suppressCallAwarePreferenceSave)
-        {
-            return;
-        }
-
-        if (SavePreference(
-            () => callAwarePreferences.Save(new CallAwareSettings(
-                ShowVisualTextDuringCalls,
-                AllowVoiceActivationDuringCalls)),
-            CallAwareConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "call-aware settings"))
-        {
-            ApplicationLog.Information(logger, "Call-aware preferences were updated");
         }
     }
 
@@ -4004,7 +3816,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         HoldVoiceInput("Microphone closed · command capture failed; use Enable listening");
         uiDispatcher.Post(() =>
         {
-            if (!sessionController.IsCurrentSessionUnlocked() || IsPrivacyPresentationHeld)
+            if (!IsHostInputEligible)
             {
                 return;
             }
@@ -4058,6 +3870,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
             ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
+        if (string.Equals(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript,
+            "open sessions", StringComparison.Ordinal))
+        {
+            ShowSessions();
+            return;
+        }
         var admittedCommand = commandRouter.Match(spokenText, AssistantName).Command;
         if (IsDurableVersionQueryEligible(true, pendingModelQuestion is not null, IsGrantChangePending, IsModelActionApprovalPending)
             && admittedCommand?.Action == BuiltInAction.ShowVersion)
@@ -4130,7 +3948,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            if (commandRouter.Match(spokenText, AssistantName).IsMatch)
+            if (commandRouter.Match(spokenText, AssistantName).IsMatch
+                || AppearanceCommand.Parse(spokenText, AssistantName) is not null
+                || ClipboardCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is not null)
             {
                 await CancelModelQuestionAsync();
             }
@@ -4208,7 +4028,36 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         BeginTranscriptPresentation(spokenText, confidence, initiator);
 
+        if (AppearanceCommand.Parse(spokenText, AssistantName) is { } appearanceCommand)
+        {
+            await ExecuteAppearanceCommandAsync(appearanceCommand, initiator);
+            return;
+        }
+
         var match = commandRouter.Match(spokenText, AssistantName);
+        if (ClipboardCommand.Parse(match.NormalizedTranscript) is { } clipboardCommand)
+        {
+            await ExecuteClipboardCommandAsync(clipboardCommand);
+            return;
+        }
+        if (TryPresentCapabilityCommand(match.NormalizedTranscript))
+        {
+            return;
+        }
+        var artifactMatch = artifactCommandRouter.Match(spokenText, AssistantName);
+        if (artifactMatch.IsArtifactCommand)
+        {
+            if (artifactMatch.Invocation is null)
+            {
+                ShowInformation("Artifact command not found.", artifactMatch.Error!);
+                return;
+            }
+            await HandleUnmatchedRequestAsync(
+                spokenText,
+                initiator,
+                artifactInvocation: artifactMatch.Invocation);
+            return;
+        }
         if (!match.IsMatch || match.Command is null)
         {
             await HandleUnmatchedRequestAsync(spokenText, initiator);
@@ -4233,7 +4082,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task HandleUnmatchedRequestAsync(
         string spokenText,
         SecurityAuditInitiator initiator,
-        int questionDepth = 0)
+        int questionDepth = 0,
+        ArtifactInvocation? artifactInvocation = null,
+        LocalModelArtifact? artifact = null)
     {
         if (initiator == SecurityAuditInitiator.VoiceCommand
             && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -4244,23 +4095,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         }
 
-        var request = spokenText.Trim();
-        if (string.Equals(
+        var request = artifactInvocation?.Request ?? spokenText.Trim();
+        if (artifactInvocation is null && string.Equals(
             request.TrimEnd(',', ':', '-', '—').TrimEnd(),
             AssistantName,
             StringComparison.OrdinalIgnoreCase))
         {
             request = string.Empty;
         }
-        else if (commandRouter.IsActivationPrefixed(request, AssistantName))
+        else if (artifactInvocation is null
+            && commandRouter.IsActivationPrefixed(request, AssistantName))
         {
             request = request[AssistantName.Length..].TrimStart(' ', ',', ':', '-', '—');
         }
 
         if (string.IsNullOrWhiteSpace(request))
         {
-            ShowInformation("No question was heard.", $"Say “{AssistantName}” followed by a request.");
-            return Task.CompletedTask;
+            if (artifactInvocation is null)
+            {
+                ShowInformation("No question was heard.", $"Say “{AssistantName}” followed by a request.");
+                return Task.CompletedTask;
+            }
+            request = $"Run the selected {artifactInvocation.Artifact.Kind.ToString().ToLowerInvariant()}.";
+        }
+
+        if (artifact is null && artifactInvocation is not null)
+        {
+            artifact = new LocalModelArtifact(
+                artifactInvocation.Artifact.Id,
+                artifactInvocation.Artifact.Kind,
+                artifactInvocation.Artifact.Name,
+                artifactInvocation.Artifact.Source,
+                artifactInvocation.Artifact.Version,
+                artifactInvocation.Artifact.Digest,
+                artifactInvocation.Artifact.Content);
         }
 
         if (request.Length > 4096)
@@ -4312,9 +4180,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanInstallPowerShell));
         OnPropertyChanged(nameof(CanInstallLocalModel));
         ShowInformation(
-            "Thinking locally.",
-            "Only your current request text is sent to the selected local model.");
-        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth);
+            artifact is null ? "Thinking locally." : $"Running {artifact.Name} locally.",
+            artifact is null
+                ? "Only your current request text is sent to the selected local model."
+                : "Your current request and the selected bundled artifact instructions are sent only to the selected local model. Artifact selection does not approve or execute an action.");
+        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth, artifact);
         _ = activeReasoningTask.ContinueWith(completed =>
         {
             if (completed.Exception is { } exception)
@@ -4334,7 +4204,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         bool busy, bool modelSetup, bool powerShellSetup) =>
         reasoning || actionDispatch || approvalPrompt || busy || modelSetup || powerShellSetup;
 
-    private async Task RunReasoningAsync(string request, CancellationTokenSource cancellation, int questionDepth)
+    private async Task RunReasoningAsync(
+        string request,
+        CancellationTokenSource cancellation,
+        int questionDepth,
+        LocalModelArtifact? artifact)
     {
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
@@ -4350,7 +4224,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         task.Id, "local.reasoning", StringComparison.Ordinal))
                     .Select(task => new LocalModelTask(
                         task.Name, task.State, task.ProgressPercentage)).ToArray());
-            var decision = await localModelReasoner.ReasonAsync(request, context, cancellation.Token);
+            var decision = await localModelReasoner.ReasonAsync(request, context, artifact, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             if (new object?[] { decision.Answer, decision.Action, decision.GrantChange, decision.Question }
                     .Count(value => value is not null) != 1
@@ -4378,7 +4252,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    PresentModelQuestion(clarification, request, questionDepth + 1);
+                    PresentModelQuestion(clarification, request, questionDepth + 1, artifact);
                     announceApproval = true;
                 }
             }
@@ -4390,10 +4264,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else if (decision.Action is { } action)
             {
                 if (ModelActionRequiresApproval(action)
-                    && !sessionAllowedModelActions.Contains(action)
-                    && !alwaysAllowedModelActions.Contains(action))
+                    && !CanReuseLegacyModelGrant(action))
                 {
                     pendingModelAction = action;
+                    pendingModelActionCallRevision = CallPolicyRevision;
                     pendingModelActionAudit = StartAudit(
                         SecurityAuditCategory.SecurityApproval,
                         $"{ModelActionApprovalPrefix}{action.ToString().ToLowerInvariant()}",
@@ -4500,11 +4374,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (automaticAction is { } safeAction)
         {
+            var admittedCallRevision = CallPolicyRevision;
+            if (ModelActionRequiresApproval(safeAction) && !CanReuseLegacyModelGrant(safeAction))
+            {
+                ShowInformation("Saved permission is not eligible.",
+                    "Call policy changed before dispatch. Initiate a fresh request; no action was replayed.");
+                return;
+            }
             isModelActionDispatchActive = true;
             try
             {
                 var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == safeAction);
-                await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion);
+                await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, admittedCallRevision);
                 if (ShouldSpeakResponse(safeAction))
                 {
                     await SpeakCurrentResponseAsync();
@@ -4599,6 +4480,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task CancelCurrentTaskAsync()
     {
+        ClearClipboardPreview();
         CancelPendingPowerAudit("task-cancelled");
         if (powerShellSetupCancellation is not null)
         {
@@ -4663,10 +4545,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Denied model-action approval outside the eligible host generation");
             return;
         }
+        if (pendingModelAction is not null && pendingModelActionCallRevision != CallPolicyRevision)
+        {
+            ClearPendingModelAction("call-policy-changed");
+            ShowInformation("Call policy changed.", "The previous approval is no longer applicable. Initiate a fresh request; nothing was replayed.");
+            return;
+        }
         var action = ValidateModelActionApproval(
             scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
 
         var approval = pendingModelActionAudit;
+        var callRevision = CallPolicyRevision;
         try
         {
             var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == action);
@@ -4678,6 +4567,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (!IsHostInputEligible)
             {
                 ApplicationLog.Information(logger, "Denied model-action approval after a Windows privacy transition");
+                return;
+            }
+            if (callRevision != CallPolicyRevision || AreReusableGrantsIgnored && scope != ModelApprovalScope.Once)
+            {
+                ShowInformation("Fresh single-use approval is required.",
+                    "Call policy changed or reusable grants are ignored. No grant was changed and no action was dispatched.");
                 return;
             }
 
@@ -4706,7 +4601,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 GrantDocumentChanged?.Invoke(this, GetGrantDocument());
             }
             ClearPendingModelAction($"approved-{scope.ToString().ToLowerInvariant()}");
-            await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion);
+            await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, callRevision);
             if (ShouldSpeakResponse(action))
             {
                 await SpeakCurrentResponseAsync();
@@ -4833,10 +4728,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplicationLog.Debug(logger, "Starting spoken response output");
         try
         {
-            await textToSpeech.SpeakAsync(
+            await communicationPolicy.StartSpeech(() => textToSpeech.SpeakAsync(
                 spokenText,
                 activeSpeechVoice!,
-                SelectedOutputDevice!);
+                SelectedOutputDevice!), () => IsSpeechResponseEnabled);
         }
         catch (OperationCanceledException)
         {
@@ -5009,11 +4904,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     internal async Task ExecuteAsync(
         CommandDefinition command,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.System)
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.System,
+        long? observedCallRevision = null)
     {
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Denied command dispatch outside the eligible host generation");
+            return;
+        }
+        if (initiator == SecurityAuditInitiator.ModelSuggestion && ModelActionRequiresApproval(command.Action)
+            && !IsModelCallDispatchEligible(initiator, observedCallRevision))
+        {
+            ShowInformation("Call policy changed.", "The model authorization is no longer applicable. Initiate a fresh request; no action was dispatched.");
             return;
         }
         ApplicationLog.BuiltInActionExecuting(logger, command.Action);
@@ -5034,7 +4936,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     && isModelActionDispatchActive);
                 break;
             case BuiltInAction.RestartApplication:
-                await RestartApplicationAsync(initiator);
+                await RestartApplicationAsync(initiator, observedCallRevision);
                 break;
             case BuiltInAction.OpenSettings:
                 ShowInformation(
@@ -5058,6 +4960,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ShowInformation(
                     "Built-in commands are ready.",
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
+                    + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
+                    + "Use “preview clipboard” for an explicit local plain-text snapshot; clipboard explanation is unavailable. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -5122,7 +5026,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 await StopSpeakingAsync();
                 break;
             case BuiltInAction.LockMachine:
-                await LockCurrentSessionAsync(initiator);
+                await LockCurrentSessionAsync(initiator, observedCallRevision);
                 break;
             case BuiltInAction.ProposeShutdown:
             case BuiltInAction.ProposeRestart:
@@ -5196,7 +5100,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task RestartApplicationAsync(SecurityAuditInitiator initiator)
+    private async Task RestartApplicationAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
         var audit = StartAudit(
             SecurityAuditCategory.ApplicationExecution,
@@ -5207,6 +5111,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);
+            if (!IsModelCallDispatchEligible(initiator, observedCallRevision))
+            {
+                CompleteAudit(audit, SecurityAuditOutcome.Denied, "call-policy-changed");
+                ShowInformation("Call policy changed.", "The model authorization became stale before restart; no restart was dispatched.");
+                return;
+            }
             applicationProcessController.RestartCurrentApplication();
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             WindowActionRequested?.Invoke(this, WindowAction.Close);
@@ -5234,8 +5144,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return Task.CompletedTask;
     }
 
-    private async Task LockCurrentSessionAsync(SecurityAuditInitiator initiator)
+    private async Task LockCurrentSessionAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
+        ClearClipboardPreview();
         var audit = StartAudit(
             SecurityAuditCategory.ProtectedOperation,
             SessionLockAction,
@@ -5245,6 +5156,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);
+            if (!IsModelCallDispatchEligible(initiator, observedCallRevision))
+            {
+                CompleteAudit(audit, SecurityAuditOutcome.Denied, "call-policy-changed");
+                ShowInformation("Call policy changed.", "The model authorization became stale before lock; no lock was dispatched.");
+                return;
+            }
             if (sessionController.LockCurrentSession())
             {
                 CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
@@ -5386,7 +5303,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string[] GetRecognitionPhrases()
     {
         var commands = commandCatalog.GetCommands(AssistantName)
-            .SelectMany(command => command.AllPhrases);
+            .SelectMany(command => command.AllPhrases)
+            .Concat(ClipboardCommand.FixedPhrases)
+            .Concat(ClipboardPreview is { } snapshot
+                ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands
             .SelectMany(phrase => new[] { phrase, $"{AssistantName} {phrase}" })
             .Concat(ModelApprovalSpeech.GetPhrases(AssistantName))

@@ -12,6 +12,42 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Release maintenance (notify-only)
+
+Use **Settings > Maintenance > Review / check / open canonical release** or
+the Tray **Release maintenance (notify-only)** entry. The existing **Review
+local version (native question)** remains a separate local-only workflow.
+Select Production (stable only) or explicitly choose Preview (published beta
+releases only), then permit **public metadata checks for this run**. Permission
+is off by default and not saved. An initial check is scheduled; subsequent
+checks use six hours plus jitter and explicit failure/rate-limit backoff.
+**Check canonical releases** respects the same deadline, including after
+permission/channel changes.
+
+Read the exact version, immutable source, architecture, expected application
+ZIP digest, canonical page and unsigned disclosure, then select **Review this
+exact verified release** before **Open reviewed
+canonical release page**. Browser navigation is not download/install approval.
+Any refresh, changed snapshot, expiry or admission closure invalidates this
+review; Open/Snooze require a new explicit native review.
+**Snooze this version (24h)** affects only this run; there is no automatic
+speech, focus or prompt backlog. Lock/disconnect, unknown ownership and
+protected call mode close the review and invalidate pending callbacks.
+Return explicitly after recovery; Kora does not replay a deferred check.
+
+Available/UpToDate require consistent canonical metadata. Unavailable means
+no selected release or HTTP 404, not verified current. RateLimited (403/429)
+shows a retry deadline. Unknown includes transport, timeout, cancellation,
+malformed/oversized/changed metadata and unsupported architecture.
+Last successful verification stays historical after a failed check and is
+stale after six hours; stale/failed results cannot open a release page.
+
+Only release metadata and the bounded JSON manifest are fetched. Kora never
+obtains ZIP/MSI/EXE/source code, stages, executes, elevates, installs or changes
+source. Hashes are not publisher signatures. x86 has an application ZIP but
+no x86 installer/native capability acceptance. Deployment mode is unknown;
+replacement and prerequisite handling remain external/manual.
+
 ## Models
 
 The **Models** tab controls which model locations Kora may use for free-form
@@ -85,6 +121,50 @@ The optional Kokoro speech provider is offered separately and is not a
 required queued setup task.
 
 ## Appearance
+
+The existing controls and exact typed/activated-voice commands share one
+host-owned, typed appearance service. No model or network is needed. Enter
+**list appearance settings** to inspect the nine admitted options, units,
+defaults, bounds, scope and application timing.
+
+| ID | Default | Values / units |
+|---|---|---|
+| `appearance.theme` | `system` | `system`, `light`, `dark` |
+| `appearance.presence-timeout` | `10` | 1-60 seconds |
+| `appearance.response-timeout` | `5` | 1-60 seconds |
+| `appearance.presence-size` | `360` | 240-600 pixels |
+| `appearance.dot-size` | `100` | 50-200 percent |
+| `appearance.dot-density` | `100` | 25-200 percent |
+| `appearance.movement-speed` | `100` | 25-200 percent |
+| `appearance.speech-scaling` | `true` | `true`, `false` (visual sizing only) |
+| `appearance.speech-scale-amount` | `100` | 0-200 percent |
+
+Use **get appearance.theme**, **set appearance.theme to dark**, or
+**reset appearance.theme**; substitute another listed ID and its typed value.
+Voice input uses the currently configured assistant name, for example
+**"Kora, set appearance.presence-timeout to 15"**.
+The listed spoken names replace dots and hyphens with spaces:
+**"Kora, set appearance theme to dark"** or
+**"Kora, set appearance presence timeout to 15"**.
+Integer values are numeric
+and use the listed units; relative changes, number words and appended units
+are not interpreted. Ambiguous, unknown and out-of-range appearance commands
+show clarification instead of reaching a model or silently clamping.
+
+The Appearance tab also offers **Reset selected option**. Reset affects only
+that option, not a whole profile or undo history. Updates revalidate the
+typed value and current host revision before one atomic preference-file write.
+A stale proposal requires a fresh inspection/proposal. A save failure retains
+the previous saved/effective value and revision and shows the error.
+Get distinguishes a saved preference from an unsaved domain default.
+Successful changes update all open visual surfaces without reopening them.
+Speech scaling changes only animation, not audio output or call policy.
+
+Response pinning, topmost behavior and window placement retain their existing
+direct controls but are not registered: their shared-file writes are outside
+this bounded registry. Voice/audio/call, model, grants, retention, setup and
+startup settings are not admitted here. Full verbal preferences and
+model-facing settings tools remain future work.
 
 ### Application theme
 
@@ -287,18 +367,39 @@ fallback.
 
 ### Call detection
 
-Read-only status from the configured detector. Automatic detection is currently
-unavailable in the Windows bootstrap.
+Read-only status keeps manual state and automatic evidence separate. Automatic
+detection remains unavailable in this build; no Teams/account/network detector
+is implemented.
+
+### Manual call mode
+
+**I'm in a call** activates protection for this run. **Clear manual call mode**
+removes only that layer, never an enabled automatic Active/Suspected/Unknown
+observation. Manual state is not persisted across restart. Controls recheck
+original request origin, observed call revision and live ownership/privacy.
+Stale changes are rejected, not queued for call clearance.
 
 ### Visual responses during calls
 
-Default: on. Controls whether Active or Suspected calls override ordinary output
-with visual responses.
+Default: on. Manual Active and enabled Active/Suspected/Unknown override ordinary
+output with visual-only responses and suppress previews/readbacks. Existing saved
+choices are retained. New disabling is unavailable pending complete exact
+trusted review; enabling protection is supported.
 
 ### Voice activation during calls
 
 Default: on. Turning it off closes capture when a call is detected and blocks
-re-enabling until the call clears.
+re-enabling until protection clears. Clearance never automatically reopens
+capture. New re-enabling of this preference is unavailable pending exact review.
+
+During protection, all voice-originated voice and in-call preference mutations
+are rejected, including manual clear/reset and ordinary output options masked
+by the call override. Later UI confirmation cannot change voice lineage; start
+a new UI request. Stop speech, disable listening, cancel and read-only status
+remain usable. Protected calls ignore Session/Always reusable model-action
+grants without changing storage; new grant-ignore disabling, temporary overrides
+and speak-once exceptions are unavailable. This is bounded manual behavior, not
+full call/provider/native/audio acceptance.
 
 ## Readiness
 

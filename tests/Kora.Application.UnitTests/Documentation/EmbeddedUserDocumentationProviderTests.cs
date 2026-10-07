@@ -4,6 +4,8 @@ using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
 using Kora.Application.Documentation;
+using Kora.Application.Configuration;
+using Kora.Core.Configuration;
 using Kora.Core.Commands;
 
 namespace Kora.Application.UnitTests.Documentation;
@@ -44,7 +46,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal));
 
         page.Title.Should().Be("Tools and built-in skills: current and planned");
-        page.Markdown.Should().Contain("No script-backed built-in skills ship in the current release.");
+        page.Markdown.Should().Contain("No script-backed built-in skill executor ships in the current release.");
         page.Markdown.Should().Contain("### Lock the machine");
         page.Markdown.Should().Contain("### Shut down the computer");
         page.Markdown.Should().Contain("### Restart the computer");
@@ -70,7 +72,26 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count);
+        sections.Should().HaveCount(commands.Count + 2);
+        var sessions = sections.Single(section => section.StartsWith(
+            "Inspect existing minimal durable sessions", StringComparison.Ordinal));
+        var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        sessionPhrases.Should().Equal("open sessions");
+        var appearance = sections.Single(section => section.StartsWith(
+            "Inspect or change an admitted appearance option", StringComparison.Ordinal));
+        var appearancePhrases = Regex.Matches(appearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        appearancePhrases.Should().Equal("list appearance settings", "get appearance.theme",
+            "set appearance.theme to dark", "reset appearance.theme");
+        appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
+        var settings = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(item => string.Equals(item.Id, "settings", StringComparison.Ordinal));
+        foreach (var descriptor in AppearanceOptionRegistry.Options)
+            settings.Markdown.Should().Contain(descriptor.Id);
+        sections = sections.Where(section => !ReferenceEquals(section, appearance) && !ReferenceEquals(section, sessions)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

@@ -1,4 +1,4 @@
-# Responses and detected calls
+# Responses and manual call mode
 
 ## Response modes
 
@@ -86,9 +86,17 @@ Kora speech before opening capture. **Stop speaking** is also available in the
 tray without model, network or recognition. Production wake and acoustic
 barge-in/playback-rejection quality require separate real-hardware proof.
 
-## Detected-call settings
+## Manual call mode and call settings
 
-When a configured detector reports an **Active** or **Suspected** call:
+In **Settings > Calls**, choose **I'm in a call** to protect this run. Choose
+**Clear manual call mode** when it ends. Manual mode is not saved across
+restart. The status keeps automatic availability separate: this build still
+reports **automatic call detection unavailable**, including while manual mode
+is active. It does not detect Teams or any other communication provider.
+Clearing manual mode does not clear an enabled automatic Active, Suspected or
+Unknown observation, nor fabricate detector Clear.
+
+When manual mode or an enabled Active, Suspected or Unknown observation applies:
 
 - **Visual responses during calls** defaults to on. Kora suppresses automatic
   response speech and shows text.
@@ -96,7 +104,27 @@ When a configured detector reports an **Active** or **Suspected** call:
   capture and prevent listening until the call clears.
 
 These settings are independent. You can allow listening while forcing visual
-responses, or disable listening during calls.
+responses, or disable listening during calls. Existing saved output/activation
+choices are retained. New protection downgrades are disabled pending complete
+exact trusted review; temporary and speak-once call exceptions are unavailable.
+Enabling visual protection or disabling call-time activation remains supported.
+
+Protected-call entry invalidates pending synthesis/playback before slower UI
+work. Results and questions stay visual; clearing protection does not replay
+old speech, answer prompts, or automatically reopen the microphone.
+
+Voice-originated voice/in-call setting changes, including manual clear/reset,
+are rejected while protected. A later mouse confirmation does not change their
+original voice origin. Start a **new UI change** instead. Manual controls
+recheck call revision, ownership and Windows privacy before applying; stale or
+denied changes are not deferred. Status, stop speech, disable listening and
+cancellation remain available without a call-option mutation.
+
+Session/Always model-action grants are ignored, not removed, during protected
+calls. A current Once approval retains its existing action-name-only authority.
+Call revision changes invalidate pending approvals and undispatched reuse.
 
 The current Windows bootstrap reports automatic call detection as unavailable.
 An open communications application alone is not treated as proof of a call.
+Native accessibility, real-call detection, acoustic leakage and output-stop
+timing still require separately approved acceptance.

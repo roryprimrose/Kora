@@ -1,6 +1,27 @@
 # R02 storage/key feasibility supporting D-009
 
 Status: **partial measured evidence and canonical design outcome; not production admission or a closed D-009 decision**.
+
+## Maintained minimal Sessions equivalence assessment - 2026-10-07
+
+The generic lifecycle-adjacent intent/no-receipt and kill/reopen atomicity
+assertions are now exercised against actual production private standard
+SQLite by maintained
+[guarded Done/resume interruption tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionLifecycleInterruptionTests.cs)
+and [session workspace tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionWorkspaceTests.cs).
+They cover before/after authoritative COMMIT, restart generation/audit
+agreement, Interrupted control intent with no replay, Unknown/live/question
+blockers, revisions, cross-session reads and independent Perpetual preservation.
+These are maintained production semantics, not relabelled synthetic evidence.
+
+No executable experiment file is retired: the opaque sample harness has no
+Active/Done session schema, and its intertwined WAL/rollback engine comparison,
+SQLCipher/envelope cryptography, authenticated artifact stages, keyed backups/
+rekey, capacity/migration, leakage, DPAPI and native-provider evidence are not
+equivalent to this minimal standard-SQLite lifecycle slice. Historical receipts
+and provenance remain unchanged. General retention/deletion and complete
+artifact/backup disposal acceptance remain open.
+
 The approved R01 merge (`7d5e6a3`, PR #19) was verified before starting.
 An actual second-user Windows trial was initially left blocked with the
 owner's approval. Reassessment distinguishes OS isolation from application
@@ -195,6 +216,29 @@ same meaningful-activity clock, with configurable durations and no browsing
 refresh. This storage proof neither implements nor changes them. Independent
 perpetual grants and content-minimising diagnostics/security evidence must not
 be deleted with conversation content; no prototype grant implementation exists.
+
+## Production Recovery Migration and Retention - 2026-10-07
+
+The approved baseline is now standard SQLite/private-profile permissions;
+this experiment's candidate engine/encryption remains historical comparison,
+not production admission. Applicable interruption assertions have moved into
+maintained tests using actual production adapters and exact production schemas:
+
+| Experiment assertion/path | Maintained production equivalent | Specific disposition |
+|---|---|---|
+| `CrashTests` / `CrashChild`: uncommitted/committed transaction, exact rows and journal recovery | [Task writes](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteTaskInterruptionTests.cs), [diagnostic/audit/span-link writes](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteEvidenceInterruptionTests.cs), [interaction approval/Once-use/Done](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteInteractionInterruptionTests.cs). Actual PERSIST/FULL adapter writes, hot header/pager flush, exact old state, all-or-none commit and private ACL preservation are checked. | Production recovery no longer depends on the prototype or a raw-SQL proxy. Retain these shared candidate paths because their SQLCipher/envelope WAL/journal and content-authentication comparisons use different engine/mode/key contracts; standard PERSIST tests do not replace those unique proofs. |
+| Synthetic intent without receipt, no executable behavior | [Audited Interrupted/Unknown recovery](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteTaskInterruptionTests.cs), including interrupted recovery, repeated reopening and preserved committed terminal receipts; [composed runner](../../tests/Kora.Windows.IntegrationTests/Storage/DurableStorageCompositionTests.cs) checks no second invocation. | Prototype classification is not the production task contract. Retain its candidate encrypted-content restart check; production distinguishes intent-only Interrupted from dispatched/unverified Unknown. |
+| Schema/corruption/access/capacity/migration negatives | Production task/evidence/interaction tests maintain exact schema, missing/permissive journal, corrupt rows, held ownership/access, rollback/cancellation and stale authority checks. | Retain encrypted-page/key failure, WAL capacity, failed DDL/copy conversion, source preservation and encryption migration comparisons: no equivalent production migration is newly claimed. |
+| Artifact interruption, DPAPI, envelope/SQLCipher authentication, backup/rekey/deletion/native receipts | Outside this bounded production-store slice. | Retain `Crypto.cs`, `ScratchStore.cs`, shared `Program.cs`, runner/project/locked native dependencies and all historical receipts/provenance. Artifact/copy recovery and physical power-loss/installed gates remain unaddressed here. |
+
+**No executable file is retired in this slice.** `Program.cs` and its
+`CrashChild`/`CrashTests` routes remain consumers of those unique candidate
+and artifact proofs; removing the shared harness would discard unaddressed
+evidence. This is a specific retained-proof disposition, not blanket retention
+until encryption becomes mandatory again. Retire a candidate path only after
+all of its applicable behaviors have maintained equivalents and no consumer
+remains. Checked-in receipts are unchanged, not relabelled as current
+production results. No experiment was rerun as part of these production tests.
 
 ## Optional Real Cross-User Handoff Protocol
 

@@ -3,8 +3,8 @@
 ## Product and architecture
 
 - Kora is a Windows-only, local-first Avalonia desktop assistant targeting .NET 10.
-- Preserve the dependency direction: `Kora.Core` contains portable contracts and domain rules; `Kora.Application` contains application orchestration and presentation state; `Kora.Windows` contains Windows integrations; `Kora` is the composition and desktop presentation layer.
-- Keep Windows APIs, native handles, registry access, device APIs, and OS-specific exceptions out of `Kora.Core` and `Kora.Application`.
+- Preserve the dependency direction: `Kora.Core` contains portable contracts and domain rules; `Kora.Tools` contains host-owned C# actions; `Kora.Definitions` contains bundled behavior definitions/resources; `Kora.Application` contains application orchestration and presentation state; `Kora.Windows` contains Windows integrations; `Kora` is the composition and desktop presentation layer. Tools and Definitions reference Core, never Application/Windows/desktop.
+- Keep Windows APIs, native handles, registry access, device APIs, and OS-specific exceptions out of `Kora.Core`, `Kora.Tools`, `Kora.Definitions` and `Kora.Application`.
 - Treat privacy, consent, instance ownership, approval, audit, and resource-quiescence checks as security boundaries. Do not weaken or bypass them to simplify a workflow.
 - Unknown session, device, permission, or ownership state must fail closed.
 
@@ -13,6 +13,8 @@
 - Follow SOLID and DRY pragmatically. Prefer small, cohesive services and consumer-focused interfaces over broad managers, god objects, or speculative abstractions.
 - Put each policy or serialization rule in one authoritative location. Reuse existing domain validation rather than duplicating limits or parsing rules.
 - Keep view models focused on presentation state and delegation. Move device operations, persistence, setup workflows, and policy decisions into injected collaborators.
+- Implement built-in tool actions in `Kora.Tools/<CapabilityGroup>/<Action>.cs`, with matching `Kora.Tools.<CapabilityGroup>` namespaces and one class per registered action, not a broad class with a method per tool. Share cohesive policy/broker services; keep contracts/domain rules in Core, native mechanisms in Windows, and presentation in Application/desktop. All admitted command/UI/model routes call the same action. See [built-in tool implementation guidance](../Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
+- Keep bundled skills, prompt templates, shared instructions and future agent profiles in one `Kora.Definitions` project, grouped by content kind; keep each skill's own instructions/fixtures/scripts together. Preserve explicit resource IDs, exact bytes and package digests when relocating content. Definitions are not execution, approval, egress or session authority; agent profiles remain gated until qualified runtime/host support exists. See [definition and agent guidance](../Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles).
 - Add abstractions only at real seams: platform integration, persistence, time/process/network dependencies, or a cohesive workflow with independent tests.
 - Preserve strong types and nullable analysis. Do not use `dynamic`, `object`, or unsafe casts to avoid defining the correct contract.
 - Surface failures explicitly with repository-standard logging and user-facing recovery. Do not silently fall back after invalid persisted state or failed security-sensitive work.
@@ -52,6 +54,8 @@ dotnet restore .\Kora.slnx --locked-mode
 dotnet build .\Kora.slnx --configuration Release --no-restore
 dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
 dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
+dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
+dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTests.csproj --configuration Release --no-build
 dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 

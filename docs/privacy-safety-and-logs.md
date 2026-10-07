@@ -8,6 +8,40 @@ is unavailable, not the old ambient grammar. The built-in text-to-speech provide
 Windows SAPI voices. Kora does not need a cloud account or network connection
 for these features.
 
+## Clipboard snapshots
+
+An exact [clipboard preview request](commands.md#explicit-local-clipboard-preview)
+authorizes one ephemeral local plain-text read, not monitoring or model use.
+Kora checks current unlocked privacy, instance ownership, original input
+origin and call-policy generation before reading and again before presentation.
+Unknown/unavailable authority fails closed. Native reads run on a request-owned
+STA, close the clipboard and release the borrowed native memory lock; Kora
+does not own or free the clipboard data handle.
+Unverified native release is latched as unavailable and blocks clean ownership
+handoff/exit; cancellation cannot conceal that failure or claim quiescence.
+
+Preview displays the exact immutable text, including whitespace, under separate
+host-owned provenance/ID chrome. Quoted commands, HTML, links and credentials
+are inert data; they cannot approve, invoke tools, edit settings or select a
+destination. No content, digest, title, excerpt or raw exception message enters
+diagnostic/audit/status/model payloads. Diagnostics record only the typed
+outcome/failure type under host activity correlation. This slice has no content
+store, history index or persisted context.
+
+All model explanation and egress are unavailable, even for apparently harmless
+text and even after reuse. This follows the accepted policy that secret
+detection is best-effort, not a safety guarantee; no redaction or secret-free
+claim is made. A future answering/egress slice must independently qualify
+the local tool loop, inspect the complete outgoing envelope and enforce secret
+and destination rules. Credential-store material remains excluded.
+
+Clear/revoke, close, cancel, privacy/ownership loss, changed call policy,
+handoff and disposal retire the selection/render generation and suppress late
+reads/callbacks. Unlock does not restore it. Clearing releases Kora's references;
+it does not change the shared clipboard or promise managed-memory zeroization.
+Automated tests use private fake/native seams, never the user's clipboard.
+Real clipboard/native accessibility/latency acceptance remains outstanding.
+
 ## Local-model actions
 
 After model setup is approved and inference verified, Kora sends the current
@@ -37,6 +71,13 @@ suggestion. This confirmation gate applies to *model-suggested* disruptive
 actions only: direct exact built-in voice and typed commands, including lock,
 currently dispatch to C# without model-action approval. They remain
 deterministic and take precedence over the model.
+
+Protected manual calls or enabled Active/Suspected/Unknown observations
+temporarily ignore Session/Always reuse without revoking or consuming those
+records. A fresh Once approval retains only existing action-name authority.
+Call revision changes invalidate pending approvals and undispatched reuse;
+lock/restart recheck immediately after asynchronous audio shutdown. This is not
+migration into R05 content/invocation-bound grants or general effect admission.
 
 **Planned, not implemented:** future skill tasks that launch applications or
 scripts would require content-bound execution grants, **not** the current
@@ -82,7 +123,56 @@ permission/device loss and capture failure invalidate generations, clear audio,
 stop output and require explicit recovery. Unlock/resume/hot-plug cannot
 silently reopen it. Native/tray controls require no model, network or speech.
 
+External session/power/endpoint observation is implemented, with a one-second
+permission polling fallback. Negative session notifications invalidate capture
+and output before slower requery; Unknown or failed observation grants no input
+authority. Release during a pending PTT open, shutdown and disposal retire the
+activation, including already queued transcripts and cancellation-ignoring late
+opens. Restored readiness still requires explicit recovery, not buffered replay.
+Deterministic regression coverage does not certify native notification latency,
+the 500 ms reference lock-release target, acoustic playback rejection or the
+remaining hardware/device/permission acceptance trials.
+
+## Manual call privacy
+
+Native **Settings > Calls** manual Active/clear is run-scoped and not persisted.
+It layers over automatic evidence without claiming a detector or fabricating
+Clear. Default protected-call output is visual-only, including previews and
+approval readbacks. Pending synthesis/playback is invalidated before UI work;
+clearance replays no old speech and grants no input or approval.
+
+Manual controls require original initiating channel, current call revision and
+fresh ownership/privacy admission. Protected calls reject every voice-originated
+voice/in-call option mutation, including clear/reset. A later UI confirmation
+cannot relabel voice intent; new UI initiation is required. Stop/cancel,
+disable listening and readable status remain usable. New protection downgrades
+and exceptions stay unavailable until complete exact trusted review is composed.
+No network/account detector, speaker biometric check, live call trial or
+native/acoustic privacy acceptance is claimed.
+
 ## Visual safety fallback
+
+The [minimal Sessions workspace](windows-and-tray.md#minimal-durable-sessions)
+reads existing IDs/generations, typed question history and current durable
+task records. It is not general retained conversation, provider context or a
+work scheduler. Selection cannot authorize a reply or retarget an approval.
+Explicit Done/resume uses live ownership/privacy/call admission, exact fresh
+control intent and atomic authoritative lifecycle audit; a diagnostic
+projection is not that authority. Unknown/live work and unresolved questions
+remain blockers. Each transition advances generation, invalidates old scoped
+authority, preserves independent Perpetual records and replays nothing.
+No automatic archive, deletion, retention or export is added.
+
+The tray's **Review local version (native question)** uses trusted native
+input over the durable host question service, separately from legacy
+model-action approvals. Answers retain the exact original question/session
+and request origin; window focus cannot choose their target. Review, saved
+drafts, submitted answers, exact approval and grant use are distinct.
+This entry opens no microphone and calls no model or effect handler.
+Unknown privacy/ownership, stale revisions, expiry and audit failures deny
+the affected interaction. Native record review cannot supply missing script
+bytes, containment or deployment authority, and no action-name grants are
+migrated into exact grants. General effect dispatch remains gated.
 
 Failures, safety information, and unavailable speech are always visible. A
 VoiceOnly preference cannot hide:
@@ -133,7 +223,33 @@ evidence and receipt are committed before completion. Startup marks intent-only
 work Interrupted and dispatched work without a verified receipt Unknown;
 it never automatically reruns either. The terminal version receipt is not
 proof of an operating-system effect or speech-playback completion.
+Private task, interaction and evidence journals are retained under the same
+verified profile boundary. Valid interrupted transactions reopen atomically;
+committed approvals/use counts/session generations are not replayed.
+Missing journals, corrupt/unsupported data, permissive permissions or unavailable
+ownership/access stop admission explicitly, without file replacement or ACL
+repair. Process-interruption tests do not guarantee physical power-loss recovery.
 There is still no durable conversation/history UI or general task executor.
+The tray's **Evidence (read-only)** opens a native inspector for actual
+SQLite diagnostic, typed audit, completed span and explicit link records.
+Choose a source, optionally enter safe text or session/task/trace correlation
+filters, then select **Search / refresh**. **Next page** continues that exact
+snapshot; later records do not silently extend it. Each page includes stable
+`kora-evidence` citations and at most 50 records / 64 KiB of serialized output,
+including metadata. A record too large for one page is explicitly marked
+`ContentOmitted`; content is never silently truncated.
+Select a record to inspect parent/link status; **Read selected trace** shows
+its retained correlated records and **Open selected segment** follows an
+available cited span. Session/task IDs and traces are filters, not permission.
+`ExpiredButPresent` means a due record remains readable, not that it was
+deleted. `MissingOrRemoved` cannot distinguish an unrecorded segment from
+physical removal. Session/conversation sources report Unavailable. This view
+is not a complete history, interaction audit, authorization or effect receipt.
+Ownership/privacy denial, malformed filters/cursors, corrupt data and private
+access failures are visible; no store or permission repair is attempted.
+Closing or privacy closure clears/cancels the view without changing retained
+sources. There is no copy, export, model reasoning, browser, deletion, grant
+use or remote transmission from this inspector.
 Database records receive independent 30-day diagnostic and 90-day audit
 due dates, but automatic database pruning/deletion is not yet implemented.
 The first-use greeting, settings and version response disclose this limitation;
@@ -162,7 +278,7 @@ identities. Audit rows add fixed typed audit fields. Rendered text is retained
 only as a bounded display/search projection; Kora does not parse it to recover
 properties, outcomes or authorization evidence.
 
-The planned implementation also records local W3C activity trace/span
+The composed evidence sink also records local W3C activity trace/span
 relationships and host-owned session/task/invocation/approval identifiers on
 diagnostic and audit entries. A session may contain many traces. From a session,
 you can review its retained Logs, Audit, or combined evidence; from an entry,
@@ -179,8 +295,9 @@ exporting or asking questions over evidence never extends its retention.
 Reducing audit retention previews the affected range and requires confirmation
 before existing due dates are shortened.
 
-The planned Evidence workspace can list, read and search Logs, Audit, or both
-without using a model. An explicit Ask Evidence action can reason over a
+The delivered bounded native inspector lists, reads and searches actual
+SQLite Logs, Audit, spans and links without using a model. A future explicit
+Ask Evidence action would reason over a
 bounded selected set, with links to every supporting record and observed facts
 separated from inference. Local reasoning is preferred; sending selected
 evidence to a remote runtime requires preview and approval of that exact

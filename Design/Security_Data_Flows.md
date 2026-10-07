@@ -242,6 +242,39 @@ See [Call-Aware Speech](Call_Aware_Speech.md).
 
 ## Context Flow
 
+### Delivered R07 Local Clipboard Preview - 2026-10-07
+
+Exact deliberate voice/typed preview/snapshot/explain commands and the native
+tray preview action share a composed local plain-text broker. Eligibility is
+resolved before a request-owned STA read and revalidated before publication,
+presentation and same-ID reuse. Current unlocked privacy, instance capability
+ownership, original input origin and call generation are mandatory. No
+preactivation read, watcher, queued retry or model-selected capture exists.
+
+The host assigns immutable source/snapshot IDs, original request identity,
+`CF_UNICODETEXT` provenance, native read sequence and capture time. Unicode
+text and its strict UTF-8 representation preserve exact whitespace/line
+endings and must wholly fit 256 KiB; malformed surrogates, empty/unsupported,
+oversize, contention, denied, unknown-version and changed-version reads are
+explicit, never successful truncation. Clipboard changes cannot replace the
+selected text; reuse names the exact snapshot ID and never reads again.
+
+Native preview is inert text, with host provenance and separate reuse/revoke
+controls; closing revokes. It has no copy/write, link navigation, HTML parsing,
+history/index or context persistence. Cancel, privacy/ownership loss, call
+generation change, handoff and disposal clear/suppress selection and late
+callbacks. Clearing releases references, not a managed-memory zeroization
+claim. Logs retain content-minimizing typed outcomes/failure types under host
+correlation, never text/digest/excerpts or raw native exception messages.
+
+Text remains untrusted and potentially secret. All inference/egress is
+unavailable, including for apparently safe text: preview is not approval and
+there is no secret-detection/redaction-correctness claim. The existing JSON
+selector and every local/remote provider receive none of this content.
+The complete qualified local tool loop, secret/destination classification,
+approved envelope budgeting, actual offline clipboard-answering quality and
+live native trials remain R07/R02-L6 gates. This delivery does not close A0/A2.
+
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
 The delivered `native-text-v1` viewer is passive native text/Markdown, entered
 only through the explicit Documentation **Open details** action for a host
@@ -1041,6 +1074,12 @@ enter `application_log_events`. This dual-write behavior is planned, not a
 claim about the current bootstrap.
 
 ## Future Knowledge Indexing
+
+The canonical user workflow, source identity, local-file boundary, retrieval
+contract, settings/voice behavior and phased implementation are defined in
+[File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md).
+Indexing remains unavailable until its R26 prerequisites and acceptance gates
+pass.
 
 Before indexing enterprise or local sources:
 

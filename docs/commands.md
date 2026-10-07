@@ -15,7 +15,78 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+## Read-only host discovery
+
+These exact local commands require the active, unlocked Kora host and do not
+invoke a model, install anything, or refresh probes:
+
+| Exact command | Result |
+|---|---|
+| **list capabilities** / **capabilities.list** | Six admitted read-only descriptors with schema version, typed input/output shape, read-only effect, caller lanes, availability and limits |
+| **describe capability** followed by a canonical ID / **capabilities.get** followed by that ID | The single admitted descriptor; unknown IDs are denied |
+| **show registry version** / **application.get_version** | Actual running version; deployment information is explicitly not observed by the current provider |
+| **show dependency readiness** / **readiness.get** | Recorded dependency observations and timestamps; unobserved dependencies are explicit |
+| **list runtimes** / **runtime.list** | The existing local inference adapter's recorded status, not a catalogue of planned providers |
+| **show local runtime status** / **runtime.get_status** | The same `local.inference` observation; tool-loop qualification remains false |
+
+Optional configured-name prefixes and normal exact-command punctuation/case
+handling apply. For example, **Kora, describe capability runtime.get_status**.
+The complete serialized UTF-8 response is at most 4,096 bytes; lists contain
+at most six records. The host API accepts only `{}` for version,
+`{"offset":0,"count":6}` (both fields optional) for lists, and a required
+`{"id":"..."}` for descriptor/runtime lookup. Unknown fields, duplicate fields,
+invalid ranges, foreign/expired host context and unknown lanes are denied.
+The native commands supply those inputs deterministically, rather than accepting
+arbitrary JSON from the command box.
+
+These results do not contain raw probe details, paths, endpoints, credentials,
+model content, skill instructions, or execution tools. Observations are cached:
+use the existing Readiness UI for a deliberate fresh check and recovery details.
+An observed ready dependency does not grant execution permission. No hosted
+provider, MCP adapter, or model tool/result loop is delivered by this registry.
+Existing help, version, setup/status, lock and power phrases retain their behavior.
+
+## Explicit local clipboard preview
+
+These exact commands and the tray's **Preview clipboard (local plain text)**
+entry use the same request workflow without a model:
+
+| Exact command | Result |
+|---|---|
+| **preview clipboard** / **preview the clipboard** / **snapshot clipboard** | Read one fresh bounded Unicode plain-text snapshot and open its immutable native preview |
+| **explain clipboard** / **explain the clipboard** | The same local preview, with explanation explicitly unavailable |
+| **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
+| **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
+
+Configured-name prefixes and the normal exact-command case/punctuation rules
+apply. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
+read version, capture time and exact UTF-8 byte count. Its **Reuse this exact
+snapshot ID** button uses the displayed ID; **Revoke and clear**, closing the
+preview, cancel, privacy/ownership loss, call-policy change and host exit clear
+or suppress it. A new capture replaces the prior selection with a new ID.
+
+The whole text must fit 256 KiB UTF-8, with valid paired Unicode surrogates.
+Empty, unsupported, oversize, busy, denied, changed-version and malformed
+reads are explicit; there is no truncation, queued retry, background watcher,
+URL fetch, HTML/image/file capture, clipboard write, history or persistence.
+Whitespace and line endings are preserved. Text is untrusted and may contain
+secrets; preview/reuse is neither execution authority nor transmission approval.
+Clipboard explanation is unavailable until qualified local tool-loop and
+clipboard-answering gates pass. Nothing reaches the current JSON selector,
+Ollama or a remote provider. See [privacy](privacy-safety-and-logs.md#clipboard-snapshots).
+
 ## Window and application tasks
+
+### Inspect existing minimal durable sessions
+
+- **open sessions**
+
+The configured-name prefix is supported. This opens the same bounded native
+[Sessions workspace](windows-and-tray.md#minimal-durable-sessions) as the tray
+and compact response's **Ctrl+Shift+S**. It does not change a pending question
+or approval target, create a conversation, resume a session or call a model.
+Done/resume are explicit selected-ID native actions, not inferred from words
+in history or from selecting a row.
 
 ### Show the Kora window
 - **show Kora**
@@ -52,6 +123,27 @@ releases the microphone. Application restart is different from restarting
 Windows.
 
 ## Settings and guidance tasks
+
+### Inspect or change an admitted appearance option
+
+- **list appearance settings**
+- **get appearance.theme**
+- **set appearance.theme to dark**
+- **reset appearance.theme**
+
+Substitute one of the nine exact IDs in [Appearance settings](settings.md#appearance).
+The configured assistant-name prefix is supported for typed input and activated
+voice. Exact spoken names also work: replace dots/hyphens in the ID with
+spaces, for example **"Kora, set appearance theme to dark"**.
+Capitalization is ignored, but this typed value grammar deliberately
+preserves signs and decimal punctuation: `-10` and `1.5` are rejected, never
+normalized into valid integers. Use numeric whole numbers without appended
+units, `system`/`light`/`dark`, or `true`/`false`. Extra words, invented IDs,
+relative changes and invalid ranges produce local clarification, without
+model/network interpretation. Changes and per-option reset share the direct
+UI service, domain validation, revision check, atomic persistence, audit and
+live notifications. There is no whole-profile reset or undo, model tool
+exposure, arbitrary JSON patch or configuration-file editing authority.
 
 ### Open settings
 - **open settings**
@@ -98,6 +190,25 @@ Opening setup shows readiness; it does not install a model without approval.
 - **what version is this**
 - **tell me your version**
 - **which version of Kora is this**
+
+The tray also offers **Review local version (native question)**, an explicit
+mouse/keyboard-only route using the same durable local version-query context.
+It does not need voice consent, a microphone, a model or network access.
+The native window names the original session/task/question, revision and
+expiry. Choose **Show local version**, then **Submit answer** to read the
+running version and private-storage disclosure. No choice is preselected.
+**Save draft** records the current answer without submitting. **Review exact
+record** is passive inspection, not approval or execution. **Cancel question**
+is explicit; Close/Escape only closes presentation. Stale, expired or
+privacy/ownership-unavailable targets cannot be answered.
+
+Storage/audit failure never reports a successful query. Close and start a new
+review after correcting the blocker; Kora does not automatically retry uncertain
+work. Explicit cancellation may leave an incomplete query dispatch record,
+which startup recovers as Unknown without replay. This bounded route does not
+enable general effect approvals, change legacy grants or replace the ordinary
+version phrases above. Desktop/screen-reader/speech acceptance is not yet
+claimed from the automated tests.
 
 ### Show activity and the setup queue
 - **what are you currently working on**
@@ -322,3 +433,82 @@ model; selecting an option is **not** permission to run an action or create a
 grant. A later action proposal still requires its own approval, unless a
 specific grant already covers that action. Kora limits consecutive questions
 to three; start a new request with more details if it reaches that limit.
+## Run skills and future artifacts
+
+Kora can apply a bundled skill's instructions to a local-model request from
+the command box or activated voice. Future bundled instructions and prompts
+use the same command format.
+
+**Type a slash command**
+
+Type `/` in the command box to open a dropdown of every available bundled and
+disk-backed artifact. Continue typing to filter by command name, or type a
+kind such as `/skill `, `/prompt `, or `/instruction `. Use Up/Down and Enter
+or select an item with the pointer; Escape closes the dropdown.
+
+Use a direct command:
+
+```text
+/lock
+/restart
+/shutdown
+```
+
+You can also include the artifact kind:
+
+```text
+/skill lock
+/skill restart
+/skill shutdown
+```
+
+An artifact that accepts request text uses the rest of the line as its input:
+
+```text
+/prompt explain why this setup failed
+```
+
+The current release bundles only the three skills listed above. An unknown,
+incomplete, or wrong-kind slash command shows an error and is not sent to the
+model as an ordinary question.
+
+**Say an artifact command**
+
+Start with your configured assistant name, then say **run** or **use**:
+
+- "Kora, run lock."
+- "Kora, use the restart skill."
+- "Kora, run the shut down the machine skill."
+- "Kora, use explain to summarize this result." when a future `explain`
+  artifact is available.
+
+If you renamed Kora, use the configured name. Voice artifact requests without
+the activation name are rejected in the same way as other free-form voice
+requests.
+
+**Where disk artifacts are loaded from**
+
+Kora loads compatible files at startup from its roaming `Skills`,
+`Instructions`, and `Prompts` folders, recognized personal skill folders
+under `.copilot`, `.agents`, and `.claude`, and the VS Code or VS Code Insiders
+user prompts folder. It does not scan the rest of your profile or follow
+reparse points.
+
+Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
+`*.instructions.md`. Files require bounded UTF-8 content and YAML frontmatter.
+Skills marked `user-invocable: false` do not appear. Conflicting command names,
+IDs, or spoken names fail closed instead of choosing one source silently.
+Restart Kora after adding or changing an artifact.
+
+**What “run” means**
+
+Kora sends the current request and the exact selected bundled instructions
+only to the configured local model. The artifact is source- and
+version-qualified, and it remains selected if Kora asks a clarification
+question.
+
+Selecting an artifact does **not** run its embedded PowerShell, approve a
+protected operation, create a grant, or mean an action succeeded. If the model
+proposes a registered action, Kora still applies the ordinary host validation,
+approval, privacy, audit, and execution rules. The current embedded
+session-control scripts remain inspection-only.

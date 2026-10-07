@@ -2,6 +2,7 @@
     x:Class="Kora.SettingsWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:configuration="clr-namespace:Kora.Core.Configuration;assembly=Kora.Core"
     Title="{Binding SettingsWindowTitle}"
     Icon="/Assets/Kora.ico"
     Width="1040"
@@ -58,6 +59,18 @@
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
+            </StackPanel>
+
+            <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Description}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Content="Reset selected option" Command="{Binding ResetAppearanceOptionCommand}" />
             </StackPanel>
 
             <Border Classes="settings-card">
@@ -132,8 +145,8 @@
                 <NumericUpDown
                     Grid.Column="1"
                     Value="{Binding ResponseTimeoutSeconds}"
-                    Minimum="1"
-                    Maximum="60"
+                    Minimum="{Binding Source={x:Static configuration:ResponseWindowSettings.MinimumTimeoutSeconds}}"
+                    Maximum="{Binding Source={x:Static configuration:ResponseWindowSettings.MaximumTimeoutSeconds}}"
                     Increment="1"
                     FormatString="0"
                     VerticalAlignment="Center" />
@@ -161,8 +174,8 @@
                 <NumericUpDown
                     Grid.Column="1"
                     Value="{Binding PresenceTimeoutSeconds}"
-                    Minimum="1"
-                    Maximum="60"
+                    Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumTimeoutSeconds}}"
+                    Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumTimeoutSeconds}}"
                     Increment="1"
                     FormatString="0"
                     VerticalAlignment="Center" />
@@ -181,8 +194,8 @@
                 <Slider
                     Grid.Column="1"
                     Value="{Binding PresenceSizePixels}"
-                    Minimum="240"
-                    Maximum="600"
+                    Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumSizePixels}}"
+                    Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumSizePixels}}"
                     TickFrequency="20"
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center" />
@@ -201,8 +214,8 @@
                 <Slider
                     Grid.Column="1"
                     Value="{Binding PresenceDotSizePercent}"
-                    Minimum="50"
-                    Maximum="200"
+                    Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumDotSizePercent}}"
+                    Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumDotSizePercent}}"
                     TickFrequency="10"
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center" />
@@ -221,8 +234,8 @@
                 <Slider
                     Grid.Column="1"
                     Value="{Binding PresenceDotDensityPercent}"
-                    Minimum="25"
-                    Maximum="200"
+                    Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumDotDensityPercent}}"
+                    Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumDotDensityPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center" />
@@ -241,8 +254,8 @@
                 <Slider
                     Grid.Column="1"
                     Value="{Binding PresenceMovementSpeedPercent}"
-                    Minimum="25"
-                    Maximum="200"
+                    Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumMovementSpeedPercent}}"
+                    Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumMovementSpeedPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center" />
@@ -279,8 +292,8 @@
                     Grid.Column="1"
                     Value="{Binding PresenceSpeechScaleAmountPercent}"
                     IsEnabled="{Binding IsPresenceSpeechScalingEnabled}"
-                    Minimum="0"
-                    Maximum="200"
+                    Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumSpeechScaleAmountPercent}}"
+                    Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumSpeechScaleAmountPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center" />
@@ -574,7 +587,7 @@
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Calls" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Control responses and listening when a configured detector reports call activity."
+                  Text="Use run-scoped manual call mode. Enabled automatic observations remain independent."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -585,8 +598,22 @@
                 <TextBlock Text="Call detection" Classes="settings-title" />
                 <TextBlock
                     Text="{Binding CallStateStatus}"
+                    AutomationProperties.Name="Current call status"
+                    AutomationProperties.LiveSetting="Polite"
                     Classes="settings-description"
                     TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Manual call mode" Classes="settings-title" />
+                <TextBlock Text="{Binding CallManualStatus}" AutomationProperties.Name="Manual call status" AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="I'm in a call" AutomationProperties.Name="Enable manual call mode for this run" TabIndex="0" Command="{Binding EnableManualCallCommand}" />
+                  <Button Content="Clear manual call mode" AutomationProperties.Name="Clear only manual call mode" TabIndex="1" Command="{Binding ClearManualCallCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding CallProtectionLimitations}" Classes="settings-description" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
 
@@ -603,6 +630,7 @@
                     Grid.Column="1"
                     Content="{Binding CallVisualOverrideButtonText}"
                     Command="{Binding ToggleCallVisualOverrideCommand}"
+                    IsEnabled="{Binding CanEnableCallVisualProtection}"
                     VerticalAlignment="Center" />
               </Grid>
             </Border>
@@ -620,6 +648,7 @@
                     Grid.Column="1"
                     Content="{Binding CallVoiceActivationButtonText}"
                     Command="{Binding ToggleCallVoiceActivationCommand}"
+                    IsEnabled="{Binding CanDisableCallVoiceActivation}"
                     VerticalAlignment="Center" />
               </Grid>
             </Border>
@@ -809,6 +838,14 @@
             </ItemsControl>
           </StackPanel>
         </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Maintenance">
+        <StackPanel Margin="30" Spacing="16" MaxWidth="700">
+          <TextBlock Text="Release maintenance (notify-only)" FontSize="24" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding MaintenanceStatus}" TextWrapping="Wrap" />
+          <TextBlock Text="Canonical GitHub Releases metadata only. Network access is off until explicitly permitted for this run. Replacement is manual and unsigned; Kora has no updater." TextWrapping="Wrap" />
+          <Button Content="Review / check / open canonical release" Click="OnMaintenanceClicked" HorizontalAlignment="Left" />
+        </StackPanel>
       </TabItem>
     </TabControl>
   </Grid>

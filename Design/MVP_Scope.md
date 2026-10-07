@@ -33,6 +33,16 @@ Linux GitHub Actions build/test/package infrastructure does not make Linux a sup
 
 ### Slice A: Voice and Clipboard
 
+**Bounded delivered subset (2026-10-07):** explicit request-triggered Unicode
+plain-text snapshot and immutable native preview, exact-ID reuse and
+revoke/clear are composed without a model. Reads are bounded to 256 KiB strict
+UTF-8 and denied/stale/unsupported/contended states are explicit. There is no
+background watcher, clipboard write/history/persistence or model egress.
+**Explain the clipboard** currently offers that preview and states that
+explanation is unavailable. Qualified local tool-loop/answering, complete
+secret/egress envelope controls and live clipboard acceptance remain open;
+this is not the product outcome or completion of A0/A2.
+
 Slice A is delivered through independently accepted implementation checkpoints.
 A checkpoint may be used for development evaluation but is not advertised as the completed product outcome until all Slice A checkpoints pass.
 Do not begin a later checkpoint while an earlier checkpoint has unresolved safety/correctness failures.
@@ -162,7 +172,11 @@ Kora cannot update its own code, binaries, executable extensions, or security/up
 - Wake-word-free conversational follow-ups and unlimited/unvalidated activation names. Custom names with explicit custom-only/both choice follow [Custom Activation Names](Activation_Name.md).
 - Clipboard monitoring, clipboard images/HTML/file lists, or automatic URL fetching.
 - Screen capture, OCR, arbitrary desktop automation, or browser automation.
-- Full knowledge indexing, embeddings, PDF/Office ingestion, or enterprise content caches.
+- General file/folder ingestion, knowledge indexing, embeddings, PDF/Office
+  ingestion, or enterprise content caches. These remain staged R26 work under
+  [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md);
+  the initial release does not advertise even the narrower text/Markdown
+  snapshot foundation.
 - Work IQ as a mandatory dependency.
 - A skill marketplace, automatic extension updates, or shared repository synchronisation.
 - Arbitrary C# scripts, in-process third-party plugins, or unrestricted process execution.

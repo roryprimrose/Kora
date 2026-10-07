@@ -9,10 +9,13 @@ Each section explains what exists now and what is planned.
 - **Partial** means a narrower version exists; read the stated limitation.
 - **Planned** means the described behavior is not available in this release.
 
-**No script-backed built-in skills ship in the current release.** The model
-also does not yet have the full tool/result conversation described below.
-Today, exact commands run C# handlers; other requests can receive a local
-answer, a clarification question, or a named action/grant-change proposal.
+**No script-backed built-in skill executor ships in the current release.**
+Bundled skill instructions can now be selected with typed slash commands or
+activated voice and applied to a local-model request; their embedded scripts
+remain inspection-only. The model also does not yet have the full tool/result
+conversation described below. Today, exact commands run C# handlers; other
+requests can receive a local answer, a clarification question, or a named
+action/grant-change proposal.
 See [exact commands](commands.md) for phrases you can use now and
 [Settings](settings.md) for controls you can change now.
 
@@ -24,6 +27,14 @@ typed command box instead. If you renamed Kora, use the new name; the old
 name is not kept as a hidden alias.
 
 You do not need to know a tool ID, skill manifest, or PowerShell filename.
+For explicit selection, use `/lock`, `/restart`, `/shutdown`, the
+kind-qualified form `/skill <name>`, or activated voice such as
+**"Kora, run lock."** See [artifact commands](commands.md#run-skills-and-future-artifacts).
+Typing `/` opens a filtered dropdown composed from the same source-qualified
+catalogue used by routing. It includes bundled artifacts plus compatible
+`SKILL.md`, `.prompt.md`, and `.instructions.md` files from Kora-owned roaming
+folders and recognized user-profile customization folders. Disk definitions
+remain untrusted instruction content and do not inherit bundled execution trust.
 In the planned interaction:
 
 1. Kora receives your typed request or transcribes your activated voice request.
@@ -52,6 +63,18 @@ Selecting a window never grants permission or silently redirects a voice request
 
 These exact commands are **Current**. Optional category/page selection and the
 full tool/skill discovery catalogue are **Planned**.
+
+**Current bounded host registry:** the six canonical IDs `capabilities.list`,
+`capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`,
+and `runtime.get_status` have direct read-only handlers and exact local commands.
+See [read-only host discovery](commands.md#read-only-host-discovery). Discovery
+contains only those admitted descriptors, not all planned tools/skills.
+Readiness and local-runtime health come from recorded, timestamped observations;
+no probe or inference runs for these queries. Unknown/unavailable state is
+explicit, and deployment facts not supplied by the version provider remain unknown.
+This does not add tool definitions to the current local JSON selector or qualify
+a management/execution runtime. Management may receive only this minimal
+read-only subset when a future adapter is independently admitted.
 
 | Ask or choose | What happens |
 |---|---|
@@ -161,7 +184,12 @@ not owner authentication or permission, and never learns from ambient audio or c
 
 ## 5. Clipboard and selected context
 
-These context tools and the complete clipboard explanation workflow are
+The explicit local plain-text [snapshot/preview/reuse/revoke commands](commands.md#explicit-local-clipboard-preview)
+are **Current** and model-free. **Explain the clipboard** currently provides
+only that preview and an unavailable-inference explanation. No clipboard
+tool is exposed to the JSON selector or a remote provider.
+
+The broader context tools and complete clipboard explanation workflow are
 **Planned**.
 
 | Ask | Intended behavior |
@@ -367,9 +395,29 @@ controls; there is no secret listening exception for approvals or unmute.
 
 ## 13. Built-in skills
 
-The design specifies the following computer-control skills. Their script
-packages and content-bound grants are **Planned**, even where a related current
-command exists.
+The three fixed computer-control packages are embedded and available for
+**inspection only**. Open **Skill packages (inspection only)** from the tray.
+Each package shows its manifest, instructions, data-only fixture, entry script
+and shared helper in named read-only native source tabs, with per-file,
+script-set and definition hashes. The same immutable original bytes are hashed
+and reviewed, including UTF-8 BOMs and line endings.
+
+No package can be enabled, approved or invoked here. The worker, protected
+deployment, network and real-control proofs remain outstanding; no interpreter
+or adapter identity is admitted. Current direct Windows API lock and legacy
+action-name grants are unchanged. Inspection is not grant authority or model
+exposure. Hashes identify content, not the publisher.
+
+Transitive tracking is best effort, not a complete executable allowlist.
+Further code and changes may go undetected. A future granting user accepts
+responsibility for the overall actions within separately admitted scope.
+Profile discovery, authoring and content-bound execution remain **Planned**.
+
+The bundled resources now ship in `Kora.Definitions.dll`, separate from the
+C# actions in `Kora.Tools.dll`. This source organization changes no package
+bytes, hashes, availability, approval or execution behavior. Named agent
+profiles are a design direction, not a released loader or autonomous runtime;
+they cannot expand tools, acquire context or approve effects.
 
 ### Lock the machine
 

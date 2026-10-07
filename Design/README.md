@@ -110,6 +110,7 @@ adapter admission or release acceptance.
 22. [Internal Model Tool Catalogue](Internal_Model_Tools.md): complete current action/proposal inventory, proposed internal tools, caller lanes, capability gates, and host-only exclusions.
 23. [Session Workspace and Coordinated Windows](UI_Workspace_And_Windows.md): compact interaction, session list plus full conversation workspace, detail/script review, native cards, concurrent work UX, and supporting windows.
 24. [Local Inference Qualification and Technical Plan](Local_Inference.md): R02 outcomes, candidate/compatibility/context/resource consequences and the path to D-003/D-007 qualification and A2 integration.
+25. [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md): deliberate path selection, immutable source revisions, retrieval/citations, local and hosted model boundaries, voice/settings behavior, and the staged R26 delivery plan.
 
 ## Human Interaction and Sessions
 

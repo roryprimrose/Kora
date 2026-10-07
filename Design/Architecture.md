@@ -55,6 +55,8 @@ Linux GitHub Actions are build infrastructure, not evidence of Linux application
 Keep portable domain logic and shared Avalonia presentation separate from first-party Windows integrations:
 
 - Core: task/queue state, policy decisions, approvals, configuration, declarative skills, provider contracts, and presentation data.
+- Tools (`Kora.Tools`): portable host-owned built-in action implementations, grouped by capability folder/namespace with one class per registered action and shared cohesive brokers. Tools references Core; Application references Tools. Neither Windows/presentation nor provider SDK dependencies belong in Tools. See [implementation guidance](Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
+- Definitions (`Kora.Definitions`): immutable bundled behavior definitions/resources, grouped as Skills and, when implemented, Prompts, Instructions and Agents. Definitions references Core, not execution/presentation/provider modules. Skill catalogue loading and exact resource embedding are delivered; agent profiles/runtime support are not. See [definition guidance](Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles).
 - Desktop presentation: native question models, captions, answer/navigation UI, and shared rendering orchestration.
 - Windows integration: actual device/session/clipboard APIs, native UI hooks, known folders, credential storage, containment, computer controls, startup, browser backend, and installer/maintenance execution.
 
@@ -135,7 +137,8 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Voice controller | Wake-listening consent, local configured-name detection ("Kora" by default), bounded audio buffer, endpointing, transcript, playback-aware interruption | Ambient transcription or authorising actions based on wake detection/speaker verification |
 | Task controller | Task IDs, state transitions, deadlines, cancellation | Provider-specific model iteration |
 | Work manager/scheduler | Contextual session/request routing, per-session versioned ledger/queue, bounded fair dispatch and resource leases | Running task tools in management inference or bypassing task approvals |
-| Context broker | Snapshots, provenance, classification, context selection | Implicit background collection |
+| Context broker | Immutable clipboard/file/source snapshots, provenance, classification, bounded retrieval and context selection | Implicit background collection, arbitrary path access, or treating an index as authority |
+| Knowledge source service | Reviewed file/folder source registration, immutable revisions, refresh, format admission, citations, revocation and inventoried derived-data deletion | Original-file mutation, ambient filesystem monitoring, model-selected roots, or destination/egress approval |
 | Policy/approval service | Resource-scoped grants, outbound decisions, approval tokens | Trusting model-produced permission claims |
 | Runtime adapter | Provider session and event translation | Unreviewed tools, undisclosed egress, global policy |
 | Tool gateway | Validate, authorise, invoke, bound, and audit tools | Giving an adapter unrestricted OS access |
@@ -246,6 +249,27 @@ required audit/task admission still fail; they are never downgraded to gaps.
 The [R04 delivery inventory](Implementation_Roadmap.md#r04-foundation-delivery)
 tracks actual source/tests and downstream boundaries. File audit copies
 remain diagnostic evidence, never authorization or durable receipt proof.
+
+The bounded R04/R14 [durable evidence query](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)
+now composes one host-owned read-only service over those actual SQLite
+log/audit/span/link tables. The native current-user inspector requires a live
+local-UI request, proven desktop ownership and private-presentation admission.
+Session/task/trace fields are correlation filters, not a way to select host
+authority. Signed continuations bind the original query, viewer session,
+15-minute expiry and per-table snapshot ceilings; later query diagnostics and
+completed spans cannot expand an in-progress snapshot.
+The [Windows reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs)
+reuses the sink's exact envelope/projection validation and private database
+schema/ACL/reparse/journal admission, then opens SQLite read-only. It creates
+no store, repairs no permissions, recovers no hot journal and changes no schema.
+Up to 50 records and 64 KiB of the actual serialized page include citations,
+cursor, source availability and disclosure. Selective text/property searches
+scan at most 4,096 candidates per page, with explicit continuation/scan-limit
+status and the existing five-second SQLite progress deadline.
+Expired-but-present and missing-or-removed segments are distinct; no physical
+pruning or complete retained graph/history is claimed. Session/conversation
+sources and interaction-audit receipts are not supplied by this projection.
+Model tool exposure, Ask Evidence, export and remote transmission remain gated.
 
 ## Independent Management and Concurrent Sessions
 
@@ -542,6 +566,20 @@ Audit due times use the existing independent audit policy; pruning/anchors,
 whole-store rollback detection, installed/power-loss acceptance and broader
 R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit
 or private permissions fail explicitly without replacement or repair.
+
+The bounded [production interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+uses those same adapters and exact version-1 schemas. Maintained disposable
+Windows tests terminate only their owned helper processes before or after
+task intent/dispatch/terminal/recovery, evidence envelope/span-link, and
+interaction approval/Once-consume/Done commits. Precommit checkpoints force
+real pager writes and verify the rollback journal's hot header, not merely
+its retained PERSIST file size. Reopening preserves prior receipts and private
+journal permissions; a committed receipt is not converted to cancellation.
+Interrupted recovery may leave another truthful Unknown audit attempt, but
+never replays work or invents a successful effect. Missing/permissive journals
+and inaccessible or unowned storage remain explicit admission failures.
+These are process-interruption tests, not installed or physical power-loss
+guarantees, general artifact/backup recovery, or complete R04 acceptance.
 
 Implementation requirements:
 

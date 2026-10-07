@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using Kora.Core.Hosting;
 
 namespace Kora.Application;
 

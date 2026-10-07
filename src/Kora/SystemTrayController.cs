@@ -36,7 +36,12 @@ public sealed class SystemTrayController : IDisposable
 
     public SystemTrayController(
         MainViewModel viewModel,
-        ILogger<SystemTrayController> logger)
+        ILogger<SystemTrayController> logger,
+        Func<Task>? reviewLocalVersion = null,
+        Action? inspectEvidence = null,
+        Action? inspectSkillPackages = null,
+        Action? inspectSessions = null,
+        Action? reviewMaintenance = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -57,6 +62,46 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (inspectSkillPackages is not null)
+        {
+            var skillsItem = new NativeMenuItem("Skill packages (inspection only)");
+            skillsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSkillPackages);
+            menu.Add(skillsItem);
+        }
+        if (inspectSessions is not null)
+        {
+            var sessionsItem = new NativeMenuItem("Sessions");
+            sessionsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSessions);
+            menu.Add(sessionsItem);
+        }
+        var previewClipboard = new NativeMenuItem("Preview clipboard (local plain text)");
+        var previewClipboardCommand = new AsyncCommand(viewModel.PreviewClipboardAsync,
+            exception => viewModel.ReportHostInteractionFailure(
+                "Local clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name));
+        previewClipboard.Click += (_, _) => RunAfterNativeMenuCloses(() => previewClipboardCommand.Execute(null));
+        menu.Add(previewClipboard);
+        if (reviewMaintenance is not null)
+        {
+            var maintenanceItem = new NativeMenuItem("Release maintenance (notify-only)");
+            maintenanceItem.Click += (_, _) => RunAfterNativeMenuCloses(reviewMaintenance);
+            menu.Add(maintenanceItem);
+        }
+        if (inspectEvidence is not null)
+        {
+            var evidenceItem = new NativeMenuItem("Evidence (read-only)");
+            evidenceItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectEvidence);
+            menu.Add(evidenceItem);
+        }
+        if (reviewLocalVersion is not null)
+        {
+            var reviewVersion = new NativeMenuItem("Review local version (native question)");
+            var reviewCommand = new AsyncCommand(reviewLocalVersion,
+                exception => viewModel.ReportHostInteractionFailure(
+                    "Native question presentation failed. No success is claimed. Close and start a fresh review. Failure type: "
+                    + exception.GetType().Name));
+            reviewVersion.Click += (_, _) => RunAfterNativeMenuCloses(() => reviewCommand.Execute(null));
+            menu.Add(reviewVersion);
+        }
         listeningItem = new NativeMenuItem();
         listeningItem.Click += async (_, _) =>
             await viewModel.ToggleListeningCommand.ExecuteAsync();

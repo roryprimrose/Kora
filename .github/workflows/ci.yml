@@ -103,6 +103,34 @@ jobs:
           ./eng/Test-BuildVersion.ps1
           ./eng/Test-GitHubRelease.ps1
 
+      - name: Test static immutable source-tool distribution
+        shell: pwsh
+        run: ./eng/Test-SourceToolsContracts.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'kora-source-tool-contracts')
+
+      - name: Package exact-revision source tools without executing them
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
+        run: >
+          ./eng/Build-SourceTools.ps1 -Revision "$env:GITHUB_SHA"
+          -Version "$env:BUILD_VERSION" -OutputDirectory artifacts/source-tools
+
+      - name: Upload static source-tool contract results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source-tool-contracts
+          path: ${{ runner.temp }}/kora-source-tool-contracts/tests.json
+          if-no-files-found: error
+
+      - name: Retain main source-tool candidate
+        if: needs.version.outputs.publish == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Kora-source-tools
+          path: artifacts/source-tools
+          if-no-files-found: error
+
       - name: Test portable core with coverage
         run: >
           dotnet test
@@ -127,13 +155,37 @@ jobs:
           --coverlet-output-format cobertura
           --coverlet-file-prefix application
 
+      - name: Test built-in tools with coverage
+        run: >
+          dotnet test
+          --project tests/Kora.Tools.UnitTests/Kora.Tools.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --results-directory .net-test-artifacts/tools
+          --report-trx
+          --coverlet
+          --coverlet-output-format cobertura
+          --coverlet-file-prefix tools
+
+      - name: Test bundled definitions with coverage
+        run: >
+          dotnet test
+          --project tests/Kora.Definitions.UnitTests/Kora.Definitions.UnitTests.csproj
+          --configuration Release
+          --no-build
+          --results-directory .net-test-artifacts/definitions
+          --report-trx
+          --coverlet
+          --coverlet-output-format cobertura
+          --coverlet-file-prefix definitions
+
       - name: Generate and enforce coverage report
         run: >
           dotnet reportgenerator
           "-reports:.net-test-artifacts/**/*.coverage.cobertura.*.xml"
           "-targetdir:.net-test-artifacts/coverage-report"
           "-reporttypes:Cobertura;MarkdownSummaryGithub;TextSummary"
-          "-assemblyfilters:+Kora.Core;+Kora.Application"
+          "-assemblyfilters:+Kora.Core;+Kora.Application;+Kora.Tools;+Kora.Definitions"
 
       - name: Enforce coverage thresholds
         shell: pwsh
@@ -185,6 +237,7 @@ jobs:
         run: |
           foreach ($rid in @('win-x64', 'win-x86')) {
             $evidence = "artifacts/publish-inspection/$rid"
+            ./eng/Test-EmbeddedSkillResources.ps1 -AssemblyPath "artifacts/Kora-$rid/Kora.Definitions.dll"
             ./eng/Inspect-Publish.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Revision "$env:GITHUB_SHA" -EvidenceDirectory $evidence -BuildOrigin "GitHub Actions $env:GITHUB_RUN_ID/$env:GITHUB_RUN_ATTEMPT; Linux cross-publish; static-only"
             $tests = Join-Path $env:RUNNER_TEMP "kora-publish-contracts-$rid"
             ./eng/Test-PublishContracts.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Inspection "$evidence/payload.json" -OutputDirectory $tests
@@ -389,6 +442,12 @@ jobs:
         with:
           name: Kora-Setup-${{ needs.version.outputs.version }}-win-x64
           path: artifacts/release/installer
+
+      - name: Download statically verified source tools
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: Kora-source-tools
+          path: artifacts/release/source-tools
 
       - name: Verify bytes, generate notes and publish beta/stable release
         shell: pwsh

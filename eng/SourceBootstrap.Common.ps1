@@ -2,7 +2,7 @@
 . (Join-Path $PSScriptRoot 'NativeInspection.Common.ps1')
 
 $script:SourceBootstrapVersion = '1.1.0'
-$script:SourceRepository = 'https://github.com/roryprimrose/Kora.git'
+$script:SourceRepository = $script:KoraSourceRepository
 $script:SourceMaintenance = 'External operator; build-only, no updater or registration.'
 $script:SourceActivation = 'Unavailable: requires separate approved protected-deployment and installed gates.'
 
@@ -28,15 +28,41 @@ function Assert-SourceFields {
 }
 
 function Get-SourceToolFiles {
-    $base = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    param([string] $ToolsRoot = (Join-Path $PSScriptRoot '..'))
+    $base = [IO.Path]::GetFullPath($ToolsRoot)
     @(
-        foreach ($relative in 'eng\Invoke-SourceBootstrap.ps1', 'eng\SourceBootstrap.Common.ps1',
-            'eng\Test-SourceStage.ps1', 'eng\Get-BuildVersion.ps1',
-            'eng\SourceCheckout.Common.ps1', 'eng\Distribution.Common.ps1',
-            'eng\NativeInspection.Common.ps1', 'eng\Inspect-Publish.ps1') {
-            [ordered]@{ path = $relative; sha256 = (Get-FileHash -LiteralPath (Join-Path $base $relative)).Hash.ToLowerInvariant() }
+        foreach ($relative in Get-SourceToolPaths) {
+            [ordered]@{ path = $relative.Replace('/', '\'); sha256 = (Get-FileHash -LiteralPath (Join-Path $base $relative)).Hash.ToLowerInvariant() }
         }
     )
+}
+
+function Assert-DistributedSourceTools {
+    param([string] $Revision, [string] $ToolsRoot = (Join-Path $PSScriptRoot '..'))
+    $base = [IO.Path]::GetFullPath($ToolsRoot)
+    $manifestPath = Join-Path $base 'source-tools.json'
+    if (!(Test-Path -LiteralPath $manifestPath)) {
+        if (!(Test-Path -LiteralPath (Join-Path $base 'Kora.slnx') -PathType Leaf)) {
+            throw 'Distributed source-tool manifest is missing; no build admitted.'
+        }
+        return
+    }
+    Assert-NoLinks $base
+    $manifest = Read-SourceJson $manifestPath
+    Assert-SourceFields $manifest ([ordered]@{
+        schema = 1; bootstrapVersion = $script:SourceBootstrapVersion
+        repository = $script:SourceRepository; revision = $Revision
+        unsigned = $true; productionAccepted = $false; activation = 'unavailable'
+    })
+    $tools = @(Get-SourceToolFiles $base)
+    if (@($manifest.files).Count -ne $tools.Count) { throw 'Distributed source-tool inventory changed.' }
+    foreach ($tool in $tools) {
+        $records = @($manifest.files | Where-Object path -CEQ $tool.path.Replace('\', '/'))
+        if ($records.Count -ne 1 -or $records[0].sha256 -cne $tool.sha256 -or
+            $records[0].bytes -ne (Get-Item -LiteralPath (Join-Path $base $tool.path)).Length) {
+            throw 'Distributed source-tool bytes changed; retain for review, do not build.'
+        }
+    }
 }
 
 function Get-SourceInputs {
@@ -161,7 +187,7 @@ function Assert-SourceInspection {
     }
     $resources = @($inspection.peFiles | Where-Object { $_.path -ceq 'Kora.dll' } | ForEach-Object { $_.embeddedResources })
     if ($resources -notcontains '!AvaloniaResources') { throw 'Missing embedded Avalonia resources.' }
-    foreach ($name in 'Kora.exe', 'Kora.dll', 'Kora.Core.dll', 'Kora.Application.dll', 'Kora.Windows.dll') {
+    foreach ($name in 'Kora.exe', 'Kora.dll', 'Kora.Core.dll', 'Kora.Application.dll', 'Kora.Tools.dll', 'Kora.Definitions.dll', 'Kora.Windows.dll') {
         $observed = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $Payload $name)).ProductVersion
         if ($observed -cne $Version) { throw "Published version mismatch: $name expected $Version, observed $observed." }
     }
@@ -270,6 +296,7 @@ function Invoke-SourceBootstrap {
         [ValidateSet('Preview', 'Build')][string] $Action = 'Preview', [switch] $TrustBuildCode,
         [string] $Repository = $script:SourceRepository)
     # Repository injection is an internal fixture seam; the public entry point fixes canonical origin.
+    Assert-DistributedSourceTools $Revision
     $Root = Assert-SourceRoot $Root
     $checkout = Join-Path $Root "checkouts\$Revision"
     $deployment = Join-Path $Root "outputs\$Revision"

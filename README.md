@@ -21,6 +21,21 @@ Typed built-in commands and visual responses work without speech hardware. No
 model, cloud account, or network connection is required for exact built-in
 commands. Unmatched requests require a verified local Ollama model.
 
+Exact **list capabilities**, **describe capability application.get_version**,
+**show registry version**, **show dependency readiness**, **list runtimes**,
+and **show local runtime status** expose the bounded read-only host registry
+without inference. Readiness/runtime results are timestamped recorded probe
+observations, not fresh checks or runtime qualification. See
+[read-only discovery](docs/commands.md#read-only-host-discovery).
+
+Exact **preview clipboard** (also in the tray) captures one ephemeral,
+immutable Unicode plain-text snapshot, bounded to 256 KiB UTF-8. Native
+preview supports explicit same-ID reuse and revoke/clear without a clipboard
+write, history or model submission. **Explain the clipboard** shows that
+preview but explicitly reports explanation unavailable until local tool-loop
+and clipboard-answering qualification. See
+[clipboard commands](docs/commands.md#explicit-local-clipboard-preview).
+
 The requirements and commands here describe developer source use. Precompiled
 framework-dependent binary users do not need Git or an SDK; see the
 [distribution/runtime contract](Design/Distribution_And_Updates.md).
@@ -80,6 +95,15 @@ The unpinned response window has its own timeout, default **5 seconds**.
 Change **Presence timeout** and **Response timeout** independently under
 Settings > Appearance; each accepts 1-60 seconds and applies without restarting.
 Hiding the presence does not stop listening or ongoing work.
+The nine existing independent-file appearance options also have a bounded
+typed registry shared by those direct controls and exact local commands:
+`list appearance settings`, `get appearance.theme`,
+`set appearance.theme to dark`, and `reset appearance.theme`.
+The Appearance tab resets one selected option. Updates check the host revision,
+revalidate domain bounds and publish only after atomic save; failures retain
+the old value. No model/network or voice/audio/call settings authority is added.
+See [Settings](docs/settings.md#appearance) and [Commands](docs/commands.md).
+Whole-profile reset/undo and full verbal preferences remain open.
 Drag the response title area to reposition it; its
 controls can keep the current response visible until dismissed and can disable
 the default stay-on-top behavior. The presence is click-through by default,
@@ -375,7 +399,7 @@ framework or test patterns where a rule is not applicable.
 
 The automated test boundary is:
 
-- `Kora.Core.UnitTests` and `Kora.Application.UnitTests` are portable unit tests. Linux CI collects coverage for `Kora.Core` and `Kora.Application`, requires 100% line and branch coverage, uploads the Cobertura report, and posts the Markdown summary to pull requests.
+- `Kora.Core.UnitTests`, `Kora.Application.UnitTests`, `Kora.Tools.UnitTests` and `Kora.Definitions.UnitTests` are portable unit tests. Linux CI collects coverage for all four portable assemblies, requires 100% line and branch coverage, uploads the Cobertura report, and posts the Markdown summary to pull requests.
 - `Kora.Windows.IntegrationTests` runs on a GitHub-hosted Windows runner. It covers native dependency probing, safe microphone enumeration/error boundaries, and the audio stream adapter without opening a real capture session or invoking session lock.
 - Physical microphone capture, recognition quality, device removal during capture, Windows session-lock notification, and real lock behavior require a controlled Windows machine and remain manual/end-to-end acceptance evidence. CI must never lock or restart its runner.
 
@@ -385,7 +409,9 @@ The automated test boundary is:
 - `src/Kora.Application` — portable application orchestration and view models.
 - `src/Kora.Windows` — Windows microphone, speech-recognition, text-to-speech, readiness, and session integrations.
 - `src/Kora` — Avalonia composition root and presence interface.
-- `tests/Kora.Core.UnitTests` and `tests/Kora.Application.UnitTests` — portable unit tests and CI coverage.
+- `src/Kora.Tools` — portable host-owned built-in actions, one class per action grouped by capability (for example `Clipboard/ClipboardRead.cs` and namespace `Kora.Tools.Clipboard`); shared brokers are not model authority. See [implementation guidance](Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
+- `src/Kora.Definitions` — immutable bundled definitions/resources and explicit catalogue loading; existing skills are embedded here with unchanged IDs/bytes/digests. Prompt templates, shared instructions and agent profiles share this project when implemented; no agent runtime is delivered. See [definition guidance](Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles).
+- `tests/Kora.Core.UnitTests`, `tests/Kora.Application.UnitTests`, `tests/Kora.Tools.UnitTests` and `tests/Kora.Definitions.UnitTests` — portable unit tests and CI coverage.
 - `tests/Kora.Windows.IntegrationTests` — non-destructive Windows integration tests.
 - `Design` — product, architecture, safety, and interaction specifications.
 
@@ -393,6 +419,11 @@ The automated test boundary is:
 
 Issues and contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md)
 for development checks and the terms that apply to submitted contributions.
+Use [Extending Kora](EXTENDING-KORA.md) to choose and contribute tools, skills,
+prompts, scoped instructions or future agent profiles. The
+[Tools project guide](src/Kora.Tools/README.md) and
+[Definitions project guide](src/Kora.Definitions/README.md) map the current
+implementation and contribution steps, including unavailable execution gates.
 
 ## License
 

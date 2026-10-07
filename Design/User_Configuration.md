@@ -1,10 +1,50 @@
 # User Configuration and Verbal Settings
 
-Status: proposed. Every supported user preference must be discoverable, inspected, and set verbally once local voice input is ready, subject to the explicit protected-call origin gate and mandatory secure workflows.
+Status: partial. The bounded appearance subset below is delivered through a
+shared typed UI/exact local command path; the complete verbal preference and
+model-facing contract remains proposed, subject to protected-call origin gates
+and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
+
+### Delivered bounded appearance subset (R10)
+
+Nine existing independently persisted options are admitted:
+`appearance.theme`, `appearance.presence-timeout`,
+`appearance.response-timeout`, `appearance.presence-size`,
+`appearance.dot-size`, `appearance.dot-density`,
+`appearance.movement-speed`, `appearance.speech-scaling` and
+`appearance.speech-scale-amount`. The [end-user reference](../docs/settings.md#appearance)
+lists their exact types, units, defaults and bounds. Each descriptor declares
+device-local scope, appearance-only effect, local-host availability,
+immediate-after-save timing and per-option reset. Animation driven by playback
+is not a voice-output or call-sensitive option.
+
+The host-owned [registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)
+reuses existing domain validation; the
+[service](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)
+owns get/propose/apply/reset, a process-local revision, proposal provenance,
+serialized revalidation/write/notification and typed audit outcomes.
+Revision and proposal identity are not durable cross-process authority.
+The instance-owner boundary admits the local host. No arbitrary option,
+path, JSON patch, external configuration file or model proposal is accepted.
+Saved-format parsing stays in the preference domain; malformed saved state
+still throws `InvalidDataException`. Missing preferences use declared defaults
+without claiming those defaults were written.
+
+Direct appearance controls and exact deterministic discovery/get/set/reset
+use the same service and notify all open surfaces. Cancellation is checked
+before the existing synchronous atomic write; cancellation after commit does
+not report an unsaved change. Save failure retains the previous value/revision
+and produces visible failure; stale proposals require a new operation.
+Reset restores one admitted default; no multi-file transaction, whole-profile
+reset or undo is implemented. Shared response-window pin/topmost/position
+and presence placement remain direct UX outside the registry.
+Voice/audio/call/manual state, grants, models, retention, dependencies and
+startup are not registered. No model tools or broader execution authority
+are exposed by this slice. The following complete contract remains future work.
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.
@@ -22,6 +62,16 @@ every setting currently implemented by the host. All open settings surfaces
 observe the same live state: mouse and validated verbal mutations publish the
 same change notifications, so neither surface requires reopening or polling to
 show the new effective value.
+
+Bounded R15 now supplies run-scoped manual call controls and truthful automatic
+availability in **Settings > Calls**, outside the future generic settings/tool
+registry. Original voice provenance, observed call revision and live ownership/
+privacy gate manual changes. Protected calls reject voice-originated voice and
+in-call option writes, including reset/clear semantics; read-only inspection and
+stop/cancel remain eligible. Saved output/activation preferences are retained.
+New call-protection downgrades and temporary/speak-once exceptions remain
+unavailable pending complete exact trusted review; they are not exposed as
+working verbal/model operations. See the [bounded R15 receipt](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07).
 
 Each registered option declares:
 
@@ -238,12 +288,22 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 | Shared skill sources | User-selected bounded read-only roots | "Use skills from my Copilot profile" |
 | Skill enablement/default source binding | Reviewed digest/device-local binding | "Use the Kora-specific deployment skill when I say deployment" |
 | Source refresh preference | Revalidate before dispatch; optional bounded discovery refresh | "Refresh shared skill discovery every hour" |
+| Knowledge source registration | None by default; explicit reviewed file/folder and session/managed scope | "Add my Team TSGs folder as a knowledge source" |
+| Knowledge source refresh | Manual initially; later bounded scheduled refresh only after R26 background-work gates | "Refresh Team TSGs" |
+| Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
+| Knowledge source limits | Host defaults within verified file/source/context maxima; user may lower them | "Limit knowledge files to one megabyte" |
+| Knowledge citation detail | Source plus heading/page/line location | "Show detailed knowledge citations" |
 | Diagnostic database retention | 30 days by default; independently configurable within the registered bounded schema; daily JSON remains limited to 30 files/30 days | "Keep diagnostic events for fourteen days" |
 | Audit retention | 90 days by default; configurable from 30-365 days | "Keep audit metadata for six months" |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
 Do not require typing a path, but do not infer one from unrelated context.
+Long, ambiguous or low-confidence knowledge paths fall back to the native
+picker rather than being guessed. Adding a knowledge source, using its excerpts
+with a hosted model and deleting Kora's derived copies are separate decisions.
+The complete source, retrieval, settings and voice contract is
+[File and Folder Ingestion](File_And_Folder_Ingestion.md).
 The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
 Permitted conversation history uses durable standard SQLite under verified private profile permissions and session retention. Copies outside that boundary are readable; database encryption is not required. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports and secret logging remain unsupported.
 Diagnostic, audit and session retention are independent. Session deletion does

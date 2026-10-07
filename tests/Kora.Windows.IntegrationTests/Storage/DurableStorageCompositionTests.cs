@@ -190,14 +190,17 @@ public sealed class DurableStorageCompositionTests
                 }
                 await Task.Delay(TimeSpan.FromMilliseconds(25), deadline.Token);
             }
+            child.Kill(entireProcessTree: true);
+            await child.WaitForExitAsync(deadline.Token);
+            await OwnedStorageChildProcess.WaitForReleasedDatabaseAsync(paths.LocalRoot,
+                Path.Combine(paths.LocalRoot, "HostStorageV1", "host.db"), deadline.Token);
+            await OwnedStorageChildProcess.WaitForReleasedDatabaseAsync(paths.LocalRoot,
+                Path.Combine(paths.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db"), deadline.Token);
             var task = new HostId<TaskIdentity>(Guid.ParseExact(
                 await File.ReadAllTextAsync(marker, deadline.Token), "D"));
             File.Exists(invocation).Should().Be(string.Equals(mode, "dispatch", StringComparison.Ordinal));
             var invocationBefore = File.Exists(invocation)
                 ? await File.ReadAllBytesAsync(invocation, deadline.Token) : null;
-            child.Kill(entireProcessTree: true);
-            await child.WaitForExitAsync(deadline.Token);
-
             using var reopened = await ComposeAsync(paths);
             var prior = await reopened.Tasks.ReadTaskAsync(task, TestContext.Current.CancellationToken);
             prior!.State.Should().Be(string.Equals(mode, "dispatch", StringComparison.Ordinal)

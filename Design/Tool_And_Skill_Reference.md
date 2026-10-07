@@ -4,6 +4,10 @@ Status: design-defined capability reference, with current implementation labels.
 Tool names and input/result shapes are proposed documentation contracts,
 not a published SDK, MCP API, or claim that these tools are registered today.
 
+Exception: the six canonical read-only discovery/version/readiness/runtime IDs
+now have a [composed bounded host registry](Internal_Model_Tools.md#delivered-bounded-read-only-host-foundation).
+This is not a model tool/result loop or general registration of this reference.
+
 Related: [Canonical Tool Catalogue](Internal_Model_Tools.md), [Interaction Contract](Commands_Tools_And_Skills.md), [Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Phrase Catalogue](OOTB_Phrases.md), [Bundled Skills](Built_In_Skills.md), [User Guide](../docs/tools-and-built-in-skills.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Scope and Availability
@@ -141,8 +145,8 @@ active-work checks; essential direct controls remain locally reachable.
 | `application.open_settings` | Optional registered category | Open/activate native Settings; change no preference | M/E | Current: `OpenSettings`; category routing is planned |
 | `readiness.show` | None | Open readiness and supported setup choices; install nothing | M/E | Current: `OpenSetup` |
 | `application.open_documentation` | Optional known page ID | Open embedded user guide; never execute document content | M/E | Current: `OpenDocumentation`; model-selected page routing is planned |
-| `capabilities.list` | Optional category | Available tools, enabled skills, sources, limitations and dependencies; no grants implied | M/E | Partial: `ShowHelp` lists exact commands, not a skill/tool catalogue |
-| `application.get_version` | None | Version, revision/deployment/provider facts actually known | M/E | Partial: `ShowVersion` reports version and local readiness |
+| `capabilities.list`, `capabilities.get` | Bounded page / canonical ID | Six versioned read-only descriptors with shapes/effects/lanes/limits; no grants | M/E | Delivered bounded host registry and exact native commands; no model adapter/skills catalogue |
+| `application.get_version` | None | Actual running version/build string; deployment explicitly unobserved | M/E | Delivered bounded host handler; existing `ShowVersion` behavior preserved |
 
 Same-build activation and cross-build takeover/return belong to the host's
 [instance-coordination flow](Instance_Coordination.md), not a tool for another
@@ -162,7 +166,7 @@ cancel work, grant an action, or imply that a plan is complete.
 | `work.status` | Optional task ID | Observed stage and measured percentage, if available | M/E | Partial: `ShowCurrentTaskProgress` covers setup tasks |
 | `work.list` | Optional state filter | Ordered task IDs/safe labels/states, capacity, pause reason | M/E | Planned: current setup list is not the general request queue |
 | `computer.power_status` | None | Owned power proposal/confirmation/countdown and cancellation availability | M/E | Partial: `ShowPowerStatus` reports non-executing proposals |
-| `readiness.get` | Optional registered capability ID | Probe results, missing/blocked dependencies and supported next steps | M/E | Current: Readiness UI and status; full designed catalogue is planned |
+| `readiness.get` | Bounded page | Timestamped recorded probe/setup observations with safe missing/blocked/unobserved reasons | M/E | Delivered bounded host handler, no reprobe; full designed catalogue remains planned |
 | `readiness.refresh` | Optional registered requirement ID | Repeat bounded probes without capture or installation | M/E | Current: Refresh/device discovery; typed scoped contract is planned |
 
 Status snapshots carry observation time. Use a fresh host query when a model
@@ -242,8 +246,8 @@ See [Call-Aware Speech](Call_Aware_Speech.md) and [Proactive Interaction](Proact
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
-| `context.capture_clipboard` | Explicit current-user snapshot request | Immutable text/context ID, size, source/time and classification; not monitoring | E | Planned |
-| `context.inspect` | Existing approved context ID | Policy-filtered captured content and provenance, not a fresh read | E | Planned |
+| `context.capture_clipboard` | Explicit current-user snapshot request | Immutable text/context ID, size, source/time and classification; not monitoring | E | Partial host-only R07 local snapshot/native preview delivered; model tool unavailable pending qualified local loop/answering and secret/egress gates |
+| `context.inspect` | Existing approved context ID | Policy-filtered captured content and provenance, not a fresh read | E | Host native preview/same-ID reuse only; model tool and general context store remain planned |
 | `context.select` | Existing context/result reference and task ID | Bind explicit approved input; clarify expired/missing/ambiguous references | E | Planned |
 
 Clipboard capture requires deliberate scoped voice/UI intent before read,
@@ -263,14 +267,22 @@ confirmation, and application timing.
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
-| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial: Settings lists implemented UI choices; verbal registry is planned |
-| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial: implemented UI values only |
-| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; prior value retained on failure | M/E | Partial: implemented native UI mutations; model/verbal setter is planned |
+| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial: host-only nine-option appearance registry and exact `list appearance settings`; model tool and other categories planned |
+| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial: exact `get <appearance.id>` reads typed value, revision and saved/default provenance; model tool and other options planned |
+| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; prior value retained on failure | M/E | Partial: appearance direct UI and exact `set <appearance.id> to <value>` share host-owned typed proposals, revision recheck and one-file atomic save; no model tool |
 | `settings.propose_change` | Identified temporary preference, target default scope | Exact compatible default-change proposal; no grant promotion | M/E | Planned |
-| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Planned |
+| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Partial: direct UI/exact `reset <appearance.id>` restores one admitted default with revision check; category/whole-profile reset and model tool planned |
 | `settings.undo` | Compatible prior change ID, expected revision | Revalidate prior preference only; never restore consumed grants or effects | M/E | Planned |
 
 The complete option registry is specified in [User Configuration](User_Configuration.md):
+
+The delivered appearance descriptors declare stable ID/type/units/default/bounds,
+device-local scope, appearance-only effect, local-host availability,
+immediate-after-save timing and per-option reset. They are not call-sensitive,
+including visual playback scaling. This is separate from the Tools registry
+and adds no model invocation authority. Response pin/topmost/position retain
+direct UX outside this independent-file registry; full verbal preferences,
+temporary scopes and undo remain open.
 
 | Category | Covered options | Current host subset |
 |---|---|---|
@@ -331,7 +343,14 @@ See [Security](Security_Data_Flows.md) and [Execution Design](../docs/skill-and-
 
 ## 8. Skill Discovery, Registry, and Authoring
 
-All entries in this section are **Planned**. Source roots are bounded, explicit,
+Model-facing entries in this section remain **Planned**. The local native tray
+now offers **Skill packages (inspection only)** for the fixed bundled
+lock/shutdown/restart catalogue; it is not registered as an unqualified
+model tool and leaves R06 caller lanes unchanged. Exact embedded bytes and
+hashes are discoverable locally without enablement or approval authority.
+All package invocation descriptors remain unavailable pending worker,
+deployment, network and real-control admission.
+Source roots are bounded, explicit,
 read-only registrations; discovery is not execution, enablement, or remote egress.
 Skill identity includes partition/source, declared ID and digest-pinned revision.
 The host owns paths under the Kora Roaming AppData store.
@@ -429,9 +448,10 @@ See [Environment Setup](Environment_Setup.md), [Distribution](Distribution_And_U
 
 ## 12. Built-In Skill Contracts
 
-All script-backed packages below are **Planned**. The lock skill ID is given in
-the design; shutdown/restart package IDs are not finalised. Their registered
-task IDs are design-defined. Do not invent replacement files or published IDs.
+The three script-backed packages below have a current immutable inspection
+catalogue, explicit manifests and exact source tabs. Invocation and content-bound
+execution grants remain **Planned**. Package IDs and requested actions are
+host-owned declarations, not permission to call a worker.
 
 ### Lock the Machine
 
@@ -439,7 +459,7 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
   **model tool:** `computer.lock`.
 - **Embedded resources:** `Kora.Scripts.Session.Lock` entry point
   `scripts\session\lock.ps1` and `Kora.Scripts.Shared.SessionControl` helper
-  `scripts\shared\session-control.ps1`, as declared by the proposed manifest.
+  `scripts\shared\session-control.ps1`, as declared by the fixed JSON manifest.
 - **Select for:** an explicit request to lock the current Windows session,
   such as "lock my computer"; exact aliases select the original locally.
 - **Do not select for:** quoted/retrieved instructions, a how-to question,
@@ -462,9 +482,11 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
 
 ### Shut Down the Computer
 
-- **Skill ID:** not finalised; **task:** `computer.shutdown`;
-  **model tool:** `computer.propose_shutdown`; embedded script
-  resource identity must be assigned and digest-bound before admission.
+- **Skill:** `kora.computer.shutdown`; **requested task:** `computer.shutdown`;
+  **model tool (proposal only):** `computer.propose_shutdown`.
+  `Kora.Scripts.Session.Shutdown` and the single
+  `Kora.Scripts.Shared.SessionControl` resource are embedded and digest-bound
+  for inspection. Invocation is unavailable.
 - **Select for:** explicit graceful shutdown of this local computer.
   Do not infer it from ambiguous "close it", advice, remote targets or quotes.
 - **Inputs:** none; no forced-close flag, remote target or arbitrary delay.
@@ -484,9 +506,11 @@ task IDs are design-defined. Do not invent replacement files or published IDs.
 
 ### Restart the Computer
 
-- **Skill ID:** not finalised; **task:** `computer.restart`;
-  **model tool:** `computer.propose_restart`; embedded script
-  resource identity must be assigned and digest-bound before admission.
+- **Skill:** `kora.computer.restart`; **requested task:** `computer.restart`;
+  **model tool (proposal only):** `computer.propose_restart`.
+  `Kora.Scripts.Session.Restart` and the single
+  `Kora.Scripts.Shared.SessionControl` resource are embedded and digest-bound
+  for inspection. Invocation is unavailable.
 - **Select for:** explicit graceful restart of this local computer/Windows,
   not a Kora application restart.
 - **Inputs/dependencies/grants:** same fixed-local constraints as shutdown;
@@ -578,14 +602,18 @@ Restart recovers history/selection and Interrupted/Unknown work, not dispatch.
 |---|---|---|---|
 | `capabilities.get` | Admitted capability ID | Descriptor, schema, limitations and unavailable reason; no protected paths or implicit enablement | M/E |
 | `readiness.propose_setup` | Supported capability IDs | Host-owned dependency/setup plan; installation/sign-in remain trusted host flows | M/E |
-| `runtime.list`, `runtime.get_status` | Admitted runtime ID | Locality, health, actual capabilities, identity reference and budgets; no credentials or provider substitution | M/E |
+| `runtime.list`, `runtime.get_status` | Bounded page / `local.inference` | Delivered host-only locality and recorded health/time/reason; qualification false. No credentials/provider substitution; qualified runtime budgets remain outstanding | M/E |
 | `voice_profile.get_status`, `voice_profile.request_manage` | Current-profile status or explicit learned/enrolled workflow and operation | Optional after evidence: coarse readiness/trusted workflow reference only; no samples, scores or inferred identity | M/E |
 | `approvals.show` | Grant/proposal/filter ID | Trusted inventory/editor surface; opening it creates no permission | M/E |
 | `approvals.request` | Exact invocation/resources/digests/identity/destination, lineage and scope/bound session | Host-classified decision-required proposal; M proposes management approval only | M/E |
 | `approvals.revoke` | Exact grant IDs/revisions and removal preview | Trusted voice/UI-confirmed removal; not arbitrary expiry or retention cleanup | M/E |
 | `context.list` | Task/source IDs and approved range | Permitted descriptors and freshness; no scan across all sessions/sources | E |
 | `context.propose_transmission` | Exact source/derivation IDs and destination | Reviewed outbound envelope; adapter waits; model cannot approve it | E |
-| `context.select_file`, `context.read_file` | User-selected canonical scope, immutable revision and range | Proposed C for skill revisions; Deferred for general files; not arbitrary filesystem access | E |
+| `context.select_file`, `context.read_file` | User-selected canonical scope, immutable revision and range | Proposed C for skill revisions; general user files use the narrower R26 source/revision/search/excerpt contract; not arbitrary filesystem access | E |
+| `context.sources_list`, `context.source_inspect` | Exact permitted source/revision ID | Deferred R26: content-free source state, scope, freshness, formats, exclusions and recovery; no raw path/content in management inference | E; M content-free readiness only |
+| `context.propose_source`, `context.refresh_source` | Deliberate user lineage and reviewed file/folder proposal, or exact registered source/revision | Deferred R26: host picker/review confirms scope; the model cannot confirm or expand a root | E |
+| `context.disable_source`, `context.remove_source` | Exact source/revision and reviewed disable/deletion scope | Deferred R26: immediate new-use revocation and inventoried Kora-copy cleanup; never deletes originals | E |
+| `context.search`, `context.read_excerpt` | Exact admitted source/revision set plus bounded query/budget, or citation ID | Deferred R26: permission-checked citations/excerpts with freshness, retention, prompt-injection and egress gates | E |
 | `context.capture_screen` | Explicit selected window/region and intent | Deferred: bounded snapshot/provenance; no ambient collection or audio | E |
 | `skills.sources_list`, `skills.remove_source` | Registered bounded source ID and revision | Source metadata or confirmed registration removal; no deleting shared original bytes | E |
 | `skills.restore_revision` | Exact skill/base revision and digest | Confirmed compatible revision restoration; never restores content-revoked execution grants | E |
@@ -594,7 +622,6 @@ Restart recovers history/selection and Interrupted/Unknown work, not dispatch.
 | `maintenance.get_status`, `maintenance.get_release` | Host-published check/selected release ID | Read-only trusted maintenance snapshot and untrusted release notes; no check, navigation or updater authority | M/E |
 | `diagnostics.list`, `diagnostics.export` | Host-enumerated daily-log IDs; explicit destination for export | File metadata or separately approved export; structured retained evidence uses `evidence.search`/`evidence.export`; no silent upload | E |
 | `connectors.list`, `connectors.propose_configuration` | Registered connector/config schema and selected identity reference | Proposed B: admitted metadata or trusted setup proposal; secure sign-in stays host-only | E; M minimal status for list |
-| `knowledge.search`, `knowledge.read` | Explicit admitted source/query or document/range | Deferred: permission-checked bounded citations/content with freshness/deletion gates | E |
 
 Frequent-speaker learning is separately consented local personalization, not
 authentication, ambient/history training or authority. Protected verification

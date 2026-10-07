@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "kora.session.lock",
+  "version": "1.0.0",
+  "name": "Lock the machine",
+  "description": "Fixed lock of the current interactive Windows session; inspection only.",
+  "action": "session.lock",
+  "entryPoint": "scripts\\session\\lock.ps1",
+  "parameterContract": "session.lock.v1",
+  "runtime": "powershell7",
+  "dependencies": ["kora.windows.session-control.v1"],
+  "helperLoadOrder": ["scripts\\shared\\session-control.ps1"],
+  "files": [
+    {"name": "skills\\session-lock\\skill.md", "resourceId": "Kora.Skills.Session.Lock.Instructions", "kind": "instructions"},
+    {"name": "skills\\session-lock\\fixtures.json", "resourceId": "Kora.Skills.Session.Lock.Fixtures", "kind": "fixture"},
+    {"name": "scripts\\session\\lock.ps1", "resourceId": "Kora.Scripts.Session.Lock", "kind": "entry"},
+    {"name": "scripts\\shared\\session-control.ps1", "resourceId": "Kora.Scripts.Shared.SessionControl", "kind": "helper"}
+  ]
+}

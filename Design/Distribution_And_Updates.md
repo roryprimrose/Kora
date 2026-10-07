@@ -1,6 +1,6 @@
 # Distribution, Startup, and Application Maintenance
 
-Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. External managed-source preview/build/staging/verification is implemented; source activation, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
+Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. External managed-source preview/build/staging/verification and immutable source-tool packaging/channel resolution are implemented; source activation, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
 R02's partial NSIS 3.13 proof remains historical evidence, not the production installer. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
 The source host is a public source-available GitHub repository; use Linux GitHub Actions wherever feasible, with Windows jobs for WiX MSI/Burn packaging and other justified Windows-specific work.
 Initial binary and setup artifacts are intentionally unsigned.
@@ -49,7 +49,7 @@ Future builds must inspect their own exact revision and final bytes.
 | Exact-revision managed-source publishing and hash-verified reruns succeeded; fixtures preserve local edits and earlier outputs on failure. | Reuse dedicated detached checkout, versioned staging, explicit ownership and non-destructive reruns. Add protected deployment, interrupted-install reconciliation and actual Windows launch smoke tests before calling it a production source bootstrap. |
 | Repeated setup assembly changed the final EXE digest despite unchanged payload identity and size. | Hash every finished setup, not its filename, revision or input directory alone; bind provenance and Windows results to those exact final bytes. Do not claim bit-identical builds from this experiment. |
 | At the proof revision, no project licence was found and three OpenTK prerelease nuspecs lacked licence declarations. | The repository now declares PolyForm Shield 1.0.0 and a [NuGet licence/notice gate with version-specific overrides](../DEPENDENCY-LICENSES.md). Preserve the historical finding; apply the current controls to each release and separately review native/model assets and WiX build-tool terms before selection/distribution. A passed NuGet gate is not clearance for every external asset. |
-| Only documentation/Avalonia resources are embedded; the planned skill catalogue, scripts and protected workers are absent. | Keep their R11/R16/R17 gates open. Shipping or testing this bootstrap does not establish resource completeness or worker protection for the designed release. |
+| At the proof revision only documentation/Avalonia resources were embedded. | The bounded R11 delivery now embeds the fixed three-package catalogue and verifies actual x64/x86 PE manifest-resource bytes against declared sources. Protected workers, installed protection and execution remain absent; keep R11/R16/R17 admission gates open. |
 | Windows installation/launch trials were not approved; ACL and runtime-only evidence are absent. | Allocate an approved disposable Windows 11 x64 lab. Unsigned POC publication is approved under the risk-based policy below, not production acceptance. Dependent protected-execution capabilities remain unavailable until their actual boundaries pass. |
 
 The path forward is staged in the
@@ -127,17 +127,19 @@ source and dependency/build code, not a grant to the running assistant.
 The canonical repository is fixed to `https://github.com/roryprimrose/Kora.git`;
 the public interface does not accept forks, local repositories or arbitrary URLs.
 An operator must select a full lowercase 40-character commit from that source.
-Branches, abbreviated revisions and automatic mutable "latest" selection are
-not supported.
+Branches and abbreviated revisions are not supported. The separate static
+resolver selects a published release, then pins its full canonical commit and
+final tool-asset identity; it never builds from moving main or a tag name.
 
 The only admitted channel is **local-source**. It means a local build of exact
 canonical source, not an official beta/stable binary, release publication or
 protected deployment. Detached source builds use the existing feature/local
 version resolver (`0.1.0` at this baseline); the full commit, SDK and final-byte
 hashes, not that version number alone, identify the output. Official release
-channel resolution, immutable bootstrap-asset publication and protected
-installation remain future D01/D02 work. Stable-tag classification never
-confers activation authority.
+channel resolution now belongs to the static acquisition interface below;
+protected installation remains separate work. Acquisition channel and build
+channel are distinct: stable/preview acquisition still produces a
+**local-source** build. Stable-tag classification never confers activation authority.
 
 Review the script and its complete helper set from an independently selected
 immutable repository snapshot or source archive that contains this tooling.
@@ -146,7 +148,8 @@ it needs its relative `eng` helper files, not executable experiment files. Verif
 acquired bytes against the selected trusted snapshot before executing.
 Do not pipe a mutable URL to PowerShell, download/execute a helper on demand,
 or infer publisher authentication from a self-supplied checksum. This
-source delivery is not itself a published immutable bootstrap asset.
+source delivery can now be acquired as the complete immutable release asset
+described below. Published self-supplied checksums alone remain insufficient.
 
 From that reviewed tooling checkout:
 
@@ -166,6 +169,105 @@ neither Git nor an SDK**; their runtime/native requirements remain separate.
 Clone/history and locked NuGet acquisition use network access. Restore may
 read/write the normal configured per-user package cache; no machine-wide
 prerequisite setup, accounts, security settings or models are changed.
+
+### Immutable Tool Acquisition and Channel Resolution
+
+Run [Resolve-SourceTools.ps1](../eng/Resolve-SourceTools.ps1) from an
+independently acquired/reviewed maintained checkout, including its local
+[source-tool verification](../eng/SourceTools.Common.ps1),
+[shared GitHub release](../eng/GitHubRelease.Common.ps1) and
+[distribution helpers](../eng/Distribution.Common.ps1). Do not acquire this
+verifier by piping a mutable URL to PowerShell. PowerShell 7 and GitHub CLI
+(`gh`) are acquisition prerequisites; normal GitHub access/authentication may
+be needed for API limits. No SDK, Git clone, application prerequisites, model
+downloads or elevation are needed merely to resolve/acquire/review an asset.
+Git, PowerShell 7 and the exact SDK become prerequisites only for an explicitly
+trusted source build.
+
+The default `Preview` action queries metadata only: it creates no output and
+does not download or execute source-tool code. Default **production** excludes
+all drafts and prereleases. Explicit **preview** admits published prereleases
+as well as stable releases, never drafts. Semantic numeric versions and beta
+increments determine ordering, with a stable release winning at the same
+numeric version; release dates and GitHub's mutable `latest` pointer are not
+identity or ordering authority. An optional full lowercase `-Revision` selects
+only a release bound to that exact commit within the requested channel.
+Missing candidates/assets, legacy releases without the tool asset, ambiguous
+versions, unknown channel state and API/authentication errors fail visibly;
+there is no mutable-main or other-channel fallback. During the POC phase a
+stable source-tool release may not exist, so explicitly select preview when
+appropriate.
+
+Each new canonical main/tag release includes
+`Kora-<version>-source-tools.zip`. It contains exactly the eight maintained
+v1.1.0 bootstrap/build/staging/verification scripts and `source-tools.json`,
+not an installer, application binary, source checkout or another bootstrap
+orchestrator. The manifest declares exact canonical repository/commit,
+release and bootstrap versions, each tool's canonical Git blob ID, byte count
+and SHA-256, and truthful unsigned/non-production/unavailable-activation
+provenance. The outer ZIP's final SHA-256 is bound by GitHub asset metadata,
+the release manifest and checksums. CI packages raw blobs from the exact
+commit, not line-ending-transformed working-tree files or descriptive receipts.
+The pinned SDK/dependency inputs are obtained from that same selected source
+revision by the existing explicitly trusted build workflow.
+
+`Acquire` downloads by resolved **asset ID**, verifies final size/SHA-256,
+and compares every tool to the canonical repository's exact-commit Git tree,
+not just the downloaded manifest or moving tag. It resolves the published
+release/source marker and lightweight/annotated tag before acquisition and
+rechecks their identities afterward. A matching source marker alone cannot
+admit changed scripts. The closed inventory rejects omitted/extra tools,
+duplicate paths, traversal, absolute/ADS paths, separator/case/dot aliases,
+ZIP links/directories, reparse paths and oversized entries before extraction.
+It never loads or executes any acquired script.
+
+```powershell
+# Run only this independently reviewed local verifier.
+$candidate = .\eng\Resolve-SourceTools.ps1 -Channel preview
+$acquired = .\eng\Resolve-SourceTools.ps1 -Channel preview `
+    -Revision $candidate.revision -Action Acquire `
+    -OutputDirectory 'C:\KoraToolReview\candidate-01'
+# Review source-tools.json and every acquired helper, exact source and dependencies.
+Get-Content (Join-Path $acquired.tools 'source-tools.json')
+# Only after explicit review/trust; this remains build-only, never installation.
+& (Join-Path $acquired.tools 'eng\Invoke-SourceBootstrap.ps1') `
+    -Root 'C:\KoraSource\reviewed-01' -Revision $acquired.revision `
+    -Action Build -TrustBuildCode
+```
+
+Acquisition creates a new dedicated directory with the original ZIP,
+`acquisition.json` and extracted `tools`. A complete matching rerun rechecks
+the archive, manifest and all tool bytes without download/overwrite. Changed
+identities, altered/extraneous files, linked paths, unowned directories and
+partial acquisitions are retained and refused; choose a fresh directory for
+another candidate. The acquired build entry point also refuses a revision
+different from its tool manifest and changed tool bytes. Receipt/hash checks
+do not make subsequent arbitrary local edits trusted.
+
+These checks rely on the independently reviewed local verifier, GitHub HTTPS/API
+and canonical Git object identity. SHA-256 and Git blob matching establish
+consistency with that source, **not independent signatures**, an authenticated
+Windows publisher, anti-freeze/rollback guarantees, deterministic application
+builds or production acceptance. The channel name **production** is a stable
+selection policy, not a qualification claim. Explicit source-build trust
+covers executable source/dependency/build code; it does not grant the running
+assistant authority. Source activation/installation/elevation/registration/
+launch and native installed/runtime protection remain unavailable/open.
+
+[Build-SourceTools.ps1](../eng/Build-SourceTools.ps1) is the file-only packaging
+interface: `-Revision <full-sha> -Version <exact-release-version>
+-OutputDirectory <new-directory>`. It packages canonical-origin exact Git blobs,
+verifies its finished ZIP and refuses existing output; it never invokes the
+bootstrap or build. Portable CI runs
+[source-tool contracts](../eng/Test-SourceToolsContracts.ps1), packages every
+candidate and transfers only canonical main/tag artifacts to the existing
+serialized [publisher](../eng/Publish-GitHubRelease.ps1). The publisher verifies
+the transferred ZIP against exact source, retains matching draft bytes, uploads
+only missing names and verifies the complete nine-asset set before tag/publish.
+Old published eight-asset releases remain read-only historical no-ops and are
+not relabelled as source-tool releases. An older draft with incompatible
+immutable provenance requires manual reconciliation; existing assets/manifests
+are never replaced to append this asset.
 
 ### Ownership, Verification and Recovery
 
@@ -531,10 +633,19 @@ The maintained [publisher](../eng/Publish-GitHubRelease.ps1) follows this order:
    duplicate or extra content). Retain matching original ZIP, manifest and
    checksum bytes, including their original workflow-run provenance. This also
    admits matching older drafts without regenerating their ZIP containers.
-4. Recheck before draft creation. Verify every existing asset's name, completed
+4. Recheck before draft creation. Create a new draft through the supported
+   REST endpoint and retain its positive typed release ID from the successful
+   response. Verify exact source/channel/draft/body in that response and an
+   authenticated direct-ID readback. A pending draft can be absent from an
+   immediate tag/list response; list visibility is not the creation receipt.
+   Continue tag/list enumeration to reject visible conflicts/ambiguous versions,
+   and retain the known ID for subsequent readbacks and ID-addressed binary
+   uploads. Missing/unreadable/changed IDs or bodies, unexpected HTTP errors
+   and uncertain writes fail closed, with no blind delay or in-place retry.
+   Verify every existing asset's name, completed
    state, size and SHA-256 against staging; upload only missing names, without
    clobber or deletion. Re-read the same release ID and verify the complete
-   eight-asset set, provenance and checksums before tag/publication writes.
+   nine-asset set (including exact-source tools), provenance and checksums before tag/publication writes.
    A known obsolete mandatory-encryption sentence can be replaced in **draft
    notes only**, preserving source/generated notes and every asset; confirm
    the exact revised body before proceeding. Published notes are never edited.
@@ -695,6 +806,117 @@ Update checks have bounded frequency/timeouts, respect offline/maintenance netwo
 Never describe a failed check as proof that the installation is current.
 
 ## Hosted Release Feed and Notify-Only Interaction
+
+### Delivered bounded R17/R18 native foundation
+
+Settings **Maintenance** and Tray **Release maintenance (notify-only)** open
+one explicit native review surface with running version, channel, truthful
+status, last-verification/staleness, expected application ZIP/digest, and an
+exact host-constructed canonical release page. **Check**, **Open reviewed
+canonical release page**, and **Snooze this version (24h)** are native-only.
+**Review this exact verified release** binds navigation/snooze to the current
+immutable snapshot; every refresh, expiry or admission closure invalidates
+that binding and requires a fresh native review, even for the same version.
+They are not model tools, task/skill execution, installation approvals or
+durable conversation questions. The existing local-version native question
+and external source-bootstrap/publisher workflows are unchanged.
+
+Public metadata network access is **off by default**, explicitly enabled for
+the current run only. Opt-in schedules an initial check; successful checks
+schedule six hours plus 0-30 minutes jitter. Failures back off exponentially
+from five minutes, capped at six hours; GitHub 403/429 deadlines are bounded
+to 1 minute-24 hours. Manual checks, toggling permission and channel selection
+cannot bypass an existing cadence/backoff deadline. No persisted network
+permission or startup replay is claimed. Ownership, unlocked privacy and
+absence of protected manual/automatic call state gate checks and navigation.
+Privacy/call closure cancels current work and invalidates late callbacks;
+unlock/call completion does not replay a deferred check or open a page.
+
+Production uses the latest published stable endpoint; explicit Preview
+enumerates at most five pages of twenty records and includes only published
+canonical `-beta<number>` releases. Exhausting the enumeration bound is
+**Unknown**, not a guessed latest version. Numeric GitVersion major/minor/
+patch/beta ordering places stable after beta at the same base version.
+Drafts, CI/default-branch output, arbitrary channels and remote instructions
+cannot establish availability.
+
+Checks have a 30-second total deadline, 1 MiB release responses, 128 KiB
+manifest/tag responses, depth-16 JSON and 32 KiB notes bounds. Duplicate JSON
+fields, missing/wrongly typed identity, changed assets, noncanonical URLs,
+unresolved immutable tags (at most eight annotated levels), and unsupported
+architecture fail explicitly. Nine release assets must match the publisher
+contract; the seven non-self/checksum manifest records must match their
+published SHA-256 digests. Only the manifest's bytes are obtained and hashed.
+Its canonical asset API may redirect once to GitHub's HTTPS release-asset
+CDN; other/implicit redirects are denied. No ZIP/MSI/EXE/source bytes are
+requested. An exact release readback and tag recheck detect identity changes.
+Unauthenticated bounded ETag caching retains bytes, not success-shaped error
+responses. 304 responses require prior cached bytes and full re-verification.
+
+**Available / UpToDate** require complete successful metadata verification.
+404/no selected-channel release is **Unavailable**; 403/429 is **RateLimited**;
+transport, timeout, cancellation, malformed/oversized/changed metadata is
+**Unknown**. Historical successful timestamps remain visible after failure
+but cannot authorize navigation or a current-version claim. Six-hour-old
+verification is stale even while the next jittered check is pending.
+
+The x86 ZIP does not imply x86 MSI/Burn or supported native speech/inference.
+Runtime prerequisites and native/protected-deployment acceptance remain
+separate. Deployment mode remains **Unknown**; no source mutation exists.
+Hashes establish consistency with unsigned POC metadata, **not independent
+publisher authentication, production acceptance or rollback/freeze safety**.
+Remote notes are never rendered as Markdown/HTML/instructions. The surface
+is passive: no unsolicited audio, focus, prompts or backlog; snooze is
+version-specific and in-memory. Full R17 installed acceptance and the R18
+general proactive interaction broker/voice replies remain outstanding.
+
+The r02-distribution executable/static contracts were already migrated to
+maintained `eng` tests and retired. This foundation adds production fake-HTTP,
+typed ordering/state and native-opener tests; it does not supersede or remove
+any unique historical receipts, runtime/native/protection evidence.
+
+#### Bounded verification receipt (2026-10-07)
+
+The fresh isolated maintenance worktree was rebased from stale provider HEAD
+to canonical main `281393c3895209479c82b48d73ee2088ed4bc431` before edits.
+Locked-feed restore, root Release/analyzers (zero warnings/errors), **428 Core
++ 1,341 Application + 711 Windows tests**, and fresh portable **7,860/7,860
+lines and 3,892/3,892 branches** passed. Native browser tests use an injected
+process-request seam and do not launch a browser or Kora. Public read-only
+verification through the compiled client returned Production **Unavailable
+(404)** and Preview **Available `0.1.0-beta54`**, bound to that exact canonical
+source and all nine asset identities/digests. Only release/tag metadata and
+the JSON manifest were read; no code assets, accounts or secrets were used.
+Existing version, **381 publisher assertions**, **123 immutable source-tool
+contracts**, **82 source-bootstrap fixtures**, and dependency licence controls
+passed unchanged. Source fixtures require output outside all source roots;
+their correctly rejected in-tree first attempt did not weaken that boundary.
+This is deterministic/static/public-metadata evidence, not interactive native
+acceptance, unsigned installer execution, protected loading or release sign-off.
+
+The subsequent exact-review/rebase validation preserves merged R11 #60 at
+`1506b7e4633b4291bcf6c222837cb133a12e5530` and both native tray routes.
+Every refresh (including unchanged metadata) invalidates navigation/snooze
+until a new native review. Root Release and **467 Core + 1,347 Application
++ 713 Windows tests** passed; fresh portable coverage was **8,069/8,069
+lines and 4,040/4,040 branches**. This extends, rather than rewrites, the
+original-base receipt above. Browser status acknowledges a shell navigation
+request, including existing-browser reuse, not a new process or visible page.
+
+The next rebase preserves Sessions #61 at
+`9025c15f7b9402b029ac61fc361d43192b0156bf`, Skills and all three tray routes.
+Combined validation passed **467 Core + 1,365 Application + 732 Windows
+tests**, zero-warning/error Release, and fresh portable **8,125/8,125 lines
+and 4,052/4,052 branches**. Busy checks/navigation immediately disable native
+review actions; exact snapshot and privacy/call invalidation remain enforced.
+
+Final peer rebase at Clipboard #63 source
+`d1f7e554d1db6eadd49f73103a0dc48bd5cdbd29` preserves its Tools/CI and native
+routes, and uses the current quiescence-aware desktop admission gate.
+All **493 Core + 1,388 Application + 25 Tools + 764 Windows tests** passed.
+Fresh coverage includes all three current portable assemblies:
+**8,369/8,369 lines and 4,202/4,202 branches**; root Release has zero warnings/
+errors. No experiment evidence or peer capability implementation was changed.
 
 GitHub Releases is the sole current version host for both prerelease and
 production versions of `roryprimrose/Kora`. Use its release API, or future

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using AwesomeAssertions;
 
 using Kora.Core.Dependencies;
+using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Windows.IntegrationTests.Audio;
@@ -12,6 +13,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
+[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteTaskInterruptionTests
 {
     private const string RootVariable = "KORA_OWNED_STORAGE_CHILD_ROOT";
@@ -21,25 +23,32 @@ public sealed class WindowsSqliteTaskInterruptionTests
     private const string SessionVariable = "KORA_OWNED_STORAGE_CHILD_SESSION";
 
     [Theory]
-    [InlineData("intent", HostTaskState.Interrupted)]
-    [InlineData("dispatch", HostTaskState.Unknown)]
-    [InlineData("uncommitted", HostTaskState.Interrupted)]
+    [InlineData("intent", HostTaskState.IntentRecorded, HostTaskState.Interrupted)]
+    [InlineData("dispatch", HostTaskState.DispatchRecorded, HostTaskState.Unknown)]
+    [InlineData("terminal", HostTaskState.Succeeded, HostTaskState.Succeeded)]
+    [InlineData("uncommitted-intent", null, null)]
+    [InlineData("uncommitted-dispatch", HostTaskState.IntentRecorded, HostTaskState.Interrupted)]
+    [InlineData("uncommitted-terminal", HostTaskState.DispatchRecorded, HostTaskState.Unknown)]
+    [InlineData("uncommitted-recovery", HostTaskState.DispatchRecorded, HostTaskState.Unknown)]
+    [InlineData("committed-recovery", HostTaskState.Unknown, HostTaskState.Unknown)]
     public async Task Owned_child_interruption_recovers_atomic_receipts_without_replaying_work(
-        string mode, HostTaskState recoveredState)
+        string mode, HostTaskState? priorState, HostTaskState? recoveredState)
     {
         using var fixture = new OwnedStorageFixture();
         using var listener = Listen();
         var store = new WindowsSqliteHostTaskStore(fixture);
         var request = HostRequest.Create(RequestOrigin.HostSystem);
         var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
-        if (string.Equals(mode, "intent", StringComparison.Ordinal))
-        {
-            await store.InitializeAsync(TestContext.Current.CancellationToken);
-        }
-        else
+        await store.InitializeAsync(TestContext.Current.CancellationToken);
+        new WindowsSqliteEvidenceSink(fixture).Initialize();
+        if (mode is not ("intent" or "uncommitted-intent"))
         {
             using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
             await store.CommitAsync(intent, 0, TestContext.Current.CancellationToken);
+            if (mode is "terminal" or "uncommitted-terminal" or "uncommitted-recovery" or "committed-recovery")
+            {
+                await store.CommitAsync(intent.Next(HostTaskState.DispatchRecorded), 1, TestContext.Current.CancellationToken);
+            }
         }
         var journalPath = Path.Combine(fixture.LocalRoot, "HostStorageV1", "host.db-journal");
         var journalPermissions = new FileInfo(journalPath).GetAccessControl().GetSecurityDescriptorBinaryForm();
@@ -66,29 +75,36 @@ public sealed class WindowsSqliteTaskInterruptionTests
                 }
                 await Task.Delay(TimeSpan.FromMilliseconds(25), deadline.Token);
             }
-            if (string.Equals(mode, "uncommitted", StringComparison.Ordinal))
+            if (mode.StartsWith("uncommitted-", StringComparison.Ordinal))
             {
-                new FileInfo(journalPath)
-                    .Length.Should().BeGreaterThan(512, "the synthetic child must have flushed a hot rollback journal");
+                OwnedStorageChildProcess.AssertHotJournal(journalPath);
             }
             // The only process killed is the exact child just created by this synthetic fixture.
             child.Kill(entireProcessTree: true);
             await child.WaitForExitAsync(deadline.Token);
+            await OwnedStorageChildProcess.WaitForReleasedDatabaseAsync(fixture.LocalRoot,
+                Path.Combine(fixture.LocalRoot, "HostStorageV1", "host.db"), deadline.Token);
             var reopened = new WindowsSqliteHostTaskStore(fixture);
             await reopened.InitializeAsync(TestContext.Current.CancellationToken);
             new FileInfo(journalPath).GetAccessControl().GetSecurityDescriptorBinaryForm().Should().Equal(journalPermissions);
             var prior = await reopened.ReadTaskAsync(request.TaskId, TestContext.Current.CancellationToken);
-            prior.Should().NotBeNull();
-            prior!.State.Should().Be(string.Equals(mode, "dispatch", StringComparison.Ordinal)
-                ? HostTaskState.DispatchRecorded : HostTaskState.IntentRecorded);
-            prior.Revision.Value.Should().Be(string.Equals(mode, "dispatch", StringComparison.Ordinal) ? 2 : 1);
-            using (var recovery = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Recovery))
+            (prior?.State).Should().Be(priorState);
+            using var recovery = new StorageRecoveryFixture(fixture, reopened);
+            var recovered = await recovery.Recovery.RecoverAsync(TestContext.Current.CancellationToken);
+            if (prior is { IsTerminal: false })
             {
-                await reopened.CommitAsync(prior.Recover(), prior.Revision.Value, TestContext.Current.CancellationToken);
+                recovered.Should().ContainSingle().Which.State.Should().Be(recoveredState);
+                recovered[0].Revision.Value.Should().Be(prior.Revision.Value + 1);
+            }
+            else
+            {
+                recovered.Should().BeEmpty();
             }
             var receipt = await reopened.ReadTaskAsync(request.TaskId, TestContext.Current.CancellationToken);
-            receipt!.State.Should().Be(recoveredState);
+            (receipt?.State).Should().Be(recoveredState);
             (await reopened.ReadIncompleteAsync(10, TestContext.Current.CancellationToken)).Should().BeEmpty();
+            (await recovery.Recovery.RecoverAsync(TestContext.Current.CancellationToken)).Should().BeEmpty();
+            recovery.Gaps.Should().BeEmpty();
             // Reopening and reading cannot dispatch anything or append a second recovery/terminal event.
             (await new WindowsSqliteHostTaskStore(fixture).ReadTaskAsync(request.TaskId,
                 TestContext.Current.CancellationToken)).Should().Be(receipt);
@@ -100,7 +116,30 @@ public sealed class WindowsSqliteTaskInterruptionTests
             connection.Open();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT count(*) FROM host_task_events;";
-            command.ExecuteScalar().Should().Be(receipt.Revision.Value);
+            command.ExecuteScalar().Should().Be(receipt?.Revision.Value ?? 0);
+            using var evidence = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = Path.Combine(fixture.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db"),
+                Mode = SqliteOpenMode.ReadWrite, Pooling = false,
+            }.ToString());
+            evidence.Open();
+            using var audits = evidence.CreateCommand();
+            audits.CommandText = "SELECT action_id,audit_outcome,request_id,session_id,task_id,reason_code FROM security_audit_events;";
+            using var rows = audits.ExecuteReader();
+            var count = 0;
+            while (rows.Read())
+            {
+                rows.GetString(0).Should().Be("host.task.recovery");
+                rows.GetInt64(1).Should().Be((long)SecurityAuditOutcome.Unknown);
+                rows.GetString(2).Should().Be(request.RequestId.Value.ToString("D"));
+                rows.GetString(3).Should().Be(request.SessionId.Value.ToString("D"));
+                rows.GetString(4).Should().Be(request.TaskId.Value.ToString("D"));
+                rows.GetString(5).Should().Be(recoveredState == HostTaskState.Interrupted
+                    ? "intent-interrupted" : "dispatch-unverified");
+                count++;
+            }
+            count.Should().Be(mode is "terminal" or "uncommitted-intent" ? 0
+                : string.Equals(mode, "uncommitted-recovery", StringComparison.Ordinal) ? 2 : 1);
         }
         finally
         {
@@ -131,57 +170,43 @@ public sealed class WindowsSqliteTaskInterruptionTests
         }
         var paths = new ExistingPaths(root);
         using var listener = Listen();
-        var store = new WindowsSqliteHostTaskStore(paths);
         var mode = Environment.GetEnvironmentVariable(ModeVariable);
+        if (mode is not ("intent" or "dispatch" or "terminal" or "uncommitted-intent"
+            or "uncommitted-dispatch" or "uncommitted-terminal" or "uncommitted-recovery" or "committed-recovery"))
+        {
+            throw new InvalidOperationException("An unknown storage-only child mode was requested.");
+        }
+        var checkpoint = mode.StartsWith("uncommitted-", StringComparison.Ordinal)
+            ? new SqliteTransactionCheckpoint
+            {
+                Write = SqliteTransactionCheckpoint.SpillPages,
+                Commit = (_, _) => OwnedStorageChildProcess.SignalAndBlock(root, "child-ready"),
+            } : null;
+        var store = new WindowsSqliteHostTaskStore(paths, checkpoint);
         var intent = await store.ReadTaskAsync(new(task), TestContext.Current.CancellationToken);
-        if (intent is null && string.Equals(mode, "intent", StringComparison.Ordinal))
+        if (intent is null && mode is "intent" or "uncommitted-intent")
         {
             intent = new HostTaskRecord(new HostRequest(new(request), new(session), new(task),
                 RequestOrigin.HostSystem), new(1), HostTaskState.IntentRecorded);
         }
         intent = intent ?? throw new InvalidDataException("The synthetic child intent is missing.");
-        using var host = HostActivity.BeginRoot(intent.Request, HostActivityLayer.Application, HostOperation.Request);
-        if (string.Equals(mode, "intent", StringComparison.Ordinal))
+        if (mode is "uncommitted-recovery" or "committed-recovery")
         {
-            await store.CommitAsync(intent, 0, TestContext.Current.CancellationToken);
-        }
-        if (string.Equals(mode, "dispatch", StringComparison.Ordinal))
-        {
-            await store.CommitAsync(intent.Next(HostTaskState.DispatchRecorded), intent.Revision.Value,
-                TestContext.Current.CancellationToken);
-        }
-        if (string.Equals(mode, "uncommitted", StringComparison.Ordinal))
-        {
-            var directory = new RestrictedStorageDirectory(paths, includeKeys: false);
-            using var lease = directory.AcquireLease();
-            using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-            {
-                DataSource = Path.Combine(root, "HostStorageV1", "host.db"),
-                Mode = SqliteOpenMode.ReadWrite, Pooling = false,
-            }.ToString());
-            connection.Open();
-            using var configure = connection.CreateCommand();
-            configure.CommandText = "PRAGMA journal_mode=PERSIST; PRAGMA synchronous=FULL; PRAGMA cache_size=1; PRAGMA cache_spill=ON;";
-            configure.ExecuteNonQuery();
-            using var transaction = connection.BeginTransaction();
-            using var write = connection.CreateCommand();
-            write.Transaction = transaction;
-            write.CommandText = """
-                INSERT INTO host_task_events(task_id,revision,state) VALUES($task,2,1);
-                UPDATE host_tasks SET revision=2,state=1 WHERE task_id=$task;
-                """;
-            write.Parameters.AddWithValue("$task", task.ToString("D"));
-            write.ExecuteNonQuery();
-            await SignalAndWait(root);
-        }
-        else if (mode is "intent" or "dispatch")
-        {
-            await SignalAndWait(root);
+            using var recovery = new StorageRecoveryFixture(paths, store);
+            (await recovery.Recovery.RecoverAsync(TestContext.Current.CancellationToken)).Should().ContainSingle();
         }
         else
         {
-            throw new InvalidOperationException("An unknown storage-only child mode was requested.");
+            using var host = HostActivity.BeginRoot(intent.Request, HostActivityLayer.Application, HostOperation.Request);
+            var next = mode switch
+            {
+                "intent" or "uncommitted-intent" => intent,
+                "dispatch" or "uncommitted-dispatch" => intent.Next(HostTaskState.DispatchRecorded),
+                _ => intent.Next(HostTaskState.Succeeded),
+            };
+            await store.CommitAsync(next, next.Revision.Value - 1, TestContext.Current.CancellationToken);
         }
+        await SignalAndWait(root);
     }
 
     private static async Task SignalAndWait(string root)

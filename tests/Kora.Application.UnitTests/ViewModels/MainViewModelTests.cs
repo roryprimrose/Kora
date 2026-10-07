@@ -5,11 +5,13 @@ using System.Diagnostics;
 using AwesomeAssertions;
 
 using Kora.Application;
+using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
 using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -3114,10 +3116,11 @@ public sealed partial class MainViewModelTests : IDisposable
     [Fact]
     public async Task Disabling_call_visual_override_restores_the_normal_response_mode()
     {
-        var fixture = await Fixture.CreateInitializedAsync();
+        var fixture = new Fixture();
+        fixture.CallPreferences.Settings = new(false, true);
+        await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
 
-        await fixture.ViewModel.ToggleCallVisualOverrideCommand.ExecuteAsync();
         fixture.CallState.SetState(CallState.Suspected);
         await fixture.Dispatcher.LastInvocation;
 
@@ -3127,13 +3130,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeTrue();
         fixture.ViewModel.CallVisualOverrideButtonText.Should().Be("Show visual text during calls");
-        fixture.CallPreferences.SavedSettings.Should().Be(new CallAwareSettings(false, true));
-        AssertAuditPair(
-            fixture,
-            SecurityAuditCategory.ConfigurationWrite,
-            "configuration.call-aware-policy",
-            SecurityAuditInitiator.LocalUser,
-            SecurityAuditOutcome.Succeeded);
+        fixture.CallPreferences.SavedSettings.Should().BeNull();
 
         await fixture.RunAsync("unsupported");
 
@@ -3194,15 +3191,16 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.ToggleCallVoiceActivationCommand.ExecuteAsync();
 
-        fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeTrue();
-        fixture.ViewModel.CallVoiceActivationButtonText.Should().Be("Disable voice activation during calls");
+        fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeFalse();
+        fixture.ViewModel.ResponseBody.Should().Contain("exact trusted review");
     }
 
     [Fact]
     public async Task Enabling_visual_override_during_a_call_stops_current_speech()
     {
-        var fixture = await Fixture.CreateInitializedAsync();
-        await fixture.ViewModel.ToggleCallVisualOverrideCommand.ExecuteAsync();
+        var fixture = new Fixture();
+        fixture.CallPreferences.Settings = new(false, true);
+        await fixture.ViewModel.InitializeAsync();
         fixture.CallState.SetState(CallState.Active);
         await fixture.Dispatcher.LastInvocation;
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
@@ -3246,7 +3244,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.CallPreferences.SaveException = (Exception)Activator.CreateInstance(exceptionType)!;
 
-        await fixture.ViewModel.ToggleCallVisualOverrideCommand.ExecuteAsync();
+        await fixture.ViewModel.ToggleCallVoiceActivationCommand.ExecuteAsync();
 
         fixture.ViewModel.ResponseTitle.Should().Be("The call-aware settings could not be saved.");
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
@@ -3282,15 +3280,13 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.SetShowVisualTextDuringCallsAsync(false);
         await fixture.ViewModel.SetAllowVoiceActivationDuringCallsAsync(false);
 
-        fixture.ViewModel.ShowVisualTextDuringCalls.Should().BeFalse();
+        fixture.ViewModel.ShowVisualTextDuringCalls.Should().BeTrue();
         fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeFalse();
-        fixture.ViewModel.CallVisualOverrideStatus.Should().StartWith("Off");
+        fixture.ViewModel.CallVisualOverrideStatus.Should().StartWith("On");
         fixture.ViewModel.CallVoiceActivationStatus.Should().StartWith("Off");
-        changedProperties.Should().Contain(nameof(MainViewModel.ShowVisualTextDuringCalls));
-        changedProperties.Should().Contain(nameof(MainViewModel.CallVisualOverrideStatus));
         changedProperties.Should().Contain(nameof(MainViewModel.AllowVoiceActivationDuringCalls));
         changedProperties.Should().Contain(nameof(MainViewModel.CallVoiceActivationStatus));
-        fixture.CallPreferences.SavedSettings.Should().Be(new CallAwareSettings(false, false));
+        fixture.CallPreferences.SavedSettings.Should().Be(new CallAwareSettings(true, false));
     }
 
     [Fact]
@@ -3702,7 +3698,7 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.ViewModel.FallbackToVisualWhenOutputMuted = true;
         }
 
-        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().BeTrue();
+        fixture.ViewModel.FallbackToVisualWhenOutputMuted.Should().Be(initializing);
         fixture.WindowActions.Should().NotContain(WindowAction.Show);
     }
 
@@ -4133,7 +4129,8 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.BeginPushToTalkAsync();
 
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
-        var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases);
+        var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
+            .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
@@ -4451,6 +4448,121 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.SetupTasks.Should().Contain(task =>
             task.Id == "local.reasoning" && task.State == SetupTaskState.Completed);
         fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Typed_slash_command_selects_artifact_without_bypassing_the_model_action_gate()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which
+            .Should().Be("Run the selected skill.");
+        fixture.Reasoner.LastArtifact.Should().NotBeNull();
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Activated_voice_artifact_command_uses_the_same_artifact_route()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RaiseActivatedTranscriptAsync("Kora, use lock to lock this session", 0.91f);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which
+            .Should().Be("lock this session");
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Artifact_selection_is_retained_across_a_clarification_answer()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which target?", ["Current", "Other"]);
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Reasoner.Question = null;
+        await fixture.ViewModel.SelectModelQuestionChoiceAsync(
+            fixture.ViewModel.ModelQuestionChoices[0]);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().HaveCount(2);
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+    }
+
+    [Fact]
+    public async Task Unknown_slash_command_fails_closed_without_invoking_the_model()
+    {
+        var fixture = new Fixture();
+
+        await fixture.RunAsync("/not-registered");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact command not found.");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Slash_command_dropdown_filters_and_applies_available_artifacts()
+    {
+        var fixture = new Fixture();
+
+        fixture.ViewModel.CommandText = "/";
+
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeTrue();
+        fixture.ViewModel.ArtifactCommandOptions.Should().ContainSingle();
+        var option = fixture.ViewModel.ArtifactCommandOptions[0];
+        option.Command.Should().Be("/lock");
+        option.Source.Should().Be("bundled");
+
+        fixture.ViewModel.ApplyArtifactCommandOption(option);
+
+        fixture.ViewModel.CommandText.Should().Be("/lock ");
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeFalse();
+
+        fixture.ViewModel.CommandText = "/";
+        fixture.ViewModel.DismissArtifactCommandOptions();
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeFalse();
+
+        fixture.ViewModel.ApplyArtifactCommandOption(option);
+        fixture.ViewModel.CommandText.Should().Be("/");
+    }
+
+    [Fact]
+    public void Slash_command_dropdown_supports_kind_qualification_and_dismissal()
+    {
+        var artifacts = new[]
+        {
+            new ArtifactDefinition(
+                "kora.skill.test", ArtifactKind.Skill, "Test skill", "Skill.",
+                "test-skill", ["test skill"], "bundled", "1.0.0", new string('1', 64), "Skill body."),
+            new ArtifactDefinition(
+                "kora.prompt.test", ArtifactKind.Prompt, "Test prompt", "Prompt.",
+                "test-prompt", ["test prompt"], "bundled", "1.0.0", new string('2', 64), "Prompt body."),
+        };
+
+        MainViewModel.FilterArtifactCommandOptions("/prompt test", artifacts)
+            .Should().ContainSingle().Which.Command.Should().Be("/test-prompt");
+        MainViewModel.FilterArtifactCommandOptions("/skill test", artifacts)
+            .Should().ContainSingle().Which.Command.Should().Be("/test-skill");
+        MainViewModel.FilterArtifactCommandOptions("not a command", artifacts).Should().BeEmpty();
     }
 
     [Fact]
@@ -7615,9 +7727,28 @@ public sealed partial class MainViewModelTests : IDisposable
             ApprovalPreferences = new FakeModelApprovalPreferences();
             ModelExecutionPreferences = new FakeModelExecutionPreferences();
             ApplicationInfo = new FakeApplicationInfo();
+            var clipboard = new Kora.Tools.Clipboard.ClipboardSnapshotBroker(ClipboardReader, TimeProvider.System,
+                NullLogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>.Instance);
+            var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(bootstrapper);
+            var artifactCatalogue = new ArtifactCatalogue(
+            [
+                new ArtifactDefinition(
+                    "kora.session.lock",
+                    ArtifactKind.Skill,
+                    "Lock the machine",
+                    "Lock the current Windows session.",
+                    "lock",
+                    ["lock", "lock the machine"],
+                    "bundled",
+                    "1.0.0",
+                    new string('0', 64),
+                    "Select only for an explicit request to lock the current session."),
+            ]);
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
+                artifactCatalogue,
+                new ArtifactCommandRouter(artifactCatalogue),
                 bootstrapper,
                 new DependencySetupWorkflow(
                     bootstrapper,
@@ -7647,7 +7778,24 @@ public sealed partial class MainViewModelTests : IDisposable
                 VoiceConsent,
                 PrivacyObservation,
                 new DurableVersionQuery(new HostTaskCoordinator(HostStore), Audit,
-                    NullLogger<DurableVersionQuery>.Instance));
+                    NullLogger<DurableVersionQuery>.Instance),
+                new Kora.Application.Tools.ReadOnlyCapabilityRegistry(
+                    new CapabilityHostAccess(Session),
+                    new Kora.Tools.Capabilities.CapabilitiesList(),
+                    new Kora.Tools.Capabilities.CapabilitiesGet(),
+                    new Kora.Tools.Application.ApplicationGetVersion(ApplicationInfo),
+                    new Kora.Tools.Readiness.ReadinessGet(bootstrapper),
+                    new Kora.Tools.Runtime.RuntimeList(runtime),
+                    new Kora.Tools.Runtime.RuntimeGetStatus(runtime),
+                    NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance),
+                new AppearanceConfigurationService(AppearancePreferences, Audit,
+                    NullLogger<AppearanceConfigurationService>.Instance),
+                clipboard,
+                new Kora.Tools.Clipboard.ClipboardRead(clipboard),
+                new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
+                new Kora.Tools.Clipboard.ClipboardRevoke(clipboard));
+            ViewModel.BindCallOwnershipGate(static () => true);
+            ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
             {
                 ViewModel.WindowActionRequested += (_, action) =>
@@ -7659,6 +7807,11 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public BuiltInCommandCatalog Catalog { get; }
+
+        private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess
+        {
+            public bool IsCurrentHost => session.IsUnlocked;
+        }
 
         public QueryTaskStore HostStore { get; } = new();
 
@@ -7907,14 +8060,17 @@ public sealed partial class MainViewModelTests : IDisposable
             public Exception? Failure { get; set; }
 
             public LocalModelContext? LastContext { get; private set; }
+            public LocalModelArtifact? LastArtifact { get; private set; }
 
             public async Task<LocalModelResponse> ReasonAsync(
                 string request,
                 LocalModelContext context,
+                LocalModelArtifact? artifact,
                 CancellationToken cancellationToken)
             {
                 Requests.Add(request);
                 LastContext = context;
+                LastArtifact = artifact;
                 if (Failure is not null)
                 {
                     throw Failure;
@@ -7982,6 +8138,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 Settings = settings;
             }
         }
+
+        public FakeClipboardReader ClipboardReader { get; } = new();
 
         public async Task RunAsync(string command)
         {
@@ -8215,7 +8373,9 @@ public sealed partial class MainViewModelTests : IDisposable
             AfterStart?.Invoke();
         }
 
-        public Task StopAsync(CancellationToken cancellationToken = default)
+        public TaskCompletionSource? StopGate { get; set; }
+
+        public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             events.Add("voice.stop");
             StopCalls++;
@@ -8225,7 +8385,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 throw StopException;
             }
             IsListening = false;
-            return Task.CompletedTask;
+            if (StopGate is not null) { await StopGate.Task.WaitAsync(cancellationToken); }
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
@@ -8255,8 +8415,10 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService
     {
+        private long outputGeneration;
         public void InvalidateOutput()
         {
+            Interlocked.Increment(ref outputGeneration);
             events.Add("speech.invalidate");
             IsSpeaking = false;
             PlaybackFrame = SpeechPlaybackFrame.Inactive;
@@ -8364,7 +8526,9 @@ public sealed partial class MainViewModelTests : IDisposable
             AudioOutputDevice outputDevice,
             CancellationToken cancellationToken = default)
         {
+            var generation = Interlocked.Read(ref outputGeneration);
             BeforeSpeak?.Invoke();
+            if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
             if (SpeakException is not null)
             {
                 throw SpeakException;
@@ -8379,6 +8543,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 await SpeakGate.Task.WaitAsync(cancellationToken);
             }
+            if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
 
             IsSpeaking = false;
         }
@@ -8974,6 +9139,12 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public CallState CurrentState { get; private set; } = CallState.Unavailable;
 
+        public void SetInvalidObservation()
+        {
+            CurrentState = (CallState)99;
+            StateChanged?.Invoke(this, new CallStateChangedEventArgs(CallState.Unknown));
+        }
+
         public void SetState(CallState state)
         {
             CurrentState = state;
@@ -9036,7 +9207,13 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         public List<SecurityAuditEvent> Events { get; } = [];
 
-        public void Write(SecurityAuditEvent auditEvent) => Events.Add(auditEvent);
+        public Action<SecurityAuditEvent>? BeforeWrite { get; set; }
+
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            BeforeWrite?.Invoke(auditEvent);
+            Events.Add(auditEvent);
+        }
     }
 
     private sealed class FakeApplicationInfo : IApplicationInfo

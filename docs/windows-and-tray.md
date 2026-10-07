@@ -74,6 +74,11 @@ The right-click menu contains:
 - **Show Kora**
 - **Kora Settings**
 - **Documentation**
+- **Sessions**
+- **Preview clipboard (local plain text)**
+- **Release maintenance (notify-only)**
+- **Evidence (read-only)**
+- **Review local version (native question)**
 - **Enable listening / Disable listening**
 - **Voice consent / push-to-talk**
 - **Microphones** (enumerated endpoint IDs, selected and unavailable state)
@@ -90,6 +95,50 @@ Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
 launcher/tray to return to native status and recovery.
 
 ## Passive document details
+
+### Minimal durable Sessions
+
+Choose **Sessions**, use exact **open sessions**, or press **Ctrl+Shift+S**
+in the compact response. **Refresh** lists existing Active/Done durable IDs
+and generations, 25 per page. Selection reads actual typed question history
+and current task records, never a conversation title or fabricated progress.
+Next session/question/task/evidence controls are independently bounded.
+**Read selected evidence** uses the separate diagnostic/audit projection;
+missing conversation/session sources remain unavailable.
+
+Selection and browsing do not redirect questions, approvals, voice input or
+the global command box, and never resume. **Mark selected ID Done** and
+**Explicitly resume selected ID** are explicit actions on the displayed ID
+and expected generation. Live/Unknown work and unresolved questions block
+them; Kora does not cancel or abandon work to make them eligible. Ownership,
+privacy, call policy/revision, committed control intent and atomic authoritative
+audit are checked by the writer, not inferred from the display. A conflict or
+failure reports refusal/recovery; refresh before retrying.
+
+Done/resume each advance generation and invalidate old scoped authority.
+Perpetual records remain independent. Resume does not rerun tasks, revive
+approvals or restore/transmit old context. Privacy closure clears this window.
+Full conversations, work queues, rename/create metadata, automatic archive,
+delete/retention, export and scheduling are not delivered. No live visual,
+screen-reader or OS-session acceptance is claimed by fixture tests.
+
+### Local clipboard preview
+
+The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
+uses inert native plain text, not Markdown/HTML parsing or the document viewer's
+copy controls. It has exact-ID reuse and revoke/clear only. Closing it revokes
+the selected snapshot. It does not authorize explanation or model transmission.
+
+The separate **Review local version (native question)** tray entry opens one
+owned native card bound to the original durable host question, not whichever
+window is focused. It shows exact target/revision/expiry, an unselected choice,
+Review exact record, Save draft, Submit answer, Cancel question and Close.
+Editing is not submission; closing/Escape is not approval or grant use.
+Expiry, revised/closed targets and unknown privacy/ownership disable the
+affected card. Query/audit failures report recovery without a success receipt.
+See [the bounded version route](commands.md#show-the-running-version).
+This question card is separate from passive Sessions/history and is not a
+new side effect or general approval dispatcher.
 
 Choose **Documentation**, select a guide page, then **Open details** to read
 that exact page in a separate native window. Its host-owned title, provenance,
@@ -120,7 +169,7 @@ presentation only; it does not stop work, finish a session or delete source.
 Privacy closure clears and closes details rather than restoring them on unlock.
 
 This is an embedded-document reader, not durable conversation history or
-general response routing. Sessions/history, verbal detail offers, rich HTML,
+general response routing. Full conversation/history, verbal detail offers, rich HTML,
 diagrams, export and full script/diff review remain planned. Native visual and
 assistive-technology trials remain pending.
 

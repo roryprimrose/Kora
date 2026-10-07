@@ -4,12 +4,14 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tests\GitHubRelease.Fixture.ps1')
+. (Join-Path $PSScriptRoot 'SourceTools.Common.ps1')
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "KoraReleaseTests-$([guid]::NewGuid().ToString('N'))"
 $saved = @{}
 foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name)
 }
-$source = 'a' * 40
+$source = (& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the publication fixture tooling source.' }
 $version = '0.1.0-beta4'
 $global:KoraReleaseTestState = New-ReleaseFixtureState
 $assertions = 0
@@ -37,6 +39,11 @@ function Copy-State {
     return ($State | ConvertTo-Json -Depth 15 | ConvertFrom-Json -AsHashtable)
 }
 function New-Candidate {
+    $toolDirectory = Join-Path $fixture 'source-tools'
+    if (!(Test-Path -LiteralPath $toolDirectory)) { New-ProofDirectory $toolDirectory }
+    $tree = @(Get-LocalSourceToolTree (Join-Path $PSScriptRoot '..') $source)
+    New-SourceToolArchive (Join-Path $PSScriptRoot '..') $source $version `
+        (Join-Path $toolDirectory "Kora-$version-source-tools.zip") $tree
     foreach ($rid in @('win-x64', 'win-x86')) {
         $path = Join-Path $fixture "Kora-$rid"
         New-Item -ItemType Directory -Path $path -Force | Out-Null
@@ -86,7 +93,7 @@ try {
         @{ Action = 'Check'; Release = 404; Tag = 200; Exit = 0 }
         @{ Action = 'Publish'; Exit = 0 }
     )
-    foreach ($status in @(401, 403, 429, 500)) {
+    foreach ($status in @(401, 403, 429, 500, 503)) {
         $cases += @{ Action = 'Check'; Release = $status; Tag = 404; Exit = 1 }
         $cases += @{ Action = 'Check'; Release = 404; Tag = $status; Exit = 1 }
         $cases += @{ Action = 'Check'; List = $status; Exit = 1 }
@@ -102,6 +109,18 @@ try {
         @{ Action = 'Publish'; Fail = 'notes'; After = $true; Legacy = $true; Exit = 1 }
         @{ Action = 'Publish'; HardStop = 'notes'; Legacy = $true; Exit = 137 }
     )
+    $cases += @{ Action = 'Publish'; Hidden = $true; Exit = 0 }
+    $cases += @{ Action = 'Publish'; Stale = $true; Exit = 0 }
+    foreach ($status in @(404, 401, 403, 500, 503)) {
+        $cases += @{ Action = 'Publish'; Read = $status; Exit = 1 }
+    }
+    $cases += @{ Action = 'Publish'; Timeout = $true; Exit = 1 }
+    foreach ($response in @('malformed', 'missing-id', 'wrong-id', 'id-type', 'source', 'body', 'channel', 'published')) {
+        $cases += @{ Action = 'Publish'; Response = $response; Exit = 1 }
+    }
+    foreach ($change in @('id', 'id-type', 'source', 'body', 'marker', 'channel', 'published')) {
+        $cases += @{ Action = 'Publish'; Drift = $change; Exit = 1 }
+    }
     foreach ($case in $cases) {
         $state = if ($case.ContainsKey('Legacy')) { Copy-State $legacyDraft } else { New-ReleaseFixtureState }
         if ($case.ContainsKey('Release')) { $state.ReleaseStatus = $case.Release; $state.UseNativeExit = $true }
@@ -112,6 +131,12 @@ try {
         if ($case.ContainsKey('List')) { $state.ListStatus = $case.List }
         if ($case.ContainsKey('Fail')) { $state.Fail = $case.Fail; $state.FailAfter = $case.After }
         if ($case.ContainsKey('HardStop')) { $state.HardStop = $case.HardStop; $state.ResultPath = $resultPath }
+        if ($case.ContainsKey('Hidden')) { $state.HideCreatedDrafts = $true }
+        if ($case.ContainsKey('Stale')) { $state.Pages['1'] = @(@{ id = 999; tag_name = 'unrelated'; draft = $false }) }
+        if ($case.ContainsKey('Read')) { $state.ReadStatus = $case.Read }
+        if ($case.ContainsKey('Timeout')) { $state.ReadTimeout = $true }
+        if ($case.ContainsKey('Response')) { $state.CreateResponse = $case.Response }
+        if ($case.ContainsKey('Drift')) { $state.DirectReadChange = $case.Drift }
         $state | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath $statePath
         # Exact Actions pwsh prologue, dot-source command and native-status epilogue.
         [IO.File]::WriteAllText($wrapper, @"
@@ -176,12 +201,84 @@ try {
     Reject { Invoke-Release Publish } 'full ICE'
     Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Invalid candidate performed a release write.'
     [IO.File]::WriteAllBytes($receiptPath, $receiptBytes)
+    $toolPath = Join-Path $fixture "source-tools\Kora-$version-source-tools.zip"
+    $toolBytes = [IO.File]::ReadAllBytes($toolPath)
+    Remove-Item -LiteralPath $toolPath
+    Reject { Invoke-Release Publish }
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Missing source tools performed a release write.'
+    [IO.File]::WriteAllText($toolPath, 'corrupt source tools')
+    Reject { Invoke-Release Publish }
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Corrupt source tools performed a release write.'
+    [IO.File]::WriteAllBytes($toolPath, $toolBytes)
     Invoke-Release Publish | Out-Null
     $complete = Copy-State $global:KoraReleaseTestState
-    Assert (($complete.Writes -join ',') -eq "create,$((@('upload') * 8) -join ','),tag,publish") 'Incorrect mutation ordering.'
+    Assert (($complete.Writes -join ',') -eq "create,$((@('upload') * 9) -join ','),tag,publish") 'Incorrect mutation ordering.'
     Assert ((Invoke-Release).AlreadyPublished) 'Exact published release is not idempotent.'
     Invoke-Release Publish | Out-Null
     Assert ($global:KoraReleaseTestState.Writes.Count -eq $complete.Writes.Count) 'No-op publication changed assets.'
+
+    foreach ($visibility in @('hidden', 'stale')) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        if ($visibility -eq 'hidden') { $global:KoraReleaseTestState.HideCreatedDrafts = $true }
+        else { $global:KoraReleaseTestState.Pages['1'] = @(@{ id = 999; tag_name = 'unrelated'; draft = $false }) }
+        Invoke-Release Publish | Out-Null
+        Assert (-not $global:KoraReleaseTestState.Releases[0].draft) "Created draft with $visibility immediate listing was not published by verified ID."
+        Assert (@($global:KoraReleaseTestState.Calls | Where-Object { ($_ -join ' ') -like '*--include repos/roryprimrose/Kora/releases/123*' }).Count -gt 0) 'Creation did not use authenticated direct-ID readback.'
+        Assert (@($global:KoraReleaseTestState.Calls | Where-Object { $_[0] -eq 'release' -and $_[1] -in @('create', 'upload') }).Count -eq 0) 'Publication rediscovered a newly created draft by tag for a write.'
+    }
+    foreach ($response in @('malformed', 'missing-id', 'wrong-id', 'id-type', 'source', 'body', 'channel', 'published')) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        $global:KoraReleaseTestState.CreateResponse = $response
+        Reject { Invoke-Release Publish }
+        Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') "Hostile create response $response caused subsequent writes/retries."
+    }
+    foreach ($change in @('id', 'id-type', 'source', 'body', 'marker', 'channel', 'published')) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        $global:KoraReleaseTestState.DirectReadChange = $change
+        Reject { Invoke-Release Publish }
+        Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') "Hostile direct-ID $change caused subsequent writes/retries."
+    }
+    foreach ($status in @(404, 401, 403, 500, 503)) {
+        $global:KoraReleaseTestState = New-ReleaseFixtureState
+        $global:KoraReleaseTestState.ReadStatus = $status
+        Reject { Invoke-Release Publish }
+        Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') "Direct-ID HTTP $status caused subsequent writes/retries."
+    }
+    $global:KoraReleaseTestState = New-ReleaseFixtureState
+    $global:KoraReleaseTestState.ReadTimeout = $true
+    Reject { Invoke-Release Publish } 'timeout'
+    Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') 'Direct-ID timeout caused retries or publication.'
+    $global:KoraReleaseTestState = New-ReleaseFixtureState
+    $global:KoraReleaseTestState.CompetingAfterCreate = $true
+    Reject { Invoke-Release Publish } 'Multiple releases'
+    Assert (($global:KoraReleaseTestState.Writes -join ',') -eq 'create') 'Known ID bypassed conflicting/ambiguous discovery.'
+    $global:KoraReleaseTestState = New-ReleaseFixtureState
+    $global:KoraReleaseTestState.DriftBodyOnUpload = $true
+    Reject { Invoke-Release Publish } 'identity/body changed'
+    Assert ($global:KoraReleaseTestState.Releases[0].draft -and $global:KoraReleaseTestState.Writes -notcontains 'tag' -and
+        $global:KoraReleaseTestState.Writes -notcontains 'publish') 'Body changed during upload crossed the tag/publication boundary.'
+
+    $historical = Copy-State $complete
+    $historical.Releases[0].assets = @($historical.Releases[0].assets | Where-Object name -CNE "Kora-$version-source-tools.zip")
+    $historicalManifest = [Text.Encoding]::UTF8.GetString([byte[]] $historical.Content['8']) | ConvertFrom-Json
+    $historicalManifest.assets = @($historicalManifest.assets | Where-Object name -CNE "Kora-$version-source-tools.zip")
+    $historical.Content['8'] = [Text.Encoding]::UTF8.GetBytes(($historicalManifest | ConvertTo-Json -Depth 6))
+    $manifestAsset = @($historical.Releases[0].assets | Where-Object name -CEQ 'release-manifest.json')[0]
+    $manifestAsset.size = $historical.Content['8'].Length
+    $manifestAsset.digest = 'sha256:' + [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([byte[]] $historical.Content['8']))
+    $historical.Content['7'] = [Text.Encoding]::UTF8.GetBytes((@($historical.Releases[0].assets |
+        Where-Object name -CNE 'SHA256SUMS.txt' | ForEach-Object { "$($_.digest.Substring(7))  $($_.name)" }) -join "`n"))
+    $checksumAsset = @($historical.Releases[0].assets | Where-Object name -CEQ 'SHA256SUMS.txt')[0]
+    $checksumAsset.size = $historical.Content['7'].Length
+    $checksumAsset.digest = 'sha256:' + [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([byte[]] $historical.Content['7']))
+    $global:KoraReleaseTestState = Copy-State $historical
+    Assert ((Invoke-Release).AlreadyPublished) 'Historical eight-asset release was not retained as a read-only no-op.'
+    Invoke-Release Publish | Out-Null
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq $complete.Writes.Count) 'Historical publication was extended or changed.'
+    $global:KoraReleaseTestState = Copy-State $historical
+    $global:KoraReleaseTestState.Releases[0].draft = $true
+    Reject { Invoke-Release Publish } 'provenance'
+    Assert ($global:KoraReleaseTestState.Writes.Count -eq $complete.Writes.Count) 'Historical draft provenance was overwritten to add tools.'
 
     foreach ($field in @('target_commitish', 'body', 'prerelease', 'digest', 'size', 'name', 'state', 'tag')) {
         $global:KoraReleaseTestState = Copy-State $complete
@@ -304,15 +401,15 @@ try {
     $global:KoraReleaseTestState.ReadStatus = 500
     Reject { Invoke-Release } 'Cannot establish GitHub publication state'
     $global:KoraReleaseTestState = Copy-State $draftOnly
-    $global:KoraReleaseTestState.Pages[1] = @(@{ id = 999; tag_name = 'unrelated' }) * 100
-    $global:KoraReleaseTestState.Pages[2] = $draftOnly.Releases
+    $global:KoraReleaseTestState.Pages['1'] = @(@{ id = 999; tag_name = 'unrelated' }) * 100
+    $global:KoraReleaseTestState.Pages['2'] = $draftOnly.Releases
     Assert (-not (Invoke-Release).AlreadyPublished) 'Paginated draft lookup failed.'
     Assert (@($global:KoraReleaseTestState.Calls | Where-Object { ($_ -join ' ') -like '*page=2*' }).Count -gt 0) 'Lookup omitted the second page.'
     $global:KoraReleaseTestState = Copy-State $complete
     $global:KoraReleaseTestState.Tag = @{ object = @{ type = 'tag'; sha = 'c' * 40 } }
-    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ object = @{ type = 'commit'; sha = $source } }
+    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ sha = 'c' * 40; object = @{ type = 'commit'; sha = $source } }
     Assert ((Invoke-Release).AlreadyPublished) 'Annotated exact-source tag was rejected.'
-    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ object = @{ type = 'tag'; sha = 'c' * 40 } }
+    $global:KoraReleaseTestState.Annotated[('c' * 40)] = @{ sha = 'c' * 40; object = @{ type = 'tag'; sha = 'c' * 40 } }
     Reject { Invoke-Release } 'exact source revision'
 
     Test-RunnerExit

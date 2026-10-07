@@ -6,6 +6,76 @@ routing, durable history/artifact resolution and isolated HTML remain gated.
 The guide, bootstrap grant document and passive viewer share the bounded
 native Markdig/Avalonia pipeline. This is a partial R14 delivery, not the
 general artifact or permission-management experience described below.
+The bounded native shared-question slice additionally reuses this passive
+plain-text renderer for complete immutable host-record review, separate from
+native answer/approval controls.
+
+## Delivered Exact Host-Record Review - 2026-10-07
+
+### Delivered R07 Immutable Plain-Text Clipboard Preview
+
+The explicit clipboard route opens a separate native inert-text window, not a
+Markdown/rich renderer or a host authorization card. It shows the exact
+snapshot, host source/snapshot IDs, `CF_UNICODETEXT` format, read version/time
+and strict UTF-8 byte count. No copy/cut/paste/export, links, interpretation
+or automatic refresh occurs. **Reuse this exact snapshot ID** selects only the
+same immutable item; **Revoke and clear** and window close release it.
+Host privacy/ownership/call-generation loss and cancellation retire content and
+late callbacks. Preview is not a context egress grant or inference result.
+See [the R07 security boundary](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07);
+full clipboard answering and real native acceptance remain unavailable/open.
+
+### Delivered Bounded Native Evidence Inspection
+
+The tray's **Evidence (read-only)** entry opens a separate, non-topmost native
+window using the existing theme resources. It is not the clipboard-capable
+passive detail viewer. Source, safe-text, session/task GUID and W3C trace
+filters provide deterministic current-user SQLite inspection without a model,
+network, microphone or browser. Search starts a fresh bounded snapshot;
+Next page continues only that snapshot. Selecting a cited record exposes its
+parent/explicit link availability; Read selected trace and Open selected
+segment use the same typed query service, never paths or SQL.
+
+The complete compact serialized page, including correlation, typed values,
+stable citations and disclosure, is limited to 50 records / 64 KiB UTF-8.
+Over-budget individual content is explicitly marked `ContentOmitted`, not
+silently shortened. Missing records/trace segments, expired-but-present
+records, unavailable sources and storage/access/validation errors are visible.
+Due dates do not prove physical removal; absent segments may never have been
+recorded. The query is a diagnostic projection, not the atomic interaction
+audit or proof of authorization/effect. Session/conversation history is
+unavailable, not an empty successful fabricated store.
+
+Controls have native accessible labels and keyboard navigation. Result text
+is inert and non-selectable. Copy/cut clipboard paths and context menus are
+blocked; there are no export, Ask Evidence, execution or source-deletion
+controls. Ownership/privacy is checked before and after the read; privacy
+closure cancels the viewer and clears its page/filter state. Reading does not
+refresh retention, consume grants, change runtime admission or resume work.
+Automated real-store/view-model/XAML tests are not native visual, screen-reader,
+DPI, contrast, installed or power-loss acceptance; those trials remain open.
+
+The [bounded question window](UI_Workspace_And_Windows.md#delivered-bounded-question-window)
+has an explicit **Review exact record** route through the audited
+[review service](../src/Kora.Application/Interaction/HostQuestionReviewService.cs).
+It resolves the original exact question key against live committed
+intent/session/generation/policy/proposal, then displays that immutable
+question/proposal snapshot as passive plain text. All actual host binding
+digests and identities are shown, not a generated operation summary. No
+operation/script bytes are invented: the current contracts do not supply
+them, and the window states that limitation.
+
+The record retains its original request origin; UI confirmation cannot
+launder protected voice-origin requests. Approval requires the complete
+current record to have been displayed and uses the authorization service.
+Neither review nor a native checkbox supplies missing source, containment,
+deployment or mandatory gate authority. Draft/revision changes invalidate
+the reviewed target, and conflicts disable rather than retarget the card.
+This is exact **record** review, not complete skill/script/diff review or a
+general grant-management/effect-dispatch experience. The only new production
+entry is the harmless durable local-version question, with no proposal/grant.
+No retained artifact identity or finalized-response authority is fabricated
+for a pending operation.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Ambient UI](Ambient_UI.md), [User Configuration](User_Configuration.md), [Security](Security_Data_Flows.md), [Extensibility](Extensibility.md).
 
@@ -112,7 +182,8 @@ over 256 characters is rejected visibly rather than silently shortened.
 
 Remaining R14 gates include Sessions list/full conversation, durable
 history/artifact resolution, exact response offers and voice targeting,
-shared questions/approvals, skill/script/diff review and export. HTML/browser,
+general shared question/approval routing beyond the bounded local-version
+entry, skill/script/diff review and export. HTML/browser,
 diagrams, images/assets and syntax grammar acquisition remain independent
 gates; this delivery adds none. Automated tests are not native visual,
 screen-reader, contrast, text-scale, DPI, multimonitor, focus-restoration or

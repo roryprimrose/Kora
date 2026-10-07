@@ -22,7 +22,7 @@ if ($EvidenceDirectory.Equals($Payload, [StringComparison]::OrdinalIgnoreCase) -
 New-ProofDirectory $EvidenceDirectory
 
 foreach ($required in 'Kora.exe', 'Kora.dll', 'Kora.deps.json', 'Kora.runtimeconfig.json',
-    'Kora.Application.dll', 'Kora.Core.dll', 'Kora.Windows.dll', 'Microsoft.Data.Sqlite.dll',
+    'Kora.Application.dll', 'Kora.Core.dll', 'Kora.Definitions.dll', 'Kora.Tools.dll', 'Kora.Windows.dll', 'Microsoft.Data.Sqlite.dll',
     'SQLitePCLRaw.core.dll', 'SQLitePCLRaw.provider.e_sqlite3.dll', 'e_sqlite3.dll') {
     if (!(Test-Path -LiteralPath (Join-Path $Payload $required) -PathType Leaf)) {
         throw "Missing launch-critical file: $required"

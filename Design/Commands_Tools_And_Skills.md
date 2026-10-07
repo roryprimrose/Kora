@@ -2,7 +2,88 @@
 
 Status: proposed interaction contract, not a shipped tool loop or skill runner.
 
+The bounded R06 host foundation now composes six direct read-only handlers over
+the [authoritative descriptor catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs):
+`capabilities.list/get`, `application.get_version`, `readiness.get`,
+`runtime.list/get_status`. Exact local discovery uses those same descriptors;
+existing help points to it. The current JSON selector receives no new tools.
+Host activity/current ownership and known caller lanes are required; management
+gets only the minimal read-only descriptors, never execution tools/instructions.
+Record and complete serialized UTF-8 bounds, strict input validation, cancellation
+and explicit unavailable/unobserved results are production-tested. Full R06
+continued reasoning, approved model adapters and runtime qualification remain open.
+
+R07 additionally composes the host-only explicit plain-text clipboard
+snapshot/native-preview/reuse/revoke workflow. The intended model-facing
+`context.capture_clipboard`/`context.inspect` tools remain unavailable:
+the current JSON selector has no qualified tool/result loop or clipboard
+answering/secret/egress envelope gate. Exact commands and native controls
+share the same broker, not separate model/provider clipboard implementations.
+Preview is not model-context selection or transmission consent. See
+[the bounded context boundary](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+
+Delivered exception to the proposed full catalogue: R10 has a host-only,
+appearance-only typed registry shared by the existing native controls and
+exact local `list appearance settings`, `get <appearance.id>`,
+`set <appearance.id> to <value>` and `reset <appearance.id>` commands.
+These nine options use domain validation, revision-checked one-file atomic
+save, audit and live notifications; malformed/ambiguous inputs are rejected
+locally, not handed to inference. The current assistant-name prefix is retained.
+No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
+reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
+and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
+
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+## Delivered Artifact Invocation
+
+Kora has one source-qualified artifact invocation route for the currently
+bundled skills and future instruction and prompt definitions. The route is
+available from the typed composer and activated voice:
+
+- direct slash command: `/lock`, `/restart`, or `/shutdown`;
+- kind-qualified slash command: `/skill lock`;
+- activated voice: `Kora, run lock`, `Kora, use the restart skill`, or
+  `Kora, use <artifact> to <request>`.
+
+`ArtifactDefinition` is the portable Core contract for the artifact identity,
+kind (`Skill`, `Instruction`, or `Prompt`), display metadata, slash command,
+spoken names, source, version, definition digest, and bounded instructions.
+`Kora.Definitions` owns the fixed mapping from embedded resources to those
+definitions. Command and spoken-name conflicts fail catalogue construction.
+The same `ArtifactCommandRouter` parses typed and voice input, so adding future
+instruction or prompt registrations does not create another presentation-only
+dispatcher.
+
+Selection produces a `LocalModelArtifact` that is passed separately from user
+text to the qualified local-model adapter. The adapter puts source-qualified
+artifact instructions in the system context and keeps the user's request in
+the request prompt. Clarification turns retain the exact selected artifact.
+Unknown or incomplete slash commands fail closed and are not reinterpreted as
+free-form model requests.
+
+The response composer binds its `/` dropdown to that same catalogue. A bare
+slash lists all available artifacts; command text and optional
+`/skill `, `/prompt `, or `/instruction ` qualification filter it. Pointer
+selection and Up/Down/Enter insert the canonical direct command; Escape closes
+the list. Each entry shows command, name, description, and source.
+
+At composition, the embedded catalogue is combined with bounded compatible
+disk definitions. Kora-owned roaming `Skills`, `Instructions`, and `Prompts`
+folders and recognized personal `.copilot`, `.agents`, `.claude`, VS Code, and
+VS Code Insiders customization locations are read without whole-profile
+scanning or reparse traversal. Strict UTF-8, byte/file/depth bounds,
+frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
+uniqueness are validated. Invalid or conflicting discovery fails closed.
+Discovery occurs at startup; restart is required after disk changes.
+
+Running an artifact means applying its declarative instructions to the current
+model request. It does not execute a packaged script, approve an operation,
+create a grant, or prove an outcome. A selected artifact may lead the model to
+propose an existing registered host action, but that proposal still converges
+on the normal host-owned validation, approval, audit, privacy, and execution
+path. The embedded session-control scripts remain inspection-only until their
+separate runtime and containment work is admitted.
 
 ## Responsibility and Terminology
 
@@ -75,6 +156,134 @@ Keep their identities distinct in proposals, approvals, and receipts.
 Identifiers and payloads below are illustrative contract concepts, not a published SDK or manifest schema.
 
 ## Registries and Model Discovery
+
+### Built-In Tool Source Layout and Implementation
+
+Built-in tool action implementations belong in the portable `Kora.Tools`
+project. Group actions by capability in source control and mirror the grouping
+in the C# namespace:
+
+```text
+src/Kora.Tools/Clipboard/ClipboardRead.cs       -> Kora.Tools.Clipboard.ClipboardRead
+src/Kora.Tools/Clipboard/ClipboardReuse.cs      -> Kora.Tools.Clipboard.ClipboardReuse
+src/Kora.Tools/Clipboard/ClipboardRevoke.cs     -> Kora.Tools.Clipboard.ClipboardRevoke
+src/Kora.Tools/Clipboard/ClipboardSnapshotBroker.cs
+```
+
+Each registered action has its own concrete class with one typed execution
+entry point, consumer-focused dependencies, explicit outcomes and focused
+tests under `tests/Kora.Tools.UnitTests/<CapabilityGroup>`. Do not put every
+action in one `Clipboard` class with a method per tool. Do not create action
+classes for unavailable speculative capabilities merely to populate folders;
+`ClipboardWrite` is a separate effect and is not delivered by this read-only
+snapshot slice.
+
+An action class may delegate to a shared cohesive broker or domain service.
+Snapshot bounds, identity, origin, freshness, revocation and admission policy
+have one authoritative implementation, not copied policy in each action.
+Exact commands, native controls and any qualified model adapter converge on
+the same action class. Registries/gateways own dispatch and shared wire
+validation, not a growing set of capability-specific implementations.
+
+`Kora.Tools` targets portable .NET and references Core, not Application,
+Windows, Avalonia or model/provider SDKs. Portable contracts and authoritative
+domain rules remain in `Kora.Core`; native mechanisms and OS exceptions
+remain behind injected seams in `Kora.Windows`; Application owns request
+orchestration/presentation state, and the desktop host supplies composition
+and native controls. Application may reference Tools, never the reverse.
+Keep provider-specific schema binding separate from the host action.
+
+Canonical tool IDs (for example `context.capture_clipboard`) and schema
+versions are explicit catalogue contracts, not derived by reflecting class
+or method names. Having an implementation or action class does not enable
+model exposure or confer authority: unsupported caller lanes, missing
+qualification, privacy/egress and other mandatory gates still fail closed.
+Document the concrete unavailable reason and supported deterministic route.
+Tools, Definitions, Core and Application are all subject to the existing 100% portable
+line/branch coverage gate; moving code cannot remove it from coverage.
+
+**Delivered R06 layout:** `ReadOnlyCapabilityRegistry` retains the common
+caller/current-host admission, strict JSON parsing, complete serialized-output
+bounds, trace/cancellation and structured logging gateway. Its six typed
+implementation targets are now separate classes:
+
+| Canonical ID | Source class in `Kora.Tools` |
+|---|---|
+| `capabilities.list` | `Capabilities/CapabilitiesList.cs` |
+| `capabilities.get` | `Capabilities/CapabilitiesGet.cs` |
+| `application.get_version` | `Application/ApplicationGetVersion.cs` |
+| `readiness.get` | `Readiness/ReadinessGet.cs` |
+| `runtime.list` | `Runtime/RuntimeList.cs` |
+| `runtime.get_status` | `Runtime/RuntimeGetStatus.cs` |
+
+Those R06 execution entry points are internal to the admitted host gateway,
+not public SDK/reflection shortcuts. DI registration does not register a tool
+with a model. Canonical IDs, descriptors, schema/effects, limits, lane admission,
+recorded observations and unavailable tool-loop status are unchanged.
+The application-version observation contract belongs in Core, with the
+assembly-version implementation in Application; Tools has no reverse dependency.
+Legacy built-in command handlers in `MainViewModel`
+are not yet generic model tools; migrate only a capability whose actual
+registered tool contract and shared authority path are in scope, rather than
+reclassifying all methods or helper services as tools.
+
+### Bundled Definitions and Agent Profiles
+
+Use one portable `Kora.Definitions` project for bundled behavior content:
+skills, reusable prompt templates, shared scoped instructions and future
+agent profiles. These content kinds share explicit catalogue registration,
+immutable embedding, bounds, version/digest handling and passive source review;
+they do not need separate projects solely because they have different file
+extensions. `Kora.Tools` remains separate because it implements executable
+C# host actions.
+
+The source layout is grouped by content kind, with C# loader/catalogue
+namespaces mirroring their actual folders:
+
+```text
+Kora.Definitions/
+  Skills/
+    EmbeddedSkillCatalogue.cs        -> Kora.Definitions.Skills
+    Lock/                            -> manifest, instructions, fixtures, entry script
+    Shutdown/
+    Restart/
+    session-control.ps1              -> declared shared skill helper
+  Prompts/                           -> when actual prompt resources are introduced
+  Instructions/                      -> when shared scoped resources are introduced
+  Agents/                            -> when supported agent definitions are introduced
+```
+
+Only the delivered Skills files currently exist. Do not create empty folders,
+placeholder loaders or fictitious advertised capabilities. Keep each skill's
+own instructions, fixtures and executable-resource closure together; reserve
+`Instructions` for shared guidance rather than splitting every skill package.
+Resource files have explicit stable IDs, not C# namespaces. Relocating an
+assembly or folder must preserve IDs, original bytes, manifests and package
+digests unless a separately reviewed content/version change is intended.
+The three built-ins retain their existing `Kora.Skills.*`/`Kora.Scripts.*`
+resource IDs and independent golden digest vectors in `Kora.Definitions.dll`.
+
+Definitions references Core for authoritative schemas/domain validation, not
+Tools, Application, Windows, Avalonia or model/provider SDKs. Consumers resolve
+the embedded first-party catalogue explicitly; there is no directory/assembly
+scan that turns arbitrary files into enabled skills. Scripts are inert
+packaged resources until a separately qualified host runner admits execution.
+Do not move protocol enforcement, authorization or security checks into
+Markdown, templates or model instructions. Existing model-selector framing
+and runtime code are unchanged by this resource migration.
+
+**Agent design direction, not delivered execution:** support named declarative
+task profiles that reference instructions, skills and a bounded subset of
+admitted tools, with typed input/output and runtime/locality/budget constraints.
+A profile is not a running agent, scheduler lane or new permission system.
+The host owns each run's session/task/request identity, original origin,
+resource leases, cancellation, budgets and approval/egress decisions.
+Profile text cannot approve effects, acquire arbitrary context, expand the
+tool subset or select an unapproved processing destination. No recursive
+delegation, concurrent worker creation, profile auto-enablement or provider
+fallback follows from loading a definition. Qualification of the actual
+model/tool loop and host runtime remains mandatory; no agent profile loader
+or agent executor is introduced by this structural delivery.
 
 The host maintains related but distinct registries:
 

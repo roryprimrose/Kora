@@ -34,10 +34,18 @@ public sealed partial class MainViewModel
         {
             CloseForObservedPrivacyEvent("Microphone permission or selected endpoint is unavailable", hidePresentation: false);
         }
+        if (SelectedOutputDevice?.IsSystemDefault == true && snapshot.DefaultSpeakerId is null)
+        {
+            InvalidateUnavailableOutput();
+        }
         if (Interlocked.Exchange(ref observedTopologyRevision, snapshot.TopologyRevision) != snapshot.TopologyRevision)
         {
             uiDispatcher.Post(() =>
             {
+                if (disposed)
+                {
+                    return;
+                }
                 _ = RefreshMicrophonesAsync();
                 RefreshOutputEndpoints();
             });
@@ -120,13 +128,19 @@ public sealed partial class MainViewModel
             return;
         }
         disposed = true;
+        lifecycleAdmissionClosed = true;
+        clipboardPreview.Changed -= OnClipboardPreviewChanged;
+        clipboardPreview.Dispose();
+        HoldVoiceInput("Microphone closed · host disposed");
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
         voiceRecognition.TranscriptRecognized -= OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed -= OnRecognitionFailed;
         voiceRecognition.CaptureStateChanged -= OnCaptureStateChanged;
         voiceRecognition.RecognitionCompleted -= OnRecognitionCompleted;
-        callStateService.StateChanged -= OnCallStateChanged;
-        captureOpenCancellation?.Cancel();
+        communicationPolicy.Changed -= OnCommunicationPolicyChanged;
+        communicationPolicy.Dispose();
+        textToSpeech.InvalidateOutput();
+        appearanceConfiguration.Changed -= OnAppearanceChanged;
     }
 
     public event EventHandler? PrivacyClosureRequested;
@@ -186,6 +200,7 @@ public sealed partial class MainViewModel
         if (hidePresentation)
         {
             Interlocked.Exchange(ref privacyPresentationHeld, 1);
+            ClearClipboardPreview();
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening");
         textToSpeech.InvalidateOutput();
@@ -277,11 +292,9 @@ public sealed partial class MainViewModel
 
     public async Task SetVoiceConsentAsync(bool consent)
     {
-        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
-        {
-            ApplicationLog.Information(logger, "Denied voice consent change outside an eligible Windows session");
-            return;
-        }
+        if (!AdmitVoiceOptionMutation("configuration.voice-consent")) { return; }
+        var origin = OriginalOrigin();
+        var callRevision = CallPolicyRevision;
 
         // Withdrawal closes capture even if persisting the preference subsequently fails.
         if (!consent)
@@ -301,7 +314,7 @@ public sealed partial class MainViewModel
             NotifyVoiceEnablementChanged();
             if (consent)
             {
-                await StartListeningAsync();
+                await StartListeningAsync(origin, callRevision);
             }
             else
             {
@@ -527,7 +540,7 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (lifecycleAdmissionClosed || IsBusy || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
+        if (lifecycleAdmissionClosed || IsBusy || !clipboardPreview.IsQuiescent || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())
         {
@@ -537,6 +550,7 @@ public sealed partial class MainViewModel
 
         Interlocked.Exchange(ref handoffPreparationActive, 1);
         lifecycleAdmissionClosed = true;
+        ClearClipboardPreview();
         HoldVoiceInput("Microphone closed · host handoff");
         textToSpeech.InvalidateOutput();
         try

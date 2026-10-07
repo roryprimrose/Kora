@@ -1,5 +1,7 @@
 using Kora.Core.Commands;
 using Kora.Core.Communication;
+using Kora.Application.Communication;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.Logging;
 
@@ -64,4 +66,8 @@ internal static partial class ApplicationLog
     public static partial void AudioDevicePreferenceCleared(
         ILogger logger,
         string deviceType);
+
+    [LoggerMessage(113, LogLevel.Warning, "Call-sensitive mutation {ActionId} from {RequestOrigin} rejected: {Outcome}; revision {CallRevision}.")]
+    public static partial void CallMutationRejected(ILogger logger, string actionId, RequestOrigin requestOrigin,
+        CallMutationOutcome outcome, long callRevision);
 }

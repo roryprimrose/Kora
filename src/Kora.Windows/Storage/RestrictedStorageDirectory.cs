@@ -84,6 +84,12 @@ internal sealed partial class RestrictedStorageDirectory
 
     internal FileStream AcquireLease() => AcquireBoundedLease(requireExisting: false, CancellationToken.None);
 
+    internal bool HasExistingPartition()
+    {
+        VerifyLocalRoot();
+        return EntryExists(Root);
+    }
+
     internal FileStream AcquireBoundedLease(bool requireExisting, CancellationToken cancellationToken)
     {
         Verify();
@@ -235,7 +241,7 @@ internal sealed partial class RestrictedStorageDirectory
             requireProtected: true, allowSystemAdministrators: false);
     }
 
-    private void VerifyPermissions(FileSystemSecurity security, bool requireProtected, bool allowSystemAdministrators)
+    internal void VerifyPermissions(FileSystemSecurity security, bool requireProtected, bool allowSystemAdministrators)
     {
         if (!user.Equals(security.GetOwner(typeof(SecurityIdentifier)))
             || requireProtected && !security.AreAccessRulesProtected)

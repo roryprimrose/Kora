@@ -1,6 +1,7 @@
 # Skill Sources, Profile Reuse, and Roaming Storage
 
-Status: proposed. Profile reuse is delivered in Slice B; Kora-specific authoring in Slice C.
+Status: bounded bundled catalogue/inspection delivered; profile reuse and
+Kora-specific authoring remain proposed Slice B/C work.
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
@@ -8,7 +9,7 @@ Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md
 
 | Partition | Location | Kora access |
 |---|---|---|
-| Bundled | Embedded resources in the protected Kora application binary | Read/invoke verified resource snapshots; no user/agent editing, loose-file overrides, or writable extraction |
+| Bundled | Embedded resources in the first-party `Kora.Application` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
 | Shared profile | User-approved skill roots already in the profile | Read-only discovery and explicitly enabled compatible revisions |
 | Kora-specific | `%APPDATA%\Kora\Skills` | Create/update validated declarative skills through the authoring writer |
 

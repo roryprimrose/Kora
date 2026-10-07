@@ -246,7 +246,8 @@ log/audit/span/link records retain call-time host/W3C context and independent
 due dates. The daily-file provider remains independent. Required capture,
 file or database delivery failures report gaps and propagate rather than
 allowing dispatch or a success receipt with missing terminal audit evidence.
-There is still no session registry, history UI or general durable executor.
+The interaction store now supplies bounded session authority/metadata and exact
+task controls; full conversation/history UI and a general durable executor remain open.
 Ordinary diagnostics that lack host context are retained only with an explicit
 capture-owned `MissingHostContext` gap and `kora.bootstrap=false`; their trusted
 host/W3C/business columns remain null. This preserves existing content-free
@@ -281,6 +282,15 @@ Bounded ordinary diagnostic pruning is implemented below; a complete retained
 graph/history is not claimed. Session/conversation
 sources and interaction-audit receipts are not supplied by this projection.
 Model tool exposure, Ask Evidence, export and remote transmission remain gated.
+
+Explicit **AuthorityAudit** instead reads actual committed typed schema-v3
+interaction-store audit rows through the shared connection lease and immutable
+sequence ceiling. That consolidated store owns task/question/required-audit
+transactions; its validated frozen legacy ledger is not queried as live authority.
+These passive reads neither mutate authority nor reconstruct historical payloads,
+a causal graph or forensic tamper resistance. **All** remains SQLite diagnostic
+evidence-only and **CombinedLog** remains ordinary diagnostics-only. See
+[the exact committed source contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
 
 The independent **DailyLog** source now reads existing daily JSON diagnostic
 envelopes beneath `IApplicationDataPaths.LocalRoot/Logs`, with the writer's

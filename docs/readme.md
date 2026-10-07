@@ -25,12 +25,19 @@ Other bounded native features are
 [minimal durable Sessions and explicit Create/Rename](windows-and-tray.md#minimal-durable-sessions),
 [local immutable clipboard preview](commands.md#explicit-local-clipboard-preview),
 [read-only discovery](commands.md#read-only-host-discovery),
-[appearance and installed speech choices](settings.md),
+[appearance, installed speech, summary caps, name/devices/volume and device-default mode](settings.md),
 [tray microphone/PTT recovery](windows-and-tray.md#microphone-and-listening-recovery),
-and [SQLite/independent DailyLog evidence inspection](privacy-safety-and-logs.md#logs).
-[Exact-ID session commands](commands.md#bounded-exact-id-session-commands)
+and [SQLite, independent DailyLog and opt-in ordinary CombinedLog inspection](privacy-safety-and-logs.md#logs).
+Explicit [AuthorityAudit](privacy-safety-and-logs.md#committed-authority-audit-inspection)
+reads actual committed interaction-store audit rows, not file mirrors or forensic proof.
+[Exact-ID session/task commands](commands.md#bounded-exact-id-session-commands)
 share the native workspace service without a model; names are labels, never
-selectors. Names and empty sessions are not conversation history or queues; clipboard
+selectors. Task cancellation covers only an admitted current-run local-version
+question wait before dispatch, not running effects or workers.
+[Cached maintenance status/review/snooze](commands.md#exact-cached-release-maintenance)
+adds no network check, browser/download/install or consent grant/renewal;
+existing native Check/Open and network opt-in remain separate.
+Names and empty sessions are not conversation history or queues; clipboard
 explanation and model evidence tools remain unavailable. Ordinary diagnostic
 pruning never deletes audits, sessions or grants.
 

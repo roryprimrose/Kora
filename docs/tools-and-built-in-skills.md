@@ -208,8 +208,12 @@ included in "use context".
 
 ## 6. Settings and preferences
 
-Many settings are **Current through the UI**; the general verbal/model settings
-registry and discovery/get/set/reset/undo operations are **Planned**.
+Bounded native/exact configuration is **Current** for appearance, installed
+provider/voice, spoken-summary caps, assistant display/PTT prefix, exact
+microphone/output preferences, per-Kora volume and device-default response mode.
+See [exact discovery/get/set/reset commands](commands.md) and [Settings](settings.md).
+The general verbal/model registry, broader scopes, category/whole-profile reset
+and undo remain **Planned**.
 Do not assume an example sentence below is an exact current command.
 
 | Planned request | What it means |
@@ -225,23 +229,28 @@ The design covers all these preference categories:
 
 | Category | Options and examples | Current availability |
 |---|---|---|
-| Voice input | Microphone, listening, assistant name, PTT shortcut, cues, speech-start wait, silence/utterance limits, language/model, owner-aware private speech | Microphone/listening/name UI; remaining production controls planned |
-| Responses and appearance | Mode/scope, output, provider/voice, speed/volume, summary length, detail/captions, theme/timeout, presence size/dots/speed/placement, reduced motion | Mode/scope/device/provider/voice, theme/timeout/presence and response-window controls; other options planned |
+| Voice input | Microphone, listening, assistant name, PTT shortcut, cues, speech-start wait, silence/utterance limits, language/model, owner-aware private speech | Exact microphone preference and assistant-prefix native/typed/activated controls; separate listening/PTT UI; production wake and remaining controls planned |
+| Responses and appearance | Mode/scope, output, provider/voice, speed/volume, summary length, detail/captions, theme/timeout, presence size/dots/speed/placement, reduced motion | Native/exact device-default mode, output preference, installed provider/voice, 0-100 Kora volume, lowerable summary caps and nine appearance options; broader scoped registry and remaining options planned |
 | Calls and proactive speech | Visual/activation override, Unknown policy, detectors/accounts, Busy/DND, manual/temporary override, consent, quiet hours/mode, notification categories/reminders | Call visual/activation UI; fuller controls/detectors planned |
 | Work and context | Per-session queue capacity/dispatch/lifetime, admitted concurrent-session limit, task deadline, archive/deletion durations, clipboard and tool-result limits | Planned |
 | Providers and connections | Processing mode, default provider/model, validated endpoint, supported identity and connector enablement | Local model setup current; general choice/sign-in/connector flows planned |
 | Skills and local data | Sources, enabled revisions/default source, refresh, audit retention and diagnostic verbosity | Planned registry; content-minimising daily logs exist |
-| Startup and maintenance | Logon registration, initial presentation, notify-only checks/interval/channel and release reminders | Planned |
+| Startup and maintenance | Logon registration, initial presentation, notify-only checks/interval/channel and release reminders | Native startup/notify-only maintenance plus exact cached status/review/eligible current-run snooze; general controls planned, no command-triggered check or browser opening |
 | Rich viewing | Captions/placement/dismissal, text scale, automatic details, browser choice, Markdown source/rendering and diagrams | General typed viewing planned; embedded guide/basic text current |
 
-Task output overrides queue/session, which overrides device default; the
-separate in-call feedback override takes precedence without waiving lock/privacy.
+The existing process-local presentation resolver orders task, queue and device
+default; the delivered mode registry admits only the device default, not durable
+session/task/queue overrides. Separate in-call policy remains unchanged and
+never waives lock/privacy.
 Changes that increase remote exposure or weaken privacy require exact trusted
 voice/UI confirmation; they do not approve each later outgoing payload.
 While a call is protected, voice-originated voice/in-call setting changes,
 including reset/undo, are rejected and need a new UI request. A later click
 cannot convert the rejected voice request into a UI-originated request.
 Kora changes only its own volume, not global Windows or call volume.
+Default/reset **100** preserves original unity; **0** prevents synthesis/autoplay
+with complete visual recovery. Raising/resetting never replays retired output.
+Warnings, exact security readback, questions and approval previews remain visual.
 Secure credentials and biometric enrollment cannot be dictated into a setting.
 For all current UI values and ranges, use [Settings](settings.md).
 

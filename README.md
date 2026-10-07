@@ -130,6 +130,19 @@ speech must fit both caps (default 3 sentences/80 words); otherwise Kora retains
 the full visual result and explicitly withholds speech rather than truncating
 warnings or making another model call. Exact approval/questions keep their
 existing mandatory bounds. See [spoken summary limits](docs/settings.md#spoken-summary-limits).
+Exact microphone/output preferences, [per-Kora playback volume](docs/settings.md#kora-playback-volume)
+and [device-default response mode](docs/settings.md#device-default) share admitted
+native/exact workflows. Volume is 0-100, default/reset 100 (original unity);
+zero prevents synthesis/autoplay with complete visual recovery, and raising/
+resetting never replays. Mode delivery is device-default only, not durable
+session/task/queue overrides or a call/fallback-policy change. Mandatory
+warning/security/question/approval previews remain visual.
+The evidence inspector offers SQLite-only **All**, opt-in ordinary
+**CombinedLog** (SQLite+daily diagnostics) and explicit read-only committed
+schema-v3 **AuthorityAudit**, not a graph or forensic tamper resistance.
+Exact cached `maintenance status/review/snooze` retains immutable metadata and
+eligible existing current-run snooze only; it adds no check, browser,
+download/install or network consent. Native Check/Open remain separate.
 Drag the response title area to reposition it; its
 controls can keep the current response visible until dismissed and can disable
 the default stay-on-top behavior. The presence is click-through by default,
@@ -144,8 +157,9 @@ response routing; see the
 [delivered passive profile](Design/Information_Display.md#delivered-native-profile---2026-10-06).
 Settings opens a single
 settings window covering the assistant name, speech
-and audio devices, listening, local voice, response output defaults and
-overrides, detected-call behavior, model-action approvals, and dependency readiness. Detecting
+and audio devices, listening, local voice, device-default response output and
+existing process-local presentation controls, detected-call behavior,
+model-action approvals, and dependency readiness. Detecting
 microphones refreshes readiness without enabling capture; Exit releases
 listening before closing the application.
 

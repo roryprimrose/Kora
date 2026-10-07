@@ -265,7 +265,10 @@ evidence and receipt are committed before completion. Startup marks intent-only
 work Interrupted and dispatched work without a verified receipt Unknown;
 it never automatically reruns either. The terminal version receipt is not
 proof of an operating-system effect or speech-playback completion.
-Private task, interaction and evidence journals are retained under the same
+Task/question/required-audit authority is consolidated in the private schema-v3
+interaction store with one transactional connection lease. The validated frozen
+legacy task ledger is retained only as an inert migration receipt; independent
+diagnostic evidence is not authority. Managed journals remain under the same
 verified profile boundary. Valid interrupted transactions reopen atomically;
 committed approvals/use counts/session generations are not replayed.
 Missing journals, corrupt/unsupported data, permissive permissions or unavailable
@@ -303,7 +306,9 @@ available cited span. Session/task IDs and traces are filters, not permission.
 `ExpiredButPresent` means a due record remains readable, not that it was
 deleted. `MissingOrRemoved` cannot distinguish an unrecorded segment from
 physical removal. Session/conversation sources report Unavailable. This view
-is not a complete history, interaction audit, authorization or effect receipt.
+is not a complete history, authorization or effect receipt. The separate explicit
+**AuthorityAudit** source described above reads committed interaction audit rows;
+the diagnostic projection and daily mirrors do not.
 Ownership/privacy denial, malformed filters/cursors, corrupt data and private
 access failures are visible; no store or permission repair is attempted.
 Closing or privacy closure clears/cancels the view without changing retained

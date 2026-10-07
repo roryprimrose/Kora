@@ -1,7 +1,9 @@
 # Task Lifecycle and Recovery
 
-Status: proposed full task lifecycle. The current bootstrap implements setup task progress
-and registered command/model routing, not this complete execution queue or
+Status: proposed full task lifecycle. Setup task progress and registered command/model
+routing coexist with durable exact task observation and atomic cancellation of
+the admitted current-run local-version pre-dispatch question wait. Consolidated
+schema-v3 authority is not this complete execution queue, worker termination or
 script-backed skill lifecycle.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).

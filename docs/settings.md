@@ -287,18 +287,39 @@ fallback.
 
 ### Call detection
 
-Read-only status from the configured detector. Automatic detection is currently
-unavailable in the Windows bootstrap.
+Read-only status keeps manual state and automatic evidence separate. Automatic
+detection remains unavailable in this build; no Teams/account/network detector
+is implemented.
+
+### Manual call mode
+
+**I'm in a call** activates protection for this run. **Clear manual call mode**
+removes only that layer, never an enabled automatic Active/Suspected/Unknown
+observation. Manual state is not persisted across restart. Controls recheck
+original request origin, observed call revision and live ownership/privacy.
+Stale changes are rejected, not queued for call clearance.
 
 ### Visual responses during calls
 
-Default: on. Controls whether Active or Suspected calls override ordinary output
-with visual responses.
+Default: on. Manual Active and enabled Active/Suspected/Unknown override ordinary
+output with visual-only responses and suppress previews/readbacks. Existing saved
+choices are retained. New disabling is unavailable pending complete exact
+trusted review; enabling protection is supported.
 
 ### Voice activation during calls
 
 Default: on. Turning it off closes capture when a call is detected and blocks
-re-enabling until the call clears.
+re-enabling until protection clears. Clearance never automatically reopens
+capture. New re-enabling of this preference is unavailable pending exact review.
+
+During protection, all voice-originated voice and in-call preference mutations
+are rejected, including manual clear/reset and ordinary output options masked
+by the call override. Later UI confirmation cannot change voice lineage; start
+a new UI request. Stop speech, disable listening, cancel and read-only status
+remain usable. Protected calls ignore Session/Always reusable model-action
+grants without changing storage; new grant-ignore disabling, temporary overrides
+and speak-once exceptions are unavailable. This is bounded manual behavior, not
+full call/provider/native/audio acceptance.
 
 ## Readiness
 

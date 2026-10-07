@@ -135,7 +135,9 @@ public sealed partial class MainViewModel
         voiceRecognition.RecognitionFailed -= OnRecognitionFailed;
         voiceRecognition.CaptureStateChanged -= OnCaptureStateChanged;
         voiceRecognition.RecognitionCompleted -= OnRecognitionCompleted;
-        callStateService.StateChanged -= OnCallStateChanged;
+        communicationPolicy.Changed -= OnCommunicationPolicyChanged;
+        communicationPolicy.Dispose();
+        textToSpeech.InvalidateOutput();
     }
 
     public event EventHandler? PrivacyClosureRequested;
@@ -286,11 +288,9 @@ public sealed partial class MainViewModel
 
     public async Task SetVoiceConsentAsync(bool consent)
     {
-        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
-        {
-            ApplicationLog.Information(logger, "Denied voice consent change outside an eligible Windows session");
-            return;
-        }
+        if (!AdmitVoiceOptionMutation("configuration.voice-consent")) { return; }
+        var origin = OriginalOrigin();
+        var callRevision = CallPolicyRevision;
 
         // Withdrawal closes capture even if persisting the preference subsequently fails.
         if (!consent)
@@ -310,7 +310,7 @@ public sealed partial class MainViewModel
             NotifyVoiceEnablementChanged();
             if (consent)
             {
-                await StartListeningAsync();
+                await StartListeningAsync(origin, callRevision);
             }
             else
             {

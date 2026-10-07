@@ -136,6 +136,14 @@ Questions, answers, summaries, detail navigation, approvals, session management,
 No UI action requires a spoken acknowledgment, and no ordinary Kora approval requires a click merely because it is high risk.
 The physical limits of a closed/unavailable microphone and mandatory OS/provider authentication, credential entry, and secure-desktop prompts remain explicit exceptions.
 The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) is also explicit: during protected calls, voice-initiated voice-setting and in-call-option changes are rejected and require a new UI request; operation approvals, read-only inspection, and deterministic safety controls follow their independent policy.
+Bounded manual call controls now enforce that original origin and observed call
+revision immediately before mutation, together with live desktop ownership/
+privacy. A later local confirmation cannot relabel voice lineage, and denied or
+stale changes are not queued for clearance. Legacy action-name grants are ignored
+during protected calls without acquiring R05 exact authority; pending approvals
+and undispatched reuse are invalidated on call revision changes. New protection
+downgrades remain unavailable until the shared complete exact-review path can
+support them safely.
 Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns

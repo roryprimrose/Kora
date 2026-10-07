@@ -1,6 +1,71 @@
 # Call-Aware Speech and Voice Configuration
 
-Status: proposed. The speech gate and voice configuration are required from Slice A; automatic tool detection is best-effort and capability-tested, with Teams the first target.
+Status: bounded manual host mode and conservative output/origin gates delivered;
+full R15 remains partial. Automatic tool detection is unavailable, not implemented.
+The remaining detector and configurable exception contracts below are proposed.
+
+## Delivered Bounded Manual Mode - 2026-10-07
+
+Settings > Calls provides native **I'm in a call** and **Clear manual call mode**
+controls. The application-owned [communication policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs)
+keeps automatic evidence separate from a run-scoped manual layer. Manual Active
+lasts until explicitly cleared or host restart; it is not persisted, and clearing
+it never fabricates detector Clear. Active, Suspected and Unknown automatic
+observations remain independently protective. No configured source and no manual
+state leaves ordinary output eligible and automatic detection truthfully unavailable.
+
+With the default saved policy, protected calls force visual output, including
+approval readbacks and voice previews. Call entry invalidates pending synthesis/
+playback before asynchronous UI dispatch or cleanup. Clearance does not replay
+suppressed output, answer questions or reopen capture. Saved explicit visual/
+activation preferences retain their existing format and behavior; Unknown now
+uses the same conservative protection. New speech or activation protection
+downgrades, reusable-grant-ignore disabling, temporary overrides and speak-once
+exceptions are unavailable because complete exact trusted downgrade review is
+not yet composed. Native controls explain this limitation; no alternate
+confirmation shortcut is supplied.
+
+Manual changes bind original `RequestOrigin` and observed call revision, then
+recheck live ownership/privacy immediately before application. Host-system or
+unknown mutation origin is not UI authority. Existing voice/input/output and
+approval-prefix preference surfaces also use the protected-call origin rule;
+later UI confirmation cannot relabel an admitted voice request. A stale or
+denied request is not deferred. New UI initiation is required. Read-only status,
+stop speech, disable listening and cancellation remain available.
+
+Protected calls ignore legacy Session/Always action-name reuse without changing
+the saved records. Fresh Once approval retains only its existing bounded legacy
+authority; it is not migrated to an exact content grant. Call revision changes
+invalidate pending legacy approvals and reusable dispatch, including final lock/
+restart checks after asynchronous audio shutdown. The same
+[host observation rule](../src/Kora.Core/Authorization/HostAuthorizationPolicy.cs)
+is used by R05 exact grants. Maintained
+[durable composition tests](../tests/Kora.Windows.IntegrationTests/CallPolicyCompositionTests.cs)
+exercise real SQLite approval/consume transactions with these observations and
+host proposal revisions; the native version question publishes truthful call
+policy but has no effect proposal or grant-consuming route.
+
+Maintained [policy tests](../tests/Kora.Application.UnitTests/Communication/CallCommunicationPolicyTests.cs)
+and [call/audio host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Communication.cs)
+cover mixed manual/automatic evidence, Unknown, original voice provenance, stale
+revision, audit-admission races, cancellation, output invalidation, disposal and
+legacy reuse races. Native control bindings are inspected without launching Kora.
+These deterministic results do not complete native accessibility, real calls,
+acoustic leakage/stop timing, detector/provider, optional owner-aware privacy or
+A0-A4 acceptance.
+
+Root Release/analyzers and all three maintained suites pass with no skipped
+tests. Fresh merged portable line/branch coverage passes the existing exact
+100% thresholds without exclusions. Version/publication process contracts and
+the 123 static source-tool contracts also pass. Validation uses fakes and owned
+private fixtures; no microphone, playback, call, Kora launch or session transition
+was performed for this bounded delivery.
+
+Experiment disposition: retain the speech, MG1 and containment executables and
+historical receipts. Their acoustic/provider/native-runtime/OS-denial and
+lost-receipt proofs are not equivalent to these fake policy or SQLite tests.
+No call-only executable with maintained equivalent evidence was identified for
+retirement, and none is deleted or rerun.
 
 Related: [Proactive Interaction](Proactive_Interaction.md), [Task Lifecycle](Task_Lifecycle.md), [Environment Setup](Environment_Setup.md), [Security](Security_Data_Flows.md).
 

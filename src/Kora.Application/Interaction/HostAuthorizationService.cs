@@ -106,7 +106,7 @@ public sealed class HostAuthorizationService(IHostInteractionStore store, TimePr
             || grant.ApprovedProposal.Effect != proposal.Effect
             || (grant.Scope == OperationGrantScope.Once && grant.ApprovedProposal != proposal)
             || (grant.Scope == OperationGrantScope.Session && grant.ApprovedProposal.Request.SessionId != request.SessionId)
-            || (grant.Scope != OperationGrantScope.Once && snapshot.Policy.IsProtectedCall && snapshot.Policy.IgnoreReusableGrants))
+            || (grant.Scope != OperationGrantScope.Once && !snapshot.Policy.AllowsReusableGrants))
         {
             return InteractionTransaction.Reject(snapshot, "grant-not-applicable");
         }
@@ -173,8 +173,8 @@ public sealed class HostAuthorizationService(IHostInteractionStore store, TimePr
         InteractionTransaction.CanInteract(snapshot) && snapshot.Policy.OtherMandatoryGatesSatisfied
         && snapshot.Proposal is { } proposal && proposal.Request == request && proposal.ExpiresAt > time.GetUtcNow()
         && proposal.Effect is not (HostOperationEffect.Unknown or HostOperationEffect.Prohibited)
-        && !(snapshot.Policy.IsProtectedCall && request.Origin == RequestOrigin.ActivatedVoice
-            && proposal.Effect == HostOperationEffect.VoiceOrCallSettings);
+        && (proposal.Effect != HostOperationEffect.VoiceOrCallSettings
+            || snapshot.Policy.AllowsVoiceOrCallSettings(request.Origin));
 
     private static (HostInteractionSnapshot, HostInteractionDecision) Revoke(
         HostInteractionSnapshot snapshot, int index, OperationGrant grant, string reason)

@@ -1,4 +1,5 @@
 using Kora.Application.Interaction;
+using Kora.Application.Communication;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -17,6 +18,7 @@ internal sealed class NativeQuestionHost
     private readonly TimeProvider time;
     private readonly ILogger<NativeQuestionViewModel> logger;
     private Func<bool> canInteract = static () => false;
+    private Func<CallPolicyObservation>? callObservation;
 
     internal NativeQuestionHost(WindowsSqliteHostInteractionStore store, TimeProvider time,
         ILogger<NativeQuestionViewModel> logger)
@@ -31,6 +33,7 @@ internal sealed class NativeQuestionHost
     }
 
     internal void BindGate(Func<bool> gate) => canInteract = gate;
+    internal void BindCallObservation(Func<CallPolicyObservation> observe) => callObservation = observe;
 
     internal async Task AskVersionAsync(Func<NativeQuestionViewModel, Task> present,
         CancellationToken cancellationToken)
@@ -39,7 +42,9 @@ internal sealed class NativeQuestionHost
         if (!canInteract()) { throw new InvalidOperationException("Native privacy/ownership admission is unavailable."); }
         await store.CreateSessionAsync(request, cancellationToken);
         // This ordinary read has no admitted exact effect/content/containment authority.
-        await store.PublishTrustedSnapshotAsync(request, new(canInteract(), false, false, true),
+        var policy = callObservation?.Invoke().Authorization(canInteract(), mandatoryGatesSatisfied: false)
+            ?? new(canInteract(), false, false, true);
+        await store.PublishTrustedSnapshotAsync(request, policy,
             proposal: null, expectedObservationRevision: 0, cancellationToken);
         var presented = await questions.CreateAsync(request,
             new("Show the local Kora version and private-storage disclosure?",

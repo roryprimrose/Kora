@@ -38,6 +38,13 @@ actions only: direct exact built-in voice and typed commands, including lock,
 currently dispatch to C# without model-action approval. They remain
 deterministic and take precedence over the model.
 
+Protected manual calls or enabled Active/Suspected/Unknown observations
+temporarily ignore Session/Always reuse without revoking or consuming those
+records. A fresh Once approval retains only existing action-name authority.
+Call revision changes invalidate pending approvals and undispatched reuse;
+lock/restart recheck immediately after asynchronous audio shutdown. This is not
+migration into R05 content/invocation-bound grants or general effect admission.
+
 **Planned, not implemented:** future skill tasks that launch applications or
 scripts would require content-bound execution grants, **not** the current
 built-in-action grants. The design requires changed or unverifiable
@@ -91,6 +98,23 @@ opens. Restored readiness still requires explicit recovery, not buffered replay.
 Deterministic regression coverage does not certify native notification latency,
 the 500 ms reference lock-release target, acoustic playback rejection or the
 remaining hardware/device/permission acceptance trials.
+
+## Manual call privacy
+
+Native **Settings > Calls** manual Active/clear is run-scoped and not persisted.
+It layers over automatic evidence without claiming a detector or fabricating
+Clear. Default protected-call output is visual-only, including previews and
+approval readbacks. Pending synthesis/playback is invalidated before UI work;
+clearance replays no old speech and grants no input or approval.
+
+Manual controls require original initiating channel, current call revision and
+fresh ownership/privacy admission. Protected calls reject every voice-originated
+voice/in-call option mutation, including clear/reset. A later UI confirmation
+cannot relabel voice intent; new UI initiation is required. Stop/cancel,
+disable listening and readable status remain usable. New protection downgrades
+and exceptions stay unavailable until complete exact trusted review is composed.
+No network/account detector, speaker biometric check, live call trial or
+native/acoustic privacy acceptance is claimed.
 
 ## Visual safety fallback
 

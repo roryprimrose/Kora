@@ -68,6 +68,10 @@ public sealed partial class MainWindow : Window
         positionSaveTimer.Tick += OnPositionSaveTimer;
         viewModel.WindowActionRequested += OnWindowActionRequested;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        AddHandler(PointerMovedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnPointerPressed;
         PositionChanged += OnPositionChanged;
         Loaded += OnLoaded;
@@ -363,6 +367,14 @@ public sealed partial class MainWindow : Window
             eventArgs.Handled = true;
             viewModel.NotifyPresenceInteraction();
             BeginMoveDrag(eventArgs);
+        }
+    }
+
+    private void OnMouseActivity(object? sender, PointerEventArgs eventArgs)
+    {
+        if (eventArgs.Pointer.Type == PointerType.Mouse)
+        {
+            SchedulePresenceTimeout();
         }
     }
 

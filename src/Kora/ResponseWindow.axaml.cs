@@ -44,6 +44,10 @@ public sealed partial class ResponseWindow : Window
         Closed += OnClosed;
         PositionChanged += OnPositionChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        AddHandler(PointerMovedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnInteraction;
         KeyDown += OnInteraction;
     }
@@ -158,6 +162,14 @@ public sealed partial class ResponseWindow : Window
     {
         viewModel.NotifyPresenceInteraction();
         RestartResponseTimeout();
+    }
+
+    private void OnMouseActivity(object? sender, PointerEventArgs eventArgs)
+    {
+        if (eventArgs.Pointer.Type == PointerType.Mouse)
+        {
+            RestartResponseTimeout();
+        }
     }
 
     private void OnInteraction(object? sender, KeyEventArgs eventArgs)

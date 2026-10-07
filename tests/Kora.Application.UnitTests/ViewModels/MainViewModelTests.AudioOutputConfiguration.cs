@@ -106,4 +106,27 @@ public sealed partial class MainViewModelTests
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         fixture.Session.LockCalls.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Rejected_native_output_change_preserves_in_flight_response_and_never_restarts_playback()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var speaking = fixture.RunAsync("what power action is pending");
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        var title = fixture.ViewModel.ResponseTitle;
+        var body = fixture.ViewModel.ResponseBody;
+        var spoken = fixture.TextToSpeech.SpokenText;
+        var stops = fixture.TextToSpeech.StopCalls;
+        fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+        await fixture.RunAsync("reset audio.output-device");
+        fixture.ViewModel.ResponseTitle.Should().Be(title);
+        fixture.ViewModel.ResponseBody.Should().Be(body);
+        fixture.TextToSpeech.SpokenText.Should().Be(spoken);
+        fixture.TextToSpeech.StopCalls.Should().Be(stops);
+        fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.TextToSpeech.SpeakGate.TrySetResult();
+        await speaking;
+    }
 }

@@ -275,8 +275,9 @@ The reserved `list audio output settings` and get/status/set/reset
 output device) returns an explicit local unavailable failure before inference
 or question/approval routing. No read result, choice list, write, reset,
 successful audit, playback or microphone operation is claimed.
-An existing exact question/approval preview is not overwritten; its decision
-remains pending and the separate transcript/status reports the refusal.
+An existing exact question/approval preview or in-flight response is not
+overwritten; its decision/output remains intact and the separate transcript/status
+reports the refusal.
 All speech/acoustic/hardware/provider experiment receipts and executables are
 retained: this refusal gate supersedes none of their maintained evidence.
 

@@ -23,7 +23,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(SelectedOutputDevice));
             if (!disposed && IsHostInputEligible)
             {
-                if (IsResponseInteractionPending)
+                if (IsResponseInteractionPending || IsSpeaking || IsBusy)
                 {
                     Transcript = AudioOutputConfigurationStatus;
                     return;

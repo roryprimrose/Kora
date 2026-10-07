@@ -336,7 +336,7 @@ journal/backup coverage. No provider is selected or newly admitted now.
 The current bounded [SQLite task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs)
 implements private-folder/file checks, a distinct version-1 host schema,
 FULL-synchronous transactions and revision-checked event/state commits.
-It has no database key or automatic schema/data replacement. The next bounded
+It has no database key or automatic schema/data replacement. The delivered bounded
 R04 milestone composes exact typed/activated-voice version queries with the
 private task store and independent typed SQLite diagnostic/audit/span/link
 projections. Required evidence admission failures prevent dispatch or terminal
@@ -348,7 +348,7 @@ backups/artifact publication, content/session lifecycle and deletion, audit
 checkpoints/pruning, broader migrations and installed/power-loss evidence
 remain open under the R04 inventory and deferred register.
 
-The next [R04/R05 interaction slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+The delivered [R04/R05 interaction slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 uses this same baseline, not a new provider decision. Its private version-1
 interaction schema atomically persists typed question/grant/session authority
 and its own typed audit. Matching committed task intent is validated while
@@ -360,6 +360,15 @@ migration, general content store or effect dispatch is introduced. Authority
 row removal is not recoverable-copy deletion; full R12 retention/deletion,
 audit anchors/pruning/whole-store rollback and installed/power-loss acceptance
 remain open.
+
+The subsequent merged [minimal Sessions workspace and metadata slice](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07)
+adds passive pages, guarded idle Done/resume, durable names and explicit native
+empty Create/exact-ID revisioned Rename. Only the private interaction partition
+has validated v1-to-v2 metadata migration; task/evidence schemas are unchanged.
+This adds no conversations, queue/scheduler, model routing, automatic archive/
+retention/delete/export or restoration of consumed authority. The
+[current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+is separate from the historical encrypted-route and local validation receipts.
 
 The [2026-10-07 production-store interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
 adds maintained proof for actual task/evidence/interaction adapter writes and

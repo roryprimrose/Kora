@@ -286,7 +286,12 @@ See [execution design](skill-and-task-execution-design.md) and
 
 ## 8. Discovering, selecting, and managing skills
 
-All skill-registry operations below are **Planned**.
+The full skill-registry operations below are **Planned**. Current
+[artifact invocation](commands.md#run-skills-and-future-artifacts) provides
+bounded source-qualified bundled/profile instruction selection and a slash
+dropdown. The tray's **Skill packages (inspection only)** exposes immutable
+declared bundled files. Neither is general source registration, enablement,
+authoring or a script executor.
 
 | Ask | Intended behavior |
 |---|---|
@@ -504,8 +509,19 @@ read every resource or send the results remotely without permission.
 
 ## 14. Persistent sessions, history, and shared questions
 
-All capabilities in this section are **Planned**, not the current response window.
-The compact view shows the selected session's latest interaction. A Sessions
+**Current bounded subset:** [Sessions](windows-and-tray.md#minimal-durable-sessions)
+opens passive durable ID/name/generation pages, actual typed question/current
+task records and selected-session evidence. Native empty Create, revisioned
+exact-ID Rename and guarded idle Done/resume use existing host authority;
+the same operations are also available through
+[exact-ID typed/activated-voice commands](commands.md#bounded-exact-id-session-commands),
+not name-based routing or model tools. Selection never
+redirects global input, questions or approvals, and reading/rename never resumes.
+The separate native local-version question/review route supports actual durable
+drafts/answers and exact-record review, not general conversation execution.
+
+The full workflows below remain **Planned**. In that design, the compact view
+shows the selected session's latest interaction. A Sessions
 workspace places the Active/Done list beside full conversation/history, with
 separate read-only detail/script viewers and an All work view.
 

@@ -49,7 +49,12 @@ unmatched request, the built-in action names/descriptions, and a limited
 snapshot of dependency readiness, task state/progress, listening state, and
 pending power-proposal status to the pinned Ollama model on `127.0.0.1`. It
 does not include earlier conversations, logs, files, clipboard contents,
-device identifiers, or account data. For a clarification, Kora sends the
+device identifiers, or account data. Explicit
+[artifact invocation](commands.md#run-skills-and-future-artifacts) separately
+includes the selected bundled/compatible profile instruction content and its
+source/version/digest identity in the local-model request, not arbitrary files
+or the instruction's scripts. That content remains untrusted guidance and
+cannot bypass host action/grant policy. For a clarification, Kora sends the
 original request, its question, and the option you selected back to that same
 local model; no unrelated conversation history is sent. The model can return
 a text answer, a bounded question with choices, a grant-change proposal,

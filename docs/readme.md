@@ -16,7 +16,23 @@ already granted for the action). An exact built-in lock phrase currently runs
 directly without this approval gate. Choosing an answer to a question never
 grants permission to execute an action. Stored `.ps1` skills, general
 application launches, content-bound grants, and a script review window are
-planned, not available.
+planned, not available. Bundled or compatible profile instructions can be
+selected with [slash or activated-voice artifact commands](commands.md#run-skills-and-future-artifacts)
+for the existing local-model request; selecting instructions does not run
+their scripts or grant permission.
+
+Other bounded native features are
+[minimal durable Sessions and explicit Create/Rename](windows-and-tray.md#minimal-durable-sessions),
+[local immutable clipboard preview](commands.md#explicit-local-clipboard-preview),
+[read-only discovery](commands.md#read-only-host-discovery),
+[appearance and installed speech choices](settings.md),
+[tray microphone/PTT recovery](windows-and-tray.md#microphone-and-listening-recovery),
+and [SQLite/independent DailyLog evidence inspection](privacy-safety-and-logs.md#logs).
+[Exact-ID session commands](commands.md#bounded-exact-id-session-commands)
+share the native workspace service without a model; names are labels, never
+selectors. Names and empty sessions are not conversation history or queues; clipboard
+explanation and model evidence tools remain unavailable. Ordinary diagnostic
+pruning never deletes audits, sessions or grants.
 
 ## Start here
 
@@ -66,8 +82,9 @@ If you renamed the assistant, use the configured name instead of Kora.
   verified local model for answers or suggestions from the built-in action
   list. Disruptive suggestions require an on-screen approval unless an
   action-name grant already covers them; direct exact commands do not.
-- Automatic call detection is not currently available. The call-aware settings
-  take effect when a supported detector reports an Active or Suspected call.
+- Automatic call detection is not currently available. The delivered
+  [manual call mode](responses-and-calls.md) can protect this run without a
+  detector; enabled Active/Suspected/Unknown observations remain conservative.
 - Ordinary responses while microphone capture is active are visual; previews
   and spoken approval prompts close capture. New voice replies require new
   explicit push-to-talk. No ambient grammar runs as a substitute wake engine.

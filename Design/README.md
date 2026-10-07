@@ -1,6 +1,8 @@
 # Kora Design
 
-Status: proposed design, not an implemented capability statement.
+Status: design index; proposed contracts and source-backed bounded deliveries
+are labelled separately. The vision and complete release scope are not an
+implemented capability statement.
 
 [Vision Statement](Vision_Statement.md) describes the long-term product direction.
 The documents below turn that direction into an initial delivery scope and architectural decisions.
@@ -14,6 +16,9 @@ behavior from partial/outstanding features and missing release proof, and orders
 remaining work by safety, user value and explicit dependencies.
 It is the current delivery baseline; the numbered A0-A4/B/C checkpoints remain
 acceptance milestones, not a claim that the bootstrap has completed any slice.
+Its [current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+identifies the exact reviewed main SHA, merged PRs, maintained source and
+experiment disposition separately from original/rebase validation receipts.
 R01's initial-release policy reconciliation is
 [approved and recorded](Decision_Register.md#r01-accepted-policy-reconciliation):
 R02 feasibility and R03 ownership/privacy work can start. Runtime acceptance
@@ -23,9 +28,13 @@ R02's storage/key investigation now informs the
 [D-009 status and remaining gates](Decision_Register.md#d-009-session-persistence-and-retention),
 and [concrete R02/R04/R12 follow-on work](Implementation_Roadmap.md#r02-storagekey-outcome-and-follow-on-work).
 The runnable experiment is supporting evidence, not production admission:
-maintained native selection and installed Windows loading remain open;
-CurrentUser/profile-path/permission integration, the final schema and
-integrated lifecycle/deletion are not delivered. Windows supplies ordinary
+the approved baseline is now bundled standard SQLite with verified private
+profile permissions, not an unresolved encrypted-native/key selection.
+Bounded task/evidence/interaction persistence, no-replay recovery, ordinary
+diagnostic pruning and minimal session authority/workspace/metadata are
+composed. Full conversation/artifact/backup lifecycle and deletion, audit
+anchors/pruning and installed Windows loading/protection remain open.
+Windows supplies ordinary
 cross-profile isolation; routine second-account OS-denial trials are not
 required for this profile-local application or for merging its research outcome.
 
@@ -60,6 +69,31 @@ work is not held behind unapproved hosted-model tests.
 
 ## Current Bootstrap Boundary
 
+The merged bootstrap also delivers a bounded
+[Sessions workspace and native metadata controls](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07),
+[explicit local clipboard preview](../docs/commands.md#explicit-local-clipboard-preview),
+six-ID [read-only host discovery](../docs/commands.md#read-only-host-discovery),
+and nine-option [typed appearance controls](../docs/settings.md#appearance).
+The [bounded exact-ID session command path](../docs/commands.md#bounded-exact-id-session-commands)
+now shares native host lifecycle/metadata authority for typed and activated
+voice help/list/status/inspect/create/rename/done/resume. It adds no model
+session tools, name-based routing or independent scheduler. Sessions
+names/empty creation are not conversations or queues; clipboard
+preview/reuse never submits content to a model. The read-only catalogue does
+not qualify model execution.
+
+[Kora.Tools](../src/Kora.Tools/README.md) owns portable per-action C# effects
+behind Core contracts and the Application gateway;
+[Kora.Definitions](../src/Kora.Definitions/README.md) owns immutable bundled
+resources. [Slash/activated-voice artifact invocation](../docs/commands.md#run-skills-and-future-artifacts)
+selects bundled or bounded compatible profile instructions for the existing
+local-model selector; it is not a script executor or agent runtime.
+Source-generated companion logging preserves typed audit authority.
+Native [evidence inspection](../docs/privacy-safety-and-logs.md#logs) supports
+SQLite and independent DailyLog; All remains SQLite-only, and file mirrors
+never become audit authority. Ordinary startup pruning is not audit/session
+deletion, and combined-source/model/export workflows remain unavailable.
+
 R10 also delivers a bounded [installed speech-provider/voice configuration
 slice](User_Configuration.md#delivered-bounded-installed-speech-choices-r10):
 shared typed discovery/current/default/recovery and exact UI/typed/activated-voice
@@ -74,6 +108,13 @@ and retained unavailable pins), explicit PTT enable/disable and existing
 playback Stop speaking. It adds no capture, wake, microphone test, automatic
 selection or generic question workflow. Full native/audio acceptance remains
 open; existing tray/navigation/maintenance/exit behavior is preserved.
+The subsequent [passive native microphone recovery card](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+shares Tray/Settings exact displayed choices, local draft highlight, revision-bound
+Save preference only and separate fresh endpoint-bound Enable. It does not
+create durable R05 question/session/task authority, combine consent with
+selection/enable, test/capture audio or change Windows permission. Enable still
+only arms existing PTT; first-run/full matrix and native/hardware acceptance
+remain open.
 
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,
 checks PowerShell 7 readiness, and offers consented PowerShell setup without requiring

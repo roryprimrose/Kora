@@ -11,6 +11,14 @@ The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 records what the current source actually delivers and the dependency/value-ordered
 work remaining. A documented capability, local readiness proof or native window
 does not establish acceptance of an entire checkpoint.
+The [current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+also includes minimal durable session authority/workspace/names/native empty
+creation and exact-ID typed/activated-voice session commands, explicit local
+clipboard preview, read-only discovery, bounded
+appearance/installed speech settings, artifact instruction invocation,
+ordinary diagnostic pruning, independent daily evidence and native tray/passive
+microphone-card recovery. These foundations do not complete conversations/queues, a model
+tool loop, clipboard answering, ambient wake or full A0-A4 acceptance.
 
 ## Product Outcome
 

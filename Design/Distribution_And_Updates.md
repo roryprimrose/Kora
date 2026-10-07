@@ -903,6 +903,13 @@ lines and 4,040/4,040 branches**. This extends, rather than rewrites, the
 original-base receipt above. Browser status acknowledges a shell navigation
 request, including existing-browser reuse, not a new process or visible page.
 
+The next rebase preserves Sessions #61 at
+`9025c15f7b9402b029ac61fc361d43192b0156bf`, Skills and all three tray routes.
+Combined validation passed **467 Core + 1,365 Application + 732 Windows
+tests**, zero-warning/error Release, and fresh portable **8,125/8,125 lines
+and 4,052/4,052 branches**. Busy checks/navigation immediately disable native
+review actions; exact snapshot and privacy/call invalidation remain enforced.
+
 GitHub Releases is the sole current version host for both prerelease and
 production versions of `roryprimrose/Kora`. Use its release API, or future
 authenticated release metadata published with those releases, not arbitrary

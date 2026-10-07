@@ -160,6 +160,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         operation = new();
         var token = operation.Token;
         var admittedRevision = revision;
+        Notify();
         try
         {
             var checkedRelease = await client.CheckAsync(channel, info.Version, architecture, token);
@@ -228,6 +229,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         operation = new();
         var token = operation.Token;
         var admittedRevision = revision;
+        Notify();
         try
         {
             await opener.OpenAsync(version, token);

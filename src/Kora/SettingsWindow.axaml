@@ -391,7 +391,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Speech provider" Classes="settings-title" />
+                  <TextBlock Text="Speech provider assets (review only)" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding SpeechProviderAvailabilityMessage}"
                       Classes="settings-description"
@@ -431,7 +431,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Speech voice" Classes="settings-title" />
+                  <TextBlock Text="Installed speech provider and voice" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding VoiceAvailabilityMessage}"
                       Classes="settings-description"
@@ -439,13 +439,22 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
                   <ComboBox
-                      ItemsSource="{Binding Voices}"
+                      ItemsSource="{Binding InstalledSpeechProviders}"
+                      SelectedItem="{Binding SelectedInstalledSpeechProvider}"
+                      DisplayMemberBinding="{Binding Name}"
+                      PlaceholderText="Choose a ready installed provider" />
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                  <Button Content="Reset speech provider" Command="{Binding ResetSpeechProviderCommand}" />
+                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
+                  <ComboBox
+                      ItemsSource="{Binding InstalledSpeechVoices}"
                       SelectedItem="{Binding SelectedVoice}"
                       PlaceholderText="No voice selected">
                     <ComboBox.ItemTemplate>
                       <DataTemplate>
                         <StackPanel>
                           <TextBlock Text="{Binding Name}" />
+                          <TextBlock Text="{Binding ConfigurationId}" Classes="muted" FontSize="10" />
                           <TextBlock Text="{Binding Culture}" Classes="muted" FontSize="10" />
                         </StackPanel>
                       </DataTemplate>

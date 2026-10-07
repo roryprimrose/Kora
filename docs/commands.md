@@ -150,6 +150,33 @@ UI service, domain validation, revision check, atomic persistence, audit and
 live notifications. There is no whole-profile reset or undo, model tool
 exposure, arbitrary JSON patch or configuration-file editing authority.
 
+### Inspect or change an installed speech choice
+
+- **list speech settings**
+- **get speech.provider**
+- **get speech.voice**
+- **set speech.provider to windows-sapi**
+- **set speech.voice to kokoro / af_heart**
+- **reset speech.provider**
+- **reset speech.voice**
+
+Use the installed IDs actually listed on your device. Exact spoken option
+names, such as **speech provider**, and the configured assistant-name prefix
+also work. Voice choices use `provider / ID`, or an unambiguous exact voice ID;
+selecting a voice explicitly selects that provider too. IDs are not guessed,
+translated or case-normalized, and unknown or unavailable choices do not
+trigger a model, download or substitute. The command bound is 320 characters
+after the optional name prefix; voice IDs are at most 256 characters.
+
+Provider set/reset also restores that provider's advertised default voice;
+provider reset chooses Windows. Voice reset restores only the current
+provider's advertised default. An unavailable default requires an explicit
+installed voice choice. Status reports saved/desired/effective values,
+revision and recovery. Protected calls reject original voice-channel set/reset,
+including a later UI confirmation; a new eligible Settings/typed request is
+required. Rate, volume, summary limits and model settings tools are not added.
+See [the shared native controls](settings.md#speech-provider).
+
 ### Open settings
 - **open settings**
 - **show Kora settings**

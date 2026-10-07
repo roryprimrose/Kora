@@ -1,6 +1,6 @@
 # User Configuration and Verbal Settings
 
-Status: partial. The bounded appearance subset below is delivered through a
+Status: partial. The bounded appearance and installed speech-choice subsets below are delivered through a
 shared typed UI/exact local command path; the complete verbal preference and
 model-facing contract remains proposed, subject to protected-call origin gates
 and mandatory secure workflows.
@@ -42,9 +42,63 @@ and produces visible failure; stale proposals require a new operation.
 Reset restores one admitted default; no multi-file transaction, whole-profile
 reset or undo is implemented. Shared response-window pin/topmost/position
 and presence placement remain direct UX outside the registry.
-Voice/audio/call/manual state, grants, models, retention, dependencies and
+Other voice/audio/call/manual state, grants, models, retention, dependencies and
 startup are not registered. No model tools or broader execution authority
-are exposed by this slice. The following complete contract remains future work.
+are exposed by the appearance slice.
+
+### Delivered bounded installed speech choices (R10)
+
+Schema version 1 admits `speech.provider` (spoken name: speech provider) and
+`speech.voice` (speech voice), using the delivered Windows SAPI (`windows-sapi`)
+and Kokoro adapters only. Descriptors classify both as device-local,
+installed-choice, voice-output settings, applied after atomic save to the next
+speech operation. Discovery lists only installed catalogue voices and providers
+with ready choices; it exposes current desired/effective values, defaults,
+saved/default provenance, recovery and a process-local revision.
+
+The default is Windows and its advertised culture-compatible default voice.
+An unset voice means that provider's advertised default, not an arbitrary
+replacement. Provider set/reset also resets the voice to that provider's
+advertised default; provider reset restores Windows. Voice reset affects the
+selected provider's voice only. An explicit qualified voice choice
+`provider / voice ID` selects that exact pair atomically, including a voice
+from another installed provider or one with no compatible default.
+An unqualified ID is accepted only when unambiguous. Voice IDs are bounded to
+256 characters and reject padding, empty values and controls.
+
+The [typed registry](../src/Kora.Core/Configuration/SpeechOptionRegistry.cs),
+[host workflow](../src/Kora.Application/Configuration/SpeechConfigurationService.cs),
+[preference domain](../src/Kora.Application/Configuration/LocalTextToSpeechPreferences.cs)
+and [exact grammar](../src/Kora.Application/Configuration/SpeechCommand.cs)
+share the existing Settings selection/reset controls and typed/activated-voice
+list/get/set/reset routes. A versioned single atomic selection file prevents
+partial provider/voice writes. Existing separate preferences are read without
+rewriting and are shadowed only after a successful explicit coherent save.
+Malformed/unknown saved formats and providers remain explicit errors/recovery;
+missing selected assets retain the desired choice and disable speech, never
+silently download, substitute or repin. Explicit selection/reset or repair
+and refresh provides recovery. Native synthesis failure creates a visible
+run-only hold without changing the saved selection.
+
+Owned proposals bind configuration revision, observed call revision and original
+channel. The existing call-policy lock encloses live ownership/privacy/call
+revalidation and the synchronous atomic write; stale/foreign proposals fail,
+and reentrant notifications cannot mutate the registry. Cancellation is
+admitted before commit, never reported as an unsaved change after commit.
+Typed request/terminal audit outcomes precede live notification; failed
+storage keeps the prior selection/revision. Audit evidence failure propagates,
+does not claim success or activate the unaudited choice, and may require
+inspection of the committed file if terminal evidence failed after replacement.
+
+Protected calls reject original voice-channel set/reset even if later dispatched
+from UI. A new eligible local UI/typed request remains subject to the existing
+host gate; this slice changes no protection downgrade, exact consent or call
+override policy. System/pinned output routing, speech privacy and mandatory
+visual fallback are unchanged. Asset review/download/removal remains separate
+from ready selection; finishing a download does not silently switch output.
+No rate/volume/summary caps, microphone/tray recovery, model tools, provisioning
+authority, general registry rewrite or full R10/acoustic acceptance is delivered.
+The following complete contract remains future work.
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.

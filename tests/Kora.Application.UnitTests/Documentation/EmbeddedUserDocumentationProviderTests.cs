@@ -87,7 +87,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 2);
+        sections.Should().HaveCount(commands.Count + 3);
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -102,11 +102,23 @@ public sealed class EmbeddedUserDocumentationProviderTests
         appearancePhrases.Should().Equal("list appearance settings", "get appearance.theme",
             "set appearance.theme to dark", "reset appearance.theme");
         appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
+        var speech = sections.Single(section => section.StartsWith(
+            "Inspect or change an installed speech choice", StringComparison.Ordinal));
+        var speechPhrases = Regex.Matches(speech, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        speechPhrases.Should().Equal("list speech settings", "get speech.provider", "get speech.voice",
+            "set speech.provider to windows-sapi", "set speech.voice to kokoro / af_heart",
+            "reset speech.provider", "reset speech.voice");
+        speechPhrases.Should().OnlyContain(phrase => SpeechCommand.Parse(phrase, "Kora") != null);
         var settings = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(item => string.Equals(item.Id, "settings", StringComparison.Ordinal));
         foreach (var descriptor in AppearanceOptionRegistry.Options)
             settings.Markdown.Should().Contain(descriptor.Id);
-        sections = sections.Where(section => !ReferenceEquals(section, appearance) && !ReferenceEquals(section, sessions)).ToArray();
+        foreach (var descriptor in SpeechOptionRegistry.Options)
+            settings.Markdown.Should().Contain(descriptor.Id);
+        sections = sections.Where(section => !ReferenceEquals(section, appearance)
+            && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

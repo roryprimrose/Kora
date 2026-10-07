@@ -267,11 +267,11 @@ confirmation, and application timing.
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
-| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial: host-only nine-option appearance registry and exact `list appearance settings`; model tool and other categories planned |
-| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial: exact `get <appearance.id>` reads typed value, revision and saved/default provenance; model tool and other options planned |
-| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; prior value retained on failure | M/E | Partial: appearance direct UI and exact `set <appearance.id> to <value>` share host-owned typed proposals, revision recheck and one-file atomic save; no model tool |
+| `settings.list` | Optional category | Available option descriptors and unsupported dependencies | M/E | Partial: host-only nine-option appearance and installed speech-choice registries; exact `list appearance settings` / `list speech settings`; model tool and other categories planned |
+| `settings.get` | Registered option/category ID | Saved/effective value, scope and limitation | M/E | Partial: exact `get <appearance.id>` / `get <speech.id>` reads value, revision, saved/default provenance and speech recovery; model tool and other options planned |
+| `settings.propose_change` | Option ID, typed value, scope, expected revision | Validate/stage/confirm/apply atomically; prior value retained on failure | M/E | Partial: appearance/installed-speech direct UI and exact setters share owned proposals, revision rechecks and one-file atomic saves; speech pairs retain original-channel/call-revision gates; no model tool |
 | `settings.propose_change` | Identified temporary preference, target default scope | Exact compatible default-change proposal; no grant promotion | M/E | Planned |
-| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Partial: direct UI/exact `reset <appearance.id>` restores one admitted default with revision check; category/whole-profile reset and model tool planned |
+| `settings.reset` | Option/category, expected revision | Preview exact defaults/affected state; confirm; do not delete skills/credentials | M/E | Partial: direct UI/exact appearance/speech reset restores admitted defaults/declared affected selection with revision checks and speech origin gates; category/whole-profile reset and model tool planned |
 | `settings.undo` | Compatible prior change ID, expected revision | Revalidate prior preference only; never restore consumed grants or effects | M/E | Planned |
 
 The complete option registry is specified in [User Configuration](User_Configuration.md):
@@ -283,6 +283,18 @@ including visual playback scaling. This is separate from the Tools registry
 and adds no model invocation authority. Response pin/topmost/position retain
 direct UX outside this independent-file registry; full verbal preferences,
 temporary scopes and undo remain open.
+
+The delivered schema-version-1 installed speech registry separately admits
+`speech.provider` and `speech.voice`, with installed choices, advertised
+defaults, desired/effective values, saved provenance, explicit recovery,
+process-local revision and voice-output effect. Exact `list speech settings`,
+`get`, `set` and `reset` use the same host workflow as native selection/reset.
+Explicit provider-qualified voice choices atomically select the provider/voice
+pair; ambiguous, missing or uninstalled choices cannot be selected. The existing
+protected-call gate preserves original channel and observed call revision.
+This remains host-only: none of the proposed `settings.*` model tools is
+registered or executable, and rate/volume/summary caps remain planned.
+See the [bounded contract](User_Configuration.md#delivered-bounded-installed-speech-choices-r10).
 
 | Category | Covered options | Current host subset |
 |---|---|---|

@@ -79,6 +79,19 @@ public sealed class CallCommunicationPolicy : IDisposable
             {
                 return CallMutationOutcome.OriginDenied;
             }
+
+            return null;
+        }
+    }
+
+    internal CallMutationOutcome? CommitVoiceSetting(RequestOrigin origin, long revision,
+        Func<bool> hostEligible, Action commit)
+    {
+        lock (sync)
+        {
+            var denied = CheckMutation(origin, revision, hostEligible);
+            if (denied is not null) { return denied; }
+            commit();
             return null;
         }
     }

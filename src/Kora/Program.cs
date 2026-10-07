@@ -314,6 +314,8 @@ internal static class Program
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
         services.AddSingleton<AppearanceConfigurationService>();
+        services.AddSingleton<ISpeechCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<SpeechConfigurationService>();
         services.AddSingleton<ITextToSpeechPreferences>(provider =>
             new LocalTextToSpeechPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),

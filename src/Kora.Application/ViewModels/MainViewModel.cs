@@ -52,7 +52,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string SessionLockAction = "session.lock";
     private const string ShutdownApprovalAction = "power.shutdown";
     private const string RestartApprovalAction = "power.restart";
-    private const string VoiceSelectionConfigurationAction = "configuration.voice-selection";
 
     private readonly BuiltInCommandCatalog commandCatalog;
     private readonly BuiltInCommandRouter commandRouter;
@@ -68,7 +67,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly ITextToSpeechService textToSpeech;
     private readonly IAssistantNamePreferences assistantNamePreferences;
     private readonly IAppearancePreferences appearancePreferences;
-    private readonly ITextToSpeechPreferences textToSpeechPreferences;
     private readonly IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences;
     private readonly IAudioDevicePreferences audioDevicePreferences;
     private readonly IResponseOutputPreferences responseOutputPreferences;
@@ -203,7 +201,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ITextToSpeechService textToSpeech,
         IAssistantNamePreferences assistantNamePreferences,
         IAppearancePreferences appearancePreferences,
-        ITextToSpeechPreferences textToSpeechPreferences,
         IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences,
         IAudioDevicePreferences audioDevicePreferences,
         IResponseOutputPreferences responseOutputPreferences,
@@ -221,6 +218,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DurableVersionQuery durableVersionQuery,
         Kora.Application.Tools.ReadOnlyCapabilityRegistry capabilityRegistry,
         AppearanceConfigurationService appearanceConfiguration,
+        SpeechConfigurationService speechConfiguration,
         Kora.Tools.Clipboard.ClipboardSnapshotBroker clipboardPreview,
         Kora.Tools.Clipboard.ClipboardRead clipboardRead,
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
@@ -240,7 +238,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.textToSpeech = textToSpeech;
         this.assistantNamePreferences = assistantNamePreferences;
         this.appearancePreferences = appearancePreferences;
-        this.textToSpeechPreferences = textToSpeechPreferences;
         this.optionalSpeechOfferPreferences = optionalSpeechOfferPreferences;
         this.audioDevicePreferences = audioDevicePreferences;
         this.responseOutputPreferences = responseOutputPreferences;
@@ -260,6 +257,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.capabilityRegistry = capabilityRegistry;
         this.appearanceConfiguration = appearanceConfiguration;
         appearanceConfiguration.Changed += OnAppearanceChanged;
+        this.speechConfiguration = speechConfiguration;
+        speechConfiguration.Changed += OnSpeechConfigurationChanged;
         this.clipboardPreview = clipboardPreview;
         this.clipboardRead = clipboardRead;
         this.clipboardReuse = clipboardReuse;
@@ -270,6 +269,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             new(execute, HandleCommandException, canExecute);
 
         ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
+        ResetSpeechProviderCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Provider));
+        ResetSpeechVoiceCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Voice));
         ToggleListeningCommand = CreateCommand(
             ToggleListeningAsync,
             () => !lifecycleAdmissionClosed && !IsBusy
@@ -1120,22 +1121,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (SetProperty(ref selectedSpeechProvider, value))
             {
                 NotifySpeechProviderStateChanged();
-                if (!suppressSpeechProviderPreferenceSave && value is not null)
-                {
-                    if (value.IsInstalled)
-                    {
-                        SaveSpeechProviderPreference(value.Id);
-                    }
-
-                    PopulateVoicesForProvider(
-                        textToSpeech.GetVoices(),
-                        preferredVoiceId: null,
-                        savedVoiceUnavailable: false);
-                }
-                else
-                {
-                    UpdateSpeechProviderAvailability();
-                }
+                UpdateSpeechProviderAvailability();
             }
         }
     }
@@ -1145,22 +1131,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedVoice;
         set
         {
-            if (!suppressVoicePreferenceSave && !AdmitVoiceOptionMutation(VoiceSelectionConfigurationAction)) { return; }
+            if (!suppressVoicePreferenceSave)
+            {
+                if (value is not null) { ApplySpeechChoice(SpeechOption.Voice, value.ConfigurationId); }
+                else if (AdmitVoiceOptionMutation("configuration.voice-selection")) { ClearActiveSpeechVoice(); }
+                return;
+            }
             if (SetProperty(ref selectedVoice, value))
             {
-                if (SelectedSpeechProvider is { IsInstalled: true })
-                {
-                    SetActiveSpeechVoice(value);
-                }
+                SetActiveSpeechVoice(value);
 
                 PreviewVoiceCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(IsSpeechOutputAvailable));
                 NotifyOutputPolicyChanged();
-                UpdateVoiceAvailability(savedVoiceUnavailable: false);
-                if (!suppressVoicePreferenceSave && value is not null)
-                {
-                    SaveVoicePreference(value.Id);
-                }
             }
         }
     }
@@ -2711,7 +2694,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var savedMicrophoneUnavailable =
                 savedMicrophoneId is not null && savedMicrophone is null;
             var selectedSpeechProviderId = SelectedSpeechProvider?.Id;
-            var selectedVoiceId = SelectedVoice?.Id;
             var speechProviders = textToSpeech.GetProviders();
             SpeechProviders.Clear();
             foreach (var provider in speechProviders)
@@ -2719,7 +2701,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 SpeechProviders.Add(provider);
             }
 
-            var voices = textToSpeech.GetVoices();
             var savedOutputDeviceId = audioDevicePreferences.LoadOutputDeviceId();
             var outputDevices = textToSpeech.GetOutputDevices();
             OutputDevices.Clear();
@@ -2756,9 +2737,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
 
-            var savedSpeechProviderId = textToSpeechPreferences.LoadProviderId();
+            speechConfiguration.Reload();
+            var savedSpeechProviderId = speechConfiguration.Get().Selection?.ProviderId;
             savedSpeechProviderIdForOffer = savedSpeechProviderId;
-            var savedVoiceId = textToSpeechPreferences.LoadVoiceId();
             var savedResponseMode = responseOutputPreferences.LoadDefaultMode();
             var savedMutedOutputFallback = responseOutputPreferences.LoadMutedOutputVisualFallback();
             var savedCallAwareSettings = callAwarePreferences.Load() ?? CallAwareSettings.Default;
@@ -2791,26 +2772,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         SpeechProviderIds.Windows,
                         StringComparison.Ordinal))
                 ?? SpeechProviders.FirstOrDefault();
-            var preferredVoiceId = selectedSpeechProviderId is not null
-                ? selectedVoiceId
-                : savedVoiceId;
             suppressSpeechProviderPreferenceSave = true;
-            suppressVoicePreferenceSave = true;
             try
             {
                 SelectedSpeechProvider = preferredProvider;
-                PopulateVoicesForProvider(
-                    voices,
-                    preferredVoiceId,
-                    ShouldReportUnavailableSavedVoice(
-                        savedVoiceId,
-                        selectedSpeechProviderId,
-                        savedSpeechProviderId,
-                        preferredProvider));
+                SynchronizeSpeechConfiguration();
             }
             finally
             {
-                suppressVoicePreferenceSave = false;
                 suppressSpeechProviderPreferenceSave = false;
             }
 
@@ -2836,6 +2805,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     (_, _, 0) => "Connect or enable a Windows audio output device, then refresh. Typed and visual commands remain available.",
                     _ => "With saved voice consent, safe startup enables push-to-talk. Ambient wake is unavailable; the microphone stays closed until explicit activation.",
                 };
+            if (speechConfiguration.Get().Recovery is { } speechRecovery)
+            {
+                if (Voices.Count > 0) { setupTitle = "Speech output is unavailable."; }
+                setupBody += Environment.NewLine + speechRecovery;
+            }
             PresentResponse(AssistantState.Information, setupTitle, setupBody);
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
             ApplicationLog.EnvironmentRefreshCompleted(
@@ -3061,12 +3035,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 provider.Id,
                 progress);
             RefreshSpeechProviderCatalog(provider.Id);
-            if (SelectedVoice is not null)
-            {
-                SaveSpeechProviderPreference(provider.Id);
-                SaveVoicePreference(SelectedVoice.Id);
-            }
-
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             ShowInformation(
                 $"{provider.Name} is ready.",
@@ -3199,7 +3167,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         suppressSpeechProviderPreferenceSave = true;
-        suppressVoicePreferenceSave = true;
         try
         {
             SelectedSpeechProvider = SpeechProviders.FirstOrDefault(
@@ -3207,89 +3174,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     provider.Id,
                     providerId,
                     StringComparison.Ordinal));
-            PopulateVoicesForProvider(
-                textToSpeech.GetVoices(),
-                preferredVoiceId: null,
-                savedVoiceUnavailable: false);
+            speechConfiguration.Reload();
+            SynchronizeSpeechConfiguration();
         }
         finally
         {
-            suppressVoicePreferenceSave = false;
             suppressSpeechProviderPreferenceSave = false;
         }
-    }
-
-    private void PopulateVoicesForProvider(
-        IReadOnlyList<SpeechVoice> availableVoices,
-        string? preferredVoiceId,
-        bool savedVoiceUnavailable)
-    {
-        Voices.Clear();
-        if (SelectedSpeechProvider is not null)
-        {
-            if (SelectedSpeechProvider.IsInstalled)
-            {
-                foreach (var voice in availableVoices)
-                {
-                    if (string.Equals(
-                            voice.ProviderId,
-                            SelectedSpeechProvider.Id,
-                            StringComparison.Ordinal))
-                    {
-                        Voices.Add(voice);
-                    }
-                }
-            }
-        }
-
-        var preferredVoice = Voices.FirstOrDefault(
-            voice => string.Equals(
-                voice.Id,
-                preferredVoiceId,
-                StringComparison.Ordinal));
-        var defaultVoice = Voices.FirstOrDefault(
-                voice => string.Equals(
-                    voice.Id,
-                    SelectedSpeechProvider?.DefaultVoiceId,
-                    StringComparison.Ordinal))
-            ?? SpeechVoiceSelector.SelectDefault(
-                Voices,
-                CultureInfo.CurrentUICulture);
-        SelectedVoice = preferredVoice ?? defaultVoice;
-        if (SelectedSpeechProvider?.IsInstalled == false)
-        {
-            RetainOrSelectActiveSpeechVoice(availableVoices);
-        }
-
-        UpdateVoiceAvailability(
-            savedVoiceUnavailable
-            && preferredVoiceId is not null
-            && preferredVoice is null);
-        UpdateSpeechProviderAvailability();
-    }
-
-    private static bool ShouldReportUnavailableSavedVoice(
-        string? savedVoiceId,
-        string? selectedSpeechProviderId,
-        string? savedSpeechProviderId,
-        SpeechProvider? preferredProvider)
-    {
-        if (savedVoiceId is null)
-        {
-            return false;
-        }
-
-        if (selectedSpeechProviderId is not null)
-        {
-            return false;
-        }
-
-        var effectiveSavedProviderId =
-            savedSpeechProviderId ?? SpeechProviderIds.Windows;
-        return string.Equals(
-            preferredProvider?.Id,
-            effectiveSavedProviderId,
-            StringComparison.Ordinal);
     }
 
     private async Task PreviewVoiceAsync()
@@ -3330,7 +3221,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Previewing the selected speech voice");
-            SelectedVoice = null;
+            ClearActiveSpeechVoice();
             ShowFailure("The selected speech voice is unavailable.", exception.Message);
         }
         catch (AudioOutputDeviceUnavailableException exception)
@@ -3341,7 +3232,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (InvalidOperationException exception)
         {
             ApplicationLog.Error(logger, exception, "Previewing text-to-speech");
-            SelectedVoice = null;
+            ClearActiveSpeechVoice();
             ShowFailure("Text-to-speech is unavailable.", exception.Message);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -3557,24 +3448,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             "audio output preference");
     }
 
-    private void SaveSpeechProviderPreference(string providerId)
-    {
-        _ = SavePreference(
-            () => textToSpeechPreferences.SaveProviderId(providerId),
-            SpeechProviderSelectionConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "speech provider preference");
-    }
-
-    private void SaveVoicePreference(string voiceId)
-    {
-        _ = SavePreference(
-            () => textToSpeechPreferences.SaveVoiceId(voiceId),
-            VoiceSelectionConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "speech voice preference");
-    }
-
     private void SaveResponseOutputPreference(ResponseOutputMode value)
     {
         _ = SavePreference(
@@ -3679,27 +3552,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowFailure($"The {settingName} could not be saved.", exception.Message);
             return false;
         }
-    }
-
-    private void UpdateVoiceAvailability(bool savedVoiceUnavailable)
-    {
-        VoiceAvailabilityMessage = SelectedVoice switch
-        {
-            not null when savedVoiceUnavailable =>
-                $"The saved voice is unavailable. Using {SelectedVoice.Name} ({SelectedVoice.Culture}) for this profile culture.",
-            not null => $"{SelectedVoice.Name} ({SelectedVoice.Culture}) is selected.",
-            null when SelectedSpeechProvider?.IsInstalled == false =>
-                $"Download {SelectedSpeechProvider.Name} before selecting one of its voices.",
-            null when string.Equals(
-                SelectedSpeechProvider?.Id,
-                SpeechProviderIds.Windows,
-                StringComparison.Ordinal) =>
-                "No Windows speech pack is available. Install a text-to-speech voice in Windows Settings.",
-            null when Voices.Count == 0 =>
-                "The selected provider has no compatible speech voices.",
-            _ =>
-                "No voice matches the Windows profile culture. Choose another voice.",
-        };
     }
 
     private void UpdateSpeechProviderAvailability()
@@ -3950,6 +3802,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             if (commandRouter.Match(spokenText, AssistantName).IsMatch
                 || AppearanceCommand.Parse(spokenText, AssistantName) is not null
+                || SpeechCommand.Parse(spokenText, AssistantName) is not null
                 || ClipboardCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is not null)
             {
                 await CancelModelQuestionAsync();
@@ -4031,6 +3884,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (AppearanceCommand.Parse(spokenText, AssistantName) is { } appearanceCommand)
         {
             await ExecuteAppearanceCommandAsync(appearanceCommand, initiator);
+            return;
+        }
+
+        if (SpeechCommand.Parse(spokenText, AssistantName) is { } speechCommand)
+        {
+            await ExecuteSpeechCommandAsync(speechCommand, initiator);
             return;
         }
 
@@ -4766,55 +4625,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void RetainOrSelectActiveSpeechVoice(
-        IReadOnlyList<SpeechVoice> availableVoices)
-    {
-        var installedProviderIds = SpeechProviders
-            .Where(provider => provider.IsInstalled)
-            .Select(provider => provider.Id)
-            .ToHashSet(StringComparer.Ordinal);
-        var retainedVoice = activeSpeechVoice is null
-            ? null
-            : availableVoices.FirstOrDefault(
-                voice => string.Equals(
-                             voice.Id,
-                             activeSpeechVoice.Id,
-                             StringComparison.Ordinal)
-                         && string.Equals(
-                             voice.ProviderId,
-                             activeSpeechVoice.ProviderId,
-                             StringComparison.Ordinal)
-                         && installedProviderIds.Contains(voice.ProviderId));
-        if (retainedVoice is not null)
-        {
-            SetActiveSpeechVoice(retainedVoice);
-            return;
-        }
-
-        var fallbackProvider = SpeechProviders.FirstOrDefault(
-                provider => provider.IsInstalled
-                            && string.Equals(
-                                provider.Id,
-                                SpeechProviderIds.Windows,
-                                StringComparison.Ordinal))
-            ?? SpeechProviders.FirstOrDefault(provider => provider.IsInstalled);
-        var fallbackVoices = availableVoices
-            .Where(voice => string.Equals(
-                voice.ProviderId,
-                fallbackProvider?.Id,
-                StringComparison.Ordinal))
-            .ToArray();
-        var fallbackVoice = fallbackVoices.FirstOrDefault(
-                voice => string.Equals(
-                    voice.Id,
-                    fallbackProvider?.DefaultVoiceId,
-                    StringComparison.Ordinal))
-            ?? SpeechVoiceSelector.SelectDefault(
-                fallbackVoices,
-                CultureInfo.CurrentUICulture);
-        SetActiveSpeechVoice(fallbackVoice);
-    }
-
     private void SetActiveSpeechVoice(SpeechVoice? voice)
     {
         activeSpeechVoice = voice;
@@ -4824,8 +4634,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ClearActiveSpeechVoice()
     {
-        SelectedVoice = null;
-        SetActiveSpeechVoice(null);
+        speechConfiguration.HoldUnavailable("Speech output is unavailable. Choose an installed voice or explicitly refresh/reset. Visual responses remain available.");
     }
 
     private static bool ShouldSpeakResponse(BuiltInAction action) =>

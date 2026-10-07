@@ -1566,7 +1566,7 @@ all 13 final x64/x86 PE manifest-resource bytes with declared source bytes.
 
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
-| R10 - Implement typed configuration and capability-scoped setup | **Bounded appearance registry delivered**: nine independent-file options, shared direct UI/exact local discovery/get/set/per-option reset, typed domain validation, revisions, atomic save/audit/live notifications. Full R10 remains open beyond this subset and native preferences/setup I03/I04/I08/I11/I14; [dependency design inventory](Dependency_Catalogue.md) recorded, executable catalogue incomplete; R02 install-budget/compatibility gaps remain | P1 - consistent voice/UI controls without unsafe mutations | R04, R05, R06, R09; R02-L2/L5 evidence for local-model setup claims | Register schemas/defaults/bounds/scopes/revisions for speech/devices/output, queues/deadlines/retention/concurrency, runtimes, grants/calls, appearance/startup and admitted extensions. Supply discovery/get/propose-set/reset, exact previews, safe apply/recovery and audited rollback/conflicts. Turn admitted inventory entries into versioned source/identity/verification/ownership/probe/consent/refusal records; keep experimental and unimplemented adapters unavailable. For local inference, distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance; permit declining all optional providers and preserve the dependency-qualified deterministic subset without repeated prompts/downloads or cloud fallback. Keep installation/sign-in/secure workflows host-owned. Preserve device-local choices and protected-call origin/option gates. |
+| R10 - Implement typed configuration and capability-scoped setup | **Bounded appearance and installed speech-choice registries delivered**: nine independent-file appearance options plus coherent installed provider/voice selection, shared native/exact discovery/get/set/reset, domain validation, revisions, atomic save/audit/live notifications, explicit speech recovery and protected-call original-channel checks. Full R10 remains open beyond these subsets and native preferences/setup I03/I04/I08/I11/I14; [dependency design inventory](Dependency_Catalogue.md) recorded, executable catalogue incomplete; R02 install-budget/compatibility gaps remain | P1 - consistent voice/UI controls without unsafe mutations | R04, R05, R06, R09; R02-L2/L5 evidence for local-model setup claims | Register schemas/defaults/bounds/scopes/revisions for other speech/devices/output, queues/deadlines/retention/concurrency, runtimes, grants/calls, appearance/startup and admitted extensions. Supply discovery/get/propose-set/reset, exact previews, safe apply/recovery and audited rollback/conflicts. Turn admitted inventory entries into versioned source/identity/verification/ownership/probe/consent/refusal records; keep experimental and unimplemented adapters unavailable. For local inference, distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance; permit declining all optional providers and preserve the dependency-qualified deterministic subset without repeated prompts/downloads or cloud fallback. Keep installation/sign-in/secure workflows host-owned. Preserve device-local choices and protected-call origin/option gates. |
 | R11 - Deliver registered embedded multi-script skills and containment | **Bounded catalogue/identity/native review delivered**; runner unavailable; I17 partial proof is not admission; partial readiness/lock I08/I12 | P0 - finish lock without admitting arbitrary execution | R02 (applicable W1-W3 worker/deployment gates, D-013), R03, R04, R05, R06, R10 | Embed lock manifest/instructions/fixtures, entry script and shared helper; verify `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1` complete framed identities and dependent-grant revocation. Direct/model/skill routes use the same pinned task exactly once with immutable source review. Complete W4: admit only fixed profiled workers with exact declared-resource review, best-effort transitive tracking/gap disclosure, protected required runtime/adapter admission, attributable network denial, bounded output/cancellation/Unknown receipts and real OS filesystem/child-process/credential/Kora-resource isolation. Prove observed lock outcome. Reject unsupported profiles or an unapproved broker substitution. Prepare power packages but do not enable OS power until R16. |
 | R12 - Complete session lifecycle, history and per-session work/queues | **Bounded authority workspace and metadata delivered**: [passive pages and guarded idle Done/resume](Interaction_And_Sessions.md#delivered-minimal-sessions-workspace---2026-10-07), generation invalidation, independent Perpetual preservation and [durable bounded names/native explicit empty Create/exact-ID revisioned Rename with validated v1/v2 migration](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07). Full R12/A3 conversation/work/queue/retention/delete acceptance remains open. | P1 - durable, inspectable long-running work | R04, R05, R06, R10, R11 | Implement remaining disposition/delete, paged conversation/history/search/immutable artifacts and authoritative task state. Name-based voice targeting/routing remains gated; passive browse/rename never resumes or extends meaningful activity. Add ordered per-session queues, admission/deadlines/user waits/pause/cancel/remove/clear controls and no restart replay. Implement configurable 24-hour archive/30-day deletion on the same meaningful-activity clock, source revocation, late-append/live/uncertain-work holds and inventoried deletion/rewrite across journals/caches/indexes/artifacts/staging/managed backups. Prove preservation of unrelated content and independent Perpetual records; authority row removal alone is not deletion acceptance. |
 | R13 - Add bounded independent management and concurrent execution | Outstanding production core; released-profile MG1 envelope/topology proof passes, not production integration | P1 - remain responsive while useful work runs | Deterministic core: R05, R06, R10, R12 and applicable R02 local concurrency budgets. Model-assisted stage additionally: R08, R02-MG1 and management R02-PV1 | Deliver deterministic routing/status/choices/cancel first without hosted inference. Carry MG1's complete serialized 32 KiB input/4 KiB typed output, host 15-second dispatch deadline independent of send/abort ack, one in-flight, 30 attempts including failures per rolling hour/profile, fresh conversations and no forwarded retry into the R04-backed host. Reject unknown fields/targets/revisions and late output; Unknown remains quarantined until applicable observed receipts, not SDK ack. Add model assistance only after applicable runtime/account admission. Independently prove two task slots, isolated identities/contexts/grants, resource leases/fairness and reconciliation; synthetic conversation count is not scheduler/account evidence. No management task tools or approval authority; power follows R01. |
@@ -1692,6 +1692,7 @@ Track each admitted descriptor and its tests against the package that implements
 | Structured questions/presentation/details/navigation/speech, approvals/grants and receipt/audit evidence/export | R04, R05, R09, R14, R15; optional R24/R25 |
 | Typed configuration, call feedback/origin/reusable-grant controls | R10, R15 |
 | Delivered nine-option typed appearance inventory: direct UI/exact local list/get/set/per-option reset, domain bounds/defaults, revision/proposal provenance and audit/live notifications; no Tools catalogue or model authority | R10; [bounded receipt](#r10-bounded-appearance-registry---2026-10-07) |
+| Delivered installed speech provider/voice schema: shared native/exact local discovery/get/set/reset, coherent atomic provider/voice selection, desired/effective/default/recovery, owned revisions and protected-call original-channel revalidation; no provisioning/model/call-override authority | R10; [bounded speech receipt](#r10-bounded-installed-speech-choices---2026-10-07) |
 | Explicit context and destination egress | R07, R08; deferred R26 |
 | Bundled skills/execution/computer controls | R11, R16; deferred R27/R28 |
 | Dual file/database logging, dedicated audit table and storage recovery | R04 |
@@ -1746,3 +1747,55 @@ Maintained version/publication/source-tool contract tests and both Windows
 x64/x86 publishes passed without application launch. Remote CI additionally
 owns dependency-license and publication gates; a local publish is not
 installed-app acceptance.
+
+## R10 Bounded Installed Speech Choices - 2026-10-07
+
+Implemented in isolated `agents/bounded-r10-speech-provider-setup`, initially
+fetched/rebased on `d0a8e82ef34b82c4d888803083050c2e9dff43cd` (#68).
+Schema version 1 admits only delivered installed Windows SAPI/Kokoro
+provider/voice choices. [Canonical configuration](User_Configuration.md#delivered-bounded-installed-speech-choices-r10)
+and [native/exact user controls](../docs/settings.md#speech-provider) share one
+host-owned workflow, coherent atomic selection file, process-local revisions,
+desired/effective/saved/default state, explicit unavailable recovery, typed
+request/terminal audit and live notifications. Legacy files are read without
+rewrite and shadowed only by a successful explicit coherent save.
+
+Provider set/reset selects its advertised default; provider reset restores
+Windows. Voice reset affects the current provider. Explicit provider-qualified
+voice selection supports installed voices even without a compatible default;
+ambiguous/unknown/missing choices cannot become substitutions. Asset review
+remains separate, and download completion no longer silently changes output.
+The original channel and observed call revision are checked under the existing
+policy lock adjacent to persistence. Privacy/ownership, System/pinned output,
+mandatory visual fallback and unavailable protection downgrades are preserved.
+
+Maintained [domain/schema tests](../tests/Kora.Core.UnitTests/Configuration/SpeechConfigurationTests.cs),
+[workflow tests](../tests/Kora.Application.UnitTests/Configuration/SpeechConfigurationServiceTests.cs),
+[grammar tests](../tests/Kora.Application.UnitTests/Configuration/SpeechCommandTests.cs),
+[actual UI/typed/activated-voice tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SpeechConfiguration.cs)
+and [static native UI contracts](../tests/Kora.Windows.IntegrationTests/SpeechConfigurationUiContractTests.cs)
+cover limits/invalid/ambiguous choices, cancellation, atomic persistence,
+missing/invalid/unreadable saved state, audit failure, ownership/call/catalogue
+races and live synchronization. Validation uses fakes/owned temporary paths;
+no application launch, capture/playback, provisioning, elevation, account,
+OS/policy or acoustic trials are acceptance evidence.
+
+This completes only the bounded installed speech-choice registry slice.
+Rate/volume/summary caps, microphone/tray recovery, diagnostics/metadata sibling
+work, general registry/tools, consent changes, call overrides and full
+R10/D-002/D-007/acoustic/installed-host acceptance remain outside it.
+
+Experiment disposition: the existing
+[speech proof](../experiments/r02-speech-proof/README.md) executables concern
+model/fixture/capture/acoustic measurements and their reproducible historical
+evidence, not provider/voice configuration equivalents. No maintained
+configuration test supersedes those unique measurements or outstanding trials;
+all executables and receipts are preserved. No experiment retirement is claimed.
+
+Local validation on this baseline: root Release build, zero warnings/errors;
+Core **529**, Application **1,443**, Tools **38** and Definitions **6** tests
+passed, plus two hardware-free native UI contracts and the pure Windows-default
+provider isolation test. Merged current-build portable coverage is exactly
+**100% line and branch** (rates `1` / `1`), enforced with unchanged CI thresholds
+and no new exclusions. Full remote Windows/portable CI remains the publication
+gate; this receipt does not claim hardware trials or acoustic acceptance.

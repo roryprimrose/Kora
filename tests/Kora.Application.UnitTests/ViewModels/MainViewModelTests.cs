@@ -1986,6 +1986,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task InitializeAsync_selects_a_compatible_male_voice_when_no_female_voice_is_available()
     {
         var fixture = new Fixture();
+        fixture.TextToSpeech.Providers = [CreateWindowsProvider() with { DefaultVoiceId = "male" }];
         fixture.TextToSpeech.Voices =
         [
             new SpeechVoice(
@@ -2018,15 +2019,18 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task InitializeAsync_reports_and_recovers_when_the_saved_voice_is_no_longer_installed()
+    public async Task InitializeAsync_reports_missing_saved_voice_without_substitution_until_explicit_reset()
     {
         var fixture = new Fixture();
         fixture.Preferences.VoiceId = "removed";
 
         await fixture.ViewModel.InitializeAsync();
 
+        fixture.ViewModel.SelectedVoice.Should().BeNull();
+        fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("unavailable");
+        fixture.Preferences.VoiceId.Should().Be("removed");
+        await fixture.ViewModel.ResetSpeechVoiceCommand.ExecuteAsync();
         fixture.ViewModel.SelectedVoice?.Id.Should().Be("female");
-        fixture.ViewModel.VoiceAvailabilityMessage.Should().StartWith("The saved voice is unavailable.");
     }
 
     [Fact]
@@ -2041,7 +2045,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.SelectedVoice.Should().BeNull();
         fixture.ViewModel.ResponseTitle.Should().Be("Speech output is unavailable.");
         fixture.ViewModel.ResponseBody.Should().Contain("Install a Windows text-to-speech voice");
-        fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("No Windows speech pack is available");
+        fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("unavailable");
     }
 
     [Fact]
@@ -2072,7 +2076,7 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task InitializeAsync_falls_back_to_Windows_when_the_saved_provider_is_unknown()
+    public async Task InitializeAsync_requires_recovery_when_the_saved_provider_is_unknown()
     {
         var fixture = new Fixture();
         fixture.Preferences.ProviderId = "removed-provider";
@@ -2080,13 +2084,13 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.InitializeAsync();
 
-        fixture.ViewModel.SelectedSpeechProvider?.Id.Should().Be(SpeechProviderIds.Windows);
-        fixture.ViewModel.SelectedVoice?.Id.Should().Be("female");
-        fixture.ViewModel.VoiceAvailabilityMessage.Should().StartWith("Female voice");
+        fixture.ViewModel.SelectedInstalledSpeechProvider.Should().BeNull();
+        fixture.ViewModel.SelectedVoice.Should().BeNull();
+        fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("invalid");
     }
 
     [Fact]
-    public async Task Refresh_preserves_the_active_provider_before_saved_provider_preferences()
+    public async Task Refresh_rejects_changed_unknown_saved_state_instead_of_retaining_unreported_runtime_values()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.Preferences.ProviderId = "removed-provider";
@@ -2094,14 +2098,13 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
 
-        fixture.ViewModel.SelectedSpeechProvider?.Id.Should().Be(
-            SpeechProviderIds.Windows);
-        fixture.ViewModel.SelectedVoice?.Id.Should().Be("female");
-        fixture.ViewModel.VoiceAvailabilityMessage.Should().StartWith("Female voice");
+        fixture.ViewModel.SelectedInstalledSpeechProvider.Should().BeNull();
+        fixture.ViewModel.SelectedVoice.Should().BeNull();
+        fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("invalid");
     }
 
     [Fact]
-    public async Task InitializeAsync_uses_the_only_provider_when_Windows_is_absent()
+    public async Task InitializeAsync_requires_explicit_selection_when_the_default_provider_is_absent()
     {
         var fixture = new Fixture();
         fixture.TextToSpeech.Providers =
@@ -2117,7 +2120,9 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.SelectedSpeechProvider?.Id.Should().Be(
             SpeechProviderIds.Kokoro);
-        fixture.ViewModel.SelectedVoice?.Id.Should().Be("af_heart");
+        fixture.ViewModel.SelectedInstalledSpeechProvider.Should().BeNull();
+        fixture.ViewModel.SelectedVoice.Should().BeNull();
+        fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("unavailable");
     }
 
     [Fact]
@@ -2154,7 +2159,7 @@ public sealed partial class MainViewModelTests : IDisposable
         ];
         await fixture.ViewModel.InitializeAsync();
 
-        fixture.ViewModel.SelectedSpeechProvider =
+        fixture.ViewModel.SelectedInstalledSpeechProvider =
             fixture.ViewModel.SpeechProviders.Single(
                 provider => string.Equals(
                     provider.Id,
@@ -2211,7 +2216,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.InitializeAsync();
         fixture.Preferences.ProviderSaveException = exception;
 
-        fixture.ViewModel.SelectedSpeechProvider =
+        fixture.ViewModel.SelectedInstalledSpeechProvider =
             fixture.ViewModel.SpeechProviders.Single(
                 provider => string.Equals(
                     provider.Id,
@@ -2219,7 +2224,7 @@ public sealed partial class MainViewModelTests : IDisposable
                     StringComparison.Ordinal));
 
         fixture.ViewModel.ResponseTitle.Should().Be(
-            "The speech provider preference could not be saved.");
+            "The speech setting was not changed.");
         fixture.ViewModel.CanDownloadSpeechProvider.Should().BeFalse();
         AssertAuditPair(
             fixture,
@@ -2231,7 +2236,7 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Downloading_Kokoro_activates_it_without_a_restart()
+    public async Task Downloading_Kokoro_exposes_ready_choices_without_silently_changing_output()
     {
         var fixture = new Fixture();
         fixture.TextToSpeech.Providers =
@@ -2258,14 +2263,14 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.TextToSpeech.InstallProviderCalls.Should().Be(1);
         fixture.ViewModel.SelectedSpeechProvider?.IsInstalled.Should().BeTrue();
-        fixture.ViewModel.SelectedVoice?.Id.Should().Be("af_heart");
-        fixture.Preferences.SavedProviderId.Should().Be(SpeechProviderIds.Kokoro);
-        fixture.Preferences.SavedVoiceId.Should().Be("af_heart");
+        fixture.ViewModel.SelectedVoice?.Id.Should().Be("female");
+        fixture.Preferences.SavedProviderId.Should().BeNull();
+        fixture.Preferences.SavedVoiceId.Should().BeNull();
         fixture.ViewModel.SpeechProviderOperationProgress.Should().Be(100);
         fixture.ViewModel.IsSpeechProviderOperationActive.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("Kokoro is ready.");
         fixture.TextToSpeech.SpokenText.Should().Contain("Kokoro is ready.");
-        fixture.TextToSpeech.SpokenVoice?.Id.Should().Be("af_heart");
+        fixture.TextToSpeech.SpokenVoice?.Id.Should().Be("female");
         fixture.ViewModel.CanRemoveSpeechProvider.Should().BeTrue();
         AssertAuditPair(
             fixture,
@@ -2431,13 +2436,13 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.DownloadSpeechProviderCommand.ExecuteAsync();
 
-        fixture.ViewModel.SelectedVoice.Should().BeNull();
+        fixture.ViewModel.SelectedVoice?.Id.Should().Be("female");
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
         fixture.TextToSpeech.SpokenVoice?.Id.Should().Be("female");
     }
 
     [Fact]
-    public async Task Download_failure_uses_an_installed_non_Windows_provider()
+    public async Task Download_failure_does_not_substitute_an_unadmitted_provider()
     {
         const string localProviderId = "local";
         var fixture = new Fixture();
@@ -2477,7 +2482,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.DownloadSpeechProviderCommand.ExecuteAsync();
 
-        fixture.TextToSpeech.SpokenVoice?.Id.Should().Be("local-voice");
+        fixture.TextToSpeech.SpokenVoice.Should().BeNull();
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
     }
 
     [Fact]
@@ -2594,8 +2600,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.InitializeAsync();
 
         fixture.ViewModel.SelectedVoice.Should().BeNull();
-        fixture.ViewModel.VoiceAvailabilityMessage.Should().Be(
-            "No voice matches the Windows profile culture. Choose another voice.");
+        fixture.ViewModel.VoiceAvailabilityMessage.Should().Contain("unavailable");
     }
 
     [Theory]
@@ -2625,7 +2630,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseTitle.Should().Be(expectedTitle);
         fixture.ViewModel.ResponseBody.Should().Be(exception.Message);
         fixture.ViewModel.IsSpeechProviderOperationActive.Should().BeFalse();
-        fixture.ViewModel.SelectedVoice.Should().BeNull();
+        fixture.ViewModel.SelectedVoice?.Id.Should().Be("female");
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
         fixture.TextToSpeech.SpokenText.Should().Contain(expectedTitle);
         fixture.TextToSpeech.SpokenVoice?.Id.Should().Be("female");
@@ -3906,7 +3911,8 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var alternative = new SpeechVoice("alternative", "Alternative", "en-GB", SpeechVoiceGender.Male);
-        fixture.ViewModel.Voices.Add(alternative);
+        fixture.TextToSpeech.Voices = [.. fixture.TextToSpeech.Voices, alternative];
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
 
         fixture.ViewModel.SelectedVoice = alternative;
 
@@ -3925,15 +3931,16 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var alternative = new SpeechVoice("alternative", "Alternative", "en-GB", SpeechVoiceGender.Male);
-        fixture.ViewModel.Voices.Add(alternative);
+        fixture.TextToSpeech.Voices = [.. fixture.TextToSpeech.Voices, alternative];
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
         fixture.Preferences.SaveException = exception;
 
         fixture.ViewModel.SelectedVoice = alternative;
 
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.ResponseTitle.Should().Be("The speech voice preference could not be saved.");
+        fixture.ViewModel.ResponseTitle.Should().Be("The speech setting was not changed.");
         fixture.ViewModel.ResponseBody.Should().Be(exception.Message);
-        fixture.ViewModel.SelectedVoice.Should().Be(alternative);
+        fixture.ViewModel.SelectedVoice?.Id.Should().Be("female");
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -4174,7 +4181,7 @@ public sealed partial class MainViewModelTests : IDisposable
             string.Equals(provider.Id, SpeechProviderIds.Kokoro, StringComparison.Ordinal));
         fixture.ViewModel.SelectedVoice = null;
 
-        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
         fixture.ViewModel.PreviewVoiceCommand.CanExecute(null).Should().BeFalse();
 
         await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
@@ -7762,7 +7769,6 @@ public sealed partial class MainViewModelTests : IDisposable
                 TextToSpeech,
                 NamePreferences,
                 AppearancePreferences,
-                Preferences,
                 SpeechOffers,
                 AudioPreferences,
                 OutputPreferences,
@@ -7790,6 +7796,8 @@ public sealed partial class MainViewModelTests : IDisposable
                     NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance),
                 new AppearanceConfigurationService(AppearancePreferences, Audit,
                     NullLogger<AppearanceConfigurationService>.Instance),
+                new SpeechConfigurationService(Preferences, TextToSpeech, Audit,
+                    NullLogger<SpeechConfigurationService>.Instance),
                 clipboard,
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
@@ -8963,6 +8971,19 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechPreferences : ITextToSpeechPreferences
     {
+        public SpeechSelection? LoadSelection() => ProviderId is null && VoiceId is null
+            ? null : new(ProviderId ?? SpeechProviderIds.Windows, VoiceId);
+
+        public void SaveSelection(SpeechSelection selection)
+        {
+            if (ProviderSaveException is not null) { throw ProviderSaveException; }
+            if (SaveException is not null) { throw SaveException; }
+            SavedProviderId = selection.ProviderId;
+            SavedVoiceId = selection.VoiceId;
+            ProviderId = selection.ProviderId;
+            VoiceId = selection.VoiceId;
+        }
+
         public string? ProviderId { get; set; }
 
         public string? VoiceId { get; set; }

@@ -60,6 +60,13 @@ work is not held behind unapproved hosted-model tests.
 
 ## Current Bootstrap Boundary
 
+R10 also delivers a bounded [installed speech-provider/voice configuration
+slice](User_Configuration.md#delivered-bounded-installed-speech-choices-r10):
+shared typed discovery/current/default/recovery and exact UI/typed/activated-voice
+set/reset, coherent atomic selection persistence, revisions and existing
+protected-call original-channel gates. Asset provisioning, other speech options,
+model settings tools and acoustic acceptance are not established by this slice.
+
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,
 checks PowerShell 7 readiness, and offers consented PowerShell setup without requiring
 local inference. For local reasoning it offers a separately consented per-user

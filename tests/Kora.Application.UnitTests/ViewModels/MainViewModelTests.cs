@@ -11,6 +11,7 @@ using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -4450,6 +4451,121 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Typed_slash_command_selects_artifact_without_bypassing_the_model_action_gate()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which
+            .Should().Be("Run the selected skill.");
+        fixture.Reasoner.LastArtifact.Should().NotBeNull();
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Activated_voice_artifact_command_uses_the_same_artifact_route()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RaiseActivatedTranscriptAsync("Kora, use lock to lock this session", 0.91f);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().ContainSingle().Which
+            .Should().Be("lock this session");
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+        fixture.Session.LockCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Artifact_selection_is_retained_across_a_clarification_answer()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which target?", ["Current", "Other"]);
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Reasoner.Question = null;
+        await fixture.ViewModel.SelectModelQuestionChoiceAsync(
+            fixture.ViewModel.ModelQuestionChoices[0]);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().HaveCount(2);
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+    }
+
+    [Fact]
+    public async Task Unknown_slash_command_fails_closed_without_invoking_the_model()
+    {
+        var fixture = new Fixture();
+
+        await fixture.RunAsync("/not-registered");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact command not found.");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Slash_command_dropdown_filters_and_applies_available_artifacts()
+    {
+        var fixture = new Fixture();
+
+        fixture.ViewModel.CommandText = "/";
+
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeTrue();
+        fixture.ViewModel.ArtifactCommandOptions.Should().ContainSingle();
+        var option = fixture.ViewModel.ArtifactCommandOptions[0];
+        option.Command.Should().Be("/lock");
+        option.Source.Should().Be("bundled");
+
+        fixture.ViewModel.ApplyArtifactCommandOption(option);
+
+        fixture.ViewModel.CommandText.Should().Be("/lock ");
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeFalse();
+
+        fixture.ViewModel.CommandText = "/";
+        fixture.ViewModel.DismissArtifactCommandOptions();
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeFalse();
+
+        fixture.ViewModel.ApplyArtifactCommandOption(option);
+        fixture.ViewModel.CommandText.Should().Be("/");
+    }
+
+    [Fact]
+    public void Slash_command_dropdown_supports_kind_qualification_and_dismissal()
+    {
+        var artifacts = new[]
+        {
+            new ArtifactDefinition(
+                "kora.skill.test", ArtifactKind.Skill, "Test skill", "Skill.",
+                "test-skill", ["test skill"], "bundled", "1.0.0", new string('1', 64), "Skill body."),
+            new ArtifactDefinition(
+                "kora.prompt.test", ArtifactKind.Prompt, "Test prompt", "Prompt.",
+                "test-prompt", ["test prompt"], "bundled", "1.0.0", new string('2', 64), "Prompt body."),
+        };
+
+        MainViewModel.FilterArtifactCommandOptions("/prompt test", artifacts)
+            .Should().ContainSingle().Which.Command.Should().Be("/test-prompt");
+        MainViewModel.FilterArtifactCommandOptions("/skill test", artifacts)
+            .Should().ContainSingle().Which.Command.Should().Be("/test-skill");
+        MainViewModel.FilterArtifactCommandOptions("not a command", artifacts).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Revoking_a_session_grant_publishes_the_updated_grant_document()
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -7614,9 +7730,25 @@ public sealed partial class MainViewModelTests : IDisposable
             var clipboard = new Kora.Tools.Clipboard.ClipboardSnapshotBroker(ClipboardReader, TimeProvider.System,
                 NullLogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>.Instance);
             var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(bootstrapper);
+            var artifactCatalogue = new ArtifactCatalogue(
+            [
+                new ArtifactDefinition(
+                    "kora.session.lock",
+                    ArtifactKind.Skill,
+                    "Lock the machine",
+                    "Lock the current Windows session.",
+                    "lock",
+                    ["lock", "lock the machine"],
+                    "bundled",
+                    "1.0.0",
+                    new string('0', 64),
+                    "Select only for an explicit request to lock the current session."),
+            ]);
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
+                artifactCatalogue,
+                new ArtifactCommandRouter(artifactCatalogue),
                 bootstrapper,
                 new DependencySetupWorkflow(
                     bootstrapper,
@@ -7928,14 +8060,17 @@ public sealed partial class MainViewModelTests : IDisposable
             public Exception? Failure { get; set; }
 
             public LocalModelContext? LastContext { get; private set; }
+            public LocalModelArtifact? LastArtifact { get; private set; }
 
             public async Task<LocalModelResponse> ReasonAsync(
                 string request,
                 LocalModelContext context,
+                LocalModelArtifact? artifact,
                 CancellationToken cancellationToken)
             {
                 Requests.Add(request);
                 LastContext = context;
+                LastArtifact = artifact;
                 if (Failure is not null)
                 {
                     throw Failure;

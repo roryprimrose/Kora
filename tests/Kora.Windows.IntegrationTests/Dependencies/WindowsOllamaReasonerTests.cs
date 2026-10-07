@@ -4,6 +4,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 
 using Kora.Core.Commands;
+using Kora.Core.Artifacts;
 using Kora.Core.Dependencies;
 using Kora.Windows.Dependencies;
 
@@ -55,12 +56,47 @@ public sealed class WindowsOllamaReasonerTests
         }));
 
         var answer = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("Why is the sky blue?", Context, TestContext.Current.CancellationToken);
+            .ReasonAsync("Why is the sky blue?", Context, null, TestContext.Current.CancellationToken);
 
         answer.Answer.Should().Be("The local answer.");
         answer.Action.Should().BeNull();
         sentPrompt.Should().Be("Why is the sky blue?");
         calls.Should().Equal("/api/tags", "/api/generate");
+    }
+
+    [Fact]
+    public async Task ReasonAsync_keeps_selected_artifact_in_system_instructions_and_user_text_in_prompt()
+    {
+        const string requestText = "summarize the result";
+        var artifact = new LocalModelArtifact(
+            "kora.example",
+            ArtifactKind.Prompt,
+            "Example",
+            "bundled",
+            "1.0.0",
+            new string('a', 64),
+            "Use the selected format.");
+        using var client = new HttpClient(new StubHandler(async (message, token) =>
+        {
+            if (string.Equals(message.RequestUri!.AbsolutePath, "/api/tags", StringComparison.Ordinal))
+            {
+                return Json($$"""{"models":[{"name":"qwen3:1.7b","digest":"{{WindowsOllamaSetupService.ModelDigest}}"}]}""");
+            }
+
+            using var body = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(token));
+            body.RootElement.GetProperty("prompt").GetString().Should().Be(requestText);
+            var system = body.RootElement.GetProperty("system").GetString();
+            system.Should().Contain("\"Id\":\"kora.example\"");
+            system.Should().Contain("\"Instructions\":\"Use the selected format.\"");
+            system.Should().Contain("selection is not execution authority");
+            system.Should().NotContain(requestText);
+            return Decision("""{"answer":"done"}""");
+        }));
+
+        var result = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
+            .ReasonAsync(requestText, Context, artifact, TestContext.Current.CancellationToken);
+
+        result.Answer.Should().Be("done");
     }
 
     [Fact]
@@ -74,7 +110,7 @@ public sealed class WindowsOllamaReasonerTests
         }));
 
         var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("private question", Context, TestContext.Current.CancellationToken);
+            .ReasonAsync("private question", Context, null, TestContext.Current.CancellationToken);
 
         (await action.Should().ThrowAsync<InvalidDataException>())
             .WithMessage("*unexpected digest*");
@@ -90,7 +126,7 @@ public sealed class WindowsOllamaReasonerTests
                 : Json("""{"model":"qwen3:1.7b","done":false,"response":"partial"}"""))));
 
         var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("question", Context, TestContext.Current.CancellationToken);
+            .ReasonAsync("question", Context, null, TestContext.Current.CancellationToken);
 
         await action.Should().ThrowAsync<InvalidDataException>();
     }
@@ -104,7 +140,7 @@ public sealed class WindowsOllamaReasonerTests
                 : Decision("""{"action":"ShowStatus"}"""))));
 
         var result = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("show me your status", Context, TestContext.Current.CancellationToken);
+            .ReasonAsync("show me your status", Context, null, TestContext.Current.CancellationToken);
 
         result.Action.Should().Be(BuiltInAction.ShowStatus);
         result.Answer.Should().BeNull();
@@ -119,7 +155,7 @@ public sealed class WindowsOllamaReasonerTests
                 : Decision("""{"grantChange":{"operation":"Remove","action":"LockMachine","scope":"Always"}}"""))));
 
         var result = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("remove my always lock grant", Context, TestContext.Current.CancellationToken);
+            .ReasonAsync("remove my always lock grant", Context, null, TestContext.Current.CancellationToken);
 
         result.GrantChange.Should().Be(new GrantChange(
             GrantChangeOperation.Remove, BuiltInAction.LockMachine, ModelApprovalScope.Always));
@@ -135,7 +171,7 @@ public sealed class WindowsOllamaReasonerTests
                 : Decision("""{"question":{"prompt":"Which report?","options":["Today","Yesterday"]}}"""))));
 
         var result = await new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("show a report", Context, TestContext.Current.CancellationToken);
+            .ReasonAsync("show a report", Context, null, TestContext.Current.CancellationToken);
 
         result.Question!.Prompt.Should().Be("Which report?");
         result.Question.Options.Should().Equal("Today", "Yesterday");
@@ -170,7 +206,7 @@ public sealed class WindowsOllamaReasonerTests
                 : Decision(decision))));
 
         var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("private question", Context, TestContext.Current.CancellationToken);
+            .ReasonAsync("private question", Context, null, TestContext.Current.CancellationToken);
 
         await action.Should().ThrowAsync<InvalidDataException>();
     }
@@ -182,7 +218,7 @@ public sealed class WindowsOllamaReasonerTests
             throw new InvalidOperationException("No network request expected.")));
 
         var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync(new string('a', 4097), Context, TestContext.Current.CancellationToken);
+            .ReasonAsync(new string('a', 4097), Context, null, TestContext.Current.CancellationToken);
 
         await action.Should().ThrowAsync<ArgumentOutOfRangeException>();
     }
@@ -196,7 +232,7 @@ public sealed class WindowsOllamaReasonerTests
             Task.FromCanceled<HttpResponseMessage>(token)));
 
         var action = () => new WindowsOllamaReasoner(client, new BuiltInCommandCatalog())
-            .ReasonAsync("question", Context, cancellation.Token);
+            .ReasonAsync("question", Context, null, cancellation.Token);
 
         await action.Should().ThrowAsync<OperationCanceledException>();
     }

@@ -35,6 +35,56 @@ and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted
 
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+## Delivered Artifact Invocation
+
+Kora has one source-qualified artifact invocation route for the currently
+bundled skills and future instruction and prompt definitions. The route is
+available from the typed composer and activated voice:
+
+- direct slash command: `/lock`, `/restart`, or `/shutdown`;
+- kind-qualified slash command: `/skill lock`;
+- activated voice: `Kora, run lock`, `Kora, use the restart skill`, or
+  `Kora, use <artifact> to <request>`.
+
+`ArtifactDefinition` is the portable Core contract for the artifact identity,
+kind (`Skill`, `Instruction`, or `Prompt`), display metadata, slash command,
+spoken names, source, version, definition digest, and bounded instructions.
+`Kora.Definitions` owns the fixed mapping from embedded resources to those
+definitions. Command and spoken-name conflicts fail catalogue construction.
+The same `ArtifactCommandRouter` parses typed and voice input, so adding future
+instruction or prompt registrations does not create another presentation-only
+dispatcher.
+
+Selection produces a `LocalModelArtifact` that is passed separately from user
+text to the qualified local-model adapter. The adapter puts source-qualified
+artifact instructions in the system context and keeps the user's request in
+the request prompt. Clarification turns retain the exact selected artifact.
+Unknown or incomplete slash commands fail closed and are not reinterpreted as
+free-form model requests.
+
+The response composer binds its `/` dropdown to that same catalogue. A bare
+slash lists all available artifacts; command text and optional
+`/skill `, `/prompt `, or `/instruction ` qualification filter it. Pointer
+selection and Up/Down/Enter insert the canonical direct command; Escape closes
+the list. Each entry shows command, name, description, and source.
+
+At composition, the embedded catalogue is combined with bounded compatible
+disk definitions. Kora-owned roaming `Skills`, `Instructions`, and `Prompts`
+folders and recognized personal `.copilot`, `.agents`, `.claude`, VS Code, and
+VS Code Insiders customization locations are read without whole-profile
+scanning or reparse traversal. Strict UTF-8, byte/file/depth bounds,
+frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
+uniqueness are validated. Invalid or conflicting discovery fails closed.
+Discovery occurs at startup; restart is required after disk changes.
+
+Running an artifact means applying its declarative instructions to the current
+model request. It does not execute a packaged script, approve an operation,
+create a grant, or prove an outcome. A selected artifact may lead the model to
+propose an existing registered host action, but that proposal still converges
+on the normal host-owned validation, approval, audit, privacy, and execution
+path. The embedded session-control scripts remain inspection-only until their
+separate runtime and containment work is admitted.
+
 ## Responsibility and Terminology
 
 For the complete per-capability catalogue, see the

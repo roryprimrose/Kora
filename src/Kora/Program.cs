@@ -12,6 +12,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Maintenance;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -23,7 +24,9 @@ using Kora.Core.Maintenance;
 using Kora.Core.Storage;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
+using Kora.Definitions.Artifacts;
 using Kora.Windows.Audio;
+using Kora.Windows.Artifacts;
 using Kora.Windows.Communication;
 using Kora.Windows.Coordination;
 using Kora.Windows.Dependencies;
@@ -197,6 +200,13 @@ internal static class Program
         services.AddSingleton<IInstanceLifecycleController>(coordinator);
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
+        services.AddSingleton(_ =>
+        {
+            var embedded = EmbeddedArtifactCatalogue.Load();
+            var disk = new WindowsDiskArtifactDiscovery(paths).Load();
+            return new ArtifactCatalogue([.. embedded.Artifacts, .. disk]);
+        });
+        services.AddSingleton<ArtifactCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);

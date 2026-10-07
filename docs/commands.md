@@ -433,3 +433,82 @@ model; selecting an option is **not** permission to run an action or create a
 grant. A later action proposal still requires its own approval, unless a
 specific grant already covers that action. Kora limits consecutive questions
 to three; start a new request with more details if it reaches that limit.
+## Run skills and future artifacts
+
+Kora can apply a bundled skill's instructions to a local-model request from
+the command box or activated voice. Future bundled instructions and prompts
+use the same command format.
+
+**Type a slash command**
+
+Type `/` in the command box to open a dropdown of every available bundled and
+disk-backed artifact. Continue typing to filter by command name, or type a
+kind such as `/skill `, `/prompt `, or `/instruction `. Use Up/Down and Enter
+or select an item with the pointer; Escape closes the dropdown.
+
+Use a direct command:
+
+```text
+/lock
+/restart
+/shutdown
+```
+
+You can also include the artifact kind:
+
+```text
+/skill lock
+/skill restart
+/skill shutdown
+```
+
+An artifact that accepts request text uses the rest of the line as its input:
+
+```text
+/prompt explain why this setup failed
+```
+
+The current release bundles only the three skills listed above. An unknown,
+incomplete, or wrong-kind slash command shows an error and is not sent to the
+model as an ordinary question.
+
+**Say an artifact command**
+
+Start with your configured assistant name, then say **run** or **use**:
+
+- "Kora, run lock."
+- "Kora, use the restart skill."
+- "Kora, run the shut down the machine skill."
+- "Kora, use explain to summarize this result." when a future `explain`
+  artifact is available.
+
+If you renamed Kora, use the configured name. Voice artifact requests without
+the activation name are rejected in the same way as other free-form voice
+requests.
+
+**Where disk artifacts are loaded from**
+
+Kora loads compatible files at startup from its roaming `Skills`,
+`Instructions`, and `Prompts` folders, recognized personal skill folders
+under `.copilot`, `.agents`, and `.claude`, and the VS Code or VS Code Insiders
+user prompts folder. It does not scan the rest of your profile or follow
+reparse points.
+
+Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
+`*.instructions.md`. Files require bounded UTF-8 content and YAML frontmatter.
+Skills marked `user-invocable: false` do not appear. Conflicting command names,
+IDs, or spoken names fail closed instead of choosing one source silently.
+Restart Kora after adding or changing an artifact.
+
+**What “run” means**
+
+Kora sends the current request and the exact selected bundled instructions
+only to the configured local model. The artifact is source- and
+version-qualified, and it remains selected if Kora asks a clarification
+question.
+
+Selecting an artifact does **not** run its embedded PowerShell, approve a
+protected operation, create a grant, or mean an action succeeded. If the model
+proposes a registered action, Kora still applies the ordinary host validation,
+approval, privacy, audit, and execution rules. The current embedded
+session-control scripts remain inspection-only.

@@ -1519,6 +1519,15 @@ Definitions **6**, authorized Windows fixtures **806** (**2,795** total),
 root Release/no-restore with zero warnings/errors, and **100% portable
 line/branch coverage**. No retention behavior was changed by this slice.
 
+After installed speech choices #72 merged, rebase onto
+`640f28b2f91c106f2d84cb62193beca9961ca739` preserved both adjacent Design README
+delivery summaries; shared source auto-merged. Fresh combined validation passed
+Core **539**, Application **1,469**, Tools **38**, Definitions **6** and
+authorized Windows fixtures **807** (**2,859** total), root Release/no-restore
+with zero warnings/errors, and **100% portable line/branch coverage**. Speech
+provider/voice settings remain owned by that separate slice; tray recovery
+adds no speech registry, provisioning or acoustic trial.
+
 ### R02 Local-Inference Continuation
 
 The [technical outcomes and qualification contract](Local_Inference.md) turn

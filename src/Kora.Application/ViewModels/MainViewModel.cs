@@ -4119,9 +4119,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             request = $"Run the selected {artifactInvocation.Artifact.Kind.ToString().ToLowerInvariant()}.";
         }
 
-        artifact ??= artifactInvocation is null
-            ? null
-            : new LocalModelArtifact(
+        if (artifact is null && artifactInvocation is not null)
+        {
+            artifact = new LocalModelArtifact(
                 artifactInvocation.Artifact.Id,
                 artifactInvocation.Artifact.Kind,
                 artifactInvocation.Artifact.Name,
@@ -4129,6 +4129,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 artifactInvocation.Artifact.Version,
                 artifactInvocation.Artifact.Digest,
                 artifactInvocation.Artifact.Content);
+        }
 
         if (request.Length > 4096)
         {

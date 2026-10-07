@@ -4488,6 +4488,27 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Artifact_selection_is_retained_across_a_clarification_answer()
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new DependencyStatus(
+            "local.inference", "Local model inference (Ollama)",
+            DependencyReadiness.Ready, "Inference verified.");
+        fixture.Reasoner.Question = new LocalModelQuestion("Which target?", ["Current", "Other"]);
+        await fixture.ViewModel.InitializeAsync();
+
+        await fixture.RunAsync("/lock");
+        await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Reasoner.Question = null;
+        await fixture.ViewModel.SelectModelQuestionChoiceAsync(
+            fixture.ViewModel.ModelQuestionChoices[0]);
+        await fixture.ViewModel.ActiveReasoningTask!;
+
+        fixture.Reasoner.Requests.Should().HaveCount(2);
+        fixture.Reasoner.LastArtifact!.Id.Should().Be("kora.session.lock");
+    }
+
+    [Fact]
     public async Task Unknown_slash_command_fails_closed_without_invoking_the_model()
     {
         var fixture = new Fixture();
@@ -4515,6 +4536,13 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.CommandText.Should().Be("/lock ");
         fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeFalse();
+
+        fixture.ViewModel.CommandText = "/";
+        fixture.ViewModel.DismissArtifactCommandOptions();
+        fixture.ViewModel.IsArtifactCommandDropdownVisible.Should().BeFalse();
+
+        fixture.ViewModel.ApplyArtifactCommandOption(option);
+        fixture.ViewModel.CommandText.Should().Be("/");
     }
 
     [Fact]

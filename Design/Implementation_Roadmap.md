@@ -639,6 +639,60 @@ batch deliveries. Root Release/analyzers and full suites
 portable **100% line/branch** coverage. Evidence remains a native read-only
 host service, not a registry/model tool or an appearance/call mutation.
 
+### R14 Opt-in Combined Ordinary Diagnostic Inspection - 2026-10-08
+
+The bounded **CombinedLog** source adds native selection and the existing
+host-owned list/search/source-qualified cited read service over SQLite ordinary
+logs and independent DailyLog ordinary records. **All** remains SQLite-only;
+individual sources, audit queries/citations and old cursor layouts remain
+unchanged. A selector is not a record source: results keep their original Log
+or DailyLog citations, IDs, exact provenance and retention semantics.
+
+Ordering is explicitly source-major: SQLite commit time/evidence ID, followed
+by exact daily name/byte offset. The existing SQLite ceiling and independently
+captured daily immutable prefix form a truthful snapshot pair, not an atomic
+cross-sink snapshot or causal/chronological ranking. Observation time does not
+become commit time. Overlapping text/timestamps/IDs/trace IDs do not deduplicate
+or equate records. Both readers re-admit and verify their source on every page,
+including after the source boundary. Failure of either source cannot return
+the other as success or an authoritative empty result; source failures/gaps are
+explicit and fresh search is an explicit recovery, never an automatic restart.
+
+The implementation reuses source parsing/validation/retention/access policies,
+source-qualified positions, signed query/viewer/expiry-bound cursors and eight
+15-minute host-held daily manifests. No extra cache, renewal, file write,
+permission repair, pruning or database schema is introduced. Existing 50-record/
+64-KiB complete serialized output and daily 32-file/8-MiB-prefix/4,096-line/
+256-KiB-line/five-second/16-MiB-verification bounds remain authoritative.
+Byte-limited pages continue exactly from the last emitted source position.
+
+Architecture, evidence contracts and embedded privacy/evidence inspection
+guidance describe actual opt-in availability and independent snapshot/time/
+retention semantics. This does not deliver full R14, model evidence tools/
+Ask Evidence/provider submission/export, generic session/history sources,
+authoritative file audit, invented file spans/links, or native/installed
+acceptance. No live application/audio/OS/provider/elevation/account trial occurs.
+
+Experiment assessment: no maintained executable equivalence supersedes a unique
+experiment contract or consumer. Storage/engine/encryption/DPAPI/rekey/backup/
+interruption, artifact, speech and runtime/worker receipts remain distinct;
+all experiment executables and historical receipts are retained. The production
+reader is not qualification evidence for those contracts. Older dated delivery
+receipts below describe their own snapshots and are intentionally not rewritten.
+
+Local validation on merged base `c6d4449`: root no-restore Release/analyzers
+passed with zero warnings/errors; full Core/Application/Tools/Definitions/
+Windows suites passed **648 / 1,700 / 38 / 6 / 886**, zero failures/skips.
+Fresh-only combined portable coverage enforced the unchanged exact
+**100% line / 100% branch** thresholds and exclusions. Nineteen new real-store/
+native composition cases plus reused scanner/call-time-capture cases cover
+source boundaries, same-time/ID/text provenance, exact citations, full pages,
+serialized-byte trimming, source failure/change/expiry/access, retention and
+old continuations. Portable tests additionally exercise the exact 65,536-byte
+complete result and one-byte-over shape and truthful failure activity status.
+Required remote CI, review and actual merged ancestry remain lifecycle gates;
+these app-free deterministic tests do not claim installed/native acceptance.
+
 ### R14 Bounded Independent Daily JSON Diagnostic Inspection - 2026-10-07
 
 Implemented in `agents/bounded-daily-json-inspection-slice`, rebased onto

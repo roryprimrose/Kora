@@ -250,6 +250,21 @@ The tray's **Evidence (read-only)** opens a native inspector for actual
 SQLite diagnostic, typed audit, completed span and explicit link records.
 **DailyLog** additionally inspects existing daily diagnostic JSON independently;
 **All** still selects SQLite only and does not count mirrored file copies.
+Explicit **CombinedLog** opt-in selects only SQLite ordinary logs and independent
+DailyLog ordinary records. It does not change the default or include database
+audit/span/link records or file audit mirrors. The pair is independently captured,
+not an atomic cross-sink snapshot: SQLite records are ordered by commit time/ID,
+then daily records by exact daily name/byte offset. Overlapping IDs, text,
+timestamps and trace IDs do not deduplicate records or establish causality.
+Each citation keeps its original source/provenance; time filters use database
+commit time for SQLite and observation time for daily records. Read selected
+trace in CombinedLog remains combined ordinary diagnostics, not a merged graph.
+Both sources are re-admitted/verified on every page, even before or after the
+source boundary. An included source failure discards the combined content and
+reports its status; it cannot fall back to a working source or claim empty
+success. Restore original access/source availability and explicitly search
+again. Expired/evicted/malformed/foreign/tampered cursors never silently restart
+or renew expiry; appends/new days do not widen either captured half.
 Choose a source, optionally enter safe text or session/task/trace correlation
 filters, then select **Search / refresh**. **Next page** continues that exact
 snapshot; later records do not silently extend it. Each page includes stable
@@ -292,7 +307,8 @@ Corrupt/truncated/changed/missing/expired/unavailable/timed-out sources show
 explicit status without partial-success content. Read selected trace remains
 in DailyLog; the activity graph is unavailable there. These user-modifiable
 records and their correlation never supply identity, permission, an execution
-receipt or a complete history. Combined cross-source ranking is not available.
+receipt or a complete history. CombinedLog's explicit source-major order is not
+cross-source chronological or causal ranking.
 Database records receive independent 30-day diagnostic and 90-day audit
 due dates. Each admitted owner startup, after storage admission and recovery,
 prunes at most 128 due ordinary logs and 32 due spans with their at-most-1,024
@@ -351,7 +367,8 @@ The future audit configuration flow must preview the affected range and require
 confirmation before shortening existing due dates.
 
 The delivered bounded native inspector lists, reads and searches actual
-SQLite Logs, Audit, spans and links, or independent DailyLog diagnostics,
+SQLite Logs, Audit, spans and links, independent DailyLog diagnostics, or opt-in
+CombinedLog ordinary diagnostics,
 without using a model. A future explicit
 Ask Evidence action would reason over a
 bounded selected set, with links to every supporting record and observed facts

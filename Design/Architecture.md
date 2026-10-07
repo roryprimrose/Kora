@@ -278,8 +278,24 @@ The independent **DailyLog** source now reads existing daily JSON diagnostic
 envelopes beneath `IApplicationDataPaths.LocalRoot/Logs`, with the writer's
 shared exact daily-name policy and version-1 diagnostic serializer/validator.
 `All` still means the existing SQLite projection; it does not merge file copies
-into database counts or claim an atomic cross-source ledger. Exact combined
-search/ranking remains outstanding. File names are discovered by the trusted
+into database counts or claim an atomic cross-source ledger. Explicit opt-in
+**CombinedLog** selects only SQLite ordinary logs plus DailyLog ordinary
+records, preserving each original source-qualified citation, envelope ID and
+provenance. It pairs the existing immutable SQLite ceiling with the independently
+captured host-held daily prefix, never an atomic cross-sink snapshot. Ordering
+is source-major: SQLite commit time/evidence ID, then exact daily name/byte
+offset. Observation time is not reinterpreted as database commit time; no
+deduplication, causal ranking or file-derived span/link graph is introduced.
+List/search/cited reads share the existing filters, original expiry and complete
+50-record/64-KiB serialized budget. Time filters retain source semantics
+(SQLite commit time versus daily observation time). Both original sources are
+admitted and verified on each page, even when only one contributes that page;
+an unavailable, corrupt, changed, removed or expired included source yields
+no fallback content. Its source status is explicit; permission/identity and
+malformed/foreign/tampered cursor failures remain fail-closed and require an
+explicit fresh search after recovery. Independent retention still applies.
+**All**, individual sources, audit citations and old continuations are unchanged.
+File names are discovered by the trusted
 store, never accepted as query paths. Read-only file handles reuse current-user
 owner/ACL and reparse admission, validate their final path, and retain volume/
 file identity. There are no directory/file/lease writes or permission repairs.

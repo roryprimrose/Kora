@@ -1,3 +1,3 @@
 namespace Kora.Core.Diagnostics;
 
-public enum EvidenceSource { All, Log, Audit, Span, Link, Session, Conversation, DailyLog }
+public enum EvidenceSource { All, Log, Audit, Span, Link, Session, Conversation, DailyLog, CombinedLog }

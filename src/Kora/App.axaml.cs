@@ -24,6 +24,7 @@ public sealed partial class App : Avalonia.Application
     private DetailWindowController? detailWindow;
     private ResponseWindowController? responseWindow;
     private GrantListWindowController? grantListWindow;
+    private QuestionWindowController? questionWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
@@ -65,9 +66,19 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>());
             grantListWindow = new GrantListWindowController(viewModel);
+            questionWindow = new QuestionWindowController(viewModel,
+                new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
+                    Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>()),
+                Services.GetRequiredService<Kora.Application.Hosting.DurableVersionQuery>(),
+                Services.GetRequiredService<IApplicationInfo>(),
+                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                    && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
+                Services.GetRequiredService<ILogger<QuestionWindowController>>());
             systemTray = new SystemTrayController(
                 viewModel,
-                Services.GetRequiredService<ILogger<SystemTrayController>>());
+                Services.GetRequiredService<ILogger<SystemTrayController>>(),
+                () => questionWindow.ReviewVersionAsync(window));
             var host = viewModel;
             var dispatcher = Services.GetRequiredService<IUiDispatcher>();
             Services.GetRequiredService<DesktopInstanceOwnershipBridge>().BindCallbacks(
@@ -139,6 +150,8 @@ public sealed partial class App : Avalonia.Application
         responseWindow = null;
         grantListWindow?.Dispose();
         grantListWindow = null;
+        questionWindow?.Dispose();
+        questionWindow = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

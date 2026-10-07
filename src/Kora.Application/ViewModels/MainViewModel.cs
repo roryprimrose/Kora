@@ -2315,6 +2315,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ShowFailure("Presence mouse routing is unavailable.",
             $"The presence has been hidden to avoid blocking other windows. Restart Kora to try again. {detail}");
 
+    public void ReportHostInteractionFailure(string detail) =>
+        ShowFailure("Native question unavailable.", detail);
+
     public void ShowSettings()
     {
         if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)

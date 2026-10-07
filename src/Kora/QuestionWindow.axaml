@@ -1,0 +1,32 @@
+<Window x:Class="Kora.QuestionWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Kora - exact host question" Width="760" Height="720"
+    MinWidth="480" MinHeight="480" Topmost="False"
+    WindowStartupLocation="CenterOwner"
+    Background="{DynamicResource KoraWindowBackgroundBrush}">
+  <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="12">
+    <TextBlock x:Name="TargetLabel" TextWrapping="Wrap" />
+    <TextBlock x:Name="PromptLabel" Grid.Row="1" TextWrapping="Wrap" FontSize="20" />
+    <StackPanel x:Name="ChoicePanel" Grid.Row="2" Spacing="8" />
+    <TextBox x:Name="AnswerInput" Grid.Row="3" AcceptsReturn="True" TextWrapping="Wrap"
+        TabIndex="40" AutomationProperties.Name="Bounded text answer - unsubmitted draft" />
+    <TextBox x:Name="ExactReview" Grid.Row="4" IsReadOnly="True" IsUndoEnabled="False"
+        AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+        TabIndex="50" AutomationProperties.Name="Immutable exact host record review - not approval or execution" />
+    <TextBlock x:Name="QuestionStatus" Grid.Row="5" TextWrapping="Wrap"
+        AutomationProperties.Name="Question status and recovery" AutomationProperties.LiveSetting="Polite" />
+    <WrapPanel Grid.Row="6">
+      <Button x:Name="ReviewQuestion" Content="_Review exact record" TabIndex="41"
+          AutomationProperties.Name="Review exact original question or operation - no grant use" />
+      <Button x:Name="SaveDraft" Content="Save _draft" TabIndex="42"
+          AutomationProperties.Name="Save answer draft without submitting" />
+      <Button x:Name="SubmitAnswer" Content="_Submit" TabIndex="43"
+          AutomationProperties.Name="Submit answer to the displayed exact question" />
+      <Button x:Name="CancelQuestion" Content="_Cancel question" TabIndex="44"
+          AutomationProperties.Name="Cancel the displayed exact question" />
+      <Button x:Name="CloseQuestion" Content="C_lose" TabIndex="45"
+          AutomationProperties.Name="Close native presentation without approval or execution" />
+    </WrapPanel>
+  </Grid>
+</Window>

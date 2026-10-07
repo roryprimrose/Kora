@@ -74,6 +74,7 @@ The right-click menu contains:
 - **Show Kora**
 - **Kora Settings**
 - **Documentation**
+- **Review local version (native question)**
 - **Enable listening / Disable listening**
 - **Voice consent / push-to-talk**
 - **Microphones** (enumerated endpoint IDs, selected and unavailable state)
@@ -90,6 +91,16 @@ Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
 launcher/tray to return to native status and recovery.
 
 ## Passive document details
+
+The separate **Review local version (native question)** tray entry opens one
+owned native card bound to the original durable host question, not whichever
+window is focused. It shows exact target/revision/expiry, an unselected choice,
+Review exact record, Save draft, Submit answer, Cancel question and Close.
+Editing is not submission; closing/Escape is not approval or grant use.
+Expiry, revised/closed targets and unknown privacy/ownership disable the
+affected card. Query/audit failures report recovery without a success receipt.
+See [the bounded version route](commands.md#show-the-running-version).
+This is not Sessions/history, a new side effect or general approval dispatch.
 
 Choose **Documentation**, select a guide page, then **Open details** to read
 that exact page in a separate native window. Its host-owned title, provenance,

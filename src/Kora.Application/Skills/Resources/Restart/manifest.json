@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "kora.computer.restart",
+  "version": "1.0.0",
+  "name": "Restart the machine",
+  "description": "Fixed graceful Windows restart; inspection only, no forced restart.",
+  "action": "computer.restart",
+  "entryPoint": "scripts\\session\\restart.ps1",
+  "parameterContract": "computer.restart.v1",
+  "runtime": "powershell7",
+  "dependencies": ["kora.windows.session-control.v1", "kora.host.power-quiescence.v1"],
+  "helperLoadOrder": ["scripts\\shared\\session-control.ps1"],
+  "files": [
+    {"name": "skills\\session-restart\\skill.md", "resourceId": "Kora.Skills.Session.Restart.Instructions", "kind": "instructions"},
+    {"name": "skills\\session-restart\\fixtures.json", "resourceId": "Kora.Skills.Session.Restart.Fixtures", "kind": "fixture"},
+    {"name": "scripts\\session\\restart.ps1", "resourceId": "Kora.Scripts.Session.Restart", "kind": "entry"},
+    {"name": "scripts\\shared\\session-control.ps1", "resourceId": "Kora.Scripts.Shared.SessionControl", "kind": "helper"}
+  ]
+}

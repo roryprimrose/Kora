@@ -26,6 +26,7 @@ public sealed partial class App : Avalonia.Application
     private GrantListWindowController? grantListWindow;
     private QuestionWindowController? questionWindow;
     private EvidenceWindowController? evidenceWindow;
+    private SkillPackagesWindowController? skillPackagesWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
@@ -76,11 +77,17 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 Services.GetRequiredService<ILogger<QuestionWindowController>>());
+            skillPackagesWindow = new SkillPackagesWindowController(viewModel,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                    && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
+                Services.GetRequiredService<ILogger<SkillPackagesWindowController>>(),
+                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()));
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
                 () => questionWindow.ReviewVersionAsync(window),
-                () => evidenceWindow?.Open());
+                () => evidenceWindow?.Open(),
+                () => skillPackagesWindow.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -163,6 +170,8 @@ public sealed partial class App : Avalonia.Application
         questionWindow = null;
         evidenceWindow?.Dispose();
         evidenceWindow = null;
+        skillPackagesWindow?.Dispose();
+        skillPackagesWindow = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

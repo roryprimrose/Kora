@@ -379,9 +379,23 @@ controls; there is no secret listening exception for approvals or unmute.
 
 ## 13. Built-in skills
 
-The design specifies the following computer-control skills. Their script
-packages and content-bound grants are **Planned**, even where a related current
-command exists.
+The three fixed computer-control packages are embedded and available for
+**inspection only**. Open **Skill packages (inspection only)** from the tray.
+Each package shows its manifest, instructions, data-only fixture, entry script
+and shared helper in named read-only native source tabs, with per-file,
+script-set and definition hashes. The same immutable original bytes are hashed
+and reviewed, including UTF-8 BOMs and line endings.
+
+No package can be enabled, approved or invoked here. The worker, protected
+deployment, network and real-control proofs remain outstanding; no interpreter
+or adapter identity is admitted. Current direct Windows API lock and legacy
+action-name grants are unchanged. Inspection is not grant authority or model
+exposure. Hashes identify content, not the publisher.
+
+Transitive tracking is best effort, not a complete executable allowlist.
+Further code and changes may go undetected. A future granting user accepts
+responsibility for the overall actions within separately admitted scope.
+Profile discovery, authoring and content-bound execution remain **Planned**.
 
 ### Lock the machine
 

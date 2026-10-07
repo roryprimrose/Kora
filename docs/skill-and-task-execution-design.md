@@ -10,6 +10,13 @@ Kora to launch, even when no skill is involved.
 The [tools and built-in skills guide](tools-and-built-in-skills.md) lists the
 design-defined capabilities and clearly labels current versus planned behavior.
 
+The bounded R11 catalogue now embeds the fixed lock/shutdown/restart manifests,
+Markdown, fixtures, entries and one shared helper. The tray offers native
+read-only source tabs and exact `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1`
+identities. This is inspection/discovery only, not enablement, approval or
+execution. No runtime/adapter identity is fabricated. Worker, installed
+protection, network and real-control admission remain outstanding.
+
 ## Built-in commands and the trusted host
 
 Commands, internal tools, skills, and executable tasks are distinct:

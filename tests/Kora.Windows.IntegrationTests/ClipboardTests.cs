@@ -83,12 +83,17 @@ public sealed class ClipboardTests
         native.Unlocks.Should().Be(native.Locked ? 1 : 0);
     }
 
-    [Fact]
-    public async Task Native_failure_completes_task_with_content_free_error_instead_of_hanging()
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("close-failed", false)]
+    [InlineData("unlock-failed", false)]
+    public async Task Native_failure_completes_with_explicit_outcome_and_preserves_release_failure(string scenario, bool released)
     {
-        var native = new PrivateNative { BeforeRead = () => throw new InvalidOperationException("private text") };
-        var run = () => new WindowsPlainTextClipboardReader(native).ReadAsync(TestContext.Current.CancellationToken);
-        (await run.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().NotContain("private text");
+        var native = new PrivateNative { Scenario = scenario, BeforeRead = () => throw new InvalidOperationException("private text") };
+        var result = await new WindowsPlainTextClipboardReader(native).ReadAsync(TestContext.Current.CancellationToken);
+        result.Outcome.Should().Be(ClipboardOutcome.Unavailable);
+        result.Text.Should().BeNull();
+        result.ResourcesReleased.Should().Be(released);
         native.Closes.Should().Be(1);
         native.Unlocks.Should().Be(1);
     }

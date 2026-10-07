@@ -33,8 +33,7 @@ public sealed class WindowsPlainTextClipboardReader : IPlainTextClipboardReader
             {
                 completion.SetCanceled(cancellationToken);
             }
-            catch (Exception exception) when (exception is InvalidOperationException
-                or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.ExternalException)
+            catch (Exception exception) when (IsNativeFailure(exception))
             {
                 completion.SetException(new InvalidOperationException(
                     "Native plain-text clipboard read failed. Failure type: " + exception.GetType().Name));
@@ -60,6 +59,7 @@ public sealed class WindowsPlainTextClipboardReader : IPlainTextClipboardReader
             result = ReadOpened(version, token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { result = new(ClipboardOutcome.Cancelled); }
+        catch (Exception exception) when (IsNativeFailure(exception)) { result = new(ClipboardOutcome.Unavailable); }
         finally { closed = native.Close(); }
         return closed ? result : new(ClipboardOutcome.Unavailable, ResourcesReleased: false);
     }
@@ -79,6 +79,7 @@ public sealed class WindowsPlainTextClipboardReader : IPlainTextClipboardReader
         bool unlocked;
         try { result = ReadLocked(pointer, size, version, token); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { result = new(ClipboardOutcome.Cancelled); }
+        catch (Exception exception) when (IsNativeFailure(exception)) { result = new(ClipboardOutcome.Unavailable); }
         finally { unlocked = native.Unlock(handle); }
         return unlocked ? result : new(ClipboardOutcome.Unavailable, ResourcesReleased: false);
     }
@@ -114,4 +115,7 @@ public sealed class WindowsPlainTextClipboardReader : IPlainTextClipboardReader
 
     private ClipboardOutcome Failure(ClipboardOutcome fallback) =>
         native.LastError == 5 ? ClipboardOutcome.AccessDenied : fallback;
+
+    private static bool IsNativeFailure(Exception exception) => exception is InvalidOperationException
+        or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.ExternalException;
 }

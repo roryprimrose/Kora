@@ -46,6 +46,27 @@ recorded. The query is a diagnostic projection, not the atomic interaction
 audit or proof of authorization/effect. Session/conversation history is
 unavailable, not an empty successful fabricated store.
 
+The source selector also admits **DailyLog**, independently of SQLite.
+**All** remains SQLite-only; daily mirrors do not alter its counts. Daily
+records use independent file/offset/digest citations, retain their original
+envelope evidence ID and typed observation/correlation fields, and have no
+database commit/due time (`RetentionUnknown`). **Read selected trace** stays
+within DailyLog; span/parent/link records are unavailable there. Audit mirrors
+are unsupported, not promoted to database audit records. The serialized
+`DailyReport` labels the snapshot, scanned files/bytes/lines, unsupported copies,
+audit mirrors and ingestion gaps; skipped copies produce `Partial`.
+
+Daily reads admit at most 32 files / 8 MiB of earliest complete-line prefix /
+4,096 physical lines / 256 KiB per line (excluding LF) and five seconds per
+request. The existing 50-record/64-KiB output limit still applies. Next page
+uses one of eight bounded 15-minute host-held manifests; eviction requires a
+fresh search. Active appends/new daily files do not expand it. Source changes,
+replacement, pruning/rotation, corruption, incomplete final lines, expired
+snapshots, timeout and access failure are visible. `ScanLimitReached` is not a
+complete-file claim and does not imply paging beyond the admitted prefix.
+No combined cross-source ranking, file audit/graph, export or Ask Evidence is
+delivered by this slice; native installed/accessibility acceptance remains open.
+
 Controls have native accessible labels and keyboard navigation. Result text
 is inert and non-selectable. Copy/cut clipboard paths and context menus are
 blocked; there are no export, Ask Evidence, execution or source-deletion

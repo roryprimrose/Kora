@@ -246,7 +246,8 @@ internal static class Program
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
-        services.AddSingleton<IEvidenceReader>(new WindowsSqliteEvidenceReader(evidence));
+        services.AddSingleton<IEvidenceReader>(new WindowsEvidenceReader(
+            new WindowsSqliteEvidenceReader(evidence), new WindowsDailyEvidenceReader(paths)));
         services.AddSingleton<IEvidenceQueryAccess, DesktopEvidenceAccess>();
         services.AddSingleton<DurableEvidenceQuery>();
         services.AddSingleton<DurableHostRecovery>();
@@ -368,7 +369,7 @@ internal static class Program
 
     private static Serilog.Core.Logger CreateFileLogger(ApplicationDataPaths paths, FileEvidenceHealth health)
     {
-        var logDirectory = Path.Combine(paths.LocalRoot, "Logs");
+        var logDirectory = Path.Combine(paths.LocalRoot, DailyLogFilePolicy.DirectoryName);
         Directory.CreateDirectory(logDirectory);
 
         // Serilog normally self-reports file errors instead of throwing. A sticky admission
@@ -380,7 +381,7 @@ internal static class Program
             .Enrich.FromLogContext()
             .WriteTo.File(
                 new JsonFormatter(renderMessage: true),
-                Path.Combine(logDirectory, "kora-.log"),
+                Path.Combine(logDirectory, DailyLogFilePolicy.RollingName),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30,
                 retainedFileTimeLimit: TimeSpan.FromDays(30),

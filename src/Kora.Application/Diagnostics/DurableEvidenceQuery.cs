@@ -63,11 +63,11 @@ public sealed partial class DurableEvidenceQuery(
                 var after = records.Count == 0 ? batch.ScannedThrough : batch.Candidates[records.Count - 1].Position;
                 var next = more ? Encode(new(fingerprint, current.Request.SessionId,
                     continuation?.ExpiresUtc ?? now.AddMinutes(15), new(batch.Snapshot, after))) : null;
-                var status = batch.ScanLimitReached ? EvidencePageStatus.ScanLimitReached
+                var status = batch.Status ?? (batch.ScanLimitReached ? EvidencePageStatus.ScanLimitReached
                     : records.Count == 0 && (query.Record is not null || query.TraceId is not null)
-                        ? EvidencePageStatus.MissingOrRemoved : EvidencePageStatus.Available;
+                        ? EvidencePageStatus.MissingOrRemoved : EvidencePageStatus.Available);
                 page = new(status,
-                    records.ToArray(), next, unavailable, EvidencePage.StorageDisclosure);
+                    records.ToArray(), next, unavailable, EvidencePage.StorageDisclosure, batch.DailyReport);
                 if (Serialize(page).Length <= EvidencePage.MaximumBytes) { break; }
                 if (records.Count == 1)
                 {
@@ -177,7 +177,7 @@ public sealed partial class DurableEvidenceQuery(
         if (query.Record is { } record)
         {
             record.Id.Validate();
-            if (record.Source is not (EvidenceSource.Log or EvidenceSource.Audit or EvidenceSource.Span or EvidenceSource.Link)
+            if (record.Source is not (EvidenceSource.Log or EvidenceSource.Audit or EvidenceSource.Span or EvidenceSource.Link or EvidenceSource.DailyLog)
                 || (record.Source == EvidenceSource.Link ? record.LinkOrdinal is not (>= 0 and <= 31) : record.LinkOrdinal is not null))
             {
                 throw new ArgumentException("The evidence citation is invalid.", nameof(query));

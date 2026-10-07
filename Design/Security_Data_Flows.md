@@ -1036,11 +1036,28 @@ labels, incoming trace headers and selected-window state cannot assign or change
 it. After session deletion, independently retained audit rows may keep the
 opaque session ID and a deleted-session marker, but no title, request text or
 other deleted session content.
-The same service may read the complete daily application files only through an
-adapter that validates Kora daily-log names, rejects arbitrary paths, and bounds
-each tail read to 1,000,000 characters. File audit copies remain operational
+The same service now independently inspects the application's existing daily
+diagnostic JSON envelopes through the native **DailyLog** source, not a merged
+cross-source search. It shares exact daily-name and versioned envelope rules
+with the actual writer, rejects arbitrary paths/reparse or unowned/permissive
+sources, validates opened-handle final paths and file identities, and performs
+no writes or permission repair. It captures/revalidates at most 8 MiB of prefix
+each (16 MiB total I/O), 32 files, 4,096 lines and 256 KiB per line excluding LF,
+within a five-second deadline. Signed query/viewer-bound continuations refer to
+one of eight bounded 15-minute manifests. Prefix hashes/identities reject
+replacement and mutation, while appends/new days cannot expand a cursor.
+Failures and scan ceilings are explicit; no atomic filesystem or complete
+history claim is made. The older raw-tail adapter's separate 1,000,000-character
+limit is unchanged and is not used as the structured inspection contract.
+Daily record observation time is not a database commit or due date; correlation
+cannot grant identity or permission. Unsupported activity/legacy copies,
+ingestion-gap markers and audit mirrors are counted, not silently omitted.
+File audit copies remain operational
 evidence only and cannot satisfy the required `security_audit_events` commit,
-approval or receipt requirement.
+approval or receipt requirement; the inspector does not return them as audit
+rows or parse their copied audit payload. `SecurityAudit` lookalikes in ordinary
+properties remain ordinary properties. Exact All/Log/Audit/Span/Link SQLite
+behavior and counts, audit chain and independent retention are unchanged.
 Content-bearing diagnostic export requires explicit preview/consent; OS or third-party crash dumps remain a deployment concern.
 In-memory disposal is best-effort, not a guarantee of forensic erasure from OS paging.
 

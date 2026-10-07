@@ -49,6 +49,7 @@ internal sealed partial class EvidenceViewModel(
 
     public Task ReadTraceAsync() => RunAsync(() => new()
     {
+        Source = selected?.Reference.Source == EvidenceSource.DailyLog ? EvidenceSource.DailyLog : EvidenceSource.All,
         TraceId = selected?.Trace?.TraceId
             ?? throw new InvalidOperationException("Select a record with trace correlation."),
         SessionId = currentQuery?.SessionId,
@@ -91,7 +92,7 @@ internal sealed partial class EvidenceViewModel(
             resultText = Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(result));
             status = $"{result.Status}: {result.Records.Count} records. "
                 + (result.Cursor is not null ? "More bounded pages available. " : "End of this filtered snapshot. ")
-                + EvidencePage.StorageDisclosure;
+                + result.Disclosure;
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (OperationCanceledException)

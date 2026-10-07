@@ -274,6 +274,43 @@ graph/history is not claimed. Session/conversation
 sources and interaction-audit receipts are not supplied by this projection.
 Model tool exposure, Ask Evidence, export and remote transmission remain gated.
 
+The independent **DailyLog** source now reads existing daily JSON diagnostic
+envelopes beneath `IApplicationDataPaths.LocalRoot/Logs`, with the writer's
+shared exact daily-name policy and version-1 diagnostic serializer/validator.
+`All` still means the existing SQLite projection; it does not merge file copies
+into database counts or claim an atomic cross-source ledger. Exact combined
+search/ranking remains outstanding. File names are discovered by the trusted
+store, never accepted as query paths. Read-only file handles reuse current-user
+owner/ACL and reparse admission, validate their final path, and retain volume/
+file identity. There are no directory/file/lease writes or permission repairs.
+
+Each daily snapshot admits at most 32 files, an 8-MiB earliest byte prefix
+ordered by exact daily name and byte offset, 4,096 physical lines, and 256-KiB
+lines excluding LF. A five-second cancellation/deadline bounds each read.
+Prefix capture and final verification each read at most 8 MiB (16 MiB total
+source I/O); no unbounded tail or full-file read is implied. A byte ceiling
+stops at the last complete LF, reports `ScanLimitReached`, and does not page
+beyond that ceiling. Too many files report the same limit without a subset
+success. Eight host-held manifests expire after 15 minutes or earlier bounded
+cache eviction; signed continuations retain the original query/viewer binding.
+Every page reopens the original names and verifies file identities and prefix
+SHA-256 digests before returning any content. Appends/new days cannot expand
+that snapshot; changed/replaced, pruned/rotated, expired, corrupt, truncated,
+unavailable and timed-out sources are explicit, with no partial-success
+fallback. Snapshots are not an OS-atomic filesystem ledger.
+
+Daily citations are source-specific hashes of file identity, byte offset and
+exact line digest, not aliases for SQLite citations. Provenance also retains
+the envelope evidence ID. Typed fields and admitted envelope correlation are
+validated, not reconstructed from outer rendered Serilog properties.
+Observation time is preserved; database commit/due times are absent and
+retention is `RetentionUnknown`. File audit mirrors are unsupported and counted
+separately, never returned as authoritative audit rows. Legacy/unstructured/
+activity copies and ingestion-gap markers have explicit counts and `Partial`
+status; file trace navigation keeps DailyLog selected and reports the activity
+graph unavailable. User-modifiable file correlation never establishes identity,
+intent, permission, an audit commit, execution outcome or a complete history.
+
 ## Independent Management and Concurrent Sessions
 
 The work manager stays responsive independently of the task runtime's event loop, tool calls, and approval waits.

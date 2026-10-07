@@ -243,6 +243,8 @@ repair. Process-interruption tests do not guarantee physical power-loss recovery
 There is still no durable conversation/history UI or general task executor.
 The tray's **Evidence (read-only)** opens a native inspector for actual
 SQLite diagnostic, typed audit, completed span and explicit link records.
+**DailyLog** additionally inspects existing daily diagnostic JSON independently;
+**All** still selects SQLite only and does not count mirrored file copies.
 Choose a source, optionally enter safe text or session/task/trace correlation
 filters, then select **Search / refresh**. **Next page** continues that exact
 snapshot; later records do not silently extend it. Each page includes stable
@@ -261,6 +263,30 @@ access failures are visible; no store or permission repair is attempted.
 Closing or privacy closure clears/cancels the view without changing retained
 sources. There is no copy, export, model reasoning, browser, deletion, grant
 use or remote transmission from this inspector.
+
+DailyLog reads only exact Kora daily names from the supplied application-data
+Logs directory; it accepts no path, creates no file and repairs no permissions.
+It checks current-user source ownership/access, rejects redirected paths, and
+verifies opened file identity and captured-prefix hashes before presenting a
+page. Its limits are 32 files, an 8-MiB earliest complete-line prefix, 4,096
+physical lines, 256 KiB per line excluding the final LF and five seconds per
+read. Capture plus final prefix verification reads at most 16 MiB total.
+The existing 50-record/64-KiB output limit applies. `ScanLimitReached` does not
+mean the full file was searched; paging cannot go beyond the captured prefix.
+Next page is tied to one of eight host-held 15-minute snapshots. Appends/new
+days do not extend it; eviction/expiry requires a fresh search.
+
+Daily citations are separate from SQLite citations and include trusted
+file/offset/digest provenance and the original envelope evidence ID.
+Observation time is retained, but database commit/due dates are absent:
+`RetentionUnknown` does not claim expiry or removal. Audit mirrors are
+unsupported, never database audit evidence. Activity/legacy copies and gap
+markers are explicitly counted in `DailyReport`; skipped copies show `Partial`.
+Corrupt/truncated/changed/missing/expired/unavailable/timed-out sources show
+explicit status without partial-success content. Read selected trace remains
+in DailyLog; the activity graph is unavailable there. These user-modifiable
+records and their correlation never supply identity, permission, an execution
+receipt or a complete history. Combined cross-source ranking is not available.
 Database records receive independent 30-day diagnostic and 90-day audit
 due dates. Each admitted owner startup, after storage admission and recovery,
 prunes at most 128 due ordinary logs and 32 due spans with their at-most-1,024
@@ -319,7 +345,8 @@ The future audit configuration flow must preview the affected range and require
 confirmation before shortening existing due dates.
 
 The delivered bounded native inspector lists, reads and searches actual
-SQLite Logs, Audit, spans and links without using a model. A future explicit
+SQLite Logs, Audit, spans and links, or independent DailyLog diagnostics,
+without using a model. A future explicit
 Ask Evidence action would reason over a
 bounded selected set, with links to every supporting record and observed facts
 separated from inference. Local reasoning is preferred; sending selected

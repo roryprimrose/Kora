@@ -18,6 +18,34 @@ namespace Kora.Application.UnitTests.Diagnostics;
 public sealed class DurableEvidenceQueryTests
 {
     [Fact]
+    public async Task Daily_source_citations_status_and_report_survive_bounded_serialization()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        var daily = Record() with
+        {
+            Reference = new(EvidenceSource.DailyLog, new(Guid.NewGuid())),
+            CommittedUtc = null, DueUtc = null, Retention = EvidenceSegmentStatus.RetentionUnknown,
+            ObservedUtc = DateTimeOffset.UtcNow,
+            DailyProvenance = new("kora-20261007.log", "trusted-handle-identity", 0, "digest", new(Guid.NewGuid())),
+        };
+        fixture.Reader.Batch = Batch(1) with
+        {
+            Candidates = [new(new(0, EvidenceSource.DailyLog, "kora-20261007.log", 0), daily)],
+            Status = EvidencePageStatus.Partial,
+            DailyReport = new("snapshot", 1, 123, 2, 0, 1, 0),
+        };
+        using var host = Root();
+        var page = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.DailyLog, Record = daily.Reference },
+            null, TestContext.Current.CancellationToken);
+        page.Status.Should().Be(EvidencePageStatus.Partial);
+        page.DailyReport.Should().Be(fixture.Reader.Batch.DailyReport);
+        page.Records.Single().Reference.Citation.Should().StartWith("kora-evidence:dailylog:");
+        page.Records.Single().CommittedUtc.Should().BeNull();
+        DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+    }
+
+    [Fact]
     public async Task Pages_count_actual_serialized_UTF8_including_citations_cursor_and_disclosure()
     {
         using var listener = Listen();

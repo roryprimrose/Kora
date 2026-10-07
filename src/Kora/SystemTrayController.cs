@@ -40,7 +40,8 @@ public sealed class SystemTrayController : IDisposable
         Func<Task>? reviewLocalVersion = null,
         Action? inspectEvidence = null,
         Action? inspectSkillPackages = null,
-        Action? inspectSessions = null)
+        Action? inspectSessions = null,
+        Action? reviewMaintenance = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -79,6 +80,12 @@ public sealed class SystemTrayController : IDisposable
                 "Local clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name));
         previewClipboard.Click += (_, _) => RunAfterNativeMenuCloses(() => previewClipboardCommand.Execute(null));
         menu.Add(previewClipboard);
+        if (reviewMaintenance is not null)
+        {
+            var maintenanceItem = new NativeMenuItem("Release maintenance (notify-only)");
+            maintenanceItem.Click += (_, _) => RunAfterNativeMenuCloses(reviewMaintenance);
+            menu.Add(maintenanceItem);
+        }
         if (inspectEvidence is not null)
         {
             var evidenceItem = new NativeMenuItem("Evidence (read-only)");

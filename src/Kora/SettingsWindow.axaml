@@ -839,6 +839,14 @@
           </StackPanel>
         </ScrollViewer>
       </TabItem>
+      <TabItem Header="Maintenance">
+        <StackPanel Margin="30" Spacing="16" MaxWidth="700">
+          <TextBlock Text="Release maintenance (notify-only)" FontSize="24" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding MaintenanceStatus}" TextWrapping="Wrap" />
+          <TextBlock Text="Canonical GitHub Releases metadata only. Network access is off until explicitly permitted for this run. Replacement is manual and unsigned; Kora has no updater." TextWrapping="Wrap" />
+          <Button Content="Review / check / open canonical release" Click="OnMaintenanceClicked" HorizontalAlignment="Left" />
+        </StackPanel>
+      </TabItem>
     </TabControl>
   </Grid>
 </Window>

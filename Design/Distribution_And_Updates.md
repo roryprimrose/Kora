@@ -807,6 +807,117 @@ Never describe a failed check as proof that the installation is current.
 
 ## Hosted Release Feed and Notify-Only Interaction
 
+### Delivered bounded R17/R18 native foundation
+
+Settings **Maintenance** and Tray **Release maintenance (notify-only)** open
+one explicit native review surface with running version, channel, truthful
+status, last-verification/staleness, expected application ZIP/digest, and an
+exact host-constructed canonical release page. **Check**, **Open reviewed
+canonical release page**, and **Snooze this version (24h)** are native-only.
+**Review this exact verified release** binds navigation/snooze to the current
+immutable snapshot; every refresh, expiry or admission closure invalidates
+that binding and requires a fresh native review, even for the same version.
+They are not model tools, task/skill execution, installation approvals or
+durable conversation questions. The existing local-version native question
+and external source-bootstrap/publisher workflows are unchanged.
+
+Public metadata network access is **off by default**, explicitly enabled for
+the current run only. Opt-in schedules an initial check; successful checks
+schedule six hours plus 0-30 minutes jitter. Failures back off exponentially
+from five minutes, capped at six hours; GitHub 403/429 deadlines are bounded
+to 1 minute-24 hours. Manual checks, toggling permission and channel selection
+cannot bypass an existing cadence/backoff deadline. No persisted network
+permission or startup replay is claimed. Ownership, unlocked privacy and
+absence of protected manual/automatic call state gate checks and navigation.
+Privacy/call closure cancels current work and invalidates late callbacks;
+unlock/call completion does not replay a deferred check or open a page.
+
+Production uses the latest published stable endpoint; explicit Preview
+enumerates at most five pages of twenty records and includes only published
+canonical `-beta<number>` releases. Exhausting the enumeration bound is
+**Unknown**, not a guessed latest version. Numeric GitVersion major/minor/
+patch/beta ordering places stable after beta at the same base version.
+Drafts, CI/default-branch output, arbitrary channels and remote instructions
+cannot establish availability.
+
+Checks have a 30-second total deadline, 1 MiB release responses, 128 KiB
+manifest/tag responses, depth-16 JSON and 32 KiB notes bounds. Duplicate JSON
+fields, missing/wrongly typed identity, changed assets, noncanonical URLs,
+unresolved immutable tags (at most eight annotated levels), and unsupported
+architecture fail explicitly. Nine release assets must match the publisher
+contract; the seven non-self/checksum manifest records must match their
+published SHA-256 digests. Only the manifest's bytes are obtained and hashed.
+Its canonical asset API may redirect once to GitHub's HTTPS release-asset
+CDN; other/implicit redirects are denied. No ZIP/MSI/EXE/source bytes are
+requested. An exact release readback and tag recheck detect identity changes.
+Unauthenticated bounded ETag caching retains bytes, not success-shaped error
+responses. 304 responses require prior cached bytes and full re-verification.
+
+**Available / UpToDate** require complete successful metadata verification.
+404/no selected-channel release is **Unavailable**; 403/429 is **RateLimited**;
+transport, timeout, cancellation, malformed/oversized/changed metadata is
+**Unknown**. Historical successful timestamps remain visible after failure
+but cannot authorize navigation or a current-version claim. Six-hour-old
+verification is stale even while the next jittered check is pending.
+
+The x86 ZIP does not imply x86 MSI/Burn or supported native speech/inference.
+Runtime prerequisites and native/protected-deployment acceptance remain
+separate. Deployment mode remains **Unknown**; no source mutation exists.
+Hashes establish consistency with unsigned POC metadata, **not independent
+publisher authentication, production acceptance or rollback/freeze safety**.
+Remote notes are never rendered as Markdown/HTML/instructions. The surface
+is passive: no unsolicited audio, focus, prompts or backlog; snooze is
+version-specific and in-memory. Full R17 installed acceptance and the R18
+general proactive interaction broker/voice replies remain outstanding.
+
+The r02-distribution executable/static contracts were already migrated to
+maintained `eng` tests and retired. This foundation adds production fake-HTTP,
+typed ordering/state and native-opener tests; it does not supersede or remove
+any unique historical receipts, runtime/native/protection evidence.
+
+#### Bounded verification receipt (2026-10-07)
+
+The fresh isolated maintenance worktree was rebased from stale provider HEAD
+to canonical main `281393c3895209479c82b48d73ee2088ed4bc431` before edits.
+Locked-feed restore, root Release/analyzers (zero warnings/errors), **428 Core
++ 1,341 Application + 711 Windows tests**, and fresh portable **7,860/7,860
+lines and 3,892/3,892 branches** passed. Native browser tests use an injected
+process-request seam and do not launch a browser or Kora. Public read-only
+verification through the compiled client returned Production **Unavailable
+(404)** and Preview **Available `0.1.0-beta54`**, bound to that exact canonical
+source and all nine asset identities/digests. Only release/tag metadata and
+the JSON manifest were read; no code assets, accounts or secrets were used.
+Existing version, **381 publisher assertions**, **123 immutable source-tool
+contracts**, **82 source-bootstrap fixtures**, and dependency licence controls
+passed unchanged. Source fixtures require output outside all source roots;
+their correctly rejected in-tree first attempt did not weaken that boundary.
+This is deterministic/static/public-metadata evidence, not interactive native
+acceptance, unsigned installer execution, protected loading or release sign-off.
+
+The subsequent exact-review/rebase validation preserves merged R11 #60 at
+`1506b7e4633b4291bcf6c222837cb133a12e5530` and both native tray routes.
+Every refresh (including unchanged metadata) invalidates navigation/snooze
+until a new native review. Root Release and **467 Core + 1,347 Application
++ 713 Windows tests** passed; fresh portable coverage was **8,069/8,069
+lines and 4,040/4,040 branches**. This extends, rather than rewrites, the
+original-base receipt above. Browser status acknowledges a shell navigation
+request, including existing-browser reuse, not a new process or visible page.
+
+The next rebase preserves Sessions #61 at
+`9025c15f7b9402b029ac61fc361d43192b0156bf`, Skills and all three tray routes.
+Combined validation passed **467 Core + 1,365 Application + 732 Windows
+tests**, zero-warning/error Release, and fresh portable **8,125/8,125 lines
+and 4,052/4,052 branches**. Busy checks/navigation immediately disable native
+review actions; exact snapshot and privacy/call invalidation remain enforced.
+
+Final peer rebase at Clipboard #63 source
+`d1f7e554d1db6eadd49f73103a0dc48bd5cdbd29` preserves its Tools/CI and native
+routes, and uses the current quiescence-aware desktop admission gate.
+All **493 Core + 1,388 Application + 25 Tools + 764 Windows tests** passed.
+Fresh coverage includes all three current portable assemblies:
+**8,369/8,369 lines and 4,202/4,202 branches**; root Release has zero warnings/
+errors. No experiment evidence or peer capability implementation was changed.
+
 GitHub Releases is the sole current version host for both prerelease and
 production versions of `roryprimrose/Kora`. Use its release API, or future
 authenticated release metadata published with those releases, not arbitrary

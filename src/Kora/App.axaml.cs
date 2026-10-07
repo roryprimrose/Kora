@@ -9,6 +9,7 @@ using Avalonia.Styling;
 using Kora.Application.Documentation;
 using Kora.Application.ViewModels;
 using Kora.Application;
+using Kora.Application.Maintenance;
 using Kora.Core.Configuration;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +30,7 @@ public sealed partial class App : Avalonia.Application
     private SkillPackagesWindowController? skillPackagesWindow;
     private SessionsWindowController? sessionsWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
+    private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
 
@@ -90,7 +92,8 @@ public sealed partial class App : Avalonia.Application
                 () => questionWindow.ReviewVersionAsync(window),
                 () => evidenceWindow?.Open(),
                 () => skillPackagesWindow.Open(),
-                () => sessionsWindow?.Open());
+                () => sessionsWindow?.Open(),
+                () => maintenanceWindow?.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -103,6 +106,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<SessionsViewModel>>());
             sessionsWindow.Bind();
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
+            maintenanceWindow = new MaintenanceWindowController(viewModel,
+                Services.GetRequiredService<MaintenanceViewModel>(),
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
+                    && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             var host = viewModel;
             host.BindClipboardOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
@@ -188,6 +195,8 @@ public sealed partial class App : Avalonia.Application
         sessionsWindow = null;
         clipboardWindow?.Dispose();
         clipboardWindow = null;
+        maintenanceWindow?.Dispose();
+        maintenanceWindow = null;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)

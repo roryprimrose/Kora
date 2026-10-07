@@ -76,6 +76,7 @@ The right-click menu contains:
 - **Documentation**
 - **Sessions**
 - **Preview clipboard (local plain text)**
+- **Release maintenance (notify-only)**
 - **Evidence (read-only)**
 - **Review local version (native question)**
 - **Enable listening / Disable listening**

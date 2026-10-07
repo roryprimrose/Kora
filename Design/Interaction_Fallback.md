@@ -12,7 +12,9 @@ the production question service/store, explicit draft/submit/cancel and exact
 original question/session targeting. The shared native component supports
 single/multiple-choice and bounded text, and routes admitted exact approvals
 through the authorization service, not ordinary submit. No production effect
-proposal, onboarding/device change or microphone workflow is enabled.
+proposal or generic onboarding/device question workflow is enabled.
+The separate bounded tray microphone controls below use existing host services,
+not the generic question gateway.
 Generic voice focus, secure forms, full workspace integration and real native
 accessibility acceptance remain pending.
 
@@ -181,6 +183,49 @@ Avoid repeated modal recovery prompts while the user has chosen non-voice operat
 
 ## System Tray Icon and Context Menu
 
+### Delivered bounded R03/R09 tray recovery
+
+The native tray now displays a generic, non-sensitive input status: closed,
+consent not granted, access denied/unknown, selected endpoint unavailable,
+push-to-talk ready (microphone closed; wake unavailable), or actual PTT capture.
+Tooltip/status text contains no endpoint IDs/names, transcript, task or account
+content. Microphone menu labels expose friendly endpoint names only while
+ownership and Windows presentation gates are eligible; native radio marks
+represent the saved preference, never recording.
+
+Opening the menu or choosing **Refresh microphones** performs metadata-only
+enumeration/permission/privacy observation on one background worker, with a
+five-second caller deadline. Concurrent refreshes share the current request.
+Native enumeration cannot be forcibly killed: after timeout/cancellation,
+there is at most one outstanding worker, and late results cannot republish
+the menu or restore enablement. Failures close input and report explicit
+Refresh/Settings recovery, not a substituted endpoint or success indicator.
+
+**System** follows the Windows multimedia default and explicitly shows
+availability; an unavailable saved pin remains visible/marked and is not
+selectable as an available endpoint. An explicit System choice can remove an
+unavailable pin even when no default exists, without opening capture.
+Selection is bound to the displayed topology/configuration revision and
+revalidates bounded metadata plus current ownership/privacy before using the
+existing audited preference store. Saving failure retains the prior preference.
+Changed selection invalidates/releases input and requires explicit enablement.
+
+**Listening controls > Enable listening** revalidates the displayed revision
+and existing consent/readiness/session/call gates. It only arms PTT; no capture
+or wake is started. **Disable listening** is an explicit idempotent close,
+not a stale toggle, and remains usable while other work is busy. **Stop
+speaking** calls the existing playback stop service and changes no input
+selection, consent or task state. **Voice consent / push-to-talk** opens the
+existing Settings recovery surface. Delayed native callbacks are retired on
+disposal. All prior show/single-click/double-click, Settings, Sessions,
+maintenance, documentation, skill inspection, evidence and exit routes remain.
+
+This is a bounded delivery, not completion of the recommended menu or full
+R03/R09. No microphone test, ambient wake, automatic selection, new consent
+flow, generic device-question architecture or new OS side effect is added.
+Explorer restart/tray failure, screen-reader/overflow/native Windows races,
+hardware/acoustic/closure latency and full matrix acceptance remain open.
+
 The Windows notification-area icon is the primary non-voice entry point, present for the lifetime of the normal desktop instance, even when the presence/details are hidden.
 It is not optional while Kora is running; Windows may place it in the notification-area overflow and Kora must not claim it can force taskbar pinning.
 Voice is a convenient primary path, not compulsory; the tray is deterministic host functionality requiring no model or working audio device.
@@ -190,7 +235,7 @@ reports the first click before it knows whether a second will follow, the
 single-click action waits for the configured Windows double-click interval;
 the second click cancels that pending show action.
 
-Recommended context menu:
+Remaining target context menu (not an implemented capability list):
 
 ```text
 Kora - Voice input unavailable       [read-only actual state]

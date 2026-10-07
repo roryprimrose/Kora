@@ -336,6 +336,17 @@ evidence once it exists.
 
 ### Proof code lifecycle
 
+**2026-10-07 bounded tray-recovery disposition:** retain all executable paths
+and historical evidence. The maintained native tray checks cover metadata-only
+refresh/selection, explicit PTT readiness/closure, privacy/revision rejection
+and native preference marks, not this harness's annotation-driven pre-roll,
+endpointing, licensed audio/candidate benchmark or acoustic qualification.
+`benchmark.py`, `test_benchmark.py` and `Validate.ps1` still consume
+`capture_probe.py`; the canonical dependency/deferred-validation references
+remain active. No executable has an equivalent maintained replacement plus
+completed consumer/reference verification, so none is removed. This assessment
+performs no audio generation, benchmark, live capture or playback.
+
 Retain this deterministic capture/benchmark harness through wake-candidate
 selection and R09 packaged acoustic validation. Move reusable buffer, timing
 and stale-generation assertions into production tests as those components are

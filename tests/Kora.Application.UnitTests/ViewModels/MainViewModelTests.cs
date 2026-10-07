@@ -7697,7 +7697,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class Fixture
     {
-        public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null)
+        public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null,
+            Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7801,7 +7802,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 clipboard,
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
-                new Kora.Tools.Clipboard.ClipboardRevoke(clipboard));
+                new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
+                microphoneCatalog);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
@@ -7904,6 +7906,12 @@ public sealed partial class MainViewModelTests : IDisposable
             }
 
             public void Publish(WindowsPrivacyChangedEventArgs change) => Changed?.Invoke(this, change);
+
+            public Action<WindowsPrivacyChangedEventArgs> CapturePublisher()
+            {
+                var handlers = Changed;
+                return change => handlers?.Invoke(this, change);
+            }
 
             public void Dispose()
             {
@@ -8295,6 +8303,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public IReadOnlyList<MicrophoneDevice> Microphones { get; set; } = [];
 
         public Exception? GetMicrophonesException { get; set; }
+        public Action? BeforeEnumeration { get; set; }
 
         public Exception? StartException { get; set; }
 
@@ -8330,6 +8339,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public IReadOnlyList<MicrophoneDevice> GetMicrophones()
         {
+            BeforeEnumeration?.Invoke();
             if (GetMicrophonesException is not null)
             {
                 throw GetMicrophonesException;

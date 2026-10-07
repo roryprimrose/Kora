@@ -99,8 +99,12 @@ First launch must explain local wake processing, activated transcription, and
 the default bounded prefix-free capture after Kora asks a question,
 then obtain consent before ongoing capture. Declining or withdrawing that
 consent keeps capture closed across restart until renewed explicitly.
-The bootstrap currently auto-starts its grammar recognizer without this full
-consent/lifecycle contract; this matrix is the required design, not shipped proof.
+The bootstrap now saves explicit ongoing consent and arms PTT only after
+eligible startup gates; it does not run a grammar recognizer on ambient audio.
+The [bounded native tray recovery](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
+enumerates/selects without capture and uses explicit revision-bound enablement.
+The full matrix, production wake and native lifecycle acceptance remain
+required design/proof gates, not established by deterministic tray tests.
 
 Every ongoing capture open requires exclusive assistant ownership, authoritative unlocked and
 connected Windows state, ongoing consent, a usable selected endpoint, OS

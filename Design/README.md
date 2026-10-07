@@ -67,6 +67,14 @@ set/reset, coherent atomic selection persistence, revisions and existing
 protected-call original-channel gates. Asset provisioning, other speech options,
 model settings tools and acoustic acceptance are not established by this slice.
 
+The [bounded R03/R09 native tray recovery](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
+provides truthful generic input state, five-second single-flight metadata
+refresh, revision-bound microphone preference selection (including System
+and retained unavailable pins), explicit PTT enable/disable and existing
+playback Stop speaking. It adds no capture, wake, microphone test, automatic
+selection or generic question workflow. Full native/audio acceptance remains
+open; existing tray/navigation/maintenance/exit behavior is preserved.
+
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,
 checks PowerShell 7 readiness, and offers consented PowerShell setup without requiring
 local inference. For local reasoning it offers a separately consented per-user

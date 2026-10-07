@@ -1973,6 +1973,13 @@ zero warnings/errors: Core **647**, Application **1,548**, Tools **38**,
 Definitions **6**, the static native speech contract and exact **100% line /
 branch** portable coverage. Only the owned summary branch is pushed with lease.
 
+External native microphone-card #77 subsequently merged as
+`90146f405ea9236a23ee2a95cd159efcd5fbf84f`. The owned summary branch was
+immediately rebased without conflicts and freshly revalidated: zero-warning
+Release build, Core **647**, Application **1,573**, Tools **38**, Definitions
+**6**, one static native speech contract and exact **100% line/branch**
+portable coverage. The card's behavior is unchanged by this slice.
+
 Experiment supersession assessment for this slice: the per-path executable
 speech harness (`prepare.py`, `fixtures.py`, `benchmark.py`, `capture_probe.py`,
 `Render-Fixtures.ps1`, `Validate.ps1` and `test_benchmark.py`) proves asset/fixture/model/acoustic properties,

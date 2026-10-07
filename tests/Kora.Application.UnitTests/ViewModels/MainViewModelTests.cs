@@ -1896,7 +1896,7 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Selecting_System_clears_explicit_device_overrides()
+    public async Task Selecting_System_clears_microphone_but_output_remains_closed_without_admission()
     {
         var fixture = new Fixture();
         fixture.Voice.Microphones =
@@ -1919,9 +1919,10 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.SelectedOutputDevice = SystemAudioDevices.Output;
 
         fixture.AudioPreferences.MicrophoneId.Should().BeNull();
-        fixture.AudioPreferences.OutputDeviceId.Should().BeNull();
+        fixture.AudioPreferences.OutputDeviceId.Should().Be("output-saved");
         fixture.AudioPreferences.ClearedMicrophoneCount.Should().Be(1);
-        fixture.AudioPreferences.ClearedOutputDeviceCount.Should().Be(1);
+        fixture.AudioPreferences.ClearedOutputDeviceCount.Should().Be(0);
+        fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be("output-saved");
     }
 
     [Fact]
@@ -2857,14 +2858,14 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
-        fixture.ViewModel.SelectedOutputDevice = null;
+        await LoadSavedOutputAsync(fixture, "unavailable");
         fixture.TextToSpeech.ClearSpokenResponse();
 
         await fixture.RunAsync("unsupported");
 
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("Select an audio output device");
+        fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("no longer available");
     }
 
     [Fact]
@@ -2873,7 +2874,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.WindowActions.Clear();
-        fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+        await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
         fixture.TextToSpeech.OutputDevices =
         [
             new AudioOutputDevice("replacement", "Replacement output"),
@@ -2933,14 +2934,17 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
 
         fixture.ViewModel.SelectedVoice = voice;
-        fixture.ViewModel.SelectedOutputDevice = null;
+        fixture.TextToSpeech.OutputDevices = [];
+        await fixture.RunAsync("what power action is pending");
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
 
-        fixture.ViewModel.SelectedOutputDevice =
-            new AudioOutputDevice("muted", "Muted", IsMuted: true);
+        fixture.TextToSpeech.OutputDevices =
+            [new AudioOutputDevice("0", "Muted", IsMuted: true)];
+        await fixture.RunAsync("what power action is pending");
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
 
-        fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+        fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output")];
+        await fixture.RunAsync("what power action is pending");
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
     }
@@ -3468,7 +3472,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Runtime_mute_marks_an_explicit_output_as_muted()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+        await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
         fixture.ViewModel.TaskResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.WindowActions.Clear();
         fixture.TextToSpeech.SpeakException = new AudioOutputDeviceUnavailableException(
@@ -3497,7 +3501,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = fallbackEnabled;
         if (explicitOutput)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+            await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
         }
         fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
         fixture.TextToSpeech.ClearSpokenResponse();
@@ -3529,7 +3533,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = fallbackEnabled;
         if (explicitOutput)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+            await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
         }
         fixture.TextToSpeech.SpeakException = new AudioOutputDeviceUnavailableException(
             AudioOutputFailureReason.Muted, "endpoint muted");
@@ -3555,7 +3559,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.QueueResponseMode = ResponseOutputMode.VoiceOnly;
         if (explicitOutput)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+            await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
         }
         fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
         await fixture.RunAsync("Kora, what power action is pending");
@@ -3651,11 +3655,10 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.ViewModel.FallbackToVisualWhenOutputMuted = false;
-        fixture.ViewModel.SelectedOutputDevice = null;
+        fixture.TextToSpeech.OutputDevices = [];
         await fixture.RunAsync("Kora, what can you do?");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
 
-        fixture.ViewModel.SelectedOutputDevice = SystemAudioDevices.Output;
         fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
         fixture.ViewModel.SelectedVoice = null;
         await fixture.RunAsync("Kora, what can you do?");
@@ -3750,7 +3753,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = await Fixture.CreateInitializedAsync();
         if (explicitOutput)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+            await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
         }
         if (removedDuringPlayback)
         {
@@ -3782,7 +3785,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
         if (explicitOutput)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[0];
+            await LoadSavedOutputAsync(fixture, fixture.TextToSpeech.OutputDevices[0].Id);
         }
         if (lockedDuringPlayback)
         {
@@ -4011,7 +4014,7 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Speaker_override_is_persisted_and_preserved_on_refresh()
+    public async Task Speaker_override_cannot_be_changed_without_session_and_choice_admission()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.TextToSpeech.OutputDevices =
@@ -4025,14 +4028,9 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.SelectedOutputDevice = fixture.TextToSpeech.OutputDevices[1];
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
 
-        fixture.ViewModel.SelectedOutputDevice?.Id.Should().Be("output-headset");
-        fixture.AudioPreferences.SavedOutputDeviceId.Should().Be("output-headset");
-        AssertAuditPair(
-            fixture,
-            SecurityAuditCategory.ConfigurationWrite,
-            "configuration.audio-output",
-            SecurityAuditInitiator.LocalUser,
-            SecurityAuditOutcome.Succeeded);
+        fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.audio-output");
     }
 
     [Fact]
@@ -4087,10 +4085,14 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.ResponseTitle.Should().Be(
-            isMicrophone
-                ? "The microphone preference could not be saved."
-                : "The audio output preference could not be saved.");
+        if (!isMicrophone)
+        {
+            fixture.ViewModel.ResponseTitle.Should().Be("Audio output preference change unavailable.");
+            fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+            fixture.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.audio-output");
+            return;
+        }
+        fixture.ViewModel.ResponseTitle.Should().Be("The microphone preference could not be saved.");
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,

@@ -37,8 +37,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string CurrentMachineTarget = "machine.current";
     private const string CurrentWindowsSessionTarget = "windows-session.current";
     private const string DeviceLocalPreferencesTarget = "preferences.device-local";
+<<<<<<< HEAD
     private const string MicrophoneConfigurationAction = InputDevicePreferenceService.AuditAction;
     private const string OutputDeviceConfigurationAction = "configuration.audio-output";
+=======
+    private const string MicrophoneConfigurationAction = "configuration.microphone";
+>>>>>>> bb92f1d (audio: Close output mutations pending genuine host admission)
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
     private const string MutedOutputFallbackConfigurationAction = "configuration.muted-output-visual-fallback";
     private const string SpeechProviderInstallAction = "speech-provider.install";
@@ -1145,23 +1149,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedOutputDevice;
         set
         {
-            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(OutputDeviceConfigurationAction)) { return; }
-            var selectionChanged = !string.Equals(
-                selectedOutputDevice?.Id,
-                value?.Id,
-                StringComparison.Ordinal);
-            if (SetProperty(ref selectedOutputDevice, value))
-            {
-                PreviewVoiceCommand.NotifyCanExecuteChanged();
-                NotifyOutputPolicyChanged();
-                UpdateOutputDeviceAvailability();
-                if (selectionChanged
-                    && !suppressAudioDevicePreferenceSave
-                    && value is not null)
-                {
-                    SaveOutputDevicePreference(value);
-                }
-            }
+            if (!ReferenceEquals(selectedOutputDevice, value)) { RejectAudioOutputConfiguration(); }
         }
     }
 
@@ -2718,9 +2706,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 SelectedMicrophone = savedMicrophoneId is not null
                     ? savedMicrophone ?? new MicrophoneDevice(savedMicrophoneId, "Unavailable saved microphone")
                     : SystemAudioDevices.Microphone;
-                SelectedOutputDevice = savedOutputDeviceId is not null
+                SetOutputDeviceSnapshot(savedOutputDeviceId is not null
                     ? savedOutputDevice
-                    : SystemAudioDevices.Output;
+                    : SystemAudioDevices.Output);
             }
             finally
             {
@@ -3317,6 +3305,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Task SetAllowVoiceActivationDuringCallsAsync(bool value) =>
         SetCallSettingsAsync(communicationPolicy.Current.Settings with { AllowVoiceActivationDuringCalls = value });
 
+<<<<<<< HEAD
     private void SaveOutputDevicePreference(AudioOutputDevice outputDevice)
     {
         _ = SavePreference(
@@ -3334,6 +3323,102 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OutputDeviceConfigurationAction,
             SecurityAuditInitiator.LocalUser,
             "audio output preference");
+=======
+    public async Task SetAssistantNameAsync(
+        string value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    {
+        if (!AdmitVoiceOptionMutation(AssistantNameConfigurationAction, initiator)) { return; }
+        var origin = OriginalOrigin(initiator);
+        var callRevision = CallPolicyRevision;
+        var audit = StartAudit(
+            SecurityAuditCategory.ConfigurationWrite,
+            AssistantNameConfigurationAction,
+            initiator,
+            DeviceLocalPreferencesTarget);
+        string normalizedName;
+        try
+        {
+            normalizedName = AssistantNameRules.Normalize(value);
+            commandCatalog.GetCommands(normalizedName);
+        }
+        catch (ArgumentException exception)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Denied, "invalid-name");
+            ShowFailure("The assistant name is invalid.", exception.Message);
+            return;
+        }
+
+        if (string.Equals(normalizedName, AssistantName, StringComparison.Ordinal))
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "no-change");
+            AssistantNameInput = AssistantName;
+            return;
+        }
+
+        try
+        {
+            if (IsVoiceEnabled || IsListening)
+            {
+                HoldVoiceInput("Microphone closed · activation name changed; use Enable listening");
+                await StopListeningAsync();
+            }
+            var denied = communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible);
+            if (denied is { } outcome)
+            {
+                CompleteAudit(audit, SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
+                ReportCallMutation(outcome, AssistantNameConfigurationAction, origin);
+                return;
+            }
+            assistantNamePreferences.SaveName(normalizedName);
+            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
+            ApplicationLog.Error(logger, exception, "Saving the assistant name preference because access was denied");
+            ShowFailure("The assistant name could not be saved.", exception.Message);
+            return;
+        }
+        catch (IOException exception)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
+            ApplicationLog.Error(logger, exception, "Saving the assistant name preference due to an I/O error");
+            ShowFailure("The assistant name could not be saved.", exception.Message);
+            return;
+        }
+        catch (InvalidOperationException exception)
+        {
+            CompleteAudit(audit, SecurityAuditOutcome.Failed, "capture-stop-failed");
+            ApplicationLog.Error(logger, exception, "Closing input before changing the assistant name");
+            ShowFailure("The assistant name could not be changed.", exception.Message);
+            return;
+        }
+
+        ApplyAssistantNameState(normalizedName);
+        ShowSuccess(
+            $"{AssistantName} is ready.",
+            $"The display name, command prefix, and spoken identity now use {AssistantName}.");
+    }
+
+    private bool SaveMicrophonePreference(MicrophoneDevice microphone)
+    {
+        return SavePreference(
+            () =>
+            {
+                if (microphone.IsSystemDefault)
+                {
+                    audioDevicePreferences.ClearMicrophoneId();
+                }
+                else
+                {
+                    audioDevicePreferences.SaveMicrophoneId(microphone.Id);
+                }
+            },
+            MicrophoneConfigurationAction,
+            SecurityAuditInitiator.LocalUser,
+            "microphone preference");
+>>>>>>> bb92f1d (audio: Close output mutations pending genuine host admission)
     }
 
     private void SaveResponseOutputPreference(ResponseOutputMode value)
@@ -3613,6 +3698,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
+            return;
+        }
+        if (TryRejectAudioOutputConfiguration(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript))
+        {
             return;
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
@@ -4622,7 +4711,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     OutputDevices[outputIndex] = mutedOutput;
                 }
-                SelectedOutputDevice = mutedOutput;
+                SetOutputDeviceSnapshot(mutedOutput);
             }
             finally
             {
@@ -4637,7 +4726,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        SelectedOutputDevice = null;
+        SetOutputDeviceSnapshot(null);
         ShowFailure(unavailableTitle, exception.Message);
     }
 

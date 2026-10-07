@@ -497,6 +497,10 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Audio output" Classes="settings-title" />
                   <TextBlock
+                      Text="{Binding AudioOutputConfigurationStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <TextBlock
                       Text="{Binding OutputDeviceAvailabilityMessage}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
@@ -506,6 +510,7 @@
                     ItemsSource="{Binding OutputDevices}"
                     SelectedItem="{Binding SelectedOutputDevice}"
                     DisplayMemberBinding="{Binding Name}"
+                    IsEnabled="{Binding CanChangeAudioOutputDevice}"
                     PlaceholderText="No audio output selected"
                     VerticalAlignment="Center" />
               </Grid>

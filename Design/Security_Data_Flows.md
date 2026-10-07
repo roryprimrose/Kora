@@ -46,6 +46,14 @@ The design concerns are resolved under the chosen trust model by the following h
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
 
+Audio output preference mutations currently fail closed in Settings and in the
+reserved exact local command namespace. Desktop request correlation is not an
+admitted durable session/generation or an exact presented endpoint choice.
+The [specific admission prerequisite](User_Configuration.md#exact-audio-output-registry-prerequisite-r10)
+must be implemented before that registry can write/activate preferences.
+Existing saved playback routes remain under their existing privacy/call gates;
+this closure grants no session, approval, microphone, provisioning or OS authority.
+
 ## Data Modes
 
 ### Local Only

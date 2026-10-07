@@ -229,9 +229,15 @@ See [exact counting, commands and recovery](settings.md#spoken-summary-limits).
 The audio output list contains:
 
 - **System** - follows the live Windows multimedia-default output;
-- each active Windows render endpoint - pins Kora to that endpoint.
+- each active Windows render endpoint - displays an existing exact saved pin.
 
-Choosing System removes a saved Kora speaker override. An available new Windows
+The native selector is read-only: output preference changes and reset currently
+fail closed because desktop audio has no admitted session/generation and exact
+host-held-choice bridge. Typed/activated output-setting requests also report
+unavailable locally, not through a model. Existing saved output files are not
+rewritten. This is not an output registry or acoustic acceptance claim.
+
+For existing System routing, an available new Windows
 default automatically reroutes active WASAPI playback while System is selected.
 Named endpoint selections remain pinned, even when Windows defaults or unrelated
 devices change. A missing or muted effective output stops speech without replay;

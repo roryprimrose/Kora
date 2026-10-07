@@ -33,6 +33,13 @@ No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
 reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
 and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
 
+R10 exact audio output configuration is **unavailable**, not a tool or admitted
+registry. Native preference mutations and the reserved local `list audio output
+settings` / get/status/set/reset `audio.output-device` requests fail closed before
+inference or question/approval routing. The [output admission prerequisite](User_Configuration.md#exact-audio-output-registry-prerequisite-r10)
+requires real session/generation and presented-choice binding, not trace IDs,
+display names or caller-supplied endpoint records. No output change is claimed.
+
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 The bounded R10 assistant-name addition registers only the existing

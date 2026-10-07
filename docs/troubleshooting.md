@@ -106,10 +106,16 @@ pinned.
 
 ## A saved device disappeared
 
-Kora does not replace a pinned device silently. Open Settings and choose:
+Kora does not replace a pinned device silently. Microphone recovery can choose:
 
 - **System** to return to Windows default routing; or
 - another explicit endpoint.
+
+The audio **output** selector is currently read-only. Its session/generation and
+exact presented-choice admission prerequisite is not implemented; output
+preference changes/reset therefore fail closed. Reconnect the exact saved output
+and refresh, or continue visually. No alternative output is silently substituted,
+and typed/activated output-setting requests cannot bypass the closure.
 
 ## No speech voice is available
 

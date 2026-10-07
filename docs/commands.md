@@ -262,6 +262,13 @@ exposure, arbitrary JSON patch or configuration-file editing authority.
 
 ### Inspect or change an installed speech choice
 
+Audio **output endpoint** preference changes are separate and currently
+unavailable. `list audio output settings` and get/status/set/reset
+`audio.output-device` (also normalized spoken audio output device) are reserved
+for local explicit refusal, not inference, question answers or approvals.
+Settings shows the missing session/generation/exact-choice admission prerequisite;
+existing saved output routing is retained. No output registry or reset is claimed.
+
 - **list speech settings**
 - **get speech.provider**
 - **get speech.voice**

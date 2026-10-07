@@ -441,7 +441,14 @@ Push-to-talk stops current speech before opening command capture.
 ### Audio output
 
 - **System** follows the live Windows multimedia-default output.
-- A named endpoint creates a pinned local override.
+- An existing saved endpoint remains pinned; a missing pin is not replaced.
+
+The selector is currently read-only. Preference changes/reset are unavailable
+until the desktop output workflow has admitted session/generation and exact
+host-held-choice binding. A caller-supplied endpoint or trace ID cannot authorize
+a change. The visible prerequisite message explains the closure. Refresh and
+existing routing remain available; this does not start playback or alter Windows
+settings, voice consent or microphone readiness.
 
 ### Refresh devices and readiness
 

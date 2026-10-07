@@ -126,8 +126,8 @@ public sealed partial class MainViewModel
                 }
                 if (previousOutput is not null)
                 {
-                    SelectedOutputDevice = OutputDevices.FirstOrDefault(device =>
-                        string.Equals(device.Id, previousOutput.Id, StringComparison.Ordinal)) ?? previousOutput;
+                    SetOutputDeviceSnapshot(OutputDevices.FirstOrDefault(device =>
+                        string.Equals(device.Id, previousOutput.Id, StringComparison.Ordinal)) ?? previousOutput);
                 }
             }
             finally

@@ -496,6 +496,13 @@ readable source/retention/value-kind labels; actual serialized-byte limits were
 retested with the full Application suite and all **65** evidence-focused
 Windows tests. No sibling worktree or unpublished source was consumed.
 
+The subsequent rebase onto merged calls #59 (`1a117ae`) preserves that owner's
+I14/R15 inventory and native privacy/call composition. Combined root Release,
+full suites **409 / 1,257 / 709** and fresh portable **100% line/branch**
+coverage passed. Cancellation now clears/closes immediately but retires its
+token source only after the in-flight bounded read ends; the maintained
+view-model test verifies both wait-handle lifetime and rejected late content.
+
 ### R04 Foundation Delivery
 
 The first bounded **durable** milestone now composes one actual exact local

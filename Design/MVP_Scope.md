@@ -16,8 +16,8 @@ also includes minimal durable session authority/workspace/names/native empty
 creation and exact-ID typed/activated-voice session commands, explicit local
 clipboard preview, read-only discovery, bounded
 appearance/installed speech settings, artifact instruction invocation,
-ordinary diagnostic pruning, independent daily evidence and native tray
-recovery. These foundations do not complete conversations/queues, a model
+ordinary diagnostic pruning, independent daily evidence and native tray/passive
+microphone-card recovery. These foundations do not complete conversations/queues, a model
 tool loop, clipboard answering, ambient wake or full A0-A4 acceptance.
 
 ## Product Outcome

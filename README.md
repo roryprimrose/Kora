@@ -100,6 +100,11 @@ The tray also offers [bounded microphone/listening recovery](docs/windows-and-tr
 minimal Sessions, local clipboard preview, skill-package inspection, read-only
 Evidence and notify-only release maintenance. Refreshing/selecting microphone
 metadata never records or grants consent; Enable listening only arms PTT.
+**Choose microphone (native recovery)** in Tray/Settings opens the same passive
+card: highlighting is a local draft, Save commits only the displayed preference,
+and Enable is separate fresh input for the saved endpoint. It is not a durable
+question/session/task bridge or combined consent flow; no microphone test or
+Windows permission change is provided.
 Visual text uses a separate compact response surface; configuration remains in
 Settings. Closing visible surfaces returns to the background state, while only
 **Exit** stops the process.

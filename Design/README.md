@@ -108,6 +108,13 @@ and retained unavailable pins), explicit PTT enable/disable and existing
 playback Stop speaking. It adds no capture, wake, microphone test, automatic
 selection or generic question workflow. Full native/audio acceptance remains
 open; existing tray/navigation/maintenance/exit behavior is preserved.
+The subsequent [passive native microphone recovery card](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+shares Tray/Settings exact displayed choices, local draft highlight, revision-bound
+Save preference only and separate fresh endpoint-bound Enable. It does not
+create durable R05 question/session/task authority, combine consent with
+selection/enable, test/capture audio or change Windows permission. Enable still
+only arms existing PTT; first-run/full matrix and native/hardware acceptance
+remain open.
 
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,
 checks PowerShell 7 readiness, and offers consented PowerShell setup without requiring

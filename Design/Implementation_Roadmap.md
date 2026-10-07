@@ -31,6 +31,18 @@ grant execution/approval authority. See
 Tamper-resistant checkpoints, encryption, general conversation history and
 installed/native acceptance remain unimplemented/unaccepted.
 
+Validation rebased onto merged presence-fade #85 (`363ed6e`) passed Release
+with zero warnings/errors and all **3,485** tests: Core 675, Application 1,820,
+Tools 38, Definitions 6 and Windows 946. Fresh portable coverage, with the
+existing thresholds/exclusions unchanged, has exact line/branch rates of
+**1 / 1 (100% / 100%)**. Thirteen current-user, hardware-free source fixtures
+cover committed version-wait cancellation/audio admission, question answer/
+cancel, native/source/citation parity, snapshot paging/appends, corrupt/obsolete
+schema, migration/frozen-source isolation, replacement/permissions, current
+host/origin/session, tampered/expired/foreign cursors, cancellation/concurrent
+shared-lease reads and byte-for-byte no-write observation. This is automated
+source evidence, not installed/native or forensic acceptance.
+
 No experiment is retired by this slice. It supplies no maintained executable
 equivalence for the unique storage-encryption/engine/artifact/key, containment,
 runtime/worker/provider or speech proofs. Their historical evidence and

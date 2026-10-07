@@ -39,7 +39,8 @@ public sealed class SystemTrayController : IDisposable
         ILogger<SystemTrayController> logger,
         Func<Task>? reviewLocalVersion = null,
         Action? inspectEvidence = null,
-        Action? inspectSkillPackages = null)
+        Action? inspectSkillPackages = null,
+        Action? inspectSessions = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -65,6 +66,12 @@ public sealed class SystemTrayController : IDisposable
             var skillsItem = new NativeMenuItem("Skill packages (inspection only)");
             skillsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSkillPackages);
             menu.Add(skillsItem);
+        }
+        if (inspectSessions is not null)
+        {
+            var sessionsItem = new NativeMenuItem("Sessions");
+            sessionsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSessions);
+            menu.Add(sessionsItem);
         }
         if (inspectEvidence is not null)
         {

@@ -72,7 +72,13 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 1);
+        sections.Should().HaveCount(commands.Count + 2);
+        var sessions = sections.Single(section => section.StartsWith(
+            "Inspect existing minimal durable sessions", StringComparison.Ordinal));
+        var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        sessionPhrases.Should().Equal("open sessions");
         var appearance = sections.Single(section => section.StartsWith(
             "Inspect or change an admitted appearance option", StringComparison.Ordinal));
         var appearancePhrases = Regex.Matches(appearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -85,7 +91,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Single(item => string.Equals(item.Id, "settings", StringComparison.Ordinal));
         foreach (var descriptor in AppearanceOptionRegistry.Options)
             settings.Markdown.Should().Contain(descriptor.Id);
-        sections = sections.Where(section => !ReferenceEquals(section, appearance)).ToArray();
+        sections = sections.Where(section => !ReferenceEquals(section, appearance) && !ReferenceEquals(section, sessions)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

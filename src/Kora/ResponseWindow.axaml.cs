@@ -96,6 +96,12 @@ public sealed partial class ResponseWindow : Window
 
     private async void OnCancelTaskKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        if (eventArgs.Key == Key.S && eventArgs.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+        {
+            viewModel.ShowSessions();
+            eventArgs.Handled = true;
+            return;
+        }
         if (eventArgs.Key != Key.Escape || !viewModel.IsCancelTaskVisible)
         {
             return;

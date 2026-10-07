@@ -48,6 +48,17 @@ Existing help, version, setup/status, lock and power phrases retain their behavi
 
 ## Window and application tasks
 
+### Inspect existing minimal durable sessions
+
+- **open sessions**
+
+The configured-name prefix is supported. This opens the same bounded native
+[Sessions workspace](windows-and-tray.md#minimal-durable-sessions) as the tray
+and compact response's **Ctrl+Shift+S**. It does not change a pending question
+or approval target, create a conversation, resume a session or call a model.
+Done/resume are explicit selected-ID native actions, not inferred from words
+in history or from selecting a row.
+
 ### Show the Kora window
 - **show Kora**
 - **open Kora**

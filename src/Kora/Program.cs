@@ -198,6 +198,9 @@ internal static class Program
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
+        services.AddSingleton<ISessionWorkspaceStore>(interactions);
+        services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
+        services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();

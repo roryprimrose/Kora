@@ -1,0 +1,43 @@
+<Window x:Class="Kora.SessionsWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Sessions - minimal durable authority" Icon="/Assets/Kora.ico"
+    Width="1050" Height="760" MinWidth="800" MinHeight="560"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
+      <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
+      <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
+    </StackPanel>
+    <TextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
+    <Grid Grid.Row="2" ColumnDefinitions="320,*" ColumnSpacing="14">
+      <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Existing durable session IDs and lifecycle">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <TextBlock Text="{Binding SessionId.Value}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding IsActive, StringFormat='Active: {0} (false means Done)'}" />
+              <TextBlock Text="{Binding Generation.Value, StringFormat='Generation: {0}'}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <ScrollViewer Grid.Column="1">
+        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
+                   AutomationProperties.Name="Passive typed question, task and evidence details; no replies or approval controls" />
+      </ScrollViewer>
+    </Grid>
+    <WrapPanel Grid.Row="3">
+      <Button x:Name="NextQuestions" Content="Next questions" IsEnabled="{Binding CanNextQuestions}" />
+      <Button x:Name="NextTasks" Content="Next tasks" IsEnabled="{Binding CanNextTasks}" />
+      <Button x:Name="Evidence" Content="Read selected evidence" IsEnabled="{Binding CanEvidence}" />
+      <Button x:Name="NextEvidence" Content="Next evidence" IsEnabled="{Binding CanNextEvidence}" />
+      <Button x:Name="Done" Content="Mark selected ID _Done" IsEnabled="{Binding CanDone}" AutomationProperties.Name="Explicitly mark the displayed selected session ID Done using its expected generation" />
+      <Button x:Name="Resume" Content="Explicitly res_ume selected ID" IsEnabled="{Binding CanResume}" AutomationProperties.Name="Explicitly resume the displayed selected session ID without task or approval replay" />
+      <Button x:Name="CloseView" Content="_Close" />
+    </WrapPanel>
+  </Grid>
+</Window>

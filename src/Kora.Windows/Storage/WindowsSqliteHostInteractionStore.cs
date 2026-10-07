@@ -19,7 +19,7 @@ namespace Kora.Windows.Storage;
 /// Host-only durable authority. This stores decisions, not executable tokens or effect receipts.
 /// The task lease is always acquired before the interaction lease; neither store writes the other database.
 /// </summary>
-public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
+public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -88,6 +88,54 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
             return ReadGrants(connection);
         }, cancellationToken));
 
+    public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit,
+        CancellationToken cancellationToken)
+    {
+        WindowsSqliteHostTaskStore.ValidatePage(after, limit);
+        return new(Task.Run(() =>
+        {
+            using var lease = database.AcquireLease(out var created, cancellationToken);
+            using var connection = Open(created, cancellationToken);
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT session_id,generation,state FROM work_sessions WHERE state<>2 AND session_id>$after ORDER BY session_id LIMIT $limit;";
+            command.Parameters.AddWithValue("$after", after?.ToString("D") ?? string.Empty);
+            command.Parameters.AddWithValue("$limit", limit + 1);
+            using var reader = command.ExecuteReader();
+            var rows = new List<WorkSessionAuthorization>();
+            while (reader.Read()) { rows.Add(DecodeSession(reader).Authority); }
+            database.VerifyFiles();
+            return new SessionPage<WorkSessionAuthorization>([.. rows.Take(limit)],
+                rows.Count > limit ? rows[limit - 1].SessionId.Value : null);
+        }, cancellationToken));
+    }
+
+    public ValueTask<SessionPage<HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session,
+        Guid? after, int limit, CancellationToken cancellationToken)
+    {
+        session.Validate();
+        WindowsSqliteHostTaskStore.ValidatePage(after, limit);
+        return new(Task.Run(() =>
+        {
+            using var lease = database.AcquireLease(out var created, cancellationToken);
+            using var connection = Open(created, cancellationToken);
+            var rows = ReadQuestions(connection, session, after, limit + 1);
+            database.VerifyFiles();
+            return new SessionPage<HostQuestionRecord>([.. rows.Take(limit)],
+                rows.Length > limit ? rows[limit - 1].Key.QuestionId.Value : null);
+        }, cancellationToken));
+    }
+
+    public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session,
+        Guid? after, int limit, CancellationToken cancellationToken) =>
+        tasks.ReadSessionPageAsync(session, after, limit, cancellationToken);
+
+    public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request,
+        HostRevision expectedGeneration, bool active, Func<bool> canControl, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(canControl);
+        return SetLifecycleAsync(request, expectedGeneration, active, remove: false, canControl, cancellationToken);
+    }
+
     public ValueTask<WorkSessionAuthorization> CreateSessionAsync(HostRequest request,
         CancellationToken cancellationToken) =>
         RunHostMutationAsync(request, "session.create", (connection, transaction, intent, audit) =>
@@ -106,10 +154,19 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
     /// <summary>Done/resume invalidates questions and scoped grants. Removed identities are tombstoned, never reused.</summary>
     public ValueTask<WorkSessionAuthorization> SetSessionLifecycleAsync(HostRequest request,
         HostRevision expectedGeneration, bool active, bool remove, CancellationToken cancellationToken) =>
+        SetLifecycleAsync(request, expectedGeneration, active, remove, canControl: null, cancellationToken);
+
+    private ValueTask<WorkSessionAuthorization> SetLifecycleAsync(HostRequest request,
+        HostRevision expectedGeneration, bool active, bool remove, Func<bool>? canControl, CancellationToken cancellationToken) =>
         RunHostMutationAsync(request, remove ? "session.remove" : active ? "session.resume" : "session.done",
             (connection, transaction, intent, audit) =>
             {
                 var previous = RequireSession(connection, request.SessionId);
+                if (canControl is not null && (!canControl() || ReadQuestions(connection, request.SessionId)
+                    .Any(q => q.Status == QuestionStatus.Pending)))
+                {
+                    throw new InvalidOperationException("Session lifecycle requires current host gates and no unresolved questions.");
+                }
                 if (previous.Authority.Generation != expectedGeneration || previous.State == 2
                     || (active && remove) || (!remove && previous.Authority.IsActive == active))
                 {
@@ -148,7 +205,7 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
                         """, ("$id", Id(request.SessionId)));
                 }
                 return session;
-            }, cancellationToken);
+            }, cancellationToken, canControl);
 
     /// <summary>
     /// Publish only host-resolved fresh policy/content/identity snapshots, before exposing changed content.
@@ -263,7 +320,7 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
 
     private ValueTask<T> RunHostMutationAsync<T>(HostRequest request, string action,
         Func<SqliteConnection, SqliteTransaction, HostTaskRecord, SecurityAuditEvent, T> mutation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Func<bool>? canControl = null)
     {
         RequireLive(request);
         return new(Task.Run(() =>
@@ -278,17 +335,20 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
             using var activity = HostActivity.BeginAudit(request, audit);
             try
             {
-                var result = tasks.WithCommittedIntent(request, intent =>
+                T Mutate(HostTaskRecord intent)
                 {
                     using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
                     using var lease = database.AcquireLease(out var created, cancellationToken);
                     using var connection = Open(created, cancellationToken);
                     using var transaction = connection.BeginTransaction();
                     var value = mutation(connection, transaction, intent, audit);
-                    Commit(transaction, request, cancellationToken);
+                    Commit(transaction, request, cancellationToken, canControl);
                     storage.Complete(HostOperationOutcome.Completed);
                     return value;
-                }, cancellationToken);
+                }
+                var result = canControl is null
+                    ? tasks.WithCommittedIntent(request, Mutate, cancellationToken)
+                    : tasks.WithCommittedIdleIntent(request, Mutate, cancellationToken);
                 activity.Complete(HostOperationOutcome.Completed);
                 return result;
             }
@@ -306,12 +366,16 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
     }
 
     private void Commit(SqliteTransaction transaction,
-        HostRequest request, CancellationToken cancellationToken)
+        HostRequest request, CancellationToken cancellationToken, Func<bool>? canControl = null)
     {
         RequireLive(request);
         checkpoint?.BeforeCommit(transaction.Connection!, transaction);
         database.VerifyFiles();
         cancellationToken.ThrowIfCancellationRequested();
+        if (canControl is not null && !canControl())
+        {
+            throw new InvalidOperationException("Session control admission changed at the commit boundary.");
+        }
         try
         {
             transaction.Commit();
@@ -544,10 +608,18 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore
         return value;
     }
 
-    private static ImmutableArray<HostQuestionRecord> ReadQuestions(SqliteConnection connection)
+    private static ImmutableArray<HostQuestionRecord> ReadQuestions(SqliteConnection connection,
+        HostId<SessionIdentity>? session = null, Guid? after = null, int? limit = null)
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT question_id,request_id,session_id,revision,payload,audit_sequence FROM host_questions ORDER BY question_id;";
+        command.CommandText = """
+            SELECT question_id,request_id,session_id,revision,payload,audit_sequence FROM host_questions
+            WHERE ($session IS NULL OR session_id=$session) AND question_id>$after
+            ORDER BY question_id LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue("$session", session is { } id ? Id(id) : DBNull.Value);
+        command.Parameters.AddWithValue("$after", after?.ToString("D") ?? string.Empty);
+        command.Parameters.AddWithValue("$limit", limit ?? -1);
         using var reader = command.ExecuteReader();
         var questions = ImmutableArray.CreateBuilder<HostQuestionRecord>();
         while (reader.Read())

@@ -1965,6 +1965,14 @@ warnings/errors: Core **585**, Application **1,515**, Tools **38**, Definitions
 **6**, one static speech UI contract and exact **100% line/branch** portable
 coverage. No sibling implementation was modified.
 
+While #75 checks ran, session commands #73 merged as
+`3bf1951ad6517cc2d3fa0b713e0a7fd23d4b18c8`. Immediate rebase retained both
+session and summary documentation contracts; the sole conflict was their
+section-filter/count assertion. Fresh combined validation again passed with
+zero warnings/errors: Core **647**, Application **1,548**, Tools **38**,
+Definitions **6**, the static native speech contract and exact **100% line /
+branch** portable coverage. Only the owned summary branch is pushed with lease.
+
 Experiment supersession assessment for this slice: the per-path executable
 speech harness (`prepare.py`, `fixtures.py`, `benchmark.py`, `capture_probe.py`,
 `Render-Fixtures.ps1`, `Validate.ps1` and `test_benchmark.py`) proves asset/fixture/model/acoustic properties,

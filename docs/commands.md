@@ -319,6 +319,30 @@ Discovery is metadata only, not a model tool or acoustic test. Input is bounded
 to 1,024 UTF-8 bytes without controls; the complete result is bounded to 64 KiB.
 See [availability and recovery](settings.md#kora-playback-volume).
 
+### Inspect or change the device-default response mode
+
+- **list response settings**
+- **get responses.default-mode**
+- **status responses.default-mode**
+- **set responses.default-mode to Hybrid**
+- **set responses.default-mode to VoiceOnly**
+- **set responses.default-mode to VisualOnly**
+- **reset responses.default-mode**
+
+Only these exact enum names (case-insensitive) are accepted; numbers, lists,
+invented options, fuzzy aliases and extra words clarify locally before inference.
+Typed and explicitly activated voice use the same grammar, optionally prefixed
+with the current assistant name. Input is bounded to 1024 UTF-8 bytes including
+the prefix and rejects controls; complete JSON output is bounded to 64 KiB,
+never truncated into a success-shaped partial result.
+The existing device preference is saved atomically and read back under real
+host/session/generation/original-channel/call admission. Reset saves Hybrid only.
+Protected/Unknown calls reject original voice mutations; a fresh eligible
+typed/native request is separate. Pending exact questions/approvals are not
+answered or replaced. Results remain visual, never autoplay/replay or capture.
+Task/queue precedence and mandatory call/privacy/full-visual recovery remain
+unchanged; no narrower override or model settings tool is added.
+
 ### Inspect or change an installed speech choice
 
 - **list speech settings**

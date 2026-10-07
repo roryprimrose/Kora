@@ -91,7 +91,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 7);
+        sections.Should().HaveCount(commands.Count + 8);
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -122,6 +122,15 @@ public sealed class EmbeddedUserDocumentationProviderTests
         volumePhrases.Should().Equal("list volume settings", "get speech.playback-volume", "status speech.playback-volume",
             "set speech.playback-volume to 30", "reset speech.playback-volume");
         volumePhrases.Should().OnlyContain(phrase => PlaybackVolumeCommand.Parse(phrase, "Kora") != null);
+        var responseMode = sections.Single(section => section.StartsWith(
+            "Inspect or change the device-default response mode", StringComparison.Ordinal));
+        var responseModePhrases = Regex.Matches(responseMode, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        responseModePhrases.Should().Equal("list response settings", "get responses.default-mode", "status responses.default-mode",
+            "set responses.default-mode to Hybrid", "set responses.default-mode to VoiceOnly",
+            "set responses.default-mode to VisualOnly", "reset responses.default-mode");
+        responseModePhrases.Should().OnlyContain(phrase => ResponseModeCommand.Parse(phrase, "Kora") != null);
         var speech = sections.Single(section => section.StartsWith(
             "Inspect or change an installed speech choice", StringComparison.Ordinal));
         var speechPhrases = Regex.Matches(speech, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -153,6 +162,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
+            && !ReferenceEquals(section, responseMode)
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         for (var index = 0; index < commands.Count; index++)

@@ -561,12 +561,15 @@
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
-                <ComboBox
-                    Grid.Column="1"
-                    ItemsSource="{Binding ResponseModeOptions}"
-                    SelectedItem="{Binding DefaultResponseModeOption}"
-                    DisplayMemberBinding="{Binding Label}"
-                    VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding ResponseModeChoices}" SelectedItem="{Binding SelectedResponseModeChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeResponseMode}"
+                      PlaceholderText="Inspect and choose exact mode" />
+                  <Button Content="Inspect response mode" Command="{Binding RefreshResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                  <Button Content="Save device-default mode" Command="{Binding SaveResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                  <Button Content="Reset device default to Hybrid" Command="{Binding ResetResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                  <TextBlock Text="{Binding ResponseModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
               </Grid>
             </Border>
 

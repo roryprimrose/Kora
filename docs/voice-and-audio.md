@@ -236,6 +236,15 @@ See [exact counting, commands and recovery](settings.md#spoken-summary-limits).
 
 ## Audio output selection
 
+The separate [device-default response mode](settings.md#device-default) has
+shared native and exact typed/activated get/set/reset/discovery for Hybrid,
+VoiceOnly and VisualOnly only. It does not change endpoints, speech choices,
+capture, gain or Windows mixer settings. Task/queue and call/privacy suppression
+retain precedence. Save/reset retires stale Kora output without autoplay/replay;
+required complete visual warnings/questions/approvals and interrupted responses
+remain visible even in VoiceOnly. Invalid storage/evidence requires explicit
+inspection/recovery, not a silent default.
+
 The audio output list contains:
 
 - **System** - follows the live Windows multimedia-default output;

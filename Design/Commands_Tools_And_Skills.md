@@ -51,6 +51,14 @@ Endpoint names, indices, trace IDs and supplied records cannot authorize a chang
 This is metadata/preference-only, not a model tool, audio trial or global setting.
 Pending questions/approvals keep their exact preview; configuration cannot answer them.
 
+The device-default `responses.default-mode` addition admits only the existing
+Hybrid/VoiceOnly/VisualOnly enum through shared native Inspect/Save/Reset and
+exact typed/activated discovery/get/status/set/reset. It reuses genuine audio
+session/generation admission, original-channel call/privacy gates, revisioned
+host-held choices, atomic save/readback and typed audit outcomes. No session/
+queue/task/call override, model descriptor/tool or new grant is added. See
+[canonical configuration](User_Configuration.md#delivered-bounded-device-default-response-mode-r10).
+
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 The bounded R10 assistant-name addition registers only the existing

@@ -165,6 +165,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var transcript = fixture.Voice.RaiseTranscriptAsync("lock the machine", 1);
         await fixture.TextToSpeech.StopStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await preview;
         switch (transition)
         {
             case 0: await fixture.ViewModel.SetAssistantNameAsync("Nova"); break;
@@ -173,7 +174,6 @@ public sealed partial class MainViewModelTests
         }
         fixture.TextToSpeech.StopGate.SetResult();
         await transcript;
-        await preview;
         fixture.Session.LockCalls.Should().Be(0);
     }
 

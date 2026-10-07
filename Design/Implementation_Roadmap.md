@@ -1147,7 +1147,7 @@ PR CI. General artifacts/backups, retention/deletion, generic dispatch, UI,
 source tooling, installed/power-loss guarantees and full R04 closure are outside
 this slice.
 
-**Rebased local validation receipt:** based on merged R03 `ba1dc3d`; locked
+**Combined local validation receipt:** based on merged R03/R17 main `3fc1417`; locked
 solution dependencies unchanged; root Release build with zero warnings/errors;
 Core **365**, Application **1,080**, Windows **660** passed (**2,105 total**,
 zero failed/skipped). The focused storage run passed **197**, including the
@@ -1155,12 +1155,17 @@ resource-release barrier regressions. Only fresh Core/Application reports
 were aggregated: **6,457/6,457 lines, 2,821/2,821 branches and 773/773 methods**,
 all 100%, with unchanged thresholds. Dependency-license/notice policy passed.
 Results are in this isolated worktree's
-`.net-test-artifacts/r04-rebased-{core,application,windows,coverage}`; no
+`.net-test-artifacts/r04-r17-combined-{core,application,windows,coverage}`; no
 disposable storage root remained after the completed run. Initial PR CI exposed
 post-kill fixture sharing violations before journal inspection; explicit
 exclusive-handle quiescence replaces the process-exit assumption without
 increasing deadlines or weakening assertions. PR CI is independently required
 before merge; this receipt is not installed/native-load or power-loss evidence.
+Combined version/channel tests, publication contracts (**381 assertions,
+56 Actions process cases and 15 partial-write/hard-interruption retries**) and
+**123 immutable source-tool contracts** also passed against the rebased tree.
+Publisher/source-tool files were not edited by R04; no release, downloaded
+code, installer or application was executed by these fixture checks.
 
 ### R05 Bounded Authorization/Question Foundation
 

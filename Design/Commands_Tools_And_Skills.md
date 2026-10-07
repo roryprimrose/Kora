@@ -33,6 +33,15 @@ No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
 reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
 and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
 
+The bounded R10 `speech.playback-volume` preference shares native Settings and
+exact `list volume settings` / get/status/set/reset commands. Its
+[owned scalar workflow](User_Configuration.md#delivered-bounded-per-kora-playback-volume-r10)
+uses genuine audio-control session/generation admission, original-channel
+host/privacy/call/input revalidation, host-held revisioned proposals and
+audited atomic readback. It accepts canonical integer 0-100 only, default 100;
+zero blocks synthesis with full visual recovery. No natural-language alias,
+model tool, test playback, microphone effect or global volume mutation is added.
+
 The bounded R10 `speech.output-device` preference is shared by native Settings
 and exact `list output settings` / get/status/set/reset commands. Its
 [persisted audio admission](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)

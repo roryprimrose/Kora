@@ -114,6 +114,29 @@ documentation/source review, not a new build, trial or acceptance receipt.
 | #71, #77: R03/R05/R09 native recovery | [Native tray](../src/Kora/SystemTrayController.cs) and [passive microphone card](../src/Kora.Application/ViewModels/MicrophoneRecoveryViewModel.cs): generic input state, bounded metadata refresh, revision-bound System/pinned preference selection, explicit PTT enable/disable and Stop speaking. Tray/Settings share exact displayed choices, unsaved highlight, Save preference only and a separate fresh endpoint-bound Enable. [User recovery](../docs/windows-and-tray.md#microphone-and-listening-recovery). | Enable arms readiness with the microphone closed; actual capture requires held PTT. The card is not a durable R05 question/task/session bridge, combined consent/selection/enable, microphone test, ambient/wake capture or Windows permission change. Full hardware/native acceptance remains separate. |
 
 This snapshot does not close full R04/R06/R07/R10/R12/R13/R14/R19 or A0-A4.
+The [bounded per-Kora playback volume](User_Configuration.md#delivered-bounded-per-kora-playback-volume-r10)
+adds native/exact typed/ACTIVATED discovery/get/status/set/per-option reset:
+domain-owned 0-100 integer percent, original unscaled default 100, shared genuine
+audio admission, host-held proposals, revisions, atomic readback and audit/task
+receipts. Zero prevents synthesis and retains full visual output; owned Windows
+instance gain/Kokoro PCM attenuation never writes global volume or replays
+retired output. Independent speech, output, input, name, consent, approval and
+retention behavior remains unchanged. This is not full R10 or native/acoustic
+acceptance. No speech experiment is retired: unique SAPI sample/rendering,
+capture, hardware/provider and acoustic receipts/executables are not superseded
+by these scalar, fake orchestration and generation tests.
+Validation on consolidated authority baseline `77deef4`: root Release build
+has zero warnings/errors; 700 Core, 1,897 Application, 38 Tools, 6 Definitions
+and 952 Windows fixture tests pass without skips, including cancellation
+callbacks reentering state after atomic volume/generation retirement without
+holding the native callback state lock. The unchanged portable gate
+is exactly 100% lines and branches. Real SQLite volume controls run through the
+shared task/interaction lease before and after validated frozen-ledger migration,
+with native/typed/activated provenance and correlated audit receipts. The
+evidence-provider fixtures use the existing nonparallel composition collection
+so their process-wide activity listener cannot outlive another fixture's paths.
+No Kora launch, capture, audible playback, installed-provider trial, elevation,
+account or network-policy operation was performed.
 The [current bounded audio output feature](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
 shares working native/exact discovery/get/status/select/reset through persisted
 audio session/generation and host-held-choice admission. Original channel,

@@ -179,6 +179,7 @@ public sealed partial class MainViewModel
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;
         if (outputConfiguration is not null) { outputConfiguration.Changed -= OnOutputConfigurationChanged; }
+        if (playbackVolumeConfiguration is not null) { playbackVolumeConfiguration.Changed -= OnPlaybackVolumeChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
     }
 
@@ -311,6 +312,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(ListeningButtonText));
         OnPropertyChanged(nameof(ListeningStatus));
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
+        OnPropertyChanged(nameof(CanChangePlaybackVolume));
         ToggleListeningCommand.NotifyCanExecuteChanged();
         BeginPushToTalkCommand.NotifyCanExecuteChanged();
     }

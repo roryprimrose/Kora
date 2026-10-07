@@ -379,7 +379,36 @@ disable speech with a visible recovery message, never silently substitute.
 Status shows desired/effective voice, saved/default provenance, revision and
 recovery. Save failure retains the previous selection. Concurrent or stale
 changes require a fresh inspection/request. This bounded configuration does not
-add rate, volume, call exceptions or model settings tools.
+add rate, call exceptions or model settings tools. Volume is the independent
+bounded preference below.
+
+### Kora playback volume
+
+Under **Speech & audio**, select **Kora playback volume (0-100%)** then **Save
+Kora volume only**. Highlighting is an unsaved draft. **Reset volume to 100%**
+removes only the volume override; **Refresh volume preference only** reads
+saved state without testing audio. Default **100** preserves original unscaled
+output. **0** prevents synthesis/automatic playback and retains the complete
+visual response, warnings and required prompts. Raising/resetting never replays
+stopped or queued output.
+
+Exact typed/ACTIVATED commands share these controls: `list volume settings`,
+`get/status speech.playback-volume`, `set speech.playback-volume to 30`,
+`reset speech.playback-volume`. Use canonical integers 0-100, without signs,
+padding, fractions, `%` or leading zeros. The current assistant-name prefix
+works. Results show saved/default/unavailable source, desired/effective percent,
+bounds/default, revisions and recovery. Protected/unknown calls deny original
+voice mutations; use a new eligible typed/Settings request.
+
+Only Kora-owned Windows speech instance gain and Kokoro PCM attenuation change.
+No Windows/system/call volume, mute, microphone, consent, provider, output
+endpoint, summary, name, approval or retention setting changes. Unknown adapter
+capability, invalid saved data, failed atomic save/readback/audit or stale
+admission is explicit visual unavailability, never a silent default. A write
+may precede failed terminal evidence: inspect/repair saved state and explicitly
+refresh. An atomic unconfirmed-write marker keeps ambiguous writes unavailable
+across restart until explicit evidence inspection/repair; refresh cannot silently
+clear it. No automatic retry, test playback or acoustic audibility claim.
 
 ### Spoken summary limits
 

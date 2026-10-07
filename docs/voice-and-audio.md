@@ -2,6 +2,16 @@
 
 ## Microphone selection
 
+[Kora playback volume](settings.md#kora-playback-volume) is independent of
+microphone selection and consent. It is integer 0-100, default 100 (original
+unscaled output), applying only to owned Windows/Kokoro speech. Zero prevents
+synthesis and automatic playback with full visual recovery. Settings and exact
+`list volume settings` / `get/status/set/reset speech.playback-volume` share
+audited admitted persistence. Saving retires old output; raising/resetting
+never replays it. No global/call volume, microphone, permission, provider,
+rate or output-device policy changes. Unknown capability/evidence is explicit
+visual unavailability; hardware/acoustic audibility is not claimed.
+
 The bounded [exact input-device commands](commands.md#exact-input-device-preference)
 also expose this same preference through typed or already **activated** voice.
 They do not provide wake listening or receive speech while input is closed.

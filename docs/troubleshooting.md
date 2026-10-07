@@ -145,3 +145,10 @@ Open:
 `%LOCALAPPDATA%\Kora\Logs`
 
 Logs are structured JSON, roll daily, and are retained for up to 30 days.
+The tray's **Evidence (read-only)** source **DailyLog** can inspect an independent
+bounded prefix of existing daily diagnostic envelopes even when SQLite is
+unavailable. **All** remains SQLite-only. A scan limit is not a complete-file
+search; missing/changed/expired snapshots require a fresh search, while corrupt
+or truncated data is reported without an empty-success fallback. Audit mirrors
+and activity/legacy copies are unsupported and counted explicitly. See
+[privacy and evidence limits](privacy-safety-and-logs.md) for exact bounds.

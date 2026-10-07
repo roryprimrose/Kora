@@ -479,8 +479,9 @@ Query logging/completed spans cannot expand an in-progress snapshot.
 The current-user native host admits access; query filters and record text
 never select a session's authority. The evidence projection is not the atomic
 interaction audit. Due dates do not prove pruning or complete retained history.
-Session/conversation sources, model tools/Ask Evidence, daily-file cross-source
-queries, export, deletion and richer history/artifacts remain unavailable.
+Session/conversation sources, model tools/Ask Evidence, exact combined
+daily-file/database queries, export, deletion and richer history/artifacts
+remain unavailable. Independent daily diagnostic inspection is delivered below.
 No live application/installer/audio/provider/privileged trial was performed.
 
 Experiment disposition: no executable is retired by this slice.
@@ -524,6 +525,50 @@ batch deliveries. Root Release/analyzers and full suites
 **411 / 1,304 / 710** passed with no warnings/errors/failures/skips and fresh
 portable **100% line/branch** coverage. Evidence remains a native read-only
 host service, not a registry/model tool or an appearance/call mutation.
+
+### R14 Bounded Independent Daily JSON Diagnostic Inspection - 2026-10-07
+
+Implemented in `agents/bounded-daily-json-inspection-slice`, rebased onto
+`c0c15ac2a74a865bbd7540a7a0cf5c00c2d3a21b`; #69 ordinary retention and #70
+session metadata are verified ancestors. The native evidence source selector
+now admits independently useful **DailyLog** list/search/exact cited reads and
+trace filtering through the existing host-owned query service. `All` remains
+SQLite-only with unchanged record counts. There is no speculative merged rank
+or atomic cross-source snapshot.
+
+The actual file writer and reader share the exact daily-name policy and
+version-1 diagnostic envelope serialization/validation. Existing files only,
+supplied application-data roots, current-user ownership/ACL/reparse admission
+and opened-handle final-path/volume/file identity are required. No storage,
+lease, pruning, schema, policy, protection, audit-chain or retention mutation
+occurs. Eight 15-minute host-held prefix manifests are bound by existing signed
+query/viewer cursors. Reopened identity/prefix hashes reject replacement,
+mutation, rotation and pruning; append/new-day events do not extend a snapshot.
+
+Bounds: 32 files, 8-MiB earliest complete-line prefix, 4,096 physical lines,
+256-KiB lines excluding LF, five seconds per request and the existing
+50-record/64-KiB serialized page. Capture and final prefix verification each
+read at most 8 MiB. Scan ceilings, corruption, truncation, changed/missing/
+expired/unavailable/timed-out sources are explicit. Unsupported legacy/activity
+copies, ingestion gaps and audit mirrors have separate reported counts and
+partial status. No audit mirror/lookalike acquires audit authority. Typed
+observation/session/W3C fields are preserved; file commit/due times and span
+graph are unavailable. Stable source-specific citations retain exact
+file/offset/digest provenance and original envelope evidence IDs.
+
+Experiment disposition: no executable removal is justified. The maintained
+production source supersedes no exact experimental daily-envelope consumer:
+storage proof FTS/HMAC/encryption/DPAPI/rekey/backup/child-kill paths and runtime
+RT1/RT2/management diagnostic capture remain different contracts with unique
+and historical receipts. Reference consumers and those receipts remain intact.
+Only this slice's design and user evidence/privacy guides are updated.
+
+Validation uses synthetic actual-writer files, private SQLite and native
+view-model fixtures, not the app, audio, accounts, install, elevation, network
+policy or live trials. Complete R14, combined search, session/conversation
+contents, file audit/graph, Ask Evidence, export and native/installed acceptance
+remain outstanding. Exact final test/coverage and CI outcomes are recorded in
+the pull request, not inferred from implementation.
 
 ### R04 Bounded Ordinary Diagnostic Retention - 2026-10-07
 

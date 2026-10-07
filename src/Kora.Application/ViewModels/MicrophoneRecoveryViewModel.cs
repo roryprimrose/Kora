@@ -40,7 +40,8 @@ public sealed class MicrophoneRecoveryViewModel : ObservableObject, IDisposable
         && (draft is null || draft == displayedSelection)
         && host.HasVoiceConsent && !host.IsVoiceEnabled && host.IsVoiceActivationAvailable
         && host.MicrophoneAccessStatus.State == MicrophoneAccessState.Allowed
-        && (!displayedSelection.Device.IsSystemDefault || host.IsSystemMicrophoneAvailable);
+        && (!displayedSelection.Device.IsSystemDefault || host.IsSystemMicrophoneAvailable)
+        && host.ToggleListeningCommand.CanExecute(null);
 
     public MicrophoneRecoveryChoice? Draft
     {

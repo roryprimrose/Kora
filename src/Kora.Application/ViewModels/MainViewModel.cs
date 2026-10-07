@@ -37,7 +37,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string CurrentMachineTarget = "machine.current";
     private const string CurrentWindowsSessionTarget = "windows-session.current";
     private const string DeviceLocalPreferencesTarget = "preferences.device-local";
-    private const string MicrophoneConfigurationAction = "configuration.microphone";
+    private const string MicrophoneConfigurationAction = InputDevicePreferenceService.AuditAction;
     private const string OutputDeviceConfigurationAction = "configuration.audio-output";
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
     private const string MutedOutputFallbackConfigurationAction = "configuration.muted-output-visual-fallback";
@@ -241,6 +241,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.appearancePreferences = appearancePreferences;
         this.optionalSpeechOfferPreferences = optionalSpeechOfferPreferences;
         this.audioDevicePreferences = audioDevicePreferences;
+        inputDevicePreferences = new(audioDevicePreferences, securityAuditLog);
         this.responseOutputPreferences = responseOutputPreferences;
         this.callAwarePreferences = callAwarePreferences;
         communicationPolicy = new CallCommunicationPolicy(callStateService);
@@ -1088,37 +1089,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedMicrophone;
         set
         {
-            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(MicrophoneConfigurationAction)) { return; }
-            if (!suppressAudioDevicePreferenceSave && value is not null && !Microphones.Contains(value))
+            if (committingMicrophonePreference) { return; }
+            if (!suppressAudioDevicePreferenceSave && value is not null)
             {
-                ApplicationLog.Information(logger, "Rejected a stale microphone selection; refresh devices");
-                ShowFailure("The microphone list changed.", "Refresh and select the current endpoint again.");
+                ApplyDirectMicrophonePreference(value);
                 return;
             }
-            var selectionChanged = !string.Equals(
-                selectedMicrophone?.Id,
-                value?.Id,
-                StringComparison.Ordinal);
-            if (selectionChanged && !suppressAudioDevicePreferenceSave)
+            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(MicrophoneConfigurationAction)) { return; }
+            if (!suppressAudioDevicePreferenceSave && selectedMicrophone is not null)
             {
                 HoldVoiceInput("Microphone changed · use Enable listening");
-                if (value is not null && !SaveMicrophonePreference(value))
-                {
-                    OnPropertyChanged(nameof(SelectedMicrophone));
-                    return;
-                }
             }
-            if (SetProperty(ref selectedMicrophone, value))
-            {
-                ToggleListeningCommand.NotifyCanExecuteChanged();
-                UpdateMicrophoneAvailability(selectedMicrophoneUnavailable: false);
-                if (selectionChanged
-                    && !suppressAudioDevicePreferenceSave)
-                {
-                    Interlocked.Increment(ref microphoneTopologyRevision);
-                    OnPropertyChanged(nameof(MicrophoneTopologyRevision));
-                }
-            }
+            SetSelectedMicrophoneState(value);
         }
     }
 
@@ -1396,7 +1378,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         && !EffectiveOutputDevice.IsMuted;
 
     private MicrophoneDevice? EffectiveMicrophone =>
-        SelectedMicrophone?.IsSystemDefault == true
+        string.Equals(inputDevicePreferences.Source, "unavailable", StringComparison.Ordinal) ? null
+        : SelectedMicrophone?.IsSystemDefault == true
             ? systemDefaultMicrophone
             : SelectedMicrophone is not null && Microphones.Contains(SelectedMicrophone)
                 ? SelectedMicrophone : null;
@@ -2682,7 +2665,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 suppressResponseWindowPreferenceSave = false;
             }
 
-            var savedMicrophoneId = audioDevicePreferences.LoadMicrophoneId();
+            microphoneCatalogCurrent = false;
+            var savedMicrophoneId = inputDevicePreferences.Load();
+            suppressAudioDevicePreferenceSave = true;
+            try
+            {
+                SelectedMicrophone = savedMicrophoneId is null
+                    || string.Equals(savedMicrophoneId, SystemAudioDevices.Microphone.Id, StringComparison.Ordinal)
+                    ? SystemAudioDevices.Microphone : new MicrophoneDevice(savedMicrophoneId, "Unavailable saved microphone");
+            }
+            finally { suppressAudioDevicePreferenceSave = false; }
             var microphones = voiceRecognition.GetMicrophones();
             Interlocked.Increment(ref microphoneTopologyRevision);
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
@@ -2735,6 +2727,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 suppressAudioDevicePreferenceSave = false;
             }
 
+            catalogPrivacyRevision = privacyObservation.Current.TopologyRevision;
+            microphoneCatalogCurrent = true;
             UpdateMicrophoneAvailability(savedMicrophoneUnavailable);
             UpdateOutputDeviceAvailability(savedOutputDeviceUnavailable);
             ToggleListeningCommand.NotifyCanExecuteChanged();
@@ -3323,25 +3317,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Task SetAllowVoiceActivationDuringCallsAsync(bool value) =>
         SetCallSettingsAsync(communicationPolicy.Current.Settings with { AllowVoiceActivationDuringCalls = value });
 
-    private bool SaveMicrophonePreference(MicrophoneDevice microphone)
-    {
-        return SavePreference(
-            () =>
-            {
-                if (microphone.IsSystemDefault)
-                {
-                    audioDevicePreferences.ClearMicrophoneId();
-                }
-                else
-                {
-                    audioDevicePreferences.SaveMicrophoneId(microphone.Id);
-                }
-            },
-            MicrophoneConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "microphone preference");
-    }
-
     private void SaveOutputDevicePreference(AudioOutputDevice outputDevice)
     {
         _ = SavePreference(
@@ -3713,6 +3688,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         float confidence,
         SecurityAuditInitiator initiator)
     {
+        if (InputDeviceCommand.Parse(spokenText, AssistantName) is { } inputCommand)
+        {
+            await ExecuteInputDeviceCommandAsync(inputCommand, initiator);
+            return;
+        }
         if (pendingModelQuestion is { } question)
         {
             if (initiator != SecurityAuditInitiator.VoiceCommand
@@ -5077,6 +5057,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
+            .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands

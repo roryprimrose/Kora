@@ -99,6 +99,11 @@ launcher/tray to return to native status and recovery.
 
 ### Microphone and listening recovery
 
+The native selections share the same audited preference seam as the bounded
+[`speech.input-device` commands](commands.md#exact-input-device-preference).
+Commands do not combine selection with Enable or renew consent/permission;
+reset explicitly selects System without releasing manual/run holds.
+
 **Choose microphone (native recovery)** opens a non-topmost card with real current
 endpoint names/IDs, System/default availability and the retained unavailable pin.
 **Refresh devices** is metadata only. Highlight a current endpoint, then choose

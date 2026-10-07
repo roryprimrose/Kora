@@ -1,6 +1,6 @@
 # User Configuration and Verbal Settings
 
-Status: partial. The bounded appearance, installed speech-choice and assistant display/PTT prefix subsets below are delivered through a
+Status: partial. The bounded appearance, installed speech-choice, assistant display/PTT prefix and exact input-device subsets below are delivered through a
 shared typed UI/exact local command path; the complete verbal preference and
 model-facing contract remains proposed, subject to protected-call origin gates
 and mandatory secure workflows.
@@ -199,6 +199,48 @@ replay. Cancellation is checked before admission/start and before writes;
 post-commit cancellation does not invent an unsaved result.
 This completes only bounded caps, not full R10 or speech/acoustic acceptance.
 The following complete model-facing contract remains future work.
+
+### Delivered bounded exact input-device preference (R10)
+
+Schema 1 admits only `speech.input-device`: an exact endpoint-ID choice,
+device-local, input-preference-only, default `system-default`. Native Settings,
+tray and passive recovery-card selection share the existing atomic audio
+preference format and the [audited preference workflow](../src/Kora.Application/Configuration/InputDevicePreferenceService.cs)
+with typed and **activated** voice commands. Use `list input settings`,
+`get speech.input-device`, `set speech.input-device to <exact listed endpoint ID>`
+and `reset speech.input-device`; there are no friendly-name, index or
+natural-language selector aliases. Option grammar is case-insensitive, endpoint
+IDs are ordinal exact. The configured assistant-name prefix is supported.
+The original input is limited to the existing 1,024 UTF-8 bytes, without controls;
+the complete schema/result is limited to the existing 64 KiB, never truncated.
+
+Discovery deliberately uses the current five-second single-flight metadata
+refresh; get reports the recorded snapshot. Both expose desired/effective,
+System default, saved/default/unavailable source, metadata/call revisions,
+exact choices, availability, readiness and explicit recovery. Endpoint names
+are local presentation content only. Duplicate friendly names remain distinct.
+A missing pin survives startup/refresh; unknown or failed detection is
+unavailable, not System or another same-name replacement. System follows the
+Windows multimedia default; selecting/resetting System explicitly removes
+only the existing microphone override, including when there is no default.
+
+Commands resolve IDs to host-held catalogue objects before finite revalidation.
+Equal-but-not-presented native choices remain rejected. Original host request/
+session lineage and observed call/input/recovery revisions survive awaits;
+the existing call-policy lock encloses live revalidation and atomic persistence.
+Protected or unknown calls deny original voice-channel writes even if later
+dispatched through UI. Unknown owner/session/permission, stale metadata,
+cancellation, pending question/approval and disposal cannot authorize a write.
+Audit/storage failures report not-confirmed; terminal audit failure may follow
+a committed file replacement, so inspect before a fresh request, not automatic
+retry or an invented rollback. Reentrant writes cannot publish a new choice.
+
+Selection is preference only: changed input invalidates stale capture and
+releases it, while manual disablement and run holds remain closed. No operation
+grants consent/permission, opens capture, enables listening, tests audio,
+downloads assets, changes models/OS privacy, forwards provider text, or answers
+a pending question. Separate existing native Enable remains separate. No model
+tools, general registry, full R10/R03/R09/R05/A or hardware acceptance is claimed.
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.

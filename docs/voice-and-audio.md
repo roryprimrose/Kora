@@ -2,6 +2,13 @@
 
 ## Microphone selection
 
+The bounded [exact input-device commands](commands.md#exact-input-device-preference)
+also expose this same preference through typed or already **activated** voice.
+They do not provide wake listening or receive speech while input is closed.
+Use exact listed endpoint IDs, not names/indices. Per-option reset selects
+System only; it does not enable listening, change consent/permission or reopen
+a run hold. Protected/unknown calls deny original voice mutations.
+
 Choose **Settings > Speech & audio > Choose microphone (native recovery)** or
 the same **Choose microphone** tray entry. This native card works without voice,
 a model or network. Opening it refreshes metadata only. Review System and active

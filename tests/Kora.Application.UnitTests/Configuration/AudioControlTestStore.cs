@@ -13,6 +13,7 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
     internal Action? BeforeOperation { get; set; }
     internal Exception? CreateFailure { get; set; }
     internal bool FailTerminal { get; set; }
+    internal Action<HostTaskRecord>? BeforeCommit { get; set; }
     internal HostRequest? LastRequest { get; private set; }
 
     public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
@@ -49,6 +50,7 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
 
     public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
     {
+        BeforeCommit?.Invoke(record);
         if (FailTerminal && record.IsTerminal) { throw new IOException("terminal receipt failed"); }
         Tasks.Add(record);
         return ValueTask.CompletedTask;

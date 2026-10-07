@@ -120,6 +120,7 @@ public sealed class OutputDeviceConfigurationService(
                 lock (gate)
                 {
                     held = true;
+                    source = "unavailable";
                     recovery = "Output discovery evidence was not confirmed. Inspect saved state and explicitly refresh.";
                     choices = Array.AsReadOnly<OutputDeviceChoice>([]);
                     Changed?.Invoke(this, EventArgs.Empty);
@@ -179,11 +180,16 @@ public sealed class OutputDeviceConfigurationService(
                             {
                                 if (choice.Device.IsSystemDefault) { preferences.ClearOutputDeviceId(); }
                                 else { preferences.SaveOutputDeviceId(choice.Id); }
+                                if (!string.Equals(preferences.LoadOutputDeviceId(),
+                                    choice.Device.IsSystemDefault ? null : choice.Id, StringComparison.Ordinal))
+                                {
+                                    throw new InvalidDataException("Saved output readback does not match the exact selected preference. Inspect saved state before a fresh request.");
+                                }
                             }
-                            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
                             {
                                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Failed,
-                                    exception is IOException ? "io-error" : "access-denied"));
+                                    exception is IOException ? "io-error" : exception is InvalidDataException ? "invalid-data" : "access-denied"));
                                 throw;
                             }
                             auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
@@ -221,6 +227,7 @@ public sealed class OutputDeviceConfigurationService(
                 if (entered)
                 {
                     held = true;
+                    source = "unavailable";
                     recovery = "Output preference evidence was not confirmed. Inspect saved state and explicitly refresh.";
                     choices = Array.AsReadOnly<OutputDeviceChoice>([]);
                     Changed?.Invoke(this, EventArgs.Empty);

@@ -264,6 +264,74 @@ public sealed class OutputDeviceConfigurationServiceTests : IDisposable
         fixture.Service.Get(0).Source.Should().Be("unavailable");
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Host_or_output_change_before_terminal_receipt_cannot_activate_newly_committed_state(bool apply, bool ownerChanged)
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        var notices = 0;
+        fixture.Service.Changed += (_, _) => notices++;
+        if (!apply) { fixture.Snapshot = new([new("one", "Same"), new("three", "New")], new("one", "Same")); }
+        fixture.Store.BeforeCommit = record =>
+        {
+            if (record.State != HostTaskState.Succeeded) { return; }
+            if (ownerChanged) { fixture.Eligible = false; }
+            else { fixture.Service.HoldUnavailable("new output/privacy hold"); }
+        };
+        Func<Task> operation = apply ? async () => await fixture.Select("two") : fixture.Refresh;
+        await operation.Should().ThrowAsync<InvalidOperationException>();
+        fixture.Service.Get(0).Available.Should().BeFalse();
+        fixture.Service.Choices.Should().BeEmpty();
+        fixture.Preferences.Id.Should().Be(apply ? "two" : null);
+        notices.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Reentrant_discovery_or_native_observation_cannot_replace_a_committing_snapshot()
+    {
+        await using var fixture = new Fixture();
+        Task? reentrant = null;
+        var observed = false;
+        fixture.Service.Changed += (_, _) =>
+        {
+            if (observed) { return; }
+            observed = true;
+            reentrant = fixture.Refresh();
+        };
+        await fixture.Refresh();
+        await reentrant!.Invoking(async task => await task).Should().ThrowAsync<InvalidOperationException>();
+        fixture.Audit.BeforeWrite = _ => fixture.Service.Observe(fixture.Snapshot);
+        var observation = () => fixture.Select("two");
+        await observation.Should().ThrowAsync<InvalidOperationException>();
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Service.Get(0).Available.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Atomic_save_readback_failure_or_changed_normalization_never_activates_an_unconfirmed_pin(bool changed)
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        fixture.Preferences.AfterWrite = () =>
+        {
+            if (changed) { fixture.Preferences.Id = "normalized-different"; }
+            else { fixture.Preferences.LoadFailure = new InvalidDataException("corrupt saved readback"); }
+        };
+        var apply = () => fixture.Select("two");
+        await apply.Should().ThrowAsync<InvalidDataException>();
+        fixture.Preferences.Writes.Should().Be(1);
+        fixture.Service.Get(0).Source.Should().Be("unavailable");
+        fixture.Service.Get(0).Available.Should().BeFalse();
+        fixture.Service.Choices.Should().BeEmpty();
+        fixture.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal Fixture()

@@ -81,6 +81,7 @@ public sealed partial class MainViewModel
             && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
             && !IsResponseInteractionPending
             && (origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
+                && privacyObservation.Current.CanCapture
                 && Interlocked.Read(ref voiceRecoveryRevision) == recovery);
     }
 
@@ -107,7 +108,11 @@ public sealed partial class MainViewModel
 
     private async Task RunOutputControlAsync(Func<OutputDeviceConfigurationService, RequestOrigin, Func<bool>, Task> operation)
     {
-        if (outputControlActive || disposed || outputConfiguration is null || !IsCallMutationHostEligible) { return; }
+        if (outputControlActive || disposed || outputConfiguration is null || !IsCallMutationHostEligible || IsResponseInteractionPending)
+        {
+            if (!disposed) { Transcript = "Output control requires the current owning unlocked host and an idle admitted audio workflow."; }
+            return;
+        }
         var origin = OriginalOrigin();
         var eligible = CaptureAudioControlEligibility(origin);
         var preserveResponse = IsSpeaking;
@@ -118,7 +123,7 @@ public sealed partial class MainViewModel
             await operation(outputConfiguration, origin, eligible);
             if (IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException
             or OperationCanceledException or TimeoutException)
         {
             outputConfiguration.HoldUnavailable("Output preference or its admission/evidence was not confirmed. Inspect saved state and refresh; no automatic retry or substitution. " + exception.GetType().Name);
@@ -170,7 +175,7 @@ public sealed partial class MainViewModel
                 command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? saved ? "saved" : "denied" : "observed");
             var resultText = OutputDeviceCommandResult.Serialize(result);
             // Configuration inspection/mutation never speaks its result or answers a pending question.
-            if (preserveResponse)
+            if (preserveResponse || IsResponseInteractionPending)
             {
                 Transcript = resultText;
                 PreserveSpokenResponseFailure("Output preference result is in the transcript/status; the complete interrupted response remains visual.");
@@ -182,7 +187,7 @@ public sealed partial class MainViewModel
                     refreshOutput: false);
             }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException
             or OperationCanceledException or TimeoutException)
         {
             outputConfiguration.HoldUnavailable("Output preference or evidence not confirmed. Refresh and inspect saved state before a fresh request.");
@@ -192,7 +197,7 @@ public sealed partial class MainViewModel
 
     private void ReportOutputControlFailure(Exception exception, bool preserveResponse)
     {
-        if (preserveResponse)
+        if (preserveResponse || IsResponseInteractionPending)
         {
             Transcript = "Output preference not confirmed. " + exception.Message;
             PreserveSpokenResponseFailure("Output preference was not confirmed; the complete interrupted response remains visual.");

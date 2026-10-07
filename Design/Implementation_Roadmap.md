@@ -114,13 +114,15 @@ documentation/source review, not a new build, trial or acceptance receipt.
 | #71, #77: R03/R05/R09 native recovery | [Native tray](../src/Kora/SystemTrayController.cs) and [passive microphone card](../src/Kora.Application/ViewModels/MicrophoneRecoveryViewModel.cs): generic input state, bounded metadata refresh, revision-bound System/pinned preference selection, explicit PTT enable/disable and Stop speaking. Tray/Settings share exact displayed choices, unsaved highlight, Save preference only and a separate fresh endpoint-bound Enable. [User recovery](../docs/windows-and-tray.md#microphone-and-listening-recovery). | Enable arms readiness with the microphone closed; actual capture requires held PTT. The card is not a durable R05 question/task/session bridge, combined consent/selection/enable, microphone test, ambient/wake capture or Windows permission change. Full hardware/native acceptance remains separate. |
 
 This snapshot does not close full R04/R06/R07/R10/R12/R13/R14/R19 or A0-A4.
-The [current audio output prerequisite repair](User_Configuration.md#exact-audio-output-registry-prerequisite-r10)
-closes native and reserved exact-command output preference mutation pending a
-genuine session/generation/host-held-choice admission bridge. It does not add
-the R10 output registry or claim its acceptance. Existing saved/System playback
-and installed speech-choice/summary preferences remain independent. No experiment
-is retired: refusal tests are not equivalent to speech/acoustic/hardware/provider
-evidence, and no historical receipt is rewritten.
+The [current bounded audio output feature](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+shares working native/exact discovery/get/status/select/reset through persisted
+audio session/generation and host-held-choice admission. Original channel,
+ownership/privacy/call/input revisions, audited atomic persistence and receipt-safe
+activation remain fail-closed; metadata-only configuration never starts audio.
+Saved/System routing and independent installed speech/summary/input/name settings
+are preserved. No experiment is retired: deterministic metadata/storage/binding
+tests do not replace unique speech/acoustic/hardware/provider evidence, and no
+historical receipt or full R10/I/A acceptance is rewritten.
 Safe independent foundations can continue once their actual prerequisites
 are satisfied; downstream model/effect exposure remains gated by the relevant
 R02 qualification, host authority, privacy, resource and installed boundaries.

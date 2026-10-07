@@ -310,6 +310,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(IsVoiceEnabled));
         OnPropertyChanged(nameof(ListeningButtonText));
         OnPropertyChanged(nameof(ListeningStatus));
+        OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         ToggleListeningCommand.NotifyCanExecuteChanged();
         BeginPushToTalkCommand.NotifyCanExecuteChanged();
     }

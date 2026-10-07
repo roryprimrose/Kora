@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AwesomeAssertions;
 using Kora.Application.UnitTests.Maintenance;
 using Kora.Application.Voice;
@@ -34,10 +35,28 @@ public sealed class BoundedAudioOutputCatalogTests
         await cancelled.Invoking(value => value.RefreshAsync(CancellationToken.None)).Should().ThrowAsync<IOException>();
     }
 
+    [Fact]
+    public async Task Metadata_fault_diagnostics_observe_the_fault_without_persisting_endpoint_or_path_content()
+    {
+        var logger = new EnabledLogger();
+        var error = new IOException(@"Private endpoint name and \\.\private-endpoint-path");
+        var catalog = new BoundedAudioOutputCatalog(
+            () => Task.FromException<AudioOutputCatalogSnapshot>(error), new ReleaseFixture.Clock(), logger);
+
+        await catalog.Invoking(value => value.RefreshAsync(TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<IOException>().WithMessage(error.Message);
+
+        var diagnostic = logger.Entries.Should().ContainSingle().Which;
+        diagnostic.Exception.Should().BeNull();
+        diagnostic.Message.Should().Be("Audio output metadata enumeration failed (IOException)");
+    }
+
     private sealed class EnabledLogger : ILogger
     {
+        public ConcurrentQueue<(string Message, Exception? Exception)> Entries { get; } = new();
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) { }
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Enqueue((formatter(state, exception), exception));
     }
 }

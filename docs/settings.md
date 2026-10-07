@@ -484,15 +484,12 @@ queue override, or the device default when no queue override exists.
 
 ### Muted speaker fallback
 
-Default: **on**. Show audible-only responses as text when the selected Windows
-speaker is muted or its endpoint volume is zero. Applies to the device default
-and task/queue overrides, using either **System** output or a selected endpoint.
-The configured response mode is unchanged; unmuting restores it on the next
-response without refreshing devices.
-
-Turning this off suppresses ordinary visual fallback for muted output only.
-Failures, pending questions, approvals, missing devices, and unavailable speech
-voices still use visual output.
+Default: **on**. This independently stored legacy preference is retained for
+compatibility; it cannot suppress mandatory complete visual recovery when the
+effective output is missing, software-muted, zero-volume, unavailable or failed.
+The configured response mode is unchanged. A fresh eligible route can restore
+normal voice-only presentation; no recovery or setting change replays speech.
+Pending questions and approvals retain their exact visual preview.
 
 ### Effective output
 

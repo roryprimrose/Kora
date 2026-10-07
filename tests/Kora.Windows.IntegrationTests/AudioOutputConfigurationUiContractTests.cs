@@ -22,8 +22,8 @@ public sealed class AudioOutputConfigurationUiContractTests
         selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding OutputDeviceChoices}");
         foreach (var command in new[] { "SaveOutputDeviceCommand", "ResetOutputDeviceCommand", "RefreshOutputDevicesCommand" })
         {
-            controls.Any(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
-                .Should().BeTrue();
+            controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
+                .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeAudioOutputDevice}");
         }
         controls.Any(control =>
             string.Equals(control.Attribute("Text")?.Value, "{Binding AudioOutputConfigurationStatus}", StringComparison.Ordinal))

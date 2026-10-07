@@ -33,7 +33,7 @@ public sealed partial class BoundedAudioOutputCatalog
             }
             operation = pending = enumerate();
         }
-        _ = operation.ContinueWith(task => EnumerationFailed(logger, task.Exception!),
+        _ = operation.ContinueWith(task => EnumerationFailed(logger, task.Exception!.GetBaseException().GetType().Name),
             CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
         return await operation.WaitAsync(TimeSpan.FromSeconds(5), time, cancellationToken).ConfigureAwait(false);

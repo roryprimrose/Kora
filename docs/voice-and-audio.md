@@ -242,8 +242,9 @@ explicit recovery, not substituted endpoints or replay. Full visual recovery is
 mandatory for missing/muted/zero-volume/open/playback failure; acoustic audibility
 and full R10/native audio acceptance are not claimed.
 
-For existing System routing, an available new Windows
-default automatically reroutes active WASAPI playback while System is selected.
+System resolves the current multimedia default for each fresh eligible request.
+Changed output metadata retires stale queued/in-flight Kora output without replay;
+the underlying System WASAPI route follows Windows routing, not a saved endpoint pin.
 Named endpoint selections remain pinned, even when Windows defaults or unrelated
 devices change. A missing or muted effective output stops speech without replay;
 subsequent eligible speech resolves the selected endpoint. A pinned endpoint is

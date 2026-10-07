@@ -5033,6 +5033,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsVisualResponseVisible));
         OnPropertyChanged(nameof(IsSpeechResponseEnabled));
         OnPropertyChanged(nameof(ResponseOutputStatus));
+        OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
+        OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
     }
 
     private string[] GetRecognitionPhrases()

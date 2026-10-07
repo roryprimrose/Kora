@@ -278,7 +278,8 @@ days do not extend it; eviction/expiry requires a fresh search.
 
 Daily citations are separate from SQLite citations and include trusted
 file/offset/digest provenance and the original envelope evidence ID.
-Observation time is retained, but database commit/due dates are absent:
+Observation time, event name, exception type and redacted typed scopes are
+retained, but database commit/due dates are absent:
 `RetentionUnknown` does not claim expiry or removal. Audit mirrors are
 unsupported, never database audit evidence. Activity/legacy copies and gap
 markers are explicitly counted in `DailyReport`; skipped copies show `Partial`.

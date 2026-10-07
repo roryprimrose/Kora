@@ -78,6 +78,7 @@ public sealed partial class DurableEvidenceQuery(
                     records[0] = records[0] with
                     {
                         ContentOmitted = true, Text = null, Properties = new Dictionary<string, EvidenceValue>(StringComparer.Ordinal),
+                        Scopes = null,
                     };
                 }
                 else { records.RemoveAt(records.Count - 1); }

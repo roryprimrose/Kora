@@ -303,7 +303,8 @@ Daily citations are source-specific hashes of file identity, byte offset and
 exact line digest, not aliases for SQLite citations. Provenance also retains
 the envelope evidence ID. Typed fields and admitted envelope correlation are
 validated, not reconstructed from outer rendered Serilog properties.
-Observation time is preserved; database commit/due times are absent and
+Observation time, event name, exception type and redacted typed scopes are
+preserved; database commit/due times are absent and
 retention is `RetentionUnknown`. File audit mirrors are unsupported and counted
 separately, never returned as authoritative audit rows. Legacy/unstructured/
 activity copies and ingestion-gap markers have explicit counts and `Partial`

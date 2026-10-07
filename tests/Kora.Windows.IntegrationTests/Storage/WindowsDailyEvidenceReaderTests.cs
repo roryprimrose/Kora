@@ -23,6 +23,33 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsDailyEvidenceReaderTests
 {
     [WindowsFact]
+    public async Task Versioned_envelope_scope_and_optional_metadata_are_preserved_with_policy_redaction()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var envelope = Produce(HostRequest.Create(RequestOrigin.LocalUi), 1)[0] with
+        {
+            EventName = "ObservedCount", ExceptionType = "System.InvalidOperationException",
+            Scopes = [new Dictionary<string, EvidenceValue>(StringComparer.Ordinal)
+            {
+                ["ScopeCount"] = new(EvidenceValueKind.WholeNumber, "42"),
+                ["AccessToken"] = new(EvidenceValueKind.Text, "never present"),
+            }],
+        };
+        Write(fixture, "kora-20261007.log", [envelope]);
+        using var inspection = Root();
+        var result = await Service(new WindowsDailyEvidenceReader(fixture)).QueryAsync(
+            new() { Source = EvidenceSource.DailyLog }, null, TestContext.Current.CancellationToken);
+        var record = result.Records.Single();
+        record.EventName.Should().Be(envelope.EventName);
+        record.ExceptionType.Should().Be(envelope.ExceptionType);
+        var scope = record.Scopes!.Single();
+        scope["ScopeCount"].Should().Be(envelope.Scopes[0]["ScopeCount"]);
+        scope["AccessToken"].CanonicalValue.Should().Be("[redacted]");
+        Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(result)).Should().NotContain("never present");
+    }
+
+    [WindowsFact]
     public async Task Composition_preserves_SQLite_All_counts_and_native_daily_trace_choice()
     {
         using var fixture = new OwnedStorageFixture();

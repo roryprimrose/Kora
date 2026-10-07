@@ -82,12 +82,26 @@ public sealed class DurableEvidenceQueryTests
     {
         using var listener = Listen();
         var fixture = new Fixture();
-        fixture.Reader.Batch = Batch(1, new string('\u754c', 15000));
+        var oversized = Batch(1, new string('\u754c', 15000));
+        fixture.Reader.Batch = oversized with
+        {
+            Candidates = [oversized.Candidates[0] with
+            {
+                Record = oversized.Candidates[0].Record with
+                {
+                    Scopes = [new Dictionary<string, EvidenceValue>(StringComparer.Ordinal)
+                    {
+                        ["ScopeContent"] = new(EvidenceValueKind.Text, new string('x', 1024)),
+                    }],
+                },
+            }],
+        };
         using var host = Root();
         var page = await fixture.Service.QueryAsync(new(), null, TestContext.Current.CancellationToken);
         page.Records.Single().ContentOmitted.Should().BeTrue();
         page.Records.Single().Text.Should().BeNull();
         page.Records.Single().Properties.Should().BeEmpty();
+        page.Records.Single().Scopes.Should().BeNull();
         DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
         fixture.Reader.Batch = Batch(1) with
         {

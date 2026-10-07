@@ -266,9 +266,7 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
                 ?? throw new InvalidDataException("The daily diagnostic envelope is missing."));
             var digest = Convert.ToHexString(SHA256.HashData(line));
             var citation = new Guid(SHA256.HashData(Utf8.GetBytes($"{file.Identity}:{offset}:{digest}")).AsSpan(0, 16));
-            var values = diagnostic.Properties.ToDictionary(pair => pair.Key,
-                pair => EvidenceFieldPolicy.IsSensitive(pair.Key) ? new(EvidenceValueKind.Text, "[redacted]") : pair.Value,
-                StringComparer.Ordinal);
+            var values = Redact(diagnostic.Properties);
             var segments = diagnostic.Trace is { } trace
                 ? new[] { new EvidenceSegment(trace.TraceId, trace.SpanId, EvidenceSegmentStatus.Unavailable, null) } : [];
             return new(new(EvidenceSource.DailyLog, new(citation)), null, null,
@@ -276,7 +274,8 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
                 diagnostic.ApprovalId, diagnostic.Level, diagnostic.Category, diagnostic.EventId,
                 diagnostic.MessageTemplate, values, null, null, segments,
                 DailyProvenance: new(file.Name, file.Identity, offset, digest, diagnostic.EvidenceId),
-                ObservedUtc: diagnostic.ObservedUtc);
+                ObservedUtc: diagnostic.ObservedUtc, EventName: diagnostic.EventName,
+                ExceptionType: diagnostic.ExceptionType, Scopes: diagnostic.Scopes.Select(Redact).ToArray());
         }
         catch (Exception exception) when (exception is JsonException or InvalidDataException or ArgumentException
             or InvalidOperationException or KeyNotFoundException or DecoderFallbackException or FormatException)
@@ -284,6 +283,11 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
             throw new ReadFailure(EvidencePageStatus.Corrupt, exception);
         }
     }
+
+    private static IReadOnlyDictionary<string, EvidenceValue> Redact(IReadOnlyDictionary<string, EvidenceValue> properties) =>
+        properties.ToDictionary(pair => pair.Key,
+            pair => EvidenceFieldPolicy.IsSensitive(pair.Key) ? new(EvidenceValueKind.Text, "[redacted]") : pair.Value,
+            StringComparer.Ordinal);
 
     private static bool Matches(EvidenceRecord record, EvidenceQuery query, HostRequest viewer)
     {

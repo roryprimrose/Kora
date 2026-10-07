@@ -10,4 +10,6 @@ public sealed record EvidenceRecord(
     string? Text, IReadOnlyDictionary<string, EvidenceValue> Properties,
     SecurityAuditEvent? Audit, HostOperationOutcome? Outcome,
     IReadOnlyList<EvidenceSegment> RelatedSegments, bool ContentOmitted = false, long? AuditSequence = null,
-    DailyEvidenceProvenance? DailyProvenance = null, DateTimeOffset? ObservedUtc = null);
+    DailyEvidenceProvenance? DailyProvenance = null, DateTimeOffset? ObservedUtc = null,
+    string? EventName = null, string? ExceptionType = null,
+    IReadOnlyList<IReadOnlyDictionary<string, EvidenceValue>>? Scopes = null);

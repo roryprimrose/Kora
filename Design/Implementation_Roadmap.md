@@ -247,11 +247,16 @@ fresh-only portable line/branch coverage remained **100% / 100%**.
 After rebasing onto inference-proof main `a1febb7`, the root Release build,
 host **61** and affected Windows **86** tests passed again. Inference and
 speech live/consent evidence remains separate and was not exercised.
-The final production rebase onto bounded local-file-preview main `64b3a52`
+The production rebase onto bounded local-file-preview main `64b3a52`
 preserved that independent feature. Root Release build again passed with zero
 warnings/errors; all required suites passed at **850 / 2,584 / 60 / 6 / 1,135**
 (Core / Application / Tools / Definitions / Windows), with fresh-only portable
 coverage still exactly **100% line / 100% branch**.
+The subsequent rebase onto shared-profile discovery main `d79973b` also
+preserved that independent feature and its existing session/control authority
+paths; it adds no new session-owned persistence table. Full Release validation
+passed at **931 / 2,618 / 60 / 6 / 1,159**, zero build warnings/errors and
+fresh-only **100% line / 100% branch** portable coverage.
 
 #### Experiment disposition for logical disposition
 

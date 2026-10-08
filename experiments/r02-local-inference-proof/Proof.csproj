@@ -4,8 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\r02-runtime-lifecycle-proof\NativeSnapshot.cs" Link="Shared\NativeSnapshot.cs" />
     <Compile Include="..\..\src\Kora.Core\Commands\*.cs" Link="Production\Commands\%(Filename)%(Extension)" />
     <Compile Include="..\..\src\Kora.Core\Configuration\AssistantNameRules.cs" Link="Production\AssistantNameRules.cs" />
+    <Compile Include="..\..\src\Kora.Core\ArtifactInvocation\ArtifactKind.cs" Link="Production\ArtifactKind.cs" />
     <Compile Include="..\..\src\Kora.Core\Dependencies\DependencyReadiness.cs;
                       ..\..\src\Kora.Core\Dependencies\DependencyStatus.cs;
                       ..\..\src\Kora.Core\Dependencies\IDependencyProbe.cs;
@@ -13,6 +15,7 @@
                       ..\..\src\Kora.Core\Dependencies\ILocalModelReasoner.cs;
                       ..\..\src\Kora.Core\Dependencies\ILocalModelSetup.cs;
                       ..\..\src\Kora.Core\Dependencies\LocalModelContext.cs;
+                      ..\..\src\Kora.Core\Dependencies\LocalModelArtifact.cs;
                       ..\..\src\Kora.Core\Dependencies\LocalModelDependency.cs;
                       ..\..\src\Kora.Core\Dependencies\LocalModelTask.cs;
                       ..\..\src\Kora.Core\Dependencies\LocalModelResponse.cs;
@@ -23,6 +26,9 @@
              Link="Production\Dependencies\%(Filename)%(Extension)" />
     <Compile Include="..\..\src\Kora.Windows\Dependencies\WindowsOllamaReasoner.cs;
                       ..\..\src\Kora.Windows\Dependencies\LocalInferenceDependencyProbe.cs;
+                      ..\..\src\Kora.Windows\Dependencies\OllamaModelIdentity.cs;
+                      ..\..\src\Kora.Windows\Dependencies\OllamaInstallationStatus.cs;
+                      ..\..\src\Kora.Windows\Dependencies\OllamaInstallationState.cs;
                       ..\..\src\Kora.Windows\Dependencies\WindowsOllamaSetupService.cs;
                       ..\..\src\Kora.Windows\Dependencies\IOllamaProcessRunner.cs;
                       ..\..\src\Kora.Windows\Dependencies\OllamaProcessRunner.cs"

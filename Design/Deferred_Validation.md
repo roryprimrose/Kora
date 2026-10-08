@@ -378,6 +378,25 @@ context envelope, repeated LI05 race/computation-cessation timing, LI06
 independent offline capture, installer provisioning or final LI07 disposition.
 The local-inference proof therefore remains required.
 
+The experiment now has an [operator-approved automated runner](../experiments/r02-local-inference-proof/README.md#automated-operator-approved-qualification)
+for paired streamed/buffered CPU-only trials, maximum timing comparisons,
+repeated client cancellation/recovery and incremental receipts. A changed
+runtime needs an explicit, separately labelled comparison; production pins
+remain unchanged. Automation leaves human scoring, resource-budget approval,
+exact context accounting, server cessation/actual timeout, full licence/staging
+inventory, physical-floor support, independent offline proof and admitted-host
+repeat open. Deterministic-only mode neither observes nor generates at the
+endpoint; its native positive control observes only the self-test process.
+Future live invocations also require an explicitly selected server PID, pinned
+process creation identity and revalidated loopback listener. The observer follows
+sampled descendants across native-runner names and discloses snapshot/identity
+gaps; this is not complete lifecycle, per-request attribution or cessation proof
+and does not repair earlier name-only resource receipts. Scoped residency/
+exclusive-use consent remains required.
+An optional two-request native-observer positive control uses an empty runtime,
+records matched buffered/streamed signals and confirms owned-model cleanup; it
+does not replace the repeated trials or close any qualification gate.
+
 The proof code is retained only while it owns evidence that has not yet moved
 to the production implementation:
 

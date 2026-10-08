@@ -6,7 +6,8 @@ using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.Configuration;
 
-internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore, IHostTaskStore
+internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore,
+    IDiagnosticRetentionSessionStore, IHostTaskStore
 {
     public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
         CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -21,6 +22,10 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
     internal bool FailTerminal { get; set; }
     internal Action<HostTaskRecord>? BeforeCommit { get; set; }
     internal HostRequest? LastRequest { get; private set; }
+    public ValueTask<WorkSessionAuthorization> CreateDiagnosticRetentionSessionAsync(HostRequest request,
+        Func<bool> admitted, CancellationToken cancellationToken) => CreateAudioControlSessionAsync(request, admitted, cancellationToken);
+    public ValueTask<T> WithDiagnosticRetentionSessionAsync<T>(HostRequest request, HostRevision generation,
+        Func<T> operation, CancellationToken cancellationToken) => WithAudioControlSessionAsync(request, generation, operation, cancellationToken);
 
     public ValueTask<WorkSessionAuthorization> CreateMaintenanceControlSessionAsync(HostRequest request,
         Func<bool> admitted, CancellationToken cancellationToken) => CreateAudioControlSessionAsync(request, admitted, cancellationToken);

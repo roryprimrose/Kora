@@ -24,6 +24,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IAudioControlSes
 
     public ValueTask<T> WithAudioControlSessionAsync<T>(HostRequest request, HostRevision generation,
         Func<T> operation, CancellationToken cancellationToken)
+        => WithCurrentControlSessionAsync(request, generation, operation, cancellationToken);
+
+    private ValueTask<T> WithCurrentControlSessionAsync<T>(HostRequest request, HostRevision generation,
+        Func<T> operation, CancellationToken cancellationToken)
     {
         RequireLive(request);
         return new(Task.Run(() => tasks.WithCommittedIntent(request, (connection, _) =>
@@ -32,7 +36,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IAudioControlSes
             var session = RequireSession(connection, request.SessionId).Authority;
             if (!session.IsActive || session.Generation != generation)
             {
-                throw new InvalidOperationException("Audio control session ended or its generation changed.");
+                throw new InvalidOperationException("Control session ended or its generation changed.");
             }
             cancellationToken.ThrowIfCancellationRequested();
             var result = operation();

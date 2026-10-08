@@ -1,3 +1,5 @@
+using Avalonia;
+
 using Kora.Application.ViewModels;
 
 using Microsoft.Extensions.Logging;
@@ -11,6 +13,8 @@ public sealed class SettingsWindowController : IDisposable
     private readonly Action? chooseMicrophone;
     private SettingsWindow? window;
     private bool disposed;
+    private int nativeVisible;
+    private long nativeVisibilityRevision;
 
     public SettingsWindowController(
         MainViewModel viewModel,
@@ -33,12 +37,14 @@ public sealed class SettingsWindowController : IDisposable
         }
 
         disposed = true;
+        BindNativeLifetime(false);
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
         viewModel.ReadinessRequested -= OnReadinessRequested;
         viewModel.VoiceRecoveryRequested -= OnVoiceRecoveryRequested;
         if (window is not null)
         {
+            window.PropertyChanged -= OnWindowPropertyChanged;
             window.Closed -= OnWindowClosed;
             window.Close();
             window = null;
@@ -56,6 +62,7 @@ public sealed class SettingsWindowController : IDisposable
         if (!window.IsVisible)
         {
             window.Show();
+            BindNativeLifetime(window.IsVisible);
         }
 
         window.Activate();
@@ -76,8 +83,26 @@ public sealed class SettingsWindowController : IDisposable
     private SettingsWindow CreateWindow()
     {
         var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone);
+        settingsWindow.PropertyChanged += OnWindowPropertyChanged;
         settingsWindow.Closed += OnWindowClosed;
         return settingsWindow;
+    }
+
+    private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs eventArgs)
+    {
+        if (ReferenceEquals(window, sender) && eventArgs.Property == Visual.IsVisibleProperty)
+        {
+            BindNativeLifetime(window!.IsVisible);
+        }
+    }
+
+    private void BindNativeLifetime(bool visible)
+    {
+        // Storage-thread admission must never read Avalonia properties, and older bindings must not revive on reopen.
+        var revision = Interlocked.Increment(ref nativeVisibilityRevision);
+        Volatile.Write(ref nativeVisible, visible && !disposed ? 1 : 0);
+        viewModel.BindDiagnosticRetentionNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
     }
 
     private void OnWindowClosed(object? sender, EventArgs eventArgs)
@@ -85,7 +110,10 @@ public sealed class SettingsWindowController : IDisposable
         if (ReferenceEquals(window, sender))
         {
             DesktopLog.Debug(logger, "Settings window closed");
+            window!.PropertyChanged -= OnWindowPropertyChanged;
+            window.Closed -= OnWindowClosed;
             window = null;
+            BindNativeLifetime(false);
         }
     }
 }

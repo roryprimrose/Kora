@@ -2,7 +2,7 @@ namespace Kora.Core.Diagnostics;
 
 public sealed class EvidenceRetentionPolicy
 {
-    public const int DiagnosticDays = 30;
+    public const int DiagnosticDays = Kora.Core.Configuration.DiagnosticRetentionDays.DefaultDays;
     public const int DailyFileDays = 30;
     public const int DailyFileCount = 30;
     public const int DefaultAuditDays = 90;

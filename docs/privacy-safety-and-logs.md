@@ -243,6 +243,20 @@ Kora writes structured JSON logs under:
 There is one rolling file per day named `kora-YYYYMMDD.log`. Kora retains up to
 30 days and 30 files.
 
+Independent [SQLite diagnostic retention](settings.md#sqlite-diagnostic-retention)
+is now configurable as canonical integer 1–365 days, default/reset 30, through
+shared native and exact typed/ACTIVATED host admission. It affects only newly
+committed ordinary SQLite logs/spans/owned links. Existing effective deadlines
+never change; apply-now/immediate deletion is unavailable and no set/reset
+starts cleanup. Schema-v2 evolution accepts only exact validated legacy v1
+30-day rows, preserving identities, payloads, trace/reference metadata and due
+times; unknown/corrupt formats fail closed without replacing authority.
+Audit stays default 90 with its existing 30–365 domain; file limits, sessions/
+history, grants/approvals and cleanup triggers are unchanged. Perpetual grants
+are never time-expired/retained/evicted. Ordinary policy corruption/unconfirmed
+writes cannot silently activate defaults: they explicitly report delivery gaps
+through the file/recovery path, independently of mandatory trusted audit.
+
 Logs support diagnostics and future local reasoning, but intentionally omit:
 
 - spoken or typed command text;

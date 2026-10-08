@@ -24,7 +24,7 @@ internal static class NetworkCollection
     internal const int MaximumJsonBytes = 64 * 1024;
     internal const int MaximumXmlBytes = 1024 * 1024;
 
-    internal static void Validate(NetworkRequest request, string temporaryRoot, DateTimeOffset now)
+    internal static void Validate(NetworkRequest request, string evidenceRoot, DateTimeOffset now)
     {
         if (!Guid.TryParseExact(request.RequestId, "N", out _) ||
             !Profiles.Contains(request.Profile, StringComparer.Ordinal) ||
@@ -35,11 +35,11 @@ internal static class NetworkCollection
         string scratch = Path.GetFullPath(request.Scratch);
         string leaf = Path.GetFileName(scratch);
         if (!scratch.Equals(request.Scratch, StringComparison.OrdinalIgnoreCase) ||
-            !Path.GetDirectoryName(scratch)!.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(temporaryRoot)),
+            !Path.GetDirectoryName(scratch)!.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(evidenceRoot)),
                 StringComparison.OrdinalIgnoreCase) ||
             !leaf.StartsWith("kora.r02.", StringComparison.Ordinal) ||
             !Guid.TryParseExact(leaf["kora.r02.".Length..], "N", out _))
-            throw new InvalidDataException("Collection must target the exact owned temporary proof tree.");
+            throw new InvalidDataException("Collection must target the exact owned proof tree within this evidence directory.");
         if (request.StartedUtc.Offset != TimeSpan.Zero || request.EndedUtc.Offset != TimeSpan.Zero ||
             request.EndedUtc < request.StartedUtc || request.EndedUtc > now ||
             now - request.StartedUtc >= RequestAgeLimit)

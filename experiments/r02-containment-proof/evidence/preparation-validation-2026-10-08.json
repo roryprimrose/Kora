@@ -1,0 +1,47 @@
+{
+  "preparationOnly": true,
+  "totalSyntheticTests": 97,
+  "passedSyntheticTests": 97,
+  "failedSyntheticTests": 0,
+  "deterministicSelfTestAssertions": 5,
+  "noEffectRejectionSmokes": 4,
+  "releaseBuildWarnings": 0,
+  "releaseBuildErrors": 0,
+  "testPins": [
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\W2Tests.csproj",
+      "sha256": "6739ED53748922EA7871898B2E359A8FE6BA66DDE5B1879E3D8A3F1C846AB557"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\packages.lock.json",
+      "sha256": "34CE72D51A6D6613C080050CC8AB074D2CCC8CD8C542208AC15D4B699EF1624C"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\AdmissionTests.cs",
+      "sha256": "6BCC64E0ADCD610FF94C5E3E7331ED38E8CBCB94D1593B67BB443AD80702DA2B"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\NetworkCollectionTests.cs",
+      "sha256": "506CCF6433A2B0926D843F3DF33A6C2770410F72F30579BDD09A085D783DD4FE"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\InvocationPolicyTests.cs",
+      "sha256": "B32D1AF0C7955F273B28410D18C42C4248863FED03ABE58EF2E54625CA659F8C"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\DescendantObservationsTests.cs",
+      "sha256": "3BF201634A9BD14ACB62A76994AD792E627A573F34FA2550AAB6FC0D44E21A09"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\bin\\Release\\net10.0-windows\\W2Tests.dll",
+      "sha256": "1A2BD79DFBC75B220F99BDAC112F54CF1950B603A9C7EE5677EFD5B0A8A70532"
+    },
+    {
+      "name": "Directory.Packages.props",
+      "sha256": "8CA08C666D0539B4B27FC63B241887211CA0D16045E89E5E20EC9306479072C9"
+    }
+  ],
+  "liveTrialsPerformed": false,
+  "productionProfileCertified": false,
+  "networkAttribution": "Unproven"
+}

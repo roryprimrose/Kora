@@ -71,6 +71,32 @@ distribution entry records published proof/design coordination, not a claim
 of production installer acceptance. Preserve both distribution and
 containment roadmap plans when integrating that branch.
 
+### 2026-10-08 W1 File-Only Preparation
+
+The [W1 safe preparation and consent boundary](../experiments/r02-containment-proof/README.md#w1-safe-preparation-and-consent-boundary-2026-10-08)
+adds a file-only runner mode, explicit independent live-effects consent and
+evidence-local owned scratch/request binding. Two focused Release builds passed
+without warnings/errors, 97/97 synthetic xUnit cases and five deterministic
+self-tests passed, and four no-effect CLI/runner rejection smokes passed.
+Fresh-worktree assets were missing; focused locked restores were performed
+only after those build failures. No compiler/runtime installation, AppContainer
+profile or credential creation, local-network trial, elevated query, protected
+root change or disruptive control was performed.
+Receipt-only child PIDs cannot authorize termination: unmatched/invalid reports
+leave tracked shutdown unproven instead of risking an unrelated reused PID.
+
+Windows x64 build 26300 is the observed developer OS, not a selected supported
+reference build. Next resolve that reference machine/build and obtain exact
+scoped consent, or choose developer-only diagnostic triage, or stop. The
+prepared user-filter comparison retains the 24 fixed IPv4/TCP metadata queries,
+positive-control and cleanup contracts; it enables no tracing or policy change.
+The new scratch layout needs fresh live positive controls. Event schema,
+blocking filter/layer and process/token attribution, IPv6/UDP/DNS and descendant
+network coverage are still unqualified. Historical 63/71 OS assertions and
+eight unproven denials are unchanged; W1/D-013 remain open for affected
+worker/script/protected-control capabilities and release manifests including
+them, not unrelated read-only/package/UI/session work.
+
 ### 2026-10-08 Local-Only Speech and Deployment Outcomes
 
 **Disposition: historical negative or partial evidence, not new trials or

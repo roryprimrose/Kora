@@ -9,6 +9,43 @@
     "dependencyPreparation": "Locked .NET restore from existing local NuGet cache only; NuGet audit network lookup disabled",
     "toolsOrModelsInstalledOrDownloaded": false
   },
+  "publishedPackageMetadata": {
+    "tag": "v0.1.0-beta94",
+    "publishedAt": "2026-10-08T12:01:55Z",
+    "releaseUrl": "https://github.com/roryprimrose/Kora/releases/tag/v0.1.0-beta94",
+    "observation": "GitHub release metadata only; no asset download, archive inspection, installation or execution",
+    "assetCount": 9,
+    "executablePackages": [
+      {
+        "name": "Kora-0.1.0-beta94-win-x64.msi",
+        "bytes": 114483200,
+        "publisherDigest": "sha256:461de316803eac55695191919cd4a674628561faae2811a65d69eb229c2496db"
+      },
+      {
+        "name": "Kora-0.1.0-beta94-win-x64.zip",
+        "bytes": 127287081,
+        "publisherDigest": "sha256:8a945283e97c90c5f84f5c0ed0ba13fd861b763c7fccd05f67ea30da4d98df11"
+      },
+      {
+        "name": "Kora-0.1.0-beta94-win-x86.zip",
+        "bytes": 120299133,
+        "publisherDigest": "sha256:10096b2f4bcfb0c064d4d8b23b3be09e6dbba48228bd82c46c776d247418e39c"
+      },
+      {
+        "name": "Kora-Setup-0.1.0-beta94-win-x64.exe",
+        "bytes": 271391303,
+        "publisherDigest": "sha256:7f9070b515a8d661f3f3c1d371ab5095a043767e67504acae3f8f783958695c0"
+      }
+    ],
+    "otherAssetNames": [
+      "installer-build.json",
+      "Kora-0.1.0-beta94-source-tools.zip",
+      "payload-manifest.json",
+      "release-manifest.json",
+      "SHA256SUMS.txt"
+    ],
+    "binaryContentsOrInstalledLoadingQualified": false
+  },
   "checks": [
     {
       "name": "Python source compilation",
@@ -33,12 +70,13 @@
     },
     {
       "name": "Windows capture and observer regressions",
-      "command": "dotnet test --project .\\tests\\Kora.Windows.IntegrationTests\\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build -- --filter-class '*ActivatedVoiceRecognitionTests' --filter-class '*VoiceRecognitionShutdownTests' --filter-class '*WindowsPrivacyObservationServiceTests'",
+      "command": "dotnet run --project .\\tests\\Kora.Windows.IntegrationTests\\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build -- -class '*ActivatedVoiceRecognitionTests' -class '*VoiceRecognitionShutdownTests' -class '*WindowsPrivacyObservationServiceTests' -noLogo",
       "result": "Passed",
       "tests": 82,
       "failures": 0,
       "skipped": 0,
-      "boundary": "Fake native capture factories and privacy sources; no physical capture or playback"
+      "boundary": "Fake native capture factories and privacy sources; no physical capture or playback",
+      "runnerNote": "Initial dotnet test/MTP run passed 82; later MTP invocations were rejected before tests. Post-rebase existing in-process xUnit execution passed all 82; no runner configuration changed"
     },
     {
       "name": "Canonical Core privacy receipt contract",

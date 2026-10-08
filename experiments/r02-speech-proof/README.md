@@ -418,6 +418,19 @@ acceptance.
 | This isolated worktree | Existing CPython 3.12.10 via `py -3.12`, .NET SDK 10.0.401; stdlib receipt tests and cached locked .NET restore/build | No experiment `.venv`, assets or fixtures; existing Python lacks numpy/sherpa-onnx/psutil. Original 15-test/threshold sweep not rerun; do not install/download to turn these into invented results |
 | Live rig | No physical-console operator, participant/bystander consent, selected endpoint/routing, reference-floor owner or installed-build identity verified | **No valid live R02 environment exists in the supplied evidence.** Do not infer unlocked/local eligibility from this coding session |
 
+Published-package **metadata only**, observed 2026-10-08: the newest listed
+non-draft prerelease was
+[`v0.1.0-beta94`](https://github.com/roryprimrose/Kora/releases/tag/v0.1.0-beta94),
+published `2026-10-08T12:01:55Z`. Its nine assets are the x64 MSI, x64/x86
+portable ZIPs, x64 setup EXE, source-tools ZIP, `installer-build.json`,
+`payload-manifest.json`, `release-manifest.json` and `SHA256SUMS.txt`.
+GitHub-provided sizes/digests for the executable packages are retained in the
+readiness receipt. No asset was downloaded, installed or executed and no
+installed user assets were inspected. Names/publisher digests do not prove
+archive contents, loading, redistribution clearance, provenance equivalence
+to a later build or acoustic qualification; no standalone wake model appears
+in this release's asset list.
+
 The smallest added instrumentation is [privacy_receipts.py](privacy_receipts.py):
 a **read-only, stdlib-only receipt inspector** for an explicitly selected copy
 of existing production daily JSONL. It never discovers user log directories,

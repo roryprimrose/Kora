@@ -237,7 +237,8 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
                 new AssemblyApplicationInfo(), new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance),
                 () => session.Access.Open, NullLogger<QuestionWindowController>.Instance));
             controllers.Add(new SkillPackagesWindowController(session.Main, () => session.Access.Open,
-                NullLogger<SkillPackagesWindowController>.Instance, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance)));
+                NullLogger<SkillPackagesWindowController>.Instance, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance),
+                session.SharedSkills, NullLogger<SharedSkillSourcesWindowController>.Instance));
             var evidence = new EvidenceWindowController(session.Main, session.Evidence, session.Access, NullLogger<EvidenceViewModel>.Instance);
             evidence.Bind();
             controllers.Add(evidence);
@@ -317,6 +318,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         status.Text = "Stopping fixture: closing private windows and awaiting pending operations.";
         ClearPrivateWindows();
         await Task.WhenAll(pending.ToArray());
+        await session.SharedAdmission.DisposeAsync();
         Dispose();
         canClose = true;
         desktop.Shutdown(failed ? 1 : 0);

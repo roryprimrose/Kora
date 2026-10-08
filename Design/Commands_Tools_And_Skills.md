@@ -2,6 +2,16 @@
 
 Status: proposed interaction contract, not a shipped tool loop or skill runner.
 
+R21 now provides a native host-only explicit shared-profile registration/list/
+inspect/recheck route. Its strict versioned instruction reader retains exact
+source-qualified immutable snapshots and truthful incompatible/unavailable
+reasons. It is **not** a `skills.*` tool, slash artifact route, model catalogue,
+enablement or runner. Ambient personal skill folders no longer feed the startup
+artifact-to-model catalogue. Registration grants only the selected bounded
+local read; no model exposure, source edits, dependency installation, execution,
+egress, approval or bundled trust. See
+[Skill Storage](Skill_Storage.md#delivered-bounded-r21-native-inspection).
+
 The bounded R06 host foundation now composes six direct read-only handlers over
 the [authoritative descriptor catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs):
 `capabilities.list/get`, `application.get_version`, `readiness.get`,

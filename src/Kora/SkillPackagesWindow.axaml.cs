@@ -15,11 +15,13 @@ public sealed partial class SkillPackagesWindow : Window
 
     public SkillPackagesWindow() => throw new InvalidOperationException("Use the host-owned immutable skill inspection route.");
 
-    internal SkillPackagesWindow(SkillPackageCatalogue catalogue, NativeDetailRenderer renderer)
+    internal SkillPackagesWindow(SkillPackageCatalogue catalogue, NativeDetailRenderer renderer, Action? sharedSources = null)
     {
         this.catalogue = catalogue;
         this.renderer = renderer;
         AvaloniaXamlLoader.Load(this);
+        this.FindControl<Button>("SharedSources")!.Click += (_, _) => sharedSources?.Invoke();
+        this.FindControl<Button>("SharedSources")!.IsEnabled = sharedSources is not null;
         var selector = this.FindControl<ComboBox>("PackageSelector")!;
         selector.ItemsSource = catalogue.Packages.Select(package =>
             $"{package.Manifest.Name} ({package.Manifest.Id}) - unavailable").ToArray();

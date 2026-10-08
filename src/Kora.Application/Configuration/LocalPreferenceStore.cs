@@ -11,12 +11,20 @@ internal sealed class LocalPreferenceStore(IApplicationDataPaths paths) : IPrefe
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public string? ReadText(string fileName)
+        => ReadText(fileName, int.MaxValue);
+
+    public string? ReadText(string fileName, int maximumBytes)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
         var path = GetPath(fileName);
         try
         {
             if (!File.Exists(path)) { return null; }
-            var bytes = File.ReadAllBytes(path);
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (stream.Length > maximumBytes)
+            { throw new InvalidDataException("The saved preference exceeds its byte limit."); }
+            var bytes = new byte[checked((int)stream.Length)];
+            stream.ReadExactly(bytes);
             var prefix = bytes.AsSpan().StartsWith(Encoding.UTF8.Preamble) ? Encoding.UTF8.Preamble.Length : 0;
             return StrictUtf8.GetString(bytes.AsSpan(prefix));
         }

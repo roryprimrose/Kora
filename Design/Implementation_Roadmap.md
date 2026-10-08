@@ -157,6 +157,11 @@ file/lexical/native-authority tests preceded the full gate. Bounds include
 exact maximum query/output bytes and a maximum-size source with 87,382
 matching paragraphs, while only eight candidates are retained. Unicode
 astral-letter/emoji/punctuation chunk boundaries are tested separately.
+After #107 advanced main, the documentation-only rebase preserves its complete
+provider/memory/knowledge staged strategy and #111's inference boundary.
+Production/test trees are byte-identical to the full validation snapshot;
+root Release, all portable suites/100% coverage and 14/14 Windows file
+integration tests passed again on the rebased head.
 
 ### R10/R15 bounded device-local in-call feedback - 2026-10-08
 

@@ -2595,6 +2595,25 @@ Latest-only portable coverage is exactly **100% line and branch**, raw rates
 thresholds/exclusions and no analyzer suppressions. Current-head remote CI and
 actual merge remain publication gates; these receipts are not broader acceptance.
 
+The branch then rebased actual merged #91, `bf307a004b8ef250bd794faca4360b37aef026a6`.
+Manual control now uses its common original-input/committed-intent
+`HostControlAdmission`, rather than a duplicate admission pipeline; the manual,
+audio and diagnostic-retention session actions remain distinct. Its synchronous
+consumers retain their domains, while the manual callback awaits audited
+retirement on the same shared lease. Both native lifetimes share UI-observed
+visibility invalidation without reading Avalonia properties on storage workers.
+Schema-2 public/private evidence validation, future-only ordinary SQLite
+retention (1–365/default 30), immutable prior deadlines and audit/file/session/
+chat/grant rules remain unchanged.
+
+Fresh rebased root no-restore Release again has **zero warnings/errors**.
+Core **732**, Application **2,210**, Tools **38**, Definitions **6**, Windows
+**989** all pass with zero failures/skips. Latest-only portable coverage is
+exactly **100% line and branch**, raw rates **1 / 1**, **11,830 / 11,830 lines**
+and **6,572 / 6,572 branches**, with unchanged thresholds/exclusions. Stopped
+activities retained in another asynchronous flow and attempted reinstallation
+cannot restore control authority. No live effects or acceptance are inferred.
+
 No automatic detector, persistent call state, relaxation review, speak-once,
 model tool, saved-default change, output mode/volume, microphone/consent/privacy
 change, new audio/capture or grant-record mutation is delivered. The existing

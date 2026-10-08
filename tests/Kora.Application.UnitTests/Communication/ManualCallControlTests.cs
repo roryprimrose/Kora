@@ -93,6 +93,7 @@ public sealed class ManualCallControlTests : IDisposable
     [InlineData("generation")]
     [InlineData("context")]
     [InlineData("stopped")]
+    [InlineData("reinstalled-stopped")]
     [InlineData("owner")]
     [InlineData("cancel")]
     public async Task Required_audit_generation_owner_cancellation_and_lost_receipts_do_not_retry_or_claim_rollback(string failure)
@@ -121,6 +122,12 @@ public sealed class ManualCallControlTests : IDisposable
             if (failure is "generation") { store.Authority = store.Authority! with { Generation = new(2) }; }
             if (failure is "context") { store.ForeignManualContext = true; }
             if (failure is "stopped") { HostActivity.RequireCurrent().Activity!.Stop(); }
+            if (failure is "reinstalled-stopped")
+            {
+                var stopped = HostActivity.RequireCurrent().Activity!;
+                stopped.Stop();
+                Activity.Current = stopped;
+            }
             if (failure is "owner") { eligible = false; }
             if (failure is "cancel") { cancellation.Cancel(); }
             if (failure is "receipt") { store.FailTerminal = true; }

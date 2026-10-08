@@ -14,7 +14,7 @@ public sealed class AudioControlAdmission(
         HostRequest request, Func<bool> eligible, CancellationToken token) =>
         sessions.CreateAudioControlSessionAsync(request, eligible, token);
 
-    protected override ValueTask<T> WithSessionAsync<T>(HostRequest request, HostRevision generation,
-        Func<T> operation, CancellationToken token) =>
-        sessions.WithAudioControlSessionAsync(request, generation, operation, token);
+    public Task<T> RunAsync<T>(RequestOrigin origin, Func<bool> eligible,
+        Func<HostRequest, WorkSessionAuthorization, T> operation, CancellationToken token) =>
+        RunSynchronousAsync(origin, eligible, operation, sessions.WithAudioControlSessionAsync, token);
 }

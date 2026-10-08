@@ -81,7 +81,10 @@ approval, unrelated activity, speech or automatic evidence. Mutation refuses
 pending questions/approvals and preserves complete required visual content.
 
 [ManualCallControl](../src/Kora.Application/Communication/ManualCallControl.cs)
-delegates to a dedicated [host-only storage seam](../src/Kora.Core/Storage/IManualCallControlStore.cs),
+reuses the common original-input/committed-intent
+[HostControlAdmission](../src/Kora.Application/Hosting/HostControlAdmission.cs)
+with its own session domain, and delegates to a dedicated
+[host-only storage seam](../src/Kora.Core/Storage/IManualCallControlStore.cs),
 not fabricated audio/maintenance authority. The host allocates original-user
 control identity, commits intent, and revalidates current session generation,
 own live context, original channel, observation revision and captured native

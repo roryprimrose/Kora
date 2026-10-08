@@ -118,4 +118,49 @@ public sealed class AudioControlAdmissionTests : IDisposable
         await run.Should().ThrowAsync<InvalidOperationException>();
         store.Tasks.Should().ContainSingle();
     }
+
+    [Fact]
+    public async Task Reinstalling_a_stopped_activity_after_store_entry_cannot_restore_live_control_context()
+    {
+        var store = new AudioControlTestStore();
+        await using var admission = new AudioControlAdmission(store, store, new(store));
+        var entered = false;
+        var effects = 0;
+        store.BeforeOperation = () => entered = true;
+        bool Eligible()
+        {
+            if (entered)
+            {
+                var activity = HostActivity.RequireCurrent().Activity!;
+                activity.Stop();
+                Activity.Current = activity;
+                activity.IsStopped.Should().BeTrue();
+                Activity.Current.Should().BeNull();
+            }
+            return true;
+        }
+        var run = () => admission.RunAsync(RequestOrigin.LocalUi, Eligible, (_, _) => ++effects, CancellationToken.None);
+        await run.Should().ThrowAsync<InvalidOperationException>();
+        effects.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_stopped_activity_retained_by_another_async_flow_is_not_live_control_context()
+    {
+        var store = new AudioControlTestStore();
+        await using var probe = new ContextProbe(store);
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        await Task.Run(() => host.Activity!.Stop(), TestContext.Current.CancellationToken);
+        Activity.Current.Should().BeSameAs(host.Activity);
+        probe.Owns(request).Should().BeFalse();
+    }
+
+    private sealed class ContextProbe(AudioControlTestStore store) : HostControlAdmission(store, new(store))
+    {
+        internal bool Owns(HostRequest request) => OwnsLiveContext(request);
+        protected override ValueTask<WorkSessionAuthorization> CreateSessionAsync(
+            HostRequest request, Func<bool> eligible, CancellationToken token) =>
+            store.CreateAudioControlSessionAsync(request, eligible, token);
+    }
 }

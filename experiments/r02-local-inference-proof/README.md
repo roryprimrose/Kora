@@ -31,6 +31,8 @@ The [project](Proof.csproj) source-links the actual
 [setup pins](../../src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs)
 and their small BCL-only domain dependencies. The setup/process implementation
 is compiled for pin fidelity but never instantiated or invoked.
+Command source links explicitly include only the reasoner's catalogue, router
+and response contracts, not unrelated session/task orchestration.
 It does not copy a different interpretation of the production response parser.
 
 Inspection of [composition](../../src/Kora/Program.cs) confirms disabled

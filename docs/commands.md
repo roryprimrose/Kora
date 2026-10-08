@@ -955,17 +955,53 @@ requests.
 
 **Where disk artifacts are loaded from**
 
-Kora loads compatible files at startup from its roaming `Skills`,
-`Instructions`, and `Prompts` folders, recognized personal skill folders
-under `.copilot`, `.agents`, and `.claude`, and the VS Code or VS Code Insiders
-user prompts folder. It does not scan the rest of your profile or follow
-reparse points.
+Kora loads compatible files at startup from its own roaming `Skills`,
+`Instructions`, and `Prompts` folders and the existing VS Code or VS Code
+Insiders prompt/instruction locations. Personal skill roots under `.copilot`,
+`.agents`, `.claude`, or another selected profile folder **are not loaded into
+the model or artifact command catalogue**. Use the separate read-only native
+inspection below. A shared root registration does not authorize any existing
+prompt/instruction route.
 
 Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
 `*.instructions.md`. Files require bounded UTF-8 content and YAML frontmatter.
 Skills marked `user-invocable: false` do not appear. Conflicting command names,
 IDs, or spoken names fail closed instead of choosing one source silently.
 Restart Kora after adding or changing an artifact.
+
+### Inspect shared profile skills locally
+
+Open the tray **Skill packages**, then **Shared profile sources (read only)**.
+Choose **Choose and register profile root (read only)** and select an exact
+bounded local directory below your Windows profile, such as `.agents\skills`.
+Kora resolves the profile through Windows Known Folder APIs, not environment
+variables or a typed/model-supplied profile override. It never scans the whole
+profile. Select a registered root and choose **List selected source**.
+
+Review every compatible or unavailable package with its source ID/file,
+declared name/version, exact SHA-256 byte digest, immutable inert SKILL.md text,
+tool references, additional uninspected entries and reasons.
+**Recheck selected revision** labels a changed live revision stale without
+changing the displayed old snapshot; list again for a new review.
+
+The narrow reader requires flat YAML `name`, `version` (for example `1.0.0`)
+and `description`. Unsupported metadata/YAML, scripts or extra package files,
+executable/unknown fenced code and unresolved references remain unavailable,
+not silently omitted. Invalid UTF-8 is unavailable without lossy conversion.
+Limits are four roots, 32 packages/256 entries/four directory levels per source,
+64 KiB per SKILL.md and 1 MiB instruction bytes per source. Links/reparse points,
+hard links, path escapes and removed/replaced/busy sources fail closed.
+
+Registration persists only root consent and directory identity in device-local
+atomic preferences. Corrupt/unknown saved registrations block discovery; restore
+a verified registration file or the original source explicitly. No silent reset,
+repair or rebinding occurs. Closing privacy cancels reads and clears the view.
+
+**Enable, disable, invoke, Kora-specific authoring and model exposure are
+unavailable here.** Registration/review grants no execution, egress, approval
+or bundled trust; Kora never writes the shared source, fetches references,
+installs dependencies or executes its scripts. This is not a harmlessness or
+complete dependency-inventory certification.
 
 **What “run” means**
 

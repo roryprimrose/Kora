@@ -37,16 +37,12 @@ public sealed class WindowsDiskArtifactDiscovery
     private static IReadOnlyList<ArtifactRoot> CreateRoots(IApplicationDataPaths paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         return
         [
             new(Path.Combine(paths.RoamingRoot, "Skills"), ArtifactKind.Skill, "kora-profile", "SKILL.md", 3),
             new(Path.Combine(paths.RoamingRoot, "Instructions"), ArtifactKind.Instruction, "kora-profile", "*.instructions.md", 0),
             new(Path.Combine(paths.RoamingRoot, "Prompts"), ArtifactKind.Prompt, "kora-profile", "*.prompt.md", 0),
-            new(Path.Combine(profile, ".copilot", "skills"), ArtifactKind.Skill, "copilot-profile", "SKILL.md", 1),
-            new(Path.Combine(profile, ".agents", "skills"), ArtifactKind.Skill, "agents-profile", "SKILL.md", 1),
-            new(Path.Combine(profile, ".claude", "skills"), ArtifactKind.Skill, "claude-profile", "SKILL.md", 1),
             new(Path.Combine(roaming, "Code", "User", "prompts"), ArtifactKind.Prompt, "vscode-profile", "*.prompt.md", 0),
             new(Path.Combine(roaming, "Code", "User", "prompts"), ArtifactKind.Instruction, "vscode-profile", "*.instructions.md", 0),
             new(Path.Combine(roaming, "Code", "User", "profiles"), ArtifactKind.Prompt, "vscode-profile", "*.prompt.md", 2),

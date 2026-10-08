@@ -91,7 +91,10 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 9);
+        sections.Should().HaveCount(commands.Count + 10);
+        var sharedSkills = sections.Single(section => section.StartsWith("Inspect shared profile skills locally", StringComparison.Ordinal));
+        sharedSkills.Should().Contain("immutable").And.Contain("model exposure")
+            .And.Contain("unavailable").And.Contain("removed/replaced/busy sources fail closed");
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -175,6 +178,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, responseMode)
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
+        sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

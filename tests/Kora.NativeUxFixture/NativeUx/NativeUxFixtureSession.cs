@@ -11,6 +11,7 @@ using Kora.Application.Documentation;
 using Kora.Application.Hosting;
 using Kora.Application.Interaction;
 using Kora.Application.Maintenance;
+using Kora.Application.Skills;
 using Kora.Application.Tools;
 using Kora.Application.ViewModels;
 using Kora.Core.Artifacts;
@@ -22,6 +23,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Maintenance;
+using Kora.Core.Skills;
 using Kora.Tools.Clipboard;
 using Kora.Tools.Runtime;
 using Kora.Windows.Storage;
@@ -69,6 +71,9 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
             VersionQuery = new(new(Tasks), Audit, Loggers.CreateLogger<DurableVersionQuery>());
             Evidence = new(new WindowsSqliteEvidenceReader(sink), Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
             Sessions = new(Interactions, new(Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
+            SharedAdmission = new(Interactions, Interactions, new(Tasks));
+            SharedSkills = new(new(this), new DeniedSharedSkillReader(), SharedAdmission, Audit,
+                NullLogger<SharedSkillDiscoveryService>.Instance);
         }
         catch
         {
@@ -91,6 +96,16 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
     internal DurableVersionQuery VersionQuery { get; }
     internal DurableEvidenceQuery Evidence { get; }
     internal SessionWorkspaceService Sessions { get; }
+    internal SharedSkillAdmission SharedAdmission { get; }
+    internal SharedSkillDiscoveryService SharedSkills { get; }
+
+    private sealed class DeniedSharedSkillReader : ISharedSkillSourceReader
+    {
+        public ValueTask<SharedSkillSource> SelectAsync(string selectedRoot, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("The native UX fixture does not admit real profile sources.");
+        public ValueTask<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("The native UX fixture does not read real profile packages.");
+    }
     internal WorkSessionAuthorization? LifecycleTarget { get; private set; }
     internal HostQuestionRecord? RevisionQuestion { get; private set; }
     internal MainViewModel Main => main ?? throw new InvalidOperationException("The native fixture has not initialized its presentation state.");

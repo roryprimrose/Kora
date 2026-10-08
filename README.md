@@ -61,6 +61,13 @@ is involved. Folder preview, attachments, knowledge sources, indexing,
 retrieval and grounded reasoning remain unavailable. See
 [file commands](docs/commands.md#explicit-local-file-preview).
 
+**Skill packages > Shared profile sources (read only)** explicitly registers a
+bounded local skill root and provides native list/exact immutable inspection and
+revision recheck. No automatic personal skill scan, model exposure, enablement,
+execution, source writes or authoring is granted. Unsupported packages and
+removed/replaced sources remain visibly unavailable. See
+[shared-profile inspection](docs/commands.md#inspect-shared-profile-skills-locally).
+
 The requirements and commands here describe developer source use. Precompiled
 framework-dependent binary users do not need Git or an SDK; see the
 [distribution/runtime contract](Design/Distribution_And_Updates.md).

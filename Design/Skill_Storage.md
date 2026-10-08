@@ -1,6 +1,7 @@
 # Skill Sources, Profile Reuse, and Roaming Storage
 
-Status: bounded bundled catalogue/inspection delivered; profile reuse and
+Status: bounded bundled catalogue and R21 explicit shared-profile read-only
+inspection delivered. Shared enable/disable/invoke/model exposure and
 Kora-specific authoring remain proposed Slice B/C work.
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
@@ -9,8 +10,8 @@ Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md
 
 | Partition | Location | Kora access |
 |---|---|---|
-| Bundled | Embedded resources in the first-party `Kora.Application` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
-| Shared profile | User-approved skill roots already in the profile | Read-only discovery and explicitly enabled compatible revisions |
+| Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
+| Shared profile | User-selected registered roots below the Windows profile known folder | Current R21: bounded local discovery and exact immutable inspection only. No enablement, invocation, execution or model exposure. |
 | Kora-specific | `%APPDATA%\Kora\Skills` | Create/update validated declarative skills through the authoring writer |
 
 Resolve Roaming AppData and the user profile through Windows Known Folder APIs, not model-provided paths or hard-coded user names.
@@ -39,6 +40,94 @@ Permission/enablement records, source registrations, machine-specific tool confi
 Credentials remain in the protected credential facility, never either skill partition.
 
 ## Shared Profile Discovery
+
+### Delivered bounded R21 native inspection
+
+The tray **Skill packages > Shared profile sources (read only)** is a separate
+host-only route, not a model tool, slash artifact, import or executable loader.
+Opening it loads only registrations. **Choose and register profile root**
+explicitly selects one exact local folder through the native folder picker;
+**List selected source** performs the bounded read. There is no automatic
+profile skill-root scan or candidate probing. The prior ambient
+`.copilot/.agents/.claude` skill-to-model startup discovery is removed.
+Existing Kora-owned artifact and VS Code prompt/instruction routes are not
+expanded or authorized by a shared source registration.
+
+`ISharedSkillSourceReader` is the Core platform seam.
+`WindowsProfileSkillReader` resolves the Windows profile with
+`SHGetKnownFolderPath(FOLDERID_Profile)`; no user name, environment override,
+model path or portable-layer Windows API selects it. A root must be a local
+drive directory at least two and at most eight unaliased segments below that
+profile. UNC/device/traversal/ADS paths and non-fixed/remote volumes are rejected
+before opening source handles. All ancestors and discovered
+entries are pinned by read handles without write/delete sharing; reparse points,
+hard links, changed entry types and final-path aliases fail closed.
+The registration pins a volume/file directory identity: removal, replacement or
+lost access is unavailable, never silently rebound.
+
+Limits per source: **32 SKILL.md packages, 256 total filesystem entries,
+four descendant directory levels, 64 KiB per instruction file and 1 MiB total
+instruction bytes**. At most four roots are registered. Exceeding a limit or
+losing an inventory entry rejects that discovery, not a partially successful
+catalogue. Only exact instruction-file contents are read; additional entries
+are named but their contents are not read. Scripts, references, dependencies,
+package installers and external files are never executed, fetched or loaded.
+
+The versioned `skill-md-instructions-v1` reader accepts a deliberately narrow
+flat YAML subset between exact `---` lines, at most 24 header lines and 4 KiB
+UTF-8 front matter. Required `name` is canonical lowercase ASCII kebab case
+(64 characters), `version` is three canonical numeric components, and
+`description` is nonempty bounded text (1,024 characters).
+Optional `allowed-tools` preserves up to 16 canonical tool IDs; this reader
+admits no runtime dependencies, so any declared tool remains unavailable.
+Plain and simple single/double-quoted scalar text is supported; no escapes,
+implicit object types, tags, anchors, aliases, nesting, block scalars, unknown
+metadata or duplicate keys are accepted as compatible. Missing or malformed
+required metadata remains a visible incompatible row, not a hidden package.
+
+Markdown is bounded untrusted inert source, not rich HTML or interpreted
+instructions. Script/executable file references, non-text/unknown fenced code,
+links/reference syntax and active markup conservatively disclose incompatibility
+or unresolved references. Additional package entries are explicitly uninspected
+and incompatible. This is **structural instruction-only compatibility**, not a
+claim of semantic harmlessness or complete dependency discovery.
+No instruction, metadata field or successful review acquires host authority.
+
+Native review retains exact immutable original bytes, strict UTF-8 text
+(including BOM/line endings), source ID/relative file, declared name/version,
+reader version and SHA-256 of the exact SKILL.md bytes.
+The digest does not claim to hash uninspected scripts or a dependency closure.
+Invalid UTF-8 or unsafe control/directional-format text has no lossy/native
+text projection; the unavailable row retains the byte digest and displays
+the exact original bytes as bounded hexadecimal. Invalid required metadata
+never becomes a normalized identity. Duplicate/case-aliased name/version identities are visible but
+unavailable within each source; distinct sources remain qualified choices.
+**Recheck selected revision** compares live bounded identity/content,
+additional-entry disclosure and compatibility without replacing the old
+snapshot. A stale snapshot is labelled stale; failures clear the view rather
+than silently showing it as current. No content-bearing snapshot is persisted.
+
+Registration is a validated versioned JSON preference under device-local
+`IApplicationDataPaths`, published only through the shared atomic preference
+store with bounded strict-UTF-8 read and exact read-back. It stores only source
+ID, profile-relative root and directory identity, not content or grants.
+Missing preferences mean no consent; malformed/unknown/duplicate/corrupt state
+blocks all shared reads and registration, without a default/reset fallback.
+Recovery is explicit restoration of a verified registration file or the
+original registered source; automatic deletion, rebinding and preference repair
+are unavailable. Registration is original-native-input, current-host/privacy
+and durable shared-control session/generation admitted, with requested/terminal
+typed audit outcomes. Each local operation records its durable intent/outcome
+and uses the existing host activity parentage. Logs contain bounded counts or
+exception types, never paths, package text, metadata, digest or rendered errors.
+Privacy closure cancels pending reads and destroys native content views.
+
+Enable/disable/invoke, remote transmission/model-context exposure, editing,
+Kora-specific authoring, executable imports and runtime dependency admission
+remain unavailable. The remaining sections describe future work, not powers
+granted by this delivered registration/review slice.
+
+### Future discovery and enablement
 
 Offer user-approved source registrations, not a recursive scan of the entire profile.
 Recognisable candidate locations can be suggested if present, for example `%USERPROFILE%\.agents\skills` or `%USERPROFILE%\.copilot\skills`.
@@ -234,3 +323,13 @@ Roaming/redirected storage may be managed or synchronised externally and can con
 Disclose this during setup; do not store secrets, transcripts, or tool results in skill packages by default.
 Local-only mode must not initiate reads/writes to network-backed roots; show the unavailable storage/source explicitly rather than silently choosing another directory.
 OS-managed synchronisation outside Kora is a separate environment policy and is not guaranteed offline merely by selecting local-only mode.
+
+## Experiment disposition for bounded R21
+
+No experiment implementation, package script or proof dependency was promoted
+to production for this slice. Portable parser/preference/admission tests and
+owned Windows filesystem fixtures prove only the bounded local read boundary.
+Runtime/control/containment experiment witnesses remain retained under their
+existing dispositions; they do not qualify skill execution, egress, model
+selection, installed-source protection or full Slice B/R19 acceptance.
+Executable-profile dependency discovery and authoring remain later gates.

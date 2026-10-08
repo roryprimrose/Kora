@@ -2,6 +2,7 @@ using System.Diagnostics;
 
 using Kora.Definitions.Skills;
 using Kora.Application.ViewModels;
+using Kora.Application.Skills;
 using Microsoft.Extensions.Logging;
 
 namespace Kora;
@@ -14,15 +15,18 @@ internal sealed partial class SkillPackagesWindowController : IDisposable
     private readonly Func<bool> isCurrentHost;
     private readonly ILogger<SkillPackagesWindowController> logger;
     private readonly NativeDetailRenderer renderer;
+    private readonly SharedSkillSourcesWindowController sharedSources;
     private SkillPackagesWindow? window;
 
     internal SkillPackagesWindowController(MainViewModel viewModel, Func<bool> isCurrentHost,
-        ILogger<SkillPackagesWindowController> logger, NativeDetailRenderer renderer)
+        ILogger<SkillPackagesWindowController> logger, NativeDetailRenderer renderer,
+        SharedSkillDiscoveryService discovery, ILogger<SharedSkillSourcesWindowController> sharedLogger)
     {
         this.viewModel = viewModel;
         this.isCurrentHost = isCurrentHost;
         this.logger = logger;
         this.renderer = renderer;
+        sharedSources = new(viewModel, discovery, isCurrentHost, sharedLogger);
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
     }
 
@@ -41,7 +45,7 @@ internal sealed partial class SkillPackagesWindowController : IDisposable
             if (window is null)
             {
                 var catalogue = EmbeddedSkillCatalogue.Load();
-                window = new(catalogue, renderer);
+                window = new(catalogue, renderer, sharedSources.Open);
                 window.Closed += OnClosed;
                 InspectionAdmitted(logger, catalogue.Packages.Count, false);
             }
@@ -62,6 +66,7 @@ internal sealed partial class SkillPackagesWindowController : IDisposable
     public void Dispose()
     {
         viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
+        sharedSources.Dispose();
         Close();
     }
 

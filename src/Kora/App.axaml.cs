@@ -99,7 +99,9 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 Services.GetRequiredService<ILogger<SkillPackagesWindowController>>(),
-                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()));
+                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
+                Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
+                Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),

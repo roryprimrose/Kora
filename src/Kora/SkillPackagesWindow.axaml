@@ -10,8 +10,11 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}">
   <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="20" RowSpacing="12">
-    <TextBlock Text="Skill packages - read-only embedded source review"
-               FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <TextBlock Text="Skill packages - read-only embedded source review"
+                 FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <Button x:Name="SharedSources" Content="Shared profile sources (read only)" />
+    </StackPanel>
     <ComboBox x:Name="PackageSelector" Grid.Row="1" HorizontalAlignment="Stretch"
               AutomationProperties.Name="Select an inspection-only bundled skill package" />
     <controls:NamedTextBlock x:Name="PackageIdentity" Grid.Row="2" TextWrapping="Wrap"

@@ -33,7 +33,11 @@ kind-qualified form `/skill <name>`, or activated voice such as
 Typing `/` opens a filtered dropdown composed from the same source-qualified
 catalogue used by routing. It includes bundled artifacts plus compatible
 `SKILL.md`, `.prompt.md`, and `.instructions.md` files from Kora-owned roaming
-folders and recognized user-profile customization folders. Disk definitions
+folders and the existing VS Code prompt/instruction locations. Shared profile
+skills are **not** startup artifacts or model context: register/list/inspect
+them only through **Skill packages > Shared profile sources (read only)**.
+See [the read-only native workflow](commands.md#inspect-shared-profile-skills-locally).
+Disk definitions
 remain untrusted instruction content and do not inherit bundled execution trust.
 In the planned interaction:
 

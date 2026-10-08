@@ -2350,7 +2350,7 @@ receipts do not close that gate or installed/native/durable acceptance.
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
 | R20 - Deliver one admitted read-only MCP integration and bundled integration skill | Outstanding; connector/task choice still open | P2 - first safe external-source value | I: consumed R06/R10/R11 contracts; E: actual connector/profile proof; Q: R19 for RC inclusion, not implementation | Select one supported tool/task; implement host-owned setup/sign-in/credential references, connection lifecycle, capability discovery and exact identity/policy mapping. Pin and enable the bundled read-only skill; enforce bounded provenance, fresh source permission and per-result model egress. Pass a controllable MCP-server suite plus the same tests on the real connector. No arbitrary installation, writes or generic call-anything escape hatch. |
-| R21 - Add explicit shared-source skill discovery and enablement | Only roaming directory foundation I07 | P2 - reuse existing skills safely | I: consumed R05/R06/R10/R11 contracts; E: source/skill profile proof; Q: R19 for RC inclusion, not discovery implementation | Discover explicitly selected profile roots read-only; validate compatibility, source-qualified identity and immutable revision/dependencies. Expose bounded list/inspect/review and separately confirmed enable/disable/invoke with visible unavailable reasons. Copy edits only to the Kora store; never change shared roots, shadow native safety commands or treat imported instructions as authority. Combined R20/R21 evidence closes Slice B. |
+| R21 - Add explicit shared-source skill discovery and enablement | **Bounded read-only registration/list/immutable inspection/recheck delivered**; enable/disable/invoke/model exposure and authoring unavailable | P2 - reuse existing skills safely | I: consumed R05/R06/R10/R11 contracts; E: source/skill profile proof; Q: R19 for RC inclusion, not discovery implementation | Explicit native registration grants only a bounded local read. Known-folder/handle identity, strict versioned YAML/UTF-8, count/depth/byte limits and incompatible/unavailable disclosure are implemented and tested; no ambient personal-skill model ingestion. Remaining separately confirmed enable/disable/invoke and Kora-specific fork/authoring work stays gated. Shared roots are never written or promoted to bundled trust. This slice does not close R20/R21/R23 or full Slice B. |
 | R22 - Deliver voice/UI declarative skill authoring | Outstanding | P2 - create useful workflows without executable imports | R05, R10, R12, R14, R20, R21 | Implement Builder clarification/shared draft, exact diff/capability summary, schema/dependency checks and data-only simulated examples. Stage/save/restore/delete only owned revisions with exact confirmation; save to the Kora user store and confirm enablement separately. Add bounded skill-revision file selection/read, not general filesystem access. Invoke only admitted tools under normal grants/egress; save/tests/enablement confer no execution permission. No compilation, external test/build commands, Git writes or application-code modification. |
 | R23 - Accept Slice B/C and manifest-scoped release regression | Proof outstanding | P0 - integration/authoring must not weaken the core | Q: R19 and enabled R20/R21/R22 scope; complete B/C claims require their full scope | Record applicable connector/account/access-revocation, hostile-source, source-revision, draft/save/enable and simulated-test results. Repeat affected A0-A4/privacy/cancellation/egress/grant tests and update capability/reference/user documentation to exact delivered availability and explicit exclusions. The full initial A/B/C scope is complete only after its gates, not after a catalogue or authoring UI exists; partial manifest-scoped releases must not claim that outcome. |
 
@@ -2900,3 +2900,51 @@ rerun. Acoustic/hardware/provider, actual runtime/worker/containment/late-effect
 storage-engine/encryption/artifact/release/source evidence and consumers remain
 unique; deterministic grammar/policy and standard-SQLite admission/audit
 compositions do not establish full maintained equivalence.
+
+## R21 bounded shared-profile read-only inspection - 2026-10-08
+
+Delivered only explicit native root registration, selected-source bounded
+discovery, exact immutable SKILL.md inspection and stale-revision recheck.
+The Core platform seam resolves the Windows profile through Known Folder APIs;
+the Windows reader pins ancestor/entry handles and directory identity,
+rejecting link/reparse/hard-link/alias/replacement escapes. The strict
+`skill-md-instructions-v1` reader keeps compatible and incompatible packages
+visible under count/depth/byte/UTF-8/header limits, preserves declared tool
+references and discloses uninspected extra files/unresolved executable workflows.
+Names/revisions remain source-qualified; no same-name shadowing occurs.
+
+Registration uses the shared atomic preference store, bounded validated
+versioned read/read-back, independent durable native control admission and
+typed requested/terminal audit. Unknown/corrupt state fails closed without a
+reset or root-rebinding fallback. Logs contain only counts/type codes; views
+are local inert text and close/cancel under privacy. Legacy ambient
+personal-skill startup model ingestion is removed; bundled catalogue bytes and
+existing unrelated prompt/instruction routes remain unchanged.
+
+Mechanism evidence is maintained in
+[portable parser tests](../tests/Kora.Core.UnitTests/Skills/SharedSkillTests.cs),
+[atomic registration tests](../tests/Kora.Application.UnitTests/Configuration/LocalSharedSkillPreferencesTests.cs),
+[session/audit workflow tests](../tests/Kora.Application.UnitTests/Skills/SharedSkillDiscoveryServiceTests.cs)
+and [owned Windows boundary tests](../tests/Kora.Windows.IntegrationTests/Skills/WindowsProfileSkillReaderTests.cs).
+See [the exact scope/limits/recovery](Skill_Storage.md#delivered-bounded-r21-native-inspection)
+and [native user workflow](../docs/commands.md#inspect-shared-profile-skills-locally).
+
+No execution, egress, enable/disable/invoke, dependency installation, source
+editing, model exposure, trust promotion or Kora-specific authoring is admitted.
+R05/R06/R10/R11 are consumed contracts, not a claim those complete road-map
+rows passed. R19 is conditional RC-inclusion qualification, not a prerequisite
+to this local read implementation. Full Slice B/R23, real installed/native/
+accessibility and runtime/security acceptance remain separate evidence gates.
+
+**Experiment disposition:** no experiment code, script, runtime adapter or
+historical proof was promoted or retired. Deterministic parser and owned
+filesystem fixtures are the maintained evidence for this bounded mechanism;
+existing runtime/containment/installed proof witnesses retain their prior
+dispositions and cannot authorize skill execution.
+
+Local validation for this bounded mechanism: locked restore and root Release
+build (zero warnings/errors), all five root test suites (Core 866, Application
+2,494, Tools 38, Definitions 6, Windows 1,129) and the enforced portable
+**100% line / 100% branch** coverage gate. These are deterministic/source
+mechanism results, not real-user/native-accessibility or complete release
+qualification.

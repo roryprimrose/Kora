@@ -2,7 +2,7 @@
 
 Status: partial. Bounded appearance, installed speech choices, assistant display/PTT
 prefix, spoken-summary caps, exact input/output preferences, per-Kora playback
-volume, Windows-provider-native rate, device-default response mode and independent future-only SQLite diagnostic/audit retention are delivered through shared native/
+volume, Windows-provider-native rate, device-default response mode, independent in-call feedback and future-only SQLite diagnostic/audit retention are delivered through shared native/
 exact typed and activated-voice workflows below. Broader scopes, setup and the
 complete verbal preference/model-facing contract remain proposed, subject to protected-call origin gates
 and mandatory secure workflows.
@@ -10,6 +10,60 @@ and mandatory secure workflows.
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
+
+### Delivered bounded device-local in-call feedback (R10/R15)
+
+Schema 1 admits **`calls.feedback-mode`**, with **Voice / UI / Both / Inherit**
+and unsaved/default **UI**. Native **Settings > Calls** provides an exact
+host-held draft and explicit Refresh/Save/Reset. Exact typed/current-name
+ACTIVATED `list call feedback settings`, get/status/set/reset use the same
+[configuration service](../src/Kora.Application/Configuration/InCallFeedbackConfigurationService.cs),
+common original-input audio-control session/generation and committed-intent
+admission. Input/result bounds remain 1,024 UTF-8 bytes/64 KiB. This is not a
+general model settings tool or natural-language mutation.
+
+Only manual Active or enabled Active/Suspected evidence applies the feedback
+choice ahead of task > queue > session > device output. Voice maps to VoiceOnly,
+UI to VisualOnly and Both to Hybrid; Inherit restores ordinary precedence.
+The existing presentation exposes task/queue/device, not new durable narrower
+scope controls; the shared resolver retains the session precedence seam.
+Unknown/invalid evidence never applies a feedback override or grants speech:
+mandatory speech suppression and complete visual recovery remain even with a
+legacy relaxed call-suppression preference. Clear/Unavailable use ordinary
+output, with truthful unavailable automatic detection. No detector is added.
+
+Feedback is **selection, not permission**. Voice/Both/Inherit cannot bypass
+independent call speech suppression, ownership/unlocked privacy, mute/zero,
+capture exclusion, native synthesis/playback lifetime, summary bounds or
+mandatory complete visual safety/question/approval/interruption recovery.
+Changing feedback never opens capture, changes input eligibility/consent,
+acquires permission, edits/reuses grants, clears a call, synthesizes or replays.
+Protected Active/Suspected/Unknown original-voice set/reset is denied without
+UI relabelling, downgrade proposal or deferred application; inspection is allowed.
+
+Host-held choices bind exact configuration/call revision, original input,
+current name/input generation, host-resolved session/generation and owning
+unlocked privacy/topology. Native visible-lifetime identity expires on
+hide/reopen/dispose; old choices cannot revive. REQUESTED and terminal trusted
+audit, atomic save/reset, exact readback and committed-intent outcome precede
+confirmation/activation. Changes retire active/queued output generations.
+
+The independent version-1 **`in-call-feedback.txt`** and
+**`in-call-feedback-unconfirmed.txt`** use `IApplicationDataPaths` and the shared
+atomic store. Missing confirmed storage means unsaved UI; Reset deletes only
+this override. Invalid UTF-8, schema/enum, inaccessible state or an unconfirmed
+marker refuses instead of defaulting, including across restart. A file can be
+committed before later evidence fails: status remains unavailable, not a
+fabricated rollback or success. Inspect saved state and required audit/intent
+receipts, explicitly repair, then refresh under fresh admission. Ordinary
+refresh cannot clear the marker. Unavailable state withholds speech and keeps
+full visual recovery without changing microphone/consent state.
+
+This deterministic source/native-seam slice does not close full R10/R15,
+automatic detector/source freshness qualification, native accessibility,
+real-call/acoustic leakage/stop timing, speak-once/downgrade review, proactive
+configuration, general tools or A0-A4 acceptance. See the
+[experiment disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
 
 ### Delivered bounded Windows-provider-native speech rate (R10)
 
@@ -762,7 +816,7 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Call speech mode | Suppress automatic requested/proactive speech; one-shot override allowed | "Only suppress unsolicited suggestions during calls" |
-| In-call feedback override | UI-only by default; Voice / UI / Both / Inherit; Active/Suspected observations use this separate device-local setting ahead of task/queue/session/device response mode, subject to speech/privacy policy | "Use UI responses only when I'm in a call" |
+| In-call feedback override (`calls.feedback-mode`) | **Bounded delivered** UI default; Voice / UI / Both / Inherit; Active/Suspected only, ahead of ordinary response mode with all hard speech/privacy gates | Exact `set calls.feedback-mode to UI`; natural-language example remains proposed |
 | Ignore reusable grants during calls (`calls.ignoreReusableGrants`) | On by default; Boolean device-local setting; require fresh single-use approval instead of Session/Perpetual reuse while call protection applies; Off requires exact protection-downgrade confirmation | "Ignore saved grants while I'm in a call" |
 | Voice activation during calls | On; independently configurable and does not reopen capture without explicit listening consent | "Disable voice activation during calls" |
 | Unknown enabled-detector behaviour | Suppress automatic speech | "Use normal speech when detection is unavailable" |
@@ -776,6 +830,9 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Reminder deferral | 24 hours; 1 hour-7 days | "Remind me about updates tomorrow" |
 
 Detectors need explicit setup/account/network consent; setting a preference does not create Graph credentials.
+Only the bounded feedback/manual controls and existing protection settings are
+delivered here. Other table entries, including general proactive/quiet-hours/
+notification/temporary-exception configuration, remain proposed.
 The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
 Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
 The grant-ignore setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention.

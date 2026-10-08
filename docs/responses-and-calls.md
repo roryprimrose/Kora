@@ -29,17 +29,29 @@ to **System** and a selected speaker. See [the existing fallback boundary](setti
 
 ## Output precedence
 
-The existing process-local presentation resolver has this precedence:
+Response selection has this precedence, before all mandatory policy gates:
 
-1. **Current task** - highest precedence and temporary.
-2. **Current queue** - temporary and used when no task override exists.
-3. **Device default** - persisted locally.
+1. **In-call feedback** - independent device-local UI default, applied only to
+   effective Active/Suspected (including manual Active), unless Inherit.
+2. **Current task** - temporary.
+3. **Current queue** - temporary and used when no task override exists.
+4. **Session** - shared resolver seam; no new session control is delivered.
+5. **Device default** - persisted locally.
 
 Choose **Inherit** for the task or queue choice to return to the next broader
 scope. These presentation controls are outside the admitted device-default
 registry, not delivered durable session/task/queue configuration or execution.
-Only the device default has the new shared admitted native/exact configuration
-workflow; it changes neither call policy nor the legacy fallback preference.
+The device default and independent in-call preference have shared admitted
+native/exact workflows; neither changes call policy or the legacy fallback.
+
+In-call **Voice / UI / Both** map to audible/visual/both preference, never
+speech permission. **Inherit** restores ordinary selection. Unknown/invalid call
+evidence does not activate feedback but always withholds speech and requires
+full visual recovery; Clear/Unavailable uses ordinary output. A Voice/Both choice
+cannot bypass independent call suppression, privacy/lock/capture, mute/zero,
+native output lifetime or mandatory safety/question/approval/recovery previews.
+See [Settings and explicit recovery](settings.md#in-call-feedback-override) and
+[exact commands](commands.md#in-call-feedback-override).
 
 ## Visual response window
 
@@ -114,7 +126,7 @@ refused while those interactions are pending.
 
 When manual mode or an enabled Active, Suspected or Unknown observation applies:
 
-- **Visual responses during calls** defaults to on. Kora suppresses automatic
+- **Call speech suppression** defaults to on. Kora suppresses automatic
   response speech and shows text.
 - **Voice activation during calls** defaults to on. Turn it off to close active
   capture and prevent listening until the call clears.
@@ -124,6 +136,10 @@ responses, or disable listening during calls. Existing saved output/activation
 choices are retained. New protection downgrades are disabled pending complete
 exact trusted review; temporary and speak-once call exceptions are unavailable.
 Enabling visual protection or disabling call-time activation remains supported.
+The new **In-call feedback override** is independent of both. UI is its default;
+even a legacy suppression-Off preference does not disable that UI selection.
+Unknown/invalid detector evidence always suppresses speech. Feedback changes
+never enable input, clear calls, grant consent/permission or edit reusable grants.
 
 Protected-call entry invalidates pending synthesis/playback before slower UI
 work. Results and questions stay visual; clearing protection does not replay

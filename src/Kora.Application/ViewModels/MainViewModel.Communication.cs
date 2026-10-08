@@ -210,7 +210,7 @@ public sealed partial class MainViewModel
             ClearClipboardPreview();
             ApplicationLog.CallStateChanged(logger, observation.EffectiveState);
             // Invalidation precedes any dispatcher or asynchronous stop, including pending synthesis.
-            if (observation.SuppressSpeech) { textToSpeech.InvalidateOutput(); }
+            if (ShouldWithholdCallOutput(observation)) { textToSpeech.InvalidateOutput(); }
             if (!observation.AllowActivation && IsVoiceEnabled)
             {
                 HoldVoiceInput("Microphone closed · voice activation paused during detected call");
@@ -232,7 +232,9 @@ public sealed partial class MainViewModel
 
     private async Task CompleteCallTransitionAsync(CallPolicyObservation observation)
     {
-        var output = observation.SuppressSpeech ? textToSpeech.StopAsync() : Task.CompletedTask;
+        var withhold = ShouldWithholdCallOutput(observation);
+        var feedbackRevision = inCallFeedbackConfiguration?.Get().Revision;
+        var output = withhold ? textToSpeech.StopAsync() : Task.CompletedTask;
         var capture = !observation.AllowActivation ? voiceRecognition.StopAsync() : Task.CompletedTask;
         await uiDispatcher.InvokeAsync(() =>
         {
@@ -253,12 +255,12 @@ public sealed partial class MainViewModel
                 OnPropertyChanged(nameof(CanDisableCallVoiceActivation));
                 GrantDocumentChanged?.Invoke(this, GetGrantDocument());
                 NotifyOutputPolicyChanged();
-                if (observation.SuppressSpeech)
+                if (withhold && feedbackRevision == inCallFeedbackConfiguration?.Get().Revision)
                 {
                     IsSpeaking = false;
                     activeSpokenText = null;
                 }
-                if (observation.SuppressSpeech && CanRevealPrivatePresentation)
+                if (withhold && CanRevealPrivatePresentation)
                 {
                     WindowActionRequested?.Invoke(this, WindowAction.Show);
                 }
@@ -267,6 +269,12 @@ public sealed partial class MainViewModel
         });
         await Task.WhenAll(output, capture);
     }
+
+    private bool ShouldWithholdCallOutput(CallPolicyObservation observation) =>
+        observation.SuppressSpeech
+        || inCallFeedbackConfiguration is not null && !inCallFeedbackConfiguration.Get().Available
+        || InCallFeedbackRules.Resolve(Kora.Core.Voice.ResponseOutputMode.Hybrid,
+            DesiredInCallFeedback, observation.EffectiveState) == Kora.Core.Voice.ResponseOutputMode.VisualOnly;
 
     private async Task SetCallSettingsAsync(CallAwareSettings settings)
     {

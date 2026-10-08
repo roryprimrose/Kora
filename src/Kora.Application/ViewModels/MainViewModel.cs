@@ -231,7 +231,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DiagnosticRetentionConfigurationService? diagnosticRetentionConfiguration = null,
         ManualCallControl? manualCallControl = null,
         AuditRetentionConfigurationService? auditRetentionConfiguration = null,
-        WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null)
+        WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
+        InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -296,6 +297,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             playbackVolumeConfiguration.Changed += OnPlaybackVolumeChanged;
         }
         this.responseModeConfiguration = responseModeConfiguration;
+        this.inCallFeedbackConfiguration = inCallFeedbackConfiguration;
+        if (inCallFeedbackConfiguration is not null)
+        {
+            try { inCallFeedbackConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                ApplicationLog.Error(logger, exception, "Reading in-call feedback");
+            }
+            inCallFeedbackConfiguration.Changed += OnInCallFeedbackChanged;
+        }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         if (auditRetentionConfiguration is not null)
@@ -366,6 +377,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
+        RefreshInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
+            new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
+            new(AppearanceCommandOperation.Set), SecurityAuditInitiator.LocalUser,
+            SelectedInCallFeedbackChoice ?? throw new InvalidOperationException("Refresh and choose one exact in-call feedback mode.")));
+        ResetInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
+            new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
         ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
@@ -1444,13 +1462,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public ResponseOutputMode EffectiveResponseMode =>
-        ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode);
+        InCallFeedbackRules.Resolve(ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode),
+            DesiredInCallFeedback, communicationPolicy.Current.EffectiveState);
 
     public bool IsSpeechOutputAvailable =>
         activeSpeechVoice is not null
         && (playbackVolumeConfiguration is null || playbackVolumeConfiguration.Get().AllowsSpeech)
         && IsWindowsSpeechRateOutputEligible
         && (responseModeConfiguration is null || responseModeConfiguration.Get().Available)
+        && (inCallFeedbackConfiguration is null || inCallFeedbackConfiguration.Get().Available)
         && (outputConfiguration is null || outputConfiguration.Get(CallPolicyRevision).Available)
         && EffectiveOutputDevice is not null
         && !EffectiveOutputDevice.IsMuted;
@@ -1544,12 +1564,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         isAssistantNameAvailable && communicationPolicy.Current.AllowActivation;
 
     public string CallVisualOverrideButtonText => ShowVisualTextDuringCalls
-        ? "Use normal response mode during calls"
+        ? "Disable call speech suppression"
         : "Show visual text during calls";
 
     public string CallVisualOverrideStatus => ShowVisualTextDuringCalls
-        ? "On · detected calls use visual-only responses"
-        : "Off · detected calls use the normal response mode";
+        ? "On · protected calls suppress speech and require full visual output"
+        : "Off · legacy speech policy is relaxed; independent feedback and hard gates still apply";
 
     public string CallVoiceActivationButtonText => AllowVoiceActivationDuringCalls
         ? "Disable voice activation during calls"
@@ -1573,7 +1593,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         get
         {
-            var scope = TaskResponseMode is not null
+            var scope = IsInCallFeedbackOverrideApplied
+                ? "In-call feedback override"
+                : TaskResponseMode is not null
                 ? "Current task override"
                 : QueueResponseMode is not null
                     ? "Current queue override"
@@ -1584,7 +1606,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? " Visual text is forced because speech output is unavailable or failed."
                 : string.Empty;
             var callOverride = IsCallVisualOverrideActive
-                ? " Detected-call override: visual text only; voice activation remains independently configured."
+                ? " Call speech protection: speech withheld and full visual required; feedback and voice activation remain independent."
                 : string.Empty;
             var modeLabel = ResponseModeOptions.Single(
                 option => option.Mode == EffectiveResponseMode).Label;
@@ -3709,6 +3731,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        if (InCallFeedbackCommand.Parse(spokenText, AssistantName) is { } callFeedbackCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no call feedback change was dispatched.";
+                return;
+            }
+            await ExecuteInCallFeedbackCommandAsync(callFeedbackCommand, initiator);
+            return;
+        }
         if (ManualCallCommand.Parse(spokenText, AssistantName) is { } manualCommand)
         {
             if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -5250,6 +5282,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(AuditRetentionStatus));
         OnPropertyChanged(nameof(CanChangeResponseMode));
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
+        OnPropertyChanged(nameof(IsInCallFeedbackOverrideApplied));
+        OnPropertyChanged(nameof(InCallFeedbackStatus));
+        OnPropertyChanged(nameof(CanInspectInCallFeedback));
+        OnPropertyChanged(nameof(CanInspectInCallFeedbackNative));
+        OnPropertyChanged(nameof(CanChangeInCallFeedbackNative));
     }
 
     private string[] GetRecognitionPhrases()
@@ -5267,6 +5304,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);

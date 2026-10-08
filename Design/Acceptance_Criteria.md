@@ -1006,6 +1006,28 @@ acceptance, and file copies cannot satisfy authoritative audit requirements.
 
 ## Future Capability Gates
 
+### Delivered Bounded In-Call Feedback Evidence (R10/R15)
+
+Maintained deterministic tests exercise all Voice/UI/Both/Inherit choices,
+unsaved UI/reset/restart provenance and complete task/queue/session/device
+precedence for Active/Suspected versus Clear/Unavailable/Unknown. Unknown/invalid
+evidence and corrupt/unconfirmed storage retain speech refusal/complete visual
+recovery, independently of legacy suppression and feedback selection.
+
+Application/native-source and current-user shared-SQLite composition tests cover
+original voice refusal (including UI relabelling), fresh UI admission, exact
+current-name discovery and grammar, call/configuration/session/input/native
+lifetime revisions, stale callbacks, audit/readback/intent failure, cancellation,
+pending previews and active-output retirement without replay or implicit capture,
+consent, permission or grant changes. See
+[the delivered contract](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15).
+
+This is automated source/native-seam evidence, not acceptance of automatic
+detectors/source-age handling, native keyboard/screen-reader interaction,
+real-call/acoustic leakage or measured native output-stop timing. Full R10/R15,
+proactive configuration, temporary/speak-once/downgrade review, internal model
+tool exposure and A0-A4 remain open; the future gates below still apply.
+
 ### Internal Model Tool Exposure
 
 - Verify every current advertised action/proposal against [Internal Model Tools](Internal_Model_Tools.md), including all 20 registered actions, the four mutually exclusive response kinds, current approval rules, and disabled OS power execution.

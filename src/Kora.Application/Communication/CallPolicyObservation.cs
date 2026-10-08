@@ -9,7 +9,9 @@ public sealed record CallPolicyObservation(
 {
     public CallState EffectiveState => ManualActive ? CallState.Active : AutomaticState;
     public bool IsProtected => ManualControlEvidenceUnavailable || ManualActive || AutomaticState is not (CallState.Unavailable or CallState.Clear);
-    public bool SuppressSpeech => ManualControlEvidenceUnavailable || IsProtected && Settings.ShowVisualTextDuringCalls;
+    public bool SuppressSpeech => ManualControlEvidenceUnavailable
+        || AutomaticState is not (CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected)
+        || IsProtected && Settings.ShowVisualTextDuringCalls;
     public bool AllowActivation => !ManualControlEvidenceUnavailable && (!IsProtected || Settings.AllowVoiceActivationDuringCalls);
     public HostAuthorizationPolicy Authorization(bool unlocked, bool mandatoryGatesSatisfied) =>
         new(unlocked, mandatoryGatesSatisfied, IsProtected, IgnoreReusableGrants: true);

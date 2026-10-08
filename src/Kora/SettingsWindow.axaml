@@ -756,7 +756,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Visual responses during calls" Classes="settings-title" />
+                  <TextBlock Text="Call speech suppression (independent of feedback)" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding CallVisualOverrideStatus}"
                       Classes="settings-description"
@@ -769,6 +769,27 @@
                     IsEnabled="{Binding CanEnableCallVisualProtection}"
                     VerticalAlignment="Center" />
               </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="In-call feedback override" Classes="settings-title" />
+                <TextBlock Text="UI by default. Active/Suspected calls select this before ordinary response modes; Inherit restores ordinary precedence. Voice/Both never permit suppressed speech. Unknown or unconfirmed state retains full visual recovery. Input, consent and grants are unchanged."
+                    Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding InCallFeedbackChoices}" SelectedItem="{Binding SelectedInCallFeedbackChoice}"
+                    DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeInCallFeedbackNative}"
+                    AutomationProperties.Name="In-call feedback draft: Voice UI Both or Inherit" />
+                <WrapPanel Orientation="Horizontal">
+                  <Button Content="Refresh call feedback" Command="{Binding RefreshInCallFeedbackCommand}"
+                      IsEnabled="{Binding CanInspectInCallFeedbackNative}" AutomationProperties.Name="Inspect in-call feedback preference only" />
+                  <Button Content="Save call feedback only" Command="{Binding SaveInCallFeedbackCommand}"
+                      IsEnabled="{Binding CanChangeInCallFeedbackNative}" AutomationProperties.Name="Save selected in-call feedback only" />
+                  <Button Content="Reset call feedback to UI" Command="{Binding ResetInCallFeedbackCommand}"
+                      IsEnabled="{Binding CanChangeInCallFeedbackNative}" AutomationProperties.Name="Remove saved in-call feedback override only" />
+                </WrapPanel>
+                <controls:NamedTextBlock Text="{Binding InCallFeedbackStatus}" AutomationProperties.Name="In-call feedback saved effective policy and recovery status"
+                    AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
+              </StackPanel>
             </Border>
 
             <Border Classes="settings-card">

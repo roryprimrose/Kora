@@ -15,6 +15,39 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+## In-call feedback override
+
+Native **Settings > Calls** and exact typed/current-name ACTIVATED commands
+share one device-local, original-input host workflow:
+
+| Exact command | Result |
+|---|---|
+| `list call feedback settings` | One admitted descriptor: choices/UI default, scope, saved/default/unavailable provenance, desired/effective/applied mode, revisions, timing, hard gates and recovery |
+| `get calls.feedback-mode` | Current preference and independent output policy |
+| `status calls.feedback-mode` | Same bounded status |
+| `set calls.feedback-mode to Voice` | Save only the in-call feedback preference |
+| `set calls.feedback-mode to UI` | Save UI-only preference |
+| `set calls.feedback-mode to Both` | Save combined preference |
+| `set calls.feedback-mode to Inherit` | Restore ordinary response selection during calls |
+| `reset calls.feedback-mode` | Remove only this override; unsaved UI default |
+
+Use the current configured prefix, not an old alias. Complete input/result
+bounds are 1,024 UTF-8 bytes/64 KiB. Extra words, unknown targets, controls and
+numeric/ordinary-mode aliases clarify locally; no model settings tool is added.
+Active/Suspected (including manual Active) alone applies this before ordinary
+output. Unknown/invalid evidence withholds speech and keeps full visual
+recovery; Clear/Unavailable uses ordinary selection. Voice/Both never bypass
+independent call speech suppression, privacy/lock/mute/capture/lifetime/safety
+gates, or enable input/consent/grants.
+
+Protected-call original-voice set/reset is refused, never relabelled by a later
+click or deferred until clearance. Initiate a new eligible UI change. Host-held
+choices and current name/input/call/configuration/session/native lifetime are
+revalidated. Audits, atomic save/readback and durable intent outcome precede
+activation; stale/corrupt/unconfirmed state stays unavailable with explicit
+recovery, including across restart. No capture, detector, autoplay or replay.
+See [Settings recovery](settings.md#in-call-feedback-override).
+
 ## SQLite diagnostic retention
 
 Native **Settings > Logging** and exact typed/current-name ACTIVATED commands

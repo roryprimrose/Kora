@@ -36,6 +36,7 @@ public sealed partial class MainViewModel
             SpeechEligible = IsSpeechResponseEnabled,
             MandatoryVisual = IsCallVisualOverrideActive || forceVisualResponse || !IsSpeechOutputAvailable,
             OutputPolicy = ResponseOutputStatus,
+            Effective = responseModeConfiguration.Get().Available ? EffectiveResponseMode : null,
         };
 
     private void OnResponseModeConfigurationChanged(object? sender, EventArgs args)

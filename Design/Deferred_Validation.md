@@ -30,6 +30,17 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 
 ## Proof Checklists
 
+The [2026-10-09 unattended inference preflight](Local_Inference.md#unattended-provisioning-admission---2026-10-09)
+records conditional host approval but rejects the delivered acquisition path
+**before installation**: pinned tagged Inno source declares a broad
+user-environment PATH update, desktop-app launch and image-name process-kill
+hooks outside the authorised scope. Public release/model/licence metadata was
+refreshed; no installer/weights were downloaded and no runtime started.
+Non-exclusive observation therefore remains unperformed. A reviewed,
+explicitly approved isolated acquisition/lifecycle path is the next decision;
+exclusive residency/resource trials, blocked-egress capture and L3/L4/L6 remain
+separate approvals, not implied by the conditional provisioning consent.
+
 The [2026-10-08 inference preparation receipt](../experiments/r02-local-inference-proof/results/continuation-2026-10-08/preparation.json)
 passes 55 current deterministic checks and six relative-path regressions.
 Supported runtime/model locations and the loopback listener were absent.

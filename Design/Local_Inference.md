@@ -13,6 +13,38 @@ startup, generation, residency change or network isolation was performed.
 Other installation locations were not searched; an absent supported location
 does not establish that the machine contains no runtime anywhere.
 
+### Unattended Provisioning Admission - 2026-10-09
+
+The operator conditionally approved this machine for exact pinned provisioning
+and a bounded, non-exclusive synthetic observation **only if fully unattended**.
+The [sanitized preflight receipt](../experiments/r02-local-inference-proof/results/unattended-preflight-2026-10-09/admission.json)
+and [refreshed public metadata](../experiments/r02-local-inference-proof/results/unattended-preflight-2026-10-09/candidate-metadata.json)
+record the resulting **Blocked before installation** decision.
+
+The supported executable, PATH command, listener and selected default model
+manifest remain absent. Official release/winget metadata agree on the pinned
+installer digest; the registry manifest and licence blob match the unchanged
+model pin. These are metadata/source observations, not installed-byte or
+packaged-native licence verification.
+
+The repository's delivered acquisition path is per-user winget/Inno setup.
+The exact upstream `v0.35.1` installer source declares an HKCU environment
+`Path` update, post-install launch of `ollama app.exe`, and pre-install/
+uninstall `taskkill /im ... /f /t` hooks. Those effects are incompatible with
+the approved no-broad-PATH, no-UI and no-unrelated-process scope, regardless of
+winget's `--disable-interactivity` flag. `PrivilegesRequired=lowest` is not a
+guarantee of absence of those other effects. Tagged source is not a binary
+execution observation, and no unsupported installer override was attempted.
+
+No installer/weight bytes were acquired, winget/setup/runtime was not
+executed, and no synthetic live request or teardown was needed. An official
+portable ZIP is advertised, but it is not this repository's approved
+provisioning/ownership/teardown path; it was neither downloaded nor silently
+substituted. The next decision must explicitly select and approve a reviewed
+isolated acquisition/lifecycle path, or stop. The current conditional approval
+does not admit exclusive residency/resource measurements, independently
+blocked egress/capture or later L3/L4/L6 acceptance.
+
 ### Three-Tier Admission Policy
 
 1. **Development:** deterministic/file-only proof preparation and unrelated

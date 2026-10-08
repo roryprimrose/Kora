@@ -1648,6 +1648,85 @@ unchanged. Main remains `c78e81318fb3c5b279275f9ab8ef14748bfeb952`; no rebase
 or merge is part of this repair. The parent owns #97-first integration,
 combined-source rebase authorization and required CI review.
 
+##### Combined Accessibility/Privacy Integration (2026-10-08)
+
+After the parent's separately authorized squash merge of reviewed #97, the
+actual fetched main was `d145ace1ae59016d524c9b2ec7def9f192e0c6e6`.
+The published sanitized privacy branch at
+`22061a1f5e33eff4c08c8409702fb45c05270e2a` rebased onto that exact main
+without conflicts. All four privacy commits remained patch-equivalent in
+`git range-diff`; no source or fixture/API repair was required. Both the UX
+and privacy outcomes above remain dated historical receipts, not replacement
+claims. The local-only unsanitized reviewed commit is not in branch ancestry.
+
+Combined validation used committed source
+`1c3670be05f092a63bb84fae8e7d5af521a7e6e9` on the new main. The following
+result-recording commit changes only this document; its production/test trees
+match the validated combined source. The rebased counterpart of the test-only
+coverage repair `830f227` is `be31f16af7eec29602ef57225d0a5f8aa54b90ae`.
+All 15 cases remain meaningful and passed in the combined full suites,
+including original voice provenance/call refusal, cancellation/context
+termination, final readiness/ownership/privacy/revision/lifecycle/intent
+checks and both observation-clock inputs.
+
+The initial Release `--no-restore` build failed because the newly introduced
+native-UX fixture project had no assets and the integration project had no
+resolved `Avalonia.Headless` references. A locked solution restore through the
+machine-required Networking-AAA feed succeeded, without tracked manifest,
+lockfile, feed-setting or credential changes. The subsequent Release solution
+build with `--no-restore` passed with zero warnings/errors. The native fixture
+and installer projects compiled but were not launched.
+
+| Combined Release validation | Passed / total | Failures | Runner skips | Explicit exclusions |
+| --- | --- | --- | --- | --- |
+| Core, with CI coverlet flags | 785/785 | 0 | 0 | None |
+| Application, with CI coverlet flags | 2461/2461 | 0 | 0 | None |
+| Tools, with CI coverlet flags | 38/38 | 0 | 0 | None |
+| Definitions, with CI coverlet flags | 6/6 | 0 | 0 | None |
+| Windows bounded automated/headless subset | 1095/1095 | 0 | 0 | Same exact ten live methods listed above |
+
+All 4385 executed tests passed. The normal four-assembly portable report and
+unchanged 100% thresholds passed exactly **12711/12711 lines and 7134/7134
+branches**, with both raw rates `1`; no exclusions, thresholds or analyzer
+policy were changed. Report-generator diagnostics about unavailable generated
+logging source text remained nonfatal and were retained in the private log.
+
+Windows results explicitly include 20 `AccessibilityRuntimeContractTests`,
+8 `BoundedSurfaceAccessibilityTests` and 18 `NativeUxFixtureContractTests`,
+plus the privacy observer/capture, menu/window and warm-cache regressions.
+These 46 headless/support cases use an isolated off-screen Avalonia test
+application, synthetic denied audio/clipboard/network/effect boundaries and
+GUID-owned scratch children that are cleaned up. They neither run production
+composition nor launch the native fixture executable. Their use of real window
+types off-screen does not establish native UIA, focus, Narrator, latency,
+clipboard, provider, ownership or OS-transition acceptance. Final TRX confirms
+that none of the ten excluded live methods ran; exclusions are neither runner
+skips nor passes.
+
+The portable build/test/report/gate commands in the preceding repair receipt
+and Windows command in the consolidation receipt were rerun against this
+combined source, using fresh private output directories. The conditional
+restore command was:
+
+```powershell
+dotnet restore .\Kora.slnx --locked-mode --source https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json
+```
+
+The feed override is machine-local execution routing, not repository
+configuration. Exact expanded commands, source/tree hashes, TRX totals/named
+cases and coverage checksums are retained privately. No raw/profile data was
+uploaded. No production app/native fixture launch, real microphone/provider/
+device activation, playback, real clipboard access, elevation, installation,
+real lock/unlock or profile/device-setting mutation occurred.
+
+The parent authorized marking #98 ready only after this combined local
+validation and retains merge authority pending strict updated-head hosted
+CI. Publication uses an explicit expected-old-head force-with-lease; no blind
+force or auto-merge is authorized. Historical native receipts are not
+combined-source acceptance. R03 A03/A04/A05/A06, every-reference-trial 500 ms
+release, OS notification delay, last acoustic sample, optimized native latency
+and all remaining native UX/accessibility gates remain open.
+
 ### Preparation and Approval
 
 - Record exact source/artifact hashes, supported Windows servicing build, CPU,

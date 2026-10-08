@@ -9,7 +9,7 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 [Interaction and Sessions](Interaction_And_Sessions.md),
 [User Configuration](User_Configuration.md),
 [Internal Model Tools](Internal_Model_Tools.md), and
-[Implementation Roadmap](Implementation_Roadmap.md#r26-file-and-folder-ingestion-delivery-plan).
+[Implementation Roadmap](Implementation_Roadmap.md#optional-and-deferred-work).
 
 ## Delivered Bounded Local File Preview
 
@@ -39,7 +39,9 @@ review IDs, another host session/task, voice/system confirmation, expired
 origin/privacy/ownership/call generations and cancellation cannot read.
 Confirmation starts a fresh linked host operation, not a resurrected trace.
 
-One bounded read rechecks identity and length before/after reading. Strict
+Two bounded consistency passes through the same retained handle admit only
+identical bytes and recheck identity/length before and after capture (at most
+512 KiB plus one EOF probe byte read in total). Strict
 UTF-8 never guesses an encoding or replaces malformed bytes. An optional BOM
 is excluded from displayed text but retained in the SHA-256 digest of exact
 source bytes. NUL/binary/control text is denied; Markdown is inert plain text,

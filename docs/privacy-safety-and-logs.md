@@ -49,7 +49,8 @@ volatile local inspection, not a session attachment, model-context permission
 or durable knowledge source. Native selection first opens only metadata.
 Confirmation is required in the exact native review before one bounded
 strict-UTF-8 read. File and ancestor handles prevent write/replacement races;
-identity/path/length are revalidated before and after reading. Failed inputs
+two bounded passes must match exact bytes, and identity/path/length are
+revalidated before and after reading. Failed inputs
 are rejected whole; there are no undisclosed partial-folder exclusions.
 
 The preview can contain secrets. No redaction/safety guarantee is made.

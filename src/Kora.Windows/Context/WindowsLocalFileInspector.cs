@@ -111,11 +111,24 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
                 throw new InvalidDataException("The reviewed source identity changed before confirmation.");
             }
             var bytes = new byte[checked((int)Metadata.ByteLength)];
+            var verification = new byte[4096];
+            var extra = new byte[1];
             try
             {
                 await using var stream = new FileStream(file, FileAccess.Read, 4096, isAsync: true);
                 await stream.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
-                var extra = new byte[1];
+                // Sharing locks prevent normal writers/replacement; also reject differing bytes
+                // from previously established mappings or other filesystem mechanisms.
+                stream.Position = 0;
+                for (var offset = 0; offset < bytes.Length; offset += verification.Length)
+                {
+                    var count = Math.Min(verification.Length, bytes.Length - offset);
+                    await stream.ReadExactlyAsync(verification.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+                    if (!verification.AsSpan(0, count).SequenceEqual(bytes.AsSpan(offset, count)))
+                    {
+                        throw new InvalidDataException("The source bytes changed during capture; no mixed revision was admitted.");
+                    }
+                }
                 if (await stream.ReadAsync(extra, cancellationToken).ConfigureAwait(false) != 0
                     || Observe(file, Metadata.CanonicalPath) != Metadata)
                 {
@@ -130,6 +143,11 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
                 CryptographicOperations.ZeroMemory(bytes);
                 if (cancellationToken.IsCancellationRequested) { activity.Complete(HostOperationOutcome.Cancelled); }
                 throw;
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(verification);
+                CryptographicOperations.ZeroMemory(extra);
             }
         }
 
@@ -151,7 +169,7 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
         var length = checked((long)(((ulong)info.SizeHigh << 32) | info.SizeLow));
         var lastWrite = DateTimeOffset.FromFileTime(checked((long)(((ulong)info.WriteHigh << 32) | info.WriteLow)));
         try { return new(path, WindowsFileIdentity.Read(handle), length, lastWrite); }
-        catch (Win32Exception) { throw new IOException("The native source identity is unavailable."); }
+        catch (Win32Exception exception) { throw new IOException("The native source identity is unavailable.", exception); }
     }
 
     private static unsafe HandleInfo ReadInfo(SafeFileHandle handle)

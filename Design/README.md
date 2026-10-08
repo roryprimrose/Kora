@@ -201,6 +201,7 @@ adapter admission or release acceptance.
 23. [Session Workspace and Coordinated Windows](UI_Workspace_And_Windows.md): compact interaction, session list plus full conversation workspace, detail/script review, native cards, concurrent work UX, and supporting windows.
 24. [Local Inference Qualification and Technical Plan](Local_Inference.md): R02 outcomes, candidate/compatibility/context/resource consequences and the path to D-003/D-007 qualification and A2 integration.
 25. [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md): deliberate path selection, immutable source revisions, retrieval/citations, local and hosted model boundaries, voice/settings behavior, and the staged R26 delivery plan.
+26. [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md): explicit Ollama/Copilot session modes and handoff, user-governed durable memory, provider-independent local retrieval, image treatment, provenance, and delivery sequencing.
 
 ## Human Interaction and Sessions
 
@@ -242,6 +243,9 @@ is an offline design mockup, not an implemented application or a change to relea
 - Kora advertises relevant tool definitions and enabled skill summaries; the model proposes, the host validates/authorises/executes, and approved structured results return for model continuation. Exact local controls use the same services and applicable gates without inference.
 - A replaceable agent-runtime adapter may own its model/tool loop only when Kora can enforce the required controls.
 - Copilot SDK support requires an integration proof; SDK capabilities are not assumed.
+- Kora supports qualified Ollama and Copilot adapters through explicit Local only, Local first, and Hosted preferred session modes. One provider handles one model turn; local-to-hosted handoff is reviewed and never triggered solely by model-reported confidence.
+- Models do not learn user facts from ordinary inference. Cross-session memory is Kora-owned, deliberate, scoped, inspectable, editable, and deletable; models may propose memories but cannot persist them directly.
+- Large knowledge sources are indexed and retrieved locally. Both providers receive only bounded cited evidence; hosted use additionally requires the exact destination and outbound envelope to pass current egress policy.
 - Local wake activation is primary from Slice A, defaulting to "Kora"; renaming asks custom-only or default-plus-custom, with custom-only recommended for shared offices. Push-to-talk is optional.
 - Independent persistent sessions execute concurrently within verified limits; the model proposes routing/queue intent, while the host enforces isolation, resource coordination, scheduling, and approvals.
 - Clipboard capture is built in. Interpretation and downstream workflows are extensible.

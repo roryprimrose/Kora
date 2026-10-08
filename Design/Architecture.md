@@ -2,7 +2,7 @@
 
 Status: proposed. Contracts below describe required semantics, not an existing SDK API.
 
-Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
+Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), and [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
 ## Runtime Ownership Decision
 
@@ -17,6 +17,9 @@ It owns no writer or execution policy. See the
 Kora owns persistent work sessions, task lifecycle, context selection, permission evaluation, approvals, and presentation.
 A runtime adapter may own model/tool iteration, but must not bypass those responsibilities.
 The canonical channel, routing, lifecycle, and history contract is [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
+The canonical local/hosted provider selection, reviewed handoff, durable user
+memory, and provider-independent knowledge contract is
+[Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.

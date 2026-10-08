@@ -7,6 +7,17 @@ and one live file/socket/diagnostic positive-control test. Two PowerShell
 receipt-locale contracts also pass. See [evidence](EVIDENCE.md) and
 [disposition](evidence/disposition.json).
 
+**Current disposition:** migrate applicable lifecycle/diagnostic/persistence,
+event-loss/short-lived-path and quiescence assertions into maintained production
+runtime integration tests before executable archival. Bounded observer success
+does not replace unresolved native all-path observation/prevention. Apply the
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory):
+only affected profile exposure/RC inclusion is gated, not unrelated merges.
+Archival requires exact maintained equivalence and consumer/reference checks,
+or explicit historical disposition of excluded candidate paths; no code or
+receipt is removed here and privileged observation still needs approval.
+
 ## Exact candidate, not an equivalent cache
 
 The experiment consumes byte-for-byte copies of the original

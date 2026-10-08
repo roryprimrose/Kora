@@ -18,6 +18,16 @@ and [updated roadmap](../../Design/Implementation_Roadmap.md#r02-runtimeprovider
 now turn these measurements into delivery work. This experiment remains the
 failure witness and reproducible test source, not the owner of design policy.
 
+**Current disposition:** migrate applicable mediation, all-status denial,
+serialization and cancellation assertions into maintained production runtime
+integration tests before archiving executable harnesses. Keep failure witnesses,
+exact candidate receipts and unresolved native/provider observations distinct;
+Node comparison is not .NET qualification. This is not a default-CI or aggregate
+merge gate. The [three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+own affected enablement/RC scope and exact-equivalence/consumer checks. No
+executable is removed by this policy.
+
 ## Prerequisite and scope
 
 R01 was verified after rebasing: merged `roryprimrose/Kora#19`, commit
@@ -192,10 +202,11 @@ or model-assisted management from these local passes.
 
 ## Proof code lifecycle
 
-Retain and rerun this harness whenever the SDK or bundled runtime pin changes,
-until an isolated .NET fixture and production host-envelope tests provide
-equivalent coverage. Keep the known hook-only failed-result case executable
+Rerun affected assertions for material SDK/runtime/request-path changes, not
+unrelated merges. Migrate applicable cases to maintained production integration
+tests with exact-profile coverage. Keep the known hook-only failed-result case executable
 until production composition makes that unsupported path impossible. Remove
 the standalone Node harness only after parity, lifecycle and request-boundary
-coverage has migrated; preserve reviewed historical receipts. See the shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+coverage has migrated and consumer/reference checks pass; preserve reviewed
+historical receipts. Remaining candidate comparisons need explicit disposition
+under the current roadmap inventory above.

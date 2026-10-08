@@ -17,6 +17,13 @@ Native and [exact typed/activated-voice session commands](docs/commands.md#bound
 share host lifecycle/metadata authority. They do not provide name-based routing,
 model session tools or concurrent scheduling.
 
+Development merges use directly applicable checks, not unrelated experiment
+completion. Capability enablement and final release qualification remain
+separate: see the [canonical three-tier policy](Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [experiment disposition inventory](Design/Implementation_Roadmap.md#experiment-disposition-inventory).
+An RC records its enabled scope and exclusions; passing CI is not full product
+or hardware/provider qualification.
+
 ## Requirements
 
 - Windows 10 build 19041 or later; Windows 11 is recommended.

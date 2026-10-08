@@ -1,17 +1,90 @@
 # Acceptance Criteria
 
-Status: proposed release gates. Targets are not claims of measured performance.
+Status: canonical three-tier qualification policy and capability acceptance
+criteria. Targets are not claims of measured performance.
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
 
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
-maps these gates to current source/test evidence and outstanding work packages.
-Delivered bootstrap behavior does not mean these release gates have passed;
-actual provider, hardware, containment and installation evidence remains required.
+maps these criteria to current source/test evidence and outstanding work packages.
+Delivered bootstrap behavior does not mean capability qualification has passed;
+actual provider, hardware, containment and installation evidence remains required
+where applicable to the enabled capability/profile.
+
+## Three-Tier Qualification Policy
+
+This section is authoritative for the scope of merge, enablement and final
+release-candidate (RC) qualification. It supersedes aggregate repository-wide
+interpretations of R02, Gate 0, A0-A4 and experiment/deferred-validation
+checklists; it does not lower their applicable criteria or relabel evidence.
+
+| Tier | Required evidence | What an outstanding proof blocks |
+|---|---|---|
+| 1 - Normal repository feature development | Directly applicable unit, integration, security, compatibility and regression checks for the changed behavior and its consumers; directly related documentation and normal review/CI requirements. Documentation-only changes need documentation checks where present, not hardware/provider trials. | The affected change when its required checks fail. Unrelated experiments, unapproved lab environments and unimplemented capabilities are not repository-wide merge blockers. |
+| 2 - Capability/profile qualification | Applicable critical fixtures and actual boundary evidence before enabling, advertising, packaging as available, or materially changing that capability/profile. Evidence binds to exact implementation/runtime/model/native bytes, permissions, destinations and supported environment. | Only the affected capability/profile and consumers that actually require it. Partial implementation and maintained tests may merge with an explicit unavailable boundary; a materially changed enabled path must be requalified or disabled before delivery. |
+| 3 - Final RC qualification | Integrated regression and final-byte/environment evidence for an explicit, reviewed enabled-capability manifest, including shared controls and actual transitive dependencies. | Qualification of that RC's enabled scope, not unrelated feature development or every capability in the design vision. Excluded capabilities are recorded as exclusions, never passed, waived or silently inherited from a different profile. |
+
+Source inclusion or an unsigned development/POC artifact is not a capability
+claim or final RC qualification. A capability packaged as available, including
+an offered opt-in capability, must meet tier 2; a disabled implementation must
+remain unreachable and clearly unavailable through UI, commands, model tools,
+setup and documentation. Existing CI, review, licence and coverage requirements
+remain in force; this policy does not change workflow or branch protections.
+
+### Non-Waivable Safety and Critical Fixtures
+
+Authority, consent, privacy, instance ownership, egress, required durable intent/
+audit, data integrity and resource-quiescence checks remain hard fail-closed
+boundaries on every affected admitted path, at every tier. Unknown, missing,
+corrupt, stale or unobservable state cannot authorize work. An exclusion cannot
+remove a shared control needed by an enabled path; missing implementation or
+evidence leaves that path unavailable, not optimistically admitted.
+
+All mandatory critical fixtures for the affected capability must pass, including
+denial/no-side-effect, hostile content and incoming context, cross-session
+isolation, cancellation/late output, required audit and interruption/recovery
+cases as applicable. Aggregate scores or passing averages cannot hide a critical
+failure. Fakes provide deterministic coverage, not substitutes for required
+native/provider, acoustic, containment, offline or installed observations.
+Consent/privilege and test-machine ownership requirements are unchanged.
+
+### Enabled-Capability Manifest and Exclusions
+
+For each RC, retain a versioned qualification artifact alongside its exact
+source revision and final payload/setup digests. Release/test owners review it;
+it records qualification scope, not runtime permission or model-supplied
+authority. No new manifest parser or enablement mechanism is implied here.
+
+- List each available default and offered opt-in capability, its exact profile/
+  implementation and dependency identities, supported OS/architecture/hardware,
+  caller routes, permissions/destinations and configuration boundaries.
+- Map each entry and its shared/transitive controls to applicable criteria,
+  mandatory critical fixtures, maintained tests and actual environment receipts,
+  with result, limitations and accountable owner. Reuse valid exact-profile
+  receipts; repeat affected evidence when mechanisms, bytes, environments or
+  compatibility/availability claims materially change.
+- List excluded capabilities/profiles separately, with reason, dependent
+  exclusions, unavailable routing/packaging/advertising boundary and the evidence
+  needed for future inclusion. Missing consent or an unavailable lab is an
+  exclusion/blocker for that scope, not a successful result.
+- Evaluate final installed bytes and integrated behavior only for included
+  scope, plus shared platform/security/storage controls it depends on. No model
+  runtime means no unrelated hosted-account gate; no script executor means no
+  unrelated worker-profile qualification. Their denied/unavailable boundaries
+  still require regression coverage.
+- Reject an RC with a failed/missing required fixture or boundary receipt for an
+  included capability. Narrowing release scope requires an explicit reviewed
+  manifest and truthful product/user documentation, not an implicit waiver.
+
+A0-A4/B/C remain milestones for their stated full outcomes. A manifest may
+explicitly exclude an unfinished outcome; that RC must not claim the complete
+milestone or original full initial-release scope. Future capability gates apply
+only when that capability is in scope.
 
 ## Test Environment and Evidence
 
-Before implementation is accepted, record an exact reference machine:
+For applicable environment-qualified capability and RC trials, record an exact
+reference machine; this is not a prerequisite for unrelated repository merges:
 
 - Windows 11 x64 on a currently supported release.
 - At least 8 logical CPU cores, 16 GiB RAM, and SSD storage.

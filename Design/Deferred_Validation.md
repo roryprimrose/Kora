@@ -5,6 +5,17 @@ to run a test. Partial feasibility evidence and scoped implementation may merge 
 unproven capabilities remain gated and their decisions/acceptance gates stay
 open. Merge is not certification for production release.
 
+Scope follows the authoritative
+[three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy):
+this register is not an aggregate repository-wide merge/RC checklist. Each
+outstanding trial blocks only its affected capability/profile exposure and RC
+inclusion; final RC qualification uses an explicit enabled-capability manifest
+and records exclusions, not assumed passes. Directly applicable critical
+fixtures and fail-closed shared controls remain mandatory. The roadmap's
+[current disposition inventory](Implementation_Roadmap.md#experiment-disposition-inventory)
+owns retain/migrate/archive policy; dated rerun and equivalence receipts below
+are preserved, not permission to delete partially replaced harnesses.
+
 Use this page to plan remaining validation. Safe file/database-only scratch
 reruns may run remotely while the physical console is locked; only rows
 requiring live input, actual effects or protected setup need the corresponding

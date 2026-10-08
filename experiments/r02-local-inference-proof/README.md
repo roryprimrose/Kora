@@ -3,6 +3,14 @@
 **Status: reproducible harness and unavailable-path evidence; D-003 and the
 inference portion of D-007 remain open. Partial research, not A2 acceptance.**
 
+**Current disposition:** retain as an opt-in, environment-qualified capability/
+RC harness outside default CI, not an unrelated feature-merge prerequisite.
+Actual quality, CPU-floor/context/resource and offline/cessation observations
+remain unique. The [three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+own scope, critical fixtures and migration/removal conditions. No code is
+retired and no outstanding trial is relabelled as passed.
+
 Scope: the already pinned Ollama `0.35.1` / `qwen3:1.7b` candidate, selected
 synthetic clipboard-shaped text, answer quality, performance, context,
 cancellation and errors. No real clipboard/audio, tool execution, production
@@ -653,10 +661,11 @@ provider or authority substitution. No LI row is waived by merging partial work.
 
 ## Proof code lifecycle
 
-Retain this harness through LI01-LI07 and R06-R08/R10 adapter delivery because
-it owns the exact candidate rubric and deferred measurement procedure. Move
+Retain this opt-in harness for LI01-LI07 and affected capability/RC qualification
+because it owns the exact candidate rubric and environment procedure. Move
 quality, budget, cancellation, unavailable-path and offline cases into the
 production adapter/integration suites as those boundaries become executable.
 Remove the standalone harness only after equivalent production coverage and
-final reviewed evidence exist; preserve historical receipts. See the shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+final reviewed evidence exist and consumer/reference checks pass; preserve
+historical receipts and unique lab procedures. Current disposition is owned by
+the roadmap inventory above; dated equivalence assessments remain evidence.

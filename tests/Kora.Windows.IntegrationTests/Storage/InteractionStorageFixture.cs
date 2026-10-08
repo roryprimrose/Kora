@@ -158,7 +158,7 @@ internal sealed class InteractionStorageFixture : IDisposable
             foreach (var record in events) { WindowsSqliteHostTaskStore.WriteTask(legacy, transaction, record); }
             transaction.Commit();
         }
-        Mutate("DROP TABLE session_history; DROP TABLE session_history_heads; DROP TABLE host_task_waits; DROP TABLE host_task_runs; DROP TABLE host_task_events; DROP TABLE host_tasks;"
+        Mutate("DROP TABLE session_queue; DROP TABLE session_history; DROP TABLE session_history_heads; DROP TABLE host_task_waits; DROP TABLE host_task_runs; DROP TABLE host_task_events; DROP TABLE host_tasks;"
             + (version == 1 ? "DROP TABLE session_metadata;" : string.Empty)
             + "PRAGMA user_version=" + version.ToString(System.Globalization.CultureInfo.InvariantCulture) + ";");
     }

@@ -11,6 +11,24 @@ Delivered bootstrap behavior does not mean capability qualification has passed;
 actual provider, hardware, containment and installation evidence remains required
 where applicable to the enabled capability/profile.
 
+## Delivered R13 deterministic-core evidence scope
+
+Focused deterministic tests cover fixed local-version FIFO/round-robin
+starvation bounds, per-session/global admission limits, exact identities and
+duplicate/concurrent revision conflicts, pre/post-admission cancellation,
+pending expiry, separate pre-dispatch user-wait isolation, Unknown/dependency
+quarantine and unrelated progress, restart interruption/no replay,
+schema-v4/v5 migration, stale callbacks, logical disposition/independent grants,
+private admission failures, atomic audit/storage failure, fresh activity links,
+no content logging/model egress and disposal.
+
+These tests qualify only the bounded deterministic fixed read-only core.
+Manual dispatch and the existing synchronous version registry are not
+two effect/provider lanes, resource-lease execution, hard worker termination,
+general in-task question continuation, production MG1 inference or hardware
+acceptance. Broader A3/runtime/provider/containment criteria remain open;
+unavailable descriptors cannot be enabled by this evidence.
+
 ## Three-Tier Qualification Policy
 
 This section is authoritative for the scope of merge, enablement and final

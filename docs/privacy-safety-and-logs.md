@@ -1,5 +1,30 @@
 # Privacy, safety, and logs
 
+## Fixed deterministic queue privacy
+
+The [local-version queue](commands.md#deterministic-local-version-queue) stores
+only host request/task/session IDs, revisions, generation, fixed-profile state,
+dependency identity and eligibility timing in the private schema-v5 interaction
+store. It accepts no utterance, label, source path, clipboard/file preview,
+skill text, caption or model output. Queue management and execution call no
+model/network/audio service, and never create context/egress approval.
+
+Every admission/outcome requires current private ownership, unchanged
+privacy/call/owner epoch and exact durable authority. Lock/unlock, takeover,
+Done/disposition, full capacity, missing audit/storage and stale IDs/revisions
+cannot silently admit or resume work. Deferred traces use host identities and
+causal links, never content-bearing tags or Baggage. Structured failure logs
+contain a fixed exception type, not command text or observations.
+
+Restart never replays queues or grants. Unknown work remains quarantined;
+the independent Perpetual store is not a scheduler credential. Pending
+cancel/remove/confirmed clear retains content-free task/history receipts.
+Logical disposition retains minimal audited queue identities/timing with task
+and audit evidence while redacting retained history content; this is not
+forensic erasure or removal of exported copies. Reads do not extend activity.
+Volatile preview, lexical retrieval, shared-skill inspection and captions
+remain separate and cannot be attached, replayed or reconstructed by queues.
+
 ## Bounded passive interaction history
 
 The [Sessions history viewer](windows-and-tray.md#bounded-passive-interaction-history)

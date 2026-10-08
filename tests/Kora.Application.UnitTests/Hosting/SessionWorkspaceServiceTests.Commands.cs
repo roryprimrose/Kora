@@ -38,7 +38,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.TaskWrites[0].Request.TaskId.Should().NotBe(fixture.Request.TaskId);
         fixture.TaskWrites[0].Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         fixture.TaskWrites[1].State.Should().Be(HostTaskState.Succeeded);
-        if (verb is "help") { result.Message.Should().Be(SessionCommand.Syntax + " " + SessionCommand.TaskSyntax); }
+        if (verb is "help") {         result.Message.Should().Be(SessionCommand.Syntax + " " + SessionCommand.TaskSyntax + " " + SessionCommand.QueueSyntax); }
         else { result.Sessions.Should().ContainSingle(); }
         if (verb is "done" or "resume")
         {

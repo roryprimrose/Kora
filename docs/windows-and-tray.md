@@ -237,11 +237,21 @@ atomic audit as lifecycle controls; protected/unknown call state denies them.
 Done/resume each advance generation and invalidate old scoped authority.
 Perpetual records remain independent. Resume does not rerun tasks, revive
 approvals or restore/transmit old context. Privacy closure clears this window.
-Full conversations, work queues, name-based voice targeting, automatic archive,
+Full conversations, general effect work queues, name-based voice targeting, automatic archive,
 full recoverable-copy deletion/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
 
 ### Bounded passive interaction history
+
+The same **Sessions** window now also has a bounded
+[fixed local-version queue](commands.md#deterministic-local-version-queue).
+Select an exact existing session, choose **Read exact queue**, then explicitly
+enqueue, manually dispatch ready reads fairly, cancel a displayed pending ID,
+or **Confirm clear displayed pending queue**. Generation/entry/queue revisions
+are bound to the displayed snapshot; concurrent changes require refresh.
+Selection or reading alone never dispatches, changes voice focus, extends
+activity or resumes work. The queue requires no model/network/audio and
+cannot schedule scripts, arbitrary resources, power or provider effects.
 
 Select an existing session to populate its immutable ID, or enter a known exact
 session GUID in the history field. Choose **Read exact history**. **Next history

@@ -43,14 +43,35 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>
-      <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="10">
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="10">
         <ComboBox x:Name="TaskRecords" ItemsSource="{Binding TaskRecords}" IsEnabled="{Binding CanRead}"
                   AutomationProperties.Name="Exact task records from the current selected session page; selection is passive">
           <ComboBox.ItemTemplate>
             <DataTemplate><TextBlock Text="{Binding Request.TaskId.Value}" /></DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
-        <ScrollViewer Grid.Row="1">
+        <ComboBox Grid.Row="1" x:Name="QueueEntries" ItemsSource="{Binding QueueRecords}" IsEnabled="{Binding CanRead}"
+                  AutomationProperties.Name="Exact current-run local-version queue entries; select an ID to cancel only before admission">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding Request.TaskId.Value}" />
+                <TextBlock Text="{Binding State}" />
+                <TextBlock Text="{Binding Revision.Value, StringFormat='revision {0}'}" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <WrapPanel Grid.Row="2">
+          <Button x:Name="ReadQueue" Content="Read exact queue" IsEnabled="{Binding CanReadQueue}" />
+          <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanControlQueue}" />
+          <Button x:Name="DispatchQueue" Content="Dispatch ready local versions fairly" IsEnabled="{Binding CanControlQueue}"
+                  AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
+          <Button x:Name="CancelQueueEntry" Content="Cancel displayed queued ID" IsEnabled="{Binding CanCancelQueueEntry}" />
+          <Button x:Name="ClearQueue" Content="Confirm clear displayed pending queue" IsEnabled="{Binding CanControlQueue}"
+                  AutomationProperties.Name="Explicitly confirm removal of the displayed pending queue at its exact revision; active work and history remain" />
+        </WrapPanel>
+        <ScrollViewer Grid.Row="3">
           <controls:NamedTextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
                      AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
         </ScrollViewer>

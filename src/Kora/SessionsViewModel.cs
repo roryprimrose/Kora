@@ -32,7 +32,7 @@ internal sealed partial class SessionsViewModel(
     private SessionHistoryPage? history;
     private string historySessionId = string.Empty;
     private string nameDraft = string.Empty;
-    private string status = "Refresh to inspect durable names and authority, or enter an exact ID for bounded passive interaction history. No composer or queue is available.";
+    private string status = "Refresh to inspect exact sessions and passive history. The deterministic queue admits fixed local-version reads only; no model-assisted routing or general executor.";
     private string detail = string.Empty;
     private bool busy;
     private bool closed;
@@ -326,6 +326,8 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        queueSnapshot = null;
+        selectedQueueEntry = null;
         dispositionPreview = null;
         selected = null;
         selectedTask = null;
@@ -351,6 +353,7 @@ internal sealed partial class SessionsViewModel(
 
     private void Notify()
     {
+        NotifyQueue();
         OnPropertyChanged(nameof(Sessions));
         OnPropertyChanged(nameof(TaskRecords));
         OnPropertyChanged(nameof(CanInspectTask));

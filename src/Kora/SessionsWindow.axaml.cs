@@ -28,6 +28,13 @@ internal sealed partial class SessionsWindow : Window
             model.SelectTask(TaskRecords.SelectedItem is HostTaskRecord task ? task : null);
         InspectTask.Click += async (_, _) => await model.InspectTaskAsync();
         CancelTask.Click += async (_, _) => await model.CancelTaskAsync();
+        QueueEntries.SelectionChanged += (_, _) =>
+            model.SelectQueueEntry(QueueEntries.SelectedItem is SessionQueueEntry entry ? entry : null);
+        ReadQueue.Click += async (_, _) => await model.ReadQueueAsync();
+        EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
+        DispatchQueue.Click += async (_, _) => await model.DispatchQueueAsync();
+        CancelQueueEntry.Click += async (_, _) => await model.CancelQueueEntryAsync();
+        ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         Evidence.Click += async (_, _) => await model.ReadEvidenceAsync();
         NextEvidence.Click += async (_, _) => await model.ReadEvidenceAsync(next: true);
         Done.Click += async (_, _) => await model.ChangeLifecycleAsync(active: false);

@@ -3,10 +3,67 @@
 Status: proposed full Slice A capability. Bootstrap setup progress and deterministic
 status coexist with delivered exact session/task controls, bounded authoritative
 observation and atomic current-run local-version pre-dispatch wait cancellation
-in consolidated schema v3. This is not proof that contextual routing, queues,
-concurrent workers or the management/execution lanes below are shipped.
+in consolidated schema v5, retaining schema-v4 ordered history. A fixed
+local-version deterministic queue is delivered as described below. This is not
+proof that contextual model routing, concurrent effect workers or the broader
+management/execution lanes below are shipped.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+## Delivered deterministic local-version queue
+
+`SessionQueueService` and the consolidated store own a complete bounded
+read-only slice: exact existing session IDs, original-user request/task IDs,
+session generation, entry revision and queue revision; ten pending entries
+per session; one admitted current task per session; host default one global
+slot (fixed read-only limits 1–2); FIFO heads and deterministic
+least-recent-admission session fairness. A continuously ready session gets a
+turn within one admission per other continuously ready session; blocked heads
+never gain priority or bypass an earlier pending entry.
+
+The fixed work profile is only `application.get_version` through the existing
+read-only registry with a freshly admitted Native caller. There are no
+user-provided arguments, content snapshots, model calls, execution tokens,
+arbitrary resources or effect descriptors. IDs/revisions/dependencies are
+metadata, not executable proposals or grants.
+
+Enqueue is not dispatch. The shipped user-selected policy is manual:
+`queue dispatch <session-id> <generation> <queue-revision>` processes at most
+32 already enqueued current-run ready local reads fairly across eligible
+sessions, never targets work by name or gives the invoking session priority.
+Newly observed failure stops this dispatch batch; later work needs another
+explicit decision. Exact pre-admission cancel/remove and confirmed pending
+clear leave task receipts/history intact, cannot terminate admitted work and
+never clear another session. Duplicate IDs, stale revisions, full capacity,
+unknown subjects/profiles and authority failures refuse without eviction.
+
+The pending lifetime is 30 minutes. Expired heads remain visible and
+non-dispatchable until explicit removal/clear. The five-minute active budget
+starts at admission; a read returning after that budget cannot commit a
+successful receipt. No general asynchronous worker deadline/termination is
+claimed. This profile has no runtime approval/clarification step. Existing
+admitted question waits are pre-dispatch, occupy no scheduler slot and have no
+active-task clock to extend; their separate host gateway/expiry is preserved.
+Broader in-task wait continuation remains unavailable, never inferred from
+arbitrary question records.
+
+Exact durable Succeeded dependencies are required. Unknown outcomes and
+unclassified nonterminal work quarantine their session; dependent heads
+elsewhere block while unrelated sessions remain eligible. No effect lease
+can be invented to bypass uncertainty. Session/call/privacy/owner admission
+is revalidated at the commit and immediate read/receipt boundaries.
+Lock/unlock or ownership changes retire queued eligibility even if the desktop
+later becomes private again; remove/requeue explicitly. No passive extension.
+
+Restart never runs queues: previous-run pending work projects Interrupted,
+previous dispatch projects Unknown, and existing startup recovery commits
+task outcomes without replay. Exact status still identifies those retained
+receipts. History ordering/citations, disposition redaction, independent
+Perpetual grants and volatile inspection/caption isolation remain unchanged.
+
+See [exact syntax](../docs/commands.md#deterministic-local-version-queue).
+The rest of this document describes the broader proposed lanes; this bounded
+core is not MG1 production inference or two-slot effect/provider qualification.
 
 ## Two Independent Lanes
 

@@ -21,7 +21,7 @@ namespace Kora.Windows.Storage;
 /// Tasks, questions and required authority audit share one lease and transaction.
 /// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ICommittedAuthorityAuditReader
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ICommittedAuthorityAuditReader
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -53,7 +53,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             HostInteractionSchema.ApplicationId, HostInteractionSchema.CurrentTables,
             new(1, 2, HostInteractionSchema.Tables, MigrateMetadata),
             new(2, 3, HostInteractionSchema.MetadataTables, ConsolidateTasks),
-            new(3, HostInteractionSchema.Version, HostInteractionSchema.AuthorityTables, MigrateHistory));
+            new(3, 4, HostInteractionSchema.AuthorityTables, MigrateHistory),
+            new(4, HostInteractionSchema.Version, HostInteractionSchema.HistoryTables, MigrateQueue));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -467,6 +468,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     {
         ValidateConsolidatedAuthority(connection);
         SessionHistoryPersistence.Validate(connection);
+        ValidateQueue(connection);
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -629,7 +631,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
             || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
-                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait")
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue")
                 || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
                 || !Same(change.Id, id.ToString("D"))))
         {

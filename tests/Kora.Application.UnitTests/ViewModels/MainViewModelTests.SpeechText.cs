@@ -285,6 +285,7 @@ public sealed partial class MainViewModelTests
     [InlineData("source")]
     [InlineData("configuration")]
     [InlineData("configuration-failure")]
+    [InlineData("feedback")]
     [InlineData("stale")]
     [InlineData("failure")]
     [InlineData("native-presentation")]
@@ -294,6 +295,7 @@ public sealed partial class MainViewModelTests
     {
         var log = new CaptionPresentationLogger();
         var fixture = new Fixture(enableSpeechText: true, logger: log,
+            enableInCallFeedback: transition is "feedback",
             subscribeToWindowActions: transition is not "native-presentation-no-subscriber");
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
@@ -329,6 +331,11 @@ public sealed partial class MainViewModelTests
                 break;
             case "source": fixture.ViewModel.ReportPresenceInputFailure("Synthetic failure"); break;
             case "configuration": await fixture.ViewModel.ResetSpeechTextCommand.ExecuteAsync(); break;
+            case "feedback":
+                fixture.FeedbackPreferences.Value = InCallFeedbackMode.Inherit;
+                fixture.FeedbackConfiguration!.Observe();
+                fixture.ViewModel.SpeechCaptionText.Should().BeNull();
+                break;
             case "configuration-failure":
                 fixture.CaptionPreferences.Failure = new IOException();
                 await fixture.ViewModel.ResetSpeechTextCommand.ExecuteAsync();

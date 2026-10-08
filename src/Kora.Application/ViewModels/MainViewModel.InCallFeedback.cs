@@ -58,6 +58,7 @@ public sealed partial class MainViewModel
 
     private void OnInCallFeedbackChanged(object? sender, EventArgs args)
     {
+        RetireSpeechCaptionSource();
         if (IsSpeaking) { forceVisualResponse = true; }
         uiDispatcher.Post(SynchronizeInCallFeedback);
     }

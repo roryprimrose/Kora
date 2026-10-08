@@ -90,7 +90,7 @@ ambient watching or folder/source expansion occurs.
 `lexical-lines-v1`: streaming chunks from the admitted exact Unicode projection,
 without content persistence or a cache. Chunks honor blank-paragraph and ATX
 heading boundaries, then line/size limits (128 lines / 2,048 UTF-16 characters).
-Long lines prefer whitespace; unavoidable cuts preserve Unicode scalars and
+Long lines prefer whitespace/punctuation/scalar token delimiters; unavoidable cuts preserve Unicode scalars and
 CRLF pairs. Terms crossing a forced chunk boundary are not indexed as invented
 prefix/suffix words. Headings are bounded context labels (64 characters);
 the exact source remains in the immutable excerpt, not reconstructed Markdown.

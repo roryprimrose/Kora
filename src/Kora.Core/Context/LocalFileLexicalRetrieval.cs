@@ -74,19 +74,25 @@ public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
     {
         var start = chunk.Start;
         var end = start + chunk.Length;
-        if (start > 0 && WordCharacter(text[start - 1]) && WordCharacter(text[start]))
+        if (start > 0 && WordCharacter(RuneBefore(text, start)) && WordCharacter(Rune.GetRuneAt(text, start)))
         {
-            while (start < end && WordCharacter(text[start])) { start++; }
+            while (start < end && WordCharacter(Rune.GetRuneAt(text, start)))
+            {
+                start += Rune.GetRuneAt(text, start).Utf16SequenceLength;
+            }
         }
-        if (end < text.Length && WordCharacter(text[end - 1]) && WordCharacter(text[end]))
+        if (end < text.Length && WordCharacter(RuneBefore(text, end)) && WordCharacter(Rune.GetRuneAt(text, end)))
         {
-            while (end > start && WordCharacter(text[end - 1])) { end--; }
+            while (end > start && WordCharacter(RuneBefore(text, end))) { end -= RuneBefore(text, end).Utf16SequenceLength; }
         }
         return text.Substring(start, end - start);
     }
 
-    private static bool WordCharacter(char character) => char.IsLetterOrDigit(character) || char.IsSurrogate(character)
-        || char.GetUnicodeCategory(character) is System.Globalization.UnicodeCategory.NonSpacingMark
+    private static Rune RuneBefore(string text, int offset) =>
+        Rune.GetRuneAt(text, char.IsLowSurrogate(text[offset - 1]) ? offset - 2 : offset - 1);
+
+    private static bool WordCharacter(Rune character) => Rune.IsLetterOrDigit(character)
+        || Rune.GetUnicodeCategory(character) is System.Globalization.UnicodeCategory.NonSpacingMark
             or System.Globalization.UnicodeCategory.SpacingCombiningMark or System.Globalization.UnicodeCategory.EnclosingMark;
 
     private static IEnumerable<Chunk> Chunks(string text, CancellationToken token)
@@ -158,11 +164,11 @@ public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
         // Admission guarantees paired surrogates; a CR at a long-line cut belongs to CRLF.
         if (char.IsHighSurrogate(text[cut - 1])) { cut--; }
         if (text[cut - 1] == '\r') { cut--; }
-        // Prefer a word boundary on hostile long lines; otherwise exact scalar-safe splitting.
+        // Prefer whitespace/punctuation/scalar delimiters; never split an ordinary bounded term.
         var lower = start + maximum / 2;
         for (var at = cut; at > lower; at--)
         {
-            if (char.IsWhiteSpace(text[at - 1])) { return at; }
+            if (!char.IsLowSurrogate(text[at]) && !WordCharacter(RuneBefore(text, at))) { return at; }
         }
         return cut;
     }

@@ -148,6 +148,16 @@ remain retained.** Inference quality, actual offline/resource/cessation,
 RT1/RT2/MG1 and durable storage/cache proofs have no exact equivalence here;
 lexical retrieval does not qualify or retire the inference proof.
 
+Validation on latest main including #111: locked dependencies, root Release
+build/analyzers (zero warnings/errors), Core 945/945, Application 2716/2716,
+Tools 69/69, Definitions 6/6 and Windows integration 1160/1160 pass without
+skips. Fresh-only combined portable coverage is 100% line and branch; no
+coverage exclusions, thresholds or dependency manifests changed. Targeted
+file/lexical/native-authority tests preceded the full gate. Bounds include
+exact maximum query/output bytes and a maximum-size source with 87,382
+matching paragraphs, while only eight candidates are retained. Unicode
+astral-letter/emoji/punctuation chunk boundaries are tested separately.
+
 ### R10/R15 bounded device-local in-call feedback - 2026-10-08
 
 The [bounded in-call feedback contract](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15)

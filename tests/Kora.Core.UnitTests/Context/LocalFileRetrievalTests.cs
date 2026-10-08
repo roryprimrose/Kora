@@ -80,6 +80,13 @@ public sealed class LocalFileRetrievalTests
         Search(source, new string('a', 65)).Outcome.Should().Be(LocalFileSearchOutcome.InvalidQuery);
         Search(source, string.Join(' ', Enumerable.Range(0, 33))).Outcome.Should().Be(LocalFileSearchOutcome.InvalidQuery);
         Search(source, string.Join(' ', Enumerable.Range(0, 32))).Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
+        var atCharacterLimit = string.Join(' ', new string('a', 64), new string('b', 64), new string('c', 64), new string('d', 61));
+        atCharacterLimit.Length.Should().Be(LocalFileRetrievalPolicy.MaximumQueryCharacters);
+        Search(Revision(new string('a', 64)), atCharacterLimit).Outcome.Should().Be(LocalFileSearchOutcome.Matched);
+        var atByteLimit = new string('日', 64) + " " + new string('日', 64) + " " + new string('日', 42);
+        Encoding.UTF8.GetByteCount(atByteLimit).Should().Be(LocalFileRetrievalPolicy.MaximumQueryUtf8Bytes);
+        Search(Revision(new string('日', 64)), atByteLimit).Outcome.Should().Be(LocalFileSearchOutcome.Matched);
+        Search(source, atByteLimit + "x").Outcome.Should().Be(LocalFileSearchOutcome.InvalidQuery);
         Search(source, new string('a', 64)).Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
         Search(Revision(""), "alpha").Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
         Search(source, "bet").Citations.Should().BeEmpty();
@@ -118,6 +125,28 @@ public sealed class LocalFileRetrievalTests
         small.MatchingChunks.Should().Be(20);
         small.Truncated.Should().BeTrue();
         Search(Revision(string.Concat(Enumerable.Repeat("alpha\n", 129))), "alpha").Citations.Count.Should().Be(2);
+        var exactChunk = "alpha " + new string('x', 2040) + "\n\n";
+        var exactBudget = Search(Revision(string.Concat(Enumerable.Repeat(exactChunk, 8))), "alpha");
+        exactBudget.Citations.Sum(citation => Encoding.UTF8.GetByteCount(citation.Excerpt))
+            .Should().Be(LocalFileRetrievalPolicy.MaximumExcerptUtf8Bytes);
+        exactBudget.Truncated.Should().BeFalse();
+        var beyondBudget = Search(Revision(string.Concat(Enumerable.Repeat(exactChunk, 9))), "alpha");
+        beyondBudget.Citations.Should().HaveCount(8);
+        beyondBudget.Truncated.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Maximum_admitted_source_with_degenerate_paragraphs_keeps_only_bounded_top_results()
+    {
+        var text = string.Concat(Enumerable.Repeat("a\n\n", LocalFilePolicy.MaximumBytes / 3)) + "a";
+        Encoding.UTF8.GetByteCount(text).Should().Be(LocalFilePolicy.MaximumBytes);
+        var result = Search(Revision(text), "a");
+        result.MatchingChunks.Should().Be(LocalFilePolicy.MaximumBytes / 3 + 1);
+        result.Citations.Count.Should().Be(LocalFileRetrievalPolicy.MaximumCitations);
+        result.Citations.Select(citation => citation.Start).Should().Equal(Enumerable.Range(0, 8).Select(index => index * 3));
+        result.Truncated.Should().BeTrue();
+        var word = new string('a', LocalFilePolicy.MaximumBytes - 5) + "alpha";
+        Search(Revision(word), "alpha").Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
     }
 
     [Fact]
@@ -134,6 +163,9 @@ public sealed class LocalFileRetrievalTests
             new string('a', 2047) + "\u0301 alpha",
             new string('a', 2047) + "\u0903 alpha",
             new string('a', 2047) + "\u20dd alpha",
+            new string('.', 2046) + "alpha",
+            new string('a', 2046) + "🙂alpha",
+            new string('a', 2046) + "\U00010400alpha",
         };
         foreach (var text in texts)
         {
@@ -148,6 +180,9 @@ public sealed class LocalFileRetrievalTests
         }
         Search(Revision(new string('a', 2048) + "alpha"), "alpha").Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
         Search(Revision("alpha" + new string('a', 2048)), "alpha").Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
+        Search(Revision(new string('.', 2046) + "alpha"), "alpha").Outcome.Should().Be(LocalFileSearchOutcome.Matched);
+        Search(Revision(new string('a', 2046) + "🙂alpha"), "alpha").Outcome.Should().Be(LocalFileSearchOutcome.Matched);
+        Search(Revision(new string('a', 2046) + "\U00010400alpha"), "alpha").Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
         var heading = "# " + new string('x', 61) + "🙂";
         Search(Revision(heading + "\nalpha"), "alpha").Citations.Single().Heading.Should().Be("# " + new string('x', 61));
         Search(Revision("# " + new string('x', 80) + "\nalpha"), "alpha").Citations.Single().Heading!.Length.Should().Be(64);

@@ -3,12 +3,27 @@
 Status: proposed full task lifecycle. Setup task progress and registered command/model
 routing coexist with durable exact task observation and atomic cancellation of
 the admitted current-run local-version pre-dispatch question wait. Consolidated
-schema-v3 authority is not this complete execution queue, worker termination or
-script-backed skill lifecycle.
+schema-v5 authority now also contains the fixed local-version deterministic
+queue. It is not the complete effect queue, worker termination or
+script-backed skill lifecycle below.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## State Model
+
+The delivered fixed read-only queue records Pending, Running (admitted
+dispatch, not independent proof of an effect), Succeeded/Failed, exact
+pre-admission Cancelled/Removed and restart Interrupted/Unknown projections.
+Expiry is a visible non-dispatchable pending projection, not a silent deletion.
+Queued identities and revisioned task transitions share the atomic required
+authority audit. A lost or rejected receipt remains unverified, never an
+inferred success, cancellation or automatic retry.
+
+See [the bounded queue contract](Work_Management.md#delivered-deterministic-local-version-queue).
+The active budget begins only on admitted dispatch, not during queue time or
+an existing pre-dispatch admitted question wait. The fixed synchronous version
+read admits no in-task wait, effect/resource lease or runtime callback; general
+wait/deadline cancellation and effect/provider qualification remain unavailable.
 
 Assistant startup and release/debug takeover obey [Instance Coordination](Instance_Coordination.md): one exclusive active owner, explicit quiescent transfer, and no task/grant/listening replay on return.
 

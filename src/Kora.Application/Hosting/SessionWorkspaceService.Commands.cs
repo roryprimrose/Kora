@@ -16,6 +16,13 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidOperationException(command.Error);
         }
+        if (command.Operation is SessionCommandOperation.QueueList or SessionCommandOperation.QueueStatus
+            or SessionCommandOperation.QueueEnqueue or SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove
+            or SessionCommandOperation.QueueClear or SessionCommandOperation.QueueDispatch)
+        {
+            return (queue ?? throw new InvalidOperationException("The deterministic queue service is unavailable."))
+                .ExecuteCommandAsync(command, origin, admission, token);
+        }
         if (command.Operation is SessionCommandOperation.History or SessionCommandOperation.HistoryGet)
         {
             return ExecuteHistoryCommandAsync(command, origin, admission, token);
@@ -36,7 +43,7 @@ public sealed partial class SessionWorkspaceService
             switch (command.Operation)
             {
                 case SessionCommandOperation.Help:
-                    result = new("observed", SessionCommand.Syntax + " " + SessionCommand.TaskSyntax);
+                    result = new("observed", SessionCommand.Syntax + " " + SessionCommand.TaskSyntax + " " + SessionCommand.QueueSyntax);
                     break;
                 case SessionCommandOperation.TaskStatus:
                 case SessionCommandOperation.TaskInspect:

@@ -1,9 +1,12 @@
 # Human Interaction and Persistent Sessions
 
 Status: agreed product direction; bounded durable question/grant/session metadata,
-exact session/task controls and consolidated schema-v4 task/question/required-audit
-authority with bounded ordered interaction history implemented. Cancellation covers only the genuine current-run local-version
-pre-dispatch question wait; full interaction/session/queue/effect integration remains proposed.
+exact session/task controls and consolidated schema-v5 task/question/queue/required-audit
+authority with bounded ordered interaction history implemented. The deterministic
+local-version queue and its exact pending cancellation are delivered; cancellation
+of the separate genuine current-run local-version pre-dispatch question wait
+remains gateway-bound. Full conversation, effect and model-assisted routing
+integration remains proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -11,6 +14,17 @@ This is the canonical interaction/session contract. It replaces the former singl
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
 
 ## Current Implementation and Design Gap
+
+The [R13 fixed local-version queue](Work_Management.md#delivered-deterministic-local-version-queue)
+addresses existing immutable session IDs directly. Pending capacity, FIFO,
+fair manual admission, revisions, dependencies and restart interruption are
+host-owned; names/selected windows never substitute for IDs. Queue slots cover
+only this read-only profile, not providers, workers, audio or arbitrary resources.
+Native **Read exact queue**, **Enqueue local version**, **Dispatch ready local
+versions fairly**, exact pending cancellation and separately labelled confirmed
+clear use the same workflow as typed/current-name activated commands. Selection
+alone neither enqueues nor dispatches. New work in Done/Removed sessions is denied.
+Passive history/queue inspection never renews activity or restores authority.
 
 The runnable bootstrap has one response title/body and latest transcript in `MainViewModel`, displayed by `ResponseWindow`.
 Typed and recognized spoken commands converge on the deterministic built-in command router.

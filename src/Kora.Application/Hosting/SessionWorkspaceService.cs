@@ -10,7 +10,8 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionWorkspaceService(
     ISessionWorkspaceStore store, HostTaskCoordinator tasks,
-    ISessionWorkspaceAccess access, ILogger<SessionWorkspaceService> logger)
+    ISessionWorkspaceAccess access, ILogger<SessionWorkspaceService> logger,
+    SessionQueueService? queue = null)
 {
     public event Action<HostTaskObservation>? WaitingTaskCancelled;
 

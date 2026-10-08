@@ -278,6 +278,14 @@ internal static class Program
         services.AddSingleton<SpeechTextConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
+        services.AddSingleton<ISessionQueueStore>(interactions);
+        services.AddSingleton(new SessionQueueLimits());
+        services.AddSingleton<IDeterministicVersionQueueAction, DeterministicVersionQueueAction>();
+        services.AddSingleton(provider => new SessionQueueService(
+            provider.GetRequiredService<ISessionQueueStore>(), provider.GetRequiredService<ISessionWorkspaceStore>(),
+            provider.GetRequiredService<HostTaskCoordinator>(), provider.GetRequiredService<ISessionWorkspaceAccess>(),
+            provider.GetRequiredService<IDeterministicVersionQueueAction>(), provider.GetRequiredService<SessionQueueLimits>(),
+            provider.GetRequiredService<ILogger<SessionQueueService>>()));
         services.AddSingleton(TimeProvider.System);
         services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
         {

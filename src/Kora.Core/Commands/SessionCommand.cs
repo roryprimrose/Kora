@@ -8,7 +8,7 @@ using Kora.Core.Storage;
 namespace Kora.Core.Commands;
 
 /// <summary>Exact identity grammar. Names are validated content, never selectors.</summary>
-public sealed record SessionCommand(
+public sealed partial record SessionCommand(
     SessionCommandOperation Operation, Guid? SessionId = null, long Generation = 0,
     long MetadataRevision = 0, SessionName? Name = null, Guid? After = null,
     int Limit = SessionCommand.DefaultPageSize, string? Error = null)
@@ -16,7 +16,7 @@ public sealed record SessionCommand(
     public const int DefaultPageSize = 25;
     public const int MaximumInputBytes = 1024;
     public const int MaximumResultBytes = 65536;
-    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "task help"];
+    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "task help", "queue help"];
     public const string Syntax =
         "session help | session list [after <exact-id>] [limit <1-50>] | session status <exact-id> | "
         + "session inspect <exact-id> [tasks|questions] [after <exact-id>] [limit <1-50>] | "
@@ -26,7 +26,7 @@ public sealed record SessionCommand(
         + "session get <exact-id> <event-id>. History is passive; no composer, model context or replay. "
         + "IDs use canonical D GUIDs; revisions use decimal integers. Names use NFC single-line Unicode, "
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
-        + "No name, selected-window, delete, queue, executor or approval targeting.";
+        + "No name, selected-window, delete, general executor or approval targeting.";
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }
@@ -48,6 +48,11 @@ public sealed record SessionCommand(
             && (text[prefix.Length] == ',' || char.IsWhiteSpace(text[prefix.Length])))
         {
             text = text[prefix.Length..].TrimStart(' ', ',', '\t');
+        }
+        if (text.Equals("queue", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("queue ", StringComparison.OrdinalIgnoreCase))
+        {
+            return ParseQueue(text, input);
         }
         var taskCommand = text.Equals("task", StringComparison.OrdinalIgnoreCase)
             || (text.StartsWith("task", StringComparison.OrdinalIgnoreCase) && text.Length > 4 && char.IsWhiteSpace(text[4]));

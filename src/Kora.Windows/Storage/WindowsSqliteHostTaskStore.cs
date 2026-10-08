@@ -381,6 +381,22 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
                 throw new InvalidOperationException("Admitted question waits require the shared atomic cancellation or answered pre-dispatch gateway.");
             }
         }
+        if (validateAuthority is not null)
+        {
+            using var queued = connection.CreateCommand();
+            queued.Transaction = transaction;
+            queued.CommandText = "SELECT payload FROM session_queue WHERE task_id=$id;";
+            queued.Parameters.AddWithValue("$id", record.Request.TaskId.Value.ToString("D"));
+            if (queued.ExecuteScalar() is string payload)
+            {
+                var entry = HostInteractionCodec.Decode<SessionQueueEntry>(payload);
+                if (!(entry.IsPending && record.State == HostTaskState.Interrupted)
+                    && !(entry.IsCurrent && record.State == HostTaskState.Unknown))
+                {
+                    throw new InvalidOperationException("Queued work requires the shared atomic admission/receipt service; only no-replay recovery may write generically.");
+                }
+            }
+        }
 
         WriteTask(connection, transaction, record);
         if (expectedRevision == 0 && authorityRun is { } run)

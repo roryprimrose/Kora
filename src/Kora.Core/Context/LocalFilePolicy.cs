@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -18,10 +19,16 @@ public static class LocalFilePolicy
     public static void ValidatePath(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
+        try { _ = Utf8.GetByteCount(path); }
+        catch (EncoderFallbackException exception)
+        {
+            throw new InvalidDataException("The path is not canonical Unicode.", exception);
+        }
         if (path.Length is < 4 or > MaximumPathCharacters
             || !char.IsAsciiLetter(path[0]) || path[1] != ':' || path[2] != '\\'
             || path.AsSpan(3).ContainsAny('/', ':', '%')
-            || path.Any(character => char.IsControl(character) || character is '"' or '<' or '>' or '|' or '?' or '*'))
+            || path.Any(character => char.IsControl(character) || CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.Format
+                || character is '"' or '<' or '>' or '|' or '?' or '*'))
         {
             throw new InvalidDataException("Only bounded absolute fixed-drive paths are supported; no expansion, devices, streams or network paths.");
         }

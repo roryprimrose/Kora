@@ -328,7 +328,35 @@ public sealed class LocalFilePreviewTests : IDisposable
     private sealed class Audit : ISecurityAuditLog
     {
         public List<SecurityAuditEvent> Events { get; } = [];
-        public void Write(SecurityAuditEvent auditEvent) => Events.Add(auditEvent);
+        public SecurityAuditOutcome? Reject { get; set; }
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            if (auditEvent.Outcome == Reject) { throw new IOException("synthetic private audit failure"); }
+            Events.Add(auditEvent);
+        }
+    }
+
+    [Theory]
+    [InlineData(SecurityAuditOutcome.Requested)]
+    [InlineData(SecurityAuditOutcome.Succeeded)]
+    public async Task Required_audit_failure_never_publishes_a_revision_or_preserves_native_handles(SecurityAuditOutcome failed)
+    {
+        var inspector = new Inspector();
+        var audit = new Audit();
+        var logger = new CaptureLogger();
+        using var service = new LocalFilePreview(inspector, audit, TimeProvider.System, logger);
+        using var host = Host();
+        await service.SelectAsync(new Picker(), () => true, TestContext.Current.CancellationToken);
+        var id = service.Review!.ReviewId;
+        audit.Reject = failed;
+        (await service.ConfirmAsync(id, () => true, TestContext.Current.CancellationToken)).Should().Be(LocalFileOutcome.Unavailable);
+        service.Current.Should().BeNull();
+        service.Review.Should().BeNull();
+        inspector.Reads.Should().Be(failed == SecurityAuditOutcome.Requested ? 0 : 1);
+        inspector.Disposals.Should().Be(1);
+        audit.Events.Should().Contain(item => item.Outcome == SecurityAuditOutcome.Failed);
+        logger.Messages.Should().NotContain(message => message.Contains("synthetic private", StringComparison.Ordinal));
+        await service.WaitForQuiescenceAsync();
     }
 
     private sealed class CaptureLogger : ILogger<LocalFilePreview>

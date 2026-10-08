@@ -185,6 +185,24 @@ public sealed partial class LocalFileTests : IDisposable
     private static HostActivity Host() =>
         HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
 
+    [Fact]
+    public void Native_preview_is_inert_accessible_and_scrolls_complete_plain_text_without_clipboard_or_rendering()
+    {
+        var repository = Path.GetDirectoryName(root)!;
+        var source = File.ReadAllText(Path.Combine(repository, "src", "Kora", "LocalFilePreviewWindow.cs"));
+        source.Should().Contain("Confirm exact local file read")
+            .And.Contain("Local file review identity and bounds")
+            .And.Contain("Local file preview privacy and unavailable capabilities")
+            .And.Contain("Untrusted local file plain text content")
+            .And.Contain("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto")
+            .And.Contain("content.Text = null")
+            .And.Contain("Content = null")
+            .And.NotContain("MarkdownDocumentRenderer")
+            .And.NotContain("Clipboard.")
+            .And.NotContain("HttpClient")
+            .And.NotContain("Process.Start");
+    }
+
     private sealed class Paths(string root) : IApplicationDataPaths
     {
         public string LocalRoot { get; } = Path.Combine(root, "private-local");

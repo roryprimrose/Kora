@@ -35,6 +35,7 @@ public sealed class LocalFileTests
     [InlineData(@"C;\file.txt")]
     [InlineData("C:\\invalid\tname.txt")]
     [InlineData(@"C:\invalid|name.txt")]
+    [InlineData("C:\\Team\\guide\u202e.txt")]
     [InlineData(@"C:\.git\config.txt")]
     [InlineData(@"C:\.ssh\identity.txt")]
     [InlineData(@"C:\node_modules\package.md")]
@@ -141,5 +142,13 @@ public sealed class LocalFileTests
                 string.Equals(invalid, "length", StringComparison.Ordinal) ? 2 : 1, DateTimeOffset.UnixEpoch));
         var create = () => new LocalFileRevision(review, [0x61], DateTimeOffset.UnixEpoch);
         create.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void Malformed_unicode_path_cannot_be_replaced_into_another_selection()
+    {
+        var path = @"C:\Team\guide" + new string((char)0xd800, 1) + ".txt";
+        var validate = () => LocalFilePolicy.ValidatePath(path);
+        validate.Should().Throw<InvalidDataException>();
     }
 }

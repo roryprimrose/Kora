@@ -52,13 +52,20 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         var identity = new NamedTextBlock { Text = metadata, TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetName(identity, "Local file review identity and bounds");
         chrome.Children.Add(identity);
-        chrome.Children.Add(new NamedTextBlock { Text = Disclosure, TextWrapping = TextWrapping.Wrap });
+        var disclosure = new NamedTextBlock { Text = Disclosure, TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetName(disclosure, "Local file preview privacy and unavailable capabilities");
+        chrome.Children.Add(disclosure);
         if (confirm is not null) { chrome.Children.Add(confirm); }
         DockPanel.SetDock(chrome, Dock.Top);
         body.Children.Add(chrome);
         content.Text = text;
         AutomationProperties.SetName(content, "Untrusted local file plain text content");
-        body.Children.Add(new ScrollViewer { Content = content });
+        body.Children.Add(new ScrollViewer
+        {
+            Content = content,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        });
         Content = body;
     }
 

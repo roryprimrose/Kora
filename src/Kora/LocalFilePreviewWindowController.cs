@@ -85,6 +85,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
         }
         view.Show(owner);
         view.Activate();
+        if (disposed || (host.FileRevision?.RevisionId ?? host.FileReview?.ReviewId ?? Guid.Empty) != id) { CloseView(); }
     }
 
     private void OnClosed(object? sender, EventArgs args)

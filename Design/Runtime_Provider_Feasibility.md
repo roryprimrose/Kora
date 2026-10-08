@@ -47,6 +47,29 @@ validated by this runtime branch.
 
 ## Implementation Direction
 
+### Qualification scope and maintained-test migration
+
+Apply the three-tier policy to these proofs:
+
+1. Deterministic local work and unrelated features may continue through their
+   own prerequisites; blocked RT2/PV1 evidence is not a repository-wide veto.
+2. The affected runtime profile and model-assisted management remain disabled
+   until their applicable technical, account and integrated-host gates pass.
+3. An RC manifest that includes those capabilities must carry their completed
+   qualification; merging scoped code or evidence does not qualify that RC.
+
+The [2026-10-08 file-only continuation](Deferred_Validation.md#2026-10-08-file-only-runtime-preparation)
+does not change these tiers or admit either SDK profile. Production has no
+Copilot SDK composition or equivalent MG1 management-envelope consumer in
+`src`/`tests`. The local Ollama reasoner is a different contract, not a
+replacement for actual Copilot final-request, session-I/O or lifecycle tests.
+Do not relocate experiment assertions into maintained integration tests merely
+to test copied experimental helpers. Migrate them when the maintained consumer
+exists and exact subject/assertion equivalence can be verified; retain the
+historical artifacts, rejected hook-only witness and all design/harness
+consumers until that check is complete. No runtime experiment is archived by
+this continuation.
+
 ### RT1 .NET outcome: selected source-built profile passes
 
 The [RT1 disposition](../experiments/r02-dotnet-control-proof/evidence/disposition.json)

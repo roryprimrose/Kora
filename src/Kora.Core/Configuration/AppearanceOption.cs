@@ -3,6 +3,7 @@ namespace Kora.Core.Configuration;
 public enum AppearanceOption
 {
     Theme,
+    PresenceDisplay,
     PresenceTimeout,
     ResponseTimeout,
     PresenceSize,

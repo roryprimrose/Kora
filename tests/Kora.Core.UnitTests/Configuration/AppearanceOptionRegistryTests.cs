@@ -8,7 +8,7 @@ public sealed class AppearanceOptionRegistryTests
     [Fact]
     public void Catalogue_is_bounded_typed_read_only_and_appearance_only()
     {
-        AppearanceOptionRegistry.Options.Should().HaveCount(9);
+        AppearanceOptionRegistry.Options.Should().HaveCount(10);
         AppearanceOptionRegistry.Options.Select(item => item.Id).Should().OnlyHaveUniqueItems();
         foreach (var descriptor in AppearanceOptionRegistry.Options)
         {

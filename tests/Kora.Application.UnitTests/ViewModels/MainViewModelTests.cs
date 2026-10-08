@@ -8817,6 +8817,8 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         public ApplicationThemeMode? Mode { get; set; }
 
+        public bool? PresenceDisplayEnabled { get; set; }
+
         public int? PresenceTimeoutSeconds { get; set; }
 
         public int? ResponseTimeoutSeconds { get; set; }
@@ -8838,6 +8840,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public ResponseWindowSettings? ResponseWindowSettings { get; set; }
 
         public ApplicationThemeMode? SavedMode { get; private set; }
+
+        public bool? SavedPresenceDisplayEnabled { get; private set; }
 
         public int? SavedPresenceTimeoutSeconds { get; private set; }
 
@@ -8896,6 +8900,23 @@ public sealed partial class MainViewModelTests : IDisposable
 
             SavedMode = mode;
             Mode = mode;
+        }
+
+        public bool? LoadPresenceDisplayEnabled()
+        {
+            if (LoadException is not null)
+            {
+                throw LoadException;
+            }
+
+            return PresenceDisplayEnabled;
+        }
+
+        public void SavePresenceDisplayEnabled(bool value)
+        {
+            ThrowIfSaveFails();
+            SavedPresenceDisplayEnabled = value;
+            PresenceDisplayEnabled = value;
         }
 
         public int? LoadPresenceTimeoutSeconds()

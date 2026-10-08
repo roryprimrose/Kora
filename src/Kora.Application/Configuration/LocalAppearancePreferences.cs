@@ -11,6 +11,7 @@ namespace Kora.Application.Configuration;
 public sealed class LocalAppearancePreferences : IAppearancePreferences
 {
     private const string FileName = "appearance-theme.txt";
+    private const string PresenceDisplayEnabledFileName = "presence-display-enabled.txt";
     private const string PresenceTimeoutFileName = "presence-inactivity-timeout-seconds.txt";
     private const string ResponseTimeoutFileName = "response-timeout-seconds.txt";
     private const string LegacyResponseTimeoutFileName = "presence-timeout-seconds.txt";
@@ -72,6 +73,26 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
         ApplicationLog.Information(logger, "Saved the appearance theme preference");
     }
 
+    public bool? LoadPresenceDisplayEnabled()
+    {
+        var value = LoadBooleanPreference(
+            PresenceDisplayEnabledFileName,
+            "presence display");
+        if (value is not null)
+        {
+            ApplicationLog.Debug(logger, "Loaded the presence display preference");
+        }
+        return value;
+    }
+
+    public void SavePresenceDisplayEnabled(bool value)
+    {
+        store.WriteText(
+            PresenceDisplayEnabledFileName,
+            value.ToString(CultureInfo.InvariantCulture));
+        ApplicationLog.Information(logger, "Saved the presence display preference");
+    }
+
     public int? LoadPresenceTimeoutSeconds() =>
         LoadIntegerPreference(
             PresenceTimeoutFileName,
@@ -131,18 +152,13 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
 
     public bool? LoadPresenceSpeechScalingEnabled()
     {
-        var contents = store.ReadText(PresenceSpeechScalingEnabledFileName);
-        if (contents is null)
+        var value = LoadBooleanPreference(
+            PresenceSpeechScalingEnabledFileName,
+            "presence speech scaling");
+        if (value is not null)
         {
-            return null;
+            ApplicationLog.Debug(logger, "Loaded the presence speech scaling preference");
         }
-
-        if (!bool.TryParse(contents, out var value))
-        {
-            throw new InvalidDataException("The saved presence speech scaling preference is invalid.");
-        }
-
-        ApplicationLog.Debug(logger, "Loaded the presence speech scaling preference");
         return value;
     }
 
@@ -264,6 +280,22 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
             PresenceSpeechScalingEnabledFileName,
             value.ToString(CultureInfo.InvariantCulture));
         ApplicationLog.Information(logger, "Saved the presence speech scaling preference");
+    }
+
+    private bool? LoadBooleanPreference(string fileName, string preferenceName)
+    {
+        var contents = store.ReadText(fileName);
+        if (contents is null)
+        {
+            return null;
+        }
+
+        if (!bool.TryParse(contents, out var value))
+        {
+            throw new InvalidDataException($"The saved {preferenceName} preference is invalid.");
+        }
+
+        return value;
     }
 
     public void SavePresenceSpeechScaleAmountPercent(int value)

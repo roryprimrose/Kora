@@ -32,6 +32,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.ResponseBody.Should().Contain($"{descriptor.Id} = {AppearanceCommand.Format(descriptor.Default)}");
         }
         notified.Should().Contain(nameof(fixture.ViewModel.ThemeMode))
+            .And.Contain(nameof(fixture.ViewModel.IsPresenceDisplayEnabled))
             .And.Contain(nameof(fixture.ViewModel.PresenceTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.ResponseTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.PresenceSizePixels))
@@ -41,6 +42,7 @@ public sealed partial class MainViewModelTests
             .And.Contain(nameof(fixture.ViewModel.IsPresenceSpeechScalingEnabled))
             .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent));
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
+        fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);

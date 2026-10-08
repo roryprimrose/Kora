@@ -2,6 +2,7 @@ namespace Kora.Core.Configuration;
 
 public static class PresenceSettings
 {
+    public const bool DefaultDisplayEnabled = true;
     public const int DefaultTimeoutSeconds = 10;
     public const int MinimumTimeoutSeconds = VisibilityTimeoutSettings.MinimumSeconds;
     public const int MaximumTimeoutSeconds = VisibilityTimeoutSettings.MaximumSeconds;

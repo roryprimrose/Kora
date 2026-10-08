@@ -16,6 +16,7 @@ public sealed partial class AppearanceConfigurationService(
     private readonly Dictionary<AppearanceOption, Action<AppearanceValue>> save = new()
     {
         [AppearanceOption.Theme] = value => preferences.SaveThemeMode(value.GetTheme()),
+        [AppearanceOption.PresenceDisplay] = value => preferences.SavePresenceDisplayEnabled(value.GetToggle()),
         [AppearanceOption.PresenceTimeout] = value => preferences.SavePresenceTimeoutSeconds(value.GetNumber()),
         [AppearanceOption.ResponseTimeout] = value => preferences.SaveResponseTimeoutSeconds(value.GetNumber()),
         [AppearanceOption.PresenceSize] = value => preferences.SavePresenceSizePixels(value.GetNumber()),
@@ -54,6 +55,7 @@ public sealed partial class AppearanceConfigurationService(
             var saved = new Dictionary<AppearanceOption, AppearanceValue?>
             {
                 [AppearanceOption.Theme] = preferences.LoadThemeMode() is { } theme ? new AppearanceValue.Theme(theme) : null,
+                [AppearanceOption.PresenceDisplay] = preferences.LoadPresenceDisplayEnabled() is { } display ? new AppearanceValue.Toggle(display) : null,
                 [AppearanceOption.PresenceTimeout] = preferences.LoadPresenceTimeoutSeconds() is { } presenceTimeout ? new AppearanceValue.Number(presenceTimeout) : null,
                 [AppearanceOption.ResponseTimeout] = preferences.LoadResponseTimeoutSeconds() is { } responseTimeout ? new AppearanceValue.Number(responseTimeout) : null,
                 [AppearanceOption.PresenceSize] = preferences.LoadPresenceSizePixels() is { } size ? new AppearanceValue.Number(size) : null,

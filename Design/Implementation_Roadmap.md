@@ -167,8 +167,9 @@ uncertain key publication fail closed. No delivered managed-backup publisher
 exists; this does not guess ownership or claim removal of arbitrary backups.
 No forensic/media erase, provider copy, user export or full A3 claim is made.
 
-Validation: locked solution restore; Release build **0 warnings / 0 errors**;
-Core **985**, Application **2,792**, Tools **69**, Definitions **6**, Windows
+Validation after rebase onto `a5cd2f2` (#115): locked solution restore;
+Release build **0 warnings / 0 errors**;
+Core **989**, Application **2,830**, Tools **69**, Definitions **6**, Windows
 **1,192** tests passed, all **0 failed / 0 skipped**. The unchanged portable
 coverage gate passes **100% lines / 100% branches**. Focused tests prove actual
 plaintext sentinel absence from SQLite/journal and actual owned artifact/staging

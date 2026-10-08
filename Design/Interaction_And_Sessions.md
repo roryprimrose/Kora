@@ -110,8 +110,9 @@ below that retention/timers were absent from their historical bounded slices.
 Full R12 remains partial; blocked R11 is required only for the remaining
 execution/queue integration, not this non-executing maintenance increment.
 
-Validation: locked restore; Release 0 warnings/errors; Core 985, Application
-2,792, Tools 69, Definitions 6, Windows 1,192 passed, zero failures/skips;
+Validation after rebase onto `a5cd2f2`: locked restore; Release 0 warnings/errors;
+Core 989, Application 2,830, Tools 69, Definitions 6, Windows 1,192 passed,
+zero failures/skips;
 portable coverage 100% lines/branches. Tests check actual plaintext absence
 from database/journal, owned file removal, preservation, holds, cancellation,
 invalid persistence/migration, interrupted acceptance and bounded fairness.

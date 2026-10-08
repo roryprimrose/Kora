@@ -45,8 +45,9 @@ authorities and uncertain copy inventories hold maintenance. See the
 Full R12 still needs blocked R11 for execution/queue integration; this preference
 slice does not enable execution or scheduling.
 
-Validation: locked restore and zero-warning/error Release build; Core 985,
-Application 2,792, Tools 69, Definitions 6, Windows 1,192 passed with zero
+Validation after rebase onto `a5cd2f2`: locked restore and zero-warning/error
+Release build; Core 989, Application 2,830, Tools 69, Definitions 6,
+Windows 1,192 passed with zero
 failures/skips; portable line/branch coverage 100%/100%. See the
 [dated evidence receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09).
 

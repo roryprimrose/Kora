@@ -7,6 +7,7 @@ remains proposed and unavailable.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
+[Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md),
 [User Configuration](User_Configuration.md),
 [Internal Model Tools](Internal_Model_Tools.md), and
 [Implementation Roadmap](Implementation_Roadmap.md#optional-and-deferred-work).

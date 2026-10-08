@@ -99,6 +99,19 @@ for the operator-requested rebase onto newer `origin/main`; these observations
 remain tied to the original base and do not qualify newly delivered upstream
 surfaces.
 
+The operator-requested rebase completed onto actual upstream base
+`c78e81318fb3c5b279275f9ab8ef14748bfeb952`. Conflict resolution retained the
+newer upstream session/task controls, maintenance snooze eligibility,
+call-policy status and mouse-timeout contracts. The test-only fixture now
+uses upstream assistant-name/speech configuration services and selects
+`SessionWorkspaceEntry` records while retaining its denied effect adapters.
+The rebased Release solution build passed with zero warnings/errors, and the
+Windows integration suite passed **1077/1077, zero skipped**. The earlier
+cancellation-test failure did not reproduce; no cause or storage fix is
+claimed. Historical native observations above remain tied to the original
+base; this automated recheck alone does not qualify newer upstream native
+surfaces or the still-unmeasured stale/link hooks.
+
 | Area | Completed observation | Not established by this result |
 |---|---|---|
 | Accessibility names and readable content | The initial native probe found label-only static text with no separate TextPattern/ValuePattern. The corrected [NamedTextBlock](../src/Kora/Controls/NamedTextBlock.cs) exposes label plus displayed content and publishes complete name changes. [Runtime regressions](../tests/Kora.Windows.IntegrationTests/AccessibilityRuntimeContractTests.cs) cover fallback, empty/duplicate labels, inline text, change notifications and realized artifact labels. Native Windows UIA then exposed actual Maintenance version/disclosure/status, evidence JSON, package identities and synthetic-closure status. After correction, a fresh native recheck exposed the input Name `Typed command or artifact slash input`, with its value still `/`, and exactly one synthetic dropdown item/button named `/inspect-fixture`. The later corrected question retained its exact successful receipt/disclosure Name in a settled snapshot 35 seconds after submission. | Spoken announcement behavior or acceptance of every converted window. Persistence of one bounded terminal message does not qualify all announcements or surfaces. |

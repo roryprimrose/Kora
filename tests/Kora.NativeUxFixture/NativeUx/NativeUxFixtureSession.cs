@@ -40,6 +40,7 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
     private bool disposed;
     private bool initialized;
     private MainViewModel? main;
+    private AssistantNameConfigurationService? assistantNameConfiguration;
     private readonly EvidenceLoggerProvider? evidenceProvider;
 
     internal NativeUxFixtureSession(string scratchParent)
@@ -119,11 +120,12 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
             new(bootstrapper), new(runtime), new(runtime), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
         var clipboard = new ClipboardSnapshotBroker(new FixtureClipboardReader(), TimeProvider.System,
             NullLogger<ClipboardSnapshotBroker>.Instance);
+        var speech = new FixtureSpeech();
+        assistantNameConfiguration = new(new LocalAssistantNamePreferences(this, NullLogger<LocalAssistantNamePreferences>.Instance),
+            commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
             new(bootstrapper, execution, execution), execution, new LocalModelApprovalPreferences(this), models, Access,
-            new FixtureVoice(), new FixtureSpeech(),
-            new LocalAssistantNamePreferences(this, NullLogger<LocalAssistantNamePreferences>.Instance), appearances,
-            new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
+            new FixtureVoice(), speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
             new LocalAudioDevicePreferences(this, NullLogger<LocalAudioDevicePreferences>.Instance),
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
@@ -131,6 +133,8 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
             Access, execution, new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
             NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
+            new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
+                speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
             clipboard, new(clipboard), new(clipboard), new(clipboard));
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);
@@ -263,6 +267,7 @@ internal sealed class NativeUxFixtureSession : IApplicationDataPaths, IDisposabl
         cancellation.Cancel();
         foreach (var model in maintenance) { model.Dispose(); }
         main?.Dispose();
+        assistantNameConfiguration?.Dispose();
         Access.Dispose();
         Loggers.Dispose();
         evidenceProvider?.Dispose();

@@ -156,7 +156,7 @@ public sealed class NativeUxFixtureContractTests
             try
             {
                 await state.RefreshAsync();
-                await state.SelectAsync(displayed);
+                await state.SelectAsync(state.Sessions.Single(entry => entry.Authority.SessionId == displayed.SessionId));
                 var advanced = await fixture.AdvanceLifecycleTargetAsync();
                 advanced.Generation.Value.Should().Be(displayed.Generation.Value + 1);
                 await state.ChangeLifecycleAsync(!initiallyActive);

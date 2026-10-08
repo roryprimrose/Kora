@@ -228,6 +228,10 @@ validation: missing or rolled-back Removed tombstones cannot reopen as empty
 authority or permit identity reuse. The focused disposition **9** tests and
 complete Windows **1,116** rerun pass after that change; portable sources and
 their passing coverage are unchanged.
+After fetching/rebasing onto `4cf8034` (peer documentation preserved), the root
+Release build again passed with zero warnings/errors; all four portable suites
+passed at the same counts with newly generated **100% line/branch coverage**,
+and affected Windows authority/disposition/interruption **68** tests passed.
 
 #### Experiment disposition for logical disposition
 

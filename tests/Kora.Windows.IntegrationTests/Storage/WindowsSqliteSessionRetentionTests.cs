@@ -2,6 +2,8 @@ using System.Text;
 
 using AwesomeAssertions;
 
+using Kora.Application.Hosting;
+
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -15,6 +17,96 @@ namespace Kora.Windows.IntegrationTests.Storage;
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteSessionRetentionTests
 {
+    [WindowsFact]
+    public async Task V5_migration_preserves_history_queue_and_audit_and_restart_never_replays_held_unknown_work()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var session = fixture.Request.SessionId;
+        var entry = await EnqueueAsync(fixture, session);
+        var running = await AdmitAsync(fixture, entry);
+        var history = await fixture.Store.ReadHistoryAsync(session, null, 50, fixture.Token);
+        var audits = fixture.Count("security_audit_events");
+        fixture.Mutate("DROP TABLE session_retention; PRAGMA user_version=5;");
+        fixture.Time.Now = fixture.Time.Now.AddYears(1);
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        fixture.Count("security_audit_events").Should().Be(audits);
+        (await fixture.Store.ReadHistoryAsync(session, null, 50, fixture.Token)).Should().BeEquivalentTo(history);
+        (await fixture.Store.ReadQueueEntryAsync(session, entry.Request.TaskId, fixture.Token))!.State.Should().Be(SessionQueueState.Unknown);
+        var clock = await fixture.Store.ReadRetentionAsync(session, fixture.Token);
+        clock.LastMeaningfulActivity.Should().Be(fixture.Time.Now);
+        await new HostTaskCoordinator(fixture.Tasks).RecoverAsync(100, fixture.Token);
+        fixture.Time.Now = clock.DeleteDue;
+        (await RetainAsync(fixture)).Held.Should().Be(1);
+        (await fixture.Store.FindReadyAsync(1, new(), fixture.Token)).Should().BeNull();
+        var late = () => CompleteAsync(fixture, running);
+        await late.Should().ThrowAsync<Exception>();
+        (await fixture.Store.ReadRetentionAsync(session, fixture.Token)).Should().Be(clock);
+    }
+
+    [WindowsFact]
+    public async Task Pending_queue_holds_retention_but_cancellation_and_passive_reads_never_renew_activity()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var session = fixture.Request.SessionId;
+        fixture.Time.Now = fixture.Time.Now.AddHours(2);
+        var pending = await EnqueueAsync(fixture, session);
+        var clock = await fixture.Store.ReadRetentionAsync(session, fixture.Token);
+        clock.LastMeaningfulActivity.Should().Be(fixture.Time.Now);
+        fixture.Time.Now = clock.DeleteDue;
+        (await RetainAsync(fixture)).Held.Should().Be(1);
+        var snapshot = await fixture.Store.ReadQueueAsync(session, fixture.Token);
+        await QueueControlAsync(fixture, session, control => fixture.Store.RemovePendingAsync(control,
+            pending.Generation, snapshot.Revision, pending.Request.TaskId, pending.Revision,
+            SessionQueueState.Cancelled, () => true, fixture.Token));
+        (await fixture.Store.ReadRetentionAsync(session, fixture.Token)).Should().Be(clock);
+        (await RetainAsync(fixture)).Deleted.Should().Be(1);
+        fixture.Count("session_queue").Should().Be(0);
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        (await fixture.Store.ReadRetentionAsync(session, fixture.Token)).Purged.Should().BeTrue();
+    }
+
+    [WindowsFact]
+    public async Task Queue_progress_renews_activity_and_inventoried_deletion_preserves_unrelated_pending_work_and_perpetual_audit()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        var perpetual = await fixture.GrantAsync("perpetual");
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var session = fixture.Request.SessionId;
+        var pending = await EnqueueAsync(fixture, session);
+        fixture.Time.Now = fixture.Time.Now.AddMinutes(1);
+        var running = await AdmitAsync(fixture, pending);
+        (await fixture.Store.ReadRetentionAsync(session, fixture.Token)).LastMeaningfulActivity.Should().Be(fixture.Time.Now);
+        fixture.Time.Now = fixture.Time.Now.AddMinutes(1);
+        await CompleteAsync(fixture, running);
+        var clock = await fixture.Store.ReadRetentionAsync(session, fixture.Token);
+        clock.LastMeaningfulActivity.Should().Be(fixture.Time.Now);
+        var other = (await WindowsSqliteSessionWorkspaceTests.Service(fixture, new())
+            .CreateAsync(new("Independent queue"), RequestOrigin.LocalUi, fixture.Token)).Authority.SessionId;
+        var independent = await EnqueueAsync(fixture, other);
+        fixture.Time.Now = clock.DeleteDue;
+        (await RetainAsync(fixture)).Deleted.Should().Be(1);
+        fixture.Count("session_queue").Should().Be(1);
+        (await fixture.Store.ReadQueueEntryAsync(other, independent.Request.TaskId, fixture.Token))!.Request.Should().Be(independent.Request);
+        (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().Contain(perpetual);
+        (await fixture.Store.ReadHistoryAsync(session, null, 50, fixture.Token)).Records
+            .Should().OnlyContain(value => value.Availability == SessionHistoryAvailability.Redacted);
+        var late = () => CompleteAsync(fixture, running);
+        await late.Should().ThrowAsync<Exception>();
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        await new HostTaskCoordinator(fixture.Tasks).RecoverAsync(100, fixture.Token);
+        (await fixture.Store.FindReadyAsync(1, new(), fixture.Token)).Should().BeNull();
+        (await fixture.Store.ReadRetentionAsync(session, fixture.Token)).Purged.Should().BeTrue();
+        (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().Contain(perpetual);
+    }
+
     [WindowsFact]
     public async Task Current_run_control_holds_cannot_starve_due_ordinary_content_out_of_bounded_batch()
     {
@@ -329,6 +421,38 @@ public sealed class WindowsSqliteSessionRetentionTests
         await action.Should().ThrowAsync<InvalidDataException>();
         File.Exists(backup).Should().BeTrue();
         (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Purged.Should().BeFalse();
+    }
+
+    private static async Task<T> QueueControlAsync<T>(InteractionStorageFixture fixture, HostId<SessionIdentity> session,
+        Func<HostRequest, ValueTask<T>> mutate)
+    {
+        var control = InteractionStorageFixture.NewRequest(session);
+        using var root = HostActivity.BeginRoot(control, HostActivityLayer.Application, HostOperation.Request);
+        var intent = await fixture.Store.RecordControlIntentAsync(control, fixture.Token);
+        var result = await mutate(control);
+        await new HostTaskCoordinator(fixture.Tasks).RecordOutcomeAsync(intent, HostTaskState.Succeeded, fixture.Token);
+        return result;
+    }
+
+    private static async Task<SessionQueueEntry> EnqueueAsync(InteractionStorageFixture fixture, HostId<SessionIdentity> session)
+    {
+        var snapshot = await fixture.Store.ReadQueueAsync(session, fixture.Token);
+        var work = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        var next = await QueueControlAsync(fixture, session, control => fixture.Store.EnqueueAsync(control, work,
+            snapshot.Generation, snapshot.Revision, 1, null, new(), () => true, fixture.Token));
+        return next.Entries.Single(entry => entry.Request.TaskId == work.TaskId);
+    }
+
+    private static async Task<SessionQueueEntry> AdmitAsync(InteractionStorageFixture fixture, SessionQueueEntry entry)
+    {
+        using var root = HostActivity.BeginRoot(entry.Request, HostActivityLayer.Application, HostOperation.Request);
+        return await fixture.Store.AdmitAsync(entry, 1, new(), () => true, fixture.Token);
+    }
+
+    private static async Task<SessionQueueEntry> CompleteAsync(InteractionStorageFixture fixture, SessionQueueEntry entry)
+    {
+        using var root = HostActivity.BeginRoot(entry.Request, HostActivityLayer.Application, HostOperation.Tool);
+        return await fixture.Store.CompleteAsync(entry, SessionQueueState.Succeeded, () => true, fixture.Token);
     }
 
     private static async Task<SessionRetentionBatch> RetainAsync(InteractionStorageFixture fixture, CancellationToken? token = null,

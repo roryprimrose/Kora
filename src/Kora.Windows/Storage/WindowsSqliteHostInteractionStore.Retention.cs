@@ -78,6 +78,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             SELECT 1 FROM security_audit_events WHERE json_extract(envelope,'$.Request.TaskId.Value')=$task
                 AND (json_extract(envelope,'$.Audit.ActionId') LIKE 'session.%'
                     OR json_extract(envelope,'$.Audit.ActionId') LIKE 'configuration.%'
+                    OR json_extract(envelope,'$.Audit.ActionId') LIKE 'queue.%'
                     OR json_extract(envelope,'$.Audit.ActionId') LIKE 'host.task.recovery%') LIMIT 1;
             """;
         command.Parameters.AddWithValue("$task", Id(record.Request.TaskId));

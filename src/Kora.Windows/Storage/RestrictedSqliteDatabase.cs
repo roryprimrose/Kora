@@ -24,7 +24,8 @@ internal sealed partial class RestrictedSqliteDatabase
     internal RestrictedSqliteDatabase(IApplicationDataPaths paths, string partition, string fileName,
         int applicationId, IReadOnlyList<string> schema, RestrictedSqliteMigration? migration = null,
         RestrictedSqliteMigration? continuation = null, RestrictedSqliteMigration? finalMigration = null,
-        RestrictedSqliteMigration? latestMigration = null, RestrictedSqliteMigration? retentionMigration = null)
+        RestrictedSqliteMigration? latestMigration = null, RestrictedSqliteMigration? retentionMigration = null,
+        int? currentVersion = null)
     {
         directory = new RestrictedStorageDirectory(paths, includeKeys: false, partitionName: partition);
         databasePath = Path.Combine(directory.Root, fileName);
@@ -36,7 +37,7 @@ internal sealed partial class RestrictedSqliteDatabase
         this.finalMigration = finalMigration;
         this.latestMigration = latestMigration;
         this.retentionMigration = retentionMigration;
-        version = retentionMigration?.ToVersion ?? latestMigration?.ToVersion ?? finalMigration?.ToVersion
+        version = currentVersion ?? retentionMigration?.ToVersion ?? latestMigration?.ToVersion ?? finalMigration?.ToVersion
             ?? continuation?.ToVersion ?? migration?.ToVersion ?? 1;
     }
 

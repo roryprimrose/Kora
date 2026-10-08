@@ -323,8 +323,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 FROM security_audit_events a, json_each(a.envelope,'$.Changes') c
                 WHERE json_extract(c.value,'$.Kind')='queue' GROUP BY json_extract(c.value,'$.Id')
             ) latest LEFT JOIN session_queue q ON q.task_id=latest.id
-            JOIN work_sessions s ON s.session_id=latest.session_id
-            WHERE (q.audit_sequence IS NULL AND s.state<>2)
+            LEFT JOIN work_sessions s ON s.session_id=latest.session_id
+            LEFT JOIN security_audit_events deletion ON deletion.sequence=s.audit_sequence
+            WHERE s.state IS NULL OR (q.audit_sequence IS NULL AND
+                (s.state<>2 OR json_extract(deletion.envelope,'$.Audit.ActionId')<>'session.retention.delete'))
                 OR (q.audit_sequence IS NOT NULL AND q.audit_sequence<>latest.sequence) LIMIT 1;
             """;
         if (command.ExecuteScalar() is not null)

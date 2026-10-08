@@ -244,6 +244,10 @@ public sealed partial class WindowsSqliteSessionQueueTests
         fixture.Count("session_queue").Should().Be(1);
         var history = await fixture.Store.ReadHistoryAsync(entry.Request.SessionId, null, 50, fixture.Token);
         history.Disposed.Should().BeTrue();
+        fixture.Mutate("DELETE FROM session_queue;");
+        fixture.Reopen();
+        var missing = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
+        await missing.Should().ThrowAsync<InvalidDataException>();
     }
 
     private static async Task<SessionQueueEntry> EnqueueAsync(InteractionStorageFixture fixture, HostId<SessionIdentity> session,

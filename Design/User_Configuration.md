@@ -42,12 +42,14 @@ exemption, with no new marking UI.
 Live/dispatched/Unknown work, unresolved questions, current-run control
 authorities and uncertain copy inventories hold maintenance. See the
 [storage/removal contract](Interaction_And_Sessions.md#r12-bounded-session-retention-delivered---2026-10-09).
-Full R12 still needs blocked R11 for execution/queue integration; this preference
-slice does not enable execution or scheduling.
+Schema v6 retains the separately delivered fixed local-version queue and its
+no-replay recovery. Full R12 still needs blocked R11 for general execution
+integration; this preference slice adds no execution or broader scheduling.
 
-Validation after rebase onto `a5cd2f2`: locked restore and zero-warning/error
-Release build; Core 989, Application 2,830, Tools 69, Definitions 6,
-Windows 1,192 passed with zero
+Validation after integration onto `33b90f21`: zero-warning/error root Release
+build with existing locked dependency assets (no restore/feed change needed);
+Core 1,026, Application 2,854, Tools 69, Definitions 6,
+Windows 1,205 passed with zero
 failures/skips; portable line/branch coverage 100%/100%. See the
 [dated evidence receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09).
 

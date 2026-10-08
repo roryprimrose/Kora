@@ -137,7 +137,7 @@ affected safety/regression checks constrain those bounded deliveries.
 
 ### R12 Bounded Session Retention Delivered - 2026-10-09
 
-Delivered independently of blocked R11: schema-v5 session retention on one
+Delivered independently of blocked R11: schema-v6 session retention on one
 durable last-meaningful-activity clock; default **24-hour archive / 30-day
 deletion** and typed, atomic, device-local future-only preferences in native
 Settings > Sessions. Archive/delete use the same timestamp, not creation or
@@ -156,7 +156,7 @@ survive. Sources and matching native/response presentation are revoked before
 rewrite; inactive/Removed authorities reject late publication and appends.
 
 Deletion removes owned task/event/wait/run/question/observation/grant/metadata
-and ordered-history content, legacy task copies, authenticated artifacts and
+and ordered-history/terminal queue content, legacy task copies, authenticated artifacts and
 staging. SQLite secure-delete clears row/index/free-page content and committed
 PERSIST journals are verified empty, including a legacy no-op journal. Only
 content-free exact-ID tombstones/redacted gaps and independent required audit
@@ -167,23 +167,38 @@ uncertain key publication fail closed. No delivered managed-backup publisher
 exists; this does not guess ownership or claim removal of arbitrary backups.
 No forensic/media erase, provider copy, user export or full A3 claim is made.
 
-Validation after rebase onto `a5cd2f2` (#115): locked solution restore;
-Release build **0 warnings / 0 errors**;
-Core **989**, Application **2,830**, Tools **69**, Definitions **6**, Windows
-**1,192** tests passed, all **0 failed / 0 skipped**. The unchanged portable
+Validation after integration onto `33b90f21` (#116): root Release build using
+existing locked dependency assets, **0 warnings / 0 errors**; no new restore or
+feed configuration change was necessary. Core **1,026**, Application **2,854**,
+Tools **69**, Definitions **6**, Windows **1,205** tests passed, all **0 failed /
+0 skipped**. Focused storage **491**, Core history **9** and Application sessions
+**147** also passed. The unchanged portable
 coverage gate passes **100% lines / 100% branches**. Focused tests prove actual
 plaintext sentinel absence from SQLite/journal and actual owned artifact/staging
 removal, independent-owner/Perpetual preservation, cancellation, malformed saved
 state, audit/receipt/confirmation failures, migration, interrupted acceptance
-and bounded hold fairness. This is maintained deterministic evidence, not
+and bounded hold fairness, v5 queue migration, queued/Unknown holds,
+terminal queue inventory deletion, passive/control clock stability and
+late-callback/no-replay restart rejection. This is maintained deterministic evidence, not
 installed/native accessibility, filesystem crash/power-loss or RC qualification.
 
 Full R12 remains partial: full composer/conversation bodies, search/model
-reasoning, general execution/effect cancellation and per-session work/queue
+reasoning, general execution/effect cancellation and broader per-session work/queue
 integration remain open. R11's embedded skill execution/runner remains blocked
 and was neither consumed nor awaited. The unrelated stale call-policy branch
 was not merged/rebased or used. See [configuration](User_Configuration.md#r12-bounded-session-retention-delivered---2026-10-09)
 and [storage/lifecycle contract](Interaction_And_Sessions.md#r12-bounded-session-retention-delivered---2026-10-09).
+
+Integration with #114/#116 preserves the delivered ordered history and fixed
+local-version scheduling receipts above. Authoritative migration order is
+v3 task authority → v4 history → v5 queue → v6 retention. Pending/running/Unknown
+work holds maintenance; terminal queue rows join the inventoried deletion and
+required audits remain independently retained against exact Removed tombstones.
+Accepted queue work and real dispatch/final receipts renew meaningful activity;
+queue controls and passive reads do not. Restart still projects Interrupted/
+Unknown work without replay and rejects stale callbacks. This supersedes only
+older statements that the bounded fixed local-version queue was absent; broader
+effects, workers, full conversation, managed backups and RC acceptance remain open.
 
 ### R12/R14 bounded ordered interaction history - 2026-10-09
 

@@ -91,7 +91,7 @@ is no new marking UI. Archive revokes source/generation/scoped authority but
 preserves content and does not reset the activity clock.
 
 Deletion awaits source/presentation revocation, removes owned history,
-question/draft/answer, task/event/wait/run, observation, scoped-grant and metadata
+question/draft/answer, task/event/wait/run, terminal queue, observation, scoped-grant and metadata
 content, legacy task copies and authenticated owned artifacts/staging, and
 clears SQLite row/index/free-page and committed rollback-journal copies.
 Unrelated sessions, independent artifact deletion owners and independently
@@ -108,14 +108,17 @@ are held, not guessed or claimed erased. No provider/user-export, forensic or
 media-erasure acceptance is claimed. This entry supersedes older statements
 below that retention/timers were absent from their historical bounded slices.
 Full R12 remains partial; blocked R11 is required only for the remaining
-execution/queue integration, not this non-executing maintenance increment.
+general execution/queue integration, not the delivered fixed local-version queue
+or this non-executing maintenance increment.
 
-Validation after rebase onto `a5cd2f2`: locked restore; Release 0 warnings/errors;
-Core 989, Application 2,830, Tools 69, Definitions 6, Windows 1,192 passed,
+Validation after integration onto `33b90f21`: Release 0 warnings/errors using
+existing locked dependency assets; no restore/feed change needed.
+Core 1,026, Application 2,854, Tools 69, Definitions 6, Windows 1,205 passed,
 zero failures/skips;
 portable coverage 100% lines/branches. Tests check actual plaintext absence
 from database/journal, owned file removal, preservation, holds, cancellation,
-invalid persistence/migration, interrupted acceptance and bounded fairness.
+invalid persistence/migration, interrupted acceptance, bounded fairness,
+queue holds/inventoried deletion and restart no-replay.
 See the [dated roadmap receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09);
 installed/native/RC and full R12/A3 qualification remain open.
 

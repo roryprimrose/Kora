@@ -185,6 +185,17 @@ see [D-003](Decision_Register.md#d-003-local-inference-baseline).
 
 CPU-only support and hardware limits must be communicated; installing a large model does not prove that it will perform acceptably.
 
+The [2026-10-09 unattended preflight](Local_Inference.md#unattended-provisioning-admission---2026-10-09)
+rejected the existing winget/Inno acquisition path under the operator's
+narrow no-UI/no-broad-PATH/no-unrelated-process approval. The pinned tagged
+installer source declares a user-environment PATH update, post-install desktop
+app launch and image-name process termination hooks. Package-manager
+noninteractivity is not permission for those effects or ownership of a
+package-started process. No installation was attempted. A portable archive
+must receive a separately reviewed/approved acquisition, identity, storage,
+owned-listener and deterministic teardown contract before being an alternative;
+an official download link alone is insufficient.
+
 ### Local Inference Provisioning Budget
 
 The [R02 outcomes](Local_Inference.md#outcomes-and-their-consequences) require

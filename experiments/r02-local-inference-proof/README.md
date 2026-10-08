@@ -305,6 +305,20 @@ repeat remain separate gates.
 
 ### Serial trial schedule and admission stop
 
+**2026-10-09 unattended admission:** the operator conditionally approved exact
+pinned provisioning and a non-exclusive synthetic observation on this machine,
+with no manual input, UI/elevation/reboot, broad PATH/service/startup change,
+unrelated-process operation, capture/network-policy change or exclusive trial.
+The [admission receipt](results/unattended-preflight-2026-10-09/admission.json)
+records a stop before installer/weight acquisition. Refreshed
+[public identities/licences](results/unattended-preflight-2026-10-09/candidate-metadata.json)
+match the pins, but the approved acquisition path's exact tagged Inno source
+declares HKCU PATH mutation, a post-install GUI-app launch and image-name kill
+hooks. `--disable-interactivity` does not suppress or authorise these effects.
+No install, live request or teardown ran. The advertised official portable ZIP
+is not an approved replacement lifecycle in this repository; do not improvise
+one or treat conditional host approval as exclusive-use/offline consent.
+
 The [2026-10-08 preparation receipt](results/continuation-2026-10-08/preparation.json)
 contains file-only evidence, not permission to execute this schedule.
 No supported runtime/listener/default selected-model manifest was available;

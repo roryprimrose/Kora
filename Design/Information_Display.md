@@ -625,6 +625,40 @@ surface.
 
 ## Optional Speech Text
 
+### Delivered bounded local utterance slice (R25)
+
+`display.speech-text` is device-local, unsaved/default/reset **Off**. Native
+Settings and exact typed/current-name activated commands share the admitted,
+audited atomic configuration service. **CurrentUtterance** is the only enabled
+mode in this slice: an ephemeral selectable native window shows the exact text
+passed by the host's admitted response speech route, only while the provider
+reports that matching playback identity/generation and utterance segment 0 as
+actually playing. Synthesis, queued work, failed/suppressed output and voice
+preview do not acquire caption authority.
+
+Response replacement/retirement, playback finish/stop/cancel, configuration
+revision, original request/session/channel, input recovery/activation generation,
+call/privacy revision and current unlocked ownership gates retire or reject the
+caption; late frames never restore it. The controller samples independently of
+presence visibility at 50 ms, with immediate retirement on host transition paths.
+No text enters preferences, logs, model requests or caption history. Required
+native questions/approvals/errors and full visual fallback remain independent.
+Changing this preference neither speaks/stops/replays output nor opens capture
+or changes response/call policy. Unknown or unconfirmed preferences hold captions
+off without disabling ordinary speech.
+
+This intentionally clears immediately on finish/interruption rather than
+retaining sensitive stale text. **Current sentence**, word alignment, pinning,
+configurable dismissal delay, persisted placement/display selection and broad
+caption/navigation commands below remain proposed. The initial window is fixed
+at the primary working-area lower-right with a 24-DIP margin; it does not activate
+on show or span the desktop as an input-catching overlay. Native accessibility
+properties and selection are source-tested, not installed/accessibility or
+acoustic qualification. Rich HTML/browser/diagram rendering is not delivered.
+The acoustic speech experiment remains maintained and is not retired by R25.
+
+### Broader proposed contract
+
 Expose a voice-settable `speechText` preference: off (initial ambient default), current sentence, or current utterance.
 It displays the exact final text submitted to TTS, not the entire answer, user transcription, or a newly generated paraphrase.
 Bind text to response ID, playback generation, and segment so interruption/replacement cannot leave stale captions attached to new speech.

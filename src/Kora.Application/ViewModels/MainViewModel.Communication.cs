@@ -207,6 +207,8 @@ public sealed partial class MainViewModel
         try
         {
             var observation = communicationPolicy.Current;
+            speechCaption.Retire();
+            uiDispatcher.Post(RetireSpeechCaption);
             ClearClipboardPreview();
             ClearFilePreview();
             ApplicationLog.CallStateChanged(logger, observation.EffectiveState);

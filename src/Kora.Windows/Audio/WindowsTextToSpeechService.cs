@@ -41,6 +41,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
     private PlaybackVolume? playbackVolume = PlaybackVolume.Default;
     private WindowsSpeechRate? windowsSpeechRate = WindowsSpeechRate.Default;
     private long playbackGeneration;
+    private Guid? currentPlaybackId;
     private Func<HostActivity>? beginStopReceipt;
     private readonly KokoroTextToSpeechProvider? kokoroProvider;
     private readonly ILogger<WindowsTextToSpeechService> logger;
@@ -135,7 +136,8 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                     // Device position, not reader position, keeps the envelope behind buffered audio.
                     var position = TimeSpan.FromSeconds(
                         playback.GetPosition() / (double)playback.OutputWaveFormat.AverageBytesPerSecond);
-                    return new SpeechPlaybackFrame(true, outputEnvelope.GetLevel(position));
+                    return new SpeechPlaybackFrame(true, outputEnvelope.GetLevel(position),
+                        currentPlaybackId, playbackGeneration);
                 }
                 catch (COMException exception)
                 {
@@ -264,13 +266,22 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         SpeechVoice voice,
         AudioOutputDevice outputDevice,
         CancellationToken cancellationToken = default)
-        => RunCurrentOutputAsync((generation, token) => SpeakCoreAsync(text, voice, outputDevice, generation, token), cancellationToken);
+        => RunCurrentOutputAsync((generation, token) => SpeakCoreAsync(text, voice, outputDevice, generation, null, token), cancellationToken);
+
+    public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
+        Guid playbackId, CancellationToken cancellationToken = default)
+    {
+        if (playbackId == Guid.Empty) { throw new ArgumentException("Playback identity must be host-owned and nonempty.", nameof(playbackId)); }
+        return RunCurrentOutputAsync((generation, token) =>
+            SpeakCoreAsync(text, voice, outputDevice, generation, playbackId, token), cancellationToken);
+    }
 
     private async Task SpeakCoreAsync(
         string text,
         SpeechVoice voice,
         AudioOutputDevice outputDevice,
         long generation,
+        Guid? playbackId,
         CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -306,6 +317,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                 }
                 stopRequested = false;
                 playbackGeneration = generation;
+                currentPlaybackId = playbackId;
             }
 
             followsSystemDefaultOutput = outputDevice.IsSystemDefault;
@@ -508,6 +520,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
     private WasapiPlayer? RetireOutputLocked()
     {
         Interlocked.Increment(ref outputGeneration);
+        currentPlaybackId = null;
         stopRequested = true;
         return playback;
     }
@@ -764,6 +777,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             retiredGeneration = playbackGeneration;
             beginReceipt = beginStopReceipt;
             playbackCompletion = null;
+            currentPlaybackId = null;
             outputEnvelope?.Clear();
             outputEnvelope = null;
         }
@@ -871,6 +885,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         lock (stateLock)
         {
             player = playback;
+            currentPlaybackId = null;
             if (player is not null)
             {
                 player.PlaybackStopped -= OnPlaybackStopped;

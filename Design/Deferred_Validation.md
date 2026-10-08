@@ -1522,9 +1522,63 @@ correcting two ordinal-comparison analyzer errors; no suppression was added.
 On separate publication approval, machine hostname and real endpoint GUIDs are
 omitted from publishable documentation and original exact evidence is retained
 privately. The reviewed history remains local; publication uses a sanitized
-consolidation on the same base. Final source-specific Release results are
-recorded below after the consolidated source is committed. Historical native
-receipts are not rebased acceptance, and no new native trial is authorized.
+consolidation on the same base. Historical native receipts are not rebased
+acceptance, and no new native trial is authorized.
+
+Final validation used committed source
+`10d9bb459583164ac6c1bc02766e1ccece764763`, directly based on
+`c78e81318fb3c5b279275f9ab8ef14748bfeb952`. The subsequent result-recording
+commit changes only this document, not the validated production or test trees.
+
+| Validation | Final result | Runner skips | Explicit exclusions |
+| --- | --- | --- | --- |
+| Release solution build, `--no-restore` | Passed; zero warnings/errors | Not applicable | None; setup compiled but was not executed |
+| Core | 783/783 passed | 0 | None |
+| Application | 2448/2448 passed | 0 | None |
+| Windows bounded automated subset | 1023/1023 passed | 0 | Ten live provider/device methods below |
+
+All 4254 executed tests passed. Final TRX counters and named results confirm
+the exact 500 ms receipt boundary, unlock/closure races, hostile ambient and
+deferred activity correlation, admitted device preference routes, synthetic
+capture callbacks, native menu/window boundaries, warm-cache payload/column/
+retention/link rejection, cache limits and retention/migration coverage.
+Neither Tools nor Definitions suites were run in this bounded phase; their
+projects compiled with the solution. No restore or package operation was needed.
+
+The commands below reproduce the approved selection; `$resultsRoot` represents
+the private per-run output directory, not a publishable profile path. Exact
+expanded commands, build/test logs, TRX files and checksummed final receipt are
+retained privately alongside the initial failed runs:
+
+```powershell
+dotnet build .\Kora.slnx --configuration Release --no-restore
+dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build --report-trx --results-directory (Join-Path $resultsRoot 'CoreFinal')
+dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build --report-trx --results-directory (Join-Path $resultsRoot 'ApplicationFinal')
+$excluded = @(
+    'Kora.Windows.IntegrationTests.Audio.BlockingAudioStreamTests.Installed_SAPI_recognizer_can_activate_against_the_live_stream'
+    'Kora.Windows.IntegrationTests.Audio.WindowsVoiceRecognitionServiceTests.Enumerated_microphones_have_stable_endpoint_ids_and_include_the_Windows_default'
+    'Kora.Windows.IntegrationTests.Audio.WindowsVoiceRecognitionServiceTests.StartAsync_rejects_a_device_that_is_not_present'
+    'Kora.Windows.IntegrationTests.Audio.WindowsTextToSpeechServiceTests.Provider_catalog_contains_the_builtin_Windows_provider'
+    'Kora.Windows.IntegrationTests.Audio.WindowsTextToSpeechServiceTests.Enumerated_voices_have_stable_metadata'
+    'Kora.Windows.IntegrationTests.Audio.WindowsTextToSpeechServiceTests.Default_voice_is_female_when_available'
+    'Kora.Windows.IntegrationTests.Audio.WindowsTextToSpeechServiceTests.Enumerated_output_devices_have_stable_endpoint_ids_and_names'
+    'Kora.Windows.IntegrationTests.Audio.WindowsTextToSpeechServiceTests.SpeakAsync_rejects_an_output_endpoint_that_does_not_exist'
+    'Kora.Windows.IntegrationTests.Dependencies.WindowsVoiceDependencyProbeTests.ProbeAsync_returns_a_documented_readiness_state'
+    'Kora.Windows.IntegrationTests.Dependencies.WindowsTextToSpeechDependencyProbeTests.ProbeAsync_returns_a_documented_readiness_state'
+)
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --report-trx --results-directory (Join-Path $resultsRoot 'WindowsFinal') --filter-not-method $excluded
+```
+
+Each excluded method was confirmed present exactly once in discovery and absent
+from final results. Exclusions are not runner skips or passes. No application
+launch, live capture/playback/provider inference, real lock/unlock, elevation,
+installer execution or profile/device-setting mutation occurred in this phase.
+Native R03 A03/A04/A05/A06, every-reference-trial release within 500 ms of observed
+lock, OS notification delay, last acoustic sample and optimized native latency
+remain outstanding. Automated synthetic receipts do not close those gates.
+Privacy is second in the recommended merge order after accessibility;
+combined-source revalidation is separately coordinated. Draft publication
+does not authorize merge, auto-merge or a new interactive experiment.
 
 ### Preparation and Approval
 

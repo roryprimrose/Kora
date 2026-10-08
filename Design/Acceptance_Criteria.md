@@ -989,6 +989,21 @@ it does not certify broader R04, installed, power-loss or OS-effect acceptance.
 Synthetic/fake-store and safe key/artifact scratch tests are not installed
 acceptance, and file copies cannot satisfy authoritative audit requirements.
 
+**2026-10-08 bounded delivery:** native two-step exact-ID
+[logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
+has maintained [host tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Disposition.cs),
+[actual writer/native-state tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionDispositionTests.cs)
+and [owned-process COMMIT interruption tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionLifecycleInterruptionTests.cs).
+They cover success, unknown/stale IDs/revisions, live/Unknown/pending blockers,
+intervening completed work, audit/gate/cancellation rollback, missing/corrupt
+authority, shared-lease append races, cancelled wait removal, Perpetual/unrelated
+preservation and no restart replay. Only live name/question/observation/wait/
+scoped-grant rows are removed; task/event/audit provenance and tombstones stay.
+This does **not** pass the full exact session deletion criterion below:
+managed artifacts/backups/history and recoverable journal/free-page/copy removal,
+automatic lifecycle/retention, physical power loss and installed/native visual
+acceptance remain unqualified.
+
 - Accepted intent/approval is durable before consequential dispatch; crash at each commit/dispatch/receipt boundary preserves truthful interrupted/unknown evidence without replay.
 - Restart restores Active/Done history/artifacts and selection; queued requests require explicit fresh dispatch/revalidation, and old grant records never become tokens.
 - Simulated defaults stay Active just before 24 inactive hours, archive at 24 hours when safe, retain content just before 30 inactive days, and purge at 30 days when safe.

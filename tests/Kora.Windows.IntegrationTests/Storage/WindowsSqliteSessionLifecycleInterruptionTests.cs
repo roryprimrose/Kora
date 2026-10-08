@@ -141,11 +141,20 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
     [InlineData("done-after")]
     [InlineData("resume-before")]
     [InlineData("resume-after")]
+    [InlineData("disposition-before")]
+    [InlineData("disposition-after")]
     public async Task Owned_process_kill_at_guarded_lifecycle_commit_reopens_exact_generation_and_audit_without_replay(string mode)
     {
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
+        var disposition = mode.StartsWith("disposition-", StringComparison.Ordinal);
+        if (disposition) { await fixture.GrantAsync("session"); }
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        if (disposition)
+        {
+            await WindowsSqliteSessionWorkspaceTests.Service(fixture, new()).RenameAsync(fixture.Request.SessionId,
+                new(1), 0, new("Owned disposition content"), RequestOrigin.LocalUi, fixture.Token);
+        }
         var resume = mode.StartsWith("resume-", StringComparison.Ordinal);
         if (resume)
         {
@@ -184,10 +193,19 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
             session.Generation.Value.Should().Be(generation + (committed ? 1 : 0));
             session.IsActive.Should().Be(committed ? resume : !resume);
             fixture.Count("security_audit_events").Should().Be(audits + (committed ? 1 : 0));
-            var control = (await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token)).Should().ContainSingle().Which;
-            control.State.Should().Be(HostTaskState.IntentRecorded);
+            var incomplete = await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token);
+            if (disposition && committed) { incomplete.Should().BeEmpty(); }
+            else { incomplete.Should().ContainSingle().Which.State.Should().Be(HostTaskState.IntentRecorded); }
             var recovered = await new HostTaskCoordinator(fixture.Tasks).RecoverAsync(10, fixture.Token);
-            recovered.Should().ContainSingle().Which.State.Should().Be(HostTaskState.Interrupted);
+            if (disposition && committed) { recovered.Should().BeEmpty(); }
+            else { recovered.Should().ContainSingle().Which.State.Should().Be(HostTaskState.Interrupted); }
+            if (disposition)
+            {
+                fixture.Count("session_metadata").Should().Be(committed ? 0 : 1);
+                fixture.Count("host_questions").Should().Be(committed ? 0 : 1);
+                fixture.Count("scoped_grants").Should().Be(committed ? 0 : 1);
+                (await fixture.Store.ReadMetadataPageAsync(null, 25, fixture.Token)).Records.Length.Should().Be(committed ? 0 : 1);
+            }
             (await fixture.Store.ReadSessionAsync(session.SessionId, fixture.Token)).Should().Be(session);
             fixture.Count("security_audit_events").Should().Be(audits + (committed ? 1 : 0));
             (await new HostTaskCoordinator(fixture.Tasks).RecoverAsync(10, fixture.Token)).Should().BeEmpty();
@@ -210,7 +228,7 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
         if (root is null) { return; }
         OwnedStorageChildProcess.RequireOwnedRoot(root);
         var mode = Environment.GetEnvironmentVariable(ModeVariable);
-        if (mode is not ("done-before" or "done-after" or "resume-before" or "resume-after"))
+        if (mode is not ("done-before" or "done-after" or "resume-before" or "resume-after" or "disposition-before" or "disposition-after"))
         {
             throw new InvalidOperationException("Invalid owned lifecycle child mode.");
         }
@@ -226,6 +244,8 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
         var store = new WindowsSqliteHostInteractionStore(paths, tasks, new InteractionStorageFixture.Clock(), checkpoint);
         var token = TestContext.Current.CancellationToken;
         var session = (await store.ReadSessionsAsync(null, 1, token)).Records.Single();
+        var disposition = mode.StartsWith("disposition-", StringComparison.Ordinal);
+        var preview = disposition ? await store.PreviewDispositionAsync(session.SessionId, session.Generation, 1, token) : null;
         var request = new HostRequest(new(Guid.NewGuid()), session.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         await tasks.CommitAsync(new(request, new(1), HostTaskState.IntentRecorded), 0, token);
@@ -240,9 +260,17 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
             };
             checkpoint.Commit = (_, _) => OwnedStorageChildProcess.SignalAndBlock(root, Marker);
         }
-        var changed = await store.ChangeIdleLifecycleAsync(request, session.Generation,
-            mode.StartsWith("resume-", StringComparison.Ordinal), () => true, token);
-        changed.Generation.Value.Should().Be(session.Generation.Value + 1);
+        if (preview is not null)
+        {
+            var receipt = await store.DisposeSessionAsync(request, preview, () => true, token);
+            receipt.Generation.Value.Should().Be(session.Generation.Value + 1);
+        }
+        else
+        {
+            var changed = await store.ChangeIdleLifecycleAsync(request, session.Generation,
+                mode.StartsWith("resume-", StringComparison.Ordinal), () => true, token);
+            changed.Generation.Value.Should().Be(session.Generation.Value + 1);
+        }
         OwnedStorageChildProcess.SignalAndBlock(root, Marker);
     }
 

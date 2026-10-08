@@ -260,6 +260,10 @@ public sealed partial class MainViewModelTests
 
     private sealed class SessionCommandStore(Fixture fixture) : ISessionWorkspaceStore, ISessionWorkspaceAccess
     {
+        public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
+            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+            Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         internal HostTaskObservation? TaskResult { get; set; }
         internal Action? BeforeTaskRead { get; set; }
         internal Action? AfterCancellation { get; set; }

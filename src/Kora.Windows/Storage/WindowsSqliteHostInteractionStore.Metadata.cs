@@ -160,8 +160,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 SELECT json_extract(c.value,'$.Id') AS id, MAX(a.sequence) AS sequence
                 FROM security_audit_events a, json_each(a.envelope,'$.Changes') c
                 WHERE json_extract(c.value,'$.Kind')='metadata' GROUP BY json_extract(c.value,'$.Id')
-            ) latest LEFT JOIN session_metadata m ON m.session_id=latest.id
-            WHERE m.audit_sequence IS NULL OR m.audit_sequence<>latest.sequence LIMIT 1;
+            ) latest LEFT JOIN work_sessions s ON s.session_id=latest.id
+            LEFT JOIN session_metadata m ON m.session_id=latest.id
+            WHERE (s.state IS NULL OR s.state<>2)
+            AND (m.audit_sequence IS NULL OR m.audit_sequence<>latest.sequence) LIMIT 1;
             """;
         if (command.ExecuteScalar() is not null)
         {

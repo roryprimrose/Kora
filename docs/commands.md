@@ -340,6 +340,10 @@ selected ID** with bounded durable names and optimistic revisions. These are
 also available through the bounded exact commands below, but not model tools. A name never selects authority,
 and the selected window never redirects global commands. Creation grants no
 execution permission; rename/browse never resumes or changes approvals.
+Native Sessions additionally offers separate
+[preview/confirmation for logical disposition](windows-and-tray.md#logical-session-disposition).
+It removes addressed live authority rows, not recoverable copies or full
+history. No typed/voice `session delete` or model deletion tool is admitted.
 
 ### Bounded exact-ID session commands
 

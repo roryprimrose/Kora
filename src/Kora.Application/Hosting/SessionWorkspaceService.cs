@@ -46,7 +46,7 @@ public sealed partial class SessionWorkspaceService(
         return result;
     }
 
-    private async Task<SessionPage<T>> ReadAsync<T>(Func<ValueTask<SessionPage<T>>> read)
+    private async Task<T> ReadAsync<T>(Func<ValueTask<T>> read)
     {
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Storage);
         try
@@ -85,7 +85,8 @@ public sealed partial class SessionWorkspaceService(
 
     private async Task<T> ControlAsync<T>(HostId<SessionIdentity> session, RequestOrigin origin,
         Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token,
-        Func<bool>? additionalAdmission = null, bool inspection = false, bool existingSubject = false)
+        Func<bool>? additionalAdmission = null, bool inspection = false, bool existingSubject = false,
+        bool terminalCommitted = false)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
@@ -126,7 +127,10 @@ public sealed partial class SessionWorkspaceService(
             }
             // The authoritative lifecycle/audit transaction already committed. A receipt failure
             // must remain visible; it cannot be described as a rollback or replayed automatically.
-            await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
+            if (!terminalCommitted)
+            {
+                await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
+            }
             activity.Complete(HostOperationOutcome.Completed);
             return result;
         }

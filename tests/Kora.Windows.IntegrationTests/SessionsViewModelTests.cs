@@ -163,6 +163,10 @@ public sealed class SessionsViewModelTests
 
     private sealed class HeldStore : ISessionWorkspaceStore
     {
+        public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
+            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+            Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,

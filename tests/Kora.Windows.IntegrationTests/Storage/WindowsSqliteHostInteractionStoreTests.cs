@@ -124,7 +124,24 @@ public sealed class WindowsSqliteHostInteractionStoreTests
         grants.Single(g => g.Id == sessionGrant.Id).Status.Should().Be(OperationGrantStatus.Revoked);
         grants.Single(g => g.Id == once.Id).Status.Should().Be(OperationGrantStatus.Revoked);
         grants.Single(g => g.Id == perpetual.Id).Should().Be(perpetual);
-        await fixture.RunAsync(() => fixture.Store.SetSessionLifecycleAsync(fixture.Request, new(3), active: false, remove: true, fixture.Token));
+        var unsafeRemoval = () => fixture.RunAsync(() => fixture.Store.SetSessionLifecycleAsync(fixture.Request, new(3), active: false, remove: true, fixture.Token));
+        await unsafeRemoval.Should().ThrowAsync<InvalidOperationException>().WithMessage("*guarded explicit*");
+        foreach (var task in (await fixture.Store.ReadTaskPageAsync(fixture.Request.SessionId, null, 50, fixture.Token)).Records)
+        {
+            if (!task.IsTerminal)
+            {
+                using var activity = Kora.Core.Diagnostics.HostActivity.BeginRoot(task.Request,
+                    Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+                await fixture.Tasks.CommitAsync(task.Next(HostTaskState.Succeeded), task.Revision.Value, fixture.Token);
+            }
+        }
+        var preview = await fixture.Store.PreviewDispositionAsync(fixture.Request.SessionId, new(3), 0, fixture.Token);
+        fixture.Request = InteractionStorageFixture.NewRequest(fixture.Request.SessionId);
+        await fixture.RunAsync(async () =>
+        {
+            await fixture.Store.RecordControlIntentAsync(fixture.Request, fixture.Token);
+            await fixture.Store.DisposeSessionAsync(fixture.Request, preview, () => true, fixture.Token);
+        });
         (await fixture.Store.ReadQuestionsAsync(fixture.Request.SessionId, fixture.Token)).Should().BeEmpty();
         (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().ContainSingle().Which.Should().Be(perpetual);
         var removedSession = fixture.Request.SessionId;

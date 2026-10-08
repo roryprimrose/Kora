@@ -153,6 +153,22 @@ public sealed partial class SessionWorkspaceServiceTests
 
     private sealed class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, IHostTaskStore, IDisposable
     {
+        internal Action? AfterPreview { get; set; }
+        internal bool RevokeDuringDispositionResolution { get; init; }
+        internal void AdvanceRevision() => ControlRevision++;
+        public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
+            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken)
+        {
+            AfterPreview?.Invoke();
+            return ValueTask.FromResult(new SessionDispositionPreview(Guid.NewGuid(), new(Session, null), "revision", 1, 1, 1, 1));
+        }
+        public async ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+            Func<bool> canControl, CancellationToken cancellationToken)
+        {
+            var authority = await ChangeIdleLifecycleAsync(request, preview.Session.Authority.Generation, false, canControl, cancellationToken);
+            await CommitAsync(new(request, new(2), HostTaskState.Succeeded), 1, cancellationToken);
+            return new(request.SessionId, authority.Generation, preview);
+        }
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>
             ValueTask.FromResult<HostTaskObservation?>(UnknownTask ? null : new(Task, Session.Generation, "unclassified", false, Question));
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
@@ -216,6 +232,7 @@ public sealed partial class SessionWorkspaceServiceTests
 
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
+            if (RevokeDuringDispositionResolution) { AdvanceRevision(); }
             if (RevokeDuringTaskResolution) { CanInspect = false; }
             return ValueTask.FromResult(new SessionWorkspaceEntry(
                 ForeignTaskSession ? new(new(Guid.NewGuid()), new(1), true) : Session, null));

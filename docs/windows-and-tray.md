@@ -234,8 +234,43 @@ Done/resume each advance generation and invalidate old scoped authority.
 Perpetual records remain independent. Resume does not rerun tasks, revive
 approvals or restore/transmit old context. Privacy closure clears this window.
 Full conversations, work queues, name-based voice targeting, automatic archive,
-delete/retention, export and scheduling are not delivered. No live visual,
+full recoverable-copy deletion/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
+
+### Logical session disposition
+
+For explicit removal from the live workspace, select the exact existing ID and
+choose **Preview logical disposition**. Review the displayed ID, name (only a
+label), generation, metadata revision, row counts and retained-data warning.
+Nothing changes during preview. **Confirm logical disposition** is a separate
+deliberate native action using that single-use host-held preview. There is no
+voice, typed `session delete`, model, name-based or automatic deletion route.
+
+Confirmation removes only this session's live name/metadata, questions
+(including drafts/answers), host observations, admitted wait bindings and
+scoped grants. It advances generation and retains a Removed identity tombstone
+that cannot be reused or resumed. Other sessions and independent Perpetual
+grants are preserved. Live or Unknown work and unresolved questions block
+disposition, including expired questions. Kora does not abandon work to permit
+removal. An intervening record/task change, stale generation/name revision,
+privacy/ownership/call change or unavailable/corrupt store requires a fresh
+preview after resolving the blocker.
+
+**This is not full or forensic deletion.** Task/event and content-minimising
+authority audit provenance, independent diagnostics, Perpetual provenance,
+inert legacy migration storage, SQLite journals/free pages and copied databases
+remain. General conversation/history, managed session artifacts, source
+snapshots/indexes/caches and managed-backup deletion are not delivered. Local
+disposition cannot erase user exports or provider copies. No inactivity timer,
+automatic purge or session retention setting is added.
+
+The receipt says **Committed logical disposition** only after the writer's
+single transaction commits removal, tombstone, terminal control success and
+required audit. Errors never imply success, abandoned work or rollback of a
+possible commit. Refresh to inspect durable state; do not automatically replay
+confirmation after an uncertain error. A successful Removed ID disappears from
+the list. Closing or switching selection discards the displayed confirmation;
+it never performs disposition.
 
 The compact command box and activated voice also expose bounded
 [exact-ID session commands](commands.md#bounded-exact-id-session-commands).

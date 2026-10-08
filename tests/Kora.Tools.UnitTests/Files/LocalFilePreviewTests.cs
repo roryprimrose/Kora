@@ -224,6 +224,29 @@ public sealed class LocalFilePreviewTests : IDisposable
     }
 
     [Fact]
+    public async Task Deferred_cleanup_failure_keeps_reviewed_session_and_links_without_reviving_completed_activity()
+    {
+        var inspector = new Inspector { Scenario = "release-error" };
+        var logger = new CaptureLogger();
+        using var service = new LocalFilePreview(inspector, new Audit(), TimeProvider.System, logger);
+        LocalFileReview reviewed;
+        using (var host = Host())
+        {
+            await service.SelectAsync(new Picker(), () => true, TestContext.Current.CancellationToken);
+            reviewed = service.Review!;
+        }
+        HostActivity.Current.Should().BeNull();
+        service.Clear();
+        var cleanup = logger.Contexts.Last()!;
+        cleanup.Request.Should().Be(reviewed.Request);
+        cleanup.Outcome.Should().Be(HostOperationOutcome.Failed);
+        cleanup.Activity!.Context.Should().NotBe(reviewed.Cause);
+        cleanup.Activity.Links.Should().Contain(link => link.Context == reviewed.Cause);
+        HostActivity.Current.Should().BeNull();
+        service.IsQuiescent.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Outstanding_metadata_handles_are_not_quiescent_and_voice_selection_cannot_confirm()
     {
         var inspector = new Inspector();
@@ -362,9 +385,14 @@ public sealed class LocalFilePreviewTests : IDisposable
     private sealed class CaptureLogger : ILogger<LocalFilePreview>
     {
         public List<string> Messages { get; } = [];
+        public List<HostActivity?> Contexts { get; } = [];
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-            Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
+            Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception));
+            Contexts.Add(HostActivity.Current);
+        }
     }
 }

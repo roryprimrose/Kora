@@ -239,12 +239,17 @@ public sealed partial class LocalFilePreview(
     {
         lock (sync)
         {
+            var subject = review ?? revision?.Review;
+            using var activity = subject is not null
+                ? HostActivity.BeginRoot(subject.Request, HostActivityLayer.Application, HostOperation.Recovery, [new(subject.Cause)])
+                : null;
             ++generation;
             pending?.Cancel();
             ReleaseSelection();
             review = null;
             revision = null;
             eligible = null;
+            activity?.Complete(releaseFailed ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
         }
         Changed?.Invoke(this, EventArgs.Empty);
     }

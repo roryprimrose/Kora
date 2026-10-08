@@ -38,6 +38,8 @@ review expires after two minutes (metadata-only revalidation); closed/stale
 review IDs, another host session/task, voice/system confirmation, expired
 origin/privacy/ownership/call generations and cancellation cannot read.
 Confirmation starts a fresh linked host operation, not a resurrected trace.
+Deferred cleanup uses a fresh linked recovery operation with the reviewed host
+identity, including release-failure diagnostics after the selection trace ends.
 
 Two bounded consistency passes through the same retained handle admit only
 identical bytes and recheck identity/length before and after capture (at most

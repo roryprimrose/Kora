@@ -11,7 +11,7 @@ namespace ContainmentProof;
 
 internal static class Host
 {
-    internal static int Run(string output, string powershell)
+    internal static int Run(string output, string powershell, bool networkHandoff = false)
     {
         output = Path.GetFullPath(output);
         powershell = Path.GetFullPath(powershell);
@@ -77,7 +77,16 @@ internal static class Host
                     profile.EndsWith("lost-receipt", StringComparison.Ordinal));
                 string specPath = Path.Combine(allowed, "spec.json");
                 Wire.Write(specPath, spec);
-                trials.Add(Trial(profile, spec, specPath, contained ? sid : IntPtr.Zero, allowed));
+                var started = DateTimeOffset.UtcNow;
+                var trial = Trial(profile, spec, specPath, contained ? sid : IntPtr.Zero, allowed);
+                var ended = DateTimeOffset.UtcNow;
+                trials.Add(trial);
+                if (networkHandoff && NetworkCollection.Profiles.Contains(profile, StringComparer.Ordinal))
+                {
+                    Wire.Write(Path.Combine(output, "trials.json"), trials);
+                    CollectNetworkAsync(output, spec, trial, scratch, token, started, ended)
+                        .GetAwaiter().GetResult();
+                }
             }
             Wire.Write(Path.Combine(output, "environment.json"), new
             {
@@ -124,6 +133,40 @@ internal static class Host
                 }
             }
         }
+    }
+
+    private static async Task CollectNetworkAsync(string output, Spec spec, Trial trial,
+        string scratch, TokenFacts host, DateTimeOffset started, DateTimeOffset ended)
+    {
+        if (trial.Receipt is null || trial.Receipt.RunId != trial.Profile ||
+            !trial.TreeStopped || trial.LaunchError is not null || trial.Failure is not null ||
+            trial.Receipt.Token.UserSid != host.UserSid || trial.Receipt.Token.Elevated ||
+            trial.Receipt.Token.AppContainer != trial.Profile.StartsWith("appcontainer", StringComparison.Ordinal))
+            throw new InvalidDataException("Cannot request collection for an unverifiable worker trial.");
+        NetworkImage Image(string name, string path) =>
+            new(name, path, Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))));
+        var request = new NetworkRequest(Guid.NewGuid().ToString("N"), trial.Profile, scratch,
+            host.UserSid, trial.Receipt.Token.ContainerSid, started, ended, spec.Address, spec.Port,
+            [Image("dotnet", spec.Executable), Image("powershell", spec.PowerShell)]);
+        NetworkCollection.Validate(request, Path.GetTempPath(), DateTimeOffset.UtcNow);
+        string path = Path.Combine(output, $"network-{trial.Profile}.request.json");
+        string completionPath = Path.Combine(output, $"network-{trial.Profile}.completed.json");
+        string temporary = path + ".tmp";
+        Wire.Write(temporary, request);
+        string digest = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(temporary)));
+        File.Move(temporary, path);
+        Console.WriteLine($"W1 collector request ready: {path}; assets retained for at most 90 seconds.");
+        var clock = Stopwatch.StartNew();
+        await NetworkCollection.AwaitCompletionAsync(request.RequestId, digest, async () =>
+        {
+            if (!File.Exists(completionPath)) return null;
+            if (new FileInfo(completionPath).Length > NetworkCollection.MaximumJsonBytes)
+                throw new InvalidDataException("Collector receipt exceeds 64 KiB.");
+            return System.Text.Json.JsonSerializer.Deserialize<NetworkCompletion>(
+                await File.ReadAllTextAsync(completionPath), Wire.Json)
+                ?? throw new InvalidDataException("Empty collector receipt.");
+        }, () => clock.Elapsed, () => Task.Delay(200));
+        Console.WriteLine("W1 filtered XML received for inspection; denial attribution remains unproven.");
     }
 
     private static Trial Trial(string profile, Spec spec, string specPath, IntPtr sid, string directory)

@@ -78,6 +78,174 @@ test receipt correlation and error classification; they are not denial evidence.
 The real trials enforce expected access errors, token identity, protected bytes,
 descendant shutdown, interpreter receipts and truthful lifecycle states.
 
+### W1 filtered buffered-event preparation (2026-10-07)
+
+This opt-in path coordinates the original IPv4/TCP trials with a separate
+administrator observer. It does not start a trace, enable auditing, change WFP
+options or firewall rules, install anything, or grant elevation to the host/
+worker. The operator reported `NETEVENTS = on` on the current machine; that
+readiness observation is not proof that a required block event is available.
+
+Preparation was initially limited to focused builds and deterministic tests.
+One subsequent filtered observation was separately approved as recorded below;
+that approval is not reusable. Before each execution, obtain separate
+approval for filtered reads of existing buffered events and the original
+owned-scratch/local-network/synthetic-credential effects. Review/pin the actual
+compiled EXE and DLL bytes before launching the administrator observer; source
+revision alone does not identify dirty-source or compiled bytes. Keep this
+observer in a separate terminal under the same user's elevated token, never
+start the host from that terminal.
+
+Once separately approved, select a new shared evidence directory. Start the
+fixed observer there before starting the non-elevated runner:
+
+```powershell
+# Separate administrator terminal; no worker launch in this process.
+$proof = '.\experiments\r02-containment-proof\bin\Release\net10.0-windows\ContainmentProof.exe'
+& $proof collect-network '<approved new absolute evidence directory>' consent-filtered-buffered-events
+
+# Separate NON-ELEVATED PowerShell 7 terminal.
+.\experiments\r02-containment-proof\Invoke-Proof.ps1 `
+    -EvidenceDirectory '<same approved new absolute evidence directory>' `
+    -PowerShellPath (Get-Command pwsh | Select-Object -First 1).Source `
+    -NetworkHandoff
+```
+
+The host writes an atomic request after each of the Job-only complete,
+AppContainer complete and AppContainer cancelled trials, after the tracked tree
+stops but before its images are removed. Each request binds an ID/digest,
+observed user/container identity, two exact copied image paths/hashes, UTC
+start/end observations and the owned IPv4 endpoint/port. The host waits at most
+90 seconds for a matching inspection-only receipt. Missing/malformed/mismatched
+or failed collection throws and follows the existing exact cleanup; partial
+trial receipts remain available and effects are never replayed.
+
+The observer permits only the fixed trial paths, checks image hashes and rejects
+reparse ancestors. It issues four `netsh wfp show netevents` queries per row,
+each filtered by application, user, TCP protocol, loopback/owned-interface
+destination, destination port and a lookback of at most 120 seconds. There are
+no unfiltered fallback queries, broad state dumps, Security-event reads,
+`capture`, `set` or audit-enablement commands. Each native query has a ten-second
+deadline and each resulting XML is limited to 1 MiB. The CLI's lookback covers
+through collection time, not just the exact trial interval: preserve the request
+start/end times and distinguish these when later qualifying the event schema.
+
+Raw well-formed XML is **collected for inspection**, not parsed into an OS-denial
+claim. The actual XML schema, event completeness, worker/process/token and
+blocking-filter/layer attribution remain unqualified until an approved real
+run. Empty output, lost buffered events, access failures or unrelated firewall
+blocks cannot pass W1. An inspection receipt releases scratch for cleanup;
+it has no execution, effect, grant or acceptance authority. The observer returns
+`2` even when all queries complete, and the original eight network assertions
+and strict host exit semantics are unchanged.
+
+The normal runner defaults to no handoff. IPv6, UDP/DNS and descendant network
+probes are still absent; this is observation preparation for the original matrix,
+not the full W1 coverage gate. Coordination tests are linked into the existing
+W2 test project without adding a dependency. No production profile is enabled.
+
+Focused deterministic validation builds this project and the existing W2 test
+project with `--no-restore`, runs this executable's `self-test`, then runs the
+built xUnit test application with its documented native runner options:
+
+```powershell
+& .\experiments\r02-w2-dependency-proof\tests\bin\Release\net10.0-windows\W2Tests.exe `
+    -noColor -result-trx '<new absolute result file path>'
+```
+
+This preserves a durable TRX without requiring MTP mode in the built executable.
+The direct `dotnet test` preparation invocation was rejected by the SDK before
+test execution; invoking the native runner with MTP `--report-trx` also failed.
+Those attempts are not counted as tests or evidence of OS behavior.
+
+**First separately approved current-machine observation, 2026-10-07:** the three
+handoffs and twelve filtered queries completed, but every output was the empty
+`<netEvents/>` document. Both .NET and PowerShell loopback/owned-interface
+positive controls worked. The host retained 63/71 assertions, the same eight
+unproven network assertions and exit `2`; all five tracked trees stopped and
+synthetic credential/profile/scratch cleanup completed. Request digests, source/
+compiled-byte pins, raw XML, query arguments and assessment are retained in the
+session evidence, not added to or substituted for the historical snapshots.
+No auditing, WFP option, firewall-policy or trace-session change was made.
+
+This measures real coordination and successful filtered query execution, not
+an attributable network denial. No matching block event was returned, and the
+cause (generation, buffer retention, filter matching or another diagnostic gap)
+is undetermined. Do not broaden filters, start tracing or replay effects without
+a fresh scoped approval. Populated-event parsing/filter attribution and the
+remaining network matrix stay unqualified.
+
+### W1 user-filter comparison preparation (2026-10-07)
+
+**Preparation only; not authorized to run.** The next bounded candidate compares
+the existing strict query with a query omitting only `userid`. The default
+`collect-network` mode is unchanged and cannot accept the comparison consent.
+This candidate requires a new, explicit collection-scope approval and a new
+live-trial approval; the first observation's approval has been consumed.
+Review and pin the newly built EXE/DLL and source inputs, allocate a new evidence
+directory, and start the separately elevated same-user observer only after those
+approvals:
+
+```powershell
+# NOT authorization to execute. Separate administrator terminal after approval.
+& $proof collect-network-user-comparison '<approved new absolute evidence directory>' `
+    consent-application-endpoint-events-without-user-filter
+# The separately approved non-elevated host still uses -NetworkHandoff.
+```
+
+The comparison makes eight queries per row (24 across the same three handoffs):
+.NET/PowerShell times loopback/owned-interface times strict/application-only.
+Every diagnostic query retains the exact copied executable path, TCP protocol,
+destination address, ephemeral destination port and at-most-120-second lookback.
+Only the user condition is omitted; no application-only-without-endpoint,
+endpoint-only, unfiltered, or error-triggered fallback is implemented. Host
+ownership, observed user/container identity, image hashes, reparse rejection,
+request/digest binding, XML/output limits and cleanup still apply.
+
+**Additional data scope:** diagnostic XML may contain metadata for another user
+running those exact disposable images against those exact endpoints during the
+lookback. This is a real collection broadening, not merely a parsing change.
+Do not share raw XML or reinterpret collection consent as identity/authority.
+Store it in the approved local evidence directory. Retain query scope, arguments,
+start/end times and outcomes; do not replace the twelve historical empty outputs.
+Stop after the fixed batch. Failed queries or an exhausted budget stop collection
+with an explicit failed receipt; no retries, extra reads or effect replay.
+Native queries share a 60-second per-row elapsed budget in comparison mode,
+each capped at ten seconds and shortened by the remaining budget. File validation,
+XML inspection and completion I/O are not covered by that native-query deadline;
+the host still has its independent 90-second acknowledgment/cleanup boundary.
+Timeout/failure cleanup paths are not yet induced in a live comparison run.
+
+The rationale is limited: Microsoft's [netsh WFP reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-wfp)
+supports both DOS/NT application paths and SID/user-name filters. The
+[enumeration template](https://learn.microsoft.com/en-us/windows/win32/api/fwpmtypes/ns-fwpmtypes-fwpm_net_event_enum_template0)
+ANDs conditions, while [event-header flags](https://learn.microsoft.com/en-us/windows/win32/api/fwpmtypes/ns-fwpmtypes-fwpm_net_event_header0)
+identify which fields are present. These facts justify investigating whether a
+user condition excludes available records; they do not establish the cause of
+this machine's empty output. Successful connections are positive controls for
+the traffic probes, not proof that permitted connections generate buffered
+events.
+
+Queries run sequentially and inspect a changing buffer, not a common snapshot.
+Their rounded lookbacks cover through their respective collection times. Compare
+record timestamps against the request's actual interval; strict-empty/
+diagnostic-populated output alone cannot prove the user condition caused the
+difference. Missing identity, unrelated traffic or absent blocking-filter/layer
+attribution remain unqualified. The [classify-drop record](https://learn.microsoft.com/en-us/windows/win32/api/fwpmtypes/ns-fwpmtypes-fwpm_net_event_classify_drop2)
+identifies a filter/layer, but resolving that evidence into attributable
+containment denial is separate work, not a broad filter/state dump in this mode.
+All completion receipts retain `Unproven`, the observer returns `2`, and the
+original eight assertions and W1-W4/R11/R16/R17 gates remain unchanged.
+
+Preparation validation: both focused Release builds completed with zero warnings
+and errors, without restore. The combined native xUnit suite passed 85/85 cases
+(22 additional consent/scope/budget cases); the original five deterministic
+self-tests passed. CLI checks rejected missing consent and the previous strict
+consent before creating output or entering the observer. No buffered events,
+privileged query, comparison trial, policy change or installation was performed.
+Source and newly built binary hashes are recorded separately from the earlier
+live observation's pins; the earlier approval/descriptor cannot admit these bytes.
+
 ## What the trials actually do
 
 1. Create a GUID-named owned scratch tree under the resolved temporary directory

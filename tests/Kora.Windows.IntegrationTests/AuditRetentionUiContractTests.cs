@@ -37,5 +37,8 @@ public sealed class AuditRetentionUiContractTests
             .And.Contain("no fallback policy or automatic replay");
         composition.IndexOf("auditConfiguration.Observe()", StringComparison.Ordinal)
             .Should().BeLessThan(composition.IndexOf(".RecoverAsync(CancellationToken.None)", StringComparison.Ordinal));
+        composition.IndexOf("new LocalSessionRetentionPreferences(paths).Load()", StringComparison.Ordinal)
+            .Should().BeGreaterThan(0)
+            .And.BeLessThan(composition.IndexOf("interactions.InitializeAsync(", StringComparison.Ordinal));
     }
 }

@@ -167,12 +167,11 @@ uncertain key publication fail closed. No delivered managed-backup publisher
 exists; this does not guess ownership or claim removal of arbitrary backups.
 No forensic/media erase, provider copy, user export or full A3 claim is made.
 
-Validation after integration onto `33b90f21` (#116): root Release build using
-existing locked dependency assets, **0 warnings / 0 errors**; no new restore or
-feed configuration change was necessary. Core **1,026**, Application **2,854**,
+Validation after integration onto `33b90f21` (#116): locked solution restore and
+root Release build, **0 warnings / 0 errors**; no dependency or repository feed
+configuration change was necessary. Core **1,026**, Application **2,854**,
 Tools **69**, Definitions **6**, Windows **1,205** tests passed, all **0 failed /
-0 skipped**. Focused storage **491**, Core history **9** and Application sessions
-**147** also passed. The unchanged portable
+0 skipped**. The unchanged portable
 coverage gate passes **100% lines / 100% branches**. Focused tests prove actual
 plaintext sentinel absence from SQLite/journal and actual owned artifact/staging
 removal, independent-owner/Perpetual preservation, cancellation, malformed saved
@@ -199,6 +198,8 @@ queue controls and passive reads do not. Restart still projects Interrupted/
 Unknown work without replay and rejects stale callbacks. This supersedes only
 older statements that the bounded fixed local-version queue was absent; broader
 effects, workers, full conversation, managed backups and RC acceptance remain open.
+Confirmed retention preferences are loaded before storage clock migration;
+invalid/unconfirmed saved state cannot seed clocks with fallback defaults.
 
 ### R12/R14 bounded ordered interaction history - 2026-10-09
 

@@ -224,6 +224,7 @@ internal static class Program
         var diagnosticPolicy = new DiagnosticRetentionPolicy();
         var auditPolicy = new AuditRetentionPolicy();
         var sessionPolicy = new SessionRetentionPolicy();
+        sessionPolicy.Activate(new LocalSessionRetentionPreferences(paths).Load() ?? SessionRetentionSettings.Default);
         var evidence = new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy);
         evidence.Initialize();
         var tasks = new WindowsSqliteHostTaskStore(paths);

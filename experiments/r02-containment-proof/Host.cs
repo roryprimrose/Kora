@@ -11,8 +11,9 @@ namespace ContainmentProof;
 
 internal static class Host
 {
-    internal static int Run(string output, string powershell, bool networkHandoff = false)
+    internal static int Run(string output, string powershell, string consent, bool networkHandoff = false)
     {
+        InvocationPolicy.RequireOwnedTrialConsent(consent);
         output = Path.GetFullPath(output);
         powershell = Path.GetFullPath(powershell);
         if (Directory.Exists(output)) throw new ArgumentException("Evidence destination must be new");
@@ -22,7 +23,7 @@ internal static class Host
         if (token.Elevated) throw new InvalidOperationException("Privileged trials are not admitted by this proof");
         Directory.CreateDirectory(output);
         string name = $"kora.r02.{Guid.NewGuid():N}";
-        string scratch = Path.Combine(Path.GetTempPath(), name);
+        string scratch = Path.Combine(output, name);
         string credential = $"{name}.synthetic";
         IntPtr sid = IntPtr.Zero;
         bool credentialCreated = false;
@@ -148,7 +149,7 @@ internal static class Host
         var request = new NetworkRequest(Guid.NewGuid().ToString("N"), trial.Profile, scratch,
             host.UserSid, trial.Receipt.Token.ContainerSid, started, ended, spec.Address, spec.Port,
             [Image("dotnet", spec.Executable), Image("powershell", spec.PowerShell)]);
-        NetworkCollection.Validate(request, Path.GetTempPath(), DateTimeOffset.UtcNow);
+        NetworkCollection.Validate(request, output, DateTimeOffset.UtcNow);
         string path = Path.Combine(output, $"network-{trial.Profile}.request.json");
         string completionPath = Path.Combine(output, $"network-{trial.Profile}.completed.json");
         string temporary = path + ".tmp";

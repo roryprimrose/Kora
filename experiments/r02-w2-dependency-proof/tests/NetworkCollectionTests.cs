@@ -15,6 +15,15 @@ public sealed class NetworkCollectionTests
         NetworkCollection.Validate(Request(), TemporaryRoot, Now);
 
     [Theory]
+    [InlineData(@"C:\other-evidence")]
+    [InlineData(@"C:\synthetic-temp\other-trial")]
+    public void RejectsRequestOwnedByAnotherEvidenceDirectory(string evidenceRoot)
+    {
+        Action operation = () => NetworkCollection.Validate(Request(), evidenceRoot, Now);
+        operation.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
     [InlineData("other")]
     [InlineData("appcontainer-lost-receipt")]
     [InlineData("appcontainer-malformed-receipt")]

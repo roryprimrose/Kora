@@ -10,15 +10,17 @@ try
     return args switch
     {
         ["self-test"] => ProofTests.SelfTest(),
-        ["run", var output, var powershell] => Host.Run(output, powershell),
-        ["run-with-network-handoff", var output, var powershell] => Host.Run(output, powershell, true),
+        ["run", var output, var powershell, var consent] => Host.Run(output, powershell, consent),
+        ["run-with-network-handoff", var output, var powershell, var consent] =>
+            Host.Run(output, powershell, consent, true),
         ["collect-network" or "collect-network-user-comparison", var output, var consent] =>
             await NetworkObserver.RunAsync(output, NetworkCollection.ObserverMode(args[0], consent)),
         ["worker", var spec] => Worker.Run(spec),
         ["sleeper", var spec] => Worker.Sleeper(spec, false),
         ["grandchild", var spec] => Worker.Sleeper(spec, true),
-        _ => throw new ArgumentException("Use: self-test | run <new-evidence-directory> <pwsh.exe> | " +
-            "run-with-network-handoff <new-evidence-directory> <pwsh.exe> | " +
+        _ => throw new ArgumentException("Use: self-test | run <new-evidence-directory> <pwsh.exe> " +
+            InvocationPolicy.OwnedTrialConsent + " | run-with-network-handoff <new-evidence-directory> <pwsh.exe> " +
+            InvocationPolicy.OwnedTrialConsent + " | " +
             "collect-network <evidence-directory> consent-filtered-buffered-events | " +
             "collect-network-user-comparison <evidence-directory> consent-application-endpoint-events-without-user-filter"),
     };

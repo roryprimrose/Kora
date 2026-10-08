@@ -36,7 +36,7 @@ internal static class NetworkObserver
             string digest = Convert.ToHexString(SHA256.HashData(bytes));
             var request = JsonSerializer.Deserialize<NetworkRequest>(bytes, Wire.Json)
                 ?? throw new InvalidDataException("Empty network request.");
-            NetworkCollection.Validate(request, Path.GetTempPath(), DateTimeOffset.UtcNow);
+            NetworkCollection.Validate(request, directory, DateTimeOffset.UtcNow);
             if (request.Profile != profile || request.UserSid != token.UserSid)
                 throw new InvalidDataException("Observer must be the same user's separate elevated token and exact profile.");
             string completionPath = Path.Combine(directory, $"network-{profile}.completed.json");
@@ -66,7 +66,7 @@ internal static class NetworkObserver
                         foreach (NetworkQueryScope scope in scopes)
                         {
                             DateTimeOffset started = DateTimeOffset.UtcNow;
-                            NetworkCollection.Validate(request, Path.GetTempPath(), started);
+                            NetworkCollection.Validate(request, directory, started);
                             string suffix = mode == NetworkObserverMode.Strict ? "" :
                                 scope == NetworkQueryScope.Strict ? "-strict" : "-application-only-diagnostic";
                             string xml = Path.Combine(evidence,

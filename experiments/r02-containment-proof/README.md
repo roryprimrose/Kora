@@ -60,9 +60,15 @@ No dependency installation/download is performed.
 From this worktree, in PowerShell 7:
 
 ```powershell
+# Safe preparation first; no trial, credential, AppContainer or network effects.
+.\experiments\r02-containment-proof\Invoke-Proof.ps1 -PrepareOnly `
+    -EvidenceDirectory "$PWD\experiments\r02-containment-proof\artifacts\preparation-01"
+
+# Live OS trial only after separately scoped approval of the effects below.
 .\experiments\r02-containment-proof\Invoke-Proof.ps1 `
     -EvidenceDirectory "$PWD\experiments\r02-containment-proof\artifacts\trial-01" `
-    -PowerShellPath (Get-Command pwsh).Source
+    -PowerShellPath (Get-Command pwsh).Source `
+    -ConsentOwnedScratch
 $LASTEXITCODE
 ```
 
@@ -70,6 +76,9 @@ Use a **new** evidence directory on each run. Generated `bin`, `obj` and
 `artifacts` remain ignored by the existing repository ignore rules.
 The experiment-local build props deliberately avoid production analyzer/package
 references; there are no NuGet package dependencies and no solution/CI changes.
+The runner builds with `--no-restore`; if a fresh worktree lacks build assets,
+restore the focused project with `dotnet restore <project> --locked-mode` first.
+Do not install a toolchain or runtime to satisfy this prerequisite.
 
 Equivalent focused commands:
 
@@ -77,7 +86,9 @@ Equivalent focused commands:
 dotnet build .\experiments\r02-containment-proof\ContainmentProof.csproj -c Release
 $proof = '.\experiments\r02-containment-proof\bin\Release\net10.0-windows\ContainmentProof.exe'
 & $proof self-test
-& $proof run "$PWD\experiments\r02-containment-proof\artifacts\trial-02" (Get-Command pwsh).Source
+# Only after the separately approved live effects:
+& $proof run "$PWD\experiments\r02-containment-proof\artifacts\trial-02" `
+    (Get-Command pwsh).Source consent-owned-scratch-local-network-synthetic-credential
 ```
 
 Exit codes: `0` = measured assertions passed (not production certification);
@@ -117,7 +128,7 @@ $proof = '.\experiments\r02-containment-proof\bin\Release\net10.0-windows\Contai
 .\experiments\r02-containment-proof\Invoke-Proof.ps1 `
     -EvidenceDirectory '<same approved new absolute evidence directory>' `
     -PowerShellPath (Get-Command pwsh | Select-Object -First 1).Source `
-    -NetworkHandoff
+    -NetworkHandoff -ConsentOwnedScratch
 ```
 
 The host writes an atomic request after each of the Job-only complete,
@@ -255,9 +266,91 @@ privileged query, comparison trial, policy change or installation was performed.
 Source and newly built binary hashes are recorded separately from the earlier
 live observation's pins; the earlier approval/descriptor cannot admit these bytes.
 
+### W1 safe preparation and consent boundary (2026-10-08)
+
+`-PrepareOnly` runs the five deterministic classification assertions and writes
+a path-free preparation receipt with source/EXE/DLL hashes, the SDK selection,
+PowerShell executable hash and observed OS version. It never enters `Host.Run`
+or the administrator observer. Builds write only project `bin`/`obj` output;
+the receipt stays in the selected new evidence directory. Source revision and
+dirty-input status are distinct from exact file hashes. These pins are not
+protected-runtime-closure or supported-reference-OS qualification.
+
+The runner now rejects an unspecified mode and mixed preparation/live flags
+before build or file creation. Live invocation requires `-ConsentOwnedScratch`;
+the executable independently requires the exact owned-trial consent marker.
+Neither marker obtains or substitutes for human approval. Buffered-event
+observer consent cannot authorize the non-elevated trial. The current host's
+Windows x64 build `26300` is a developer observation, not a selected supported
+reference OS under D-007.
+
+Live scratch is now one GUID-named child of the newly selected evidence
+directory, **not the OS temporary directory**. Observer requests must refer to
+that exact evidence directory's child; another trial's scratch is rejected.
+This changed layout needs fresh approved live positive controls. It does not
+retroactively alter the historical 63/71 results or admit relocated worker
+bytes as a known-good OS candidate.
+
+The next candidate remains `collect-network-user-comparison`: 24 bounded
+metadata queries across three handoffs, dropping only `userid` in the
+diagnostic arm. Its complete proposed effect/rollback boundary is:
+
+- Separately elevated same-user observer reads existing buffered WFP metadata
+  for the exact copied .NET/PowerShell images, destination port, loopback and
+  selected owned-interface IPv4/TCP endpoints. The broadened arm can include
+  other users' matching metadata; keep raw XML local and share only sanitized
+  assessments. No capture, audit enablement, firewall/WFP policy change or
+  unfiltered fallback is authorized.
+- Separately non-elevated host copies the existing reviewed runtimes into owned
+  evidence-local scratch, sets ACLs only there, creates/deletes one temporary
+  AppContainer profile and one public synthetic credential, binds one ephemeral
+  IPv4 TCP listener on local interfaces, and launches five supervised synthetic
+  trees. The Job-only baseline deliberately changes synthetic protected files.
+  It never contacts an external endpoint or changes installed/source roots.
+- Existing uncontained .NET and PowerShell successful connections are traffic
+  positive controls, **not** positive controls for WFP block-event generation.
+  Validate new-layout baseline success before interpreting contained results.
+  No descendant network attempt is currently issued: descendants' observed
+  AppContainer identity and shutdown cannot substitute for network attribution.
+- Each native query is capped at ten seconds, comparison queries share a
+  60-second row budget, and handoff acknowledgment is bounded at 90 seconds.
+  Failure stops collection; timeout/unknown stays unproven. No effect replay.
+  The host closes owned kill-on-close jobs and verifies tracked-tree shutdown,
+  deletes its exact synthetic credential/profile/scratch, and retains cleanup
+  receipts. Failed cleanup requires exact-resource remediation, never a broad
+  process, profile or directory deletion.
+
+**Blocking intervention:** select the supported Windows 11 x64 reference
+machine/build and authorize this bounded diagnostic batch there, or explicitly
+choose diagnostic-only triage on the current developer host, or stop. The
+recommended option is an isolated supported reference lab. There is no OS,
+account, compiler or security-policy provisioning in the prepared candidate;
+any such prerequisite requires a separate consent decision.
+
+Even a populated comparison cannot close W1: blocking filter/layer and actual
+process/token/time/endpoint attribution are not yet qualified, and IPv6,
+UDP/DNS plus descendant network coverage remain absent. Preserve unique
+privileged proof paths. Current maintained Windows tests have no equivalent
+AppContainer/WFP boundary, so moving these synthetic assertions into those
+tests would not establish OS equivalence or justify deleting either fixture.
+Only affected worker/script/protected-control admission and release manifests
+including them remain containment-gated; unrelated package/UI/session/read-only
+work may proceed.
+
+Safe validation passed both focused Release builds with no warnings/errors,
+93/93 deterministic xUnit cases, five self-tests and four no-effect rejection
+smokes. No live trial, elevated read, runtime installation, security-policy
+change or disruptive Windows control was performed. Source/test/candidate pins
+and these outcomes are retained in the sanitized
+[preparation receipt](evidence/preparation-2026-10-08.json) and
+[validation summary](evidence/preparation-validation-2026-10-08.json),
+separately from historical measured OS proof. The preparation receipt identifies
+the pre-commit dirty-source state truthfully; its file hashes identify the tested
+bytes and do not imply equivalence to a future rebuilt or relocated candidate.
+
 ## What the trials actually do
 
-1. Create a GUID-named owned scratch tree under the resolved temporary directory
+1. Create a GUID-named owned scratch tree under the new evidence directory
    and a temporary current-user AppContainer profile.
 2. Copy the built worker and the already-installed PowerShell runtime into
    scratch. Grant the container SID RX to runtime files, Modify only to each

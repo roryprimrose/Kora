@@ -50,7 +50,7 @@ def _property(properties, name, kind):
 
 
 def _integer(properties, name, nullable=False, positive=False):
-    if nullable and properties.get(name) == {"Kind": 0, "CanonicalValue": None}:
+    if nullable and _is_null(properties.get(name)):
         return None
     value = _property(properties, name, 2)
     if not isinstance(value, str) or not re.fullmatch(r"0|[1-9][0-9]{0,18}", value):
@@ -62,12 +62,18 @@ def _integer(properties, name, nullable=False, positive=False):
 
 
 def _boolean(properties, name, nullable=False):
-    if nullable and properties.get(name) == {"Kind": 0, "CanonicalValue": None}:
+    if nullable and _is_null(properties.get(name)):
         return None
     value = _property(properties, name, 1)
     if value not in ("true", "false"):
         raise InvalidReceipt(f"Invalid boolean: {name}.")
     return value == "true"
+
+
+def _is_null(value):
+    return (isinstance(value, dict) and set(value) == {"Kind", "CanonicalValue"}
+            and type(value["Kind"]) is int and value["Kind"] == 0
+            and value["CanonicalValue"] is None)
 
 
 def _observation_id(properties):

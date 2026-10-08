@@ -127,6 +127,11 @@ class PrivacyReceiptTests(unittest.TestCase):
             invalid["Properties"]["ReleaseConfirmed"] = value
             with self.assertRaises(InvalidReceipt):
                 inspect(daily(observation(), invalid))
+        for name in ("RecorderReleasedTimestamp", "LockReleaseWithinTarget"):
+            invalid = capture(None, False, None)
+            invalid["Properties"][name] = field(False, None)
+            with self.assertRaises(InvalidReceipt):
+                inspect(daily(observation(), invalid))
         for value in (b'{"Properties":{},"Properties":{}}\n', b'{"Properties":{},"number":NaN}\n',
                       b'{"Properties":{}}', b"\xff\n"):
             with self.assertRaises(InvalidReceipt):

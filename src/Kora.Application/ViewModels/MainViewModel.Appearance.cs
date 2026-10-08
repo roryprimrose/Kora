@@ -41,6 +41,10 @@ public sealed partial class MainViewModel
             {
                 case (AppearanceOption.Theme, AppearanceValue.Theme theme):
                     SetProperty(ref themeMode, theme.Value, nameof(ThemeMode)); break;
+                case (AppearanceOption.PresenceDisplay, AppearanceValue.Toggle boolean):
+                    if (SetProperty(ref isPresenceDisplayEnabled, boolean.Value, nameof(IsPresenceDisplayEnabled)))
+                        OnPropertyChanged(nameof(PresenceDisplayDescription));
+                    break;
                 case (AppearanceOption.PresenceTimeout, AppearanceValue.Number integer):
                     SetProperty(ref presenceTimeoutSeconds, integer.Value, nameof(PresenceTimeoutSeconds)); break;
                 case (AppearanceOption.ResponseTimeout, AppearanceValue.Number integer):

@@ -197,6 +197,11 @@ public sealed partial class MainWindow : Window
             viewModel.HidePresentation();
             Hide();
         }
+        else if (!viewModel.IsPresenceDisplayEnabled)
+        {
+            DesktopLog.Debug(logger, "Keeping the disabled presence hidden after startup");
+            Hide();
+        }
         else
         {
             Opacity = 1;
@@ -296,7 +301,10 @@ public sealed partial class MainWindow : Window
     private async Task ApplyWindowActionAsync(WindowAction action)
     {
         if (action is WindowAction.Show or WindowAction.ShowPresence
-            && (presenceInputFailed || windowActionFailed || !viewModel.CanRevealPrivatePresentation))
+            && (presenceInputFailed
+                || windowActionFailed
+                || !viewModel.CanRevealPrivatePresentation
+                || !viewModel.IsPresenceDisplayEnabled))
         {
             return;
         }
@@ -402,6 +410,23 @@ public sealed partial class MainWindow : Window
         if (eventArgs.PropertyName is nameof(MainViewModel.PresenceTimeoutSeconds))
         {
             SchedulePresenceTimeout();
+        }
+        else if (eventArgs.PropertyName is nameof(MainViewModel.IsPresenceDisplayEnabled))
+        {
+            if (viewModel.IsPresenceDisplayEnabled)
+            {
+                _ = RunWindowActionAsync(
+                    () => ApplyWindowActionAsync(WindowAction.ShowPresence),
+                    ReportWindowActionFailure);
+            }
+            else
+            {
+                presenceTimeoutTimer.Stop();
+                presenceInactivity.Stop();
+                CancelPendingHide();
+                Presence.IsPresenceVisible = false;
+                Hide();
+            }
         }
         else if (eventArgs.PropertyName is nameof(MainViewModel.IsListening)
             or nameof(MainViewModel.State)

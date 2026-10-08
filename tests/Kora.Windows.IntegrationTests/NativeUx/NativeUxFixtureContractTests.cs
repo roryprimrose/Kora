@@ -99,7 +99,7 @@ public sealed class NativeUxFixtureContractTests
             fixture.Main.LocalModelsEnabled.Should().BeFalse();
             fixture.Main.HostedModelsEnabled.Should().BeFalse();
             fixture.Main.CanRevealPrivatePresentation.Should().BeTrue("only synthetic private presentation is admitted");
-            fixture.Main.AppearanceOptions.Should().HaveCount(9);
+            fixture.Main.AppearanceOptions.Should().HaveCount(10);
             fixture.Main.ClipboardPreview.Should().BeNull();
             var maintenance = fixture.CreateMaintenance();
             maintenance.NetworkEnabled.Should().BeFalse();

@@ -8,6 +8,9 @@ public static class AppearanceOptionRegistry
             new(AppearanceOption.Theme, "appearance.theme", "Appearance theme",
                 AppearanceValueType.Theme, "mode", new AppearanceValue.Theme(ApplicationThemeSettings.DefaultMode),
                 null, null, "configuration.appearance-theme"),
+            new(AppearanceOption.PresenceDisplay, "appearance.presence-display", "Presence display",
+                AppearanceValueType.Toggle, "boolean", new AppearanceValue.Toggle(PresenceSettings.DefaultDisplayEnabled),
+                null, null, "configuration.presence-display"),
             new(AppearanceOption.PresenceTimeout, "appearance.presence-timeout", "Presence timeout",
                 AppearanceValueType.Number, "seconds", new AppearanceValue.Number(PresenceSettings.DefaultTimeoutSeconds),
                 PresenceSettings.MinimumTimeoutSeconds, PresenceSettings.MaximumTimeoutSeconds, "configuration.presence-timeout"),
@@ -47,6 +50,7 @@ public static class AppearanceOptionRegistry
             case (AppearanceOption.Theme, AppearanceValue.Theme theme):
                 ApplicationThemeSettings.Validate(theme.Value);
                 return;
+            case (AppearanceOption.PresenceDisplay, AppearanceValue.Toggle):
             case (AppearanceOption.SpeechScaling, AppearanceValue.Toggle):
                 return;
             case (AppearanceOption.PresenceTimeout, AppearanceValue.Number integer):

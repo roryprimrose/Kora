@@ -252,12 +252,13 @@ required queued setup task.
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the nine admitted options, units,
+**list appearance settings** to inspect the ten admitted options, units,
 defaults, bounds, scope and application timing.
 
 | ID | Default | Values / units |
 |---|---|---|
 | `appearance.theme` | `system` | `system`, `light`, `dark` |
+| `appearance.presence-display` | `true` | `true`, `false` |
 | `appearance.presence-timeout` | `10` | 1-60 seconds |
 | `appearance.response-timeout` | `5` | 1-60 seconds |
 | `appearance.presence-size` | `360` | 240-600 pixels |
@@ -278,6 +279,11 @@ Integer values are numeric
 and use the listed units; relative changes, number words and appended units
 are not interpreted. Ambiguous, unknown and out-of-range appearance commands
 show clarification instead of reaching a model or silently clamping.
+
+The **Show presence** control and `appearance.presence-display` setting make
+the animated presence optional. It is displayed by default. Turning it off
+keeps the presence hidden across restarts while response, settings, approval
+and other interactive surfaces remain available.
 
 The Appearance tab also offers **Reset selected option**. Reset affects only
 that option, not a whole profile or undo history. Updates revalidate the

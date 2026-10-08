@@ -160,6 +160,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string voiceAvailabilityMessage = "Checking installed Windows speech voices.";
     private string outputDeviceAvailabilityMessage = "Checking Windows audio output devices.";
     private ApplicationThemeMode themeMode = ApplicationThemeMode.System;
+    private bool isPresenceDisplayEnabled = PresenceSettings.DefaultDisplayEnabled;
     private int presenceTimeoutSeconds = PresenceSettings.DefaultTimeoutSeconds;
     private int responseTimeoutSeconds = ResponseWindowSettings.DefaultTimeoutSeconds;
     private int presenceSizePixels = PresenceSettings.DefaultSizePixels;
@@ -1014,6 +1015,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string PresenceTimeoutDescription =>
         "Hide the presence after this many seconds of inactivity when no prompts are waiting.";
 
+    public string PresenceDisplayDescription =>
+        IsPresenceDisplayEnabled
+            ? "Show the animated presence when the assistant provides status feedback."
+            : "Keep the animated presence hidden while other interactive surfaces remain available.";
+
     public string ResponseTimeoutDescription =>
         "Hide an unpinned response window after this many seconds without interaction.";
 
@@ -1059,6 +1065,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplicationThemeMode value,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
         ApplyAppearance(AppearanceOption.Theme, new AppearanceValue.Theme(value), initiator, nameof(ThemeMode));
+
+    public bool IsPresenceDisplayEnabled
+    {
+        get => isPresenceDisplayEnabled;
+        set => _ = SetPresenceDisplayEnabled(value);
+    }
+
+    public bool SetPresenceDisplayEnabled(
+        bool value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.PresenceDisplay, new AppearanceValue.Toggle(value), initiator, nameof(IsPresenceDisplayEnabled));
 
     public int PresenceTimeoutSeconds
     {

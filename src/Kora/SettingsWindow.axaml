@@ -93,6 +93,24 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
+                  <TextBlock Text="Show presence" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceDisplayDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Show presence"
+                    IsChecked="{Binding IsPresenceDisplayEnabled}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Show animated presence" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
                   <TextBlock Text="Application theme" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding AppearanceThemeDescription}"

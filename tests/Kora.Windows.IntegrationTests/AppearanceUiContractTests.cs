@@ -5,13 +5,18 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed class AppearanceUiContractTests
 {
+    private static readonly string[] MouseEvents =
+    [
+        "PointerMovedEvent",
+        "PointerPressedEvent",
+        "PointerReleasedEvent",
+        "PointerWheelChangedEvent",
+    ];
+
     [Fact]
     public void Existing_direct_controls_bind_authoritative_domain_bounds_and_per_option_reset()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
-            directory = directory.Parent;
-        var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
+        var root = FindRepositoryRoot();
         var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
         var expected = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -34,5 +39,40 @@ public sealed class AppearanceUiContractTests
         document.Descendants().Any(element => string.Equals(element.Attribute("SelectedItem")?.Value, "{Binding SelectedAppearanceOption}", StringComparison.Ordinal)).Should().BeTrue();
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
         composition.Should().Contain("AddSingleton<AppearanceConfigurationService>()");
+    }
+
+    [Fact]
+    public void Presence_and_response_windows_restart_their_timeout_for_all_mouse_events()
+    {
+        var root = FindRepositoryRoot();
+        var windows = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["MainWindow.axaml.cs"] = "SchedulePresenceTimeout();",
+            ["ResponseWindow.axaml.cs"] = "RestartResponseTimeout();",
+        };
+
+        foreach (var window in windows)
+        {
+            var source = File.ReadAllText(Path.Combine(root, "src", "Kora", window.Key));
+            foreach (var mouseEvent in MouseEvents)
+            {
+                source.Should().Contain(
+                    $"AddHandler({mouseEvent}, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);");
+            }
+
+            source.Should().Contain("eventArgs.Pointer.Type == PointerType.Mouse")
+                .And.Contain(window.Value);
+        }
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
     }
 }

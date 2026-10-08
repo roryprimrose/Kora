@@ -7,6 +7,15 @@ delivery plan may merge without certifying a production profile. Outstanding
 capability validation is recorded in [the testing checklist](#outstanding-testing-checklist)
 and [shared deferred-validation register](../../Design/Deferred_Validation.md).
 
+**Current disposition:** retain as an opt-in, environment-qualified capability/
+RC harness outside default CI. Actual attributable network, token/ACL/child
+and lifetime observations reduce risks that deterministic host mocks cannot.
+They gate only the affected profile, not unrelated feature merges. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+preserve fail-closed controls, critical fixtures and separate lab approval.
+No executable or original receipt is removed.
+
 ## Scope and contracts
 
 R01 commit `7d5e6a3` / PR #19 was present after the initial rebase. Its approved
@@ -443,13 +452,13 @@ No outstanding row is waived by merging this proof.
 
 ### Proof code lifecycle
 
-Retain this harness through W1-W4 and protected deployment integration. Move
+Retain this opt-in harness for affected W1-W4 capability/RC qualification. Move
 its filesystem, credential, process-tree and receipt-classification assertions
 into Windows integration tests as the production worker boundary is built.
 Remove the standalone harness only after equivalent production tests pass and
-the remaining real-boundary evidence is recorded; preserve historical
-receipts. See the shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+the remaining real-boundary evidence is recorded and consumer/reference checks
+pass; preserve historical receipts and unique lab procedures. The current
+roadmap disposition inventory above owns this lifecycle.
 
 ### Merge Versus Acceptance
 

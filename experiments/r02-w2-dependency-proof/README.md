@@ -7,6 +7,17 @@ is unchanged: Job-only restricted execution is rejected; AppContainer is
 partial; ordinary children are allowed; eight network timeouts do not prove
 attributable denial. Installer implementation does not prove this boundary.
 
+**Current disposition:** historical decision/failure receipts unless dependency/
+fixed-action/helper/protected-runtime or worker mechanisms materially change.
+Retain remaining code without making its old candidate suite a recurring
+default-CI requirement. Maintain applicable production manifest/review/hash/
+invalidation/receipt regressions as implemented; W1/W3/W4 and real control-API
+qualification remain separate. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+own scope and archive/consumer checks. No code is removed and no rejected strict
+candidate or unperformed trial is reclassified as passed.
+
 **Disposition:** scratch ACL projection and a no-child mitigation are rejected
 as exact executable/module dependency mechanisms. Fixed embedded multi-script
 input and a harmless typed effect are feasible in this fixture. Full worker/

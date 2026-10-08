@@ -16,6 +16,15 @@ Unsigned beta/stable POC publication is approved with front-loaded, risk-based
 validation. This is not production sign-off, protected-deployment acceptance,
 encrypted-storage admission or an in-app updater.
 
+**Current disposition:** historical receipts unless distribution mechanisms
+materially change; no routine rerun of retired NSIS tooling. Current maintained
+`eng`/installer regressions and final installed-byte evidence remain applicable
+to delivered profiles. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+separate normal merges, profile availability and manifest-scoped RC qualification.
+No further experiment code is deleted by this documentation policy.
+
 ## Actual versus blocked evidence
 
 The following results were measured on 2026-10-05 against approved R01 revision

@@ -7,6 +7,15 @@ On 2026-10-05 the user approved publishing and squash auto-completion of this
 PR **as partial research evidence**, with outstanding testing retained.
 This is not approval of production speech or closure of D-002/D-007.
 
+**Current disposition:** retain as an opt-in, environment-qualified capability/
+RC harness outside default CI. Physical acoustic/playback, reference-floor
+latency and packaged-host privacy observations are unique; unrelated feature
+merges do not wait for them. Apply the
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+with all affected critical fixtures and existing participant/device consent.
+No executable or historical evidence is retired by this policy.
+
 > **Testing to run later:** at the time of deferral the machine was locked
 > and accessed remotely. Only file-based tests were eligible; live capture/playback
 > requires an unlocked interactive Windows profile and a physically present
@@ -347,14 +356,14 @@ remain active. No executable has an equivalent maintained replacement plus
 completed consumer/reference verification, so none is removed. This assessment
 performs no audio generation, benchmark, live capture or playback.
 
-Retain this deterministic capture/benchmark harness through wake-candidate
-selection and R09 packaged acoustic validation. Move reusable buffer, timing
+Retain this opt-in capture/benchmark harness for affected wake-candidate
+and R09 capability/RC acoustic qualification. Move reusable buffer, timing
 and stale-generation assertions into production tests as those components are
 implemented. The Python/model-specific harness may be removed only after the
-equivalent production tests and required live evidence exist; preserve its
-reviewed historical receipts. The shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition)
-is authoritative if delivery sequencing changes.
+equivalent production tests and required live evidence exist and consumer/
+reference checks pass; preserve its reviewed historical receipts and unique
+lab procedures. The roadmap inventory above owns current disposition;
+the dated shared-register assessment remains evidence, not a global blocker.
 
 ### Merge versus acceptance
 

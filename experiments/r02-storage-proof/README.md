@@ -2,6 +2,18 @@
 
 Status: **partial measured evidence and canonical design outcome; not production admission or a closed D-009 decision**.
 
+**Current disposition:** migrate applicable recovery, migration/source
+preservation, capacity, retention/deletion and artifact/backup-copy integrity
+assertions to maintained production/integration tests on approved standard
+SQLite before executable archival. Existing equivalence maps are partial;
+shared crypto/native/candidate consumers prohibit whole-harness deletion.
+Superseded encryption/rekey comparisons are historical unless R30 is pursued,
+not revived R04 prerequisites. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+own scope and archive triggers; this harness is not a default-CI or unrelated
+merge gate. No code or original evidence is retired here.
+
 ## Maintained minimal Sessions equivalence assessment - 2026-10-07
 
 The generic lifecycle-adjacent intent/no-receipt and kill/reopen atomicity
@@ -194,13 +206,13 @@ evidence needed to verify or revisit them.
 
 ## Proof code lifecycle
 
-Retain this harness through maintained native selection and R04/R12
-integration because it owns the repeatable encryption, interruption,
-migration, recovery and deletion comparison. Move applicable cases into
-production native-load, storage-recovery and lifecycle tests. Candidate-specific
-prototype paths may be removed only after those equivalent production tests
-pass; preserve the reviewed historical receipts. See the shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+Migrate applicable R04/R12 assertions into maintained production native-load,
+storage-recovery and lifecycle tests. Retain the executable while applicable
+equivalence is incomplete or shared candidate consumers remain. Archival/removal
+requires exact maintained equivalence, explicit disposition of superseded
+comparisons and passed consumer/reference checks; preserve reviewed historical
+receipts. The current roadmap inventory above owns this lifecycle, not the
+superseded encrypted-native selection or blanket retention until R30 exists.
 
 ## Licensing, native assets and Windows-only scope
 

@@ -8,6 +8,16 @@ The historical [Node results](../r02-runtime-proof/evidence/results.json) are
 unchanged. Their hook-only FAIL remains a separate regression witness; this
 fixture reproduces it with a final gate preventing unsafe forwarding.
 
+**Current disposition:** migrate applicable final-request, all-status,
+denied-effect/marker and cancellation assertions into maintained production
+runtime integration tests before executable archival. Source-built and released
+profiles remain distinct. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+require exact-profile equivalence, preserved critical/failure fixtures and
+consumer/reference checks; no executable is removed here. Affected profile
+enablement/RC qualification remains gated, not unrelated merges or default CI.
+
 ## Tested identity and dependency admission
 
 Windows x64, .NET SDK **10.0.401**, .NET runtime **10.0.12**; native runtime

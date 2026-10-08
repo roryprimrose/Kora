@@ -8,6 +8,31 @@ implemented capability statement.
 The documents below turn that direction into an initial delivery scope and architectural decisions.
 Where the vision is broader or less specific, these documents define the proposed implementation constraints.
 
+## Authoritative Qualification Policy
+
+[Acceptance Criteria: Three-Tier Qualification Policy](Acceptance_Criteria.md#three-tier-qualification-policy)
+owns the boundary: normal feature development merges with its directly
+applicable unit/integration/security/compatibility/regression checks, independent
+of unrelated experiments; capability/profile proofs gate only enabling,
+advertising, packaging as available or materially changing that path; final RC
+qualification evaluates an explicit enabled-capability manifest. Exclusions are
+recorded as exclusions, never passed capabilities or a claim of full A0-A4/B/C.
+Hard fail-closed authority/privacy/data-integrity gates and all affected mandatory
+critical fixtures remain unchanged.
+
+The roadmap's [I/E/Q Needs interpretation](Implementation_Roadmap.md#reading-needs)
+distinguishes implementation dependencies from enablement and RC evidence,
+explicitly permitting unrelated bounded feature work in parallel. Its
+[experiment disposition inventory](Implementation_Roadmap.md#experiment-disposition-inventory)
+retains inference, containment and speech as opt-in environment-qualified
+harnesses outside default CI; migrates applicable runtime/lifecycle/storage/
+.NET control/management assertions to maintained tests before executable
+archival; and treats distribution/W2 as historical receipts unless mechanisms
+change. No experiment code is deleted by this policy change. The
+[cost/risk rationale](Implementation_Roadmap.md#cost-versus-unique-risk-reduction)
+explains why unique native/hardware proof is retained without imposing duplicate
+prototype suites on unrelated delivery.
+
 ## Implementation Status and Next Work
 
 [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md) compares
@@ -56,8 +81,9 @@ starts with test-owner/environment/budget approval, then consented provisioning,
 actual trials, candidate disposition and integration. The proof remains
 supporting evidence, not the only place this work is tracked.
 The [LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
-provides the later interactive-session procedures; merging partial research
-does not close the outstanding inference or independent proof gates.
+provides the later interactive-session procedures; merging partial research or
+unrelated features does not close inference qualification, nor do independent
+proof gates block those unrelated merges.
 
 R02's [runtime/provider outcomes and technical path](Runtime_Provider_Feasibility.md)
 now record actual Node candidate evidence, reject hook-only failed-result

@@ -397,6 +397,34 @@ An optional two-request native-observer positive control uses an empty runtime,
 records matched buffered/streamed signals and confirms owned-model cleanup; it
 does not replace the repeated trials or close any qualification gate.
 
+**Local-inference staged integration receipt - 2026-10-08:** after #97 and #98,
+the experiment commits were rebased onto actual main
+`5b43aa23264807db56d2d67100f2c0317cbaac4d` without conflicts. Range-diff retained
+both patches unchanged, and the explicitly source-linked contracts did not
+change across the base update. At rebased head
+`98c1993a2877f6d2e1e153bd6c79f9acdd1f0f03`, the existing validator ran with
+`-SkipObserve -NoRestore`: Release build passed with zero warnings/errors,
+all 55 deterministic self-tests passed, and all 56 recorded source-input hashes
+matched. The local `li-staged-integration-validation-001/validation.json`
+receipt SHA-256 is
+`4FA3AB4DA61160113886AF42680B163BFFB9E3130EE4D340114BDFC5C9B53085`.
+No endpoint observation, real transport/generation, restore or runtime change
+was performed. This documentation-only follow-up is not a compiled proof input.
+
+The earlier `li-post-rebase-validation-002` receipt remains historical evidence
+for the source reviewed at `8527855`: its `BaseRevisionAtRun` names preceding
+commit `90eced3`, while its 56 input hashes matched the committed compatibility
+fix. Neither receipt is relabelled as validation at another head; root CI does
+not execute these experiment self-tests. Production Ollama remains pinned to
+`0.35.1`; separately approved `0.40.0` comparison receipts are not production
+acceptance. Their timing passes did not clear observed factual failures or
+human-review requirements. Partial polling/native observer receipts do not
+establish server cessation, and static tokenizer/template evidence does not
+establish runtime parity or the complete context/overflow envelope. Physical
+floor/resource budgets, full licence/staging inventory, independent offline
+egress, integrated-host repeat, D-003/inference D-007 and A2/R19 remain open.
+All upstream UX/privacy receipts and their gates remain unchanged.
+
 The proof code is retained only while it owns evidence that has not yet moved
 to the production implementation:
 

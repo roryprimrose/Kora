@@ -702,6 +702,59 @@ Merging the experiment closes no remaining gate or production acceptance.
 
 ### Deferred Trials and Closure Evidence
 
+#### 2026-10-08 File-Only Runtime Preparation
+
+A new isolated worktree at main
+`4cf8034fd3a73408aa3dfa6d24b0fc04c98b3f6c` ran
+`eng\Prepare-RuntimeValidation.ps1` at 2026-10-08 12:07 UTC without artifact
+inputs or host-test opt-in. **49/49 deterministic preparation contracts and
+2/2 receipt-locale contracts passed**. Exit **2** correctly retained blocked
+runtime/provider admission. Current sanitized receipts remain outside the
+repository; historical Node, RT1, RT2 and MG1 fixture/evidence bytes were
+verified unchanged. This is fresh file-only evidence, not fresh native trials.
+
+Exact-profile inventory retained the distinct source-built package/assembly
+pins `0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f` /
+`afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6`
+and released pins
+`c5518980b71d0ef0abd39ecdec7834898878222290c7fd1099a9040c8c5bf2ef` /
+`6ed0b19fd2f9cf525074830784bb255245f15b8f08a3d6aa78fb116be5ba668b`.
+Both profiles retain runtime 1.0.90/protocol 3 launcher/payload pins
+`7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a` /
+`41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05`.
+Neither package, the native directory nor a qualified released fixture was
+supplied to this continuation; artifact availability remains **Blocked**, not
+proof that approved bytes do not exist elsewhere. No ambient artifact or
+credential search, acquisition, source rebuild or byte-equivalence inference
+was performed.
+
+Installed tools report PowerShell 7.6.6 and .NET SDK 10.0.401 with runtime
+10.0.12 present. A separate host-only `--no-restore` build failed NETSDK1004
+because this fresh worktree lacks assets. The subsequent locked restore with
+all configured feeds/fallback folders cleared and NuGet audit disabled failed
+NU1101 for xUnit v3, AwesomeAssertions and the TRX extension. No authenticated
+or alternate-feed fallback followed; the 22 host tests were **Not run**, not
+failed assertions. No tooling installation, native runtime launch, privileged
+trace, account operation, live provider call or policy change occurred.
+
+| Remaining observation | Precise disposition after the safe continuation |
+|---|---|
+| Fresh source-built RT1/RT2 reproduction | Not run. Historical exact-byte Pass and subsequent generated-logger ordering/hash blockers stay separate. Any new source build must match both approved pins before native launch; no normalization, repinning or released substitution is approved. |
+| Fresh released RT1/MG1/bounded RT2 | Not run. Previously approved 45 RT1, 22 host, 16 MG1 and 20 bounded RT2 results remain historical evidence. Supply reviewed exact inputs and locked dependencies plus scoped native-trial approval before a new account-free loopback run; do not invoke historical runners over retained receipts. |
+| All-path RT2 | Blocked for both applicable profiles. Still require dedicated-host/operator approval, a reviewed loss-controlled collector, PID/creation-time-attributed startup/session/auth/error/shutdown coverage, native diagnostics/helpers, short-lived/detached descendants, DNS/UDP/non-IP destinations and transient/outside-scratch/registry/ADS/crash-dump writes. Writer/content attribution, positive/loss controls and actual native write/egress mediation or isolation are missing; metadata-only tracing does not prove prevention. |
+| Execution PV1 / D-001 / R08 | Not run. After applicable RT2, select the provider/model/region, supported authentication, account tier and terms/organization entitlement; separately approve account use and a defensible enforceable spend ceiling. Observe expiry/revocation/denial/throttling/error paths, allowed destinations/content isolation, quotas/concurrency, no forwarded automatic retries and truthful cancellation. Never put credentials in chat or receipts. |
+| Management PV1 / D-004 | Not run. Additionally prove two actual independent execution conversations plus management under the intended account, quota and cost envelope, complete byte/deadline/rolling-attempt limits, and quarantine while physical/billing termination remains Unknown. Byte bounds, SDK abort acknowledgement and billing alerts are not spending or termination proof. |
+| Integrated lifecycle / D-010 / R04 / R13 | Still open. Fixture sessions and sampled termination do not prove admitted durable host identity/audit, leases, fair scheduling, outside-change revalidation, cancellation/unknown-effect races, recovery or installed composition. Deterministic local management and unrelated capabilities continue through their own gates; only affected runtime/model-assisted capabilities and an RC manifest including them remain blocked by these proofs. |
+
+Maintained production code/tests have no Copilot SDK or equivalent MG1
+envelope consumer to absorb these exact assertions today. The local inference
+adapter is not an equivalent subject. No experiment was migrated or archived;
+all existing evidence, reproduction scripts and design consumers remain intact.
+The next safe intervention is reviewed local artifact/dependency inputs and
+scoped approval for new account-free bounded released trials, or stop with the
+affected capabilities disabled. Dedicated-host collection/prevention and live
+provider/account/cost approval remain separate later decisions.
+
 | Trial / owner | Current state and prerequisite | Required trial and evidence |
 |---|---|---|
 | RT1 - .NET public control points / runtime lead | PASS, scoped exact-tag source build; 45/45 actual-runtime tests; released NuGet byte parity Blocked | [Disposition/receipts](../experiments/r02-dotnet-control-proof/evidence/disposition.json): actual SDK v1.0.16 source/runtime 1.0.90, final initial/history/all-result/exception paths, tool denial, streaming/auth/errors, volatile I/O and failure, cancellation and lane/provider isolation. Denied effects/markers forwarded zero; hook-only FAIL retained. No public controls missing in tested profile; no private patch/Node bridge. Changed artifact/profile must repeat RT1; D-001 remains open. |

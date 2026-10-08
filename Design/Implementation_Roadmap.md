@@ -232,6 +232,11 @@ After fetching/rebasing onto `4cf8034` (peer documentation preserved), the root
 Release build again passed with zero warnings/errors; all four portable suites
 passed at the same counts with newly generated **100% line/branch coverage**,
 and affected Windows authority/disposition/interruption **68** tests passed.
+While PR checks ran, main advanced to documentation-only `fdaa90e`. The second
+rebase preserved both its capability-scoped qualification/dependency wording
+and this delivered R12 status. No production/test sources changed. Root Release
+build again passed with zero warnings/errors; host **61** and affected Windows
+**68** reruns passed before the lease-guarded PR update.
 
 #### Experiment disposition for logical disposition
 

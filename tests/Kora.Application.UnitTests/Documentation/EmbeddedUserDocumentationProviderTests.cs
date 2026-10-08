@@ -91,7 +91,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 8);
+        sections.Should().HaveCount(commands.Count + 9);
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -122,6 +122,15 @@ public sealed class EmbeddedUserDocumentationProviderTests
         volumePhrases.Should().Equal("list volume settings", "get speech.playback-volume", "status speech.playback-volume",
             "set speech.playback-volume to 30", "reset speech.playback-volume");
         volumePhrases.Should().OnlyContain(phrase => PlaybackVolumeCommand.Parse(phrase, "Kora") != null);
+        var rate = sections.Single(section => section.StartsWith(
+            "Inspect or change Windows-native speech rate", StringComparison.Ordinal));
+        var ratePhrases = Regex.Matches(rate, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        ratePhrases.Should().Equal("list rate settings", "get speech.windows-rate", "status speech.windows-rate",
+            "set speech.windows-rate to -10", "set speech.windows-rate to 0", "set speech.windows-rate to 10", "reset speech.windows-rate");
+        ratePhrases.Should().OnlyContain(phrase => WindowsSpeechRateCommand.Parse(phrase, "Kora") != null);
+        rate.Should().Contain("Kokoro is unsupported and unchanged").And.Contain("default/reset **0**");
         var responseMode = sections.Single(section => section.StartsWith(
             "Inspect or change the device-default response mode", StringComparison.Ordinal));
         var responseModePhrases = Regex.Matches(responseMode, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -162,6 +171,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
+            && !ReferenceEquals(section, rate)
             && !ReferenceEquals(section, responseMode)
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();

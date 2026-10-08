@@ -163,6 +163,12 @@ model-action approvals, and dependency readiness. Detecting
 microphones refreshes readiness without enabling capture; Exit releases
 listening before closing the application.
 
+The bounded [Windows-native speech rate](docs/settings.md#windows-native-speech-rate)
+uses integer -10..10, engine-normal/default/reset 0, through native Settings and
+exact current-name commands. It affects future Kora-owned Windows synthesis
+only, never global SAPI/mixer settings. Kokoro is explicitly unsupported and
+unchanged; saving retires current/queued speech without autoplay or replay.
+
 A single left-click on the tray icon shows and activates Kora after the
 Windows-configured double-click interval. A double-click cancels that pending
 single-click action and opens or activates the single Settings window.

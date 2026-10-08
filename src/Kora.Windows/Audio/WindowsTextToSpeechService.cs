@@ -13,13 +13,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Audio;
 
-public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, IPlaybackVolumeControl
+public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl
 {
     private readonly Lock stateLock = new();
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
     private readonly SemaphoreSlim speechLock = new(1, 1);
     private readonly SpeechSynthesizer synthesizer = new();
     private readonly Action<int> setOwnedWindowsGain;
+    private readonly Action<int> setOwnedWindowsRate;
     private readonly Action cancelOwnedSynthesis;
     private TaskCompletionSource? synthesisCompletion;
     private TaskCompletionSource? playbackCompletion;
@@ -36,6 +37,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
     private bool disposed;
     private long outputGeneration;
     private PlaybackVolume? playbackVolume = PlaybackVolume.Default;
+    private WindowsSpeechRate? windowsSpeechRate = WindowsSpeechRate.Default;
     private readonly KokoroTextToSpeechProvider? kokoroProvider;
     private readonly ILogger<WindowsTextToSpeechService> logger;
 
@@ -55,16 +57,46 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         KokoroTextToSpeechProvider? kokoroProvider,
         ILogger<WindowsTextToSpeechService> logger,
         Action<int>? setOwnedWindowsGain,
-        Action? cancelOwnedSynthesis = null)
+        Action? cancelOwnedSynthesis = null,
+        Action<int>? setOwnedWindowsRate = null)
     {
         this.kokoroProvider = kokoroProvider;
         this.logger = logger;
         this.setOwnedWindowsGain = setOwnedWindowsGain ?? (percent => synthesizer.Volume = percent);
+        this.setOwnedWindowsRate = setOwnedWindowsRate ?? (rate => synthesizer.Rate = rate);
         this.cancelOwnedSynthesis = cancelOwnedSynthesis ?? synthesizer.SpeakAsyncCancelAll;
         synthesizer.SpeakCompleted += OnSpeakCompleted;
     }
 
     internal void ApplyOwnedWindowsGain(PlaybackVolume volume) => setOwnedWindowsGain(volume.Percent);
+
+    internal void ApplyOwnedWindowsRate(string providerId)
+    {
+        if (string.Equals(providerId, SpeechProviderIds.Kokoro, StringComparison.Ordinal)) { return; }
+        if (!string.Equals(providerId, SpeechProviderIds.Windows, StringComparison.Ordinal))
+        {
+            throw new WindowsSpeechRateUnavailableException("The provider has no qualified Windows-native rate capability.");
+        }
+        setOwnedWindowsRate((windowsSpeechRate
+            ?? throw new WindowsSpeechRateUnavailableException("Windows speech rate is unconfirmed; full visual output is required.")).Value);
+    }
+
+    internal void StartOwnedWindowsSynthesis(PlaybackVolume volume, Action synthesize)
+    {
+        lock (stateLock)
+        {
+            ApplyOwnedWindowsGain(volume);
+            try { ApplyOwnedWindowsRate(SpeechProviderIds.Windows); }
+            catch (Exception exception)
+            {
+                WindowsLog.Error(logger, exception, "Applying Kora-owned Windows synthesis rate");
+                throw new WindowsSpeechRateUnavailableException(
+                    "The Kora-owned Windows rate could not be applied. Full visual output is retained; explicitly refresh the rate preference.",
+                    exception);
+            }
+            synthesize();
+        }
+    }
 
     public bool IsSpeaking
     {
@@ -125,7 +157,10 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                 IsInstalled: true,
                 IsBuiltIn: true,
                 DownloadSizeBytes: null,
-                DefaultVoiceId: windowsDefaultVoiceId),
+                DefaultVoiceId: windowsDefaultVoiceId)
+            {
+                RateSupport = SpeechRateSupport.WindowsNative,
+            },
         };
         if (kokoroProvider is not null)
         {
@@ -245,6 +280,10 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             volume = playbackVolume is { AllowsSpeech: true } current ? current
                 : throw new PlaybackVolumeUnavailableException(
                     "Kora playback volume is zero or unavailable. Full visual output is required; no synthesis started.");
+            if (string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal) && windowsSpeechRate is null)
+            {
+                throw new WindowsSpeechRateUnavailableException("Windows speech rate is unconfirmed; no synthesis or device access started.");
+            }
         }
         await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task synthesisTask;
@@ -326,10 +365,9 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                 lock (stateLock)
                 {
                     RequireCurrentOutput(generation);
-                    ApplyOwnedWindowsGain(volume);
                     synthesisCompletion = completion;
                     activePrompt = prompt;
-                    synthesizer.SpeakAsync(prompt);
+                    StartOwnedWindowsSynthesis(volume, () => synthesizer.SpeakAsync(prompt));
                 }
                 synthesisTask = completion.Task;
             }
@@ -431,6 +469,19 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         {
             if (playbackVolume == volume) { return; }
             playbackVolume = volume;
+            player = RetireOutputLocked();
+        }
+        StopRetiredOutput(player);
+    }
+
+    public void SetWindowsSpeechRate(WindowsSpeechRate? rate)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        WasapiPlayer? player;
+        lock (stateLock)
+        {
+            if (windowsSpeechRate == rate) { return; }
+            windowsSpeechRate = rate;
             player = RetireOutputLocked();
         }
         StopRetiredOutput(player);

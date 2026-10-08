@@ -68,6 +68,14 @@ public sealed partial class MainViewModel
     private void SynchronizeSpeechConfiguration()
     {
         if (disposed) { return; }
+        if (windowsSpeechRateConfiguration is not null)
+        {
+            try { windowsSpeechRateConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+            {
+                windowsSpeechRateConfiguration.HoldUnavailable();
+            }
+        }
         var current = speechConfiguration.Get();
         suppressVoicePreferenceSave = true;
         try

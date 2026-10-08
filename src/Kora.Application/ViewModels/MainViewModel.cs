@@ -227,7 +227,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ResponseModeConfigurationService? responseModeConfiguration = null,
         DiagnosticRetentionConfigurationService? diagnosticRetentionConfiguration = null,
         ManualCallControl? manualCallControl = null,
-        AuditRetentionConfigurationService? auditRetentionConfiguration = null)
+        AuditRetentionConfigurationService? auditRetentionConfiguration = null,
+        WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -266,6 +267,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.appearanceConfiguration = appearanceConfiguration;
         appearanceConfiguration.Changed += OnAppearanceChanged;
         this.speechConfiguration = speechConfiguration;
+        this.windowsSpeechRateConfiguration = windowsSpeechRateConfiguration;
+        if (windowsSpeechRateConfiguration is not null)
+        {
+            try { windowsSpeechRateConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+            {
+                windowsSpeechRateConfiguration.HoldUnavailable();
+            }
+            selectedWindowsSpeechRate = windowsSpeechRateConfiguration.Get().Desired?.Value ?? WindowsSpeechRate.Default.Value;
+            windowsSpeechRateConfiguration.Changed += OnWindowsSpeechRateChanged;
+        }
         speechConfiguration.Changed += OnSpeechConfigurationChanged;
         this.outputConfiguration = outputConfiguration;
         this.playbackVolumeConfiguration = playbackVolumeConfiguration;
@@ -332,6 +344,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SavePlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedPlaybackVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetPlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedWindowsSpeechRate.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
         SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
@@ -1426,6 +1442,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsSpeechOutputAvailable =>
         activeSpeechVoice is not null
         && (playbackVolumeConfiguration is null || playbackVolumeConfiguration.Get().AllowsSpeech)
+        && IsWindowsSpeechRateOutputEligible
         && (responseModeConfiguration is null || responseModeConfiguration.Get().Available)
         && (outputConfiguration is null || outputConfiguration.Get(CallPolicyRevision).Available)
         && EffectiveOutputDevice is not null
@@ -3268,6 +3285,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Error(logger, exception, "Previewing with unavailable Kora playback volume");
             PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
         }
+        catch (WindowsSpeechRateUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Previewing with unavailable Windows speech rate");
+            windowsSpeechRateConfiguration?.HoldUnavailable();
+            PreserveSpokenResponseFailure("Windows speech rate is unavailable. Full visual output is retained; explicitly refresh rate preferences.");
+        }
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Previewing the selected speech voice");
@@ -3689,6 +3712,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
             await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
+            return;
+        }
+        if (WindowsSpeechRateCommand.Parse(spokenText, AssistantName) is { } rateCommand)
+        {
+            await ExecuteWindowsSpeechRateCommandAsync(rateCommand, initiator);
             return;
         }
         if (PlaybackVolumeCommand.Parse(spokenText, AssistantName) is { } volumeCommand)
@@ -4644,6 +4672,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Error(logger, exception, "Playing a response with unavailable Kora playback volume");
             PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
         }
+        catch (WindowsSpeechRateUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Playing a response with unavailable Windows speech rate");
+            windowsSpeechRateConfiguration?.HoldUnavailable();
+            PreserveSpokenResponseFailure("Windows speech rate is unavailable. Full visual output is retained; explicitly refresh rate preferences.");
+        }
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Playing a response with the selected speech voice");
@@ -5171,6 +5205,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanInspectWindowsSpeechRate));
+        OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
+        OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));
+        OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
+        OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
@@ -5192,6 +5231,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
+            .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)

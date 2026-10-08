@@ -447,6 +447,36 @@ Discovery is metadata only, not a model tool or acoustic test. Input is bounded
 to 1,024 UTF-8 bytes without controls; the complete result is bounded to 64 KiB.
 See [availability and recovery](settings.md#kora-playback-volume).
 
+### Inspect or change Windows-native speech rate
+
+Exact typed or already **ACTIVATED** input uses the current assistant prefix:
+
+- **list rate settings**
+- **get speech.windows-rate**
+- **status speech.windows-rate**
+- **set speech.windows-rate to -10**
+- **set speech.windows-rate to 0**
+- **set speech.windows-rate to 10**
+- **reset speech.windows-rate**
+
+Canonical integer **-10..10**, normal/default/reset **0**, means Windows
+provider-native engine rate, not percent or words per minute. Signs are accepted
+only for negative nonzero values; padding, plus signs, negative zero, fractions,
+suffixes and leading zeros are refused locally. Discovery/status includes
+provider-qualified support and desired/effective/source/revisions/recovery.
+**Kokoro is unsupported and unchanged**; no common speed scale is applied.
+
+Native Settings uses the same admitted action with explicit draft/save/reset.
+Original-channel audio session/generation, current name/provider/source/call/
+privacy/ownership and native-lifetime conditions remain required. Protected/
+Unknown calls deny voice-originated writes, even if later dispatched through UI.
+Confirmed changes retire active/queued output and reach future eligible Windows
+synthesis only. They never capture, synthesize/autoplay/replay, switch provider,
+alter assets or change global Windows audio settings. Pending exact approvals/
+questions and full interrupted visual responses remain intact. Unconfirmed
+persistence/evidence stays unavailable across restart; inspect and repair before
+fresh refresh. Existing call/output/zero-volume gates and retention rules stay.
+
 ### Inspect or change the device-default response mode
 
 - **list response settings**

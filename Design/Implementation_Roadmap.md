@@ -34,6 +34,46 @@ their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
 
+### R10 bounded Windows-provider-native rate - 2026-10-08
+
+The owner-approved [Windows rate slice](User_Configuration.md#delivered-bounded-windows-provider-native-speech-rate-r10)
+was implemented independently on merged main **`fe0fedf2f566bc537f7a0e532e3a1e2b58a245ce`**
+([audit retention #93](https://github.com/roryprimrose/Kora/pull/93)).
+It adds the explicit `speech.windows-rate` integer **-10..10**, default/reset
+engine-normal **0**, to native Settings and exact typed/current-name ACTIVATED
+discovery/get/status/set/reset. Windows advertises its native support and
+future synthesis consumes the owned engine setter. Kokoro is unsupported and
+unchanged; unknown state fails closed, without a fake common scale.
+
+The distinct rate action reuses common original-input audio session/generation
+and committed-intent admission, atomic preferences and typed audits. Current
+provider/source/name/input/call/native-lifetime/ownership/privacy revisions are
+revalidated. Unconfirmed values remain held across restart. Changes retire
+active/queued speech; future synthesis waits behind the existing lifetime and
+no operation captures, autoplays/replays, changes providers/assets or touches
+global SAPI/mixer/default-device state. Existing output/zero-volume gates,
+mandatory visual previews and all grants/history/session/retention rules remain.
+
+Direct synchronous Release validation passed with **zero warnings/errors** and
+all **4,214** tests: Core **769**, Application **2,396**, Tools **38**,
+Definitions **6**, Windows **1,005**; none skipped. Latest-only existing portable
+coverage reports have exact line/branch rates **1 / 1**:
+**12,539/12,539 lines**, **7,034/7,034 branches**; no new exclusions or weakened
+thresholds. Deterministic tests exercise native setter ordering/failure, no
+Kokoro setter, active/queued retirement, cancellation/disposal, stale sessions/
+generation/provider/source, corrupt/pending preferences/restart, admission parity
+and cross-session correlated receipts. This is not acoustic/installed/native
+accessibility, full R10/A0–A4, runtime or release acceptance.
+
+No experiment was removed. `experiments/r02-speech-proof` retains unique
+candidate/model/license inventories, synthetic wake/threshold fixture scripts,
+hashed `validation.json`, `unit-tests.txt`, `recorded-results.json` and
+`recorded-summary.md` receipts, and deferred acoustic/packaged-host consumers.
+The rate feature replaces none of those executables or observations. Storage,
+runtime/provider, containment and distribution experiment dispositions remain
+unchanged; no lab trial was run. The #90 inventory reconciliation and distinct
+#91/#92/#93 diagnostic/manual-call/audit receipts below remain historical.
+
 ### Bounded R04/R14 Committed Audit Inspection
 
 The native evidence inspector now has an explicit **AuthorityAudit** source

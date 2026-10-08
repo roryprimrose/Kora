@@ -2,6 +2,17 @@
 
 ## Microphone selection
 
+[Windows-native speech rate](settings.md#windows-native-speech-rate) is a
+separate Kora-owned Windows-provider preference: canonical integer -10..10,
+engine-normal/default/reset 0, with no percentage or words-per-minute mapping.
+Native Settings and exact `list rate settings` / get/status/set/reset
+`speech.windows-rate` share admitted audited persistence. Kokoro explicitly
+does not support this option and its synthesis remains unchanged. Saving retires
+active/queued output; only future eligible Windows synthesis consumes the native
+setter. There is no replay, automatic trial, capture/consent, provider/asset or
+global SAPI/mixer/default-device effect. Unknown/corrupt/unconfirmed state stays
+explicitly unavailable; acoustic qualification is not claimed.
+
 [Kora playback volume](settings.md#kora-playback-volume) is independent of
 microphone selection and consent. It is integer 0-100, default 100 (original
 unscaled output), applying only to owned Windows/Kokoro speech. Zero prevents

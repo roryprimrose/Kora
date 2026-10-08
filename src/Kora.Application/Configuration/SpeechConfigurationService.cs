@@ -31,6 +31,20 @@ public sealed partial class SpeechConfigurationService(
 
     public void Reload() => Reload(preserveHold: false);
 
+    internal bool IsCurrentSelection(long expectedRevision)
+    {
+        lock (gate)
+        {
+            var current = Get();
+            if (current.Revision != expectedRevision) { return false; }
+            var saved = preferences.LoadSelection();
+            if ((saved ?? SpeechSelection.Default) != current.Selection || (saved is not null) != current.IsSaved) { return false; }
+            var discovered = Discover(current.Selection, current.IsSaved, current.Recovery, current.Revision);
+            return current.EffectiveVoice == discovered.EffectiveVoice
+                && current.Providers.SequenceEqual(discovered.Providers) && current.Voices.SequenceEqual(discovered.Voices);
+        }
+    }
+
     private void Reload(bool preserveHold)
     {
         lock (gate)

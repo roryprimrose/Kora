@@ -180,6 +180,7 @@ public sealed partial class MainViewModel
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;
         if (outputConfiguration is not null) { outputConfiguration.Changed -= OnOutputConfigurationChanged; }
         if (playbackVolumeConfiguration is not null) { playbackVolumeConfiguration.Changed -= OnPlaybackVolumeChanged; }
+        if (windowsSpeechRateConfiguration is not null) { windowsSpeechRateConfiguration.Changed -= OnWindowsSpeechRateChanged; }
         if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }

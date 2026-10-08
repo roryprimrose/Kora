@@ -24,7 +24,8 @@ Preview is not model-context selection or transmission consent. See
 
 Delivered exceptions to the proposed full catalogue: R10 has host-only typed
 configuration for appearance, installed provider/voice, spoken-summary caps,
-assistant display/PTT prefix, exact input/output preferences, per-Kora volume
+assistant display/PTT prefix, exact input/output preferences, per-Kora volume,
+Windows-provider-native rate,
 device-default response mode and independent future-only SQLite diagnostic/audit retention. These share native and exact local workflows;
 none exposes a model-facing `settings.*` tool or arbitrary preference patch.
 The single `logging.sqlite-diagnostic-retention-days` option shares native and
@@ -65,6 +66,21 @@ audited atomic readback. It accepts canonical integer 0-100 only, default 100;
 zero blocks synthesis/autoplay with full visual recovery, and raising/resetting
 never replays retired speech. No natural-language alias,
 model tool, test playback, microphone effect or global volume mutation is added.
+
+The independent bounded R10 **`speech.windows-rate`** option shares native
+Settings and exact `list rate settings` / get/status/set/reset. Canonical
+integer **-10..10**, engine-normal/default/reset **0**, is consumed by the
+owned Windows synthesizer's native `Rate` setter only for future eligible
+Windows synthesis. It is not percent, a multiplier or words per minute.
+Provider discovery advertises WindowsNative support; Kokoro/unknown adapters
+are explicitly unsupported and no Kokoro settings/synthesis are changed.
+The [cohesive rate workflow](User_Configuration.md#delivered-bounded-windows-provider-native-speech-rate-r10)
+uses genuine common audio admission, original channel/name/input generation,
+provider/source/policy/native-lifetime revisions, trusted requested/terminal
+audit, atomic readback and committed intent before confirmation. Unconfirmed
+storage stays held across restart. Active/queued output is retired with no
+replay; the control starts no synthesis/capture/preview, asset operation,
+provider switch or global OS change and grants no model tool or effect authority.
 
 The bounded R10 `speech.output-device` preference is shared by native Settings
 and exact `list output settings` / get/status/set/reset commands. Its

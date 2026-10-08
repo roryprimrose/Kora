@@ -19,6 +19,15 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 
 ## Proof Checklists
 
+The [bounded Windows-native rate slice](Implementation_Roadmap.md#r10-bounded-windows-provider-native-rate---2026-10-08)
+adds deterministic owned-setter, future-synthesis retirement and native/typed/
+ACTIVATED admission tests only. -10..10/default0 are Windows engine units, not
+acoustic speed measurements or Kokoro support. It runs no capture/playback/
+provider/account/network lab trial and closes no full R10/A0–A4, runtime or
+release gate. Retain the R02 speech candidate/model/license, hashed synthetic
+fixture/threshold receipts and remaining acoustic/packaged-host consumers:
+this preference slice is not a maintained replacement for that experiment.
+
 The [R05/R14 bounded native question delivery](Implementation_Roadmap.md#r05r14-bounded-native-shared-question---2026-10-07)
 adds automated trusted-UI state, exact review and production-store query tests,
 not native desktop acceptance. Still obtain separate scoped approval for

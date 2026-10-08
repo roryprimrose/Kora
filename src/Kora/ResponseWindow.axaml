@@ -154,9 +154,15 @@
         <ListBox x:Name="ArtifactCommandList"
                  ItemsSource="{Binding ArtifactCommandOptions}"
                  AutomationProperties.Name="Available artifact slash commands">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="AutomationProperties.Name" Value="{Binding Command}" />
+            </Style>
+          </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate>
               <Button Tag="{Binding}"
+                      AutomationProperties.Name="{Binding Command}"
                       Click="OnArtifactCommandClicked"
                       HorizontalAlignment="Stretch"
                       HorizontalContentAlignment="Left"
@@ -179,6 +185,7 @@
         <TextBox
             x:Name="CommandInput"
             Text="{Binding CommandText}"
+            AutomationProperties.Name="Typed command or artifact slash input"
             PlaceholderText="Type a command or / for artifacts"
             KeyDown="OnCommandTextKeyDown"
             VerticalContentAlignment="Center" />

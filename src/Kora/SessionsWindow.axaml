@@ -1,6 +1,7 @@
 <Window x:Class="Kora.SessionsWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
     Title="Sessions - bounded durable workspace" Icon="/Assets/Kora.ico"
     Width="1050" Height="760" MinWidth="800" MinHeight="560"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
@@ -11,7 +12,7 @@
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
     </StackPanel>
-    <TextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
+    <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
       <TextBox Text="{Binding NameDraft, Mode=TwoWay}" MaxLength="240" IsEnabled="{Binding CanRead}"
                PlaceholderText="Name: NFC Unicode, up to 120 scalars / 480 UTF-8 bytes"
@@ -43,7 +44,7 @@
           </ComboBox.ItemTemplate>
         </ComboBox>
         <ScrollViewer Grid.Row="1">
-          <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
+          <controls:NamedTextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
                      AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
         </ScrollViewer>
       </Grid>

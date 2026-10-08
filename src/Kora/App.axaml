@@ -58,7 +58,7 @@
       <Setter Property="FontSize" Value="14" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
-    <Style Selector="TextBlock.settings-description">
+    <Style Selector=":is(TextBlock).settings-description">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Foreground" Value="{DynamicResource KoraMutedForegroundBrush}" />
       <Setter Property="LineHeight" Value="16" />

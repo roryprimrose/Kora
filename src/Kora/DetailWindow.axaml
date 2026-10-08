@@ -2,6 +2,7 @@
     x:Class="Kora.DetailWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
     Icon="/Assets/Kora.ico"
     Width="960" Height="760" MinWidth="640" MinHeight="500"
     Topmost="False" WindowStartupLocation="CenterOwner"
@@ -14,7 +15,7 @@
       <TextBlock x:Name="ProvenanceLabel" TextWrapping="Wrap" />
       <TextBlock x:Name="ReferenceLabel" FontSize="11" TextWrapping="Wrap" />
       <TextBlock x:Name="DigestLabel" FontSize="11" TextWrapping="Wrap" />
-      <TextBlock x:Name="RendererStatus" TextWrapping="Wrap"
+      <controls:NamedTextBlock x:Name="RendererStatus" TextWrapping="Wrap"
                  AutomationProperties.Name="Native renderer and source fallback status" />
       <TextBlock Text="native-text-v1 · 256 KiB UTF-8 · 512 blocks · 4096 nodes/controls · depth 32 · 8 viewers · search 256"
                  FontSize="11" TextWrapping="Wrap" />
@@ -58,7 +59,7 @@
              Background="{DynamicResource KoraSurfaceAltBrush}"
              Foreground="{DynamicResource KoraForegroundBrush}"
              ScrollViewer.VerticalScrollBarVisibility="Auto" />
-    <TextBlock x:Name="RenderStatus" Grid.Row="3" TextWrapping="Wrap"
+    <controls:NamedTextBlock x:Name="RenderStatus" Grid.Row="3" TextWrapping="Wrap"
                AutomationProperties.Name="Detail rendering and clipboard status" />
   </Grid>
 </Window>

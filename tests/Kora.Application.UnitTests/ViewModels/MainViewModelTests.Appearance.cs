@@ -46,6 +46,13 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);
+        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Show the animated presence");
+        fixture.ViewModel.IsPresenceDisplayEnabled = false;
+        fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeFalse();
+        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("hidden");
+        fixture.AppearancePreferences.SavedPresenceDisplayEnabled.Should().BeFalse();
+        fixture.ViewModel.SetPresenceDisplayEnabled(true).Should().BeTrue();
+        fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
         fixture.ViewModel.PresenceSizePixels = 400;
         fixture.ViewModel.PresenceDotSizePercent = 120;
         fixture.ViewModel.PresenceMovementSpeedPercent = 120;

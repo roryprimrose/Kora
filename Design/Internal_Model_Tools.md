@@ -37,6 +37,14 @@ deployment mode. Runtime health is not permission or R02 qualification;
 ToolLoopQualified remains false. No settings/evidence/session/side-effect entries
 are added, and existing exact lock/power behavior is unchanged.
 
+R26 selected-source lexical search is **host/native-only**. The six-ID schema
+has no unavailable model-only content-operation descriptor or admitted
+source/citation result shape. It is not extended to pretend retrieval is
+available. Exact `search file` / `inspect file` focus native query entry over
+the current explicitly admitted immutable preview; no source/query/excerpt
+is serialized to models. Model retrieval, tool/result iteration and all
+source-context egress remain unavailable.
+
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 maps the current bootstrap and every catalogue family to dependency-ordered
 implementation and acceptance work. Roadmap inventory IDs are not tool IDs.

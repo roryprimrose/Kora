@@ -123,6 +123,10 @@ public sealed class LocalFileTests
     {
         LocalFileCommand.Parse("preview file")!.Operation.Should().Be(LocalFileOperation.Select);
         LocalFileCommand.Parse("clear file preview")!.Operation.Should().Be(LocalFileOperation.Clear);
+        LocalFileCommand.Parse("search file")!.Operation.Should().Be(LocalFileOperation.Inspect);
+        LocalFileCommand.Parse("inspect file")!.Operation.Should().Be(LocalFileOperation.Inspect);
+        LocalFileCommand.Parse("search file for secrets")!.Operation.Should().Be(LocalFileOperation.Invalid);
+        LocalFileCommand.Parse("inspect file c team file txt")!.Operation.Should().Be(LocalFileOperation.Invalid);
         foreach (var text in new[] { "preview file c team file txt", "confirm file", "preview folder", "preview file now" })
         {
             LocalFileCommand.Parse(text).Should().BeNull();

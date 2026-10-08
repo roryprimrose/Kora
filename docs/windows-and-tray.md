@@ -9,7 +9,11 @@ that exact review locally before content is read; it expires after two minutes.
 The result is inert, immutable plain text with exact-byte digest and provenance,
 not a Markdown renderer, attachment or model submission. Close revokes it.
 Exact typed/current-name ACTIVATED `preview file` / `clear file preview` use the
-same host workflow. Folder/knowledge/retrieval/reasoning remain unavailable.
+same host workflow. Exact **search file** / **inspect file** focus native
+lexical search of that admitted revision. Queries are entered only in this
+native control; bounded exact excerpts carry revision/digest/line citations,
+observation time and truthful truncation/failure states. Results stay inert,
+volatile and host-only. Folder/knowledge/persistent-index/reasoning remain unavailable.
 See [commands and limits](commands.md#explicit-local-file-preview).
 
 ## Kora's presence

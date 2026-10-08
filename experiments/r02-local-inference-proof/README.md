@@ -11,6 +11,12 @@ and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-di
 own scope, critical fixtures and migration/removal conditions. No code is
 retired and no outstanding trial is relabelled as passed.
 
+The delivered R26.1b [selected immutable revision lexical retrieval](../../Design/File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval)
+has maintained deterministic host-only chunk/citation/lifecycle tests, not
+inference. It neither supersedes this proof nor qualifies any answer-quality,
+model-context, offline-egress, actual resource or server-cessation trial. This
+harness, pins and recorded evidence remain retained unchanged.
+
 Scope: the already pinned Ollama `0.35.1` / `qwen3:1.7b` candidate, selected
 synthetic clipboard-shaped text, answer quality, performance, context,
 cancellation and errors. No real clipboard/audio, tool execution, production

@@ -24,6 +24,7 @@ helpers and brokers are not separately advertised actions.
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
 | [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy. |
+| [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
 
 Do not add a broad capability class with one method per tool, duplicate broker
 policy across actions, or add classes for speculative unavailable operations.
@@ -87,6 +88,15 @@ not IDs registered by these classes. Explanation and model dispatch remain
 unavailable pending the qualified tool/result loop and clipboard-answering,
 secret and egress gates. Preview does not grant transmission consent. See the
 [delivered boundary](../../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+
+### R26 immutable local file actions
+
+R26 file actions are host/native-only: one explicitly admitted immutable
+volatile UTF-8 revision, exact local search/citations, no current-path reread,
+derived persistence, model registry entry or egress. Native query entry and
+fixed `search file` / `inspect file` focus commands share the preview broker's
+session/task/privacy/generation/cancellation boundary. See
+[the exact delivered slice](../../Design/File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval).
 
 ## Contribute a new tool
 

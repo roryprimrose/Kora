@@ -11,6 +11,93 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("search file")]
+    [InlineData("Kora, inspect file")]
+    public async Task Native_exact_source_search_and_fixed_inspection_commands_never_enter_history_models_or_clipboard(string command)
+    {
+        var fixture = new Fixture();
+        using var preview = new LocalFilePreview(new FakeFileInspector(), fixture.Audit,
+            TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        var search = new LocalFileSearch(preview, new LocalFileLexicalRetrieval(), fixture.Audit,
+            TimeProvider.System, NullLogger<LocalFileSearch>.Instance);
+        fixture.ViewModel.BindFilePreview(preview, new FakeFilePicker(), search);
+        await fixture.ViewModel.PreviewFileAsync();
+        await fixture.ViewModel.ConfirmFilePreviewAsync(fixture.ViewModel.FileReview!.ReviewId);
+        var exact = fixture.ViewModel.FileRevision!.Reference;
+        await fixture.RunAsync(command);
+        var inspection = 0;
+        fixture.ViewModel.FileInspectionRequested += (_, _) => inspection++;
+        await fixture.RunAsync(command);
+        inspection.Should().Be(1);
+        var result = await fixture.ViewModel.SearchFileAsync(exact, "private file marker");
+        result.Outcome.Should().Be(LocalFileSearchOutcome.Matched);
+        result.Citations.Single().Excerpt.Should().Be(FakeFileInspector.Text);
+        (await fixture.ViewModel.SearchFileAsync(exact, "no matching term")).Outcome.Should().Be(LocalFileSearchOutcome.NoMatch);
+        (await fixture.ViewModel.SearchFileAsync(exact, " ")).Outcome.Should().Be(LocalFileSearchOutcome.InvalidQuery);
+        await fixture.RunAsync("search file for a path or query");
+        fixture.ViewModel.ResponseTitle.Should().Contain("Denied");
+        fixture.ViewModel.Transcript.Should().NotContain("private file marker");
+        fixture.ViewModel.ResponseBody.Should().NotContain(FakeFileInspector.Text);
+        fixture.HostStore.Records.Should().BeEmpty();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.ClipboardReader.Calls.Should().Be(0);
+        using (var system = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Application, HostOperation.Request))
+        {
+            (await fixture.ViewModel.SearchFileAsync(exact, "private")).Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        }
+        (await fixture.ViewModel.SearchFileAsync(exact with { RevisionId = Guid.NewGuid() }, "private"))
+            .Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        fixture.ViewModel.ClearFilePreview();
+        (await fixture.ViewModel.SearchFileAsync(exact, "private")).Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        await fixture.RunAsync(command);
+        inspection.Should().Be(1);
+        fixture.ViewModel.ResponseTitle.Should().Contain("Stale");
+    }
+
+    [Fact]
+    public async Task Unbound_search_is_explicit_and_never_requests_inference()
+    {
+        var fixture = new Fixture();
+        (await fixture.ViewModel.SearchFileAsync(new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "missing"), "query"))
+            .Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Late_native_search_never_renders_after_revocation_or_last_boundary_ownership_loss(bool lateOwnership)
+    {
+        var fixture = new Fixture();
+        using var preview = new LocalFilePreview(new FakeFileInspector(), fixture.Audit,
+            TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        var engine = new CallbackFileRetrieval(() =>
+        {
+            if (!lateOwnership) { fixture.ViewModel.ClearFilePreview(); return; }
+            var checks = 0;
+            fixture.ViewModel.BindClipboardOwnershipGate(() => ++checks < 4);
+        });
+        fixture.ViewModel.BindFilePreview(preview, new FakeFilePicker(), new LocalFileSearch(preview, engine, fixture.Audit,
+            TimeProvider.System, NullLogger<LocalFileSearch>.Instance));
+        await fixture.ViewModel.PreviewFileAsync();
+        await fixture.ViewModel.ConfirmFilePreviewAsync(fixture.ViewModel.FileReview!.ReviewId);
+        var result = await fixture.ViewModel.SearchFileAsync(fixture.ViewModel.FileRevision!.Reference, "private");
+        result.Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        result.Citations.Should().BeEmpty();
+    }
+
+    private sealed class CallbackFileRetrieval(Action callback) : ILocalFileRetrieval
+    {
+        public LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource, string query,
+            DateTimeOffset observedAt, CancellationToken cancellationToken)
+        {
+            callback();
+            return new LocalFileLexicalRetrieval().Search(revision, exactSource, query, observedAt, CancellationToken.None);
+        }
+    }
+
+    [Theory]
     [InlineData("Kora, preview file")]
     [InlineData("preview file")]
     public async Task Exact_file_command_and_native_confirmation_share_one_local_only_host_service(string command)

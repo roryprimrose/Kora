@@ -28,4 +28,5 @@ public sealed class LocalFileRevision
     public string Text { get; }
     public string Digest { get; }
     public DateTimeOffset AdmittedAt { get; }
+    public LocalFileReference Reference => new(Review.SourceId, RevisionId, ItemId, Digest);
 }

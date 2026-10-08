@@ -22,13 +22,79 @@ public sealed partial class LocalFilePreview(
     private long generation;
     private bool disposed;
     private bool releaseFailed;
+    private bool retrieving;
     private DateTimeOffset reviewDeadline;
 
     public event EventHandler? Changed;
     public bool IsBusy { get { lock (sync) { return pending is not null; } } }
     public bool IsQuiescent { get { lock (sync) { return pending is null && selection is null && !releaseFailed; } } }
     public LocalFileReview? Review { get { Revalidate(); lock (sync) { return review; } } }
-    public LocalFileRevision? Current { get { Revalidate(); lock (sync) { return pending is null ? revision : null; } } }
+    public LocalFileRevision? Current { get { Revalidate(); lock (sync) { return pending is null || retrieving ? revision : null; } } }
+
+    internal async Task<LocalFileSearchResult> SearchAsync(LocalFileReference exactSource, Func<bool> gate,
+        DateTimeOffset observedAt, Func<LocalFileRevision, CancellationToken, Task<LocalFileSearchResult>> search,
+        Action<LocalFileSearchResult> commit, CancellationToken token)
+    {
+        var request = HostActivity.RequireCurrent().Request;
+        Revalidate();
+        CancellationTokenSource cancellation;
+        TaskCompletionSource done;
+        LocalFileRevision admitted;
+        long admittedGeneration;
+        lock (sync)
+        {
+            LocalFileSearchOutcome? denied = disposed || releaseFailed ? LocalFileSearchOutcome.Unavailable
+                : !ClipboardCommand.IsDeliberateOrigin(request.Origin) || !gate() ? LocalFileSearchOutcome.Denied
+                : pending is not null ? LocalFileSearchOutcome.Busy
+                : revision is null || revision.Reference != exactSource || eligible is null || !eligible()
+                    ? LocalFileSearchOutcome.Stale
+                : request.SessionId != revision.Review.Request.SessionId || request.TaskId != revision.Review.Request.TaskId
+                    ? LocalFileSearchOutcome.Denied : null;
+            if (denied is { } outcome)
+            {
+                var refused = LocalFileSearchResult.Empty(outcome, observedAt);
+                commit(refused);
+                return refused;
+            }
+            admitted = revision!;
+            admittedGeneration = generation;
+            retrieving = true;
+            pending = cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+            quiescence = done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+        try
+        {
+            LocalFileSearchResult result;
+            try
+            {
+                cancellation.Token.ThrowIfCancellationRequested();
+                result = await search(admitted, cancellation.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                result = LocalFileSearchResult.Empty(LocalFileSearchOutcome.Cancelled, observedAt);
+            }
+            lock (sync)
+            {
+                if (!IsCurrent(admittedGeneration, gate, cancellation.Token) || !ReferenceEquals(revision, admitted)
+                    || eligible is null || !eligible())
+                {
+                    result = LocalFileSearchResult.Empty(disposed ? LocalFileSearchOutcome.Unavailable
+                        : token.IsCancellationRequested ? LocalFileSearchOutcome.Cancelled : LocalFileSearchOutcome.Stale, observedAt);
+                }
+                // Audit publication and exact-generation revalidation share the revocation boundary.
+                commit(result);
+                return result;
+            }
+        }
+        finally
+        {
+            lock (sync) { retrieving = false; pending = null; }
+            cancellation.Dispose();
+            done.SetResult();
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     private void Revalidate()
     {

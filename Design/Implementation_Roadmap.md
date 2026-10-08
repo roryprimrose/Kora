@@ -112,6 +112,42 @@ their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
 
+### R26.1b selected immutable revision lexical retrieval - 2026-10-09
+
+Delivered on the merged R26.1a local preview foundation (#108):
+`Kora.Tools.Files.LocalFileSearch`, Core's typed exact reference/citation/result
+contracts and `lexical-lines-v1` policy, and native exact selected-source search.
+Fixed `search file` / `inspect file` commands only focus that native control;
+queries do not enter conversation, history, speech or inference routing.
+The existing preview broker owns original session/task/source authority,
+privacy/ownership generations, cancellation and quiescence; required requested/
+terminal audit and exact-generation validation share its revocation boundary.
+
+The bounded in-memory scan uses deterministic paragraph/ATX-heading/line-aware
+chunks (2,048 UTF-16 characters / 128 lines), Unicode Form C/invariant
+tokenization, unique-term OR ranking with saturated frequency and source-offset
+tie-breaks. Query limits are 256 UTF-16 characters / 512 UTF-8 bytes / 32 unique
+terms / 64 characters per term. At most eight excerpts / 16 KiB excerpt UTF-8
+are returned with total match count and explicit truncation. Exact excerpts
+bind source/revision/item/digest/display identity, UTF-16 offsets, one-based
+line/column locations and query observation time. Stale/revoked/replaced,
+invalid, no-match, denied, busy, cancelled and unavailable are truthful
+noninterchangeable outcomes.
+
+No current-path reread, silent refresh, folder expansion, watching,
+persistent enterprise/derived cache, embeddings/vector index, model reasoning
+or result egress is added. The current six-ID R06 registry has no safe
+unavailable content-bearing model descriptor; it remains unchanged. See
+[detailed behavior and limits](File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval).
+This does not complete broader R26/R04/R05/R06/R07/R12/R14, grounded reasoning
+or installed/native accessibility acceptance.
+
+Experiment disposition: maintained production tests cover this exact
+deterministic retrieval/citation/lifecycle/no-egress slice. **All experiments
+remain retained.** Inference quality, actual offline/resource/cessation,
+RT1/RT2/MG1 and durable storage/cache proofs have no exact equivalence here;
+lexical retrieval does not qualify or retire the inference proof.
+
 ### R10/R15 bounded device-local in-call feedback - 2026-10-08
 
 The [bounded in-call feedback contract](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15)
@@ -2465,7 +2501,7 @@ Do not advertise any deferred capability solely because an interface/schema is d
 |---|---|---|---|
 | R24 - Local frequent-speaker learning and enrolled verification | Optional; P3 | R03, R04, R05, R09, R10, R15 | Separate learning consent and verifier enrollment; protected per-SID/device storage, minimization/reset/delete, drift/playback/predominant-speaker tests and verifier FAR/FRR/anti-spoof/secure-OS proof. Learning is personalization, never identity/authority; missing either never blocks baseline voice. Close D-006 only for the advertised capability. |
 | R25 - Optional speech captions and richer browser/static HTML/diagram results | Bounded disabled-by-default local current-utterance captions delivered; richer rendering and broader caption UX remain optional/separately gated P3 | R05, R08, R09, R14, R15 for remaining integration/proof, not blanket implementation prerequisites | Exact native/typed/activated local configuration, actual matching host-admitted playback identity/generation/segment and immediate response/privacy/call/ownership retirement. No caption content persistence/logging/model egress or speech/capture/authority changes. Sentence alignment, pinning, placement preferences, dismissal delay and broad commands remain separate. Rich viewers still require immutable content, renderer isolation, disabled bridges/active content, finite approved assets/navigation and resource bounds. R10 acoustic proof and installed/native accessibility acceptance remain open; neither is claimed or retired by this slice. |
-| R26 - File/folder/screen/image context and knowledge retrieval/indexing | R26.1a bounded file-only local inspection foundation delivered; broader stages deferred/P3; [exact boundary](File_And_Folder_Ingestion.md#delivered-bounded-local-file-preview); [provider/memory/knowledge direction](Model_Providers_Memory_And_Knowledge.md) and [file/folder staged plan](File_And_Folder_Ingestion.md#r26-file-and-folder-ingestion-delivery-plan) now specified | R03, R04, R05, R06, R07, R08, R10, R12, R14; connector-backed retrieval also R20 | Native picker + metadata-only review + exact native confirmation admit one immutable volatile strict-UTF-8 text/Markdown preview (256 KiB), source/revision/item identity and original-byte digest. Fixed-drive canonical verified handles deny reparse/hard-link/protected/generated/source-control/unstable paths; original host-session/privacy/origin generations and cancellation remain bound. No folder, durable attachment/registry, refresh, index/retrieval, model/egress, clipboard or execution authority. Beyond this foundation, deliver file/folder ingestion next as reviewed immutable UTF-8 text/Markdown source revisions, then lexical retrieval/citations, qualified local reasoning and separately admitted hosted egress. Admit later formats, OCR/vision and hybrid/vector indexing independently. Preserve explicit source/session/destination scope, Windows reparse/access controls, provenance, context budgets, refresh/revocation/deletion and bounded citations. No ambient collection, direct view-model path reads, whole-file prompt stuffing, blanket enterprise cache, model-chosen arbitrary paths or silent context reuse. All experiments retained: inference/storage/runtime proofs have no exact maintained equivalence here. Installed native/accessibility acceptance and broader R26.1–5 gates remain outstanding. |
+| R26 - File/folder/screen/image context and knowledge retrieval/indexing | R26.1a local inspection and R26.1b selected immutable revision lexical retrieval delivered; broader stages deferred/P3; [exact retrieval boundary](File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval); [provider/memory/knowledge direction](Model_Providers_Memory_And_Knowledge.md) and [file/folder staged plan](File_And_Folder_Ingestion.md#r26-file-and-folder-ingestion-delivery-plan) remain specified | R03, R04, R05, R06, R07, R08, R10, R12, R14; connector-backed retrieval also R20 | Native picker + metadata-only review + exact confirmation admit one immutable volatile strict-UTF-8 text/Markdown preview (256 KiB), source/revision/item identity and original-byte digest. Host-only deterministic bounded lexical scan/native exact citations revalidate original session/task/privacy/ownership/generation and required terminal audit. Fixed-drive canonical verified handles still deny reparse/hard-link/protected/generated/source-control/unstable paths. No folder, durable attachment/registry, refresh, persistent/vector index, model/egress, clipboard or execution authority. Beyond this bounded foundation, deliver reviewed immutable UTF-8 text/Markdown file/folder source revisions, broader scoped lexical retrieval/citations, qualified local reasoning and separately admitted hosted egress. Admit later formats, OCR/vision and hybrid/vector indexing independently. Preserve explicit source/session/destination scope, Windows reparse/access controls, provenance, context budgets, refresh/revocation/deletion and bounded citations. No ambient collection, direct view-model path reads, whole-file prompt stuffing, blanket enterprise cache, model-chosen arbitrary paths or silent context reuse. All experiments retained; inference/storage/runtime proofs are not exactly superseded. Installed native/accessibility acceptance and broader R26.1–5 gates remain outstanding. |
 | R27 - General executable imports and standalone application execution | Deferred; P3 | I: consumed R01/R05/R10/R11/R12/R13/R21 contracts; E/Q: applicable R02 execution profiles only | Resolve standalone-binary rollback policy; prove complete dependency discovery and immutable folder snapshots, registered execution profiles, real OS containment and content-bound applicability/revocation. Do not extend fixed bundled scripts into arbitrary shell strings or user-supplied executable authority. |
 | R28 - Write-capable connectors, repository/Git or broader desktop automation | Deferred; P3 | R05, R08, R12, R13, R20, R26 | Add explicit versioned tools and per-domain policy/resource/identity/recovery proofs. Revalidate external changes and uncertain writes; no self-modification, model-selected executable handlers or silent automatic write retries. Declarative authoring is not authorization for these capabilities. |
 | R29 - Kora MCP server, install-capable updates, custom executable/render extensions or intra-session parallel agents | Deferred; P3; distinct proposals, not one combined release | I: consumed R05/R08/R11/R13/R17 contracts per proposal; E: applicable R02/new profile proof; Q: R23 only for included RC scope | Require a recorded scope/decision and dedicated proofs per proposal: authenticated per-client scopes, future trusted signed update roots/activation path, extension identity/containment, renderer isolation or isolated subtask budgets/leases. Initial notify-only maintenance, fixed renderers and one-task-per-session remain unchanged until that proposal is accepted. |

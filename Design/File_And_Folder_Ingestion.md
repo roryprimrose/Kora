@@ -1,8 +1,9 @@
 # File and Folder Ingestion and Grounded Reasoning
 
-Status: the first bounded R26 foundation implements **local file inspection
-only**, described below. The broader ingestion/attachment, folder, managed
-knowledge source, index, retrieval, reasoning and hosted transmission design
+Status: bounded R26 foundations implement **local file inspection and
+selected immutable revision lexical retrieval**, described below. The broader
+ingestion/attachment, folder, managed knowledge source, persistent/vector
+index, multi-source retrieval, reasoning and hosted transmission design
 remains proposed and unavailable.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
@@ -65,12 +66,77 @@ not fabricate quiescence. No watcher, refresh/retry, ambient collection,
 network parsing, inference, egress or document-derived authority exists.
 
 Folder preview, UNC/removable-drive ingestion, durable attachments, registry,
-refresh, indexes, retrieval/citations, local/hosted grounded reasoning,
+refresh, persistent/vector indexes, local/hosted grounded reasoning,
 screens/images and later formats remain unavailable. This slice does not
 qualify their gates. Native installed/accessibility acceptance remains
 separate from deterministic contract and real Windows filesystem tests.
 No experiment is removed: inference, storage, runtime and containment proofs
 are not exactly superseded by a volatile file preview.
+
+## Delivered Selected-Revision Lexical Retrieval
+
+R26.1b adds a host-owned `LocalFileSearch` action over the existing admitted
+`LocalFileRevision`; no additional filesystem authority is acquired.
+The shared preview broker resolves exact source/revision/item/digest,
+deliberate origin and original host session/task; captures its generation and
+cancellation; and revalidates the same revision, admission/privacy/ownership/
+call gates and terminal typed audit under the revocation lock before returning.
+Replacement, revocation, Cancel task, session disposition, privacy, ownership
+loss or disposal cancel/suppress late work. Outstanding worker work remains
+nonquiescent even after clear; no current-path read, refresh, fallback copy,
+ambient watching or folder/source expansion occurs.
+
+`ILocalFileRetrieval` and Core's `LocalFileLexicalRetrieval` implement
+`lexical-lines-v1`: streaming chunks from the admitted exact Unicode projection,
+without content persistence or a cache. Chunks honor blank-paragraph and ATX
+heading boundaries, then line/size limits (128 lines / 2,048 UTF-16 characters).
+Long lines prefer whitespace; unavoidable cuts preserve Unicode scalars and
+CRLF pairs. Terms crossing a forced chunk boundary are not indexed as invented
+prefix/suffix words. Headings are bounded context labels (64 characters);
+the exact source remains in the immutable excerpt, not reconstructed Markdown.
+Setext headings, Markdown semantics and byte-offset citations are not claimed.
+
+Queries are inert untrusted text, never instructions or authority. Central
+`LocalFileRetrievalPolicy` rejects empty/degenerate/malformed or oversized
+queries: 256 UTF-16 characters / 512 UTF-8 bytes, 32 unique terms, 64 characters
+per term. Unicode letters/numbers and attached combining marks form terms;
+punctuation/format symbols separate them. Form C + invariant uppercase and
+ordinal dictionaries are culture-stable. Duplicate query terms do not change
+ranking. Oversized source words are skipped whole. OR ranking uses matched
+unique terms, saturated per-term frequency (16), then ascending source offset.
+There are no embeddings, vector index, stop-word/language inference or models.
+
+Only the best eight candidates are retained; all matching chunks are counted.
+Results contain at most eight exact, unmodified excerpts with a combined
+16 KiB UTF-8 excerpt budget. The ranking prefix stops before exceeding that
+budget; truncation and total matching chunks are explicit. Every citation binds
+source/revision/item IDs, digest of admitted original bytes (including BOM),
+display filename, heading label, exact UTF-16 start/length and one-based
+line/column start and exclusive end. CRLF is one newline, CR/LF also work;
+columns are UTF-16, not grapheme/byte positions. No path is citation authority.
+Observation time describes this query of the admitted revision, **not** a fresh
+observation of the current filesystem. NoMatch, InvalidQuery, Busy, Stale,
+Denied, Cancelled and Unavailable are distinct and carry no excerpts.
+
+Native preview exposes exact selected-source search and complete inert text
+inspection. Fixed `search file` / `inspect file` typed/current-name ACTIVATED
+commands only focus that control; query text is entered natively and never
+enters conversation transcripts/history, model routing, speech, logs, audit
+identifiers, clipboard or durable storage. All result content stays native/
+volatile and is cleared on close. The current R06 six-ID read-only registry
+cannot safely describe an unavailable content-bearing model operation; it is
+unchanged, with no model tool or result egress. Required typed audit failure
+blocks result publication. Source-generated logs report only bounded outcome,
+count/truncation and failure type; child host activities preserve session/task
+correlation without content/path tags.
+
+Experiment disposition: maintained deterministic chunk/citation, bounds,
+revocation/cancellation/isolation and no-egress tests now cover this exact
+production slice. No executable experiment is superseded or removed. In
+particular R02 inference answer quality, actual resource/offline/cessation,
+RT1/RT2/MG1 and durable storage/enterprise-cache trials remain distinct and
+retained. This slice does not qualify grounded reasoning or installed native
+accessibility acceptance.
 
 ## Product Outcome
 

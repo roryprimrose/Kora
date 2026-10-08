@@ -35,9 +35,19 @@ Preview is not model-context selection or transmission consent. See
 R26.1a adds the host-only **preview file** / **clear file preview** and native
 picker/review/confirmation workflow through `Kora.Tools.Files.LocalFilePreview`.
 It admits one volatile immutable fixed-drive strict-UTF-8 text/Markdown preview,
-not a file-model tool, durable attachment, registry, folder, index, retrieval,
+not a file-model tool, durable attachment, registry, folder, persistent/vector index,
 reasoning or egress capability. Paths supplied by users/models/documents never
 authorize reads. See [exact delivered limits and Windows identity controls](File_And_Folder_Ingestion.md#delivered-bounded-local-file-preview).
+
+R26.1b adds **search file** / **inspect file**, which only focus the selected
+revision's native lexical control. Native bounded query text uses
+`Kora.Tools.Files.LocalFileSearch`, the same preview broker's exact
+source/session/task/privacy/revocation boundary, and Core's versioned
+deterministic lexical policy. No query is routed through conversation,
+inference, speech or history. The six-ID R06 registry cannot safely describe
+an unavailable content-bearing operation with its current input/result schema:
+no descriptor, model action or result loop is added. This is an explicit
+model-route exception, not a separate weaker path.
 
 Delivered exceptions to the proposed full catalogue: R10 has host-only typed
 configuration for appearance, installed provider/voice, spoken-summary caps,

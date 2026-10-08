@@ -54,6 +54,7 @@ See [Settings recovery](settings.md#in-call-feedback-override).
 |---|---|
 | `preview file` | Open the trusted native picker for one local UTF-8 `.txt`, `.md` or `.markdown` file, then metadata-only review |
 | `clear file preview` | Discard this volatile review/revision; never delete the original |
+| `search file` / `inspect file` | Focus the admitted revision's native lexical search/inspection control; no arguments, path or implicit source selection |
 
 The tray's **Preview file (local inspection only)** uses the same host service.
 Current-name activated input can open selection; spoken/typed paths and IDs
@@ -70,8 +71,29 @@ inputs fail closed without truncation or silent exclusions. Close, clear,
 Cancel task, lock/privacy/ownership or origin/call-generation changes discard
 the preview. File content never becomes a command or approval.
 
+Enter query text only in the native search control, not in a command or
+conversation. This deliberately keeps queries/excerpts out of transcripts,
+history, speech, models and clipboard. Limits: 256 UTF-16 characters,
+512 UTF-8 bytes, 32 unique terms, 64 characters per term; invalid input is
+rejected, never silently shortened. Ranking is deterministic OR matching:
+distinct normalized terms, frequency capped at 16 per term, then source offset.
+Terms are Unicode letters/numbers with attached combining marks, canonical
+Form C and invariant uppercase; punctuation separates terms. Duplicate terms
+do not boost ranking. Oversized source words are skipped whole.
+Adding arguments to `search file` / `inspect file` is rejected locally rather
+than falling through to inference; it neither selects a path nor performs a search.
+
+At most eight exact excerpts / 16 KiB excerpt UTF-8 are returned. Each is at
+most 2,048 UTF-16 characters / 128 lines. Results display the query observation
+time, source/revision/item IDs, original-byte SHA-256 digest, display filename,
+heading, exact UTF-16 offsets, and 1-based line/column range (exclusive end;
+CRLF is one newline). Truncation is explicit; no match differs from stale,
+cancelled, busy, invalid or unavailable. Search does not re-read the current
+path or refresh the revision. Closing/revoking/replacing the preview, task or
+session disposition and privacy/ownership changes invalidate late results.
+
 **Unavailable:** folder preview, UNC/removable drives, durable attachments,
-knowledge sources, indexing, retrieval, local/hosted reasoning or file-model
+knowledge sources, persistent/vector indexing, local/hosted reasoning or file-model
 tools. Preview neither submits content nor authorizes egress. It never reads
 or changes the clipboard, executes content, logs content/paths or saves the
 revision. [Privacy details](privacy-safety-and-logs.md#local-file-inspection).

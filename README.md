@@ -57,8 +57,11 @@ open a native single-file picker followed by metadata review and exact native
 confirmation. One fixed-drive UTF-8 text/Markdown file up to 256 KiB becomes
 an immutable volatile plain-text preview with source/revision/item identity
 and byte digest. No model, clipboard, execution, egress, refresh or persistence
-is involved. Folder preview, attachments, knowledge sources, indexing,
-retrieval and grounded reasoning remain unavailable. See
+is involved. Exact **search file** / **inspect file** focus native bounded
+lexical search of that selected revision, returning exact excerpts and
+source/revision/digest/line citations, not a generated answer. Queries and
+results are volatile and host-only. Folder preview, attachments, knowledge
+sources, persistent/vector indexes and grounded reasoning remain unavailable. See
 [file commands](docs/commands.md#explicit-local-file-preview).
 
 **Skill packages > Shared profile sources (read only)** explicitly registers a

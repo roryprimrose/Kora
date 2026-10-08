@@ -42,6 +42,38 @@ is unavailable, not the old ambient grammar. The built-in text-to-speech provide
 Windows SAPI voices. Kora does not need a cloud account or network connection
 for these features.
 
+## Local file inspection
+
+An explicit [file preview](commands.md#explicit-local-file-preview) is a
+volatile local inspection, not a session attachment, model-context permission
+or durable knowledge source. Native selection first opens only metadata.
+Confirmation is required in the exact native review before one bounded
+strict-UTF-8 read. File and ancestor handles prevent write/replacement races;
+two bounded passes must match exact bytes, and identity/path/length are
+revalidated before and after reading. Failed inputs
+are rejected whole; there are no undisclosed partial-folder exclusions.
+
+The preview can contain secrets. No redaction/safety guarantee is made.
+Content, paths and filenames never enter its logs, audit identifiers, activity
+tags, transcripts, speech, SQLite, preference/artifact storage, model prompts
+or clipboard. Typed requested/terminal audits contain only safe action,
+target, outcome/reason and host correlation. The native UI displays the
+private canonical path and inert untrusted text intentionally to the user.
+Digest/provenance refer to the exact admitted original bytes, not current
+filesystem content. Markdown instructions and links have no authority.
+
+Close/clear/cancel, privacy/lock, ownership or originating policy generation
+loss discards the selected revision; no refresh is queued. Reviews expire
+after two minutes. Raw byte buffers are cleared and owned handles released.
+Immutable CLR strings are released for garbage collection, not a guarantee
+of memory erasure or exclusion from OS crash dumps. Pending native work and
+unverified release cannot claim clean handoff/exit.
+
+Only fixed-drive plain-text/Markdown files up to 256 KiB are supported.
+Folders, knowledge registration/persistence, UNC/removable drives, indexing,
+retrieval/citations, reasoning, hosted egress and content execution remain
+unavailable.
+
 ## Clipboard snapshots
 
 An exact [clipboard preview request](commands.md#explicit-local-clipboard-preview)

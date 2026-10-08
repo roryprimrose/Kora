@@ -430,6 +430,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRead>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardReuse>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
+        services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<MainViewModel>();
     }
 

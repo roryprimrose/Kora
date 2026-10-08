@@ -22,6 +22,13 @@ share the same broker, not separate model/provider clipboard implementations.
 Preview is not model-context selection or transmission consent. See
 [the bounded context boundary](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
 
+R26.1a adds the host-only **preview file** / **clear file preview** and native
+picker/review/confirmation workflow through `Kora.Tools.Files.LocalFilePreview`.
+It admits one volatile immutable fixed-drive strict-UTF-8 text/Markdown preview,
+not a file-model tool, durable attachment, registry, folder, index, retrieval,
+reasoning or egress capability. Paths supplied by users/models/documents never
+authorize reads. See [exact delivered limits and Windows identity controls](File_And_Folder_Ingestion.md#delivered-bounded-local-file-preview).
+
 Delivered exceptions to the proposed full catalogue: R10 has host-only typed
 configuration for appearance, installed provider/voice, spoken-summary caps,
 assistant display/PTT prefix, exact input/output preferences, per-Kora volume,

@@ -813,7 +813,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading;
+    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
+        || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null;
 
     public bool IsLocalModelSetupActive
     {
@@ -2666,6 +2667,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
         ClearClipboardPreview();
+        ClearFilePreview();
         HoldVoiceInput("Microphone closed · application exiting");
         textToSpeech.InvalidateOutput();
         try
@@ -2677,6 +2679,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
         }
         await clipboardPreview.WaitForQuiescenceAsync();
+        if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
@@ -3997,6 +4000,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var match = commandRouter.Match(spokenText, AssistantName);
+        if (LocalFileCommand.Parse(match.NormalizedTranscript) is { } fileCommand)
+        {
+            await ExecuteFileCommandAsync(fileCommand);
+            return;
+        }
         if (ClipboardCommand.Parse(match.NormalizedTranscript) is { } clipboardCommand)
         {
             await ExecuteClipboardCommandAsync(clipboardCommand);
@@ -4446,6 +4454,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         textToSpeech.InvalidateOutput();
         ClearClipboardPreview();
+        ClearFilePreview();
         CancelPendingPowerAudit("task-cancelled");
         if (powerShellSetupCancellation is not null)
         {
@@ -5112,6 +5121,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task LockCurrentSessionAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
         ClearClipboardPreview();
+        ClearFilePreview();
         var audit = StartAudit(
             SecurityAuditCategory.ProtectedOperation,
             SessionLockAction,
@@ -5294,6 +5304,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var commands = commandCatalog.GetCommands(AssistantName)
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
+            .Concat(LocalFileCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

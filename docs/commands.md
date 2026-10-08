@@ -48,6 +48,34 @@ activation; stale/corrupt/unconfirmed state stays unavailable with explicit
 recovery, including across restart. No capture, detector, autoplay or replay.
 See [Settings recovery](settings.md#in-call-feedback-override).
 
+## Explicit local file preview
+
+| Exact command | Result |
+|---|---|
+| `preview file` | Open the trusted native picker for one local UTF-8 `.txt`, `.md` or `.markdown` file, then metadata-only review |
+| `clear file preview` | Discard this volatile review/revision; never delete the original |
+
+The tray's **Preview file (local inspection only)** uses the same host service.
+Current-name activated input can open selection; spoken/typed paths and IDs
+cannot confirm a read. Use **Confirm: read this exact selected file locally**
+in the native review, before its two-minute expiry. The review discloses the
+canonical path, original host session/origin, identity, exact bytes and bounds.
+The immutable plain-text result shows source/revision/item IDs and SHA-256 of
+original bytes (including BOM). There is no automatic refresh.
+
+Maximum: one fixed-drive file, 256 KiB source bytes, 240 path characters,
+32 components; strict UTF-8 only. Unsupported, inaccessible, unstable,
+reparse/hard-link, protected, hidden/system and source-control/generated
+inputs fail closed without truncation or silent exclusions. Close, clear,
+Cancel task, lock/privacy/ownership or origin/call-generation changes discard
+the preview. File content never becomes a command or approval.
+
+**Unavailable:** folder preview, UNC/removable drives, durable attachments,
+knowledge sources, indexing, retrieval, local/hosted reasoning or file-model
+tools. Preview neither submits content nor authorizes egress. It never reads
+or changes the clipboard, executes content, logs content/paths or saves the
+revision. [Privacy details](privacy-safety-and-logs.md#local-file-inspection).
+
 ## SQLite diagnostic retention
 
 Native **Settings > Logging** and exact typed/current-name ACTIVATED commands

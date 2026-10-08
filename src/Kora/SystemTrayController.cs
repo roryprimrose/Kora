@@ -90,6 +90,12 @@ public sealed class SystemTrayController : IDisposable
                 "Local clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name));
         previewClipboard.Click += (_, _) => RunAfterNativeMenuCloses(() => previewClipboardCommand.Execute(null));
         menu.Add(previewClipboard);
+        var previewFile = new NativeMenuItem("Preview file (local inspection only)");
+        var previewFileCommand = new AsyncCommand(viewModel.PreviewFileAsync,
+            exception => viewModel.ReportHostInteractionFailure(
+                "Local file preview failed. No success is claimed. Failure type: " + exception.GetType().Name));
+        previewFile.Click += (_, _) => RunAfterNativeMenuCloses(() => previewFileCommand.Execute(null));
+        menu.Add(previewFile);
         if (reviewMaintenance is not null)
         {
             var maintenanceItem = new NativeMenuItem("Release maintenance (notify-only)");

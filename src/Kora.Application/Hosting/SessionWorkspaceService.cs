@@ -36,6 +36,16 @@ public sealed partial class SessionWorkspaceService(
     public Task<SessionPage<HostTaskRecord>> ReadTasksAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) =>
         ReadAsync(() => store.ReadTaskPageAsync(session, after, limit, token));
 
+    public Task<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session, SessionHistoryCursor? cursor,
+        int limit, CancellationToken token) =>
+        ReadAsync(() => History.ReadHistoryAsync(session, cursor, limit, token));
+
+    public Task<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session, Guid eventId, CancellationToken token) =>
+        ReadAsync(() => History.ReadHistoryEventAsync(session, eventId, token));
+
+    private ISessionHistoryStore History => store as ISessionHistoryStore
+        ?? throw new InvalidOperationException("The admitted store does not provide durable history.");
+
     public async Task<HostTaskObservation> CancelTaskAsync(HostTaskCancellationTarget target, RequestOrigin origin,
         Func<bool> admission, CancellationToken token)
     {

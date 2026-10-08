@@ -181,7 +181,7 @@ public sealed class WindowsCommittedAuthorityAuditTests
         page.Records.Count.Should().Be((int)count);
         page.Records.Select(r => r.AuditSequence).Should().BeInAscendingOrder();
         page.Records.Should().OnlyContain(r => r.Reference.Source == EvidenceSource.AuthorityAudit
-            && r.AuthorityProvenance!.SchemaVersion == 3 && r.Trace == null && r.RelatedSegments.Count == 0);
+            && r.AuthorityProvenance!.SchemaVersion == HostInteractionSchema.Version && r.Trace == null && r.RelatedSegments.Count == 0);
         page.Records.Should().Contain(r => r.AuthorityProvenance!.InteractionOutcome == HostInteractionOutcome.Answered);
         page.Records.Should().Contain(r => r.AuthorityProvenance!.InteractionOutcome == HostInteractionOutcome.Cancelled);
         var answer = page.Records.Single(r => r.AuthorityProvenance!.InteractionOutcome == HostInteractionOutcome.Answered);

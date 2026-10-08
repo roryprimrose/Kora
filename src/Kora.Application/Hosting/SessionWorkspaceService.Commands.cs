@@ -1,4 +1,5 @@
 using Kora.Core.Commands;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
@@ -14,6 +15,10 @@ public sealed partial class SessionWorkspaceService
         if (command.Operation == SessionCommandOperation.Invalid)
         {
             throw new InvalidOperationException(command.Error);
+        }
+        if (command.Operation is SessionCommandOperation.History or SessionCommandOperation.HistoryGet)
+        {
+            return ExecuteHistoryCommandAsync(command, origin, admission, token);
         }
         var exactTask = command.Operation is SessionCommandOperation.TaskStatus
             or SessionCommandOperation.TaskInspect or SessionCommandOperation.TaskCancel;
@@ -113,6 +118,55 @@ public sealed partial class SessionWorkspaceService
     private const string Observation =
         "Bounded durable observation, not an atomic runtime ledger. Names are labels only. "
         + "No conversation, queue, scheduler, approval targeting or model context. Refresh for concurrent changes.";
+
+    private async Task<SessionCommandResult> ExecuteHistoryCommandAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admission, CancellationToken token)
+    {
+        if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || command.SessionId is null
+            || !admission())
+        {
+            throw new InvalidOperationException("History requires deliberate trusted input and an exact session ID.");
+        }
+        var revision = access.ControlRevision;
+        var session = new HostId<SessionIdentity>(command.SessionId.Value);
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin),
+            HostActivityLayer.Application, HostOperation.Request);
+        try
+        {
+            var result = command.Operation == SessionCommandOperation.History
+                ? new SessionCommandResult("observed", SessionHistoryPage.Scope)
+                {
+                    History = await ReadHistoryAsync(session, command.HistoryCursor, command.Limit, token).ConfigureAwait(false),
+                }
+                : new SessionCommandResult("observed", SessionHistoryPage.Scope)
+                {
+                    HistoryEvent = await ReadHistoryEventAsync(session, command.HistoryEventId
+                        ?? throw new InvalidOperationException("An exact history event ID is required."), token).ConfigureAwait(false),
+                };
+            if (command.Operation == SessionCommandOperation.HistoryGet && result.HistoryEvent is null)
+            {
+                result = result with { Outcome = "unknown", Message = "No history event with that exact ID belongs to the addressed session." };
+            }
+            token.ThrowIfCancellationRequested();
+            if (!admission() || !access.CanInspect || access.ControlRevision != revision)
+            {
+                throw new InvalidOperationException("History admission changed; no content may be presented.");
+            }
+            _ = SessionCommandResult.Serialize(result);
+            activity.Complete(HostOperationOutcome.Completed);
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            activity.Complete(HostOperationOutcome.Cancelled);
+            throw;
+        }
+        catch
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
 
     private static SessionName RequireName(SessionCommand command) =>
         command.Name ?? throw new InvalidOperationException("A validated quoted name is required.");

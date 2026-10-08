@@ -10,7 +10,11 @@ and general application launching are not yet available. Bounded durable
 session authority/workspace/names, explicit local clipboard preview,
 read-only host discovery, installed speech/appearance settings and independent
 daily/SQLite evidence inspection are delivered foundations, not full
-conversation history, queues, a model tool loop or release acceptance. See the
+conversation history, queues, a model tool loop or release acceptance. Bounded
+ordered host interaction history and exact native/typed retrieval now cover
+committed questions/final answers, decision metadata and task-state receipts
+only; bootstrap messages/response bodies, search/model reasoning and replay
+remain unavailable. See the
 [exact merged implementation snapshot](Design/Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
 for source/PR boundaries and retained experiment evidence.
 Native and [exact typed/activated-voice session commands](docs/commands.md#bounded-exact-id-session-commands)

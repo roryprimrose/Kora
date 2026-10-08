@@ -419,6 +419,13 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         write.Parameters.AddWithValue("$revision", record.Revision.Value);
         write.Parameters.AddWithValue("$state", (int)record.State);
         write.ExecuteNonQuery();
+        using var schema = connection.CreateCommand();
+        schema.Transaction = transaction;
+        schema.CommandText = "SELECT 1 FROM sqlite_schema WHERE name='session_history';";
+        if (schema.ExecuteScalar() is not null)
+        {
+            SessionHistoryPersistence.Task(connection, transaction, record);
+        }
     }
 
     private void RequireNotDisposed(SqliteConnection connection, HostId<SessionIdentity> session)

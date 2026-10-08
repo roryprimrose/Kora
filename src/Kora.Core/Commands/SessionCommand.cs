@@ -22,12 +22,16 @@ public sealed record SessionCommand(
         + "session inspect <exact-id> [tasks|questions] [after <exact-id>] [limit <1-50>] | "
         + "session create \"<name>\" | session rename <exact-id> <generation> <metadata-revision> \"<name>\" | "
         + "session done <exact-id> <generation> | session resume <exact-id> <generation>. "
+        + "session history <exact-id> [after <generation>:<snapshot>:<sequence>] [limit <1-50>] | "
+        + "session get <exact-id> <event-id>. History is passive; no composer, model context or replay. "
         + "IDs use canonical D GUIDs; revisions use decimal integers. Names use NFC single-line Unicode, "
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
         + "No name, selected-window, delete, queue, executor or approval targeting.";
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }
+    public Guid? HistoryEventId { get; init; }
+    public SessionHistoryCursor? HistoryCursor { get; init; }
     public Guid? QuestionId { get; init; }
     public long TaskRevision { get; init; }
     public long QuestionRevision { get; init; }
@@ -112,6 +116,30 @@ public sealed record SessionCommand(
         if (operation is "list" && name is null) { return Page(new(SessionCommandOperation.List), words, 2); }
         if (words.Length < 3 || !ExactId(words[2], out var id)) { return Invalid("An exact nonempty session ID is required."); }
         if (operation is "status" && words.Length == 3 && name is null) { return new(SessionCommandOperation.Status, id); }
+        if (operation is "get" && words.Length == 4 && name is null && ExactId(words[3], out var eventId))
+        {
+            return new(SessionCommandOperation.HistoryGet, id) { HistoryEventId = eventId };
+        }
+        if (operation is "history" && name is null)
+        {
+            var start = 3;
+            SessionHistoryCursor? cursor = null;
+            if (words.Length > start && words[start].Equals("after", StringComparison.OrdinalIgnoreCase))
+            {
+                if (words.Length <= start + 1) { return Invalid("Specify generation:snapshot:sequence."); }
+                var segments = words[start + 1].Split(':');
+                if (segments.Length != 3 || !Revision(segments[0], true, out var revision)
+                    || !Revision(segments[1], true, out var snapshot) || !Revision(segments[2], true, out var sequence)
+                    || sequence > snapshot)
+                {
+                    return Invalid("Use the exact returned generation:snapshot:sequence cursor.");
+                }
+                cursor = new(new(id), new(revision), snapshot, sequence);
+                start += 2;
+            }
+            var page = Page(new(SessionCommandOperation.History, id) { HistoryCursor = cursor }, words, start);
+            return page.After is null ? page : Invalid("History requires a generation:snapshot:sequence cursor.");
+        }
         if (operation is "inspect" && name is null)
         {
             var start = 3;

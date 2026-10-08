@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 3;
+    internal const int Version = 4;
     internal static readonly string[] Tables =
     [
         """
@@ -89,4 +89,23 @@ internal static class HostInteractionSchema
             run_id TEXT NOT NULL CHECK(length(run_id)=36)) STRICT
         """;
     internal static readonly string[] AuthorityTables = [.. MetadataTables, .. WindowsSqliteHostTaskStore.Schema, RunTable, WaitTable];
+    internal static readonly string[] HistorySchema =
+    [
+        """
+        CREATE TABLE session_history_heads(
+            session_id TEXT PRIMARY KEY NOT NULL REFERENCES work_sessions(session_id),
+            sequence INTEGER NOT NULL CHECK(sequence>=0)) STRICT
+        """,
+        """
+        CREATE TABLE session_history(
+            event_id TEXT UNIQUE NOT NULL,
+            session_id TEXT NOT NULL REFERENCES session_history_heads(session_id),
+            sequence INTEGER NOT NULL CHECK(sequence>0),
+            source TEXT NOT NULL CHECK(length(CAST(source AS BLOB)) BETWEEN 1 AND 131072),
+            digest TEXT NOT NULL CHECK(length(digest)=64),
+            projection TEXT NOT NULL CHECK(length(CAST(projection AS BLOB)) BETWEEN 1 AND 131072),
+            PRIMARY KEY(session_id,sequence)) STRICT
+        """,
+    ];
+    internal static readonly string[] CurrentTables = [.. AuthorityTables, .. HistorySchema];
 }

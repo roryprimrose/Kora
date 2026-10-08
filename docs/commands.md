@@ -382,6 +382,8 @@ assistant-name prefix supported. Use **session help** for the full syntax:
 | `session rename <exact-id> <generation> <metadata-revision> "<name>"` | Rename only, including a Done session |
 | `session done <exact-id> <generation>` | Guarded idle lifecycle transition; not cancellation or proof of success |
 | `session resume <exact-id> <generation>` | Explicit Active transition; never reruns work or revives approvals |
+| `session history <exact-id> [after <generation>:<snapshot>:<sequence>] [limit <1-50>]` | Passive ordered host interaction history with stable exact citations; no control intent or activity extension |
+| `session get <exact-id> <event-id>` | One exact history event belonging to that session, or explicit unknown; never name lookup or replay |
 
 IDs must be nonempty canonical hyphenated GUIDs. Revisions are unsigned decimal
 integers (generation positive, metadata revision zero for absent legacy metadata).
@@ -392,11 +394,15 @@ quoted; double an interior quote, e.g. `session create "A ""quoted"" label"`.
 No punctuation stripping, name lookup, ordinal/window selection or fuzzy matching
 applies to this grammar. Whole input is limited to 1,024 UTF-8 bytes, pages
 default to 25/max 50, and the complete structured JSON result is at most 64 KiB.
-Overflow fails explicitly rather than truncating. Cursors are exact IDs, not
-saved snapshots; refresh for concurrent changes. Lifecycle results omit
+Overflow fails explicitly rather than truncating. List/inspect cursors are exact IDs, not
+saved snapshots; refresh for concurrent changes. History continuations instead
+use the returned generation, snapshot ceiling and last sequence, separated by
+colons. They remain bound to that exact session and exclude later appends.
+Lifecycle changes require a fresh history read. Lifecycle results omit
 unobserved metadata; request status to observe it.
 
-Each accepted command has fresh original-user lineage and a durable host control
+Each accepted command has fresh original-user lineage. Except for passive
+`history/get`, legacy controls retain a durable host control
 intent/terminal receipt; reads do not change lifecycle, metadata, question or
 grant authority. Existing partitions must be present. Errors are explicit:
 refresh after conflict, resolve live/Unknown work or pending questions, or recover
@@ -405,6 +411,17 @@ after a commit is not rollback; inspect current state before retrying.
 The typed Run entry remains available for this deterministic namespace while
 bootstrap work is busy; it does not cancel that work. Mutations still pass the
 same exact-subject live-work and current host gates, not a new executor lane.
+
+History records only committed host question snapshots/final answers, decision
+metadata and task-state receipts. Gaps/current migration baselines, metadata-only,
+over-budget unavailable content and disposition-redacted events are explicit.
+Bootstrap user/model messages and response bodies are unavailable, not recovered
+from logs. A task success is not proof of an external effect. Done histories
+are readable; an exact Removed ID returns redacted citations only. There is no
+composer, search, model history reasoning, Ask Evidence, broad export, attachment,
+queue, scheduler, automatic resume or playback. History does not import volatile
+file previews/shared skills or reconstruct captions. See the
+[native workflow](windows-and-tray.md#bounded-passive-interaction-history).
 
 Activated voice uses the existing enablement/consent/capture/privacy boundary
 and retains its originating channel and observed call/recovery revision through

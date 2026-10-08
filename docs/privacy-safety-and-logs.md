@@ -1,5 +1,35 @@
 # Privacy, safety, and logs
 
+## Bounded passive interaction history
+
+The [Sessions history viewer](windows-and-tray.md#bounded-passive-interaction-history)
+reads only host-committed questions/final answers, decision metadata and task-state
+receipts from the private interaction partition. Stable exact event/session IDs,
+sequence, source revisions, generation and digests are citations, never reply,
+approval, model-context or replay authority. Passive reads append nothing,
+extend no meaningful activity and never resume Done/Removed sessions.
+Snapshot pages exclude later appends; lifecycle/privacy/ownership changes,
+unknown IDs and corrupt/unsupported storage fail closed.
+
+Bootstrap user/model messages and response bodies were never recorded here and
+are explicitly unavailable. History is not reconstructed from diagnostics or
+audit mirrors. Drafts are not displayed as final answers; required source
+snapshots may retain existing question state under the same private storage
+policy. Content never enters logs, activity tags/baggage, model context or a
+network request. Shared-profile skill text and immutable file/clipboard preview
+paths/text/provenance remain volatile inspection data, not durable conversation
+attachments. History cannot reconstruct captions: only fresh independently
+admitted actual playback can create them.
+
+Logical disposition redacts history source/content in the same transaction that
+removes addressed live authority rows; it retains immutable citation metadata
+and the non-reusable tombstone. Exact known Removed IDs can read redacted
+citations only. SQLite free pages/journals, inert migration copies and exports/
+provider copies are not erased. No new history retention timer, automatic purge,
+backup deletion or forensic-erasure claim is added. Full composer/search/model
+history reasoning, Ask Evidence, broad export, queues and scheduler remain
+unavailable.
+
 ## Committed authority audit inspection
 
 In **Evidence (read-only)**, select **AuthorityAudit** to inspect committed typed

@@ -33,9 +33,19 @@ internal sealed class SpeechCaption
 
     public string? Observe(SpeechPlaybackFrame frame, Guid response)
     {
+        Guid source;
+        Func<bool>? admission;
         lock (gate)
         {
-            if (text is null || response != responseId || eligible!.Invoke() != true)
+            source = playbackId;
+            admission = eligible;
+        }
+        // Configuration/lifecycle callbacks can retire this source; never invoke them under its lock.
+        var remainsEligible = admission?.Invoke() == true;
+        lock (gate)
+        {
+            if (source != playbackId) { return null; }
+            if (text is null || response != responseId || !remainsEligible)
             {
                 Retire();
                 return null;

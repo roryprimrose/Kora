@@ -8,6 +8,22 @@ namespace Kora.Application.UnitTests.Voice;
 public sealed class SpeechCaptionTests
 {
     [Fact]
+    public void Replacement_during_admission_cannot_publish_old_text_or_retire_the_new_source()
+    {
+        var caption = new SpeechCaption();
+        var response = Guid.NewGuid();
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var next = Guid.Empty;
+        var first = caption.Bind(response, request, "Old text.", () =>
+        {
+            next = caption.Bind(response, request, "New approved text.", static () => true);
+            return true;
+        });
+        caption.Observe(new(true, 0.8, first, 10), response).Should().BeNull();
+        caption.Observe(new(true, 0.8, next, 11), response).Should().Be("New approved text.");
+    }
+
+    [Fact]
     public void Queued_text_is_not_visible_and_replacement_identity_cannot_revive_retired_text()
     {
         var caption = new SpeechCaption();

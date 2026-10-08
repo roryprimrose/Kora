@@ -89,12 +89,13 @@ Subsequent fixture-only hooks advance valid scratch lifecycle generations and
 question revisions, seed completed cross-session explicit links plus a missing
 correlation target, and verify refusal of a deferred render after closing its
 immutable viewer. Six added cases bring the focused fixture contracts to
-**18/18 passed**. The latest full integration attempt was **841/842**, with
+**18/18 passed**. The pre-rebase full integration attempt was **841/842**, with
 `Cancellation_after_commit_does_not_turn_a_durable_receipt_into_a_cancelled_result`
 failing with `OperationCanceledException`; the earlier 836/836 pass remains
 historical evidence, not a pass for this later attempt. The fresh hook fixture
 initialized and exited 0 before native hook measurements; its exact scratch
-child was absent. Native stale/link qualification remains pending. Work paused
+child was absent. Native stale/link qualification was still pending at that
+point. Work paused
 for the operator-requested rebase onto newer `origin/main`; these observations
 remain tied to the original base and do not qualify newly delivered upstream
 surfaces.
@@ -110,10 +111,18 @@ Windows integration suite passed **1077/1077, zero skipped**. The earlier
 cancellation-test failure did not reproduce; no cause or storage fix is
 claimed. Historical native observations above remain tied to the original
 base; this automated recheck alone does not qualify newer upstream native
-surfaces or the still-unmeasured stale/link hooks.
+surfaces or native stale/link behavior.
+
+The separately approved stale/link/detail continuation then ran on
+**2026-10-08 UTC** against an identity-verified rebased fixture, using only
+valid scratch-domain advances and completed activity links. Its scoped native
+results appear below; earlier native keyboard and registry observations were
+not repeated or relabeled as rebased acceptance. Synthetic gate closure left
+only the launcher; graceful stop exited 0 and removed the exact scratch child.
 
 | Area | Completed observation | Not established by this result |
 |---|---|---|
+| Rebased native stale/link/detail hooks | An exact displayed idle session at Active generation 1 was advanced through the trusted hook to Done generation 2; stale Done visibly refused. After refresh, the displayed Done generation 2 was advanced to Active generation 3; stale resume visibly refused. Refresh independently retained the newer durable state without replay or selection retargeting. A reviewed synthetic question at revision 1 was advanced to Pending revision 2; the original window displayed `Revision 1: question-conflict`, retained its original prompt/review, disabled answer/draft/review/cancel controls and focused Close. Passive Sessions inspection independently showed the same question Pending revision 2 with no draft/answer. Selecting an actual retained explicit Link record and its Present segment opened the exact cited foreign-session span, with separate host provenance and no audit/approval authority. A missing target visibly failed and cleared the structured result. Restricting the query to the linked owner session removed the foreign target record; opening that explicit segment also visibly failed and cleared results without substituting content. Closing an actual immutable guide detail refused its captured generation-1 deferred render at closed generation 3; the viewer HWND disappeared and private content remained cleared. | Question Submit Invoke returned an ambiguous generic UIA error; the later settled window and independent durable inspection establish refusal, not clean transport. One transient UIA tree-read E_FAIL established nothing; a fresh settled read supplied the observation. Closed-generation render refusal does not qualify changed-source revisions, stale copy/clipboard behavior or all deferred paths. These hooks do not qualify newer upstream controls, spoken announcements, rendered contrast/text scale, physical DPI/multimonitor usability or actual OS privacy/ownership transitions. No copy, audio, execution or external egress was invoked. |
 | Accessibility names and readable content | The initial native probe found label-only static text with no separate TextPattern/ValuePattern. The corrected [NamedTextBlock](../src/Kora/Controls/NamedTextBlock.cs) exposes label plus displayed content and publishes complete name changes. [Runtime regressions](../tests/Kora.Windows.IntegrationTests/AccessibilityRuntimeContractTests.cs) cover fallback, empty/duplicate labels, inline text, change notifications and realized artifact labels. Native Windows UIA then exposed actual Maintenance version/disclosure/status, evidence JSON, package identities and synthetic-closure status. After correction, a fresh native recheck exposed the input Name `Typed command or artifact slash input`, with its value still `/`, and exactly one synthetic dropdown item/button named `/inspect-fixture`. The later corrected question retained its exact successful receipt/disclosure Name in a settled snapshot 35 seconds after submission. | Spoken announcement behavior or acceptance of every converted window. Persistence of one bounded terminal message does not qualify all announcements or surfaces. |
 | Keyboard and DPI | Maintained headless checks exercise Maintenance Tab reachability and rendering at 1.0/1.5/2.0/3.0 scale. | Complete Tab/Shift+Tab order, focus restoration, clipping, text scaling, native per-monitor transitions or physical-display usability. Reachability and non-throwing rendering are not substitutes. |
 | Scoped native keyboard | After operator foreground activation, guarded native input measured Maintenance's two enabled focusable controls in complete forward/reverse cycles (six steps each) and the unselected question's six enabled focusable controls in two forward cycles (12 steps). A later selected question completed two exact seven-control cycles in each direction (14 steps each). Every Tab step emitted an owned focus event; disabled controls were skipped. Synthetic artifact Down/Up selected its sole option without changing `/`; Enter completed `/inspect-fixture` and dismissed discovery; Escape dismissed fresh discovery while preserving `/`. Both retained actual input focus. Corrected question native snapshots verified enabled initiating-button focus after Review and Save, and enabled Close focus after submission. | Unmeasured focus paths and physical usability. Foreground acquisition was intermittently denied; those attempts sent no keys. Earlier unsuccessful draft attempts are not counted; later focused-button trials independently established draft saving. See the extended correction row for additional measured cycles and owner restoration. |

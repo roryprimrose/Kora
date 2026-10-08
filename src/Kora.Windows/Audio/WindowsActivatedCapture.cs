@@ -1,4 +1,5 @@
 using System.Speech.Recognition;
+using System.Diagnostics;
 
 using Kora.Core.Voice;
 
@@ -20,6 +21,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
     private Task? recorderRelease;
     private bool started;
     private int releaseRequested;
+    private long recorderReleasedTimestamp;
 
     public WindowsActivatedCapture(
         SpeechRecognitionEngine recognizer,
@@ -50,6 +52,9 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
     public event EventHandler? SpeechDetected;
 
     public Task Completion => completion.Task;
+
+    public long? RecorderReleasedTimestamp => Volatile.Read(ref recorderReleasedTimestamp) is var timestamp
+        && timestamp != 0 ? timestamp : null;
 
     public void Start()
     {
@@ -122,6 +127,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
             finally
             {
                 await recorder.DisposeAsync();
+                Volatile.Write(ref recorderReleasedTimestamp, Stopwatch.GetTimestamp());
             }
 
             released.TrySetResult();

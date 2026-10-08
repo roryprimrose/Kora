@@ -705,9 +705,12 @@ not silently replace a specifically selected endpoint. The persistent system tra
 context menu lists detected microphones and provides Disable listening while
 capture is active plus Enable listening for recovery after manual disablement or
 failure; selecting a replacement alone does not restart recording.
-Unlock/resume, restored permissions, reconnection, asset repair and selection
-changes never release a current-run recovery hold without explicit Enable
-listening. Without owner-aware protection selected, normal privacy/output/call
+Normal authoritative unlock can restore only previously enabled PTT readiness
+or a separately qualified wake-only mode after confirmed closure and fresh
+microphone-matrix gates. It does not resume interrupted capture or override mute
+or withdrawal. Resume, restored permissions, reconnection, asset repair and
+selection changes require explicit Enable listening; intervening failures cancel
+automatic unlock restoration. Production always-on detection remains unavailable. Without owner-aware protection selected, normal privacy/output/call
 policy governs baseline speech; unavailable verification alone does not mute it.
 "Start listening" can set the preference only through an already available explicit input channel; a closed microphone cannot receive the utterance.
 Do not keep a secret listening path merely to support voice unmute.
@@ -877,8 +880,9 @@ confirmation.
 During the unsigned phase, update installation is external to Kora; no install/stage/download approval or "automatic install" setting exists.
 Changing channels does not authorise a downgrade, skip verification, or rewrite the protected feed/trust configuration.
 Logon startup uses saved ongoing consent and fresh gates, not a pre-logon
-listener or a waiver of locked-session policy; current-run unlock/resume
-recovery still requires explicit Enable listening under the microphone matrix.
+listener or a waiver of locked-session policy. Normal unlock restores only prior
+enabled intent after fresh microphone-matrix gates; resume and other failure
+recovery still require explicit Enable listening.
 
 ## 8. Permissions and Approvals
 

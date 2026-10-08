@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -17,6 +18,8 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
 {
     internal const string PartitionName = "EvidenceStorageV1";
     internal const int MaximumEnvelopeBytes = 65536;
+    internal const int MaximumCachedEnvelopeEntries = 16384;
+    internal const int MaximumCachedEncodedPayloadBytes = 32 * 1024 * 1024;
     private const int ApplicationId = 1263489586;
     private const string BootstrapProperty = "kora.bootstrap";
     private const string ContextGapProperty = "kora.evidence.gap";
@@ -48,6 +51,11 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private readonly AuditRetentionPolicy? auditPolicy;
     private readonly TimeProvider timeProvider;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
+    private readonly EnvelopeValidationCache validationCache = new();
+
+    internal long PersistedEnvelopeDecodeCount => validationCache.DecodeCount;
+    internal int PersistedEnvelopeCacheEntryCount => validationCache.EntryCount;
+    internal int PersistedEnvelopeCacheEncodedBytes => validationCache.EncodedPayloadBytes;
 
     public WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
         EvidenceRetentionPolicy? retentionPolicy = null, TimeProvider? timeProvider = null,
@@ -182,7 +190,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private SqliteConnection OpenDatabase(bool created)
     {
         var connection = database.Open(created);
-        return ValidateDatabase(connection);
+        return ValidateDatabase(connection, cache: validationCache);
     }
 
     internal FileStream AcquireReadLease(CancellationToken cancellationToken) => database.AcquireReadLease(cancellationToken);
@@ -196,13 +204,14 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private DateTimeOffset AuditDue(DateTimeOffset committed) =>
         auditPolicy is null ? retentionPolicy.AuditDue(committed) : auditPolicy.Due(committed);
 
-    private static SqliteConnection ValidateDatabase(SqliteConnection connection, bool legacy = false)
+    private static SqliteConnection ValidateDatabase(SqliteConnection connection, bool legacy = false,
+        EnvelopeValidationCache? cache = null)
     {
         try
         {
-            ValidateRows(connection, "application_log_events", legacy);
-            ValidateRows(connection, "security_audit_events");
-            ValidateRows(connection, "activity_spans", legacy);
+            ValidateRows(connection, "application_log_events", cache, legacy);
+            ValidateRows(connection, "security_audit_events", cache);
+            ValidateRows(connection, "activity_spans", cache, legacy);
             ValidateAuditSequence(connection);
             using var foreignKeys = connection.CreateCommand();
             foreignKeys.CommandText = "PRAGMA foreign_key_check;";
@@ -225,41 +234,45 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         }
     }
 
-    private static void ValidateRows(SqliteConnection connection, string table, bool legacy = false)
+    private static void ValidateRows(SqliteConnection connection, string table, EnvelopeValidationCache? cache,
+        bool legacy = false)
     {
+        var activities = string.Equals(table, "activity_spans", StringComparison.Ordinal);
         using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT * FROM {table};";
+        command.CommandText = activities
+            ? "SELECT * FROM activity_spans ORDER BY evidence_id;"
+            : $"SELECT * FROM {table};";
+        using var linkCommand = connection.CreateCommand();
+        linkCommand.CommandText = "SELECT * FROM activity_links ORDER BY evidence_id,ordinal;";
+        using var links = activities ? linkCommand.ExecuteReader() : null;
+        var hasLink = links?.Read() ?? false;
         using var rows = command.ExecuteReader();
         while (rows.Read())
         {
             var payload = rows.GetString(rows.GetOrdinal("envelope"));
-            if (Encoding.UTF8.GetByteCount(payload) > MaximumEnvelopeBytes)
+            var bytes = Encoding.UTF8.GetBytes(payload);
+            if (bytes.Length > MaximumEnvelopeBytes)
             {
                 throw new InvalidDataException("A persisted evidence envelope exceeds its bound.");
             }
-            Dictionary<string, object> projection;
-            if (string.Equals(table, "application_log_events", StringComparison.Ordinal))
+            var validated = cache?.GetOrValidate(table, payload, bytes) ?? DecodeProjection(table, payload);
+            if (string.Equals(table, "security_audit_events", StringComparison.Ordinal))
             {
-                var envelope = DecodeDiagnostic(payload);
-                projection = DiagnosticProjection(envelope);
-            }
-            else if (string.Equals(table, "security_audit_events", StringComparison.Ordinal))
-            {
-                var envelope = DecodeAudit(payload);
-                projection = AuditProjection(envelope);
                 if (rows.GetInt64(rows.GetOrdinal("audit_sequence")) <= 0)
                 {
                     throw new InvalidDataException("The persisted audit order is invalid.");
                 }
             }
-            else
+            if (validated.Activity is { } activity)
             {
-                var envelope = DecodeActivity(payload);
-                projection = ActivityProjection(envelope);
-                ValidateLinks(connection, rows, envelope);
+                if (links is null)
+                {
+                    throw new InvalidDataException("Activity links require an owning activity table.");
+                }
+                ValidateLinks(rows, activity, links, ref hasLink);
             }
 
-            foreach (var pair in projection)
+            foreach (var pair in validated.Projection)
             {
                 if (!Equals(rows.GetValue(rows.GetOrdinal(pair.Key)), pair.Value))
                 {
@@ -276,6 +289,57 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
             {
                 throw new InvalidDataException("The persisted effective retention due date is invalid.");
             }
+        }
+        if (hasLink)
+        {
+            throw new InvalidDataException("The evidence store contains orphan activity links.");
+        }
+    }
+
+    private static ValidatedProjection DecodeProjection(string table, string payload)
+    {
+        if (string.Equals(table, "application_log_events", StringComparison.Ordinal))
+        {
+            return new(DiagnosticProjection(DecodeDiagnostic(payload)));
+        }
+        if (string.Equals(table, "security_audit_events", StringComparison.Ordinal))
+        {
+            return new(AuditProjection(DecodeAudit(payload)));
+        }
+        var activity = DecodeActivity(payload);
+        return new(ActivityProjection(activity), activity);
+    }
+
+    private sealed record ValidatedProjection(
+        Dictionary<string, object> Projection, CompletedActivityEnvelope? Activity = null);
+
+    private sealed class EnvelopeValidationCache
+    {
+        private readonly Dictionary<(string Table, string Digest), ValidatedProjection> entries = [];
+        private int encodedPayloadBytes;
+
+        public long DecodeCount { get; private set; }
+        public int EntryCount => entries.Count;
+        public int EncodedPayloadBytes => encodedPayloadBytes;
+
+        public ValidatedProjection GetOrValidate(string table, string payload, byte[] bytes)
+        {
+            var key = (table, Convert.ToHexString(SHA256.HashData(bytes)));
+            if (entries.TryGetValue(key, out var validated))
+            {
+                return validated;
+            }
+
+            validated = DecodeProjection(table, payload);
+            DecodeCount++;
+            // Cache parsing only: live admission, stored columns, dates and links are always checked anew.
+            if (entries.Count < MaximumCachedEnvelopeEntries
+                && bytes.Length <= MaximumCachedEncodedPayloadBytes - encodedPayloadBytes)
+            {
+                entries.Add(key, validated);
+                encodedPayloadBytes += bytes.Length;
+            }
+            return validated;
         }
     }
 
@@ -362,14 +426,12 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         }
     }
 
-    private static void ValidateLinks(SqliteConnection connection, SqliteDataReader row, CompletedActivityEnvelope envelope)
+    private static void ValidateLinks(SqliteDataReader row, CompletedActivityEnvelope envelope,
+        SqliteDataReader links, ref bool hasLink)
     {
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM activity_links WHERE evidence_id=$id ORDER BY ordinal;";
-        command.Parameters.AddWithValue("$id", envelope.EvidenceId.Value.ToString("D"));
-        using var links = command.ExecuteReader();
         var index = 0;
-        while (links.Read())
+        while (hasLink && string.Equals(links.GetString(links.GetOrdinal("evidence_id")),
+            envelope.EvidenceId.Value.ToString("D"), StringComparison.Ordinal))
         {
             if (index >= envelope.Links.Count || links.GetInt64(links.GetOrdinal("ordinal")) != index
                 || links.GetInt64(links.GetOrdinal("committed_utc")) != row.GetInt64(row.GetOrdinal("committed_utc"))
@@ -391,6 +453,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
                 }
             }
             index++;
+            hasLink = links.Read();
         }
         if (index != envelope.Links.Count)
         {

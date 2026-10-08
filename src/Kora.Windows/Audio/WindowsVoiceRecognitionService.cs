@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 using Kora.Core.Platform;
+using Kora.Core.Diagnostics;
 using Kora.Core.Voice;
 using Kora.Windows.Diagnostics;
 using Kora.Windows.Session;
@@ -25,6 +26,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     private readonly bool ownsPrivacy;
     private IWindowsPrivacyObservationService? privacy;
     private IActivatedCapture? capture;
+    private IActivatedCapture? retiringCapture;
     private CaptureCallbacks? callbacks;
     private CancellationTokenSource? openingCancellation;
     private long? pendingBeginGeneration;
@@ -48,6 +50,8 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     private bool transcriptPublicationReady;
     private VoiceTranscriptEventArgs? pendingTranscript;
     private VoiceRecognitionCompletionReason? completionReason;
+    private long buffersClearedTimestamp;
+    private Func<HostActivity>? beginCaptureReceipt;
 
     public WindowsVoiceRecognitionService(
         ILogger<WindowsVoiceRecognitionService> logger,
@@ -80,6 +84,8 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
     public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
 
     public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted;
+
+    public event EventHandler<CapturePrivacyReceiptEventArgs>? CapturePrivacyMeasured;
 
     public bool IsAmbientListeningAvailable => false;
 
@@ -193,6 +199,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             pendingTranscript = null;
             completionReason = null;
             pendingBeginGeneration = requestedGeneration;
+            beginCaptureReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
         }
 
         CancellationTokenSource? openCancellation = null;
@@ -370,6 +377,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             maximumCaptureTimer?.Dispose();
             emptySpeechTimer?.Dispose();
             audioStream?.ClearAndComplete();
+            buffersClearedTimestamp = Stopwatch.GetTimestamp();
             pendingTranscript = null;
             transcriptPublicationReady = false;
             // Initiate native release now; do not wait for UI dispatch or recognition cancellation.
@@ -551,12 +559,14 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
-    private void OnDataAvailable(IActivatedCapture sender, ReadOnlySpan<byte> buffer, long expected)
+    private void OnDataAvailable(IActivatedCapture sender, ReadOnlySpan<byte> buffer, long expected,
+        Func<HostActivity> beginReceipt)
     {
         lock (gate)
         {
             if (!captureAdmitted || !acceptingAudio || generation != expected || !ReferenceEquals(sender, capture))
             {
+                ReportStaleCallback("audio", expected, beginReceipt);
                 return;
             }
         }
@@ -566,16 +576,22 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         {
             if (!captureAdmitted || !acceptingAudio || generation != expected || !ReferenceEquals(sender, capture))
             {
+                ReportStaleCallback("audio", expected, beginReceipt);
                 return;
             }
 
             if (selectedMicrophone is null || !observed.CanCaptureFrom(selectedMicrophone))
             {
-                FailCapture("Windows privacy prerequisites no longer permit capture.");
+                using var activity = beginReceipt();
+                FailCapture("Windows privacy prerequisites no longer permit capture.",
+                    VoiceRecognitionFailureReason.PrivacyTransition);
+                activity.Complete(HostOperationOutcome.Failed);
             }
             else if (audioStream is not null && !audioStream.TryAdd(buffer))
             {
+                using var activity = beginReceipt();
                 FailCapture("Microphone audio exceeded the bounded local buffer.");
+                activity.Complete(HostOperationOutcome.Failed);
             }
         }
     }
@@ -587,6 +603,7 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         {
             if (!captureAdmitted || transcriptDelivered || generation != expected || !ReferenceEquals(sender, capture))
             {
+                ReportStaleCallback("transcript", expected);
                 return;
             }
 
@@ -598,12 +615,14 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         {
             if (!captureAdmitted || generation != currentGeneration || !ReferenceEquals(sender, capture))
             {
+                ReportStaleCallback("transcript", expected);
                 return;
             }
 
             if (selectedMicrophone is null || !observed.CanCaptureFrom(selectedMicrophone))
             {
-                FailCapture("Windows privacy prerequisites no longer permit recognition.");
+                FailCapture("Windows privacy prerequisites no longer permit recognition.",
+                    VoiceRecognitionFailureReason.PrivacyTransition);
                 return;
             }
 
@@ -661,20 +680,82 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             if (!eventArgs.Current.CanCapture || resultMicrophone is not null &&
                 !eventArgs.Current.CanCaptureFrom(resultMicrophone))
             {
+                var recorder = capture ?? retiringCapture;
+                var retiredGeneration = activationGeneration;
+                var wasRecording = captureAdmitted && acceptingAudio && recordingStarted;
+                var hadPendingOpen = pendingBeginGeneration.HasValue;
                 if (captureAdmitted || selectedMicrophone is not null)
                 {
-                    FailCapture("Windows session, permission or microphone availability changed. Explicit enablement is required.");
+                    FailCapture("Windows session, permission or microphone availability changed; this activation was retired.",
+                        VoiceRecognitionFailureReason.PrivacyTransition);
                 }
                 else
                 {
                     InvalidateCapture();
                 }
+
+                var cleared = buffersClearedTimestamp;
+                var remaining = audioStream?.BufferedBytes ?? 0;
+                var beginReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
+                TrackResourceOperation(MeasurePrivacyReleaseAsync(recorder, eventArgs, retiredGeneration,
+                    wasRecording, hadPendingOpen, cleared, remaining, beginReceipt));
             }
         }
     }
 
-    private void FailCapture(string message)
+    private async Task MeasurePrivacyReleaseAsync(IActivatedCapture? recorder,
+        WindowsPrivacyChangedEventArgs change, long retiredGeneration, bool wasRecording,
+        bool hadPendingOpen, long cleared, int remaining, Func<HostActivity> beginReceipt)
     {
+        var confirmed = false;
+        Exception? failure = null;
+        try
+        {
+            if (recorder is not null)
+            {
+                await recorder.ReleaseRecorder().ConfigureAwait(false);
+                confirmed = true;
+            }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            failure = exception;
+            lock (gate)
+            {
+                resourceCleanupFailed = true;
+            }
+        }
+
+        using var activity = beginReceipt();
+        var receipt = new CapturePrivacyReceiptEventArgs(change.Observation, retiredGeneration,
+            change.Current.SessionState, wasRecording, recorder is not null, hadPendingOpen, cleared, remaining,
+            recorder?.RecorderReleasedTimestamp, confirmed);
+        WindowsLog.CapturePrivacyReleased(logger, receipt.Observation.Id, receipt.Generation,
+            receipt.WasRecording, receipt.HadRecorder, receipt.HadPendingOpen, receipt.BuffersClearedTimestamp,
+            receipt.BufferedBytesAfterClear, receipt.RecorderReleasedTimestamp, receipt.ReleaseConfirmed,
+            receipt.ObservedToReleaseMilliseconds, receipt.LockReleaseWithinTarget);
+        Notify(CapturePrivacyMeasured, receipt);
+        if (failure is not null)
+        {
+            WindowsLog.Error(logger, failure, "Measuring native recorder release after a privacy change");
+        }
+        activity.Complete(failure is null ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+    }
+
+    private void ReportStaleCallback(string kind, long expected, Func<HostActivity>? beginReceipt = null)
+    {
+        using var activity = beginReceipt is not null ? beginReceipt()
+            : HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
+        WindowsLog.StaleCaptureCallback(logger, kind, expected, generation);
+        activity.Complete(HostOperationOutcome.Completed);
+    }
+
+    private void FailCapture(string message,
+        VoiceRecognitionFailureReason reason = VoiceRecognitionFailureReason.CaptureFailure)
+    {
+        using var activity = HostActivity.Current is null && beginCaptureReceipt is not null
+            ? beginCaptureReceipt()
+            : HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
         var failedGeneration = CaptureGeneration;
         lock (gate)
         {
@@ -682,8 +763,9 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         }
 
         InvalidateCapture();
-        Notify(RecognitionFailed, new VoiceRecognitionFailureEventArgs(message, failedGeneration));
+        Notify(RecognitionFailed, new VoiceRecognitionFailureEventArgs(message, failedGeneration, reason));
         _ = ObserveDetachedCleanupAsync(CleanupAsync(CaptureGeneration));
+        activity.Complete(HostOperationOutcome.Failed);
     }
 
     private void InvalidateGeneration(long expected)
@@ -930,6 +1012,10 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         lock (gate)
         {
             current = capture;
+            if (current is not null)
+            {
+                retiringCapture = current;
+            }
             stream = audioStream;
             capture = null;
             callbacks?.Unsubscribe();
@@ -969,6 +1055,13 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
             if (stream is not null)
             {
                 await stream.DisposeAsync();
+            }
+        }
+        lock (gate)
+        {
+            if (ReferenceEquals(retiringCapture, current))
+            {
+                retiringCapture = null;
             }
         }
     }
@@ -1114,11 +1207,13 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
 
             if (resultMicrophone is null || !observed.CanCaptureFrom(resultMicrophone))
             {
-                FailCapture("Windows privacy prerequisites changed before transcript admission.");
+                FailCapture("Windows privacy prerequisites changed before transcript admission.",
+                    VoiceRecognitionFailureReason.PrivacyTransition);
                 return;
             }
 
             pendingTranscript = null;
+            WindowsLog.CaptureTranscriptAdmitted(logger, transcript.Generation);
             Notify(TranscriptRecognized, transcript);
             NotifyRecognitionCompleted(transcript.Generation, VoiceRecognitionCompletionReason.Recognized);
         }
@@ -1166,9 +1261,20 @@ public sealed class WindowsVoiceRecognitionService : IActivatedVoiceRecognitionS
         public CaptureCallbacks(WindowsVoiceRecognitionService service, IActivatedCapture capture, long generation)
         {
             this.capture = capture;
-            data = (sender, buffer) => service.OnDataAvailable(sender, buffer, generation);
-            transcript = (sender, args) => service.OnTranscriptRecognized(sender, args, generation);
-            failed = (sender, args) => service.OnRecognitionFailed(sender, args, generation);
+            var begin = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
+            data = (sender, buffer) => service.OnDataAvailable(sender, buffer, generation, begin);
+            transcript = (sender, args) =>
+            {
+                using var activity = begin();
+                service.OnTranscriptRecognized(sender, args, generation);
+                activity.Complete(HostOperationOutcome.Completed);
+            };
+            failed = (sender, args) =>
+            {
+                using var activity = begin();
+                service.OnRecognitionFailed(sender, args, generation);
+                activity.Complete(HostOperationOutcome.Completed);
+            };
             speech = (sender, args) => service.OnSpeechDetected(sender, args, generation);
             capture.DataAvailable += data;
             capture.TranscriptRecognized += transcript;

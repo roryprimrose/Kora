@@ -14,6 +14,8 @@ internal interface IActivatedCapture : IAsyncDisposable
 
     Task Completion { get; }
 
+    long? RecorderReleasedTimestamp { get; }
+
     void Start();
 
     Task ReleaseRecorder();

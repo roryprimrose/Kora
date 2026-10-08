@@ -70,4 +70,7 @@ internal static partial class ApplicationLog
     [LoggerMessage(113, LogLevel.Warning, "Call-sensitive mutation {ActionId} from {RequestOrigin} rejected: {Outcome}; revision {CallRevision}.")]
     public static partial void CallMutationRejected(ILogger logger, string actionId, RequestOrigin requestOrigin,
         CallMutationOutcome outcome, long callRevision);
+
+    [LoggerMessage(114, LogLevel.Information, "Voice generation {Generation}: dispatch gate {DispatchGate}.")]
+    public static partial void VoiceDispatchGate(ILogger logger, long generation, string dispatchGate);
 }

@@ -752,6 +752,780 @@ hook-only mediation witness and all-native/runtime observation gaps are distinct
 from microphone generation/disposal proof. No executable or historical receipt
 is retired or relabelled by this slice.
 
+### 2026-10-07 Current-Profile A01 Subset and Measurement Preparation
+
+The operator approved a bounded Debug consent-state trial on reference machine `REF-R03-01`,
+Windows build `26300.9457`, using the current Windows profile rather than creating
+another profile. The source base was
+`d0a8e82ef34b82c4d888803083050c2e9dff43cd`; the Debug apphost SHA-256 was
+`15433A49D281C2DD91F877D604533496BDC2FECAECFDDE6C0200D9E39FC7E234`, and the
+desktop assembly SHA-256 was
+`A0729C02FCB6E4D2E5AF107502B79BD071DA60D0A169363B774C7FC4051ADD78`.
+This source/artifact receipt predates the instrumentation changes below.
+The operator accepted the single-machine/current-profile scope; untested
+profile, runtime, architecture and hardware combinations are not qualified by
+that scope decision.
+
+An initial launch was blocked by the shared `Coordination/unclean-owner` marker
+from an earlier Release run. Read-only reconciliation found the earlier startup,
+UI shutdown and a later OS boot; the operator confirmed no unresolved previous
+work and separately approved removal of only that stale marker and relaunch.
+An error notice incorrectly used Yes/No buttons; selecting Yes acknowledged the
+notice but did not authorize takeover or restart. This is an ownership recovery
+observation, not A06 failure-trial acceptance.
+
+| A01 subset | Bounded receipt |
+|---|---|
+| No prior app consent | Debug consent file absent; operator observed microphone enumeration, closed/no-consent status and no Kora microphone-use indication. |
+| Grant and disable/re-enable | `granted-v1` persisted; readiness armed without observed recording; disable closed readiness and re-enable restored readiness without PTT. |
+| Ordinary saved-grant startup | Normal tray exit cleared the ownership marker; identical-build restart retained the grant and armed readiness without observed recording. |
+| Withdrawal and restart | `declined-v1` persisted across normal exit/restart; operator observed closed/no-consent status and no automatic re-arming. |
+| Fresh-state decline | After verified clean exit, only Debug `Preferences/voice-consent.txt` was reset; Continue without voice persisted `declined-v1` and retained closed input. |
+| Cleanup | Final normal exit cleared the ownership marker; no Kora process remained visible; only Debug consent was reset to its original absent state. Logs, databases, other preferences and Release consent were not reset. |
+
+No PTT, recording, Preview/playback or disruptive native privacy trial was
+requested in this subset. UI/Windows indicator observations are not instrumented
+capture-handle proof. The retained local Debug daily log contained zero
+Error/Fatal records and 176 `MissingHostContext` diagnostic gaps. Preserve this
+receipt separately from the 2026-10-05 held-PTT/output observations; it does not
+close all of A01 or any A03/A04/A05/A06 gate.
+
+The subsequently approved code-only preparation changes acknowledgement notices
+to OK-only while keeping actual ownership questions default-No. Host activities
+are established at desktop startup, native UI commands, deferred presentation
+and shutdown boundaries; deferred work uses new traces linked to admitted
+causes. Voice origin remains voice and cannot become UI approval through a
+command wrapper. Missing-context reporting and typed audit admission remain
+unchanged.
+
+Measurement receipts use the process monotonic `Stopwatch` clock, observation
+IDs, capture/output generations and typed structured diagnostics, without
+retaining audio or transcript text:
+
+- Native WTS/power/MMDevice notification timestamps are captured before state
+  queries. Permission-poll observations are timestamped when the query completes;
+  query start/end and topology/permission revisions are separate receipts.
+- Capture release is timestamped only after native recorder disposal completes,
+  not when Stop is requested or when recognition eventually disposes. Receipts
+  include buffer-clear time/remaining bytes and release failure or pending-open
+  disposition. Recorder presence is separate from recording admission: lock
+  during an existing cleanup still measures the retiring recorder's release.
+  Each measured lock release compares exactly with 500 ms; 500 ms passes and
+  any greater value fails. Idle, previously released or unmeasured resources
+  cannot become active-lock timing passes.
+- Retired audio/transcript callbacks, transcript admission and the separate
+  application dispatch gate have generation receipts. Admission is not an
+  assertion that an OS command effect occurred.
+- Output receipts distinguish native PlaybackStopped, output-buffer/resource
+  clearing and observed Stop completion. None substitutes for the actual last
+  acoustic output sample.
+
+WTS and the existing power/MMDevice callbacks do not supply the underlying OS
+event time: OS-event-to-notification delay is explicitly unavailable, not zero.
+Likewise, permission-setting-to-poll-detection latency, successful native reroute
+and last-output-sample timing require independent native/operator measurement.
+Full A03/A04 acceptance remains open. A03's instrumented
+observed-lock-to-recorder-release subset can be separately scoped without
+misrepresenting those missing measurements. No application launch or native
+trial is authorized by building/testing this instrumentation.
+
+Code-only Debug validation completed with zero warnings/errors in the final
+Core-test and Windows-test builds; the latter also rebuilt the desktop
+application. Focused results:
+
+| Coverage | Result |
+|---|---|
+| Portable privacy snapshots and exact release-boundary receipts | 23 passed, including exactly 500 ms, greater than 500 ms, already-closing native handles and unavailable measurements. |
+| Application presentation/voice/diagnostic regressions | Original selected run: 732 passed, one new test assertion failed because untyped `default` meant null rather than `default(ActivitySpanId)`. After correction, all three request-boundary tests passed in the targeted rerun. This is not a single clean 733-case final invocation. |
+| Windows observer/capture/output, ownership continuity and notice flags | Final selected run: 101 passed, including lock during existing recorder cleanup, delayed/faulted release, stale audio and failure callbacks retaining their original host cause, and default-No questions versus OK-only errors. |
+
+TRX receipts from the original and targeted runs are retained separately outside
+the repository. These tests use controlled boundaries; they do not establish
+native capture cessation, zero diagnostic gaps in a real desktop run, or complete
+R03 acceptance.
+
+The source remains uncommitted in the isolated
+`agents/interactive-validation-session-prep` worktree, whose HEAD/base remains
+`d0a8e82ef34b82c4d888803083050c2e9dff43cd`. The parent CI/publication receipt does
+not cover these changes. Selected rebuilt Debug binary SHA-256 fingerprints
+(not a whole-package digest) are:
+
+| Binary | SHA-256 |
+|---|---|
+| `Kora.exe` | `15433A49D281C2DD91F877D604533496BDC2FECAECFDDE6C0200D9E39FC7E234` |
+| `Kora.dll` | `F711E474BA8419C74C603EE29EF367E5B51F63529C50B31865E8BCFC46BE6F73` |
+| `Kora.Windows.dll` | `F7FA828CD7EB50CF435D086171DC467D31CB8FD0C16B80FC9AE27BA208122813` |
+| `Kora.Core.dll` | `E9A0E2941E437C6AF66E825876C9E35F248C1195B448218B907815F83F9DB9B9` |
+| `Kora.Application.dll` | `293030667939AB2A65FEE063D1516756D6724BC3D46E3C6B066CDE029194B8C0` |
+
+No Kora application launch or live trial occurred during code-only preparation.
+The final read-only check found no Kora process, shared owner marker or Debug
+consent file; no further profile reset or ownership recovery was performed.
+Fresh bounded operator approval remains required before another launch or trial.
+
+#### Separately Approved Instrumented Startup/Decline Recheck
+
+The operator subsequently approved a non-recording recheck on the same physical
+machine/current profile. Preflight verified the five rebuilt fingerprints above,
+a non-elevated launch, absent Debug consent, no Kora process and no shared owner
+marker. Debug PID `33248` started at `2026-10-07T10:56:51.8384124Z` and was verified
+responsive. The operator chose Continue without voice, observed closed input and
+no Kora microphone-use indication; the exact persisted value was `declined-v1`.
+
+Only daily-log records appended after the captured prelaunch byte offset were
+counted. Through normal tray exit, the recheck produced 937 records, zero
+`MissingHostContext` records, zero diagnostic-gap-template records and zero
+Error/Fatal/Critical records. The earlier 176 gaps remain preserved as historical
+evidence. This validates the observed startup/decline/shutdown subset, not every
+presentation path or native dialog.
+
+Normal exit cleared the shared marker without manual recovery. After verifying
+no Kora process and no marker, the operator separately approved removal of only
+this trial's Debug consent file to restore its original absent state. Logs,
+databases, other preferences and Release consent were retained. Launch/completion
+receipts are retained outside the repository.
+
+No PTT, Preview/playback, lock/disconnect/suspend, device/OS-privacy change, setup
+install or automatic ownership recovery was authorized or performed. These
+observations remain partial A01 evidence; they do not establish native
+capture-handle cessation, execute the 500 ms A03 target, complete A03/A04/A05/A06,
+or qualify other machine/profile/runtime combinations. The operator requested
+recording this result and stopping; no further trial is authorized.
+
+#### Automated Audio Baseline Blocked Before Capture
+
+The operator subsequently approved two PTT activations of at most five seconds
+using only "Kora, what can you do?", plus one headphone Preview/Stop check.
+They confirmed physical presence, headset use at a comfortable existing volume
+and consent from everyone within microphone range. Read-only enumeration found
+the HyperX Cloud Alpha Wireless microphone/headphones were the unmuted
+Multimedia defaults. No Windows route, volume or privacy change, lock, install
+or process termination was authorized.
+
+After fingerprint/ownership checks, Debug PID `33508` started at
+`2026-10-07T12:01:15.9941022Z`. The operator verified HyperX routing, granted app
+consent (`granted-v1`) and reported PTT-ready input still closed. The automated
+pre-activation check found two evidence-ingestion gaps. The trial stopped before
+PTT/Preview: the completed append-only byte range contains 409 records, two
+`MissingHostContext` gaps, zero Error/Fatal/Critical records, zero voice
+activations and zero speech starts. This is **Blocked**, not audio acceptance.
+
+The source diagnostics identify microphone-override save and clear operations
+from Settings bindings. The ingestion sink label `capture` refers to evidence
+capture, not microphone recording. Normal tray exit cleared ownership; after
+verification, the separately approved cleanup removed only this trial's Debug
+consent file and restored its original absent state.
+
+The operator approved code-only repair and focused tests. The existing shared
+preference-write boundary now owns a storage activity through the write and
+audit outcomes, preserving an existing request/origin rather than relabeling
+voice as UI. Five new regression cases cover microphone/output save and clear,
+write failures and original voice lineage. All 701 selected MainViewModel
+cases passed; Application-test and desktop Debug builds completed with zero
+warnings/errors. No live recheck of this repair has occurred.
+
+The rebuilt `Kora.Application.dll` SHA-256 is now
+`8F94629463B356D710F175B4DBC191204AC6D5DAED52CD61638D6FE72CCE2B1F`;
+the other four fingerprints above are unchanged. The earlier fingerprint
+table and native receipts describe the pre-binding-fix artifact.
+
+The local receipt collector decodes numeric gap reasons using the Core enum,
+not rendered-message matching. Completed runs use recorded byte-range endpoints
+so later runs cannot contaminate historical results. Controls reproduce the
+earlier 937-record/zero-gap subset and this 409-record/two-gap blocked attempt.
+Collector, launch/completion/analysis receipts and TRX remain outside the
+repository; no raw recording was collected. PTT/playback, native lock timing
+and the broader R03 gates remain unproved and require fresh scoped approval.
+
+#### Repaired Binding Recheck and Physical PTT Boundary
+
+With fresh participant/endpoint approval, the binding-fixed artifact launched
+as Debug PID `47292` at `2026-10-07T12:34:26.8273013Z`. The operator selected the
+HyperX microphone and returned to System default. No consent decision was yet
+saved; disabled PTT was correctly retained. After explicit Enable voice (save
+consent) and any required Enable listening, `granted-v1` persisted. The
+pre-activation receipt had 286 records, zero gaps/errors and no capture/output
+starts. This natively exercises the repaired microphone save/clear path without
+extending the earlier zero-gap receipt to all UI paths.
+
+The first approved mouse-held activation opened once. The operator reported
+closed input after release but no recognized command/help response. No
+transcript admission or dispatch was logged. A new context gap attached to
+`VoiceActivationStarted`: Settings' physical PTT handlers called the view model
+directly, bypassing the traced command route. The sequence stopped before the
+second activation or Preview. The final byte-bounded receipt contains 415
+records, one `MissingHostContext` gap, one voice activation, no transcript or
+dispatch admissions, no speech starts and no Error/Fatal/Critical records.
+Recognition is not a pass, and operator-observed closure is not independently
+measured native handle-release evidence.
+
+Normal exit cleared ownership. Separately approved cleanup verified no Kora
+process/marker and removed only this trial's Debug consent. The operator then
+approved code-only physical-boundary repair: mouse/key begin/end, capture loss,
+focus loss and settings deactivation/closure now use the existing scoped,
+exception-handled Begin/End commands. Release remains a distinct command and
+can cancel pending native open; pointer release does not wait on asynchronous
+capture disposal.
+
+Two new command-route regressions cover live native begin/end context and
+release during pending begin. All 703 selected MainViewModel cases passed;
+Application-test and desktop Debug builds completed with zero warnings/errors.
+The new `Kora.dll` SHA-256 is
+`59D3C7F539244CB4122F3160CBE85DECEF5297A674CBFB49EC96104959141C89`;
+`Kora.Application.dll` retains the binding-fixed fingerprint above, and the
+other three fingerprints are unchanged. No live test of this physical-boundary
+repair has occurred. The absence of a recognized command has not been
+diagnosed as a separate native ASR defect or relabeled as a pass.
+
+#### 2026-10-08 Physical PTT Recheck and Active Preview Stop
+
+With fresh approval for the same two bounded PTT activations and one headphone
+Preview/Stop, Debug PID `47896` started at
+`2026-10-07T21:36:45.0367042Z` (2026-10-08 local date). The operator reaffirmed
+physical presence, headset use, comfortable existing volume and participant
+consent on `REF-R03-01`, Windows build `26300.9457`, using the current
+profile. The base remained `d0a8e82ef34b82c4d888803083050c2e9dff43cd`, with
+uncommitted source and the five fingerprints identified above, including the
+physical-PTT-fixed desktop and binding-fixed Application assemblies. This is
+not a parent-CI-qualified artifact or supported-build matrix qualification.
+
+Read-only preflight identified the unmuted Multimedia defaults:
+
+- Capture: Microphone (HyperX Cloud Alpha Wireless); exact endpoint identity is
+  retained only in the private local receipt.
+- Output: Headphones (HyperX Cloud Alpha Wireless); exact endpoint identity is
+  retained only in the private local receipt.
+
+The operator saved `granted-v1`; readiness contained 296 records, zero
+gaps/errors and no audio starts. Two activations were logged eight seconds
+apart. The operator explained that they began speaking before the first slow
+microphone open and missed the initial "Kora" prefix. This is an operator
+explanation, not measured open latency or a proved recognition diagnosis.
+Generation 2 had exactly one transcript admission and one dispatch admission,
+with no rejected dispatch; the operator observed the help response and closed
+input after release. The first activation is not a successful recognition
+receipt, and both activations consumed the authorized PTT budget.
+
+The operator clarified that their earlier report of hearing Preview referred
+to the existing spoken response rather than a separate Preview. They then
+clicked Preview and Stop and reported speech starting and stopping as expected.
+The completed receipts contain two speech starts (help and Preview), native
+PlaybackStopped and resource/buffer-clearing receipts for each, and an active
+Stop with `HadOutput=true`. For that Stop, the monotonic clock frequency was
+10,000,000 ticks/second:
+
+| Active Preview Stop measurement | Receipt |
+|---|---|
+| Stop request | `840786420388` ticks |
+| Native PlaybackStopped | `840787375454` ticks; 95.5066 ms after request |
+| Observed Stop completion | `840789592611` ticks; 317.2223 ms after request |
+| Output resources released | `840790085469` ticks; 366.5081 ms after request; 141824 audio-buffer bytes cleared |
+
+Resource-release observation followed Stop completion; neither observation
+measures the last acoustic sample. These output timings do not exercise the
+500 ms observed-lock-to-recorder-release requirement.
+
+Normal tray exit was followed by verification of no Kora process and no shared
+owner marker. Only the exact trial Debug `granted-v1` consent file was removed,
+restoring its original absent state; cleanup was verified at
+`2026-10-07T21:52:01.4798449Z`. Logs, databases, other preferences and Release
+consent were retained. No third activation, extra Preview, lock, disconnect,
+suspend, OS route/volume/privacy change, install or process termination was
+performed.
+
+The immutable completed receipt spans bytes 0 through 1919988 (exclusive) of
+the newly created `kora-20261008.log`; older logs are capped at their prelaunch
+lengths. The completed range contains 1026 records, zero `MissingHostContext`
+or diagnostic-ingestion gaps and zero Error/Fatal/Critical records. Launch,
+completed, cleanup and analysis receipts remain outside the repository. The
+earlier 409-record/two-gap and 415-record/one-gap attempts remain blocked
+historical evidence, not retroactive passes.
+
+This establishes the observed physical PTT command-context path, one help
+admission/dispatch and operator-guided active Preview Stop on this setup. It
+does not establish capture sample/queue bounds, measured microphone-open
+latency, native handle-release timing on PTT release, last acoustic output,
+full A02/A07 acceptance or complete R03. A03's exact per-reference-trial lock
+target is still unrun; OS-notification delay remains unavailable. A04 and the
+advanced A05/A06 ownership trials remain separately gated. Existing A01 and
+ownership receipts and the R04/R05/R09/R15 dependency gates remain unchanged.
+Any further native trial requires fresh scope-specific approval.
+
+#### Separately Approved A03 Pilot Blocked Before Recording
+
+The operator approved one idle manual lock/unlock control, followed by one
+silent physical PTT hold of at most five seconds total with immediate Win+L
+once recording, on the same current-profile HyperX setup. They affirmed normal
+unlock ability and participant consent. Playback, automatic retries, installs,
+OS-setting changes and forced termination were excluded.
+
+Focused no-build prerequisites passed: 13 Core exact-boundary receipt cases
+and 79 combined Windows observation/activated-capture cases. The SDK help query
+initially rejected misplaced `--help`; corrected SDK-level help succeeded.
+PowerShell could not load the app's System.Speech assembly because of an
+assembly-identity conflict; read-only file/registry inventory instead confirmed
+the exact speech library and x64 recognizer metadata. Neither tooling issue
+was treated as a native Kora pass or repaired through dependency changes.
+
+Preflight confirmed non-elevated session 1, no Kora process/owner marker/Debug
+consent, the unchanged five selected binary fingerprints and the actual base
+`d0a8e82ef34b82c4d888803083050c2e9dff43cd`. The reference machine has an AMD
+RYZEN AI MAX 385, 8 cores/16 logical processors, 25530408960 bytes physical
+memory and the existing High performance power profile. Windows remains
+`26300.9457`/`26H2`; this does not qualify a supported servicing-build matrix.
+The speech assembly is `10.0.0.12`, SHA-256
+`94ADAA46084BEF72461C65E38DEC2AFF3C7AFD48ABC1A27976AE87B2B9FFD37F`;
+the x64 recognizer token is `MS-1033-80-DESK`, version `8.0`, English - US.
+
+Debug PID `42088` started at `2026-10-07T22:24:50.5163985Z`. The operator granted
+consent and confirmed ready-but-closed input and HyperX routing. The process
+identity guard initially compared a formatted string to PowerShell's parsed
+DateTime; exact UTC tick comparison confirmed matching creation time/path and
+a responsive process. No identity check was bypassed.
+
+The collected range contains an idle Locked observation at local 09:30:39 and
+Unlocked at 09:32:49, with two output-topology observations while locked. No
+capture or output started. Each locked capture receipt has `HadRecorder=false`,
+zero remaining buffer bytes and null release duration/lock-target result. These
+are native observation receipts, not active-recorder timing passes or evidence
+that an output stream stopped under lock.
+
+A new `MissingHostContext` gap occurred earlier, at
+`2026-10-08T09:27:58.6154217+11:00`, for `Kora.MainWindow`'s
+"Hiding the main window after its transition" diagnostic. The window-action
+callback emits that diagnostic without its own host boundary. The pilot stopped
+before PTT; no native capture-release failure or 500 ms result was measured.
+The new gap remains a blocker rather than being suppressed or relabeled as
+successful native acceptance. No production repair was authorized in this run.
+
+The outside-repository collector now joins existing typed privacy observations
+and release receipts by observation ID, preserving their monotonic clocks and
+using the Core receipt's authoritative exact-boundary rule. Four explicitly
+synthetic schema controls passed: exactly 500 ms, greater than 500 ms, already
+released and idle. Synthetic results are not native evidence.
+
+Normal tray exit cleared ownership. After verification, only the exact trial
+Debug `granted-v1` file was removed, restoring absent consent at
+`2026-10-07T22:48:51.8913708Z`. The immutable completed log range is
+`kora-20261008.log` bytes 1919988 through 4814536 (exclusive): 1535 records, one
+context/ingestion gap, zero Error/Fatal/Critical records, zero activations and
+zero speech starts. Other logs/data/preferences and Release consent were
+retained; launch/completion/analysis and TRX receipts remain outside the
+repository.
+
+The pilot is **Blocked**, not an active A03 timing pass. The every-reference-trial
+500 ms target, OS notification delay, output-under-lock evidence and complete
+A03/A04/A05/A06 acceptance remain open. The earlier gap-free PTT/Preview receipt
+is preserved independently. Repair, further tests or another live trial require
+separate scope-specific approval.
+
+#### Code-Only Window-Action Context Repair
+
+After the blocked A03 pilot, the operator separately approved repair and
+focused build/tests only, without a launch or native retry. The MainWindow
+window-action event now owns a desktop presentation activity throughout its
+asynchronous transition. It preserves a live request/session/origin, including
+ActivatedVoice, or establishes a host-system root for an uncorrelated framework
+callback. Cancellation and failures have explicit terminal outcomes; failures
+are logged and routed to the existing user-facing recovery state within the
+live activity. Further presence-show requests are refused after a window-action
+failure to prevent recursive reopening; native tray exit remains available.
+Existing privacy show guards, animation cancellation and shutdown routes remain.
+Shared command-runner semantics and evidence-gap reporting are unchanged.
+
+Four new focused regressions exercise this actual event-routing boundary without
+creating a native window: context through await and termination, original voice
+identity/parentage and caller isolation, cancellation, and failure notification
+with the original live context. The first build caught a missing logger-enabled
+guard in the test fixture; it was corrected without analyzer suppression.
+The final Windows-test/desktop Debug build has zero warnings/errors. The
+combined new boundary, presence-input and observer/capture run passed all 100
+cases. TRX is retained outside the repository.
+
+The rebuilt `Kora.dll` SHA-256 is
+`407125FA5486D2AA24A1CBE3C9DDC880AD989EAE27C39C0C20B2E8CF660FB213`;
+the other four selected fingerprints remain unchanged. HEAD/base is still
+`d0a8e82ef34b82c4d888803083050c2e9dff43cd`, and source remains uncommitted.
+Verification at `2026-10-07T23:02:24.9816408Z` found no Kora process, owner marker
+or Debug consent file. No live recheck occurred during this repair. The 1535-record
+blocked receipt remains intact; native gap elimination and active A03 timing
+remain unproved and require fresh bounded approval.
+
+#### 2026-10-08 Idle Lock/Unlock Retry and Code-Only Status Repair
+
+The operator separately approved the same bounded A03 pilot on the current
+machine/profile and HyperX endpoints. PID `44452` started at
+`2026-10-08T03:45:35.7105912Z`, with the window-action-fixed desktop fingerprint
+above. Readiness and the operator's manual idle lock/unlock produced native
+Unlocked, Locked, then Unlocked observations with no capture or playback.
+The operator reported that the closed-microphone status still said Windows was
+Locked after unlock. The observer had delivered Unlocked; the view model retained
+the earlier present-tense Locked pause reason. The explicit recovery hold was
+intentional, but that wording was misleading. The active PTT lock stage was not
+performed.
+
+The operator approved ending the pilot normally, restoring only trial Debug
+consent, and a code-only repair with focused tests; no automatic native retry.
+After normal tray exit, the byte-bounded final receipt contains 739 records,
+zero context/diagnostic gaps, zero errors, zero voice activations and zero speech
+starts. The lock receipt has no recorder or pending open, zero buffered bytes
+after clearing, and null recorder-release time/target result. This is an idle
+control, not a pass for capture release within 500 ms in every reference trial.
+OS-event-to-notification delay remains unavailable. No process or owner marker
+remained, and only the exact trial Debug `granted-v1` was removed to restore
+original absent consent. Other preferences, Release consent, logs and databases
+were retained. Launch, completed byte-range and final receipts are retained
+outside the repository; the earlier 1535-record blocked pilot and 1026-record
+audio-subset receipt remain unchanged.
+
+The repair tracks the session-related pause state separately from the sticky
+recovery reason. An Unlocked observation updates its status without clearing the
+privacy hold, enabling readiness, reopening capture or revealing presentation.
+Non-session recovery reasons clear that presentation state, so permission and
+later failure blockers are not replaced by unlock wording. Existing native
+output invalidation and topology handling still precede the status dispatch.
+Explicit native recovery and Enable listening remain necessary; enabling
+readiness itself does not open capture.
+
+Ten new deterministic cases cover recovery from all five negative/unknown
+session states, permission blockers on unlock, a later enumeration failure,
+explicit native recovery, and repeated transitions. The first selected run
+passed 711 of 713 cases: it caught an early status dispatch preceding output
+invalidation and a new test omitting the required native recovery action. Both
+were corrected without weakening the recovery gate. The final desktop and
+Application-test Debug builds passed with zero warnings/errors, and all 713
+MainViewModel cases passed in the separate final invocation. Both TRX results
+are retained. Builds used `--no-restore`; no package operation or live launch
+occurred during repair.
+
+The rebuilt desktop SHA-256 is
+`94196131A29D607FADBBCE7CB41432092606F2475A2F4179413E41C695DB60C8`;
+the Application assembly SHA-256 is
+`B6110BA443F869B7DADCFB87CD7FD330B11C6F5E18045F67A304899CD2ED5CA8`.
+These selected fingerprints do not supersede the completed native trial's
+artifact receipt or qualify a package. Source remains uncommitted at base
+`d0a8e82ef34b82c4d888803083050c2e9dff43cd`. At
+`2026-10-08T04:01:28.7475498Z`, no Kora process, owner marker or Debug consent
+remained. The repaired status is deterministically verified but not natively
+rechecked. A03 active timing and dependent acceptance gates remain open;
+execution is blocked pending fresh bounded approval.
+
+#### 2026-10-08 Status Recheck and Revised Normal-Unlock Policy
+
+Before the policy revision, the operator approved one fresh non-recording
+status recheck on the same machine/profile and HyperX routes. PID `39188` started
+at `2026-10-08T04:12:35.7491972Z` using the status-fixed fingerprints above.
+The operator confirmed that one manual idle lock/unlock displayed Unlocked
+while the microphone stayed closed and explicit Enable listening remained
+required under the then-current policy. The completed byte-bounded receipt has
+242 records, zero context/diagnostic gaps or errors, zero activations and zero
+speech starts. Native observations are Unlocked, Locked, Unlocked; no recorder
+or pending open existed, buffers were empty, and lock-release timing remains
+null. Normal exit cleared ownership; only the exact trial Debug grant was
+removed, restoring original absent consent at `2026-10-08T04:15:08.6248202Z`.
+The launch/completed/final receipts remain separate from the earlier 739-record
+blocked idle control and other historical native evidence.
+
+The operator subsequently approved a code-only normal-lock/unlock policy change
+and deterministic tests, then clarified the same prior-enabled-mode rule for
+future qualified always-on detection without enabling ambient capture in this
+build. The [canonical microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix)
+and its dependent lifecycle, settings, acceptance, skill and decision documents
+now distinguish normal unlock restoration from explicit recovery after other
+privacy failures. The 242-record native recheck proves the earlier status-only
+repair, not the revised automatic-restoration behavior.
+
+Normal lock still immediately invalidates activation/audio and hides private
+presentation. Unlock restoration waits for owned capture/output closure, checks
+the current consent, selected microphone, Windows permission/session, call
+policy, exclusive-owner gate and capture quiescence, and commits only if the
+recovery revision is still current. It restores PTT readiness without opening
+capture, showing a private window, replaying an old transcript or resuming an
+interrupted activation. Manual disablement, withdrawal, input/privacy changes,
+closure/capture failure, ownership loss and other negative/unknown sessions
+prevent automatic restoration. Output-only topology observations cannot unmute
+or choose another input. Genuine capture failures remain distinct from typed
+privacy retirement, including when the native recognition callback precedes
+the view-model session callback. Deferred recovery preserves host request
+identity with a linked activity rather than a retired parent.
+The consumer-specific voice ownership binding defaults closed and uses the
+desktop bridge's capability-admission gate, including handoff quiescence and
+failed recovery, rather than treating desktop/call readiness as capture admission.
+
+The initial build stopped on five analyzer errors: explicit enum-zero naming,
+the required `System.Threading.Lock`, and awaiting an already-owned transition.
+These were corrected with typed comparisons and a single narrowly justified
+asynchronous-wait suppression. Final affected Debug builds passed with zero
+warnings/errors; selected tests passed 24 Core, 739 Application and 79 Windows
+cases. This includes 26 additional Application cases for restoration, failure
+and closure races, manual intent, native callback ordering, locked startup,
+endpoint disappearance and linked recovery context. TRX receipts are retained
+outside the repository. No restore, package operation or live launch occurred
+during this policy repair.
+
+Selected rebuilt SHA-256 fingerprints (not a package digest) are:
+
+| Binary | SHA-256 |
+|---|---|
+| `Kora.dll` | `EB7DDCE4AE989EAADDCB58F893B2E45FEC840F94F28E2BB35458B0B86176157B` |
+| `Kora.Core.dll` | `1D37A55A761CFFB9E4D0D5ECB220D61D63738EF2BBDAFFE234964FC2548B0932` |
+| `Kora.Application.dll` | `7E48BA14E2F5BD03EA19594EFCF83EF2DE3B4E40C5A8239E632D6018EFE62F05` |
+| `Kora.Windows.dll` | `149441114C496BBD11D2CB62E7645EF7E3B07A913E585E386A82B216516D116F` |
+
+The apphost fingerprint is unchanged. Source remains uncommitted at base
+`d0a8e82ef34b82c4d888803083050c2e9dff43cd`; at
+`2026-10-08T04:46:06.2332877Z`, no Kora process, owner marker or Debug consent
+remained. New native restoration trials require fresh bounded approval.
+Production always-on/wake remains gated by separate runtime/acoustic acceptance;
+documenting its restoration rule does not implement or qualify it. The exact
+every-reference-trial 500 ms A03 release target, OS notification delay and full
+A01-A07/dependent capability acceptance remain open.
+
+##### Native Idle Automatic-Restoration Recheck
+
+The operator then separately approved one non-recording recheck of the revised
+policy on the current machine/profile and unchanged HyperX routes. PID `47280`
+started at `2026-10-08T04:50:19.1377321Z` with the final fingerprints above.
+After granting consent and enabling PTT readiness, the operator performed one
+manual idle lock/unlock and confirmed automatic return to Push-to-talk ready,
+microphone closed and Disable listening, without using Enable listening again.
+No PTT, recording, playback or ambient listener was approved or used.
+
+The completed byte-bounded log receipt contains 304 records, zero context/
+diagnostic gaps or errors, zero activations and zero speech starts. Native state
+was Unlocked, Locked, Unlocked. The frozen range `6659016`-`7232063` contains
+exactly one structured `Operation` value, "Previously enabled voice readiness
+was restored after Windows unlock", at `2026-10-08T15:52:18.8289668+11:00`.
+This agrees with the operator's observation, rather than inferring enablement
+from absence of an error or a later manual recovery.
+
+No recorder/pending open existed at lock; cleared-buffer bytes were zero and
+the recorder-release/500 ms result remains null. This is a successful scoped
+native idle restoration control, not active capture-release timing, proof of
+always-on detection, repeated-transition/matrix acceptance or complete R03.
+The normal exit cleared ownership and only the exact Debug grant was removed,
+restoring original absent consent at `2026-10-08T04:54:32.0150714Z`. Other
+preferences, Release consent, logs and databases were retained. Launch,
+readiness, completed/final and structured restoration receipts remain outside
+the repository alongside, not instead of, prior evidence. No automatic retry
+or further trial was conducted.
+
+##### Native Retiring-Recorder Lock Pilot and Exit Boundary Repair (2026-10-08)
+
+After separate bounded approval, operator `OP-R03-01` performed one silent
+physical mouse-held PTT activation on the same current machine/profile and
+HyperX routes, manually locked immediately after visible recording, released
+within five seconds total including opening, and unlocked normally. PID `39860`
+started at `2026-10-08T05:30:54.7232429Z`, at the same uncommitted base revision
+and selected binary fingerprints recorded above. No speech, playback, ambient
+capture, automatic retry or OS preference changes were approved or used.
+
+The final frozen byte range `7232063`-`8008378` contains 412 records, zero
+context/diagnostic gaps or errors, one activation, zero transcript/dispatch
+admissions and zero speech starts. For generation 1, lock observation
+`01d97a6d-c2ad-4451-8775-369988c5911b` was stamped at `1119535834270` ticks and
+confirmed native recorder release at `1119536968912`, with frequency `10000000`.
+The individual observed-lock-to-release duration was **113.4642 ms**, passing
+the exact 500 ms target for this trial. Capture admission was already closed
+(`WasRecording=false`), but the retiring native recorder remained owned
+(`HadRecorder=true`, `HadPendingOpen=false`) at observation. This is an eligible
+retiring-recorder measurement, not an idle pass or proof of continuously
+admitted recording until the WTS notification. Buffered bytes after clearing
+were zero; OS event-to-notification delay and last acoustic sample remain
+unmeasured. Full A03/every-reference-trial and dependent acceptance remain open.
+
+The operator confirmed the microphone closed after unlock and exited normally.
+No Kora process or ownership marker remained, and only the exact trial Debug
+grant was removed to restore original absent consent, verified at
+`2026-10-08T05:37:15.0855706Z`. Other preferences, Release consent, logs and
+databases were retained. Launch, initial/ready, observed, completed and final
+receipts remain outside the repository alongside all prior evidence.
+
+During Exit, the operator reported that the native context menu and tray stayed
+visible for a few seconds. This is an operator observation, not measured menu
+dismissal latency. A separately approved code-only trace found Exit starting
+inline in the native menu callback, unlike the existing delayed window actions.
+Exit now uses the same 50 ms Background-priority Avalonia dispatch boundary so
+the callback can unwind before shutdown starts. UI mutations and shutdown stay
+on the UI thread; awaited capture/output/clipboard closure, exception reporting
+and final safe ownership release remain unchanged. Deferred actions retain
+host identity through a fresh linked activity. The frozen shutdown logs span
+approximately six seconds across request, closure and disposal phases; that
+span does not establish the cause or duration of menu retention. No native
+relaunch was authorized during this repair, and visible responsiveness remains
+unverified pending a separately approved non-recording recheck.
+
+The affected Debug desktop/Windows test graph built with zero warnings/errors.
+Focused deterministic validation passed 9 Windows boundary/window/capture
+shutdown tests and 8 Application Exit/audio/clipboard/model lifecycle tests.
+These include three new native-menu scheduling, thread-preservation, linked
+context and failure-termination cases. Fresh TRX results are retained outside
+the repository; they do not measure a real native menu. The rebuilt `Kora.dll`
+SHA-256 is `D4C69BAA9FD8BF97CE39F025EF7C036E43AC12B6F917C56A9D2D595E497D0722`;
+the other selected fingerprints above are unchanged. The Application test
+dependency matches the rebuilt Application binary. At
+`2026-10-08T05:47:23.5499959Z`, no Kora process, owner marker or Debug consent
+remained. Changes are uncommitted at the same recorded base.
+
+##### Native Non-Recording Exit Recheck (2026-10-08)
+
+The operator separately approved one launch/Exit recheck on the same current
+machine/profile, with consent declined and no listening, PTT, playback, lock,
+device changes, forced termination or automatic retry. PID `13128` started at
+`2026-10-08T05:48:58.3391477Z` with the repaired desktop fingerprint above.
+The initial 36-record and ready 245-record receipts were clean, and the exact
+Debug decline was verified as `declined-v1`. The operator confirmed Kora
+responsive with the microphone closed before selecting tray Exit once.
+
+The operator reported: the menu closed immediately; Settings remained visible
+for a few seconds, and the tray remained visible for a few seconds after
+Settings closed. This confirms the scoped native-menu dismissal improvement,
+not zero-latency shutdown or resolution of the later window/tray delay.
+Those durations are operator observations, not instrumented measurements.
+The final frozen receipt contains 378 records, zero context/diagnostic gaps or
+errors, zero activations, zero transcript/dispatch admissions and zero speech
+starts. No lock/capture-release trial occurred, and this does not expand the
+earlier A03 timing proof.
+
+Normal process exit and marker absence were verified. Only the exact trial
+Debug decline was removed to restore original absent consent at
+`2026-10-08T05:54:35.2609191Z`; all other preferences, Release consent, logs and
+databases were retained. Launch, initial/ready and completed/final receipts
+remain outside the repository. Later shutdown presentation responsiveness
+remains a separate open finding; no further relaunch was performed.
+
+##### Code-Only Shutdown Evidence Hot-Path Repair (2026-10-08)
+
+The operator separately approved investigating the remaining Settings/tray
+delay, then explicitly approved extending the code-only repair to the
+evidence-validation hot path without buffering, deleting evidence, weakening
+checks or relaunching. The frozen PID `13128` diagnostic phases were Exit
+request at `05:53:22.3075322Z`, desktop shutdown at `05:53:25.8272728Z`,
+Settings close at `05:53:27.4224716Z`, tray disposal at
+`05:53:29.3277694Z` and TTS disposal at `05:53:32.6836776Z`.
+These are structured log timestamps, not native UI-dismissal measurements.
+Repeated completed no-op presentation activities had approximately 0.01 ms
+operation durations but publications often spaced 200-270 ms apart.
+
+The trace found synchronous required diagnostic/activity fan-out reopening
+and validating the complete SQLite evidence history for every commit,
+including a separate links query for each activity. The repair preserves
+synchronous durable delivery and all live-authority, schema, private
+storage/journal, integrity, stored-column, retention, sequence and link checks.
+A bounded cache reuses only validated envelope projections/activity metadata,
+keyed by table and SHA-256 of the exact serialized payload; changed payloads
+are decoded again and current persisted projections/dates/links are always
+checked. The cache retains no raw diagnostic properties/scopes, is capped at
+16,384 entries and 32 MiB cumulative encoded-payload accounting, and
+saturation revalidates misses. Activity links now use one ordered scan rather
+than one SQL query per activity. Read-only validation remains uncached.
+No commit is deferred, no failed write becomes success and no ownership
+release or capture/privacy boundary was moved ahead of verified cleanup.
+
+The affected Debug graph built with zero warnings/errors. Validation passed
+83 Windows storage/integrity/query/interruption/presentation tests and 31
+Application evidence/context/failure-fan-out tests, with no failures/skips.
+The deterministic parsing-work regression proves that 130 unchanged envelopes
+are decoded once; repeated validation and the next append opening add no
+decodes, and the following validation decodes only its one new envelope.
+Both cache limits and warm-cache payload/projection/retention/link tampering
+were tested, including preservation of rejected database bytes. This proves
+the optimized work shape, not real UI latency or complete R03 acceptance.
+
+Selected rebuilt SHA-256 fingerprints (not a package digest) are now
+`ADAF32AD3A92EA7BF628C948FE9A22774CF757544B972D7D56C1111B2150909E` for
+`Kora.dll` and
+`8F75FF3A0185EC2310B333DE32589EBBED3FD102D66149B2C3FA3F37BF97B1BC` for
+`Kora.Windows.dll`; the apphost/Core/Application fingerprints above are
+unchanged. Fresh TRX and the hot-path validation receipt are retained outside
+the repository alongside earlier failures and native trials. At
+`2026-10-08T06:17:14.8965758Z`, no Kora process, owner marker or Debug consent
+remained. Changes are uncommitted at the same recorded base. No native
+Settings/tray latency recheck of this optimized build has been approved or run.
+
+##### Optimized-Build Recheck Stopped Without Responsiveness Confirmation
+
+The operator subsequently approved one non-recording optimized-build recheck
+on the same machine/profile. PID `41028` started at
+`2026-10-08T07:29:16.4261568Z` with the fingerprints above. Its initial receipt
+contained 42 clean records and no activation/output. The expected saved-decline
+ready check failed because the Debug consent file was absent. A read-only
+176-record receipt was clean; the operator clarified that voice was left
+disabled without making a saved choice, rather than an explicit decline.
+The operator separately approved continuing with that legitimate absent-consent
+baseline. No preference was created to simulate a choice or reinterpret saved
+data, and this is not evidence of saved-decline behavior.
+
+The process had exited before the revised ready check could complete.
+No relaunch or retry was performed. The frozen final receipt contains
+547 records, zero context/diagnostic gaps or errors, zero activations,
+zero transcript/dispatch admissions and zero speech starts. At
+`2026-10-08T07:39:07.2883277Z`, no Kora process or ownership marker remained,
+and original absent Debug consent was unchanged. No consent/marker deletion
+or forced termination occurred.
+
+Asked to confirm the Exit action and visible menu/Settings/tray behavior, the
+operator selected **Stop here - leave native responsiveness unconfirmed**.
+Accordingly this run does not establish operator-confirmed normal Exit or a
+native responsiveness pass; process absence, marker clearance and clean logs
+alone are not such confirmation. Original launch scope, missing-decline and
+revised-ready failures, clarification, and completed/final receipts remain
+outside the repository. The earlier immediate-menu observation and deterministic
+validation remain valid in their own scope. Full R03 and optimized-build
+Settings/tray latency remain open; further work was stopped as requested.
+
+##### Source Integration After the Recorded Trials
+
+On separate instruction to commit, rebase and stop, the session changes were
+checkpointed locally and rebased onto `origin/main` at
+`c78e81318fb3c5b279275f9ab8ef14748bfeb952`, 26 commits beyond the trials'
+original `d0a8e82ef34b82c4d888803083050c2e9dff43cd` base. Conflict resolution
+retained upstream microphone recovery/catalog and native-lifetime controls,
+manual-call dispatch context, playback volume/synthesis-rate retirement,
+presence fade behavior and future-only diagnostic/audit retention/migration.
+Session tracing, unlock policy and evidence parsing optimization were adapted
+to those current contracts. The new retention corruption fixture uses an
+out-of-range deadline rather than rejecting a now-valid 31-day policy.
+
+Resolved Debug desktop/Windows and Application test graphs compile with zero
+warnings/errors after correcting one duplicate import from the merge.
+At that handoff, no tests or native trials were rerun and no branch was pushed. Prior native
+artifact fingerprints and test receipts remain historical evidence for their
+recorded source, not qualification of the rebased source or rebuilt binaries.
+
+##### Bounded Automated Consolidation (2026-10-08)
+
+A later authorization permits local Release build, deterministic/scratch-only
+tests and draft PR publication, not microphone, playback, provider activation,
+real session transitions or profile/device mutations. The reviewed source was
+`75bf83596a825d82d1b4885b120fb18311727daa` on the unchanged
+`c78e81318fb3c5b279275f9ab8ef14748bfeb952` base. The first no-restore Release
+solution build passed with zero warnings/errors. Core passed 783/783; Application
+passed 2429/2444, with 15 failures in the new privacy/correlation regressions;
+the approved Windows subset passed 1022/1023, with one stale source-contract
+assertion. Both test runs had zero runner skips. Ten live provider/device test
+methods were explicitly excluded after operator approval, not silently skipped.
+
+The branch-coupled repair initializes the observed topology revision from loaded
+metadata so a first session-only lock does not trigger an ineligible catalog
+refresh and cancel normal-unlock intent. While locked, an explicitly output-only
+revision may retain validated input metadata only when current/previous input
+endpoints, default, permission and catalog revision still match. It grants no
+input admission; unlock still waits for closure and rechecks all fresh gates.
+Changed input state or ambiguous signals cannot use that path. Preference-context
+tests now exercise the current admitted input save and explicit output choice/
+Save paths, without restoring obsolete device-property write authority. The
+tray contract checks the deferred continuation behind the existing disposed
+guard. The targeted combined repair run passed 43/43 with zero skips after
+correcting two ordinal-comparison analyzer errors; no suppression was added.
+
+On separate publication approval, machine hostname and real endpoint GUIDs are
+omitted from publishable documentation and original exact evidence is retained
+privately. The reviewed history remains local; publication uses a sanitized
+consolidation on the same base. Final source-specific Release results are
+recorded below after the consolidated source is committed. Historical native
+receipts are not rebased acceptance, and no new native trial is authorized.
+
 ### Preparation and Approval
 
 - Record exact source/artifact hashes, supported Windows servicing build, CPU,
@@ -777,7 +1551,7 @@ is retired or relabelled by this slice.
 |---|---|---|
 | A01 - Consent and ordinary startup | On a clean disposable profile, enumerate without capture; exercise grant/decline, ordinary startup with saved consent, run disable/re-enable and persistent withdrawal/restart. Distinguish armed PTT from actual recording. Permission/device availability alone grants no capture. Debug/release partitions do not copy consent. | Consent/profile/build identities, individual capture-open/close observations and fresh-gate decisions. Withdrawal or persistence failure never keeps capture open. |
 | A02 - Explicit command and stale generations | Hold mouse/Space/Enter PTT and use harmless commands such as help/open settings; release or lose focus/close the control. Exercise early result during open, early release, empty speech, maximum duration, failed open and delayed/duplicate callbacks. Verify first command words, bound receipts and exactly one admitted dispatch. | Per-activation generation, sample/queue/transcript bounds and timestamps; no unactivated audio in command transcription and no retired callback dispatch. Hardware/offline Windows ASR behavior is measured, not inferred from fakes. |
-| A03 - External session privacy | Existing WTS/power observation, synchronous negative closure before requery and stale-callback/disposal boundaries have deterministic regression coverage, not native timing acceptance. Separately approve Win+L/idle lock, disconnect, suspend/resume and applicable session transitions while an owned activation/output is active. Capture closes, buffers clear, output stops and sensitive presentation hides. Unlock/reconnect/resume requires explicit recovery and cannot replay audio/approvals. | **Capture released within 500 ms from the observed lock event in every reference trial** remains unproved. Record OS event-to-notification delay separately, plus each observed-event-to-release duration, buffer clearing, last output sample and zero stale dispatch; no averages/p95 substitution for this target. |
+| A03 - External session privacy | Existing WTS/power observation, synchronous negative closure before requery and stale-callback/disposal boundaries have deterministic regression coverage, not complete native timing acceptance. Separately approve Win+L/idle lock, disconnect, suspend/resume and applicable session transitions while an owned activation/output is active. Capture closes, buffers clear, output stops and sensitive presentation hides. Normal unlock restores only prior enabled intent after confirmed closure and fresh gates; reconnect/resume and other failures require explicit recovery. Neither path can replay audio/approvals or reveal sensitive presentation automatically. Production wake remains gated. | One native retiring-recorder pilot on 2026-10-08 passed at **113.4642 ms** with zero stale dispatch. **Capture released within 500 ms from the observed lock event in every reference trial** remains unproved. Record OS event-to-notification delay separately, plus each observed-event-to-release duration, buffer clearing, last output sample and zero stale dispatch; no averages/p95 substitution for this target. |
 | A04 - Permission and device changes | Existing one-second permission polling and MMDevice observation have deterministic timer/capture/route/run-hold regression coverage. With separately approved capture/output fixtures, revoke/restore desktop microphone permission; remove/disable pinned endpoints; change System-default input/output; hot-plug and refresh. Active System-selected WASAPI streams reroute to available new defaults; pinned endpoints and streams are unaffected by unrelated device/default changes. Missing or muted effective endpoints close affected audio without substituting a same-name device. Restored readiness never removes a run hold. | Native polling detection latency, endpoint/permission revisions, successful eligible rerouting and pinned-route continuity, native failure/closure receipts, individual timings, bounded audio clearing, stopped unavailable output without replay and explicit input recovery after closure remain outstanding. The one-second polling interval is not a measured native closure bound. Do not change global privacy settings without separately scoped approval. |
 | A05 - Cross-build owner, handoff and return | Launch validated same-build and different-build candidates across approved paths/versions/x64/x86. Verify activation without startup argument dispatch, one assistant owner/tray, inactive candidate, native default-deny approval, active-work refusal and full release before transfer. Exercise decline, expiry, candidate death, lock during approval, abort and explicit exact-original return. | OS-authenticated process/SID/session/creation/content identities, approvals, held-handle/owner epochs, actual desktop/service/capture quiescence and zero simultaneous owners. Return is lifecycle-only before explicit acceptance; no task/grant/audio/consent transfer. |
 | A06 - Unclean ownership and failure recovery | In a disposable instrumented host only, separately approve stable-identity process termination and preparation/transfer failure. Unknown/orphaned effects must block automatic crash takeover/return. Changed/elevated/cross-session/unknown identities deny. | Correlated process/job/resource outcomes, continuity marker and explicit blocker/reconciliation receipts; process death alone is not proof of worker quiescence or permission to delete a marker. |

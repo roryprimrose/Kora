@@ -158,16 +158,22 @@ endpoint preferences and Windows permission. Safe ordinary startup with saved
 consent arms push-to-talk; capture opens only while deliberately activated.
 **Disable listening** closes input for this run. **Withdraw voice consent**
 keeps it closed across restart. Lock/disconnect/unknown session, suspend,
-permission/device loss and capture failure invalidate generations, clear audio,
-stop output and require explicit recovery. Unlock/resume/hot-plug cannot
-silently reopen it. Native/tray controls require no model, network or speech.
+permission/device loss and capture failure invalidate generations, clear audio
+and stop output. Normal authoritative unlock restores previously enabled PTT
+readiness only after confirmed closure and fresh consent, ownership, session,
+permission, endpoint and call-policy checks; the microphone stays closed until
+a new PTT press. Manual disablement, withdrawal and intervening failures prevent
+automatic restoration. Disconnect/resume/hot-plug and other failures require
+explicit recovery. Native/tray controls require no model, network or speech.
 
 External session/power/endpoint observation is implemented, with a one-second
 permission polling fallback. Negative session notifications invalidate capture
 and output before slower requery; Unknown or failed observation grants no input
 authority. Release during a pending PTT open, shutdown and disposal retire the
 activation, including already queued transcripts and cancellation-ignoring late
-opens. Restored readiness still requires explicit recovery, not buffered replay.
+opens. Recovery never replays buffered audio, transcripts, approvals or tasks.
+The equivalent prior-enabled-mode policy applies to future qualified wake-only
+detection, but production always-on listening remains unavailable in this build.
 Deterministic regression coverage does not certify native notification latency,
 the 500 ms reference lock-release target, acoustic playback rejection or the
 remaining hardware/device/permission acceptance trials.

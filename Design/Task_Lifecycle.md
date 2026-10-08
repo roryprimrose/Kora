@@ -127,7 +127,11 @@ Endpoint loss invalidates capture/transcript generations and offers recovery wit
 - If playback rejection cannot be established, suspend TTS and explain why; wake activation remains available with visual output.
 - After capture/transcription, return to Wake Listening if consent is still active, independently of task execution or approval waits.
 - A mute control closes microphone capture and clears buffered audio. Voice cannot unmute a closed microphone; use the explicit UI/control.
-- Lock, sign-out, or suspend closes the microphone and clears audio buffers. Unlock/resume requires explicit re-enabling, not silent listening.
+- Lock, sign-out, or suspend closes the microphone and clears audio buffers.
+  Normal authoritative unlock restores only the previously enabled mode after
+  confirmed closure and fresh microphone-matrix gates: PTT readiness or a
+  separately qualified fresh wake-only generation, never interrupted capture.
+  Sign-out, suspend/resume and other recovery failures require explicit re-enabling.
 - Windows Locked/Disconnected/Unknown state overrides all activation requests; locked-session microphone policy is independent of the skill that requested a lock.
 
 Wake detection is not identity verification or permission to execute an action.

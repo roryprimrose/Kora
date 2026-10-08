@@ -189,7 +189,11 @@ Late successful opens after cancellation/lock/device replacement are closed and 
 No detected device: explain that none is available, offer Refresh and Continue without voice.
 Permission denied: explain Windows privacy restrictions and offer a fixed trusted host action to open the relevant Windows settings page; Kora cannot grant itself permission or silently elevate.
 Muted: offer an explicit Enable listening control; do not label intentional mute as missing hardware.
-Locked/disconnected/unknown Windows session: no capture/test/interactive approval. Hide sensitive prompts; generic readiness resumes only after unlocking and explicit user action.
+Locked/disconnected/unknown Windows session: no capture/test/interactive approval.
+Hide sensitive prompts. Normal authoritative unlock may restore previously enabled
+readiness after confirmed closure and fresh microphone-matrix gates, without
+revealing sensitive presentation or resuming interrupted capture. Other session
+or failure recovery requires explicit user action.
 
 ## Mouse Answers Across Kora
 

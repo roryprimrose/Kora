@@ -8,6 +8,9 @@ using Avalonia.Platform;
 using Kora.Application.Infrastructure;
 using Kora.Application.ViewModels;
 using Kora.Core.Voice;
+using Kora.Application.Hosting;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.Logging;
 
@@ -190,6 +193,8 @@ public sealed class SystemTrayController : IDisposable
     private void OnTrayIconClicked(object? sender, EventArgs eventArgs)
     {
         if (disposed) { return; }
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Presentation,
+            RequestOrigin.LocalUi);
         switch (clickSequence.RegisterClick())
         {
             case ClickSequenceOutcome.Pending:
@@ -203,6 +208,7 @@ public sealed class SystemTrayController : IDisposable
             default:
                 throw new InvalidOperationException("The tray click sequence returned an invalid immediate outcome.");
         }
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     private void OnTrayClickTimerTick(object? sender, EventArgs eventArgs)
@@ -305,22 +311,49 @@ public sealed class SystemTrayController : IDisposable
 
     private void RunRecoveryAction(Func<Task> action)
     {
-        var command = new AsyncCommand(action, exception => viewModel.ReportHostInteractionFailure(
-            "Native tray action failed. Review Settings and retry. Failure type: " + exception.GetType().Name));
+        var command = new AsyncCommand(
+            () => HostRequestRunner.RunAsync(RequestOrigin.LocalUi, action),
+            exception => HostRequestRunner.Run(RequestOrigin.LocalUi, () => viewModel.ReportHostInteractionFailure(
+                "Native tray action failed. Review Settings and retry. Failure type: " + exception.GetType().Name)));
         RunAfterNativeMenuCloses(() => command.Execute(null));
     }
 
     private void ShowWindow()
     {
-        DesktopLog.Debug(logger, "Main window was requested from the system tray");
-        viewModel.ShowApplication();
+        HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
+        {
+            DesktopLog.Debug(logger, "Main window was requested from the system tray");
+            viewModel.ShowApplication();
+        }, HostActivityLayer.Desktop, HostOperation.Presentation);
     }
 
     private void RunAfterNativeMenuCloses(Action action) =>
-        DispatcherTimer.RunOnce(
-            () => { if (!disposed) { action(); } },
-            NativeMenuDismissalDelay,
-            DispatcherPriority.Background);
+        RunAfterNativeMenuCloses(action, continuation => DispatcherTimer.RunOnce(
+            () => { if (!disposed) { continuation(); } },
+            NativeMenuDismissalDelay, DispatcherPriority.Background));
+
+    internal static void RunAfterNativeMenuCloses(Action action, Action<Action> schedule)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ArgumentNullException.ThrowIfNull(schedule);
+        var begin = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Presentation,
+            RequestOrigin.LocalUi);
+        schedule(
+            () =>
+            {
+                using var activity = begin();
+                try
+                {
+                    action();
+                    activity.Complete(HostOperationOutcome.Completed);
+                }
+                catch
+                {
+                    activity.Complete(HostOperationOutcome.Failed);
+                    throw;
+                }
+            });
+    }
 
     private static TimeSpan GetTrayDoubleClickTime() =>
         Avalonia.Application.Current?.PlatformSettings?.GetDoubleTapTime(PointerType.Mouse)

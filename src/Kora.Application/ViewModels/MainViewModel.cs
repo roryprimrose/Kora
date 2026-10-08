@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -19,6 +20,7 @@ using Kora.Core.Communication;
 using Kora.Core.Configuration;
 using Kora.Core.Context;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
@@ -179,6 +181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MicrophoneAccessState.Unknown,
         "Windows microphone access has not been checked.");
     private string? listeningPauseReason;
+    private WindowsSessionState? listeningPauseSessionState;
     private string? activeSpokenText;
     private SpeechVoice? activeSpeechVoice;
     private BuiltInAction? pendingPowerAction;
@@ -332,7 +335,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
         AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
-            new(execute, HandleCommandException, canExecute);
+            new(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
+                    HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, execute),
+                exception => Kora.Application.Hosting.HostRequestRunner.Run(
+                    HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
+                    () => HandleCommandException(exception)), canExecute);
 
         ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
         ResetSpeechProviderCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Provider));
@@ -1762,7 +1769,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         "Voice consent is saved for this Windows profile and device. Activated command audio is processed locally. "
         + "Production wake detection is not available in this build: no ambient audio is recorded or transcribed. "
         + "Use explicit push-to-talk after enabling listening. Disable listening closes capture for this run; "
-        + "Withdraw consent keeps it closed across restart. Lock, disconnect, suspend and device/permission loss require explicit recovery.";
+        + "Withdraw consent keeps it closed across restart. Normal unlock restores previously enabled readiness after fresh checks, "
+        + "without resuming capture. Disconnect, suspend and device/permission loss require explicit recovery.";
 
     public string ListeningButtonText => IsVoiceEnabled ? "Disable listening" : "Enable listening";
 
@@ -1778,7 +1786,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ? "Microphone closed · ongoing voice consent not granted"
         : IsMicrophoneAccessDenied
             ? "Microphone closed · Windows access is blocked"
-            : listeningPauseReason
+            : listeningPauseSessionState is { } sessionState
+                ? $"Microphone closed · Windows session is {sessionState}; use Enable listening"
+                : listeningPauseReason
               ?? (IsVoiceActivationAvailable
                   ? "Microphone closed"
                   : "Microphone closed · voice activation paused during detected call");
@@ -2798,6 +2808,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             catalogPrivacyRevision = privacyObservation.Current.TopologyRevision;
+            Interlocked.Exchange(ref observedTopologyRevision, catalogPrivacyRevision);
             microphoneCatalogCurrent = true;
             UpdateMicrophoneAvailability(savedMicrophoneUnavailable);
             UpdateOutputDeviceAvailability(savedOutputDeviceUnavailable);
@@ -3001,12 +3012,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var revision = Interlocked.Read(ref voiceRecoveryRevision);
-            var privacy = privacyObservation.Refresh();
-            MicrophoneAccessStatus = microphoneAccessService.GetStatus();
-            if (!HasVoiceConsent || EffectiveMicrophone is null || MicrophoneAccessStatus.State != MicrophoneAccessState.Allowed
-                || !IsVoiceActivationAvailable || lifecycleAdmissionClosed
-                || !privacy.CanCaptureFrom(SelectedMicrophone!)
-                || !sessionController.IsCurrentSessionUnlocked())
+            if (!RefreshVoiceReadiness())
             {
                 HoldVoiceInput("Microphone closed · readiness/session gate failed");
                 await StopListeningAsync();
@@ -3028,8 +3034,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     return;
                 }
             }
-            Interlocked.Exchange(ref voiceEnabled, 1);
-            Interlocked.Exchange(ref privacyPresentationHeld, 0);
+            if (!TryEnableVoiceReadiness(revision))
+            {
+                ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
+                return;
+            }
             OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
             NotifyVoiceEnablementChanged();
             SetListeningPauseReason(null);
@@ -3477,6 +3486,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SecurityAuditInitiator initiator,
         string settingName)
     {
+        using var activity = HostActivity.BeginOperation(
+            HostActivityLayer.Application, HostOperation.Storage, OriginalOrigin(initiator));
         var audit = StartAudit(
             SecurityAuditCategory.ConfigurationWrite,
             actionId,
@@ -3486,6 +3497,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             savePreference();
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+            activity.Complete(HostOperationOutcome.Completed);
             return true;
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
@@ -3499,6 +3511,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 exception,
                 $"Saving the {settingName}");
             ShowFailure($"The {settingName} could not be saved.", exception.Message);
+            activity.Complete(HostOperationOutcome.Failed);
             return false;
         }
     }
@@ -3532,11 +3545,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UpdateSpeechProviderAvailability();
     }
 
-    private void SetListeningPauseReason(string? value)
+    private void SetListeningPauseReason(string? value, WindowsSessionState? sessionState = null)
     {
-        if (!string.Equals(listeningPauseReason, value, StringComparison.Ordinal))
+        if (!string.Equals(listeningPauseReason, value, StringComparison.Ordinal)
+            || listeningPauseSessionState != sessionState)
         {
             listeningPauseReason = value;
+            listeningPauseSessionState = sessionState;
             OnPropertyChanged(nameof(ListeningStatus));
         }
     }
@@ -3588,10 +3603,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs)
     {
+        ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+            HostActivityLayer.Application, HostOperation.Request, causes);
         if (!IsVoiceEnabled || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
+            ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedBeforeQueue");
+            activity.Complete(HostOperationOutcome.Completed);
             return;
         }
         try
@@ -3599,16 +3619,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput));
+            activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Handling a recognized voice command");
             ShowFailure("The command could not be completed.", exception.Message);
+            activity.Complete(HostOperationOutcome.Failed);
         }
     }
 
     private void OnRecognitionFailed(object? sender, VoiceRecognitionFailureEventArgs eventArgs)
     {
+        if (eventArgs.Reason == VoiceRecognitionFailureReason.PrivacyTransition
+            && privacyObservation.Current.SessionState == WindowsSessionState.Locked)
+        {
+            ApplicationLog.Debug(logger, "Deferred locked-session recognition recovery to the privacy observer");
+            return;
+        }
         if (!IsVoiceEnabled
             || Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
         {
@@ -3640,12 +3668,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             || !sessionController.IsCurrentSessionUnlocked())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
+            ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedAfterQueue");
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
         {
+            ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedDuplicate");
             return;
         }
+        ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
         if (IsSpeaking)
         {

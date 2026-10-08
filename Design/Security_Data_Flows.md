@@ -168,6 +168,8 @@ distinct exact native inputs; missing permission/ownership fails closed. No
 combined consent/selection/enable or microphone test is admitted.
 The full matrix, production wake and native lifecycle acceptance remain
 required design/proof gates, not established by deterministic tray tests.
+This matrix is the mode-independent release contract; deterministic
+regressions and bounded native trials are not complete native acceptance.
 
 Every ongoing capture open requires exclusive assistant ownership, authoritative unlocked and
 connected Windows state, ongoing consent, a usable selected endpoint, OS
@@ -180,7 +182,8 @@ Revalidate these gates and the audio generation immediately before acquisition.
 | Ordinary launch, logon, or application restart with saved consent | Fresh gates may automatically enable listening; no task, approval, audio, or dispatch-token replay | If a gate fails, show its blocker and use explicit recovery; startup is not a permission override |
 | Manual Disable listening / mute | Close capture, invalidate callbacks/transcripts and clear buffers; retain consent but hold enablement for this run | Explicit native Enable listening after fresh gates; selecting devices, PTT, or settings reset cannot unmute |
 | Exact `speech.input-device` selection / per-option reset | Shares native audited preference persistence; reset removes only the microphone override and selects System. Changed selection invalidates/releases stale input; missing pins and manual/run holds are retained. Metadata inspection opens no capture | No auto-arm, consent/permission change, question answer or OS write; separate fresh native Enable after current gates. Protected/unknown calls deny original voice mutations; stale or foreign context, audit/storage/detection failure needs explicit recovery |
-| Lock, disconnect, or unknown Windows state; later unlock/reconnect | Close/deny capture and clear audio; retain consent but hold enablement for this run | Unlock/reconnect alone cannot reopen; explicit native Enable listening in an eligible session is required |
+| Normal lock; later authoritative unlock | Close capture, invalidate the activation and clear audio; retain consent and the previously enabled mode, not interrupted capture | After confirmed closure and fresh ownership/session/consent/permission/endpoint/assets/call gates, automatically restore only the previously enabled mode. PTT restores readiness, never recording; qualified always-on detection may start a fresh wake-only generation. No task, reply, audio, transcript, approval or dispatch replay |
+| Disconnect, sign-out, or unknown Windows state; later reconnect/unlock | Close/deny capture and clear audio; retain consent but hold enablement for this run | Explicit native Enable listening in an eligible session is required |
 | Suspend; later resume | Close capture and clear audio; retain consent but hold enablement for this run | Resume alone cannot reopen; explicit native Enable listening after fresh gates |
 | Permission loss, endpoint loss, capture failure, or unavailable voice assets | Close capture, clear audio and invalidate its generation; retain the requested endpoint and consent, not recording authority | Restored permission, hot-plug, repaired assets or replacement selection alone cannot reopen; explicit native Enable listening is required |
 | Live Windows default change while System capture is already enabled | Revalidate the live route; permit supported default routing without choosing a Kora endpoint override | This is not recovery or new consent; if routing fails, use the loss row; a pinned endpoint never switches silently |
@@ -198,6 +201,13 @@ Manual disablement and recovery holds are run-scoped: a later ordinary restart
 uses saved consent and fresh gates, even after lock/resume/loss in the previous
 run. Persistent consent withdrawal is different. Restart while still locked,
 disconnected, unknown, denied, or otherwise blocked never acquires capture.
+Normal unlock is not a new enable request: it restores prior enabled intent only.
+Intervening voice privacy/device changes, closure or capture failures, withdrawal,
+manual disablement, ownership loss, unavailable assets/call policy or uncertain
+session state cancel automatic restoration. A failed gate requires explicit
+recovery, not delayed automatic retries. Output-only topology changes do not
+unmute or change the selected input. Production always-on detection remains
+unavailable until its separate runtime/wake/acoustic qualification passes.
 An explicitly consented bounded microphone test does not enable ongoing voice
 and still obeys ownership/session/permission/device gates.
 Cross-build takeover/return uses the incoming host's own consent and readiness;
@@ -294,7 +304,9 @@ While Locked, Disconnected, or Unknown, Kora must not open or retain microphone 
 Use authoritative Windows session state at startup and session-change notifications at runtime; a model/UI assertion is not sufficient.
 On lock, immediately block new capture, invalidate in-flight audio callbacks/transcripts, clear buffers, and release microphone devices/workers.
 No PTT key, user skill, bundled script, runtime, or approval can override the denial.
-Unlock requires explicit re-enabling; late pre-lock results cannot reopen listening or initiate actions.
+Normal authoritative unlock may restore previously enabled readiness or a
+qualified wake-only mode under the microphone matrix. Late pre-lock results
+cannot restore listening or initiate actions; interrupted capture never resumes.
 Restart and recovery use the [microphone matrix](#microphone-consent-and-enablement-matrix); unlock is not an ordinary startup.
 See [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md#mandatory-locked-session-microphone-policy).
 
@@ -1074,6 +1086,19 @@ without a verified receipt is Unknown. No new consequential capability
 is enabled, no request is automatically replayed, and no transcript/response
 body is newly persisted. First-use greeting, settings and the version response
 include readable-copy and same-user/admin-access disclosure.
+Evidence delivery remains synchronous and required. The write-path parser
+cache retains only validated typed projections/activity metadata, keyed by
+table and SHA-256 of the exact serialized payload, not raw diagnostic
+properties or scopes. It is bounded to 16,384 entries and 32 MiB cumulative
+encoded-payload accounting; saturation revalidates uncached history rather
+than accepting it unchecked. Every open still checks schema, private
+files/journal and database integrity. Every persisted row still compares its
+current typed columns and effective retention against the validated envelope;
+activity links are checked in an ordered scan, and audit sequence/foreign-key
+checks remain mandatory. Changed payloads must pass full parsing again.
+Cache hits never establish live request, trace, approval or audit authority;
+new writes still require the matching current host context and a durable
+transaction. Read-only validation does not rely on the write-path cache.
 The bounded [durable interaction authority](Interaction_And_Sessions.md#durable-authority-and-typed-presenter-handoff)
 also persists host-admitted typed questions/options/drafts/answers and exact
 proposal/grant metadata in a distinct private SQLite partition. It adds no

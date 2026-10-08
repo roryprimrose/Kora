@@ -13,6 +13,9 @@ using Kora.Application.ViewModels;
 using Kora.Application.Visuals;
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Kora.Application.Hosting;
 using Kora.Windows.Presentation;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +33,7 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherTimer presenceInputTimer;
     private WindowsPresenceWindowInput? presenceInput;
     private bool presenceInputFailed;
+    private bool windowActionFailed;
     private bool isOptionalSpeechOfferVisible;
     private CancellationTokenSource? pendingHide;
     private bool initialized;
@@ -140,6 +144,24 @@ public sealed partial class MainWindow : Window
 
     private async void OnLoaded(object? sender, RoutedEventArgs eventArgs)
     {
+        try
+        {
+            await HostRequestRunner.RunAsync(RequestOrigin.HostSystem, InitializeWindowAsync,
+                HostActivityLayer.Desktop, HostOperation.Startup);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            HostRequestRunner.Run(RequestOrigin.HostSystem, () =>
+            {
+                DesktopLog.Error(logger, exception, "Initializing the main window");
+                viewModel.ReportHostInteractionFailure("Desktop initialization failed. " + exception.Message);
+                Hide();
+            }, HostActivityLayer.Desktop, HostOperation.Presentation);
+        }
+    }
+
+    private async Task InitializeWindowAsync()
+    {
         if (initialized)
         {
             return;
@@ -234,8 +256,47 @@ public sealed partial class MainWindow : Window
 
     private async void OnWindowActionRequested(object? sender, WindowAction action)
     {
+        _ = await RunWindowActionAsync(() => ApplyWindowActionAsync(action), ReportWindowActionFailure);
+    }
+
+    private void ReportWindowActionFailure(Exception exception)
+    {
+        windowActionFailed = true;
+        DesktopLog.Error(logger, exception, "Applying a desktop window action");
+        viewModel.ReportHostInteractionFailure(
+            "Desktop presentation failed. Use the native tray controls to exit and restart Kora. " + exception.Message);
+    }
+
+    internal static async Task<HostOperationOutcome> RunWindowActionAsync(
+        Func<Task> route, Action<Exception> reportFailure)
+    {
+        ArgumentNullException.ThrowIfNull(route);
+        ArgumentNullException.ThrowIfNull(reportFailure);
+        using var activity = HostActivity.BeginOperation(
+            HostActivityLayer.Desktop, HostOperation.Presentation, RequestOrigin.HostSystem);
+        try
+        {
+            await route();
+            activity.Complete(HostOperationOutcome.Completed);
+            return HostOperationOutcome.Completed;
+        }
+        catch (OperationCanceledException)
+        {
+            activity.Complete(HostOperationOutcome.Cancelled);
+            return HostOperationOutcome.Cancelled;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            reportFailure(exception);
+            return HostOperationOutcome.Failed;
+        }
+    }
+
+    private async Task ApplyWindowActionAsync(WindowAction action)
+    {
         if (action is WindowAction.Show or WindowAction.ShowPresence
-            && (presenceInputFailed || !viewModel.CanRevealPrivatePresentation))
+            && (presenceInputFailed || windowActionFailed || !viewModel.CanRevealPrivatePresentation))
         {
             return;
         }
@@ -312,6 +373,8 @@ public sealed partial class MainWindow : Window
 
     private void OnClosing(object? sender, WindowClosingEventArgs eventArgs)
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Presentation,
+            RequestOrigin.LocalUi);
         positionSaveTimer.Stop();
         if (positionInitialized)
         {
@@ -323,6 +386,7 @@ public sealed partial class MainWindow : Window
             || eventArgs.CloseReason is WindowCloseReason.ApplicationShutdown
                 or WindowCloseReason.OSShutdown)
         {
+            activity.Complete(HostOperationOutcome.Completed);
             return;
         }
 
@@ -330,6 +394,7 @@ public sealed partial class MainWindow : Window
         eventArgs.Cancel = true;
         CancelPendingHide();
         viewModel.HideApplication();
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
@@ -395,9 +460,12 @@ public sealed partial class MainWindow : Window
 
     private void OnPositionSaveTimer(object? sender, EventArgs eventArgs)
     {
-        positionSaveTimer.Stop();
-        _ = viewModel.SetPresencePosition(
-            new PresencePosition(Position.X, Position.Y));
+        HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
+        {
+            positionSaveTimer.Stop();
+            _ = viewModel.SetPresencePosition(
+                new PresencePosition(Position.X, Position.Y));
+        }, HostActivityLayer.Desktop, HostOperation.Policy);
     }
 
     private void OnPresenceTimeout(object? sender, EventArgs eventArgs)
@@ -416,8 +484,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        DesktopLog.Debug(logger, "Fading the presence after its inactivity timeout");
-        _ = HidePresenceAfterTransitionAsync();
+        _ = RunWindowActionAsync(async () =>
+        {
+            DesktopLog.Debug(logger, "Fading the presence after its inactivity timeout");
+            await HidePresenceAfterTransitionAsync();
+        }, ReportWindowActionFailure);
     }
 
     private bool CanSchedulePresenceTimeout =>

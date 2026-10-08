@@ -137,6 +137,9 @@ internal sealed partial class NativeLifecyclePrompt(string sid, int sessionId)
     }
 
     internal bool Ask(string question, TimeSpan timeout, Func<bool>? stillValid = null)
+        => Display(question, timeout, stillValid, isQuestion: true);
+
+    private bool Display(string text, TimeSpan timeout, Func<bool>? stillValid, bool isQuestion)
     {
         if (!Valid(stillValid))
         {
@@ -156,9 +159,9 @@ internal sealed partial class NativeLifecyclePrompt(string sid, int sessionId)
                     return;
                 }
 
-                var result = MessageBox(IntPtr.Zero, question, "Kora — instance ownership",
-                    0x00000004 | 0x00000020 | 0x00000100 | 0x00040000);
-                accepted = result == 6;
+                var result = MessageBox(IntPtr.Zero, text, "Kora — instance ownership",
+                    GetDisplayFlags(isQuestion));
+                accepted = isQuestion && result == 6;
             }
             finally
             {
@@ -202,12 +205,13 @@ internal sealed partial class NativeLifecyclePrompt(string sid, int sessionId)
 
     internal void ShowError(string message)
     {
-        if (IsEligible())
-        {
-            _ = Ask($"{message}\n\nThis notice does not authorise another assistant or an automatic restart.",
-                TimeSpan.FromSeconds(30));
-        }
+        _ = Display($"{message}\n\nThis notice does not authorise another assistant or an automatic restart.",
+            TimeSpan.FromSeconds(30), stillValid: null, isQuestion: false);
     }
+
+    internal static uint GetDisplayFlags(bool isQuestion) => isQuestion
+        ? 0x00000004u | 0x00000020u | 0x00000100u | 0x00040000u
+        : 0x00000010u | 0x00040000u;
 
     private static bool CloseWindow(IntPtr window, IntPtr parameter)
     {

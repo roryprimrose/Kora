@@ -7871,6 +7871,7 @@ public sealed partial class MainViewModelTests : IDisposable
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
+            ViewModel.BindVoiceOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
             {
@@ -8374,6 +8375,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Task EndCaptureAsync(CancellationToken cancellationToken = default)
         {
+            BeforeEnd?.Invoke();
             if (EndException is not null)
             {
                 throw EndException;
@@ -8400,6 +8402,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public bool IgnoreStartCancellation { get; set; }
 
         public Action? AfterStart { get; set; }
+
+        public Action? BeforeEnd { get; set; }
 
         public void AdvanceGeneration() => Generation++;
 
@@ -8502,8 +8506,9 @@ public sealed partial class MainViewModelTests : IDisposable
         public void RaiseTranscriptForGeneration(long generation) =>
             TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs("lock the machine", 1, generation));
 
-        public void RaiseFailure(string message) =>
-            RecognitionFailed?.Invoke(this, new VoiceRecognitionFailureEventArgs(message, Generation));
+        public void RaiseFailure(string message,
+            VoiceRecognitionFailureReason reason = VoiceRecognitionFailureReason.CaptureFailure) =>
+            RecognitionFailed?.Invoke(this, new VoiceRecognitionFailureEventArgs(message, Generation, reason));
 
         public void RaiseRetiredFailure(string message)
         {
@@ -9146,6 +9151,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeAudioDevicePreferences : IAudioDevicePreferences
     {
+        public Action? BeforeMutation { get; set; }
+
         public string? MicrophoneId { get; set; }
 
         public string? OutputDeviceId { get; set; }
@@ -9168,6 +9175,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public void SaveMicrophoneId(string microphoneId)
         {
+            BeforeMutation?.Invoke();
             if (MicrophoneSaveException is not null)
             {
                 throw MicrophoneSaveException;
@@ -9179,6 +9187,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public void SaveOutputDeviceId(string outputDeviceId)
         {
+            BeforeMutation?.Invoke();
             if (OutputDeviceSaveException is not null)
             {
                 throw OutputDeviceSaveException;
@@ -9190,6 +9199,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public void ClearMicrophoneId()
         {
+            BeforeMutation?.Invoke();
             if (MicrophoneSaveException is not null)
             {
                 throw MicrophoneSaveException;
@@ -9201,6 +9211,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public void ClearOutputDeviceId()
         {
+            BeforeMutation?.Invoke();
             if (OutputDeviceSaveException is not null)
             {
                 throw OutputDeviceSaveException;

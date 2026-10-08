@@ -105,6 +105,7 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
 
     private void OnEndpointChanged(object? sender, EventArgs eventArgs)
     {
+        var observation = PrivacyObservation.Create();
         var reason = WindowsPrivacyChangeReason.DeviceTopology;
         if (eventArgs is DefaultDeviceChangedEventArgs defaultChange)
         {
@@ -139,24 +140,26 @@ internal sealed class WindowsPrivacySource : IWindowsPrivacySource
             }
         }
 
-        Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(topologyChanged: true, reason: reason));
+        Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(topologyChanged: true, reason: reason,
+            observation: observation));
     }
 
-    private void OnSessionChanged(WindowsSessionState state) =>
-        Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(state, reason: WindowsPrivacyChangeReason.Session));
+    private void OnSessionChanged(WindowsPrivacySignalEventArgs signal) =>
+        Changed?.Invoke(this, signal);
 
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs eventArgs)
     {
+        var observation = PrivacyObservation.Create();
         if (eventArgs.Mode == PowerModes.Suspend)
         {
             Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(
-                WindowsSessionState.Suspended, reason: WindowsPrivacyChangeReason.Power));
+                WindowsSessionState.Suspended, reason: WindowsPrivacyChangeReason.Power, observation: observation));
         }
         else if (eventArgs.Mode == PowerModes.Resume)
         {
             // Unlocked means "requery", not permission to capture or release a run recovery hold.
             Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(
-                WindowsSessionState.Unlocked, reason: WindowsPrivacyChangeReason.Power));
+                WindowsSessionState.Unlocked, reason: WindowsPrivacyChangeReason.Power, observation: observation));
         }
     }
 }

@@ -437,9 +437,14 @@ then refresh readiness.
 
 Manual disablement is not persisted across application restarts; Kora returns
 to fresh-gated push-to-talk enablement on the next ordinary start with saved consent.
-Unlock, resume, restored permission and device reconnection require explicit
-Enable listening in the same run. Device selection or refresh does not release
-that hold.
+Normal authoritative unlock automatically restores PTT readiness if it was
+enabled before locking, resource closure succeeds and all fresh consent,
+ownership, session, microphone and call-policy checks pass. It never resumes
+recording: use a new PTT press. Manual disablement, withdrawal or intervening
+failures prevent automatic restoration. Resume, restored permission and device
+reconnection require explicit Enable listening; selection or refresh does not
+release those holds. Future qualified always-on wake detection follows the same
+prior-enabled-mode rule; production wake remains unavailable today.
 
 ### Speech provider
 

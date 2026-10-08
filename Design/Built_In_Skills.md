@@ -563,8 +563,11 @@ Kora must release microphone capture, not merely stop forwarding recognised comm
 - Stop wake detection, command capture, and microphone-consuming recognition; discard in-flight audio/transcripts and clear pre-roll.
 - Stop speech playback and hide sensitive interactive content while locked.
 - Reject attempts to enable listening from skills, runtime adapters, queued requests, shortcuts, or stale callbacks.
-- Unlock does not re-enable listening automatically; require explicit user
-  re-enabling for the current run. A later ordinary application restart uses the
+- Normal authoritative unlock restores only the previously enabled mode after
+  confirmed closure and fresh gates: PTT readiness or separately qualified
+  wake-only detection, never interrupted capture or stale results. Manual
+  disablement, withdrawal, disconnect/resume and intervening privacy failures
+  still require explicit recovery. A later ordinary application restart uses the
   saved-consent startup policy and fresh gates in the
   [microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
 

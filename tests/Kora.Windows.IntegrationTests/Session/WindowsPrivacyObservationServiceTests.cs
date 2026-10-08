@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using System.Diagnostics;
+using Kora.Core.Diagnostics;
 
 using Kora.Core.Platform;
 using Kora.Core.Voice;
@@ -292,6 +294,58 @@ public sealed class WindowsPrivacyObservationServiceTests
     private static WindowsPrivacySnapshot Ready => new(
         WindowsSessionState.Unlocked, MicrophoneAccessState.Allowed, 0, ["mic"], "mic", "speaker");
 
+    [Fact]
+    public void Native_observation_identity_and_timestamp_reach_consumers_before_requery()
+    {
+        using var source = new FakeSource { Snapshot = Ready };
+        using var observer = Create(source);
+        var observation = new PrivacyObservation(Guid.NewGuid(), 123, 1000);
+        WindowsPrivacyChangedEventArgs? received = null;
+        observer.Changed += (_, args) => received = args;
+        source.BeforeRead = () =>
+        {
+            received.Should().NotBeNull();
+            received!.Observation.Should().BeSameAs(observation);
+        };
+
+        source.Notify(WindowsSessionState.Locked, observation: observation);
+
+        received!.Observation.ObservedTimestamp.Should().Be(123);
+        received.Observation.OsEventToNotificationDelayMilliseconds.Should().BeNull();
+    }
+
+    [Fact]
+    public void Failed_query_is_fail_closed_and_its_activity_does_not_report_success()
+    {
+        using var source = new FakeSource { Snapshot = Ready };
+        using var observer = Create(source);
+        Activity? owned = null;
+        ActivityStatusCode? status = null;
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = activitySource => string.Equals(activitySource.Name, "Kora.Windows", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = activity =>
+            {
+                if (ReferenceEquals(activity, owned))
+                {
+                    status = activity.Status;
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+        source.BeforeRead = () =>
+        {
+            owned = HostActivity.RequireCurrent().Activity;
+            throw new IOException("Synthetic source failure");
+        };
+
+        observer.Refresh().CanCapture.Should().BeFalse();
+
+        status.Should().Be(ActivityStatusCode.Error);
+        owned!.GetTagItem("kora.outcome").Should().Be(nameof(HostOperationOutcome.Failed));
+    }
+
     private static WindowsPrivacyObservationService Create(FakeSource source) => new(source, NullLogger.Instance);
 
     private sealed class FakeSource : IWindowsPrivacySource
@@ -312,8 +366,9 @@ public sealed class WindowsPrivacyObservationServiceTests
         public void Notify(
             WindowsSessionState? state = null,
             bool topology = false,
-            WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.Unknown) =>
-            Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(state, topology, reason));
+            WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.Unknown,
+            PrivacyObservation? observation = null) =>
+            Changed?.Invoke(this, new WindowsPrivacySignalEventArgs(state, topology, reason, observation));
 
         public void Dispose()
         {

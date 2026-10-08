@@ -292,8 +292,12 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Frequent-speaker learning fixtures exclude conversational reply audio even
   when learning is enabled; only separately consented newly wake-activated
   command samples remain eligible under the initial learning policy.
-- Mute/lock/sign-out/suspend close capture and clear buffers; unlock/resume
-  require explicit current-run re-enabling. Ordinary restart may auto-enable
+- Mute/lock/sign-out/suspend close capture and clear buffers. Normal authoritative
+  unlock restores only the previously enabled mode after confirmed closure and
+  fresh gates: PTT readiness or separately qualified fresh wake-only detection,
+  never interrupted capture/reply/audio or sensitive presentation. Manual mute,
+  withdrawal, resume, sign-out and other failures require explicit recovery.
+  Ordinary restart may auto-enable
   only with saved ongoing consent and fresh gates under the microphone matrix.
 - Wake Listening, Capturing Command, Muted, Session Locked, and Unavailable are distinguishable, including background-app status.
 - Closing/dismissing UI preserves session history and work. Done archives; explicit confirmed deletion and configured inactivity purge remove retained session content under the dedicated lifecycle gate.
@@ -321,9 +325,13 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
   permission loss/restoration, endpoint loss/reconnection and asset failure.
   Fresh-gated ordinary startup may use saved consent; consent withdrawal
   persists across restart, while run-scoped holds do not.
-- Unlock/resume/restored permission/device or asset repair cannot reopen
-  capture in the same run without explicit Enable listening; tests, device
-  selection, PTT, reset/undo and stale callbacks cannot release that hold.
+- Test normal unlock restoration and its negative controls: prior manual
+  disablement, withdrawn consent, closure/capture failure, unavailable permission,
+  endpoint/assets/call policy, ownership loss and intervening uncertain sessions
+  cannot restore readiness. PTT needs a new press; qualified wake uses a new
+  wake-only generation. Resume/restored permission/device or asset repair needs
+  explicit Enable listening; tests, selection, PTT, reset/undo and stale callbacks
+  cannot release those recovery holds.
 - Zero/one/multiple devices, duplicate names, Windows privacy denial, disabled/missing endpoints, muted input, and missing recogniser each have distinct actionable states.
 - Enumerating/selecting devices records no audio; automatic startup, test, and
   recovery opens only the effective endpoint after an authoritative
@@ -357,7 +365,10 @@ No A0/A1 demonstration or release note may claim the completed voice-first/local
 - Lock immediately closes the host audio-generation gate: no post-event samples enter detection/transcription and no late transcript starts an action.
 - Device/worker capture is released within 500 ms of the observed Windows lock event in every reference-machine trial; record OS notification delay separately.
 - Audio/pre-roll is cleared and TTS/sensitive interactive presentation stops on lock.
-- Voice/PTT/shortcut/skill/runtime requests cannot reopen capture while locked; unlock requires explicit user re-enabling.
+- Voice/PTT/shortcut/skill/runtime requests cannot reopen capture while locked.
+  Only a normal authoritative unlock may restore previously enabled readiness
+  or separately qualified wake-only detection after confirmed closure and fresh
+  microphone-matrix gates, without replaying pre-lock input or actions.
 - The lock script cannot access protected Kora resources, arbitrary commands, remote endpoints, credentials, or elevation under its actual execution profile.
 - Missing containment or session-control support is an explicit failed gate, not permission to run an unrestricted fallback.
 - Denied, failed, and unconfirmed lock attempts have truthful receipts and no automatic uncertain retry.
@@ -632,8 +643,9 @@ Verify:
 - Source and binary deployments preserve the same skill/data partitions and application-integrity guarantees.
 - Start-at-logon is opt-in, runs published binaries as the interactive user, starts only one instance, and never builds or elevates.
 - Ordinary unlocked logon/restart tests automatically begin listening when ready;
-  locked-session startup acquires nothing, and unlock recovery still requires
-  explicit re-enabling for that run.
+  locked-session startup acquires nothing and does not invent prior enabled
+  intent. Test fresh-gated normal unlock restoration separately from explicit
+  recovery after manual disablement, resume, disconnect or failure.
 - Uninstall removes startup entries and offers data retention without deleting shared profile skills.
 - Installation metadata, not `.git` presence, determines maintenance mode; developer checkouts are not automatically pulled/reset.
 - Binary update checks use the canonical GitHub Releases feed without Git/SDK and respect channel/architecture/runtime. Fixtures exclude drafts in every channel and prereleases in production; explicit preview discovery can find published prereleases without depending on the latest-production endpoint. Reject other hosts/repositories, CI artifacts and branch builds as released versions.

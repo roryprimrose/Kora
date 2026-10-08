@@ -2149,6 +2149,13 @@ adds no speech registry, provisioning or acoustic trial.
 
 ### R02 Local-Inference Continuation
 
+The [three-tier policy](Local_Inference.md#three-tier-admission-policy) scopes
+L1-L6 to local-inference enablement/advertising and RC manifests including it.
+Unrelated feature work does not wait for this proof. The
+[2026-10-08 preparation](../experiments/r02-local-inference-proof/results/continuation-2026-10-08/preparation.json)
+passes current deterministic checks but finds no supported installed/listening
+runtime or default pinned manifest; it supplies no live trial consent.
+
 The [technical outcomes and qualification contract](Local_Inference.md) turn
 the partial proof into the steps below. **First action: assign a test owner,
 approve the floor/isolation environments and agree budgets (L1).** No trial

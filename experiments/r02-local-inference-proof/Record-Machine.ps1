@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$OutputPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
 if (Test-Path -LiteralPath $OutputPath) {
     throw 'Refusing to overwrite existing machine evidence.'
 }
@@ -48,6 +49,6 @@ $report = [ordered]@{
     NetworkBlock = 'Not approved or applied on this shared machine.'
     InventoryPrivacy = 'No clipboard, host name, user name, serial numbers, accounts, network destinations or environment-variable dump collected.'
 }
-$parent = Split-Path -Parent ([IO.Path]::GetFullPath($OutputPath))
+$parent = Split-Path -Parent $OutputPath
 [IO.Directory]::CreateDirectory($parent) | Out-Null
 $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $OutputPath -Encoding utf8

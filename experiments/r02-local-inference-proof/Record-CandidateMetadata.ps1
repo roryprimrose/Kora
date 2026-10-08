@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$OutputPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
 if (Test-Path -LiteralPath $OutputPath) { throw 'Refusing to overwrite candidate evidence.' }
 $setupPath = Join-Path $PSScriptRoot '..\..\src\Kora.Windows\Dependencies\WindowsOllamaSetupService.cs'
 $setup = Get-Content -LiteralPath $setupPath -Raw
@@ -93,7 +94,7 @@ try {
             Requirements = 'Expanded runtime, temporary installer/pull files, filesystem overhead, KV cache and RAM must be measured in an approved provisioned environment. Existing blobs may be reused.'
         }
     }
-    $parent = Split-Path -Parent ([IO.Path]::GetFullPath($OutputPath))
+    $parent = Split-Path -Parent $OutputPath
     [IO.Directory]::CreateDirectory($parent) | Out-Null
     $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $OutputPath -Encoding utf8
 }

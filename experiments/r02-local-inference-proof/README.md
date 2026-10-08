@@ -177,6 +177,24 @@ statistics, never command lines, prompts, clipboard/content or unrelated files.
 
 ## Automated operator-approved qualification
 
+### Worktree-relative path regression
+
+Output and budget paths resolve against the caller's PowerShell location,
+not the process working directory (which can remain at another checkout after
+`Set-Location`). The metadata/machine writers use the same path semantics.
+Run the file-only regression from the repository root after the proof is
+prepared; it deliberately separates those locations and also verifies
+overwrite refusal:
+
+```powershell
+.\experiments\r02-local-inference-proof\Run-PathRegressionTests.ps1 `
+  -OutputDirectory .\.local-proof\path-regression-001
+```
+
+The regression rebuilds and runs the 55 deterministic checks, inventories
+the machine without contacting Ollama, and writes six regression results.
+It acquires no packages and performs no live trial.
+
 [Run-Qualification.ps1](Run-Qualification.ps1) builds with `--no-restore`,
 runs deterministic self-tests without observing the endpoint, records source
 hashes/base revision/dirty inputs and machine inventory, then optionally runs
@@ -284,6 +302,71 @@ LI01-LI07/D-003/D-007/A2 acceptance. A failed/blocked run retains its evidence;
 do not automatically retry, loosen budgets or change identities. The full
 licence/storage inventory, physical floor, offline capture and admitted-host
 repeat remain separate gates.
+
+### Serial trial schedule and admission stop
+
+The [2026-10-08 preparation receipt](results/continuation-2026-10-08/preparation.json)
+contains file-only evidence, not permission to execute this schedule.
+No supported runtime/listener/default selected-model manifest was available;
+no live test was attempted. Do not infer reusable consent from a historical
+setup or comparison. This proof gates only affected inference exposure and
+RC manifests including it, not unrelated development.
+
+After explicit approval of the exact environment, assets and operations:
+
+1. Complete builds, deterministic tests, hashing and licence/storage review
+   first. Stop or wait for all *owned* competing proof/build/benchmark jobs;
+   do not stop unrelated users' processes. Record a quiet measurement window
+   before admitting runtime identity and beginning measurements.
+2. Read-only preflight records the approved PID/creation identity, exact
+   runtime/model/blob digests, listeners, initial residency and CPU-only plan.
+   Missing assets, unsupported identity, other clients or uncertain ownership
+   stop admission; they do not trigger acquisition/startup/unloading.
+3. With separately approved exclusive-use and residency changes, run one
+   qualification invocation. It awaits each request: 30 immediately paired
+   cold/warm streaming trials, then 30 paired buffered trials. Keep both
+   paths distinct. No other proof runner, comparison, self-test or build runs
+   concurrently. The attributable resource sampler is measurement
+   instrumentation, not a second inference workload. "Cold" is model-unloaded,
+   not a flushed OS/page cache.
+4. Run context, cancellation/recovery and error phases serially after timing
+   pairs. Client completion alone is not server quiescence: independent
+   cessation/race/actual-timeout instrumentation and approved budgets must
+   precede any exclusive follow-up. Confirm owned cleanup and retain failures;
+   do not retry automatically or relax criteria.
+5. If separately approved, repeat relevant phases in the owned independently
+   network-blocked environment. Keep offline instrumented trials separate
+   from uncontended timing trials, disclose instrumentation overhead, and
+   capture only admitted Kora/Ollama/runner traffic. No shared-machine network
+   changes or unrelated capture is authorised by this runbook.
+6. End all trial workloads before offline accounting and human review.
+   Preserve individual failures and unchanged rubric; obtain candidate/floor
+   disposition before the integrated-host repeat. Memory/CPU headroom,
+   physical reference support and cessation deadlines remain owner decisions.
+
+### Executable retention review - 2026-10-08
+
+Maintained `WindowsOllamaReasonerTests`, `WindowsOllamaSetupServiceTests`,
+`LocalInferenceDependencyProbeTests` and `OllamaModelIdentityTests` cover
+overlapping mocked parser/payload, setup/reuse, unavailable and digest cases.
+They do not supersede the complete executable or its exact rubric, serial
+cold/warm/cancellation measurements, process/listener admission, native-tree
+observer, offline saved-answer/envelope analysis or incremental evidence.
+
+Retain all current experiment executables. `Proof.csproj` compiles the
+source-linked adapter and `SelfTests.cs` plus the linked runtime-lifecycle
+`NativeSnapshot.cs`; `Run-Qualification.ps1` consumes `Run-Validation.ps1`,
+which consumes `Record-Machine.ps1`. The README and Design local-inference,
+acceptance, decision, deferred-validation and roadmap pages retain their
+reproduction/handoff consumers. `Record-CandidateMetadata.ps1` remains the
+public licence/digest metadata reproduction route; it was not invoked during
+file-only preparation. `Run-PathRegressionTests.ps1` adds wrapper-location
+coverage absent from the maintained adapter tests.
+
+No exact standalone file is wholly redundant, so no path is deleted. Moving
+an overlapping assertion is not enough to retire a file containing unique
+measurement or admission checks; first migrate those checks and update every
+verified consumer, then retain historical receipts without relabelling them.
 
 ### Bounded native-observer positive control
 

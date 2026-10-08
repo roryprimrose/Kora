@@ -29,7 +29,7 @@ $pinMatches = @(Select-String -LiteralPath $pinSource -Pattern 'public const str
 if ($pinMatches.Count -ne 1) { throw 'Could not identify the authoritative production runtime pin.' }
 $pin = $pinMatches[0].Matches[0].Groups[1].Value
 if (-not $RuntimeVersion) { $RuntimeVersion = $pin }
-$output = [IO.Path]::GetFullPath($OutputDirectory)
+$output = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
 if (Test-Path -LiteralPath $output) { throw 'Use a new output directory; historical evidence is never overwritten.' }
 if (-not $ValidateOnly) {
     if (-not $ExclusiveRuntime) { throw 'Live qualification requires explicit exclusive-runtime and residency-change approval.' }
@@ -37,7 +37,7 @@ if (-not $ValidateOnly) {
     if (-not $BudgetsPath -or -not (Test-Path -LiteralPath $BudgetsPath -PathType Leaf)) {
         throw 'Live qualification requires a pre-agreed timing-budget JSON file.'
     }
-    $budgets = [IO.Path]::GetFullPath($BudgetsPath)
+    $budgets = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($BudgetsPath)
     if ([bool]$ComparisonRuntime -ne ($RuntimeVersion -ne $pin)) {
         throw 'A changed runtime requires ComparisonRuntime; no automatic compatibility or production-pin change is implied.'
     }

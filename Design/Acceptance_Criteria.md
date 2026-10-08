@@ -102,6 +102,12 @@ Critical policy/cancellation tests require 100% pass; averages must not hide ind
 
 ### Local Inference Evidence
 
+Apply the [three-tier admission policy](Local_Inference.md#three-tier-admission-policy):
+this proof gates local-inference enablement/advertising and an RC manifest
+that includes it, not unrelated feature development or a manifest explicitly
+omitting it. Safe preparation and partial research may merge without claiming
+that any unperformed gate passed.
+
 The [R02 local-inference outcomes](Local_Inference.md) are partial evidence,
 not a waiver of these gates. Public candidate metadata, 31 deterministic proof
 tests and a real missing-endpoint/unavailable response establish neither
@@ -145,7 +151,7 @@ Use the [shared deferred-validation register](Deferred_Validation.md) and
 [LI01-LI07](../experiments/r02-local-inference-proof/README.md#deferred-inference-trials)
 when preparing a later separately approved interactive inference session.
 They distinguish runnable synthetic commands from missing server/egress/host
-instrumentation. Unperformed trials block qualification and A2 acceptance,
+instrumentation. Unperformed trials block qualification and A2 local-inference acceptance,
 not merging the partial research and testing handoff under normal checks/reviews.
 
 ## Platform Boundary Gate

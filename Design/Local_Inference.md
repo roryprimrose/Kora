@@ -4,6 +4,34 @@ Status: R02 partial evidence and proposed continuation plan, reviewed 2026-10-05
 D-003 and the local-inference part of D-007 remain open. No runtime/model
 replacement, hardware-floor revision or A2 release approval is established.
 
+Continuation preparation reviewed 2026-10-08: the
+[sanitized receipt](../experiments/r02-local-inference-proof/results/continuation-2026-10-08/preparation.json)
+records 55 current deterministic checks and six worktree-path regression
+checks. The supported per-user executable, PATH command, port-11434 listener
+and default pinned-model manifest were absent. No runtime/model acquisition,
+startup, generation, residency change or network isolation was performed.
+Other installation locations were not searched; an absent supported location
+does not establish that the machine contains no runtime anywhere.
+
+### Three-Tier Admission Policy
+
+1. **Development:** deterministic/file-only proof preparation and unrelated
+   feature development continue while local-inference qualification is open.
+   Merge of a research receipt does not certify a capability.
+2. **Capability:** these outstanding gates block local-inference enablement
+   and advertising of the affected envelope, not unrelated capabilities.
+   Historical bounded bootstrap observations are not final qualification or
+   permission for a new trial.
+3. **Release candidate:** an RC manifest that includes local inference requires
+   its applicable qualified/integrated evidence. An RC that explicitly omits
+   the capability is not blocked solely by this proof.
+
+This policy changes neither approval/ownership boundaries nor production
+runtime/model pins. The next live step requires an operator-selected approved
+environment and separately scoped acquisition/startup, exclusive residency,
+resource and isolation decisions. Previous one-shot trial approvals are not
+ongoing consent on this host.
+
 Related: [Decision Register](Decision_Register.md#d-003-local-inference-baseline),
 [Architecture](Architecture.md#local-inference-qualification),
 [Setup](Environment_Setup.md#local-inference-provisioning-budget),

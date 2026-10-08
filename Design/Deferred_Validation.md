@@ -30,6 +30,14 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 
 ## Proof Checklists
 
+The [2026-10-08 inference preparation receipt](../experiments/r02-local-inference-proof/results/continuation-2026-10-08/preparation.json)
+passes 55 current deterministic checks and six relative-path regressions.
+Supported runtime/model locations and the loopback listener were absent.
+No live trial or environmental change ran. Under the
+[three-tier policy](Local_Inference.md#three-tier-admission-policy), LI01-LI07/
+R02-L1-L6 block only affected local-inference exposure/advertising and RC
+manifests including it; unrelated development remains independent.
+
 The [bounded Windows-native rate slice](Implementation_Roadmap.md#r10-bounded-windows-provider-native-rate---2026-10-08)
 adds deterministic owned-setter, future-synthesis retirement and native/typed/
 ACTIVATED admission tests only. -10..10/default0 are Windows engine units, not

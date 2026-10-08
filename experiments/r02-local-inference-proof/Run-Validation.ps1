@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($SkipObserve -and $ExpectUnavailable) { throw 'Cannot expect an unavailable observation when observation is skipped.' }
-$output = [IO.Path]::GetFullPath($OutputDirectory)
+$output = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
 if (Test-Path -LiteralPath $output) { throw 'Use a new output directory; evidence is never overwritten.' }
 [IO.Directory]::CreateDirectory($output) | Out-Null
 $project = Join-Path $PSScriptRoot 'Proof.csproj'

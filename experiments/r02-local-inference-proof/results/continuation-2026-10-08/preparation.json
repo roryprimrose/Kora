@@ -1,0 +1,412 @@
+{
+  "Schema": "Kora.R02.ContinuationPreparation.v1",
+  "RecordedUtc": "2026-10-08T12:16:32.0115662+00:00",
+  "Qualification": "Incomplete; no live model trial admitted",
+  "AdmissionPolicy": {
+    "ReleaseCandidate": "Requires affected inference evidence only when its manifest includes local inference.",
+    "Development": "Safe preparation and unrelated feature development continue.",
+    "Capability": "Unperformed affected gates block local-inference enablement/advertising."
+  },
+  "Source": {
+    "InputHashesVerifiedAgainstWorkingTree": true,
+    "Inputs": [
+      {
+        "Sha256": "80CD5AB3A71047ABD9E586A810E8782ABCC868C8B25D8F169B2DB1796D8A3475",
+        "Path": "experiments\\r02-local-inference-proof\\AnswerFacts.cs"
+      },
+      {
+        "Sha256": "41D0A851648A05A84E3CDCCE7D27F1F022E28FD6D22AA60182C7DAE33B3688C3",
+        "Path": "experiments\\r02-local-inference-proof\\Directory.Build.props"
+      },
+      {
+        "Sha256": "69F68F996D824A932BE5580C99D83978F209FFD2BAC58BDB52D532AEA48CAE46",
+        "Path": "experiments\\r02-local-inference-proof\\fixtures.json"
+      },
+      {
+        "Sha256": "B8FB63A5D36DD9BFBE916A0CC2D84A1DBF920327EB3AA1D8A1937B23BAD16EE1",
+        "Path": "experiments\\r02-local-inference-proof\\InferenceComparison.cs"
+      },
+      {
+        "Sha256": "82E3E8E3A3531B2E4DBE51066F884A8F0292E58B888CDDF6A3E657BF94E1CD94",
+        "Path": "experiments\\r02-local-inference-proof\\LocalTransport.cs"
+      },
+      {
+        "Sha256": "F6B69D7A65EAD2775FA8264A13DBBDBD8D06EB683D9BB329EEECB1F6A78432FF",
+        "Path": "experiments\\r02-local-inference-proof\\Measurements.cs"
+      },
+      {
+        "Sha256": "511F8A38B10B418A3797C4E332972C93E0D4340B1803A72B90EF970B930E28E4",
+        "Path": "experiments\\r02-local-inference-proof\\NativeObserverControl.cs"
+      },
+      {
+        "Sha256": "652624E1AC15698BE31DC7BC90A74B1FCC4314C387551013C61FB3A113843D28",
+        "Path": "experiments\\r02-local-inference-proof\\NuGet.Config"
+      },
+      {
+        "Sha256": "50DC97A4C01378E53DC69C33B022140CD674A8E73B0BEA14E64D104ABB4CD6A8",
+        "Path": "experiments\\r02-local-inference-proof\\ProcessTreeObserver.cs"
+      },
+      {
+        "Sha256": "982234A4E852187DC9BAD9F09318AE48F9D76A0921CFAF01089EB724498E6886",
+        "Path": "experiments\\r02-local-inference-proof\\Program.cs"
+      },
+      {
+        "Sha256": "449BBC623735A4D1EE1F5918966198293D966574BFA76E916D0ED16339C5B075",
+        "Path": "experiments\\r02-local-inference-proof\\Proof.csproj"
+      },
+      {
+        "Sha256": "0B9C266EAF0A74B36FB14520C41EA4F7D099675CFCAC20CDCD5FD5023FF98FB8",
+        "Path": "experiments\\r02-local-inference-proof\\Qualification.cs"
+      },
+      {
+        "Sha256": "F3F1C1F1653D3587A90601FB049310168A1AA98C36C68AEA2D38D4DF86BC162C",
+        "Path": "experiments\\r02-local-inference-proof\\Quality.cs"
+      },
+      {
+        "Sha256": "99AA8C6171BA228B645F0EEF2BEAB5D208D10A672CE5FEED8FB263C67F0C9FB3",
+        "Path": "experiments\\r02-local-inference-proof\\Record-CandidateMetadata.ps1"
+      },
+      {
+        "Sha256": "1AC02E8E695ACBFA3B36571CF777CE97FCAD8A5C9BDB2F91378CB37B9B1E1E0A",
+        "Path": "experiments\\r02-local-inference-proof\\Record-Machine.ps1"
+      },
+      {
+        "Sha256": "45B4FAD72CFBE0AF95074E33A97C31152F8C2525908DAC66D03CC4FE38146069",
+        "Path": "experiments\\r02-local-inference-proof\\RequestEnvelope.cs"
+      },
+      {
+        "Sha256": "52F590431C8FCD4BFA402EB1CF4A3DE735CA4D919600E0BB82401F7E114A6586",
+        "Path": "experiments\\r02-local-inference-proof\\ResourceMeter.cs"
+      },
+      {
+        "Sha256": "ED1C4B1D00643BDE14F646219D0D7BF2D12E246FE44BCD0DAEC6BECEA47D3ED8",
+        "Path": "experiments\\r02-local-inference-proof\\Run-PathRegressionTests.ps1"
+      },
+      {
+        "Sha256": "200B14B1C4A6D11236A17C57E8C44195B5ACFCDE2CF7A524968D43D97EB90F5A",
+        "Path": "experiments\\r02-local-inference-proof\\Run-Qualification.ps1"
+      },
+      {
+        "Sha256": "2F78E882B44F811A17F80E9A5BD63503C72CEFB3CA0D5808D69E26C6B715D02A",
+        "Path": "experiments\\r02-local-inference-proof\\Run-Validation.ps1"
+      },
+      {
+        "Sha256": "FEC3E9BFD602BE2D875655EE2B7BFF3C067D6E3FE692C64BFF13C2C60D6B6EF2",
+        "Path": "experiments\\r02-local-inference-proof\\SavedAnswerAssessment.cs"
+      },
+      {
+        "Sha256": "E0B065A58FB2075CB765B2A3ED1222904CE407BE91928215FE238BE2CF421B63",
+        "Path": "experiments\\r02-local-inference-proof\\SelfTests.cs"
+      },
+      {
+        "Sha256": "BE34446AE8BA3590BF959CDD6BD824E95ADC6DAABC9044FB778F15A5583BDC21",
+        "Path": "experiments\\r02-runtime-lifecycle-proof\\NativeSnapshot.cs"
+      },
+      {
+        "Sha256": "4977AE364D92D2679ACC93FCB364EB2D7C990A320EDEBF034B01B9ED14098D84",
+        "Path": "global.json"
+      },
+      {
+        "Sha256": "E44B548639415E1DCA1281BBAB4F17A96109F077A3AC94BD2240950A1BDAC5A9",
+        "Path": "src\\Kora.Core\\ArtifactInvocation\\ArtifactKind.cs"
+      },
+      {
+        "Sha256": "530EA179EED1F49D1C60D44070A6ACBF23DE76EC614196C0A1C9E4FD57B61236",
+        "Path": "src\\Kora.Core\\Commands\\BuiltInAction.cs"
+      },
+      {
+        "Sha256": "850C6B484B5BC19575C10A4DB772E8483D8DA3F1DF2E6A50E414984051E5D9C7",
+        "Path": "src\\Kora.Core\\Commands\\BuiltInCommandCatalog.cs"
+      },
+      {
+        "Sha256": "639963836B040B61855D78EA5E11700E425DABFAD59C2A3EA3BD57F65733A4F9",
+        "Path": "src\\Kora.Core\\Commands\\BuiltInCommandRouter.cs"
+      },
+      {
+        "Sha256": "AA9B87CAA4E6DACCF0F7398DFB95B4C3436C4F56E98528ECCF4485E5B83FE765",
+        "Path": "src\\Kora.Core\\Commands\\CommandDefinition.cs"
+      },
+      {
+        "Sha256": "BA9069167117A832BEE9FA4B031D4CCABF262F2276960E24815BD960DBB88340",
+        "Path": "src\\Kora.Core\\Commands\\CommandMatch.cs"
+      },
+      {
+        "Sha256": "7BD4D49EAEFBB12C9BC4883BBC8E6FCD3635D549116DBA02B800475150C766EF",
+        "Path": "src\\Kora.Core\\Commands\\GrantChange.cs"
+      },
+      {
+        "Sha256": "24704080F95763DE062DEA943B23B2CAAF0996A8B7D69251E2AD067579BA1161",
+        "Path": "src\\Kora.Core\\Commands\\GrantChangeOperation.cs"
+      },
+      {
+        "Sha256": "0DF56B595B1E7C894C02CA1DA37167FC52D524759E9666830D015B16E61FA01B",
+        "Path": "src\\Kora.Core\\Commands\\ModelApprovalScope.cs"
+      },
+      {
+        "Sha256": "1498230B29F895E0D90664474DEA406350AAA263164B5032B9AE39B90B02C069",
+        "Path": "src\\Kora.Core\\Configuration\\AssistantNameRules.cs"
+      },
+      {
+        "Sha256": "3A3AEB956639C9FD4539F488134B904B58FA02753234C29E5C323E3DFFE4D2D8",
+        "Path": "src\\Kora.Core\\Dependencies\\DependencyReadiness.cs"
+      },
+      {
+        "Sha256": "C26D006A2C90124BB7ECACCDC24676F7E8E2A6A82D4A88C9B4164EE4AB705C2C",
+        "Path": "src\\Kora.Core\\Dependencies\\DependencyStatus.cs"
+      },
+      {
+        "Sha256": "BC09EDB05BF23CF376AD1565EB2A80B8B5AB5900D817EDD0FDB3830CB778092B",
+        "Path": "src\\Kora.Core\\Dependencies\\IDependencyProbe.cs"
+      },
+      {
+        "Sha256": "E4BEC4B39FBCC23E14F0666A9C314A7AE200E7C7EEF5B769C1AE7E04B6C06D52",
+        "Path": "src\\Kora.Core\\Dependencies\\ILocalModelReasoner.cs"
+      },
+      {
+        "Sha256": "5D4DB282F5CD36E8E75DDA73DE452C2FD277508270B8B7BCCB5D1CD0172CBC46",
+        "Path": "src\\Kora.Core\\Dependencies\\ILocalModelSetup.cs"
+      },
+      {
+        "Sha256": "864D423E74B8A58D0DBEA7AD7CC7A06C2CFEAB5CB71F61AA070A849D71D06E69",
+        "Path": "src\\Kora.Core\\Dependencies\\ISetupDependencyProbe.cs"
+      },
+      {
+        "Sha256": "8A26D53D917F17B0A69F3B22895462E140DFDE05AAB95B51E9937E73BD64A9F0",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelArtifact.cs"
+      },
+      {
+        "Sha256": "68E8224C7C6A1655117CCCA1BF839A1CE7D20F027C84233B5CDD92C997DF5F15",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelContext.cs"
+      },
+      {
+        "Sha256": "6A04BB2FC8F75017730B42B597741AD1A843527D995FB4C5838AF6A97DB2C361",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelDependency.cs"
+      },
+      {
+        "Sha256": "B1D4D39D4CB1B6520DEB414D238351E22362C3F735BE6ED4851E82F283FFEB7C",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelQuestion.cs"
+      },
+      {
+        "Sha256": "AD4B4E6EEA804CF0F4BF01AE6F0FE6A05A02A13828D8BF14DA81398088C6EE6B",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelQuestionSpeech.cs"
+      },
+      {
+        "Sha256": "B66A1BAD729302EE6294E4E596E8749E3DF53944EAEBE0DFFB818BC0B75CF666",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelResponse.cs"
+      },
+      {
+        "Sha256": "FE2221B90D6D20AB0E42AAD029D183821F1154CED169CBFA7210F052C21100DB",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelSetupProgress.cs"
+      },
+      {
+        "Sha256": "1AC5E7DD3ED66237852A12A1F99F08E1B695292176BA49E55CAD17D4BFFD2747",
+        "Path": "src\\Kora.Core\\Dependencies\\LocalModelTask.cs"
+      },
+      {
+        "Sha256": "37BEEF51D82BA69E8228135DABD2F5E2A92A2FD35C5FB8C9A01B089CE26338DF",
+        "Path": "src\\Kora.Core\\Dependencies\\SetupTaskState.cs"
+      },
+      {
+        "Sha256": "D22B724FB015A87C0EBD4814D5B35B6D1D3DF8F25F80A6B2200C5D5415301CA2",
+        "Path": "src\\Kora.Windows\\Dependencies\\IOllamaProcessRunner.cs"
+      },
+      {
+        "Sha256": "DCCD71689210F59798C83D5D003F9DB054E7A4B1B9164C9F11772841E898EB2A",
+        "Path": "src\\Kora.Windows\\Dependencies\\LocalInferenceDependencyProbe.cs"
+      },
+      {
+        "Sha256": "5666BAF05B02B7E571E65B9D151B06023F62B478D4EB1433061169720E1CEE0B",
+        "Path": "src\\Kora.Windows\\Dependencies\\OllamaInstallationState.cs"
+      },
+      {
+        "Sha256": "720421206EFE636E81CF2DE5062FD7C0D3997B26CD71648CDFC05C4A89D8E8F4",
+        "Path": "src\\Kora.Windows\\Dependencies\\OllamaInstallationStatus.cs"
+      },
+      {
+        "Sha256": "A7D0277949865E23A40D3AB8C97F7D4CB4EE59C5E4B91B51DAD37ECBE204C5B6",
+        "Path": "src\\Kora.Windows\\Dependencies\\OllamaModelIdentity.cs"
+      },
+      {
+        "Sha256": "B9E4690EEA53647B6DB6544BCF78EA83F0C47AD4937EF5924E60669F4D0A21F7",
+        "Path": "src\\Kora.Windows\\Dependencies\\OllamaProcessRunner.cs"
+      },
+      {
+        "Sha256": "6F909962A1812545F04A37C1885126527D428B450C513197C1A22F37F96FBE33",
+        "Path": "src\\Kora.Windows\\Dependencies\\WindowsOllamaReasoner.cs"
+      },
+      {
+        "Sha256": "F2D5766E5E91A6F3F8713286D40BBBF278B6086F3353B700E85BE1944E2B3B3F",
+        "Path": "src\\Kora.Windows\\Dependencies\\WindowsOllamaSetupService.cs"
+      }
+    ],
+    "InputState": "Four wrapper path corrections and one new path-regression script were uncommitted at run; other compiled inputs unchanged. BaseRevision is not a claim that these changes were already committed.",
+    "BaseRevision": "4cf8034fd3a73408aa3dfa6d24b0fc04c98b3f6c"
+  },
+  "Tools": {
+    "Runtime": ".NET 10.0.12",
+    "SdkIdentitySha256": "2FB67D624FE41F09794F1BA366D396639B6FC65BD8B5C7D2581A0AECEF96517D",
+    "PowerShell": "7.6.6",
+    "GitHubCli": "2.74.2",
+    "PowerShellExecutableSha256": "BFB46AF89433268872DDB43D1CA7A3F433452EE91ED356A9786940F90118E285",
+    "Sdk": "10.0.401",
+    "DotnetHostSha256": "0F40CF1330ED875DC57C6C5779F77DC8EDCA50CA87B20B39D54D48AC0A50B1DB",
+    "NuGet": "Missing project.assets.json was observed as NETSDK1004; zero-feed restore with audit disabled used existing SDK/reference packs. No runtime/model/package asset download."
+  },
+  "Candidate": {
+    "Model": "qwen3:1.7b",
+    "HistoricalPublicMetadata": "results/candidate-metadata.json was not refreshed; published identities are not installed-byte verification.",
+    "ExpectedManifestDigest": "sha256:8F68893C685C3DDFF2AA3FFFCE2AA60A30BB2DA65CA488B61FFF134A4D1730E7",
+    "InstalledManifestSha256": null,
+    "InstalledWeightSha256": null,
+    "InstalledRuntimeSha256": null,
+    "ProductionRuntime": "Ollama 0.35.1"
+  },
+  "Prerequisites": {
+    "SupportedPerUserExecutablePresent": false,
+    "Boundary": "Checked supported per-user executable, PATH, port 11434 and selected default manifest only; other locations and unrelated files were not searched. No real HTTP request.",
+    "SelectedDefaultManifestPresent": false,
+    "OllamaPathCommandPresent": false,
+    "HostOverrideConfigured": false,
+    "ObservedUtc": "2026-10-08T12:16:32.0467475+00:00",
+    "CustomModelStorageConfigured": false,
+    "Port11434ListenerCount": 0
+  },
+  "Machine": {
+    "OS": {
+      "Caption": "Microsoft Windows 11 Enterprise",
+      "Architecture": "64-bit",
+      "BuildNumber": "26300",
+      "Version": "10.0.26300"
+    },
+    "Qualification": "Not a supported physical reference-floor trial. OS support, virtualization, SSD, contention and CPU-only residency remain unqualified.",
+    "Cpu": [
+      {
+        "Name": "AMD EPYC 7763 64-Core Processor                ",
+        "NumberOfCores": 8,
+        "NumberOfLogicalProcessors": 16
+      }
+    ],
+    "VisibleRamBytes": 68665831424,
+    "PowerProfile": "High performance"
+  },
+  "Consent": {
+    "HistoricalScope": "Previously approved bounded setup/comparison trials are historical; they do not admit new provisioning, generation, residency changes or isolation here.",
+    "NoSecretsRequested": true,
+    "CurrentLiveTrialScope": "Not established; no applicable installed/listening candidate or fresh exclusive-use/residency/isolation approval.",
+    "RequestScope": "Deterministic/file-only preparation and exact read-only prerequisite checks."
+  },
+  "Validation": {
+    "RealEndpointObservation": false,
+    "SourceInputCount": 57,
+    "Warnings": 0,
+    "SelfTestCount": 55,
+    "Errors": 0,
+    "BuildConfiguration": "Release",
+    "SelfTests": [
+      "rubric-positive-http-error",
+      "rubric-positive-arithmetic",
+      "rubric-positive-code-explanation",
+      "rubric-positive-unknown-owner",
+      "rubric-positive-hostile-clipboard",
+      "rubric-positive-quoted-lock",
+      "rubric-injection-marker",
+      "production-reasoner-answer-and-loopback-payload",
+      "unavailable-no-fallback-missing-model",
+      "unavailable-no-fallback-wrong-digest",
+      "unavailable-no-fallback-malformed-tags",
+      "unavailable-no-fallback-http-503",
+      "unavailable-no-fallback-redirect",
+      "unavailable-no-fallback-connection-refused",
+      "invalid-production-generation-14",
+      "invalid-production-generation-15",
+      "invalid-production-generation-16",
+      "invalid-production-generation-17",
+      "invalid-production-generation-18",
+      "quoted-action-is-never-dispatched-by-proof",
+      "production-request-limit",
+      "production-request-boundary-4096",
+      "production-cancellation",
+      "production-timeout-classification",
+      "probe-unhealthy-and-no-generation",
+      "transport-remote-destination-denied",
+      "observe-client-cancellation-readiness",
+      "observe-client-cancellation-answer",
+      "buffered-progress-preserves-failure-and-cancellation",
+      "stream-final-frame-True",
+      "stream-final-frame-False",
+      "stream-client-cancellation",
+      "full-measurement-orchestration-synthetic-http-only",
+      "runtime-version-mismatch-preflight",
+      "qualification-budget-boundaries-and-missing-results",
+      "qualification-rejects-invalid-budgets-and-unapproved-comparison",
+      "model-identity-reuses-production-bare-and-prefixed-digests",
+      "qualification-comparison-and-partial-coverage",
+      "process-lineage-includes-native-tree-not-unrelated-names",
+      "process-lineage-rejects-preparent-and-postsnapshot-creation",
+      "process-lineage-root-loss-and-pid-reuse",
+      "process-lineage-descendant-reuse-and-disappearance",
+      "resource-counters-baseline-and-per-identity-deltas",
+      "resource-snapshot-failures-finish-and-disposal",
+      "listener-validation-fails-closed",
+      "transport-root-loss-blocks-generation-and-cleanup",
+      "native-observer-read-only-self-process-positive-control",
+      "offline-facts-reference-arithmetic-and-code-errors",
+      "offline-facts-qualifiers-and-unrecognised-answers-require-review",
+      "offline-facts-numeric-precedence-source-changes-and-bounds",
+      "offline-saved-reader-preserves-verdicts-and-handles-both-paths",
+      "offline-saved-reader-rejects-corrupt-or-unknown-evidence",
+      "request-envelope-exact-json-bytes-and-decoded-fields",
+      "request-envelope-source-linked-boundaries-without-inference",
+      "request-envelope-saved-representations-and-corruption"
+    ],
+    "PathRegressionCount": 6,
+    "PathRegressions": [
+      "Qualification output follows PowerShell location.",
+      "Nested validation output follows PowerShell location; no endpoint observation.",
+      "Machine output creates its parent in the PowerShell location.",
+      "Existing relative evidence is rejected before validation.",
+      "Record-Machine.ps1 rejects existing relative evidence before inventory or network access.",
+      "Record-CandidateMetadata.ps1 rejects existing relative evidence before inventory or network access."
+    ],
+    "ProofAssemblySha256": "51A217375CB139851C934CC8FAAF893BE102DEDF3EFFA4CE4C41026C8F52EA83",
+    "NativeControl": "Only the self-test process was observed by the read-only positive control; no model resources were measured.",
+    "RealGeneration": false
+  },
+  "Retirement": {
+    "VerifiedConsumers": "Proof.csproj; Run-Qualification.ps1 -> Run-Validation.ps1 -> Record-Machine.ps1; README and Design acceptance/decision/deferred-validation/local-inference/roadmap pages.",
+    "Decision": "Retain all experiment executables; no exact redundant path removed.",
+    "Unreplaced": "Fixture rubric, serial cold/warm and cancellation schedules, native process/listener admission, saved-answer/envelope analysis, incremental evidence and file-only wrapper path regression.",
+    "MaintainedOverlappingTestInputs": [
+      {
+        "Path": "tests\\Kora.Windows.IntegrationTests\\Dependencies\\WindowsOllamaReasonerTests.cs",
+        "Sha256": "E7FFF9A157654306A5A8240D25A2347E93B83C4DB5299D0CB503EAA5CF5D87C2",
+        "FactOrTheoryDeclarations": 10
+      },
+      {
+        "Path": "tests\\Kora.Windows.IntegrationTests\\Dependencies\\WindowsOllamaSetupServiceTests.cs",
+        "Sha256": "447F87D7E8B9F590ECCEADB1D9F1B8E3EFB727302F8EA68420A087DFA095CBEC",
+        "FactOrTheoryDeclarations": 14
+      },
+      {
+        "Path": "tests\\Kora.Windows.IntegrationTests\\Dependencies\\LocalInferenceDependencyProbeTests.cs",
+        "Sha256": "59E71BA367F2295A49CEE9A2305C8AE8A2BFBFCB745EE52A73C36ACCCED510D5",
+        "FactOrTheoryDeclarations": 7
+      },
+      {
+        "Path": "tests\\Kora.Windows.IntegrationTests\\Dependencies\\OllamaModelIdentityTests.cs",
+        "Sha256": "4B20E6E0DEBD2EB9D46A563E73DD8D6EA2B8A372219A1C32EB8014612045B769",
+        "FactOrTheoryDeclarations": 2
+      }
+    ]
+  },
+  "UnperformedGates": [
+    "L1: named reference/isolation owners; approved hardware/resource/cessation budgets",
+    "L2: installed exact baseline or separately approved named comparison; native licences and expanded/peak/per-volume storage",
+    "L3: 30 cold/30 paired warm per path; human semantic review; effective context, actual timeout, cessation/races and recovery",
+    "L4: approved attributable whole-environment IPv4/IPv6/DNS/proxy/NAT blocking and scoped independent capture",
+    "L5: owner-reviewed candidate and hardware disposition",
+    "L6: actual admitted-host/UI/clipboard/voice/streaming repeat; affected A2/R19 acceptance"
+  ],
+  "Scheduling": "Complete builds/file-only tests/hashing first; then exactly one exclusive proof workload with immediately paired cold/warm requests. Independent offline instrumented phases are separate; human/offline review runs after model workloads end.",
+  "Sanitization": "Relative source paths, prerequisite flags, exact digests, named CPU/OS and test names only. No private prompts/outputs, usernames, hostnames, serials, account data, secrets, capture or machine-unique absolute paths retained."
+}

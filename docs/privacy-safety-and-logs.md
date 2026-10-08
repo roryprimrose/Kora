@@ -10,6 +10,14 @@ Only this store's committed events are included; settings/effect events from
 other storage or logging paths are not imported or represented as atomic
 interaction commits.
 
+The [manual-call command subset](commands.md#exact-current-run-manual-call-control)
+does use this committed authority path: dedicated original-user intent/session
+admission, required requested and truthful process-memory outcome audits,
+correlated by the same exact host request/session/task. The manual flag itself
+is never persisted or restored. Audit/receipt failure keeps explicit
+conservative run protection, not fabricated rollback or automatic no-call
+evidence. Cached call inspection creates no audit, effect or question answer.
+
 Pages show source-qualified citations, recorded schema/event/outcome,
 session/task/approval/trace IDs and exact committed revision/digest references.
 They do not reconstruct historical question text or a file/activity graph.

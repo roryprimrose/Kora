@@ -563,6 +563,17 @@ The default-On [in-call grant-ignore setting](Call_Aware_Speech.md#ignoring-reus
 The host revalidates it immediately before dispatch, including background work; feedback/speak-once preferences cannot bypass it.
 During protected calls, the [settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated voice/in-call configuration changes, including disabling grant-ignore/detection and clearing manual call state.
 Trusted initiating-channel lineage and request/apply revalidation prevent model/tool or later UI-confirmation laundering; a new UI request is required.
+The delivered [manual-call command subset](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08)
+captures original input before asynchronous work and uses dedicated original-user
+control intent/session-generation admission. Requested and truthful outcome
+audits commit on the existing consolidated SQLite lease, without nested lease
+acquisition or fabricated audio/maintenance/approval authority. The process-memory
+manual flag is never a persisted setting or transactionally rolled-back fiction.
+Lost required evidence/unconfirmed retirement keeps a separate conservative
+run hold, original automatic observations and all saved flags. Clear/reset
+cannot release Unknown protection or replay old speech/input. Passive status
+creates no effect/approval/activity; pending questions and security previews
+remain complete and cannot be answered, rebound or replaced by these commands.
 Consumed single-use and ended session grants may remain as historical evidence under the applicable history/audit policy; that evidence is not continuing authority.
 See [Internal Model Tools](Internal_Model_Tools.md#grant-and-feedback-rules) for the model-facing boundary.
 An exact reusable grant requires explicit

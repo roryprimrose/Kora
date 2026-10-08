@@ -99,6 +99,13 @@ The right-click menu contains:
 Tray labels use the configured assistant name except for the fixed
 Documentation label.
 
+For manual call protection use **Kora Settings > Calls** from the tray. The
+native **I'm in a call**, **Clear manual call mode**, **Reset manual off** and
+passive **Cached call status** share the [exact current-run commands](commands.md#exact-current-run-manual-call-control).
+This adds no ambient detector or separate tray mutation authority. Manual
+state is not restored across restart; clearing never clears automatic Unknown/
+Active evidence, changes saved flags, speaks, replays output or opens capture.
+
 **Release maintenance (notify-only)** shares the existing native cached
 review/snooze workflow with exact typed/activated **maintenance status**,
 **maintenance review** and **maintenance snooze**. Commands never check,

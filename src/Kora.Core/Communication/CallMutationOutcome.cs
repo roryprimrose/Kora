@@ -1,4 +1,4 @@
-namespace Kora.Application.Communication;
+namespace Kora.Core.Communication;
 
 public enum CallMutationOutcome
 {

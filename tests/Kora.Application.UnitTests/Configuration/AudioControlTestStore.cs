@@ -3,11 +3,12 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
+using Kora.Core.Communication;
 
 namespace Kora.Application.UnitTests.Configuration;
 
 internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore,
-    IDiagnosticRetentionSessionStore, IHostTaskStore
+    IDiagnosticRetentionSessionStore, IManualCallControlStore, IHostTaskStore
 {
     public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
         CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -21,11 +22,38 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
     internal Task<WorkSessionAuthorization>? PendingCreation { get; set; }
     internal bool FailTerminal { get; set; }
     internal Action<HostTaskRecord>? BeforeCommit { get; set; }
+    internal Action<HostRequest>? BeforeControlIntent { get; set; }
     internal HostRequest? LastRequest { get; private set; }
     public ValueTask<WorkSessionAuthorization> CreateDiagnosticRetentionSessionAsync(HostRequest request,
         Func<bool> admitted, CancellationToken cancellationToken) => CreateAudioControlSessionAsync(request, admitted, cancellationToken);
     public ValueTask<T> WithDiagnosticRetentionSessionAsync<T>(HostRequest request, HostRevision generation,
         Func<T> operation, CancellationToken cancellationToken) => WithAudioControlSessionAsync(request, generation, operation, cancellationToken);
+    internal bool FailRequestedAudit { get; set; }
+    internal bool FailOutcomeAudit { get; set; }
+    internal bool ForeignManualContext { get; set; }
+
+    public ValueTask<WorkSessionAuthorization> CreateManualCallControlSessionAsync(HostRequest request,
+        Func<bool> admitted, CancellationToken cancellationToken) => CreateAudioControlSessionAsync(request, admitted, cancellationToken);
+
+    public async ValueTask<CallMutationOutcome> ApplyManualCallAsync(HostRequest request, HostRevision generation,
+        bool active, Func<bool> admitted, Func<Task<CallMutationOutcome>> transition, CancellationToken cancellationToken)
+    {
+        var operation = await WithAudioControlSessionAsync(request, generation, async () =>
+        {
+            if (!admitted()) { throw new InvalidOperationException("Manual admission changed."); }
+            if (FailRequestedAudit) { throw new IOException("required requested audit failed"); }
+            using var foreign = ForeignManualContext
+                ? HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Request) : null;
+            var outcome = await transition();
+            if (!ReferenceEquals(HostActivity.RequireCurrent().Request, request) || HostActivity.RequireCurrent().Activity!.IsStopped)
+            {
+                throw new InvalidOperationException("Lost manual context.");
+            }
+            if (FailOutcomeAudit) { throw new IOException("required outcome audit failed"); }
+            return outcome;
+        }, cancellationToken);
+        return await operation;
+    }
 
     public ValueTask<WorkSessionAuthorization> CreateMaintenanceControlSessionAsync(HostRequest request,
         Func<bool> admitted, CancellationToken cancellationToken) => CreateAudioControlSessionAsync(request, admitted, cancellationToken);
@@ -34,6 +62,7 @@ internal sealed class AudioControlTestStore : ISessionWorkspaceStore, IAudioCont
 
     public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
     {
+        BeforeControlIntent?.Invoke(request);
         var record = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
         Tasks.Add(record);
         return ValueTask.FromResult(record);

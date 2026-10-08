@@ -69,6 +69,59 @@ retirement, and none is deleted or rerun.
 
 Related: [Proactive Interaction](Proactive_Interaction.md), [Task Lifecycle](Task_Lifecycle.md), [Environment Setup](Environment_Setup.md), [Security](Security_Data_Flows.md).
 
+## Delivered Manual Command Parity - 2026-10-08
+
+The existing run-only layer now has shared native and exact typed/activated
+`list call settings`, `get/status call.manual-active`, `set ... to on/off` and
+`reset call.manual-active` routes. The current installed prefix is optional;
+the fixed phrases are in both activation/recognition grammars. Reserved call
+input precedes pending-question dispatch. Cached inspection is passive and
+bounded (1,024-byte input / 64-KiB complete JSON); it never creates intent,
+approval, unrelated activity, speech or automatic evidence. Mutation refuses
+pending questions/approvals and preserves complete required visual content.
+
+[ManualCallControl](../src/Kora.Application/Communication/ManualCallControl.cs)
+delegates to a dedicated [host-only storage seam](../src/Kora.Core/Storage/IManualCallControlStore.cs),
+not fabricated audio/maintenance authority. The host allocates original-user
+control identity, commits intent, and revalidates current session generation,
+own live context, original channel, observation revision and captured native
+lifetime/owner/privacy/input gates. Required requested and outcome authority
+audits use the consolidated lease/connection; their unique audit identities
+correlate through the same exact host request/session/task and causal trace,
+not caller fields or an invented approval. The same lease remains owned across
+awaited resource closure before its truthful terminal audit; closure failure
+or cancellation cannot acquire a successful terminal receipt.
+
+The current observation lock surrounds the transition's generation fence and
+source/admission recheck. Manual on/off/reset fence pending synthesis/playback
+and capture/callback generations; late old requests may finish visually but
+cannot synthesize after the layer clears. Resource release is awaited without
+reopening capture or replaying output. Changed input needs explicit fresh
+listening enablement/PTT. These are process-memory effects, not an atomic
+persisted manual flag. Lost outcome evidence or unconfirmed resource closure
+does not certify rollback: a separate explicit run-owned
+`ManualControlEvidenceUnavailable` hold prevents speech, activation and reusable
+grant admission, without changing automatic observations or saved flags.
+Further manual mutations cannot use that unknown state as authority.
+
+The saved `CallAwareSettings` tuple, defaults, Perpetual/session grant records
+and unavailable `ExactReviewUnavailable` relaxation path remain unchanged.
+Restart starts manual-off with the composed detector still unavailable. This
+does not deliver automatic detection, persisted call state, new settings/model
+tools, speak-once, output mode/volume, microphone/consent, or full R15.
+Maintained portable/native-binding and actual private-SQLite tests cover
+parity, grammar/bounds, original input, source/generation and retirement/audit
+failure without installed devices/providers or live effects.
+
+**Experiment disposition:** no executable or receipt is removed or rerun.
+Speech's acoustic/hardware/provider evidence, MG1's actual runtime envelope and
+late-effect receipts, runtime/worker/containment proofs, and storage-engine/
+encryption/artifact/release/source consumers are not equivalent to these
+deterministic command/policy and standard-SQLite compositions. No call-only
+maintained equivalent executable was found. Native accessibility, automatic
+provider detection, real-call/acoustic/runtime/installed and A0-A4 qualification
+remain separately gated.
+
 ## Default Behaviour
 
 Suppress automatic speech during a detected/suspected call, or while an enabled detector cannot establish current state.

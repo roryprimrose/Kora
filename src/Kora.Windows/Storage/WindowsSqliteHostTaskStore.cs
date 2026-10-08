@@ -155,13 +155,38 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     internal T WithCommittedIntent<T>(HostRequest request, Func<SqliteConnection, HostTaskRecord, T> operation,
         CancellationToken cancellationToken, bool requireIdle = false)
     {
+        RequireCommittedIntentContext(request);
+        using var lease = AcquireTaskLease(out var created, cancellationToken);
+        using var connection = OpenDatabase(created, cancellationToken);
+        var intent = ReadCommittedIntent(connection, request, requireIdle);
+        var result = operation(connection, intent);
+        database.VerifyFiles();
+        return result;
+    }
+
+    internal async Task<T> WithCommittedIntentAsync<T>(HostRequest request,
+        Func<SqliteConnection, HostTaskRecord, Task<T>> operation, CancellationToken cancellationToken)
+    {
+        RequireCommittedIntentContext(request);
+        using var lease = AcquireTaskLease(out var created, cancellationToken);
+        using var connection = OpenDatabase(created, cancellationToken);
+        var intent = ReadCommittedIntent(connection, request, requireIdle: false);
+        var result = await operation(connection, intent).ConfigureAwait(false);
+        database.VerifyFiles();
+        return result;
+    }
+
+    private static void RequireCommittedIntentContext(HostRequest request)
+    {
         var live = HostActivity.RequireCurrent();
         if (live.Activity!.IsStopped || live.Request != request)
         {
             throw new InvalidOperationException("The interaction lost its live owning host request.");
         }
-        using var lease = AcquireTaskLease(out var created, cancellationToken);
-        using var connection = OpenDatabase(created, cancellationToken);
+    }
+
+    private static HostTaskRecord ReadCommittedIntent(SqliteConnection connection, HostRequest request, bool requireIdle)
+    {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM host_tasks WHERE task_id=$task;";
         command.Parameters.AddWithValue("$task", request.TaskId.Value.ToString("D"));
@@ -193,9 +218,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
                 }
             }
         }
-        var result = operation(connection, intent);
-        database.VerifyFiles();
-        return result;
+        return intent;
     }
 
     public ValueTask<HostTaskRecord?> ReadTaskAsync(HostId<TaskIdentity> taskId, CancellationToken cancellationToken)

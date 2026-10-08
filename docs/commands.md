@@ -103,6 +103,51 @@ receipt deny success and require a fresh explicit request. This is bounded
 command parity, not a general notification broker, production wake or
 installed/native/runtime acceptance.
 
+## Exact current-run manual call control
+
+Native **Settings > Calls** and typed/already **activated** voice share:
+
+| Exact command | Result |
+|---|---|
+| `list call settings` | Complete schema, default-off, run-only scope, timing, reset and cached policy/source revision |
+| `get call.manual-active` / `status call.manual-active` | Manual flag, independent automatic observation/availability, effective conservative protection and saved flags |
+| `set call.manual-active to on` | Enable only the current-run manual layer |
+| `set call.manual-active to off` | Clear only that layer; never assert detector Clear |
+| `reset call.manual-active` | Same manual-off effect; no saved preference reset |
+
+The optional prefix is the current installed display/PTT name, not a hidden
+old-name alias or production wake. Grammar is case-insensitive with outer
+whitespace trimming. `on`/`off` are the only set choices; extra words, controls,
+unknown call targets and inputs over **1,024 UTF-8 bytes** clarify locally.
+Complete versioned JSON is limited to **64 KiB**, never truncated.
+These reserved routes run before pending-question input. Inspection is passive
+and cached: no control intent, meaningful activity, approval, detector probe,
+model, speech, capture or unrelated effect. Results appear in the transcript/
+native cached status without replacing the full question, approval or preview.
+Mutation is refused while a question/approval is pending; it cannot answer,
+approve, rebind or defer a change until clearance.
+
+Set/reset require original input captured before asynchronous work, genuine
+host-created committed intent/session generation, own live request context,
+current source/policy revision and current ownership/privacy/input gates.
+Protected/Unknown calls deny original voice mutations, including off/reset;
+a later mouse confirmation cannot relabel that voice input. Start a new
+eligible native/typed request instead.
+Changed manual state fences old synthesis/playback, input and callbacks;
+old requests may finish visually but cannot synthesize/replay after off/reset.
+Capture stays closed until a separate fresh **Enable listening** and PTT.
+No consent, microphone, saved call flags, grant record, output mode or volume
+is changed. Mandatory full visual information remains intact.
+
+Required typed authority audits precede the fenced process-memory transition
+and record its truthful outcome on the existing shared SQLite lease. This is
+not atomic persistence of the manual flag. A lost audit/receipt or unconfirmed
+retirement reports **not-confirmed** and retains explicit conservative
+evidence-unavailable protection; it never claims rollback, retries, or uses
+unknown evidence to authorize less protection. Startup remains manual-off
+with honest detector-unavailable status. Automatic detection, speak-once,
+protection relaxation and full R15/native/acoustic acceptance remain absent.
+
 ## Read-only host discovery
 
 These exact local commands require the active, unlocked Kora host and do not

@@ -1,4 +1,5 @@
 using Kora.Application.Communication;
+using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -13,6 +14,45 @@ public sealed partial class MainViewModel
     private readonly CallCommunicationPolicy communicationPolicy;
     private Func<bool> callOwnershipEligible = static () => false;
     private Task callClosureTask = Task.CompletedTask;
+    private readonly ManualCallControl? manualCallControl;
+    private bool manualCallControlActive;
+    private long manualCallSpeechRevision;
+    private long manualCallNativeRevision;
+    private int manualCallNativeAvailable;
+
+    public void BindManualCallNativeLifetime(bool available)
+    {
+        Volatile.Write(ref manualCallNativeAvailable, available ? 1 : 0);
+        Interlocked.Increment(ref manualCallNativeRevision);
+    }
+
+    private sealed record ManualCallInput(RequestOrigin Origin, long Revision, Func<bool> Eligible, Func<bool> RetiredEligible);
+
+    public string ManualCallConfigurationStatus => ManualCallCommandResult.Serialize(
+        new("observed", manualCallControl is null ? "Manual control admission is unavailable." : null, communicationPolicy.Current));
+    public Kora.Application.Infrastructure.AsyncCommand GetManualCallStatusCommand { get; }
+    public Kora.Application.Infrastructure.AsyncCommand ResetManualCallCommand { get; }
+
+    private ManualCallInput CaptureManualCallInput(RequestOrigin origin, long revision, long? voiceGeneration = null,
+        bool native = false)
+    {
+        origin = HostActivity.Current?.Request.Origin ?? origin;
+        var privacy = privacyObservation.Current;
+        var recovery = Interlocked.Read(ref voiceRecoveryRevision);
+        var generation = voiceGeneration ?? voiceRecognition.Generation;
+        var capturedOrigin = origin;
+        var nativeRevision = Interlocked.Read(ref manualCallNativeRevision);
+        bool NativeEligible() => !native || nativeRevision == Interlocked.Read(ref manualCallNativeRevision)
+            && Volatile.Read(ref manualCallNativeAvailable) == 1;
+        return new(origin, revision, () => IsCallMutationHostEligible && NativeEligible()
+            && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
+            && Interlocked.Read(ref voiceRecoveryRevision) == recovery
+            && (capturedOrigin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
+                && privacyObservation.Current.CanCapture && voiceRecognition.Generation == generation),
+            () => IsCallMutationHostEligible && NativeEligible() && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
+                && Interlocked.Read(ref voiceRecoveryRevision) == recovery + 1
+                && !IsVoiceEnabled && Interlocked.Read(ref acceptedTranscriptGeneration) == -1);
+    }
 
     public bool IsManualCallActive => communicationPolicy.Current.ManualActive;
     public long CallPolicyRevision => communicationPolicy.Current.Revision;
@@ -58,26 +98,91 @@ public sealed partial class MainViewModel
         return false;
     }
 
-    public async Task SetManualCallAsync(bool active, RequestOrigin origin, long observedRevision,
+    internal async Task SetManualCallAsync(bool active, RequestOrigin origin, long observedRevision,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        // Ambient host lineage is authoritative even if a later button supplies LocalUi.
-        origin = HostActivity.Current?.Request.Origin ?? origin;
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Policy);
-        var audit = StartAudit(SecurityAuditCategory.ConfigurationWrite, "configuration.manual-call",
-            origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
-            "call.current-run");
-        var outcome = communicationPolicy.SetManual(active, origin, observedRevision,
-            () => !cancellationToken.IsCancellationRequested && IsCallMutationHostEligible);
-        CompleteAudit(audit, outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
-            ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
-        activity.Complete(outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
-            ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-        ReportCallMutation(outcome, "configuration.manual-call", origin);
-#pragma warning disable VSTHRD003 // This mutation synchronously starts the owned transition; await its audio release.
-        await callClosureTask;
-#pragma warning restore VSTHRD003
+        if (!Enum.IsDefined(origin)) { throw new ArgumentOutOfRangeException(nameof(origin)); }
+        await ExecuteManualCallCommandAsync(new(AppearanceCommandOperation.Set, active),
+            CaptureManualCallInput(origin, observedRevision, native: true), cancellationToken);
+    }
+
+    private async Task ExecuteManualCallCommandAsync(ManualCallCommand command, ManualCallInput input,
+        CancellationToken cancellationToken = default)
+    {
+        if (disposed || !IsCallMutationHostEligible) { return; }
+        if (command.Operation is AppearanceCommandOperation.List or AppearanceCommandOperation.Get)
+        {
+            // Passive cached inspection never touches intent/audit, speech, question or preview state.
+            Transcript = ManualCallConfigurationStatus;
+            return;
+        }
+        if (command.Operation == AppearanceCommandOperation.Clarify)
+        {
+            Transcript = command.Error!;
+            return;
+        }
+        if (manualCallControlActive || IsResponseInteractionPending)
+        {
+            Transcript = "Manual call control is unavailable during a pending question, approval or control transition; no answer or effect was dispatched.";
+            return;
+        }
+        var denial = communicationPolicy.CheckMutation(input.Origin, input.Revision, input.Eligible);
+        if (denial is { } denied && (!input.Eligible()
+            || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)))
+        {
+            ReportCallMutation(denied, "configuration.manual-call", input.Origin);
+            return;
+        }
+        if (manualCallControl is null)
+        {
+            Transcript = "Manual call control admission is unavailable. The current layer is unchanged.";
+            return;
+        }
+        manualCallControlActive = true;
+        try
+        {
+            var outcome = await manualCallControl.SetAsync(command.Operation != AppearanceCommandOperation.Reset && command.Active == true,
+                input.Origin, input.Revision, communicationPolicy,
+                () => input.Eligible() && !IsResponseInteractionPending,
+                () => RetireManualCallResources(input), cancellationToken);
+            if (disposed || !IsCallMutationHostEligible) { return; }
+            Transcript = ManualCallCommandResult.Serialize(new(outcome.ToString().ToLowerInvariant(), null, communicationPolicy.Current));
+            if (!IsResponseInteractionPending) { ReportCallMutation(outcome, "configuration.manual-call", input.Origin); }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
+            or InvalidOperationException or OperationCanceledException)
+        {
+            ApplicationLog.Error(logger, exception, "Applying run-only manual call control");
+            if (!disposed)
+            {
+                Transcript = ManualCallCommandResult.Serialize(new("not-confirmed",
+                    "Required admission, retirement or outcome receipt failed; the current cached process-memory state is shown, not rollback or durable manual state. "
+                    + exception.GetType().Name, communicationPolicy.Current));
+            }
+        }
+        finally
+        {
+            manualCallControlActive = false;
+            if (!disposed) { OnPropertyChanged(nameof(ManualCallConfigurationStatus)); }
+        }
+    }
+
+    private ManualCallRetirement RetireManualCallResources(ManualCallInput input)
+    {
+        Interlocked.Increment(ref manualCallSpeechRevision);
+        textToSpeech.InvalidateOutput();
+        HoldVoiceInput("Microphone closed · manual call mode changed; enable listening explicitly when permitted");
+        var retirement = Task.WhenAll(textToSpeech.StopAsync(), voiceRecognition.StopAsync());
+        uiDispatcher.Post(() =>
+        {
+            if (disposed) { return; }
+            forceVisualResponse = true;
+            IsSpeaking = false;
+            activeSpokenText = null;
+            NotifyOutputPolicyChanged();
+        });
+        return new(retirement, () => input.RetiredEligible() && !IsResponseInteractionPending);
     }
 
     private void ReportCallMutation(CallMutationOutcome outcome, string action, RequestOrigin origin)
@@ -117,7 +222,11 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Applying the call-aware output policy");
-            if (!disposed) { ShowFailure("The call-aware output policy could not be applied.", exception.Message); }
+            if (!disposed)
+            {
+                if (IsResponseInteractionPending) { Transcript = "Call-aware output retirement could not be confirmed; the complete pending interaction remains visual."; }
+                else { ShowFailure("The call-aware output policy could not be applied.", exception.Message); }
+            }
         }
     }
 
@@ -134,6 +243,7 @@ public sealed partial class MainViewModel
                 AllowVoiceActivationDuringCalls = observation.Settings.AllowVoiceActivationDuringCalls;
                 OnPropertyChanged(nameof(IsManualCallActive));
                 OnPropertyChanged(nameof(CallManualStatus));
+                OnPropertyChanged(nameof(ManualCallConfigurationStatus));
                 OnPropertyChanged(nameof(CallPolicyRevision));
                 OnPropertyChanged(nameof(AutomaticCallState));
                 OnPropertyChanged(nameof(CallStateStatus));

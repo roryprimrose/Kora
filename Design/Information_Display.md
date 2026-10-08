@@ -2,13 +2,43 @@
 
 Status: accepted design direction; bounded native-text-v1 passive viewer
 implemented for explicitly opened embedded guide pages. General model/result
-routing, durable history/artifact resolution and isolated HTML remain gated.
+routing, full conversation/artifact resolution and isolated HTML remain gated.
 The guide, bootstrap grant document and passive viewer share the bounded
 native Markdig/Avalonia pipeline. This is a partial R14 delivery, not the
 general artifact or permission-management experience described below.
 The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
+
+## Delivered Bounded Passive Session History - 2026-10-09
+
+The native Sessions window now offers **Read exact history** and **Next history
+snapshot page**, with an explicit immutable-session-ID field and accessible
+button/field names. The same Application service provides exact typed/activated
+`session history` and `session get` routes. A session name, selected window,
+diagnostic record, trace ID or caption never resolves a history subject.
+This inert native display has no reply, approval, attachment, playback, model,
+export or replay action. Browsing changes neither focus/voice targets nor
+meaningful activity, lifecycle or current approval/question state.
+
+The single [typed history contract](Interaction_And_Sessions.md#delivered-bounded-ordered-interaction-history---2026-10-09)
+owns host-committed question/final-answer, decision metadata and task-state
+receipt projections, stable exact citations and session-local sequence.
+The default 25/max 50-record, complete 64 KiB result preserves one exact
+generation/sequence snapshot across pages and restart; later appends are excluded.
+Changed lifecycle, unknown IDs/cross-session cursors, missing/corrupt storage
+and privacy loss fail closed. Oversized content is explicitly unavailable;
+metadata-only, baseline/gap and disposition-redacted records are not inferred
+responses. Done sessions remain readable; Removed sessions allow only exact
+redacted-citation inspection, not live-list membership or resume.
+
+Bootstrap messages/response bodies were not admitted to this durable store and
+remain unavailable. Shared-profile skill content and local file/clipboard
+previews remain volatile inspections. No history content enters diagnostics,
+activity tags or model context; only fresh admitted actual playback can create
+captions. This is partial R12/R14 delivery, not a full conversation composer,
+history search/model reasoning, Ask Evidence, queue or scheduler. Real installed
+visual/screen-reader/DPI acceptance remains open.
 
 ## Delivered Exact Host-Record Review - 2026-10-07
 
@@ -79,8 +109,8 @@ silently shortened. Missing records/trace segments, expired-but-present
 records, unavailable sources and storage/access/validation errors are visible.
 Due dates do not prove physical removal; absent segments may never have been
 recorded. The query is a diagnostic projection, not the atomic interaction
-audit or proof of authorization/effect. Session/conversation history is
-unavailable, not an empty successful fabricated store.
+audit or proof of authorization/effect. This evidence source is not session/conversation history; the separately
+admitted bounded history source above is never synthesized from diagnostics.
 
 The source selector also admits **DailyLog**, independently of SQLite.
 **All** remains SQLite-only; daily mirrors do not alter its counts. Daily

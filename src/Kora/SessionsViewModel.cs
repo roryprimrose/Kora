@@ -29,8 +29,10 @@ internal sealed partial class SessionsViewModel(
     private HostTaskRecord? selectedTask;
     private HostTaskObservation? inspectedTask;
     private SessionDispositionPreview? dispositionPreview;
+    private SessionHistoryPage? history;
+    private string historySessionId = string.Empty;
     private string nameDraft = string.Empty;
-    private string status = "Refresh to inspect bounded durable names and authority. No conversation or queue store is available.";
+    private string status = "Refresh to inspect durable names and authority, or enter an exact ID for bounded passive interaction history. No composer or queue is available.";
     private string detail = string.Empty;
     private bool busy;
     private bool closed;
@@ -79,6 +81,26 @@ internal sealed partial class SessionsViewModel(
     }
     public string Status => status;
     public string Detail => detail;
+    public string HistorySessionId
+    {
+        get => historySessionId;
+        set { historySessionId = value; history = null; OnPropertyChanged(); Notify(); }
+    }
+    public bool CanHistory => CanRead && Guid.TryParseExact(historySessionId, "D", out var id) && id != Guid.Empty;
+    public bool CanNextHistory => CanHistory && history?.Next is not null;
+
+    public Task ReadHistoryAsync(bool next = false) => RunAsync(async () =>
+    {
+        if (!Guid.TryParseExact(historySessionId, "D", out var id) || id == Guid.Empty)
+        {
+            throw new InvalidOperationException("Enter the exact immutable session ID, not a name.");
+        }
+        history = await service.ReadHistoryAsync(new(id),
+            next ? history?.Next ?? throw new InvalidOperationException("No next history page.") : null, 25, lifetime.Token);
+        detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistoryPage.Scope) { History = history }));
+        status = "Passive ordered history for exact ID " + id.ToString("D")
+            + (history.Disposed ? ". Disposed: content redacted; immutable citations retained." : ". No session activity, reply, focus or voice target changed.");
+    });
     public bool CanRead => !busy && !closed && access.CanInspect;
     public bool CanNext => CanRead && sessions?.Next is not null;
     public bool CanNextQuestions => CanRead && questions?.Next is not null;
@@ -151,6 +173,7 @@ internal sealed partial class SessionsViewModel(
         selected = record;
         if (record is null) { return; }
         nameDraft = record.Metadata?.Name.Value ?? string.Empty;
+        historySessionId = record.Authority.SessionId.Value.ToString("D");
         questions = await service.ReadQuestionsAsync(record.Authority.SessionId, null, 25, lifetime.Token);
         tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
         Render();
@@ -310,6 +333,7 @@ internal sealed partial class SessionsViewModel(
         questions = null;
         tasks = null;
         evidencePage = null;
+        history = null;
         detail = string.Empty;
         nameDraft = string.Empty;
     }
@@ -346,5 +370,8 @@ internal sealed partial class SessionsViewModel(
         OnPropertyChanged(nameof(CanNextEvidence));
         OnPropertyChanged(nameof(CanDone));
         OnPropertyChanged(nameof(CanResume));
+        OnPropertyChanged(nameof(HistorySessionId));
+        OnPropertyChanged(nameof(CanHistory));
+        OnPropertyChanged(nameof(CanNextHistory));
     }
 }

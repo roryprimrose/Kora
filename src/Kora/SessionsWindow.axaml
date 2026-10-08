@@ -6,7 +6,7 @@
     Width="1050" Height="760" MinWidth="800" MinHeight="560"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
@@ -21,7 +21,14 @@
       <Button Grid.Column="2" x:Name="RenameSession" Content="Re_name selected ID" IsEnabled="{Binding CanRename}"
               AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
     </Grid>
-    <Grid Grid.Row="3" ColumnDefinitions="320,*" ColumnSpacing="14">
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10">
+      <TextBox Text="{Binding HistorySessionId, Mode=TwoWay}" Width="320" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Exact immutable session ID for passive history; names do not select sessions" />
+      <Button x:Name="ReadHistory" Content="_Read exact history" IsEnabled="{Binding CanHistory}"
+              AutomationProperties.Name="Read bounded ordered session history without resuming, replying, replaying or changing voice target" />
+      <Button x:Name="NextHistory" Content="Next history snapshot page" IsEnabled="{Binding CanNextHistory}" />
+    </StackPanel>
+    <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
       <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Durable session names, exact IDs, lifecycle and optimistic revisions">
         <ListBox.ItemTemplate>
@@ -49,7 +56,7 @@
         </ScrollViewer>
       </Grid>
     </Grid>
-    <WrapPanel Grid.Row="4">
+    <WrapPanel Grid.Row="5">
       <Button x:Name="NextQuestions" Content="Next questions" IsEnabled="{Binding CanNextQuestions}" />
       <Button x:Name="NextTasks" Content="Next tasks" IsEnabled="{Binding CanNextTasks}" />
       <Button x:Name="InspectTask" Content="Inspect exact selected task" IsEnabled="{Binding CanInspectTask}" />

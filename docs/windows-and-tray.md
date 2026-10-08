@@ -241,6 +241,31 @@ Full conversations, work queues, name-based voice targeting, automatic archive,
 full recoverable-copy deletion/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
 
+### Bounded passive interaction history
+
+Select an existing session to populate its immutable ID, or enter a known exact
+session GUID in the history field. Choose **Read exact history**. **Next history
+snapshot page** continues only that session's original generation/sequence
+ceiling; later appends require a new read. A stale lifecycle requires refresh,
+not automatic resume. Pages default to 25, max 50/64 KiB; oversized individual
+content is explicitly unavailable with its citation retained. Fields/buttons
+have accessible names and keyboard access; history never changes the current
+question, approval, focus/voice target or meaningful activity.
+
+Only host-committed questions/final answers, decision metadata and task-state
+receipts are available. Migration baselines and gaps are labelled, not an
+invented timeline; a task receipt is not proof of an external effect.
+Bootstrap user/model messages, response bodies and full conversation composition
+are unavailable. There is no search, model history reasoning, Ask Evidence,
+export, replay or playback. File previews, shared-profile skill text and captions
+are not imported. Private ownership loss clears pending content.
+Exact typed/activated [history/get commands](commands.md#bounded-exact-id-session-commands)
+use the same service and do not record control intents or mutate sessions.
+
+Done sessions remain readable. Removed sessions do not reappear in the live
+list, but their exact known ID can inspect redacted history citations. This
+does not restore text, names, authority, approvals or work.
+
 ### Logical session disposition
 
 For explicit removal from the live workspace, select the exact existing ID and
@@ -252,7 +277,9 @@ voice, typed `session delete`, model, name-based or automatic deletion route.
 
 Confirmation removes only this session's live name/metadata, questions
 (including drafts/answers), host observations, admitted wait bindings and
-scoped grants. It advances generation and retains a Removed identity tombstone
+scoped grants, and atomically redacts durable history source/content. Exact
+event IDs, sequence, source revisions and provenance digests remain readable.
+It advances generation and retains a Removed identity tombstone
 that cannot be reused or resumed. Other sessions and independent Perpetual
 grants are preserved. Live or Unknown work and unresolved questions block
 disposition, including expired questions. Kora does not abandon work to permit
@@ -263,7 +290,7 @@ preview after resolving the blocker.
 **This is not full or forensic deletion.** Task/event and content-minimising
 authority audit provenance, independent diagnostics, Perpetual provenance,
 inert legacy migration storage, SQLite journals/free pages and copied databases
-remain. General conversation/history, managed session artifacts, source
+remain. Full conversations, managed session artifacts, source
 snapshots/indexes/caches and managed-backup deletion are not delivered. Local
 disposition cannot erase user exports or provider copies. No inactivity timer,
 automatic purge or session retention setting is added.

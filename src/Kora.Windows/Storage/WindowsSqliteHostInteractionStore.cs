@@ -21,7 +21,7 @@ namespace Kora.Windows.Storage;
 /// Tasks, questions and required authority audit share one lease and transaction.
 /// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ICommittedAuthorityAuditReader
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ICommittedAuthorityAuditReader
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -50,9 +50,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         this.auditPolicy = auditPolicy;
         this.checkpoint = checkpoint;
         database = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
-            HostInteractionSchema.ApplicationId, HostInteractionSchema.AuthorityTables,
+            HostInteractionSchema.ApplicationId, HostInteractionSchema.CurrentTables,
             new(1, 2, HostInteractionSchema.Tables, MigrateMetadata),
-            new(2, HostInteractionSchema.Version, HostInteractionSchema.MetadataTables, ConsolidateTasks));
+            new(2, 3, HostInteractionSchema.MetadataTables, ConsolidateTasks),
+            new(3, HostInteractionSchema.Version, HostInteractionSchema.AuthorityTables, MigrateHistory));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -78,7 +79,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         Execute(connection, transaction, string.Join(';', WindowsSqliteHostTaskStore.Schema) + ";"
             + HostInteractionSchema.RunTable + ";" + HostInteractionSchema.WaitTable);
         tasks.ImportAuthority(connection, transaction, token);
-        ValidateAuthority(connection);
+        ValidateConsolidatedAuthority(connection);
         checkpoint?.BeforeCommit(connection, transaction);
     }
 
@@ -464,6 +465,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
 
     private static void ValidateAuthority(SqliteConnection connection)
     {
+        ValidateConsolidatedAuthority(connection);
+        SessionHistoryPersistence.Validate(connection);
+    }
+
+    private static void ValidateConsolidatedAuthority(SqliteConnection connection)
+    {
         ValidateAudit(connection);
         ValidateRows(connection);
         ValidateMetadata(connection);
@@ -559,6 +566,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             UPDATE authority_head SET sequence=$sequence,hash=$hash WHERE singleton=1;
             """, ("$sequence", sequence), ("$correlation", audit.CorrelationId.ToString("D")),
             ("$previous", previousHash), ("$hash", hash), ("$envelope", json));
+        if (decision is not null)
+        {
+            SessionHistoryPersistence.Decision(connection, transaction, live.Request, session.Generation, decision.Outcome, sequence);
+        }
         return sequence;
     }
 
@@ -765,11 +776,14 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     }
 
     private static void WriteSession(SqliteConnection connection, SqliteTransaction transaction,
-        WorkSessionAuthorization session, int state, long sequence) =>
+        WorkSessionAuthorization session, int state, long sequence)
+    {
         Execute(connection, transaction, """
             INSERT INTO work_sessions VALUES($id,$generation,$state,$audit)
             ON CONFLICT(session_id) DO UPDATE SET generation=excluded.generation,state=excluded.state,audit_sequence=excluded.audit_sequence;
             """, ("$id", Id(session.SessionId)), ("$generation", session.Generation.Value), ("$state", state), ("$audit", sequence));
+        SessionHistoryPersistence.Seed(connection, transaction, session.SessionId, session.Generation, baseline: false);
+    }
 
     private static void WriteQuestion(SqliteConnection connection, SqliteTransaction transaction,
         HostQuestionRecord question, long sequence)
@@ -786,6 +800,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         {
             throw new InvalidDataException("The durable question identity or revision conflicts with another record.");
         }
+        SessionHistoryPersistence.Question(connection, transaction, question, sequence);
     }
 
     private static void WriteGrant(SqliteConnection connection, SqliteTransaction transaction, OperationGrant grant, long sequence)

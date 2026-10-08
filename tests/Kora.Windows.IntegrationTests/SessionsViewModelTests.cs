@@ -136,8 +136,11 @@ public sealed class SessionsViewModelTests
             .And.Contain("Mark selected ID _Done").And.Contain("Explicitly res_ume selected ID");
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
-        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().ContainSingle();
+        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
+            .Should().HaveCount(2, "only the bounded name draft and exact immutable history ID are editable; no conversation composer exists");
         source.Should().Contain("NameDraft").And.Contain("CanCreate").And.Contain("CanRename");
+        source.Should().Contain("HistorySessionId").And.Contain("CanHistory").And.Contain("CanNextHistory")
+            .And.Contain("Read bounded ordered session history without resuming");
         var code = Read("SessionsWindow.axaml.cs");
         code.Should().Contain("model.SelectAsync").And.Contain("Key.Escape").And.NotContain("SubmitAsync")
             .And.NotContain("ApproveAsync").And.NotContain("Clipboard").And.NotContain("Reasoner");

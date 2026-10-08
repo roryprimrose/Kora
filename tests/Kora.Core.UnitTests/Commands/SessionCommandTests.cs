@@ -22,6 +22,9 @@ public sealed class SessionCommandTests
     [InlineData("session rename " + Id + " 1 0 \"Same name\"", SessionCommandOperation.Rename)]
     [InlineData("session done " + Id + " 9223372036854775807", SessionCommandOperation.Done)]
     [InlineData("session resume " + Id + " 2", SessionCommandOperation.Resume)]
+    [InlineData("Nova, session history " + Id, SessionCommandOperation.History)]
+    [InlineData("session history " + Id + " after 2:100:25 limit 50", SessionCommandOperation.History)]
+    [InlineData("session get " + Id + " " + Id, SessionCommandOperation.HistoryGet)]
     public void Exact_commands_parse_without_inference(string input, SessionCommandOperation operation)
     {
         SessionCommand.Parse(input, "Nova")!.Operation.Should().Be(operation);
@@ -90,6 +93,17 @@ public sealed class SessionCommandTests
     [InlineData("session list \"name\"")]
     [InlineData("session inspect " + Id + " approvals")]
     [InlineData("session status \"title\"")]
+    [InlineData("session history \"title\"")]
+    [InlineData("session history selected")]
+    [InlineData("session history " + Id + " limit 51")]
+    [InlineData("session history " + Id + " after 2:10:11")]
+    [InlineData("session history " + Id + " after")]
+    [InlineData("session history " + Id + " after 1:10:1 after " + Id)]
+    [InlineData("session history " + Id + " after 2:10:0")]
+    [InlineData("session history " + Id + " after " + Id)]
+    [InlineData("session history " + Id + " after -1:10:1")]
+    [InlineData("session history " + Id + " after 1:9223372036854775808:1")]
+    [InlineData("session get " + Id + " name")]
     [InlineData("session create \"multi\nline\"")]
     public void Invalid_or_unsupported_session_input_is_claimed_and_fails_closed(string input)
     {

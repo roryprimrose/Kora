@@ -1,8 +1,8 @@
 # Human Interaction and Persistent Sessions
 
 Status: agreed product direction; bounded durable question/grant/session metadata,
-exact session/task controls and consolidated schema-v3 task/question/required-audit
-authority implemented. Cancellation covers only the genuine current-run local-version
+exact session/task controls and consolidated schema-v4 task/question/required-audit
+authority with bounded ordered interaction history implemented. Cancellation covers only the genuine current-run local-version
 pre-dispatch question wait; full interaction/session/queue/effect integration remains proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
@@ -43,6 +43,67 @@ There is no general typed form service,
 full session conversation/history UI, concurrent task
 scheduler, or model-facing session tool API.
 Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
+
+### Delivered Bounded Ordered Interaction History - 2026-10-09
+
+The authoritative `SessionHistoryEvent` projection records only actually
+host-committed question snapshots/final answers, decision metadata and task-state
+receipts. It is **not a full conversation store**: bootstrap user/model messages,
+response bodies and general conversation composition were never durably admitted
+and are unavailable, not fabricated from diagnostics. A successful task receipt
+does not prove an external effect. Draft transitions have decision metadata, not
+final-answer text; migrated current records are explicitly `Baseline` snapshots.
+
+Schema v4 adds per-session history heads and immutable event/source projections
+under the existing authority lease and transaction. Store transitions, not a
+model, name, diagnostic mirror or arbitrary append API, author the events.
+Stable event GUIDs, session-local monotonic sequences, source IDs/revisions,
+session generations and SHA-256 provenance survive restart. Required typed
+audit/task provenance is checked; audit is not mined to synthesize turns.
+Validated v1/v2/v3 migrations preserve original authority/audit/task bytes.
+The v3-to-v4 transaction adds an explicit gap followed by labelled current
+snapshots; GUID sorting is not presented as pre-migration chronological order.
+Unknown schemas, inconsistent projections/heads and failed migrations are
+unavailable; a rollback/retry performs storage maintenance, never execution.
+
+`session history <exact-id>` and `session get <exact-id> <event-id>` share
+`SessionWorkspaceService` with the native Sessions viewer. Typed and currently
+configured-name activated command prefixes select only the grammar; names never
+resolve sessions. These routes write no control intent, terminal receipt, audit,
+meaningful-activity timestamp or lifecycle state. Private ownership/inspection
+and originating channel/revision are rechecked before presentation.
+Native history uses an explicit exact-ID field, bounded inert text, keyboard
+buttons and accessible names; it changes no question, approval, focus or voice
+target and provides no reply/playback controls.
+
+Pages default to 25, at most 50 records/64 KiB complete output. Continuations
+bind the exact session, authorization generation, original sequence ceiling and
+last returned sequence; later appends cannot expand a snapshot. Lifecycle
+changes invalidate continuations. Oversized individual content is explicitly
+`Unavailable` with stable metadata/citation retained, never silently truncated.
+Exact event lookup cannot cross sessions. Gaps, metadata-only, unavailable and
+redacted records are distinct. Passive reads do not resume a Done session.
+
+Logical disposition retains readable exact history citations but atomically
+redacts history source/content alongside the existing removal of live question/
+answer/name/observation/scoped-grant rows. Event ID, sequence, source revision
+and provenance digest remain stable; the Removed identity remains excluded from
+the live workspace and cannot resume or gain meaningful appends. Its known ID
+can inspect only redacted history. The preview digest includes history, excluding
+only the confirmation's own fresh control receipt; concurrent addressed work
+invalidates the preview. Cancellation/audit/admission failures roll back together.
+No history timer, automatic purge, apply-now or physical-copy erasure is added.
+
+Shared-profile skill inspection, immutable local file previews and clipboard
+inspection remain volatile/read-only control content, not conversation turns,
+attachments or model input. Their paths/text/provenance are never imported.
+History never reconstructs captions or authorizes replay: only fresh separately
+admitted actual playback can create a caption. History content never enters logs,
+activity tags/baggage or model context, and retrieval has no network/model
+dependency. Full composer, search, model history reasoning, Ask Evidence, broad
+export, queues and scheduler remain unavailable. Unique storage/interruption/
+capacity/copy evidence in the storage experiment is retained, not deleted or
+claimed replaced by this increment.
 
 ### Delivered Minimal Sessions Workspace - 2026-10-07
 
@@ -93,7 +154,8 @@ live metadata/name, host observations, questions/drafts/answers, admitted wait
 bindings and scoped grants, and commits both fresh control terminal success
 and required typed audit. Independent Perpetual records, unrelated sessions,
 task/event provenance and audit chain remain unchanged. Removed sessions are
-not browsable or resumable. The task writer rejects new intents and late
+not live-workspace browsable or resumable; the later bounded history increment
+permits exact-ID inspection of redacted citations only. The task writer rejects new intents and late
 outcomes; interaction/snapshot/lifecycle paths cannot append to or recreate a
 Removed identity. A competing append wins before disposition and blocks or
 invalidates it, or loses after the committed tombstone.

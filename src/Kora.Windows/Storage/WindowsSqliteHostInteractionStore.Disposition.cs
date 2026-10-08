@@ -54,6 +54,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 changes: [SessionChange(removed, 2), TaskChange(completed)]);
             WriteSession(connection, transaction, removed, 2, sequence);
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
+            SessionHistoryPersistence.Redact(connection, transaction, request.SessionId);
             Execute(connection, transaction, """
                 DELETE FROM host_task_waits WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
                 DELETE FROM host_observations WHERE session_id=$id;
@@ -126,6 +127,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM host_questions WHERE session_id=$id ORDER BY question_id;",
             "SELECT * FROM scoped_grants WHERE session_id=$id ORDER BY approval_id;",
             "SELECT * FROM host_tasks WHERE session_id=$id AND task_id<>$control ORDER BY task_id;",
+            "SELECT * FROM session_history WHERE session_id=$id AND (json_extract(projection,'$.TaskId') IS NULL OR json_extract(projection,'$.TaskId')<>$control) ORDER BY sequence;",
             "SELECT w.* FROM host_task_waits w JOIN host_tasks t ON t.task_id=w.task_id WHERE t.session_id=$id ORDER BY w.task_id;",
         })
         {

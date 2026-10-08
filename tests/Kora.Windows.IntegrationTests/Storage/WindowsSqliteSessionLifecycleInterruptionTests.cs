@@ -63,7 +63,7 @@ public sealed class WindowsSqliteSessionLifecycleInterruptionTests
                 using var connection = fixture.OpenRaw();
                 using var command = connection.CreateCommand();
                 command.CommandText = "PRAGMA user_version;";
-                ((long)command.ExecuteScalar()!).Should().Be(committed ? 3 : consolidation ? 2 : 1);
+                ((long)command.ExecuteScalar()!).Should().Be(committed ? HostInteractionSchema.Version : consolidation ? 2 : 1);
             }
             fixture.Reopen();
             await fixture.Store.InitializeAsync(fixture.Token);

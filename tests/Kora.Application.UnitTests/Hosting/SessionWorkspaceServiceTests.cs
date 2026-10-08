@@ -151,7 +151,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.Logger.Messages.Should().ContainSingle().Which.Should().Be("Sessions workspace failed; exception type IOException.");
     }
 
-    private sealed class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, IHostTaskStore, IDisposable
+    private sealed class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, IDisposable
     {
         internal Action? AfterPreview { get; set; }
         internal bool RevokeDuringDispositionResolution { get; init; }
@@ -208,6 +208,23 @@ public sealed partial class SessionWorkspaceServiceTests
         internal bool ReviseDuringControl { get; init; }
         internal string? Failure { get; init; }
         internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; init; }
+        internal Action? AfterHistoryRead { get; set; }
+        internal Exception? HistoryFailure { get; set; }
+        internal SessionHistoryEvent? HistoryEvent { get; set; }
+        public ValueTask<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session,
+            SessionHistoryCursor? cursor, int limit, CancellationToken cancellationToken)
+        {
+            if (HistoryFailure is { } failure) { throw failure; }
+            AfterHistoryRead?.Invoke();
+            return ValueTask.FromResult(new SessionHistoryPage(session, new(1), false, 0, [], null));
+        }
+        public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,
+            Guid eventId, CancellationToken cancellationToken)
+        {
+            if (HistoryFailure is { } failure) { throw failure; }
+            AfterHistoryRead?.Invoke();
+            return ValueTask.FromResult(HistoryEvent);
+        }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;

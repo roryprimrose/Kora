@@ -20,6 +20,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
         this.host = host;
         this.owner = owner;
         host.FilePreviewChanged += OnChanged;
+        host.FileInspectionRequested += OnInspectionRequested;
         timer.Tick += OnChanged;
         timer.Start();
     }
@@ -75,7 +76,12 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
         var view = new LocalFilePreviewWindow(host.ReportHostInteractionFailure);
         window = view;
         view.Closed += OnClosed;
-        if (revision is not null) { view.ShowRevision(revision); }
+        if (revision is not null)
+        {
+            var exactSource = revision.Reference;
+            view.ShowRevision(revision, query => host.SearchFileAsync(exactSource, query),
+                () => !disposed && host.FileRevision?.Reference == exactSource);
+        }
         else
         {
             var exactId = review!.ReviewId;
@@ -94,6 +100,12 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
         host.ClearFilePreview();
     }
 
+    private void OnInspectionRequested(object? sender, EventArgs args)
+    {
+        Refresh();
+        window?.FocusSearch();
+    }
+
     private void CloseView()
     {
         var view = window;
@@ -108,6 +120,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
     {
         disposed = true;
         host.FilePreviewChanged -= OnChanged;
+        host.FileInspectionRequested -= OnInspectionRequested;
         timer.Stop();
         timer.Tick -= OnChanged;
         CloseView();

@@ -54,7 +54,7 @@ revalidated before and after reading. Failed inputs
 are rejected whole; there are no undisclosed partial-folder exclusions.
 
 The preview can contain secrets. No redaction/safety guarantee is made.
-Content, paths and filenames never enter its logs, audit identifiers, activity
+Content, search queries, excerpts, paths and filenames never enter its logs, audit identifiers, activity
 tags, transcripts, speech, SQLite, preference/artifact storage, model prompts
 or clipboard. Typed requested/terminal audits contain only safe action,
 target, outcome/reason and host correlation. The native UI displays the
@@ -70,8 +70,19 @@ of memory erasure or exclusion from OS crash dumps. Pending native work and
 unverified release cannot claim clean handoff/exit.
 
 Only fixed-drive plain-text/Markdown files up to 256 KiB are supported.
-Folders, knowledge registration/persistence, UNC/removable drives, indexing,
-retrieval/citations, reasoning, hosted egress and content execution remain
+Native lexical search scans only this selected immutable revision in bounded
+volatile memory. There is no derived persistent index or enterprise cache.
+Requested/terminal typed audit outcomes are required before excerpts are
+published; failed audit publication means unavailable, not success.
+Origin/session/task and source/revision/digest identities plus privacy and
+ownership generations are revalidated at the shared revocation boundary.
+Cancellation/revocation suppress late results; outstanding worker work blocks
+clean handoff. Native close releases query/result strings for collection, not
+claimed memory erasure. Exact excerpts may contain secrets and untrusted
+instructions; no semantic answer, rendering, execution or authority is derived.
+
+Folders, knowledge registration/persistence, UNC/removable drives, persistent/
+vector indexing, reasoning, hosted egress and content execution remain
 unavailable.
 
 ## Clipboard snapshots

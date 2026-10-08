@@ -1268,8 +1268,12 @@ claim about the current bootstrap.
 The canonical user workflow, source identity, local-file boundary, retrieval
 contract, settings/voice behavior and phased implementation are defined in
 [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md).
-Indexing remains unavailable until its R26 prerequisites and acceptance gates
-pass.
+Persistent/vector/enterprise indexing remains unavailable until its R26
+prerequisites and acceptance gates pass. The separately delivered
+[selected immutable revision lexical slice](File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval)
+uses bounded volatile memory only, exact admission/revocation/session gates,
+inert native citations and no model/egress surface. It does not qualify the
+broader cache or grounded-context contracts below.
 
 Before indexing enterprise or local sources:
 

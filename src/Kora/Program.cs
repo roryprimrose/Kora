@@ -443,6 +443,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
+        services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
         services.AddSingleton<MainViewModel>();
     }
 

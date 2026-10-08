@@ -11,15 +11,18 @@ public sealed partial class MainViewModel
 {
     private LocalFilePreview? filePreview;
     private IUserFilePicker? filePicker;
+    private LocalFileSearch? fileSearch;
     public LocalFileReview? FileReview => filePreview?.Review;
     public LocalFileRevision? FileRevision => filePreview?.Current;
     public event EventHandler? FilePreviewChanged;
+    public event EventHandler? FileInspectionRequested;
 
-    public void BindFilePreview(LocalFilePreview service, IUserFilePicker picker)
+    public void BindFilePreview(LocalFilePreview service, IUserFilePicker picker, LocalFileSearch? search = null)
     {
         if (filePreview is not null) { throw new InvalidOperationException("File preview is already bound."); }
         filePreview = service;
         filePicker = picker;
+        fileSearch = search;
         service.Changed += OnFilePreviewChanged;
     }
 
@@ -54,6 +57,28 @@ public sealed partial class MainViewModel
 
     public void ClearFilePreview() => filePreview?.Clear();
 
+    public async Task<LocalFileSearchResult> SearchFileAsync(LocalFileReference exactSource, string query)
+    {
+        var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
+        var callRevision = CallPolicyRevision;
+        if (origin != RequestOrigin.LocalUi || fileSearch is null || FileRevision is not { } admitted
+            || admitted.Reference != exactSource || !IsClipboardEligible(origin, callRevision))
+        {
+            return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, DateTimeOffset.UtcNow);
+        }
+        var request = new HostRequest(new(Guid.NewGuid()), admitted.Review.Request.SessionId, admitted.Review.Request.TaskId, origin);
+        using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
+            [new ActivityLink(admitted.Review.Cause)]);
+        var result = await fileSearch.ExecuteAsync(exactSource, query,
+            () => IsClipboardEligible(origin, callRevision), CancellationToken.None);
+        // Native-only text input bypasses transcripts, speech, history and model routing.
+        result = FileRevision?.Reference == exactSource && IsClipboardEligible(origin, callRevision)
+            ? result : LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, result.ObservedAt);
+        activity.Complete(result.Outcome is LocalFileSearchOutcome.Matched or LocalFileSearchOutcome.NoMatch
+            ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+        return result;
+    }
+
     private async Task ExecuteFileCommandAsync(LocalFileCommand command)
     {
         var origin = HostActivity.RequireCurrent().Request.Origin;
@@ -67,10 +92,21 @@ public sealed partial class MainViewModel
             PresentFileOutcome(LocalFileOutcome.Denied);
             return;
         }
+        if (command.Operation == LocalFileOperation.Invalid)
+        {
+            PresentFileOutcome(LocalFileOutcome.Denied);
+            return;
+        }
         if (command.Operation == LocalFileOperation.Clear)
         {
             filePreview.Clear();
             PresentFileOutcome(LocalFileOutcome.Cleared);
+            return;
+        }
+        if (command.Operation == LocalFileOperation.Inspect)
+        {
+            if (FileRevision is null) { PresentFileOutcome(LocalFileOutcome.Stale); return; }
+            FileInspectionRequested?.Invoke(this, EventArgs.Empty);
             return;
         }
         var outcome = await filePreview.SelectAsync(filePicker, Eligible, CancellationToken.None);
@@ -87,7 +123,8 @@ public sealed partial class MainViewModel
             + "Untrusted plain text may contain secrets; no rendering, execution, clipboard, model, egress, persistence or automatic refresh. "
             + "A failed selection admits nothing: resolve access/policy and select a fresh supported file. Unverified native release blocks clean handoff/exit and requires restart. "
             + "Close, clear, cancel, privacy closure or ownership loss discards the preview. "
-            + "Folder preview, attachments, knowledge sources, indexing, retrieval and reasoning are unavailable.");
+            + "Search/inspect file opens bounded native lexical search of this exact admitted revision only. "
+            + "Folder preview, attachments, knowledge sources, persistent/vector indexes and reasoning are unavailable.");
     }
 
     private void DisposeFilePreview()

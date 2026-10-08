@@ -62,8 +62,13 @@ public sealed partial class SessionWorkspaceService(
         try
         {
             RequireInspection();
+            var revision = access.ControlRevision;
             var page = await read().ConfigureAwait(false);
             RequireInspection();
+            if (access.ControlRevision != revision)
+            {
+                throw new InvalidOperationException("Session inspection requires unchanged private admission during retrieval.");
+            }
             activity.Complete(HostOperationOutcome.Completed);
             return page;
         }

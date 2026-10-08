@@ -80,6 +80,18 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Fact]
+    public async Task Native_passive_history_rejects_changed_admission_revision()
+    {
+        using var fixture = new Fixture();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        fixture.AfterHistoryRead = fixture.AdvanceRevision;
+        var act = () => fixture.Service.ReadHistoryAsync(fixture.Request.SessionId, null, 1, fixture.Token);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*unchanged private admission*");
+        fixture.TaskWrites.Should().BeEmpty();
+        fixture.ControlCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Native_passive_exact_event_and_missing_history_adapter_are_fail_closed()
     {
         using var fixture = new Fixture();

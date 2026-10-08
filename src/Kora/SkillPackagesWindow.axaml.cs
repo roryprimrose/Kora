@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 
+using Kora.Controls;
 using Kora.Core.Presentation;
 using Kora.Core.Skills;
 
@@ -52,32 +53,29 @@ public sealed partial class SkillPackagesWindow : Window
         {
             var document = renderer.Render(file.Text, DetailContentKind.PlainText);
             var shared = catalogue.Dependents(file.ResourceId).Count > 1 ? " (shared)" : string.Empty;
+            var identity = new NamedTextBlock
+            {
+                Text = $"{file.ResourceId}\nSHA-256: {file.Digest} | {file.Bytes.Length} original bytes | {document.Status}",
+                TextWrapping = TextWrapping.Wrap,
+                [DockPanel.DockProperty] = Dock.Top,
+            };
+            Avalonia.Automation.AutomationProperties.SetName(identity, $"{file.Name} identity, digest and byte count");
+            var source = new TextBox
+            {
+                Text = document.Source,
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                IsUndoEnabled = false,
+                FontFamily = new FontFamily("Consolas"),
+                TextWrapping = TextWrapping.NoWrap,
+                ContextMenu = null,
+                ContextFlyout = null,
+            };
+            Avalonia.Automation.AutomationProperties.SetName(source, $"{file.Name} exact immutable source");
             return new TabItem
             {
                 Header = file.Name + shared,
-                Content = new DockPanel
-                {
-                    Children =
-                    {
-                        new TextBlock
-                        {
-                            Text = $"{file.ResourceId}\nSHA-256: {file.Digest} | {file.Bytes.Length} original bytes | {document.Status}",
-                            TextWrapping = TextWrapping.Wrap,
-                            [DockPanel.DockProperty] = Dock.Top,
-                        },
-                        new TextBox
-                        {
-                            Text = document.Source,
-                            IsReadOnly = true,
-                            AcceptsReturn = true,
-                            IsUndoEnabled = false,
-                            FontFamily = new FontFamily("Consolas"),
-                            TextWrapping = TextWrapping.NoWrap,
-                            ContextMenu = null,
-                            ContextFlyout = null,
-                        },
-                    },
-                },
+                Content = new DockPanel { Children = { identity, source } },
             };
         }).ToArray();
 }

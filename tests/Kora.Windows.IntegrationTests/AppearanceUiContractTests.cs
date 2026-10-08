@@ -65,6 +65,26 @@ public sealed class AppearanceUiContractTests
         }
     }
 
+    [Fact]
+    public void Appearance_registry_controls_expose_screen_reader_accessible_names()
+    {
+        var root = FindRepositoryRoot();
+        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        foreach (var binding in new[]
+        {
+            "SelectedAppearanceOption", "ResetAppearanceOptionCommand", "ThemeMode",
+            "ResponseTimeoutSeconds", "PresenceTimeoutSeconds", "PresenceSizePixels",
+            "PresenceDotSizePercent", "PresenceDotDensityPercent", "PresenceMovementSpeedPercent",
+            "IsPresenceSpeechScalingEnabled", "PresenceSpeechScaleAmountPercent",
+        })
+        {
+            var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
+                (attribute.Name.LocalName is "SelectedItem" or "Command" or "Value" or "IsChecked")
+                && string.Equals(attribute.Value, "{Binding " + binding + "}", StringComparison.Ordinal)));
+            control.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
+        }
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

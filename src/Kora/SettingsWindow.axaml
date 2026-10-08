@@ -3,6 +3,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:configuration="clr-namespace:Kora.Core.Configuration;assembly=Kora.Core"
+    xmlns:controls="using:Kora.Controls"
     Title="{Binding SettingsWindowTitle}"
     Icon="/Assets/Kora.ico"
     Width="1040"
@@ -12,6 +13,20 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
+  <Window.Styles>
+    <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
+      <Setter Property="AutomationProperties.Name"
+              Value="{Binding (AutomationProperties.Name), RelativeSource={RelativeSource TemplatedParent}}" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ :is(Button)#PART_IncreaseButton">
+      <Setter Property="AutomationProperties.Name"
+              Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat='Increase {0}'}" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ :is(Button)#PART_DecreaseButton">
+      <Setter Property="AutomationProperties.Name"
+              Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat='Decrease {0}'}" />
+    </Style>
+  </Window.Styles>
   <Grid RowDefinitions="72,Auto,*">
     <Border BorderBrush="{DynamicResource KoraHeaderBorderBrush}" BorderThickness="0,0,0,1" Padding="30,0">
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
@@ -43,7 +58,7 @@
         FontSize="11"
         TextWrapping="Wrap" />
 
-    <TabControl
+    <controls:NavigableTabControl
         x:Name="SettingsTabs"
         Grid.Row="2"
         TabStripPlacement="Left"
@@ -63,14 +78,16 @@
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="12">
-              <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340">
+              <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340"
+                        AutomationProperties.Name="Select an appearance option to inspect or change">
                 <ComboBox.ItemTemplate>
                   <DataTemplate>
                     <TextBlock Text="{Binding Description}" />
                   </DataTemplate>
                 </ComboBox.ItemTemplate>
               </ComboBox>
-              <Button Content="Reset selected option" Command="{Binding ResetAppearanceOptionCommand}" />
+              <Button Content="Reset selected option" Command="{Binding ResetAppearanceOptionCommand}"
+                      AutomationProperties.Name="Reset the selected appearance option to its default" />
             </StackPanel>
 
             <Border Classes="settings-card">
@@ -86,7 +103,8 @@
                     Grid.Column="1"
                     ItemsSource="{Binding ThemeModes}"
                     SelectedItem="{Binding ThemeMode}"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Application theme" />
               </Grid>
             </Border>
 
@@ -144,6 +162,7 @@
                 </StackPanel>
                 <NumericUpDown
                     Grid.Column="1"
+                    AutomationProperties.Name="Response timeout in seconds"
                     Value="{Binding ResponseTimeoutSeconds}"
                     Minimum="{Binding Source={x:Static configuration:ResponseWindowSettings.MinimumTimeoutSeconds}}"
                     Maximum="{Binding Source={x:Static configuration:ResponseWindowSettings.MaximumTimeoutSeconds}}"
@@ -173,6 +192,7 @@
                 </StackPanel>
                 <NumericUpDown
                     Grid.Column="1"
+                    AutomationProperties.Name="Presence timeout in seconds"
                     Value="{Binding PresenceTimeoutSeconds}"
                     Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumTimeoutSeconds}}"
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumTimeoutSeconds}}"
@@ -198,7 +218,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumSizePixels}}"
                     TickFrequency="20"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Presence size in pixels" />
               </Grid>
             </Border>
 
@@ -218,7 +239,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumDotSizePercent}}"
                     TickFrequency="10"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Dot size percent" />
               </Grid>
             </Border>
 
@@ -238,7 +260,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumDotDensityPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Dot density percent" />
               </Grid>
             </Border>
 
@@ -258,7 +281,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumMovementSpeedPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Movement speed percent" />
               </Grid>
             </Border>
 
@@ -275,7 +299,8 @@
                     Grid.Column="1"
                     Content="Scale with speech"
                     IsChecked="{Binding IsPresenceSpeechScalingEnabled}"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Scale presence with speech playback" />
               </Grid>
             </Border>
 
@@ -296,7 +321,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumSpeechScaleAmountPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Speech scale amount percent" />
               </Grid>
             </Border>
           </StackPanel>
@@ -703,7 +729,7 @@
             <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
               <StackPanel Spacing="4">
                 <TextBlock Text="Call detection" Classes="settings-title" />
-                <TextBlock
+                <controls:NamedTextBlock
                     Text="{Binding CallStateStatus}"
                     AutomationProperties.Name="Current call status"
                     AutomationProperties.LiveSetting="Polite"
@@ -715,8 +741,8 @@
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Text="Manual call mode" Classes="settings-title" />
-                <TextBlock Text="{Binding CallManualStatus}" AutomationProperties.Name="Manual call status" AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding ManualCallConfigurationStatus}" AutomationProperties.Name="Cached manual and automatic call policy status" Classes="settings-description" TextWrapping="Wrap" />
+                <controls:NamedTextBlock Text="{Binding CallManualStatus}" AutomationProperties.Name="Manual call status" AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
+                <controls:NamedTextBlock Text="{Binding ManualCallConfigurationStatus}" AutomationProperties.Name="Cached manual and automatic call policy status" Classes="settings-description" TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button Content="I'm in a call" AutomationProperties.Name="Enable manual call mode for this run" TabIndex="0" Command="{Binding EnableManualCallCommand}" />
                   <Button Content="Clear manual call mode" AutomationProperties.Name="Clear only manual call mode" TabIndex="1" Command="{Binding ClearManualCallCommand}" />
@@ -957,6 +983,6 @@
           <Button Content="Review / check / open canonical release" Click="OnMaintenanceClicked" HorizontalAlignment="Left" />
         </StackPanel>
       </TabItem>
-    </TabControl>
+    </controls:NavigableTabControl>
   </Grid>
 </Window>

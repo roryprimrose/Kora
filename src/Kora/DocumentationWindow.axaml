@@ -2,6 +2,7 @@
     x:Class="Kora.DocumentationWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
     Icon="/Assets/Kora.ico"
     Width="1120"
     Height="780"
@@ -55,7 +56,7 @@
       </Border>
 
       <Grid Grid.Column="1" RowDefinitions="Auto,*">
-        <TextBlock x:Name="DetailOpenStatus" Margin="20,8" TextWrapping="Wrap"
+        <controls:NamedTextBlock x:Name="DetailOpenStatus" Margin="20,8" TextWrapping="Wrap"
                    AutomationProperties.Name="Native detail open status" />
         <ScrollViewer x:Name="DocumentScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
           <StackPanel x:Name="DocumentPanel" Margin="44,36,54,60" MaxWidth="760"

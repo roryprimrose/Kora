@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" />
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="coverlet.MTP" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" PrivateAssets="all" />
@@ -20,6 +21,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\Kora.NativeUxFixture\NativeUx\*.cs" Link="NativeUx\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

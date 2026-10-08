@@ -119,6 +119,14 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal Task RefreshTargetAsync() =>
         DecideAsync(Key, () => reviews.ReviewAsync(Key, CancellationToken.None), checking: true);
 
+    internal void ReportOutcome(string message)
+    {
+        RefreshEligibility();
+        if (cleared) { return; }
+        status = message;
+        Notify();
+    }
+
     private async Task DecideAsync(HostQuestionKey target, Func<ValueTask<HostInteractionDecision>> decide,
         bool reviewing = false, bool checking = false)
     {

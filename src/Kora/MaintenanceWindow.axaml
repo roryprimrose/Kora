@@ -2,6 +2,7 @@
     x:Class="Kora.MaintenanceWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
     Title="Kora release maintenance (notify-only)"
     Icon="/Assets/Kora.ico"
     Width="790" Height="660" MinWidth="650" MinHeight="520"
@@ -10,22 +11,35 @@
   <ScrollViewer>
     <StackPanel Margin="24" Spacing="14">
       <TextBlock Text="Canonical release metadata" FontSize="24" FontWeight="SemiBold" />
-      <TextBlock Text="{Binding CurrentVersion, StringFormat='Running version: {0}'}" />
-      <TextBlock Text="{Binding Disclosure}" TextWrapping="Wrap" />
+      <controls:NamedTextBlock Text="{Binding CurrentVersion, StringFormat='Running version: {0}'}"
+                 AutomationProperties.Name="Running application version" />
+      <controls:NamedTextBlock Text="{Binding Disclosure}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Maintenance storage and network disclosure" />
       <TextBlock Text="Production excludes drafts and prereleases. Preview explicitly selects published beta releases. Remote notes are not rendered. Review this exact page before opening it; replacement is external and manual." TextWrapping="Wrap" />
-      <ComboBox ItemsSource="{Binding Channels}" SelectedItem="{Binding Channel}" Width="200" HorizontalAlignment="Left" />
+      <ComboBox ItemsSource="{Binding Channels}" SelectedItem="{Binding Channel}" Width="200" HorizontalAlignment="Left"
+                AutomationProperties.Name="Release channel" />
       <CheckBox Content="Permit public metadata checks for this run (initial check, then 6 hours + jitter/backoff)"
-                IsChecked="{Binding NetworkEnabled}" />
-      <Button Content="Check canonical releases" Command="{Binding CheckCommand}" HorizontalAlignment="Left" />
-      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding VerificationStatus}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding NextCheck, StringFormat='Next eligible check: {0:u}'}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding ReleaseDetails}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding ReleasePage}" TextWrapping="Wrap" />
-      <Button Content="Review this exact verified release" Command="{Binding ReviewCommand}" IsEnabled="{Binding CanReview}" HorizontalAlignment="Left" />
+                IsChecked="{Binding NetworkEnabled}"
+                AutomationProperties.Name="Permit public release metadata checks for this run only" />
+      <Button Content="Check canonical releases" Command="{Binding CheckCommand}" HorizontalAlignment="Left"
+              AutomationProperties.Name="Check canonical releases now" />
+      <controls:NamedTextBlock Text="{Binding Status}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Maintenance check status" AutomationProperties.LiveSetting="Polite" />
+      <controls:NamedTextBlock Text="{Binding VerificationStatus}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Release verification status" AutomationProperties.LiveSetting="Polite" />
+      <controls:NamedTextBlock Text="{Binding NextCheck, StringFormat='Next eligible check: {0:u}'}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Next eligible check time" />
+      <controls:NamedTextBlock Text="{Binding ReleaseDetails}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Verified release details" />
+      <controls:NamedTextBlock Text="{Binding ReleasePage}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Canonical release page address" />
+      <Button Content="Review this exact verified release" Command="{Binding ReviewCommand}" IsEnabled="{Binding CanReview}" HorizontalAlignment="Left"
+              AutomationProperties.Name="Review this exact verified release" />
       <StackPanel Orientation="Horizontal" Spacing="12">
-        <Button Content="Open reviewed canonical release page" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}" />
-        <Button Content="Snooze this version (24h)" Command="{Binding SnoozeCommand}" IsEnabled="{Binding CanSnooze}" />
+        <Button Content="Open reviewed canonical release page" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}"
+                AutomationProperties.Name="Open the reviewed canonical release page" />
+        <Button Content="Snooze this version (24h)" Command="{Binding SnoozeCommand}" IsEnabled="{Binding CanSnooze}"
+                AutomationProperties.Name="Snooze this version for 24 hours" />
       </StackPanel>
       <TextBlock Text="No unsolicited window, focus, audio, microphone, model call or install approval. Unknown deployment mode never authorizes source mutation. Permission and snooze are not saved across restart." TextWrapping="Wrap" />
     </StackPanel>

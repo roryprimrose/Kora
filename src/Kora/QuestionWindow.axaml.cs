@@ -56,11 +56,11 @@ public sealed partial class QuestionWindow : Window
         }
         input.TextChanged += (_, _) => Edit();
         input.IsVisible = record.Spec.Kind == QuestionKind.Text;
-        Required<Button>("ReviewQuestion").Click += async (_, _) => await state.ReviewAsync();
-        Required<Button>("SaveDraft").Click += async (_, _) => await state.SaveDraftAsync();
+        Required<Button>("ReviewQuestion").Click += async (_, _) => await RunInteractionAsync(state.ReviewAsync);
+        Required<Button>("SaveDraft").Click += async (_, _) => await RunInteractionAsync(state.SaveDraftAsync);
         Required<Button>("SubmitAnswer").Content = state.IsApproval ? "_Approve exact operation" : "_Submit answer";
-        Required<Button>("SubmitAnswer").Click += async (_, _) => await state.SubmitAsync();
-        Required<Button>("CancelQuestion").Click += async (_, _) => await state.CancelAsync();
+        Required<Button>("SubmitAnswer").Click += async (_, _) => await RunInteractionAsync(state.SubmitAsync);
+        Required<Button>("CancelQuestion").Click += async (_, _) => await RunInteractionAsync(state.CancelAsync);
         Required<Button>("CloseQuestion").Click += (_, _) => Close();
         review.CopyingToClipboard += BlockClipboard;
         review.CuttingToClipboard += BlockClipboard;
@@ -71,7 +71,7 @@ public sealed partial class QuestionWindow : Window
             if (args.Key == Key.Escape) { args.Handled = true; Close(); }
         };
         state.PropertyChanged += OnStateChanged;
-        Activated += async (_, _) => await state.RefreshTargetAsync();
+        Activated += async (_, _) => await RunInteractionAsync(state.RefreshTargetAsync);
         expiry.Tick += OnExpiry;
         Opened += (_, _) =>
         {
@@ -92,11 +92,34 @@ public sealed partial class QuestionWindow : Window
             choices.Clear();
             Required<TextBlock>("PromptLabel").Text = string.Empty;
             Required<TextBlock>("TargetLabel").Text = string.Empty;
+            Required<TextBlock>("QuestionStatus").Text = string.Empty;
         };
         Refresh();
     }
 
-    internal void ReportOutcome(string message) => Required<TextBlock>("QuestionStatus").Text = message;
+    internal void ReportOutcome(string message) => state.ReportOutcome(message);
+
+    private async Task RunInteractionAsync(Func<Task> interaction)
+    {
+        var focused = FocusManager?.GetFocusedElement() as Control;
+        await interaction();
+        if (!IsVisible || !IsActive || !state.HasPresentation
+            || (FocusManager?.GetFocusedElement() is { } current && !ReferenceEquals(current, this)))
+        {
+            return;
+        }
+        if (focused is not null && ReferenceEquals(TopLevel.GetTopLevel(focused), this) && focused.IsEffectivelyEnabled)
+        {
+            focused.Focus();
+            return;
+        }
+        if (state.IsEditable)
+        {
+            if (choices.Count != 0) { choices.Values.First().Focus(); }
+            else { input.Focus(); }
+        }
+        else { Required<Button>("CloseQuestion").Focus(); }
+    }
 
     private T Required<T>(string name) where T : Control =>
         this.FindControl<T>(name) ?? throw new InvalidOperationException("A native question control is missing.");

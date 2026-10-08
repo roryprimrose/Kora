@@ -36,6 +36,10 @@ DPI/multimonitor, mixed speech targeting and live privacy/ownership transitions.
 It admits no effect proposal/dispatcher or missing source/containment/
 deployment capability and closes none of D-001/D-005/D-008/D-009/D-013.
 
+The [2026-10-07 automated UX/accessibility result](#2026-10-07-bounded-automated-ux-and-accessibility-result)
+is completed evidence, not a future trial action. It records the distinction
+between passing automated checks and still-unperformed native acceptance.
+
 | Proof | Existing evidence / runnable checks | Deferred validation and preparation | Gates still open |
 |---|---|---|---|
 | R02 speech/hardware | [Merged synthetic proof and safe file-only reruns](../experiments/r02-speech-proof/README.md#safe-to-rerun-remotely-including-while-locked) | [Before a live test session](../experiments/r02-speech-proof/README.md#before-a-live-test-session), then [live/instrumented acceptance](../experiments/r02-speech-proof/README.md#live--instrumented-acceptance-work-still-outstanding). Obtain participant/bystander consent and an instrumented host with R03/R09 ownership/privacy controls; the current scripts cannot run live trials. | D-002/D-007; packaged acoustics, playback rejection, latency, reference floor and capture/recovery acceptance |
@@ -55,6 +59,215 @@ authorise its provisioning/network changes. The
 distribution entry records published proof/design coordination, not a claim
 of production installer acceptance. Preserve both distribution and
 containment roadmap plans when integrating that branch.
+
+### 2026-10-07 Bounded Automated UX and Accessibility Result
+
+**Disposition: automated pass and scoped native observations; native acceptance
+remains incomplete. The initial readable-text regression was corrected and
+retested; artifact input/discovery labeling findings were corrected and
+verified through headless tests and native Windows UIA. Continued keyboard
+checks found question focus-restoration and terminal-status persistence
+defects; both were corrected and verified through automated and native
+rechecks. A further safe native batch found unnamed Appearance timeout
+controls and keyboard-boundary defects; those were subsequently corrected
+and verified through automated and native rechecks. An earlier unexplained
+guide disappearance was not reproduced; no cause or product fix is claimed.**
+The isolated worktree's actual base is
+`d0a8e82ef34b82c4d888803083050c2e9dff43cd`. The source fixes and maintained
+tests are worktree changes, not evidence that the previously published beta
+contains them. Release solution build passed with zero warnings/errors; the
+updated Windows integration suite passed **836/836, zero skipped** after the
+extended corrections (previously 828/828 after the question corrections).
+The focused question suite passed **30/30**, including eight new window
+regressions. The combined accessibility runtime suite passed **28/28**,
+including eight new bounded-surface regressions.
+The later question, extended bounded-surface rechecks and nine-option
+Appearance/Evidence completion were recorded on **2026-10-08 UTC**; the
+heading retains the initial result date.
+
+Subsequent fixture-only hooks advance valid scratch lifecycle generations and
+question revisions, seed completed cross-session explicit links plus a missing
+correlation target, and verify refusal of a deferred render after closing its
+immutable viewer. Six added cases bring the focused fixture contracts to
+**18/18 passed**. The latest full integration attempt was **841/842**, with
+`Cancellation_after_commit_does_not_turn_a_durable_receipt_into_a_cancelled_result`
+failing with `OperationCanceledException`; the earlier 836/836 pass remains
+historical evidence, not a pass for this later attempt. The fresh hook fixture
+initialized and exited 0 before native hook measurements; its exact scratch
+child was absent. Native stale/link qualification remains pending. Work paused
+for the operator-requested rebase onto newer `origin/main`; these observations
+remain tied to the original base and do not qualify newly delivered upstream
+surfaces.
+
+| Area | Completed observation | Not established by this result |
+|---|---|---|
+| Accessibility names and readable content | The initial native probe found label-only static text with no separate TextPattern/ValuePattern. The corrected [NamedTextBlock](../src/Kora/Controls/NamedTextBlock.cs) exposes label plus displayed content and publishes complete name changes. [Runtime regressions](../tests/Kora.Windows.IntegrationTests/AccessibilityRuntimeContractTests.cs) cover fallback, empty/duplicate labels, inline text, change notifications and realized artifact labels. Native Windows UIA then exposed actual Maintenance version/disclosure/status, evidence JSON, package identities and synthetic-closure status. After correction, a fresh native recheck exposed the input Name `Typed command or artifact slash input`, with its value still `/`, and exactly one synthetic dropdown item/button named `/inspect-fixture`. The later corrected question retained its exact successful receipt/disclosure Name in a settled snapshot 35 seconds after submission. | Spoken announcement behavior or acceptance of every converted window. Persistence of one bounded terminal message does not qualify all announcements or surfaces. |
+| Keyboard and DPI | Maintained headless checks exercise Maintenance Tab reachability and rendering at 1.0/1.5/2.0/3.0 scale. | Complete Tab/Shift+Tab order, focus restoration, clipping, text scaling, native per-monitor transitions or physical-display usability. Reachability and non-throwing rendering are not substitutes. |
+| Scoped native keyboard | After operator foreground activation, guarded native input measured Maintenance's two enabled focusable controls in complete forward/reverse cycles (six steps each) and the unselected question's six enabled focusable controls in two forward cycles (12 steps). A later selected question completed two exact seven-control cycles in each direction (14 steps each). Every Tab step emitted an owned focus event; disabled controls were skipped. Synthetic artifact Down/Up selected its sole option without changing `/`; Enter completed `/inspect-fixture` and dismissed discovery; Escape dismissed fresh discovery while preserving `/`. Both retained actual input focus. Corrected question native snapshots verified enabled initiating-button focus after Review and Save, and enabled Close focus after submission. | Unmeasured focus paths and physical usability. Foreground acquisition was intermittently denied; those attempts sent no keys. Earlier unsuccessful draft attempts are not counted; later focused-button trials independently established draft saving. See the extended correction row for additional measured cycles and owner restoration. |
+| Native bounded surfaces | A fresh exact question record was readable through the read-only ValuePattern; no choice was preselected. Explicit draft advanced the same question from revision 1 to 2, preserved its session/question IDs and exposed the saved `show` choice in read-only exact review. Corrected submission displayed the local version, storage disclosure and `Verified durable receipt: Succeeded`, with the exact terminal Name unchanged 35 seconds later. A naturally expired older target cleared prompt/choices/review and disabled Submit; it was closed without answering, then a fresh explicit question was opened. Scratch Sessions showed passive detail and explicit Done/resume for the same idle ID, advancing generations 1 to 2 to 3 without replay. Evidence returned a bounded structured snapshot. Guide/details exposed embedded/public provenance; skill inspection exposed manifest identity, digest, source and shared-file tabs. Appearance's owning UIA tree exposed exactly nine options. Typing `/` revealed only the synthetic non-executable fixture entry. | Stale-generation/revision refusal, complete session-page/explicit-link navigation and native stale-detail refusal. Expiry refusal is not a substitute for stale-target refusal. Artifact selection only completed input; Run, copy, external link, script, executor and model routes were not invoked. |
+| Extended safe native batch | Busy scratch Done was refused with the nonterminal/Unknown-work reason and no abandonment; refresh retained all three IDs at Active generation 1. Scratch theme changed System to Light, then the selected registry reset restored System, also read from the scratch preference file. Evidence pagination returned 49 then 15 records with disjoint citation identities and terminal cursor exhaustion; a selected span trace returned 15 records. Evidence measured 14 owned focus events in each direction. Immutable guide details exposed a 4,255-character read-only reader and current-revision search match, with two exact nine-control Tab cycles in each direction (18 events each). A keyboard-origin detail Escape initially restored the exact guide OpenDetails button. A fresh guide measured 20 named focus events in each direction. Shared package helper source was inspected read-only. | This batch initially failed Appearance timeout names and Appearance/package keyboard boundaries; the subsequent correction row records their recheck. Native stale-state injection, physical usability, speech, clipboard and external maintenance remain unqualified. The later registry/Evidence completion row records all nine mutation/reset pairs and retained-parent navigation. |
+| Extended correction recheck | Native UIA exposed exact response/presence timeout Names on both spinners and their actual editors, plus descriptive Increase/Decrease button Names. Appearance completed two exact 14-control named cycles in each direction, 28 owned focus events each. Package inspection completed two exact three-control cycles in each direction, six events each, both on the initial manifest and after selecting the current read-only shared helper. Three keyboard-origin immutable detail closures retained the same guide HWND and restored actual OpenDetails focus in settled checks; the guide remained after activating package/settings surfaces. | Immediate window-transition focus transport is not qualified: missing opening events and transient post-Escape focus gaps aborted probes without sending a follow-on key. Settled checks establish the reported outcomes, not reliability of those immediate probes. The earlier guide disappearance remains unclassified and was not reproduced. |
+| Registry/Evidence completion | Native UIA mutation followed by selected registry reset persisted exact scratch values for all nine options: theme Dark to System; presence/response timeout 12 to 10 and 7 to 5 seconds; presence size 400 to 360 pixels; dot size 120 to 100, density 125 to 100, movement speed 125 to 100 and speech scale amount 125 to 100 percent; speech scaling false to true. Exact-file commit events guarded asynchronous reset verification. Read-only native Audit-source pagination returned 26 then 14 disjoint records, exhausted the cursor and established correlated Requested/Succeeded pairs for every canonical action, with at least two pairs per action. Extra theme retry pairs were retained, not hidden or counted as additional options. Selecting an admitted audit record and its Present segment opened the exact cited span; selecting that span's Present parent opened the exact retained parent citation with matching trace/span identity. An unfiltered native Link-source query returned Available, zero records and no cursor. Synthetic gate closure cleared every private owned window; graceful stop exited 0 and removed the exact scratch child. | These parameter writes did not invoke speech/audio or touch real preferences. One mutation/reset pair per option does not qualify every allowed value, invalid input or stale revision. Retained-parent navigation does not qualify explicit links: the fixture contained none. Session paging, stale-state hooks, spoken screen-reader output, rendered contrast/text scale, physical DPI/multimonitor usability and actual OS privacy/ownership transitions remain unqualified. |
+| Contrast | [Palette contracts](../tests/Kora.Windows.IntegrationTests/ThemeContrastContractTests.cs) require 4.5:1 for declared opaque normal, muted, accent-foreground and status/warning text pairs. Reference-ratio checks pass; unsupported/uncomposited transparent colours are refused. | Rendered pixels, hover/focus/disabled states, gradients, translucent composition or component-boundary contrast. A muted caption is not automatically exempt normal text, and a border's exemption requires a usage assessment. |
+| Native fixture preparation and initial trial | The [test-only launcher](../tests/Kora.NativeUxFixture/NativeUx/NativeUxFixtureHost.cs) builds; [off-screen contracts](../tests/Kora.Windows.IntegrationTests/NativeUx/NativeUxFixtureContractTests.cs) verify production XAML theme loading without production composition, scratch-service initialization/cleanup, clipboard guards and explicit rejection of external/effect operations. The compiled executable's no-argument path exits 2 without native startup. After separate approval, the isolated host launched and Windows UIA inspected only its identity-verified launcher and Maintenance window. Maintenance consent was disabled. Synthetic gate closure emitted the owned window's WindowClosed event, removed its HWND and disabled the version action. Graceful stop exited 0 and removed its exact scratch child. | Remaining native surface paths, keyboard order/focus restoration, live ownership/handoff/lock timing, microphone/TTS, real clipboard or maintenance egress acceptance. Synthetic window clearing does not qualify R03 or actual OS transitions. |
+
+The native fixture reuses actual window/controller/view-model classes and the
+production XAML styles, but never runs `Kora.Program` or the production
+`App.OnFrameworkInitializationCompleted` composition. It creates one uniquely
+named, restricted child under an explicitly supplied existing absolute scratch
+parent on a fixed local drive. UNC/device paths, mapped-drive parents and a
+reparse-point parent are refused. Real task/interaction/evidence stores and preference files are confined
+to that child; voice consent is declined and model execution disabled.
+Two idle and one busy synthetic session seed the bounded inspection paths.
+Typed audit/evidence correlation remains in use; the fixture owns and disposes
+its evidence activity listener before deleting scratch state.
+
+The first native launch stopped on the label-only baseline before keyboard
+input. After correction and a separately approved fresh continuation, the
+scoped checks above ran against identity-verified fixture processes only.
+Native question UIA Invoke returned an ambiguous error on one review attempt;
+a fresh keyboard review exposed the exact record, but this does not qualify
+the earlier failed transport or subsequent draft attempts. One corrected
+fixture exited 0 before its planned review was complete; no result was inferred.
+The final synthetic closure cleared all owned private fixture windows and
+exposed its changed status text. All fixture processes exited 0 and their exact
+scratch children were removed.
+
+The artifact-label recheck used a fresh identity-verified fixture and only
+opened typed discovery and set the synthetic `/` input. It did not invoke the
+catalogue item or Run. Graceful stop exited 0 and removed its exact scratch
+child.
+
+Continued native checks used another fresh identity-verified fixture. The
+artifact keyboard sequence passed after an earlier separated sequence lost
+its target window and aborted without sending the next key; aborted probes
+are not acceptance results. Exact focused-button question review, draft and
+submission then established the bounded results above.
+
+The two question findings were corrected after separate approval:
+
+- After Review and Save draft, actual UIA focus fell back to the non-focusable
+  window rather than returning to an enabled control. The shared asynchronous
+  action/activation path now restores lost focus only while active, visible
+  and still admitted; it preserves meaningful moved focus and selects enabled
+  Close after terminal completion. [Window regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.cs)
+  exercise actual keyboard actions, moved focus and privacy closure. Fresh
+  native snapshots verified Review/Save focus and terminal Close focus.
+- Submission initially exposed the successful receipt and storage disclosure,
+  but a later settled snapshot contained only `Revision 2: answer-recorded`.
+  [QuestionWindow](../src/Kora/QuestionWindow.axaml.cs) now delegates terminal
+  outcomes to the authoritative [view-model status](../src/Kora/NativeQuestionViewModel.cs),
+  so eligibility refreshes retain them. Closure clears the status control,
+  and privacy/closed state refuses late outcome presentation. Automated
+  lifecycle tests and the native 35-second exact-Name comparison passed.
+
+During the corrected recheck, foreground guards refused some attempts and a
+wait for operator foreground timed out; no keys were sent for those attempts.
+One UIA Invoke returned an unclassified generic transport error and did not
+establish submission. The older question naturally expired and was not
+retargeted or answered. A fresh explicit question was placed within the
+primary display and completed through the guarded keyboard path. Both its
+initial and revision-2 immutable reviews retained the same question/session
+IDs. All observed windows remained at 96 DPI; placement is not per-monitor
+acceptance.
+
+The final synthetic closure again cleared every private owned window. This
+fixture exited 0 and its exact scratch child was removed.
+
+No audio, shared clipboard access, external metadata fetch, browser navigation,
+display-setting change or real OS transition was performed. Maintenance's
+consent checkbox remained disabled; invoking Check without consent exposed the
+refusal reason. Native windows were observed at 96 DPI only; moving/observing
+them does not qualify per-monitor transitions or rendered contrast/text scale.
+No native R05/R12/R14 or corresponding A4 gate is qualified by this partial
+trial. The two artifact-label findings are closed by the focused automated
+and native recheck; the question focus/status findings are also closed by
+their automated and native rechecks. Preserve the remaining acceptance
+requirements.
+
+The extended safe batch initially exposed these findings:
+
+- The Appearance response/presence timeout spinners have empty native Names.
+  Actual Tab focus reached their `PART_TextBox` children with empty Names and
+  values 5 and 10; increment/decrement peers expose `Avalonia.Controls.PathIcon`.
+  Adjacent static captions do not establish accessible input labels.
+- Appearance's 16 forward steps produced ten focus events before remaining on
+  the final speech-scale slider; its 16 reverse steps produced two events
+  before remaining on the first registry selector. Package forward navigation
+  produced 12 events but later alternated selector/reader, while 12 reverse
+  steps produced only one event and remained on the immutable source reader.
+  Those initial sequences did not establish complete bidirectional cycles
+  or access to the tab strip.
+- The guide initially regained its exact OpenDetails focus after detail
+  Escape, but was absent from a later owned-window lookup. No cause was
+  inferred. A fresh explicit guide completed the measured 20-step forward
+  and reverse reachability checks; that does not explain the earlier
+  disappearance.
+
+After approval, the timeout and keyboard-boundary defects were corrected:
+
+- [Settings](../src/Kora/SettingsWindow.axaml) labels the spinner and actual
+  template editor with the timeout's seconds unit and labels both stepping
+  buttons, including their derived repeat-button types.
+- [NavigableTabControl](../src/Kora/Controls/NavigableTabControl.cs) is shared
+  by Settings and package inspection. Avalonia's inherited ItemsControl
+  focus handler remembers content inputs/readers as the Tab entry point;
+  wrapping can therefore return to the already focused control. The shared
+  control clears that entry memory and makes only the selected header a
+  Tab stop, preserving native arrow-key selection. An additional changed-file
+  regression verifies that reverse Tab returns to the current selected
+  header, not the first file's header.
+- [Bounded runtime regressions](../tests/Kora.Windows.IntegrationTests/BoundedSurfaceAccessibilityTests.cs)
+  verify the actual editor/button peers, two repeated complete named cycles
+  in both directions, header arrow selection and repeated guide/detail
+  lifetime. Fresh native measurements established the correction row above.
+  All eight new regressions and all 836 integration cases passed.
+- No guide production code was changed. Three headless repetitions and
+  three native closures retained the guide; native settled snapshots restored
+  its exact opening button, and activating other bounded surfaces retained
+  the same HWND. Missing opening focus events and transient immediate
+  post-Escape focus gaps were recorded as probe timing limitations, not
+  successful immediate-event measurements or an inferred product cause.
+
+No copy buttons were invoked. Detail copy controls were enabled/focusable in
+the fixture, but its adapters and framework clipboard guards still refuse
+clipboard operations. Tab reachability does not qualify clipboard behavior.
+Both extended fixtures' final synthetic gate closures cleared all remaining
+private owned windows; each exited 0 and its exact scratch child was removed.
+
+The prepared launcher exposes local-version/native exact review, minimal
+Sessions, read-only Evidence, guide/details, bundled package inspection,
+scratch Appearance and a synthetic typed artifact dropdown. Maintenance
+network consent is disabled. External metadata/browser, device/audio,
+model/setup, OS control and shared clipboard adapters reject operations
+explicitly. Fixture-wide Copy/Cut/Paste keyboard/text-box and context-menu
+guards prevent framework clipboard shortcuts; detail copy is also refused.
+These fixture-only refusals are not production behavior acceptance results.
+Clipboard preview is not exposed by this launcher pending separate exact
+synthetic-fixture approval; the earlier headless preview is not real clipboard
+acceptance. Spoken invocation remains outside this phase.
+
+**Launch remains blocked on separate operator approval.** Only afterward use
+the built `Kora.NativeUxFixture` executable with
+`--launch-native-fixtures --scratch-parent <approved-existing-absolute-directory>`.
+The command-line switch is a deliberate launch guard, not an authorization
+grant. It must not be included in automatic test/CI execution. Agents target
+only the fixture PID/owned windows, stop on a target/foreground mismatch or
+unexpected effect, and never enumerate/capture unrelated desktop content.
+Stop closes private fixture windows, awaits tracked operations, disposes
+controllers and evidence observation, then removes only the created child.
+Forced process termination can leave that exact child for inspected cleanup;
+never delete the scratch parent or unrelated Kora data.
+
+Remaining native measurements retain their scoped approvals: complete
+keyboard/focus behavior, Windows UIA/actual announcements, rendered contrast
+and text scale, physical DPI/multimonitor behavior, and live privacy/ownership
+transitions. Narrator/audio, clipboard manipulation, maintenance network
+checks and real OS transitions require separate consent. Synthetic gate
+closure cannot qualify R03. Full conversations/queues, executor, clipboard
+explanation, Ask Evidence and generalized approvals remain unavailable.
+Native R05/R12/R14 and corresponding A4 gates remain open; this does not
+block unrelated development or replace existing historical proof receipts.
 
 ### W2 Safe Trial and Validation Disposition
 

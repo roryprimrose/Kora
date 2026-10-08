@@ -264,6 +264,9 @@ internal static class Program
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
         services.AddSingleton<OutputDeviceConfigurationService>();
         services.AddSingleton<ResponseModeConfigurationService>();
+        services.AddSingleton<InCallFeedbackConfigurationService>();
+        services.AddSingleton<IInCallFeedbackPreferences>(provider =>
+            new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton(TimeProvider.System);

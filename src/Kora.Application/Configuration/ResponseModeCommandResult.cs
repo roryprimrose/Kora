@@ -18,7 +18,7 @@ public sealed record ResponseModeCommandResult(string Outcome, string? Recovery,
     public string Effect => "device-default-response-output-only";
     public string ApplicationTiming => "after-audited-atomic-save; invalidates old output; next eligible response only";
     public string ResetEffect => "Saves Hybrid only; preserves task/queue/call, mute fallback, speech, input and consent.";
-    public string Precedence => "task > queue > device; call/privacy/output suppression and required full visual always apply";
+    public string Precedence => "Active/Suspected in-call feedback (unless Inherit) > task > queue > session > device; call/privacy/output suppression and required full visual always apply";
     public string Confirmation => "host-held choice, admitted session/generation, original channel/live host/call and preference revisions";
     public string Syntax => ResponseModeCommand.Syntax;
     public bool? SpeechEligible { get; init; }

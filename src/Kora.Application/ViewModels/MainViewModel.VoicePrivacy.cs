@@ -230,6 +230,7 @@ public sealed partial class MainViewModel
         if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
+        if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
     }
 

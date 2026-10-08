@@ -3069,7 +3069,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.ShowVisualTextDuringCalls.Should().BeTrue();
         fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeTrue();
-        fixture.ViewModel.CallVisualOverrideButtonText.Should().Be("Use normal response mode during calls");
+        fixture.ViewModel.CallVisualOverrideButtonText.Should().Be("Disable call speech suppression");
         fixture.ViewModel.CallVisualOverrideStatus.Should().StartWith("On");
         fixture.ViewModel.CallVoiceActivationStatus.Should().StartWith("On");
         fixture.ViewModel.CurrentCallState.Should().Be(CallState.Unavailable);
@@ -3117,7 +3117,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVoiceActivationAvailable.Should().BeTrue();
         fixture.ViewModel.ToggleListeningCommand.CanExecute(null).Should().BeTrue();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Detected-call override");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Call speech protection");
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
 
         await fixture.RunAsync("unsupported");
@@ -3126,7 +3126,7 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Disabling_call_visual_override_restores_the_normal_response_mode()
+    public async Task Legacy_relaxed_call_suppression_does_not_disable_independent_default_UI_feedback()
     {
         var fixture = new Fixture();
         fixture.CallPreferences.Settings = new(false, true);
@@ -3139,14 +3139,15 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ShowVisualTextDuringCalls.Should().BeFalse();
         fixture.ViewModel.IsCallDetected.Should().BeTrue();
         fixture.ViewModel.IsCallVisualOverrideActive.Should().BeFalse();
-        fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
-        fixture.ViewModel.IsSpeechResponseEnabled.Should().BeTrue();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
+        fixture.ViewModel.EffectiveResponseMode.Should().Be(ResponseOutputMode.VisualOnly);
         fixture.ViewModel.CallVisualOverrideButtonText.Should().Be("Show visual text during calls");
         fixture.CallPreferences.SavedSettings.Should().BeNull();
 
         await fixture.RunAsync("what power action is pending");
 
-        fixture.TextToSpeech.SpokenText.Should().NotBeNull();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
     }
 
     [Fact]
@@ -3210,7 +3211,9 @@ public sealed partial class MainViewModelTests : IDisposable
     [Fact]
     public async Task Enabling_visual_override_during_a_call_stops_current_speech()
     {
-        var fixture = new Fixture();
+        var fixture = new Fixture(enableInCallFeedback: true);
+        fixture.FeedbackPreferences.Value = InCallFeedbackMode.Inherit;
+        fixture.FeedbackConfiguration!.Observe();
         fixture.CallPreferences.Settings = new(false, true);
         await fixture.ViewModel.InitializeAsync();
         fixture.CallState.SetState(CallState.Active);
@@ -4171,6 +4174,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
@@ -7737,7 +7741,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableResponseModeConfiguration = false, bool enableDiagnosticRetention = false,
             Exception? diagnosticRetentionReadFailure = null, bool enableManualCallControl = true,
             bool enableAuditRetention = false, Exception? auditRetentionReadFailure = null,
-            bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null)
+            bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null,
+            bool enableInCallFeedback = false, Exception? feedbackReadFailure = null)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7769,6 +7774,9 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit ??= new FakeSecurityAuditLog();
+            FeedbackPreferences.ReadFailure = feedbackReadFailure;
+            FeedbackConfiguration = enableInCallFeedback ? new(FeedbackPreferences, OutputAdmission, Audit, TextToSpeech,
+                NullLogger<InCallFeedbackConfigurationService>.Instance) : null;
             SpeechConfiguration = new(Preferences, TextToSpeech, Audit, NullLogger<SpeechConfigurationService>.Instance);
             RatePreferences.ReadFailure = rateReadFailure;
             RateConfiguration = enableWindowsSpeechRate ? new(RatePreferences, TextToSpeech, SpeechConfiguration, OutputAdmission, Audit,
@@ -7867,10 +7875,11 @@ public sealed partial class MainViewModelTests : IDisposable
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
-                AuditConfiguration, RateConfiguration);
+                AuditConfiguration, RateConfiguration, FeedbackConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
+            if (enableInCallFeedback) { ViewModel.BindInCallFeedbackNativeLifetime(static () => true); }
             ViewModel.BindVoiceOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
@@ -7899,6 +7908,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public SpeechConfigurationService SpeechConfiguration { get; }
         public FakeWindowsSpeechRatePreferences RatePreferences { get; } = new();
         public WindowsSpeechRateConfigurationService? RateConfiguration { get; }
+        public FakeInCallFeedbackPreferences FeedbackPreferences { get; } = new();
+        public InCallFeedbackConfigurationService? FeedbackConfiguration { get; }
         public DiagnosticRetentionAdmission DiagnosticAdmission { get; }
         public FakeDiagnosticRetentionPreferences DiagnosticPreferences { get; } = new();
         public DiagnosticRetentionPolicy DiagnosticPolicy { get; } = new();

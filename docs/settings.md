@@ -680,12 +680,49 @@ state retires old speech/input/callbacks; off/reset never replay or reopen.
 Failed required evidence/retirement is explicit, with conservative protection
 held and no automatic retry or false rollback. The manual flag is never saved.
 
-### Visual responses during calls
+### In-call feedback override
 
-Default: on. Manual Active and enabled Active/Suspected/Unknown override ordinary
-output with visual-only responses and suppress previews/readbacks. Existing saved
+**Settings > Calls** provides an independent draft with **Voice / UI / Both /
+Inherit**, plus **Refresh call feedback**, **Save call feedback only**, and
+**Reset call feedback to UI**. Missing confirmed storage uses **UI**; reset
+removes only this saved override. Highlighting a choice does not save it.
+Status shows saved/default/unavailable source, desired/effective selection,
+whether it applies, configuration/call revisions, hard policy and recovery.
+The [exact typed/current-name activated commands](commands.md#in-call-feedback-override)
+use the same host-admitted workflow, not a general model settings tool.
+
+Only manual Active or enabled Active/Suspected applies this before ordinary
+response modes. Inherit restores ordinary precedence. Clear/Unavailable retain
+ordinary output; automatic detection remains unavailable in this build.
+Unknown/invalid evidence keeps speech withheld and complete visual recovery,
+not a Voice/Both exception. Voice/Both are preferences, never permission to
+bypass call suppression, lock/privacy, microphone-active, mute/zero or safety
+previews. Input/consent/grants are unchanged.
+
+Protected original-voice save/reset is refused, even after a later UI click;
+initiate a fresh UI change. Exact host-held choices, current name/input/call/
+session/configuration revisions and the visible Settings lifetime must remain
+current. Old choices cannot revive after hide/reopen. Writes require typed
+audits, atomic save/readback and durable intent outcome before activation.
+Changing or resetting retires old speech and never replays it.
+
+Corrupt/inaccessible or unconfirmed state stays unavailable across restart:
+full visual recovery remains and speech is held. Inspect the saved file and
+audit/intent receipts, explicitly repair storage, then refresh. Refresh cannot
+clear an unconfirmed marker or claim rollback after a committed file.
+No detector, proactive/temporary exception, consent/grant or speech-policy
+downgrade is added; native/acoustic acceptance remains separate.
+
+### Call speech suppression (independent of feedback)
+
+Default: on. Manual Active and enabled Active/Suspected suppress all automatic
+speech, including previews/readbacks, with complete visual output. Unknown/invalid
+enabled evidence always withholds speech. Existing saved
 choices are retained. New disabling is unavailable pending complete exact
 trusted review; enabling protection is supported.
+The separate UI feedback default still selects visual output if an existing
+saved suppression preference is Off. Choose feedback explicitly; it never
+silently edits this suppression preference.
 
 ### Voice activation during calls
 

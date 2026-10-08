@@ -85,6 +85,21 @@ instance gain and Kokoro PCM attenuation are changed, never global/system/call
 volume, microphone/consent, grants, previews or retention. Invalid saved bytes
 are errors, not default authority. This does not qualify acoustic audibility.
 
+The [bounded in-call feedback workflow](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15)
+is device-local response selection, never speech/activation/approval authority.
+Active/Suspected alone select Voice/UI/Both ahead of ordinary output; Inherit
+restores it. Unknown/invalid call or corrupt/unconfirmed preference state fails
+closed with complete visual recovery. Common original-input/audio-session
+admission and host-held choices bind session/generation, configuration/call/name/
+input revisions and native visible lifetime. Protected original voice set/reset
+cannot become UI authority. Required typed audits, atomic save/readback and
+committed-intent receipt precede marker confirmation/activation; late failure
+retains truthful unavailable recovery across restart, not rollback or retry.
+Every privacy, owner, call suppression, mute/zero, capture and native-output
+lifetime gate remains independent. No microphone/consent/grant/source/detector
+change, synthesis, implicit replay, model settings tool or pending approval/
+question answer is admitted. Native/acoustic qualification remains open.
+
 The [bounded output preference workflow](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
 uses persisted host-resolved audio-control session/generation admission, not
 desktop correlation IDs as authority. Exact host-held choices bind original

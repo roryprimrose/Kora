@@ -1,6 +1,6 @@
 # Call-Aware Speech and Voice Configuration
 
-Status: bounded manual host mode and conservative output/origin gates delivered;
+Status: bounded manual host mode, independent device-local feedback and conservative output/origin gates delivered;
 full R15 remains partial. Automatic tool detection is unavailable, not implemented.
 The remaining detector and configurable exception contracts below are proposed.
 
@@ -124,6 +124,29 @@ deterministic command/policy and standard-SQLite compositions. No call-only
 maintained equivalent executable was found. Native accessibility, automatic
 provider detection, real-call/acoustic/runtime/installed and A0-A4 qualification
 remain separately gated.
+
+## Delivered Bounded In-Call Feedback
+
+The independent device-local **`calls.feedback-mode`** defaults to **UI** and
+offers **Voice / UI / Both / Inherit** in native Settings and exact
+typed/current-name ACTIVATED discovery/get/status/set/reset. The
+[authoritative contract](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15)
+defines source provenance, reset, atomic/audited confirmation and recovery.
+It applies before ordinary task/queue/session/device output only under
+effective Active/Suspected, including manual Active. Unknown/invalid evidence
+does not activate a mode override and always withholds speech with full visual
+recovery; Clear/Unavailable use ordinary precedence. Unavailable/corrupt/pending
+feedback storage also withholds output across restart, without disabling input.
+
+Feedback does not grant speech permission. Voice/Both/Inherit retain independent
+call suppression and every ownership/privacy/mute/capture/lifetime/visual gate.
+No automatic detector, speak-once exception, downgrade review, general model
+settings tool or proactive configuration is added. Original protected-call
+voice mutations remain denied; fresh admitted UI changes remain possible.
+Changes retire queued/active output without replay/capture/consent/grant changes.
+Native accessibility, source-age/detector integration and real acoustic leakage/
+stop timing remain separate acceptance. All experiment evidence is retained;
+see [the assessed disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
 
 ## Default Behaviour
 

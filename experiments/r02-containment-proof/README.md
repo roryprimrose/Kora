@@ -318,7 +318,10 @@ diagnostic arm. Its complete proposed effect/rollback boundary is:
   The host closes owned kill-on-close jobs and verifies tracked-tree shutdown,
   deletes its exact synthetic credential/profile/scratch, and retains cleanup
   receipts. Failed cleanup requires exact-resource remediation, never a broad
-  process, profile or directory deletion.
+  process, profile or directory deletion. Receipt-only child PIDs are untrusted:
+  unmatched reports mark shutdown unproven and never trigger PID-based killing.
+  An unexpected native breakaway is created suspended and terminated through
+  its owned native handle by the fixed worker, not by a later receipt PID lookup.
 
 **Blocking intervention:** select the supported Windows 11 x64 reference
 machine/build and authorize this bounded diagnostic batch there, or explicitly
@@ -338,7 +341,7 @@ including them remain containment-gated; unrelated package/UI/session/read-only
 work may proceed.
 
 Safe validation passed both focused Release builds with no warnings/errors,
-93/93 deterministic xUnit cases, five self-tests and four no-effect rejection
+97/97 deterministic xUnit cases, five self-tests and four no-effect rejection
 smokes. No live trial, elevated read, runtime installation, security-policy
 change or disruptive Windows control was performed. Source/test/candidate pins
 and these outcomes are retained in the sanitized

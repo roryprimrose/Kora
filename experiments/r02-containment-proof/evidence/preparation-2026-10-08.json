@@ -1,7 +1,7 @@
 {
   "preparationOnly": true,
-  "utc": "2026-10-08T12:13:34.4974698+00:00",
-  "sourceRevision": "4cf8034fd3a73408aa3dfa6d24b0fc04c98b3f6c",
+  "utc": "2026-10-08T12:19:53.4738586+00:00",
+  "sourceRevision": "e05ea7ae28af291f843400b191ff2602ec2f10c3",
   "sourceInputsLocallyModified": true,
   "sdkVersion": "10.0.401",
   "sdkSelectionSha256": "4977AE364D92D2679ACC93FCB364EB2D7C990A320EDEBF034B01B9ED14098D84",
@@ -13,6 +13,10 @@
     {
       "name": "ContainmentProof.csproj",
       "sha256": "FE1C023DA95F2DDB65EF9A59EF2B8A9AAB137F58B689AF1E068D67A2FBD79025"
+    },
+    {
+      "name": "DescendantObservations.cs",
+      "sha256": "84AE31800D9F6D1F708E8211730E71EC2D2D6CC3386537774FFB454CAA84CBC1"
     },
     {
       "name": "Directory.Build.props",
@@ -28,7 +32,7 @@
     },
     {
       "name": "Host.cs",
-      "sha256": "2274FA65806F85DA03CEAF548DF2EC94AAC16BE42554DDACD0118EEDC027132F"
+      "sha256": "7C5FD4CCBAC81321DB176142E0FF6E058391FDA7BF5C73A9AD22E3FBFF23CF2B"
     },
     {
       "name": "InvocationPolicy.cs",
@@ -74,11 +78,11 @@
   "candidate": [
     {
       "name": "ContainmentProof.exe",
-      "sha256": "7B0A51148CB0FB9A0AF6C60BE9F4A668E3384C40E96A5CD3FC6BD60564E8EF7C"
+      "sha256": "29D2FCFF18004158792E724241012A34B23670F1F7236E51219DFE5AF1EAA943"
     },
     {
       "name": "ContainmentProof.dll",
-      "sha256": "3C1A3669BB4B36B8BE9AB499726081DF8A15E4C6AFD07732D1F9A4098F4D2173"
+      "sha256": "DB60CD89C612278F9A5C5E0554433366A111187FA83DCD5AA2234FCE36701C5C"
     }
   ],
   "receiptTests": "Passed (5 deterministic assertions; not OS containment evidence)",

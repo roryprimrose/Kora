@@ -1,7 +1,7 @@
 {
   "preparationOnly": true,
-  "totalSyntheticTests": 93,
-  "passedSyntheticTests": 93,
+  "totalSyntheticTests": 97,
+  "passedSyntheticTests": 97,
   "failedSyntheticTests": 0,
   "deterministicSelfTestAssertions": 5,
   "noEffectRejectionSmokes": 4,
@@ -10,7 +10,7 @@
   "testPins": [
     {
       "name": "experiments\\r02-w2-dependency-proof\\tests\\W2Tests.csproj",
-      "sha256": "6C326E0A48817F2A51B33418265DE4EAEAB9B6398A0C3C1838A45D9456903DC3"
+      "sha256": "6739ED53748922EA7871898B2E359A8FE6BA66DDE5B1879E3D8A3F1C846AB557"
     },
     {
       "name": "experiments\\r02-w2-dependency-proof\\tests\\packages.lock.json",
@@ -29,8 +29,12 @@
       "sha256": "B32D1AF0C7955F273B28410D18C42C4248863FED03ABE58EF2E54625CA659F8C"
     },
     {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\DescendantObservationsTests.cs",
+      "sha256": "3BF201634A9BD14ACB62A76994AD792E627A573F34FA2550AAB6FC0D44E21A09"
+    },
+    {
       "name": "experiments\\r02-w2-dependency-proof\\tests\\bin\\Release\\net10.0-windows\\W2Tests.dll",
-      "sha256": "2F2BAE0C00E353EB71E991E74919C619735DEA2B68FF6D10C88E5C95D07A96E3"
+      "sha256": "1A2BD79DFBC75B220F99BDAC112F54CF1950B603A9C7EE5677EFD5B0A8A70532"
     },
     {
       "name": "Directory.Packages.props",

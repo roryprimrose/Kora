@@ -264,17 +264,11 @@ internal static class Host
                 Native.Close(process.Process);
             }
         }
-        // Breakaway is expected to fail. If it unexpectedly succeeds, terminate only our recorded child.
-        if (receipt is not null)
+        // Receipt PIDs are untrusted observations, never termination authority.
+        if (receipt is not null && !DescendantObservations.ReportedChildrenAreTracked(receipt.Children, pids))
         {
-            foreach (int child in receipt.Children.Except(pids))
-            {
-                failure = $"Unexpected child {child} outside job; profile unsupported";
-                using var escaped = Process.GetProcessById(child);
-                escaped.Kill(entireProcessTree: true);
-                escaped.WaitForExit(5000);
-                stopped = false;
-            }
+            failure = "Unverified reported child outside job; no PID-only termination; profile unsupported";
+            stopped = false;
         }
         var childTokens = Directory.GetFiles(directory, "child-*.json")
             .Select(Wire.Read<TokenFacts>).ToList();

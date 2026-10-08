@@ -76,12 +76,14 @@ containment roadmap plans when integrating that branch.
 The [W1 safe preparation and consent boundary](../experiments/r02-containment-proof/README.md#w1-safe-preparation-and-consent-boundary-2026-10-08)
 adds a file-only runner mode, explicit independent live-effects consent and
 evidence-local owned scratch/request binding. Two focused Release builds passed
-without warnings/errors, 93/93 synthetic xUnit cases and five deterministic
+without warnings/errors, 97/97 synthetic xUnit cases and five deterministic
 self-tests passed, and four no-effect CLI/runner rejection smokes passed.
 Fresh-worktree assets were missing; focused locked restores were performed
 only after those build failures. No compiler/runtime installation, AppContainer
 profile or credential creation, local-network trial, elevated query, protected
 root change or disruptive control was performed.
+Receipt-only child PIDs cannot authorize termination: unmatched/invalid reports
+leave tracked shutdown unproven instead of risking an unrelated reused PID.
 
 Windows x64 build 26300 is the observed developer OS, not a selected supported
 reference build. Next resolve that reference machine/build and obtain exact

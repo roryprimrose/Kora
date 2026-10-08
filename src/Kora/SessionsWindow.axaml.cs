@@ -30,6 +30,8 @@ internal sealed partial class SessionsWindow : Window
         NextEvidence.Click += async (_, _) => await model.ReadEvidenceAsync(next: true);
         Done.Click += async (_, _) => await model.ChangeLifecycleAsync(active: false);
         Resume.Click += async (_, _) => await model.ChangeLifecycleAsync(active: true);
+        PreviewDisposition.Click += async (_, _) => await model.PreviewDispositionAsync();
+        ConfirmDisposition.Click += async (_, _) => await model.ConfirmDispositionAsync();
         CloseView.Click += (_, _) => Close();
         Closed += (_, _) => model.Close();
         KeyDown += (_, args) =>

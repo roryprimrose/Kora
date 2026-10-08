@@ -860,6 +860,13 @@ Notification settings cannot hide necessary action approval from the visual inte
 Lowering capacity never evicts existing work; hold admissions until occupancy fits.
 Shortening lifetime/expiry shows affected requests/content and requires confirmation before expiring them immediately.
 Archive and deletion are independent configurable values using one inactivity clock, not time since creation/Done.
+Those session-retention settings, timer, automatic purge and apply-now controls
+remain proposed, not registered production options. The delivered native
+[logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
+is a separate explicit exact-ID preview/confirmation, not a retention setting
+or full recoverable-copy deletion. It removes addressed live authority rows
+only, preserving independent Perpetual grants, task/audit provenance and
+disclosed recoverable copies. Diagnostic/audit setting changes never invoke it.
 Passive selection/history queries do not extend it; actual user/work activity and explicit resume do.
 Changing retention previews resulting due dates and requires a separate apply-now decision for immediate archive/deletion; otherwise existing due dates remain until subsequent meaningful activity, with new sessions using the new policy.
 Normal automatic expiry under the disclosed policy does not require repeated per-session confirmation.

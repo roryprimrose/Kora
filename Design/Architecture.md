@@ -715,6 +715,17 @@ Session generation persists across Active restart and advances on Done,
 resume and authority removal. Perpetual records are a separate table without
 a session foreign key or grant due/retention field. Removed session identities
 remain tombstoned; this is not full recoverable-copy content deletion.
+The [bounded logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
+uses host-held native preview/confirmation and the authoritative shared
+transaction, never view-model-only removal. Exact idle-state/revision checks,
+live-row removal, generation/tombstone, terminal control receipt and trusted
+audit share one COMMIT. The task writer and interaction admission reject
+late appends; no recovery receipt is needed after a committed disposition.
+Latest-session audit validation rejects missing/stale session rows, including
+lost tombstones. Metadata validation permits absent previously committed names
+only behind validated Removed authority. Task/events, independent Perpetual/audit/evidence
+and inert legacy storage survive. No artifact/backup inventory, journal/free-page
+rewrite, full conversation deletion or forensic erasure is delivered.
 Audit due times use the existing independent audit policy; pruning/anchors,
 whole-store rollback detection, installed/power-loss acceptance and broader
 R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit

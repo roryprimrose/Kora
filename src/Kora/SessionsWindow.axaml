@@ -58,6 +58,10 @@
       <Button x:Name="NextEvidence" Content="Next evidence" IsEnabled="{Binding CanNextEvidence}" />
       <Button x:Name="Done" Content="Mark selected ID _Done" IsEnabled="{Binding CanDone}" AutomationProperties.Name="Explicitly mark the displayed selected session ID Done using its expected generation" />
       <Button x:Name="Resume" Content="Explicitly res_ume selected ID" IsEnabled="{Binding CanResume}" AutomationProperties.Name="Explicitly resume the displayed selected session ID without task or approval replay" />
+      <Button x:Name="PreviewDisposition" Content="Preview logical disposition" IsEnabled="{Binding CanPreviewDisposition}"
+              AutomationProperties.Name="Preview exact selected session ID, revisions, live rows to remove and retained copies; does not delete" />
+      <Button x:Name="ConfirmDisposition" Content="Confirm logical disposition" IsEnabled="{Binding CanConfirmDisposition}"
+              AutomationProperties.Name="Explicitly confirm the previewed exact session logical disposition; not forensic deletion" />
       <Button x:Name="CloseView" Content="_Close" />
     </WrapPanel>
   </Grid>

@@ -59,8 +59,63 @@ Every accepted command owns fresh deliberate lineage and a durable control
 intent; observational reads never change authority. Voice enablement/consent,
 origin, private presentation and call/recovery revisions remain checked.
 Protected-call voice mutations are explicitly unavailable, not deferred.
-Full session routing, transcript persistence, scheduler, general effect cancellation, deletion,
+Full session routing, transcript persistence, scheduler, general effect cancellation, recoverable-copy deletion,
 retention and model-facing session tools remain unimplemented.
+
+### Delivered Bounded Exact-ID Logical Disposition - 2026-10-08
+
+The native Sessions workspace has separate **Preview logical disposition** and
+**Confirm logical disposition** actions. This is explicitly not full R12
+deletion. Preview resolves the exact existing ID, displayed authorization
+generation and metadata revision under private admission, enumerates live rows
+and discloses retained data. It records no control intent and changes nothing.
+The Application host holds the single-use preview; confirmation must be fresh
+LocalUi input with the same proposal and unchanged control revision. Voice,
+typed `session delete`, models, title matching and implicit selection are not
+admitted deletion routes in this increment.
+
+The Windows writer revalidates authoritative task/question state and a framed
+digest of all addressed live authority records and task revisions, not a
+bounded UI page. Unknown IDs, stale generations/metadata, any intervening
+addressed work (even if completed), pending questions including expired ones,
+nonterminal or Unknown work, lost ownership/privacy/call admission, missing or
+corrupt storage fail closed. It never cancels, reconciles or abandons work to
+make disposition eligible. Resolve supported pre-dispatch waits explicitly;
+general uncertain-effect disposition is unavailable.
+The desktop control gate consumes the existing `IsProtected` call policy,
+including uncertain manual-call evidence even when automatic state reads
+Clear/Unavailable; independent passive inspection does not become mutation
+authority.
+
+Under the shared authority lease and one transaction, disposition advances
+generation, writes a non-reusable Removed tombstone, removes only that session's
+live metadata/name, host observations, questions/drafts/answers, admitted wait
+bindings and scoped grants, and commits both fresh control terminal success
+and required typed audit. Independent Perpetual records, unrelated sessions,
+task/event provenance and audit chain remain unchanged. Removed sessions are
+not browsable or resumable. The task writer rejects new intents and late
+outcomes; interaction/snapshot/lifecycle paths cannot append to or recreate a
+Removed identity. A competing append wins before disposition and blocks or
+invalidates it, or loses after the committed tombstone.
+
+**Retained/unavailable:** opaque tombstone and task/event IDs/states/revisions,
+content-minimising authority audit/digests, independent evidence/diagnostics,
+Perpetual provenance, inert legacy migration storage, SQLite journals/free pages
+and any copied database remain. General conversations/history, managed session
+artifacts/snapshots/indexes/caches and inventoried managed-backup deletion are
+not implemented. User exports/provider copies are outside local deletion.
+No forensic, cryptographic-erasure or full R12/A3 deletion acceptance is claimed.
+No retention setting, inactivity timer, automatic purge or apply-now behavior
+is added. See [the user workflow](../docs/windows-and-tray.md#logical-session-disposition).
+
+Precommit audit/gate/cancellation failures roll back the tombstone, live rows
+and terminal success together; an incomplete control intent is recoverable
+without execution. After COMMIT, terminal success is already durable, so
+restart never appends a recovery receipt into a Removed session. Receipt or
+commit uncertainty remains an explicit error, not rollback or automatic retry.
+Owned-process interruption, actual production SQLite, native-state and portable
+host tests maintain these boundaries; installed/live visual/accessibility and
+physical power-loss acceptance remain open.
 
 ### Bounded Authoritative Task Observation and Pre-dispatch Cancellation
 
@@ -134,7 +189,7 @@ offered as browsable sessions.
 
 Reading, selecting and keyboard navigation never admit a reply, select an
 approval target, update activity, resume, or restore model/provider context.
-The original minimal slice had no composer, rename/create metadata, scheduling, archive timer, deletion,
+The original minimal slice had no composer, rename/create metadata, scheduling, archive timer, full deletion,
 retention, export or model lane is added. Full R12 conversation/work/queue/
 retention/delete and full coordinated R14/native acceptance remain open.
 

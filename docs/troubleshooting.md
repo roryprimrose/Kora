@@ -52,6 +52,17 @@ terminal, Unknown, expired or prior-run work is not reported stopped. Resolve
 privacy/ownership/channel failures and initiate a fresh action; uncertain
 commit/receipt failure is inspected, never automatically retried.
 
+For **logical disposition denied**, refresh Sessions, select the exact ID and
+preview again only after resolving its live/Unknown work and unanswered
+questions. Expired questions still block; unsupported effect reconciliation
+is not automatic. A rename, completed intervening task or changed host
+privacy/call/ownership revision invalidates the preview. Missing/corrupt
+authority requires explicit storage recovery, never deletion of database files.
+An uncertain error may follow a commit: refresh first, and do not replay an
+old confirmation. A Removed ID cannot be resumed. This workflow removes live
+authority rows only; [retained data](windows-and-tray.md#logical-session-disposition)
+includes task/audit provenance, journals/free pages and copied/inert databases.
+
 ## PowerShell 7 is missing or failed its check
 
 Open **Settings > Readiness** or ask **what are you currently working on**.

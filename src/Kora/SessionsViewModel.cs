@@ -28,6 +28,7 @@ internal sealed partial class SessionsViewModel(
     private SessionWorkspaceEntry? selected;
     private HostTaskRecord? selectedTask;
     private HostTaskObservation? inspectedTask;
+    private SessionDispositionPreview? dispositionPreview;
     private string nameDraft = string.Empty;
     private string status = "Refresh to inspect bounded durable names and authority. No conversation or queue store is available.";
     private string detail = string.Empty;
@@ -88,6 +89,41 @@ internal sealed partial class SessionsViewModel(
     public bool CanResume => CanRead && access.CanControl && selected?.Authority.IsActive == false;
     public bool CanCreate => CanRead && access.CanControl && !string.IsNullOrWhiteSpace(nameDraft);
     public bool CanRename => CanCreate && selected is not null;
+    public bool CanPreviewDisposition => CanRead && access.CanControl && selected is not null;
+    public bool CanConfirmDisposition => CanPreviewDisposition && dispositionPreview is not null;
+
+    public Task PreviewDispositionAsync() => RunAsync(async () =>
+    {
+        dispositionPreview = null;
+        var target = RequireSelected();
+        var preview = await service.PreviewDispositionAsync(target.Authority.SessionId, target.Authority.Generation,
+            target.Metadata?.Revision.Value ?? 0, lifetime.Token);
+        dispositionPreview = preview;
+        detail = "Exact session ID: " + preview.Session.Authority.SessionId.Value.ToString("D")
+            + "\nName (label only): " + (preview.Session.Metadata?.Name.Value ?? "Unnamed")
+            + "\nGeneration: " + preview.Session.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
+            + "\nMetadata revision: " + (preview.Session.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
+            + "\nLive rows to remove: questions " + preview.Questions.ToString(CultureInfo.InvariantCulture)
+            + ", scoped grants " + preview.ScopedGrants.ToString(CultureInfo.InvariantCulture)
+            + ", observations " + preview.Observations.ToString(CultureInfo.InvariantCulture)
+            + ", waits " + preview.Waits.ToString(CultureInfo.InvariantCulture)
+            + "\n" + SessionDispositionPreview.Scope;
+        status = "Preview only; nothing removed. Confirm logical disposition is a separate deliberate action for this exact ID and revision.";
+    });
+
+    public Task ConfirmDispositionAsync() => RunAsync(async () =>
+    {
+        var preview = dispositionPreview ?? throw new InvalidOperationException("Preview the exact session first.");
+        dispositionPreview = null;
+        var receipt = await service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi,
+            () => !closed && access.CanControl, lifetime.Token);
+        sessions = null;
+        ClearSelection();
+        detail = SessionDispositionPreview.Scope;
+        status = "Committed logical disposition for " + receipt.SessionId.Value.ToString("D")
+            + " at tombstone generation " + receipt.Generation.Value.ToString(CultureInfo.InvariantCulture)
+            + ". Live rows removed; retained provenance and recoverable copies are not erased. Refresh to inspect unrelated sessions.";
+    });
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
@@ -267,6 +303,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        dispositionPreview = null;
         selected = null;
         selectedTask = null;
         inspectedTask = null;
@@ -299,6 +336,8 @@ internal sealed partial class SessionsViewModel(
         OnPropertyChanged(nameof(NameDraft));
         OnPropertyChanged(nameof(CanCreate));
         OnPropertyChanged(nameof(CanRename));
+        OnPropertyChanged(nameof(CanPreviewDisposition));
+        OnPropertyChanged(nameof(CanConfirmDisposition));
         OnPropertyChanged(nameof(CanRead));
         OnPropertyChanged(nameof(CanNext));
         OnPropertyChanged(nameof(CanNextQuestions));

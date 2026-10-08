@@ -159,6 +159,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         using var lease = AcquireTaskLease(out var created, cancellationToken);
         using var connection = OpenDatabase(created, cancellationToken);
         var intent = ReadCommittedIntent(connection, request, requireIdle);
+        RequireNotDisposed(connection, request.SessionId);
         var result = operation(connection, intent);
         database.VerifyFiles();
         return result;
@@ -171,6 +172,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         using var lease = AcquireTaskLease(out var created, cancellationToken);
         using var connection = OpenDatabase(created, cancellationToken);
         var intent = ReadCommittedIntent(connection, request, requireIdle: false);
+        RequireNotDisposed(connection, request.SessionId);
         var result = await operation(connection, intent).ConfigureAwait(false);
         database.VerifyFiles();
         return result;
@@ -364,6 +366,10 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             throw new InvalidOperationException("The task revision, identity or transition conflicts with durable state.");
         }
+        if (validateAuthority is not null)
+        {
+            RequireNotDisposed(connection, record.Request.SessionId);
+        }
         if (validateAuthority is not null && record.State is HostTaskState.DispatchRecorded or HostTaskState.Cancelled)
         {
             using var waiting = connection.CreateCommand();
@@ -413,6 +419,18 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         write.Parameters.AddWithValue("$revision", record.Revision.Value);
         write.Parameters.AddWithValue("$state", (int)record.State);
         write.ExecuteNonQuery();
+    }
+
+    private void RequireNotDisposed(SqliteConnection connection, HostId<SessionIdentity> session)
+    {
+        if (validateAuthority is null) { return; }
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM work_sessions WHERE session_id=$id AND state=2;";
+        command.Parameters.AddWithValue("$id", session.Value.ToString("D"));
+        if (command.ExecuteScalar() is not null)
+        {
+            throw new InvalidOperationException("A disposed session cannot admit new interaction work.");
+        }
     }
 
     private ReadOnlyCollection<HostTaskRecord> ReadIncomplete(int limit, CancellationToken cancellationToken)

@@ -194,8 +194,14 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
 
     /// <summary>Done/resume invalidates questions and scoped grants. Removed identities are tombstoned, never reused.</summary>
     public ValueTask<WorkSessionAuthorization> SetSessionLifecycleAsync(HostRequest request,
-        HostRevision expectedGeneration, bool active, bool remove, CancellationToken cancellationToken) =>
-        SetLifecycleAsync(request, expectedGeneration, active, remove, canControl: null, cancellationToken);
+        HostRevision expectedGeneration, bool active, bool remove, CancellationToken cancellationToken)
+    {
+        if (remove)
+        {
+            throw new InvalidOperationException("Removal requires the guarded explicit disposition preview and confirmation path.");
+        }
+        return SetLifecycleAsync(request, expectedGeneration, active, remove: false, canControl: null, cancellationToken);
+    }
 
     private ValueTask<WorkSessionAuthorization> SetLifecycleAsync(HostRequest request,
         HostRevision expectedGeneration, bool active, bool remove, Func<bool>? canControl, CancellationToken cancellationToken) =>
@@ -328,6 +334,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             ValidateAuthority(connection);
             using var transaction = connection.BeginTransaction();
             var session = RequireSession(connection, request.SessionId).Authority;
+            if (ReadSession(connection, request.SessionId)!.State == 2)
+            {
+                throw new InvalidOperationException("A disposed session cannot append interaction records.");
+            }
             var observation = ReadObservation(connection, request.RequestId);
             var admitted = observation is not null && observation.RunId == runId
                 && observation.Request == request && observation.Generation == session.Generation;
@@ -630,6 +640,18 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 var row = DecodeSession(reader);
                 ValidateRowAuthority(connection, reader.GetInt64(3), SessionChange(row.Authority, (int)row.State));
             }
+        }
+        command.CommandText = """
+            SELECT 1 FROM (
+                SELECT json_extract(c.value,'$.Id') AS id, MAX(a.sequence) AS sequence
+                FROM security_audit_events a, json_each(a.envelope,'$.Changes') c
+                WHERE json_extract(c.value,'$.Kind')='session' GROUP BY json_extract(c.value,'$.Id')
+            ) latest LEFT JOIN work_sessions s ON s.session_id=latest.id
+            WHERE s.audit_sequence IS NULL OR s.audit_sequence<>latest.sequence LIMIT 1;
+            """;
+        if (command.ExecuteScalar() is not null)
+        {
+            throw new InvalidDataException("Committed session authority or tombstone is missing or stale; replacement is forbidden.");
         }
         command.CommandText = "SELECT request_id,session_id,run_id,revision,generation,payload,audit_sequence FROM host_observations;";
         using (var reader = command.ExecuteReader())

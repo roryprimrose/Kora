@@ -6,6 +6,10 @@ namespace Kora.Core.Storage;
 
 public interface ISessionWorkspaceStore
 {
+    ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
+        HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken);
+    ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+        Func<bool> canControl, CancellationToken cancellationToken);
     /// <summary>Requires existing task authority; missing storage must never be initialized as an idle ledger.</summary>
     ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken);
     ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken cancellationToken);

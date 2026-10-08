@@ -447,6 +447,18 @@ protect against code running as you or an administrator; database/artifact/
 backup copies outside that private location are readable. Credentials remain
 in Windows-protected storage, not ordinary SQLite fields.
 
+The explicit native
+[logical session disposition](windows-and-tray.md#logical-session-disposition)
+removes only the addressed live name, questions/drafts/answers, observations,
+wait bindings and scoped grants after separate exact-ID preview/confirmation.
+It preserves unrelated sessions, independent Perpetual grants, opaque
+tombstones, task/event provenance, independent diagnostics and content-minimising
+authority audit. Journals/free pages, copied databases and inert migration
+storage are not erased. Managed session artifacts/backups/history deletion,
+automatic retention/purge and forensic erasure are unavailable. Exports and
+provider copies remain outside local deletion. The UI and receipt disclose
+these limits; no complete R12 deletion guarantee is made.
+
 Both database tables preserve structured logging fields independently of the
 human-readable message: event ID/name, level, logger category, original message
 template, typed named properties, structured scopes and admitted correlation

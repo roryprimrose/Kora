@@ -148,7 +148,8 @@ public sealed class SessionsViewModelTests
         Read("Program.cs").Should().Contain("ISessionWorkspaceStore>(interactions)");
         Read("App.axaml.cs").Should().Contain("sessionsWindow?.Dispose()");
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("IsReady").And.Contain("IsHandoffRecoveryRequired")
-            .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision");
+            .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision")
+            .And.Contain("!main.CallObservation.IsProtected");
     }
 
     private static string Read(string name)
@@ -163,6 +164,10 @@ public sealed class SessionsViewModelTests
 
     private sealed class HeldStore : ISessionWorkspaceStore
     {
+        public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
+            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+            Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,

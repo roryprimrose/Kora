@@ -382,3 +382,166 @@ to normal GitHub checks/reviews. The original
 at the time of the offline run; it is historical evidence, not the current
 publication status. Merging this research does not change its measured results,
 make an unrun test pass, or enable any production capture/playback capability.
+
+## 2026-10-08 bounded readiness and consent checkpoint
+
+**Disposition: safe preparation completed; no live trial run or approved.**
+This continuation starts at `origin/main` `4cf8034`. The implementation
+inventory below supersedes the historical bootstrap descriptions above, not
+the historical synthetic measurements. The three tiers are independent:
+
+1. File-only/synthetic research may merge with honest blocked/not-run results.
+2. A production wake/acoustic claim needs its applicable D-002 and speech
+   D-007 evidence. Those missing proofs do **not** gate push-to-talk, typed
+   commands, settings, or unrelated development. Those capabilities retain
+   their own consent, ownership, privacy and acceptance obligations.
+3. An RC manifest that includes wake/acoustic capability needs that capability's
+   qualified evidence. Excluding it is not permission to make the same claim
+   elsewhere. No threshold or safety boundary is relaxed.
+
+The [sanitized local-only candidate outcomes](../../Design/Deferred_Validation.md#2026-10-08-local-only-speech-and-deployment-outcomes)
+already reject the exact SAPI splice and known-name CTC candidates: wake
+retention or command-prefix loss remained in their synthetic cases. Their
+private identities/fixtures are not reconstructed or rerun here; rejecting
+those candidates is not rejecting SAPI/CTC generally and is not physical
+acceptance.
+
+### Current source/package and tooling inventory
+
+| Surface | Actual support | Remaining blocker |
+|---|---|---|
+| `prepare.py` / `Render-Fixtures.ps1` / `fixtures.py` / `benchmark.py` | Download preparation, silent file synthesis and local file inference; annotation-only capture probe | No live switch, participant consent UI, production ownership, packaged detector, real endpointing/alignment, AEC or acoustic clock |
+| Production `WindowsVoiceRecognitionService` | Explicit PTT; `IsAmbientListeningAvailable == false`; bounded command buffer, native capture generations, privacy invalidation and confirmed resource quiescence | Not an ambient/wake detector; direct service construction must not substitute for application consent/instance ownership |
+| Production privacy instrumentation | Structured Windows events 208/209 for observation/query; 210 for capture release/empty buffers; 211 for stale callbacks; 215 for admitted generation | Synthetic tests are not actual OS/device measurements; correlate observations and disclose notification/query delay separately |
+| Production output instrumentation | Events 212–214 distinguish native stop, resource clearing and completion | Explicitly **no last-acoustic-sample timestamp**; cannot certify the 250 ms acoustic stop target or self-TTS rejection |
+| Tracked/package asset declarations | Windows `System.Speech` plus NAudio; optional Kokoro/ONNX dependencies and separately provisioned user assets | No tracked Kora wake model (`.onnx`/`.ppn`/`.tflite`), packaged wake front-end or playback-reference/AEC. A dependency DLL is not a detector/model. No installed package or user model directory was inspected |
+| This isolated worktree | Existing CPython 3.12.10 via `py -3.12`, .NET SDK 10.0.401; stdlib receipt tests and cached locked .NET restore/build | No experiment `.venv`, assets or fixtures; existing Python lacks numpy/sherpa-onnx/psutil. Original 15-test/threshold sweep not rerun; do not install/download to turn these into invented results |
+| Live rig | No physical-console operator, participant/bystander consent, selected endpoint/routing, reference-floor owner or installed-build identity verified | **No valid live R02 environment exists in the supplied evidence.** Do not infer unlocked/local eligibility from this coding session |
+
+Published-package **metadata only**, observed 2026-10-08: the newest listed
+non-draft prerelease was
+[`v0.1.0-beta94`](https://github.com/roryprimrose/Kora/releases/tag/v0.1.0-beta94),
+published `2026-10-08T12:01:55Z`. Its nine assets are the x64 MSI, x64/x86
+portable ZIPs, x64 setup EXE, source-tools ZIP, `installer-build.json`,
+`payload-manifest.json`, `release-manifest.json` and `SHA256SUMS.txt`.
+GitHub-provided sizes/digests for the executable packages are retained in the
+readiness receipt. No asset was downloaded, installed or executed and no
+installed user assets were inspected. Names/publisher digests do not prove
+archive contents, loading, redistribution clearance, provenance equivalence
+to a later build or acoustic qualification; no standalone wake model appears
+in this release's asset list.
+
+The smallest added instrumentation is [privacy_receipts.py](privacy_receipts.py):
+a **read-only, stdlib-only receipt inspector** for an explicitly selected copy
+of existing production daily JSONL. It never discovers user log directories,
+constructs a capture service, starts Kora, records audio, plays sound, acquires
+assets, changes settings/devices or dispatches a tool. It correlates exact
+typed envelope categories/events 208/210, validates clocks/types/duplicates,
+checks zero buffered bytes, and independently recomputes the unchanged 500 ms
+observed-lock-to-recorder-release target without rounding at the boundary.
+Missing observations/releases are `NotMeasured`; inactive/non-lock rows are
+`NotApplicable`, never proof of an active-lock test. Matching repeated
+observation/requery metadata is accepted; contradictory metadata is rejected.
+
+Reports contain numbered measurements, durations/booleans and a source digest,
+not raw records, messages, transcripts, paths, device/account/session/trace or
+observation identifiers. All input remains untrusted diagnostic metadata:
+`unverified-file-observations` cannot establish consent, authority, an
+authenticated trial or D-002/D-007 closure; generated inputs must use
+`--synthetic`. A matching event ID/template alone cannot acquire typed-audit
+authority. This fixture makes existing R03 instrumentation inspectable; it
+does **not** fill missing R09 detector/acoustic measurement mechanisms.
+
+Safe commands, with the existing Python installation, from this directory:
+
+```powershell
+py -3.12 -m compileall -q .
+py -3.12 -m unittest -v test_privacy_receipts
+
+# Only after an operator has supplied/reviewed a consented copied snapshot:
+py -3.12 privacy_receipts.py .\scratch\operator-reviewed.jsonl --output-name sp01-receipt.json
+# For generated JSONL only, append --synthetic; never call it live evidence.
+```
+
+Input is bounded to 16 MiB/10,000 complete records and 256 KiB per line.
+Malformed, truncated, duplicate-key, inconsistent or non-finite input is
+rejected with a content-free error. Output is a new exclusive file only under
+ignored `scratch`; existing outputs cannot be overwritten and failed owned
+writes are removed. Redirected scratch directories are rejected. A raw
+snapshot can contain unrelated private diagnostics: never commit or upload
+it. Delete only the operator-owned snapshot/report once reviewed; do not
+delete or change authoritative production audit/retention records.
+
+The [separate safe readiness receipt](evidence/readiness-20261008.json) records
+this continuation's tests and limitations; the original measured receipts
+remain untouched. Targeted managed tests use fake native captures/privacy
+sources, not physical devices or audio. The experiment remains opt-in and
+outside default solution/CI gating.
+
+### SP01: exact first live scope, blocked pending named rig and fresh consent
+
+The first potentially valid live session is **R03/PTT privacy only**, not a
+R02/R09 acoustic certification. It uses the **existing production application**
+and its host consent/lease gates; no second recorder or bypass fixture is
+allowed. The operator must complete every admission field below before any
+live-consent request; a blank or unknown field blocks the session.
+
+| Required field | Exact bound and current status |
+|---|---|
+| Operator/participants | One physically present adult operator, pseudonym P01; identity/consent held privately. No other participants in SP01. P01 must understand transient Windows recognition, visible stop, withdrawal and retention. **Not identified/consented** |
+| Bystanders/environment | Private quiet room, door closed, no people/TV/media/call audio; any person who could be picked up must consent to the same scope before entry, otherwise stop and clear capture. No minors/unconsented bystanders. Local physical console, authoritative Unlocked/connected session; no RDP-redirection, virtual or loopback input. **Room/session not verified** |
+| Build/ownership | Exact installed build/commit and artifact hashes, Windows servicing revision, existing English recognizer, healthy metadata logging; already visual-only response mode. One owning Kora instance, current run consent and positive microphone permission; no concurrent recorder/call. Unknown/missing state is a blocker, not setup permission. **Build/owner not verified** |
+| Devices | H1: one **already connected and selected** wired headset microphone, operator records make/model plus private endpoint/routing identity; capsule 2–3 cm from mouth. Output disabled by the existing visual-only mode; no playback endpoint/volume exercise. No selection, plug/unplug, default, driver or permission changes authorized. **H1/current selection not verified** |
+| Corpus | Exactly three explicit PTT activations: (1) silence for empty timeout; (2) P01 says only “Kora get assistant name” once at normal comfortable voice, no personal text; (3) silence followed within 2 s by operator-initiated Win+L, **only if lock is explicitly included in fresh consent**. No wake, noise, TTS or recorded corpus. “No lock” leaves native lock acceptance not run |
+| Duration/schedule | One mutually agreed local-console 15-minute appointment, exact local date/time recorded before consent; ≤3 capture openings, intended ≤5 s each, no retries. Production 60 s ceiling is a safety bound, not permission to record 60 s. Stop after the first privacy/ownership/logging failure. **Appointment not scheduled** |
+| Storage/redaction | No WAV/audio recording or transcript export. Transient recognition buffers only; normal production content-minimizing logs stay under `IApplicationDataPaths` and existing retention policy. Operator exports only the bounded trial window to a private local copy; inspector emits identifier-free metadata. Review/delete experiment copy/report within 24 h; no cloud/PR upload of raw data. Any unexpected private log content blocks publication |
+| Stops/recovery | Visible native Stop listening/mute and Exit remain reachable; P01 can withdraw at any time. Lock/disconnect/suspend, denied/unknown permission, device loss, ownership change, unexpected sound or another person entering immediately stops the trial. Confirm stopped recording, zero buffers, confirmed release/quiescence; if uncertain, exit the owning app and report failure. Unlock/permission restoration never auto-reopens; no new capture after SP01 without fresh approval |
+
+Record actual vs expected for each activation, generation/observation
+correlation, buffer-clearing/release timestamps, trace gaps and unexpected
+dispatches. The 500 ms target is observation-to-release; separately retain OS
+notification/query delay and mark unavailable timing as missing, not zero.
+The inspector cannot establish entire-machine silence, sample loss,
+participant consent, 60 s/silence quality, or hardware-floor qualification.
+Report every failure, stop, missing measurement and the no-lock variant
+separately. No clipboard/model/context/effect trial belongs in SP01.
+
+**Checkpoint:** currently blocked **before requesting live capture consent**:
+the named rig, selected H1, operator/room, installed visual-only build and
+appointment are unverified. Approval to continue coding/publish this partial
+proof does not fill them. The single blocking question for the interactive
+owner is: **“Can you supply the named physical-console operator, isolated H1
+rig and existing visual-only build/appointment required by SP01, so its exact
+three-capture/optional-manual-lock consent can be reviewed?”** A “yes” to
+providing prerequisites is **not** approval to capture, play audio, install,
+download, change devices, lock the machine or run resource trials. Once all
+fields are concrete, the owner must expressly approve SP01's actual scope
+before the first microphone opening.
+
+### R02/R09 follow-up is not bundled into SP01
+
+The acoustic checklist above retains all thresholds: per setup ≥100
+activations/≥5 consented speakers **in each** quiet, recorded office-noise and
+during-TTS condition (≥95% quiet; ≥90% noise/TTS); ≥10 h diverse negative
+exposure (≤1 false activation/hour); ≥100 self-TTS outputs with zero
+self-activations; ≥5 warmups/≥30 timed trials with p95 wake/interruption
+≤500 ms, acoustic playback stop ≤250 ms, final transcript ≤2 s for ≤10 s
+utterances; ≥30 min integrated mean CPU ≤5% and incremental working set
+≤200 MiB. Two-second pre-roll, five-second empty, one-second silence and
+60-second maximum bounds remain unchanged.
+
+Before requesting that separate consent, name H1 **and** speaker/microphone
+rig S1 with distances/comfortable calibrated output, ≥5 speaker pseudonyms/
+accent coverage and individual/bystander consent, reviewed licensed/consented
+office-noise and ≥10 h diverse negative corpus with hashes/provenance, exact
+pinned packaged detector/reference/AEC, synchronized last-acoustic-sample
+measurement, reference Windows/hardware-floor owners, local retention/
+redaction and a bounded per-condition schedule with visible stop. None is
+supplied/approved here. Do not play recordings, involve other people, download
+a candidate or exercise resources merely because a plan exists.
+
+Retain the experiment while its unique candidate/licence, hashed synthetic
+acoustic fixtures, threshold failures and pending packaged-host consumers
+remain. The metadata inspector and PTT/privacy regressions replace none of
+those acoustic proofs. There is no fabricated acoustic evidence, production
+wake selection or reference-floor recommendation in this continuation.

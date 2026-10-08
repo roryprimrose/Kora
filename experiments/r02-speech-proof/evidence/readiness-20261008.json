@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-08",
+  "sourceBaseline": "4cf8034fd3a73408aa3dfa6d24b0fc04c98b3f6c",
+  "scope": "File-only synthetic metadata preparation and fake-native production regressions",
+  "toolchain": {
+    "python": "3.12.10",
+    "dotnetSdk": "10.0.401",
+    "dependencyPreparation": "Locked .NET restore from existing local NuGet cache only; NuGet audit network lookup disabled",
+    "toolsOrModelsInstalledOrDownloaded": false
+  },
+  "publishedPackageMetadata": {
+    "tag": "v0.1.0-beta94",
+    "publishedAt": "2026-10-08T12:01:55Z",
+    "releaseUrl": "https://github.com/roryprimrose/Kora/releases/tag/v0.1.0-beta94",
+    "observation": "GitHub release metadata only; no asset download, archive inspection, installation or execution",
+    "assetCount": 9,
+    "executablePackages": [
+      {
+        "name": "Kora-0.1.0-beta94-win-x64.msi",
+        "bytes": 114483200,
+        "publisherDigest": "sha256:461de316803eac55695191919cd4a674628561faae2811a65d69eb229c2496db"
+      },
+      {
+        "name": "Kora-0.1.0-beta94-win-x64.zip",
+        "bytes": 127287081,
+        "publisherDigest": "sha256:8a945283e97c90c5f84f5c0ed0ba13fd861b763c7fccd05f67ea30da4d98df11"
+      },
+      {
+        "name": "Kora-0.1.0-beta94-win-x86.zip",
+        "bytes": 120299133,
+        "publisherDigest": "sha256:10096b2f4bcfb0c064d4d8b23b3be09e6dbba48228bd82c46c776d247418e39c"
+      },
+      {
+        "name": "Kora-Setup-0.1.0-beta94-win-x64.exe",
+        "bytes": 271391303,
+        "publisherDigest": "sha256:7f9070b515a8d661f3f3c1d371ab5095a043767e67504acae3f8f783958695c0"
+      }
+    ],
+    "otherAssetNames": [
+      "installer-build.json",
+      "Kora-0.1.0-beta94-source-tools.zip",
+      "payload-manifest.json",
+      "release-manifest.json",
+      "SHA256SUMS.txt"
+    ],
+    "binaryContentsOrInstalledLoadingQualified": false
+  },
+  "checks": [
+    {
+      "name": "Python source compilation",
+      "command": "py -3.12 -m compileall -q .",
+      "workingDirectory": "experiments/r02-speech-proof",
+      "result": "Passed"
+    },
+    {
+      "name": "Stdlib metadata receipt tests",
+      "command": "py -3.12 -m unittest -v test_privacy_receipts",
+      "workingDirectory": "experiments/r02-speech-proof",
+      "result": "Passed",
+      "tests": 12,
+      "failures": 0
+    },
+    {
+      "name": "Synthetic JSONL CLI round trip",
+      "result": "Passed",
+      "input": "Generated event 208/210 metadata only",
+      "outputKind": "synthetic-only",
+      "artifactsCleaned": true
+    },
+    {
+      "name": "Windows capture and observer regressions",
+      "command": "dotnet run --project .\\tests\\Kora.Windows.IntegrationTests\\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build -- -class '*ActivatedVoiceRecognitionTests' -class '*VoiceRecognitionShutdownTests' -class '*WindowsPrivacyObservationServiceTests' -noLogo",
+      "result": "Passed",
+      "tests": 82,
+      "failures": 0,
+      "skipped": 0,
+      "boundary": "Fake native capture factories and privacy sources; no physical capture or playback",
+      "runnerNote": "Initial dotnet test/MTP run passed 82; later MTP invocations were rejected before tests. Post-rebase existing in-process xUnit execution passed all 82; no runner configuration changed"
+    },
+    {
+      "name": "Canonical Core privacy receipt contract",
+      "command": "dotnet run --project .\\tests\\Kora.Core.UnitTests\\Kora.Core.UnitTests.csproj --configuration Release --no-build -- -class '*CapturePrivacyReceiptTests' -noLogo",
+      "result": "Passed",
+      "tests": 15,
+      "failures": 0,
+      "skipped": 0,
+      "runnerNote": "This Core executable used its existing xUnit in-process runner; dotnet test/MTP-filter attempts were rejected before tests and no runner configuration was changed"
+    },
+    {
+      "name": "Release build of selected managed test projects",
+      "result": "Passed",
+      "warnings": 0,
+      "errors": 0
+    },
+    {
+      "name": "Original dependency-backed capture/threshold experiment",
+      "result": "Blocked",
+      "reason": "No experiment-local venv/assets/fixtures in isolated worktree; existing Python lacks numpy, sherpa_onnx and psutil; acquisition not approved",
+      "historicalReceiptsChanged": false
+    }
+  ],
+  "livePreparation": {
+    "sp01": "Blocked before live consent: named operator/room, already selected H1, installed visual-only build/ownership and appointment unverified",
+    "r02r09": "Blocked: no qualified packaged Kora wake detector, boundary/endpointing, playback-reference/AEC or last-acoustic-sample measurement path",
+    "microphoneCapture": "Not run",
+    "audioPlaybackOrRendering": "Not run",
+    "participantsOrBystanders": "Not involved",
+    "devicesDefaultsOrPermissionsChanged": false,
+    "osTransitions": "Not run",
+    "resourceSensitiveTrials": "Not run",
+    "rawUserDiagnosticsRead": false
+  },
+  "qualification": {
+    "D002": "Open for production wake/acoustic claims",
+    "speechD007": "Open for speech/reference-hardware acceptance",
+    "productionWakeOrAcousticsQualified": false,
+    "hardwareFloorQualified": false,
+    "rcManifestsIncludingWakeOrAcousticsQualified": false,
+    "unrelatedCapabilitiesBlockedByAcousticProof": false,
+    "thresholdsChanged": false,
+    "originalAcousticExperimentRetained": true
+  }
+}

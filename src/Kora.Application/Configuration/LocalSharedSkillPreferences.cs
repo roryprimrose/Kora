@@ -8,6 +8,7 @@ namespace Kora.Application.Configuration;
 public sealed class LocalSharedSkillPreferences
 {
     private const string FileName = "shared-skill-sources.json";
+    private const int MaximumPreferenceBytes = 4096;
     private readonly IPreferenceStore store;
 
     public LocalSharedSkillPreferences(IApplicationDataPaths paths) : this(new LocalPreferenceStore(paths)) { }
@@ -15,7 +16,7 @@ public sealed class LocalSharedSkillPreferences
 
     public IReadOnlyList<SharedSkillSource> Load()
     {
-        var text = store.ReadText(FileName, 4096);
+        var text = store.ReadText(FileName, MaximumPreferenceBytes);
         if (text is null) { return Array.Empty<SharedSkillSource>(); }
         try
         {
@@ -48,7 +49,7 @@ public sealed class LocalSharedSkillPreferences
     public void Save(IReadOnlyList<SharedSkillSource> sources)
     {
         Validate(sources);
-        store.WriteText(FileName, JsonSerializer.Serialize(new
+        var text = JsonSerializer.Serialize(new
         {
             Version = 1,
             Sources = sources.Select(source => new
@@ -57,7 +58,10 @@ public sealed class LocalSharedSkillPreferences
                 source.ProfileRelativeRoot,
                 source.DirectoryIdentity,
             }),
-        }));
+        });
+        if (System.Text.Encoding.UTF8.GetByteCount(text) > MaximumPreferenceBytes)
+        { throw new InvalidDataException("The source registrations exceed the persisted byte limit."); }
+        store.WriteText(FileName, text);
     }
 
     private static void Validate(IReadOnlyList<SharedSkillSource> sources)

@@ -109,7 +109,9 @@ than silently showing it as current. No content-bearing snapshot is persisted.
 
 Registration is a validated versioned JSON preference under device-local
 `IApplicationDataPaths`, published only through the shared atomic preference
-store with bounded strict-UTF-8 read and exact read-back. It stores only source
+store with bounded strict-UTF-8 read, serialized-byte validation before
+publication and exact read-back. Oversized escaped Unicode registrations never
+replace existing consent. It stores only source
 ID, profile-relative root and directory identity, not content or grants.
 Missing preferences mean no consent; malformed/unknown/duplicate/corrupt state
 blocks all shared reads and registration, without a default/reset fallback.

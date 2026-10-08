@@ -2943,8 +2943,9 @@ existing runtime/containment/installed proof witnesses retain their prior
 dispositions and cannot authorize skill execution.
 
 Local validation for this bounded mechanism: locked restore and root Release
-build (zero warnings/errors), all five root test suites (Core 866, Application
-2,494, Tools 38, Definitions 6, Windows 1,129) and the enforced portable
+build (zero warnings/errors), all five root test suites after preserving
+concurrent call-feedback and file-preview work (Core 931, Application
+2,607, Tools 60, Definitions 6, Windows 1,147) and the enforced portable
 **100% line / 100% branch** coverage gate. These are deterministic/source
 mechanism results, not real-user/native-accessibility or complete release
 qualification.

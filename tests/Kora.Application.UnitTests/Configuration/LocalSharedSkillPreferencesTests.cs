@@ -89,6 +89,23 @@ public sealed class LocalSharedSkillPreferencesTests : IDisposable
     }
 
     [Fact]
+    public void Escaped_unicode_registration_bytes_are_validated_before_replacing_existing_consent()
+    {
+        var store = new Store();
+        var preferences = new LocalSharedSkillPreferences(store);
+        var original = Source();
+        preferences.Save([original]);
+        var saved = store.Text;
+        var oversized = Enumerable.Range(0, 4).Select(index => new SharedSkillSource(Guid.NewGuid(),
+            "root-" + index + "\\" + string.Join('\\', Enumerable.Repeat(new string('漢', 70), 3)),
+            new string((char)('a' + index), 48))).ToArray();
+        ((Action)(() => preferences.Save(oversized))).Should().Throw<InvalidDataException>();
+        store.Writes.Should().Be(1);
+        store.Text.Should().Be(saved);
+        preferences.Load().Should().Equal(original);
+    }
+
+    [Fact]
     public void Preference_bytes_are_bounded_before_allocation_and_strict_utf8_is_required()
     {
         var directory = Path.Combine(root, "Preferences");

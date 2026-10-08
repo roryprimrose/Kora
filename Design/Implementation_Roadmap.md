@@ -2614,6 +2614,15 @@ and **6,572 / 6,572 branches**, with unchanged thresholds/exclusions. Stopped
 activities retained in another asynchronous flow and attempted reinstallation
 cannot restore control authority. No live effects or acceptance are inferred.
 
+Before current-head publication, the branch rebased actual external #86 merge
+`423f2013bcb8bc009dfb2cbe847c227ae31e01d1`. Its pointer movement/button/wheel
+callbacks reset native presentation hide timers only; they do not supply
+meaningful session, approval or work authority. A fresh root no-restore Release
+has **zero warnings/errors**; all five suites pass **732 / 2,210 / 38 / 6 / 990**
+with zero failures/skips. Fresh latest-only portable coverage remains exactly
+**100% line and branch**, **11,830 / 11,830 lines** and **6,572 / 6,572 branches**.
+The #91 schema/retention/admission behavior and bounded manual scope are unchanged.
+
 No automatic detector, persistent call state, relaxation review, speak-once,
 model tool, saved-default change, output mode/volume, microphone/consent/privacy
 change, new audio/capture or grant-record mutation is delivered. The existing

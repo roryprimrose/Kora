@@ -289,9 +289,12 @@ public sealed partial class MainViewModelTests
     [InlineData("failure")]
     [InlineData("native-presentation")]
     [InlineData("native-presentation-locked")]
+    [InlineData("native-presentation-no-subscriber")]
     public async Task Caption_is_retired_on_every_applicable_transition_and_never_restored(string transition)
     {
-        var fixture = new Fixture(enableSpeechText: true);
+        var log = new CaptionPresentationLogger();
+        var fixture = new Fixture(enableSpeechText: true, logger: log,
+            subscribeToWindowActions: transition is not "native-presentation-no-subscriber");
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("set display.speech-text to CurrentUtterance");
@@ -343,6 +346,10 @@ public sealed partial class MainViewModelTests
                 fixture.Session.IsUnlocked = false;
                 fixture.ViewModel.ReportSpeechCaptionPresentationFailure("SyntheticNativeFailure");
                 break;
+            case "native-presentation-no-subscriber":
+                fixture.ViewModel.ReportSpeechCaptionPresentationFailure("SyntheticNativeFailure");
+                fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+                break;
         }
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
@@ -355,5 +362,6 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.TextToSpeech.SpeakGate.TrySetResult();
         await response;
+        log.Messages.Should().NotContain(message => message.Contains(fixture.TextToSpeech.SpokenText!, StringComparison.Ordinal));
     }
 }

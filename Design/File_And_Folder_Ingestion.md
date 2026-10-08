@@ -81,7 +81,7 @@ The shared preview broker resolves exact source/revision/item/digest,
 deliberate origin and original host session/task; captures its generation and
 cancellation; and revalidates the same revision, admission/privacy/ownership/
 call gates and terminal typed audit under the revocation lock before returning.
-Replacement, revocation, Cancel task, session disposition, privacy, ownership
+Replacement, revocation, source disposition, Cancel task, privacy, ownership
 loss or disposal cancel/suppress late work. Outstanding worker work remains
 nonquiescent even after clear; no current-path read, refresh, fallback copy,
 ambient watching or folder/source expansion occurs.

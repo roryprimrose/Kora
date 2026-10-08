@@ -89,8 +89,9 @@ time, source/revision/item IDs, original-byte SHA-256 digest, display filename,
 heading, exact UTF-16 offsets, and 1-based line/column range (exclusive end;
 CRLF is one newline). Truncation is explicit; no match differs from stale,
 cancelled, busy, invalid or unavailable. Search does not re-read the current
-path or refresh the revision. Closing/revoking/replacing the preview, task or
-session disposition and privacy/ownership changes invalidate late results.
+path or refresh the revision. Closing/revoking/replacing/discarding the source,
+Cancel task and privacy/ownership changes invalidate late results. This is a
+volatile local inspection, not a durable workspace session attachment.
 
 **Unavailable:** folder preview, UNC/removable drives, durable attachments,
 knowledge sources, persistent/vector indexing, local/hosted reasoning or file-model

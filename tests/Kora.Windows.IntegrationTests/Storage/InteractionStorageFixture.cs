@@ -61,9 +61,9 @@ internal sealed class InteractionStorageFixture : IDisposable
         await PublishAsync();
     }
 
-    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null)
+    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null, AuditRetentionPolicy? auditPolicy = null)
     {
-        Store = new(Paths, Tasks, Time, checkpoint);
+        Store = new(Paths, Tasks, Time, checkpoint, auditPolicy: auditPolicy);
         Questions = new(Store, Time);
         Authorization = new(Store, Time);
     }

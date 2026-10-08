@@ -30,7 +30,7 @@ public sealed class DiagnosticRetentionUiContractTests
             .And.Contain("Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision")
             .And.NotContain("settingsWindow.IsVisible");
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
-        composition.Should().Contain("new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy)")
+        composition.Should().Contain("new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy)")
             .And.Contain("services.AddSingleton(diagnosticPolicy)")
             .And.Contain("services.AddSingleton<IDiagnosticRetentionSessionStore>(interactions)")
             .And.Contain("services.AddSingleton<DiagnosticRetentionConfigurationService>()");

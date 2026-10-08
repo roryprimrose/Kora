@@ -661,6 +661,24 @@ files30/30, all authority and pruning triggers are unchanged; unavailable
 ordinary policy reports explicit independent gaps rather than becoming default
 or blocking required trusted audit on activity disposal.
 
+The independently delivered [future-only audit setting](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
+adds a domain-owned 30–365/default-reset90 snapshot to both real
+`WindowsSqliteHostInteractionStore.AppendAudit` commits and
+`WindowsSqliteEvidenceSink` diagnostic audit projections. Composition shares
+one confirmed current-run audit snapshot; no authority is inferred from the
+projection. Separate audit-control admission reuses the original-input/durable-
+intent mechanism and existing committed-intent connection, never nested leases.
+Requested/terminal preference receipts retain the prior policy; atomic
+save/readback and durable intent outcome precede marker confirmation/activation.
+Invalid/unconfirmed audit configuration holds required new commits and refuses
+startup authority recovery/writes, not an implicit 90-day fallback.
+Schema-3 authority and independently qualified evidence readers validate
+original integral audit-domain deadlines, preserving serialized payloads,
+ordered hashes/head, revisions and citations across reopen/legacy migration.
+No deadline rewrite, audit pruning, session/history/grant/task/question/approval
+deletion, ordinary/file-policy change or janitor scheduling is introduced.
+This does not complete R04/R10 or forensic/encryption/disposal qualification.
+
 The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/
 reparse, PERSIST/FULL and exact-schema checks. It stores only host-admitted

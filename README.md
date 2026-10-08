@@ -382,9 +382,17 @@ Unsupported file audit mirrors never become authoritative audit rows.
 Combined-source ranking, session/conversation content, Ask Evidence/model
 tools, export and remote transmission remain unavailable.
 
-SQLite diagnostic due dates default to 30 days and audit due dates to 90 days;
-the audit domain validates 30-365 days, but no retention configuration/apply
-UI or audit pruning is delivered. One admitted owner-startup transaction
+SQLite diagnostic due dates default to 30 days and audit due dates to 90 days.
+Shared native and exact typed/current-name ACTIVATED
+[retention settings](docs/settings.md#future-only-audit-retention) now independently
+admit future-only ordinary SQLite 1–365/default-reset30 and audit
+30–365/default-reset90. Audit policy reaches NEW required authority audit and
+independent diagnostic projections after prior-policy requested/terminal
+receipts, atomic save/readback and durable intent outcome. Old deadlines and
+payloads/hashes remain unchanged. Pending/corrupt audit preferences hold new
+audit/authority commits and refuse startup writes rather than defaulting.
+Apply-now, immediate deletion and audit pruning remain unavailable.
+One admitted owner-startup transaction
 prunes at most 128 due ordinary logs and 32 due spans with their bounded owned
 links. Backlog can remain. Audit rows and all tasks/interaction/session/grant
 records, including Perpetual, are untouched. Reading/searching never extends

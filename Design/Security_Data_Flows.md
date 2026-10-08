@@ -1044,6 +1044,19 @@ their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
 row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
 and its continuation/checkpoint requirements remain independently unimplemented.
+The subsequent [future-only audit option](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
+admits canonical 30–365/default-reset90 through independent original-user audit
+session/generation/source/policy revision checks and protected-call/native
+lifetime gates. Prior-policy requested/terminal receipts, atomic readback and
+durable intent outcome precede activation. Only NEW required authority audit
+and separately qualified diagnostic audit projections receive new deadlines;
+no property/message/trace/model/caller ID acquires audit or approval authority.
+Existing bytes/hashes/relationships/citations/deadlines and every grant record/
+validity/scope remain. Lost evidence or corrupt/unconfirmed preference holds
+new required audit/authority commits and refuses startup writes, never defaults
+to 90. Explicit saved-state/receipt inspection and repair precede refresh.
+No apply-now, audit pruning, session/history/approval/task/question deletion,
+ordinary/file policy or cleanup-schedule change is authorized by this option.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.
 The [approved storage baseline](Architecture.md#windows-durable-storage-direction) uses pinned standard SQLite, not mandatory page encryption or database DPAPI keys. Copies outside the private location are readable; same-user/admin access is not prevented. Credentials remain in Windows-protected credential storage.
 R04's partial [host evidence foundation](Implementation_Roadmap.md#r04-foundation-delivery)

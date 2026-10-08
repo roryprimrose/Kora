@@ -45,19 +45,20 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     private readonly RestrictedSqliteDatabase database;
     private readonly EvidenceRetentionPolicy retentionPolicy;
     private readonly DiagnosticRetentionPolicy? diagnosticPolicy;
+    private readonly AuditRetentionPolicy? auditPolicy;
     private readonly TimeProvider timeProvider;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
 
     public WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
         EvidenceRetentionPolicy? retentionPolicy = null, TimeProvider? timeProvider = null,
-        DiagnosticRetentionPolicy? diagnosticPolicy = null)
-        : this(paths, retentionPolicy, timeProvider, checkpoint: null, diagnosticPolicy)
+        DiagnosticRetentionPolicy? diagnosticPolicy = null, AuditRetentionPolicy? auditPolicy = null)
+        : this(paths, retentionPolicy, timeProvider, checkpoint: null, diagnosticPolicy, auditPolicy)
     {
     }
 
     internal WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
         EvidenceRetentionPolicy? retentionPolicy, TimeProvider? timeProvider, ISqliteTransactionCheckpoint? checkpoint,
-        DiagnosticRetentionPolicy? diagnosticPolicy = null)
+        DiagnosticRetentionPolicy? diagnosticPolicy = null, AuditRetentionPolicy? auditPolicy = null)
     {
         database = new RestrictedSqliteDatabase(paths, PartitionName, "evidence.db", ApplicationId, Schema,
             new(1, 2, Schema, (connection, _, token) =>
@@ -67,6 +68,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
             }));
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
         this.diagnosticPolicy = diagnosticPolicy;
+        this.auditPolicy = auditPolicy;
         this.timeProvider = timeProvider ?? TimeProvider.System;
         this.checkpoint = checkpoint;
     }
@@ -152,7 +154,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         using var transaction = connection.BeginTransaction();
         checkpoint?.BeforeWrite(connection, transaction);
         var committed = timeProvider.GetUtcNow();
-        var due = audit ? retentionPolicy.AuditDue(committed) : DiagnosticDue(committed);
+        var due = audit ? AuditDue(committed) : DiagnosticDue(committed);
         Insert(connection, transaction, table, values, payload, committed.UtcTicks, due.UtcTicks);
         checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
@@ -190,6 +192,9 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
 
     private DateTimeOffset DiagnosticDue(DateTimeOffset committed) =>
         diagnosticPolicy is null ? retentionPolicy.DiagnosticDue(committed) : diagnosticPolicy.Due(committed);
+
+    private DateTimeOffset AuditDue(DateTimeOffset committed) =>
+        auditPolicy is null ? retentionPolicy.AuditDue(committed) : auditPolicy.Due(committed);
 
     private static SqliteConnection ValidateDatabase(SqliteConnection connection, bool legacy = false)
     {
@@ -265,7 +270,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
             var due = ReadTimestamp(rows, "due_utc");
             var days = (due - committed).TotalDays;
             if (string.Equals(table, "security_audit_events", StringComparison.Ordinal)
-                ? days is < 30 or > 365 || days != Math.Truncate(days)
+                ? !AuditRetentionDays.IsValidDeadline(committed, due)
                 : legacy ? days != EvidenceRetentionPolicy.DiagnosticDays
                     : days is < DiagnosticRetentionDays.Minimum or > DiagnosticRetentionDays.Maximum || days != Math.Truncate(days))
             {

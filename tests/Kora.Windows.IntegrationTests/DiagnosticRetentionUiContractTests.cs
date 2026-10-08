@@ -23,7 +23,12 @@ public sealed class DiagnosticRetentionUiContractTests
             .Should().BeTrue();
         var controller = File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindowController.cs"));
         controller.Should().Contain("BindDiagnosticRetentionNativeLifetime")
-            .And.Contain("ReferenceEquals(window, settingsWindow) && settingsWindow.IsVisible");
+            .And.Contain("settingsWindow.PropertyChanged += OnWindowPropertyChanged")
+            .And.Contain("window.PropertyChanged -= OnWindowPropertyChanged")
+            .And.Contain("eventArgs.Property == Visual.IsVisibleProperty")
+            .And.Contain("Interlocked.Increment(ref nativeVisibilityRevision)")
+            .And.Contain("Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision")
+            .And.NotContain("settingsWindow.IsVisible");
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
         composition.Should().Contain("new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy)")
             .And.Contain("services.AddSingleton(diagnosticPolicy)")

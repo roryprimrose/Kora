@@ -125,6 +125,28 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task Hiding_and_reopening_native_settings_cannot_revive_the_original_inflight_binding()
+    {
+        var fixture = new Fixture(enableDiagnosticRetention: true);
+        await using var admission = fixture.DiagnosticAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
+        fixture.DiagnosticPreferences.AfterWrite = () =>
+        {
+            fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => false);
+            fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(() => fixture.ViewModel.CanRevealPrivatePresentation);
+        };
+        fixture.ViewModel.SelectedDiagnosticRetentionDays = 1;
+
+        await fixture.ViewModel.SaveDiagnosticRetentionCommand.ExecuteAsync();
+
+        fixture.DiagnosticPreferences.Pending.Should().BeTrue();
+        fixture.DiagnosticPolicy.Effective.Should().BeNull();
+        fixture.ViewModel.ResponseTitle.Should().Contain("not confirmed");
+        fixture.ViewModel.Dispose();
+    }
+
+    [Fact]
     public async Task Unavailable_locked_unknown_original_and_late_disposed_callbacks_are_closed()
     {
         var absent = new Fixture();

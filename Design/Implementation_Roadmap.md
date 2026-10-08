@@ -153,7 +153,10 @@ all grants/approvals and the owner-startup janitor schedule stay unchanged.
 and the [genuine SQLite writer](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.cs)
 bind original-user independent diagnostic-control session/generation, host-held
 proposal and fresh revisions with live native/owner/privacy/topology/input/call
-conditions. Required typed audit, durable atomic save/readback, terminal intent
+conditions. Native visibility is cached by UI events with an expiring revision:
+storage-thread admission never reads Avalonia properties, and hide/reopen or
+close/dispose cannot revive an earlier binding. Required typed audit, durable
+atomic save/readback, terminal intent
 receipt and the unconfirmed marker precede activation. Invalid UTF-8/format or
 unconfirmed writes cannot silently become active defaults on restart. Ordinary
 policy unavailability explicitly reports independent delivery gaps without

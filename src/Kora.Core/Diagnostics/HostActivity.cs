@@ -83,6 +83,20 @@ public sealed class HostActivity : IDisposable
             current.CorrelationId, current.ApprovalId);
     }
 
+    public static HostActivity BeginOperation(HostActivityLayer layer, HostOperation operation,
+        RequestOrigin origin = RequestOrigin.HostSystem) =>
+        Current is not null ? BeginChild(layer, operation) : BeginRoot(HostRequest.Create(origin), layer, operation);
+
+    public static Func<HostActivity> CaptureContinuation(HostActivityLayer layer, HostOperation operation,
+        RequestOrigin origin = RequestOrigin.HostSystem)
+    {
+        var current = Current;
+        var request = current?.Request ?? HostRequest.Create(origin);
+        ActivityLink[] links = current?.Activity is { } activity ? [new(activity.Context)] : [];
+        // Deferred work keeps host identity and causal links, never a retired ambient scope.
+        return () => BeginRoot(request, layer, operation, links);
+    }
+
     public static HostActivity BeginAudit(HostRequest request, Kora.Core.Auditing.SecurityAuditEvent audit,
         IEnumerable<ActivityLink>? links = null) =>
         new(request, HostActivityLayer.Application, HostOperation.Policy,

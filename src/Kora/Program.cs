@@ -136,7 +136,7 @@ internal static class Program
                             if (provider is not null)
                             {
                                 // Avalonia leaves its synchronization context installed after the UI loop exits.
-                                Task.Run(() => provider.DisposeAsync().AsTask()).GetAwaiter().GetResult();
+                                Task.Run(() => DisposeServicesAsync(provider)).GetAwaiter().GetResult();
                             }
                         }
                         catch (Exception exception)
@@ -190,6 +190,21 @@ internal static class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    private static async Task DisposeServicesAsync(ServiceProvider provider)
+    {
+        using var shutdown = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Recovery);
+        try
+        {
+            await provider.DisposeAsync();
+            shutdown.Complete(HostOperationOutcome.Completed);
+        }
+        catch
+        {
+            shutdown.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
 
     private static void ConfigureServices(
         IServiceCollection services,

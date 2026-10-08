@@ -1,9 +1,11 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Speech.Synthesis;
 
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
+using Kora.Core.Diagnostics;
 using Kora.Windows.Diagnostics;
 
 using NAudio.CoreAudioApi;
@@ -38,6 +40,8 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
     private long outputGeneration;
     private PlaybackVolume? playbackVolume = PlaybackVolume.Default;
     private WindowsSpeechRate? windowsSpeechRate = WindowsSpeechRate.Default;
+    private long playbackGeneration;
+    private Func<HostActivity>? beginStopReceipt;
     private readonly KokoroTextToSpeechProvider? kokoroProvider;
     private readonly ILogger<WindowsTextToSpeechService> logger;
 
@@ -301,6 +305,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                     throw new OperationCanceledException("Speech output was invalidated by a privacy event.");
                 }
                 stopRequested = false;
+                playbackGeneration = generation;
             }
 
             followsSystemDefaultOutput = outputDevice.IsSystemDefault;
@@ -426,15 +431,22 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
+        var requested = Stopwatch.GetTimestamp();
         WindowsLog.Debug(logger, "Stopping speech output");
         await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task? completionTask;
+        long stoppedGeneration;
+        bool hadOutput;
         try
         {
             lock (stateLock)
             {
                 stopRequested = true;
+                stoppedGeneration = playbackGeneration;
+                hadOutput = activePrompt is not null || isKokoroSynthesis || playback is not null;
                 completionTask = synthesisCompletion?.Task ?? playbackCompletion?.Task;
+                beginStopReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
             }
 
             cancelOwnedSynthesis();
@@ -449,16 +461,22 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         {
             await completionTask.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
+        WindowsLog.OutputStopCompleted(logger, stoppedGeneration, hadOutput, requested,
+            Stopwatch.GetTimestamp(), Stopwatch.Frequency);
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     public void InvalidateOutput()
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
         WasapiPlayer? player;
         lock (stateLock)
         {
             player = RetireOutputLocked();
+            beginStopReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
         }
         StopRetiredOutput(player);
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     public void SetPlaybackVolume(PlaybackVolume? volume)
@@ -673,6 +691,8 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                 lock (stateLock)
                 {
                     playback = player;
+                    playbackGeneration = generation;
+                    beginStopReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
                     playback.PlaybackStopped += OnPlaybackStopped;
                     playbackCompletion = completion;
                     if (stopRequested || generation != Interlocked.Read(ref outputGeneration))
@@ -733,15 +753,22 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
 
     internal void OnPlaybackStopped(object? sender, StoppedEventArgs eventArgs)
     {
+        var stopped = Stopwatch.GetTimestamp();
         TaskCompletionSource? completion;
+        long retiredGeneration;
+        Func<HostActivity>? beginReceipt;
         lock (stateLock)
         {
             if (sender is null || !ReferenceEquals(sender, playback)) { return; }
             completion = playbackCompletion;
+            retiredGeneration = playbackGeneration;
+            beginReceipt = beginStopReceipt;
             playbackCompletion = null;
             outputEnvelope?.Clear();
             outputEnvelope = null;
         }
+        using var activity = beginReceipt is not null ? beginReceipt()
+            : HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
 
         if (eventArgs.Exception is not null)
         {
@@ -755,6 +782,8 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         {
             completion?.TrySetResult();
         }
+        WindowsLog.NativePlaybackStopped(logger, retiredGeneration, stopped);
+        activity.Complete(eventArgs.Exception is null ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
     }
 
     private void ResetSynthesisState()
@@ -835,6 +864,9 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
 
     private void DisposePlaybackResources()
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
+        var audioBytes = audioStream?.Capacity ?? 0;
+        var hadResources = playback is not null || audioStream is not null;
         WasapiPlayer? player;
         lock (stateLock)
         {
@@ -862,5 +894,10 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         activeOutputDevice?.Dispose();
         activeOutputDevice = null;
         followsSystemDefaultOutput = false;
+        if (hadResources)
+        {
+            WindowsLog.OutputResourcesReleased(logger, playbackGeneration, Stopwatch.GetTimestamp(), audioBytes);
+        }
+        activity.Complete(HostOperationOutcome.Completed);
     }
 }

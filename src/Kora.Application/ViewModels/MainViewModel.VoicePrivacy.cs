@@ -1,8 +1,8 @@
 using Kora.Application.Diagnostics;
 using Kora.Core;
+using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
-using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Application.Voice;
 
@@ -45,6 +45,12 @@ public sealed partial class MainViewModel
         : IsVoiceEnabled
             ? "Push-to-talk ready - microphone closed - wake unavailable"
             : "Microphone closed - listening disabled";
+    private readonly Lock voiceReadinessGate = new();
+    private long automaticUnlockRecoveryRevision = -1;
+    private Task voiceUnlockRecoveryTask = Task.CompletedTask;
+    private Func<bool> voiceOwnershipEligible = static () => false;
+
+    public void BindVoiceOwnershipGate(Func<bool> gate) => voiceOwnershipEligible = gate;
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
 
@@ -58,9 +64,19 @@ public sealed partial class MainViewModel
     {
         if (disposed) { return; }
         var snapshot = eventArgs.Current;
+        var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
+            | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
+            | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
+            || (eventArgs.Reason & WindowsPrivacyChangeReason.DeviceTopology) != WindowsPrivacyChangeReason.Unknown
+                && (eventArgs.Reason & WindowsPrivacyChangeReason.OutputTopology) == WindowsPrivacyChangeReason.Unknown;
         if (snapshot.SessionState != WindowsSessionState.Unlocked)
         {
-            CloseForObservedPrivacyEvent("Windows session is " + snapshot.SessionState, hidePresentation: true);
+            var restoreOnUnlock = snapshot.SessionState == WindowsSessionState.Locked
+                && eventArgs.Reason != WindowsPrivacyChangeReason.Unknown && !voicePrivacyChanged
+                && snapshot.MicrophoneAccess == MicrophoneAccessState.Allowed
+                && (IsVoiceEnabled || Interlocked.Read(ref automaticUnlockRecoveryRevision) >= 0);
+            CloseForObservedPrivacyEvent("Windows session is " + snapshot.SessionState,
+                hidePresentation: true, sessionState: snapshot.SessionState, restoreOnUnlock: restoreOnUnlock);
         }
         else if (snapshot.MicrophoneAccess != MicrophoneAccessState.Allowed
             || SelectedMicrophone is { } microphone && IsVoiceEnabled && !snapshot.CanCaptureFrom(microphone))
@@ -80,7 +96,37 @@ public sealed partial class MainViewModel
                     return;
                 }
                 RefreshOutputEndpoints();
+                if (snapshot.SessionState == WindowsSessionState.Locked && !voicePrivacyChanged
+                    && (eventArgs.Reason & WindowsPrivacyChangeReason.OutputTopology) != WindowsPrivacyChangeReason.Unknown
+                    && Interlocked.Read(ref automaticUnlockRecoveryRevision) >= 0
+                    && microphoneCatalogCurrent && catalogPrivacyRevision == eventArgs.Previous.TopologyRevision
+                    && privacyObservation.Current == snapshot
+                    && snapshot.MicrophoneAccess == eventArgs.Previous.MicrophoneAccess
+                    && string.Equals(snapshot.DefaultMicrophoneId, eventArgs.Previous.DefaultMicrophoneId, StringComparison.Ordinal)
+                    && snapshot.ActiveMicrophoneIds.SequenceEqual(eventArgs.Previous.ActiveMicrophoneIds, StringComparer.Ordinal))
+                {
+                    // Output-only revisions retain validated input metadata, not input admission or capture.
+                    catalogPrivacyRevision = snapshot.TopologyRevision;
+                    return;
+                }
                 _ = RefreshMicrophonesAsync();
+            });
+        }
+        if (snapshot.SessionState == WindowsSessionState.Unlocked)
+        {
+            var revision = Interlocked.Read(ref automaticUnlockRecoveryRevision);
+            var closure = privacyClosureTask;
+            var beginRecovery = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Policy);
+            uiDispatcher.Post(() =>
+            {
+                if (!disposed && listeningPauseSessionState is not null)
+                {
+                    SetListeningPauseReason(listeningPauseReason, snapshot.SessionState);
+                }
+                if (!disposed && revision >= 0 && eventArgs.Previous.SessionState == WindowsSessionState.Locked)
+                {
+                    voiceUnlockRecoveryTask = RestoreVoiceAfterUnlockAsync(revision, closure, beginRecovery);
+                }
             });
         }
     }
@@ -239,14 +285,17 @@ public sealed partial class MainViewModel
 
     internal Task PrivacyClosureTask => privacyClosureTask;
 
-    internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation)
+    internal Task VoiceUnlockRecoveryTask => voiceUnlockRecoveryTask;
+
+    internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
+        WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
         if (hidePresentation)
         {
             Interlocked.Exchange(ref privacyPresentationHeld, 1);
             ClearClipboardPreview();
         }
-        HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening");
+        HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
         privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation);
     }
@@ -277,7 +326,8 @@ public sealed partial class MainViewModel
                     }
                     Transcript = "No command heard yet.";
                     ResponseTitle = "Windows privacy recovery";
-                    ResponseBody = "Return to an unlocked interactive session and use native controls. Listening remains disabled for this run.";
+                    ResponseBody = "Return to an unlocked interactive session. Normal unlock can restore previously enabled "
+                        + "readiness after fresh checks; other privacy failures require Enable listening.";
                     PrivacyClosureRequested?.Invoke(this, EventArgs.Empty);
                 }
                 else
@@ -293,6 +343,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
             ApplicationLog.Error(logger, exception, "Closing capture and output after a Windows privacy event");
             uiDispatcher.Post(() => ShowFailure("Audio privacy closure needs attention.", exception.Message));
         }
@@ -321,22 +372,106 @@ public sealed partial class MainViewModel
         BeginPushToTalkCommand.NotifyCanExecuteChanged();
     }
 
-    private void HoldVoiceInput(string reason)
+    private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
-        Interlocked.Increment(ref voiceRecoveryRevision);
-        Interlocked.Increment(ref microphoneTopologyRevision);
-        Interlocked.Exchange(ref voiceEnabled, 0);
-        Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
-        Interlocked.Exchange(ref pushToTalkHeld, 0);
+        long revision;
+        lock (voiceReadinessGate)
+        {
+            revision = Interlocked.Increment(ref voiceRecoveryRevision);
+            Interlocked.Increment(ref microphoneTopologyRevision);
+            Interlocked.Exchange(ref automaticUnlockRecoveryRevision, restoreOnUnlock ? revision : -1);
+            Interlocked.Exchange(ref voiceEnabled, 0);
+            Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
+            Interlocked.Exchange(ref pushToTalkHeld, 0);
+        }
         voiceRecognition.InvalidateCapture();
         captureOpenCancellation?.Cancel();
         uiDispatcher.Post(() =>
         {
+            if (revision != Interlocked.Read(ref voiceRecoveryRevision))
+            {
+                return;
+            }
             IsListening = false;
-            SetListeningPauseReason(reason);
+            SetListeningPauseReason(reason, sessionState);
             NotifyVoiceEnablementChanged();
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
         });
+    }
+
+    private bool RefreshVoiceReadiness()
+    {
+        var privacy = privacyObservation.Refresh();
+        MicrophoneAccessStatus = microphoneAccessService.GetStatus();
+        return IsVoiceReadinessEligible(privacy) && sessionController.IsCurrentSessionUnlocked();
+    }
+
+    private bool IsVoiceReadinessEligible(WindowsPrivacySnapshot privacy) =>
+        HasVoiceConsent && EffectiveMicrophone is not null
+            && MicrophoneAccessStatus.State == MicrophoneAccessState.Allowed
+            && IsVoiceActivationAvailable && !disposed && !lifecycleAdmissionClosed
+            && SelectedMicrophone is { } microphone && privacy.CanCaptureFrom(microphone);
+
+    private bool TryEnableVoiceReadiness(long revision, bool requireUnlockRecovery = false)
+    {
+        lock (voiceReadinessGate)
+        {
+            if (requireUnlockRecovery && !voiceOwnershipEligible())
+            {
+                return false;
+            }
+            if (revision != Interlocked.Read(ref voiceRecoveryRevision) || disposed || lifecycleAdmissionClosed
+                || !IsVoiceReadinessEligible(privacyObservation.Current)
+                || requireUnlockRecovery && revision != Interlocked.Read(ref automaticUnlockRecoveryRevision))
+            {
+                return false;
+            }
+            Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
+            Interlocked.Exchange(ref voiceEnabled, 1);
+            Interlocked.Exchange(ref privacyPresentationHeld, 0);
+            return true;
+        }
+    }
+
+    private async Task RestoreVoiceAfterUnlockAsync(long revision, Task closure, Func<HostActivity> beginRecovery)
+    {
+        using var activity = beginRecovery();
+        try
+        {
+#pragma warning disable VSTHRD003 // Await the owned native privacy transition asynchronously after returning to the dispatcher.
+            await closure;
+#pragma warning restore VSTHRD003
+            if (revision != Interlocked.Read(ref automaticUnlockRecoveryRevision)
+                || revision != Interlocked.Read(ref voiceRecoveryRevision) || disposed || lifecycleAdmissionClosed)
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+                return;
+            }
+            if (!RefreshVoiceReadiness() || !voiceOwnershipEligible() || !voiceRecognition.IsCaptureQuiescent || IsBusy)
+            {
+                HoldVoiceInput("Microphone closed · unlock readiness checks failed; use Enable listening");
+                ApplicationLog.Information(logger, "Automatic voice recovery after Windows unlock was blocked by readiness checks");
+                activity.Complete(HostOperationOutcome.Failed);
+                return;
+            }
+            if (!TryEnableVoiceReadiness(revision, requireUnlockRecovery: true))
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+                return;
+            }
+            SetListeningPauseReason(null);
+            OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+            NotifyVoiceEnablementChanged();
+            ApplicationLog.Information(logger, "Previously enabled voice readiness was restored after Windows unlock");
+            activity.Complete(HostOperationOutcome.Completed);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            HoldVoiceInput("Microphone closed · unlock recovery failed; use Enable listening");
+            ApplicationLog.Error(logger, exception, "Restoring voice readiness after Windows unlock");
+            ShowFailure("Voice recovery needs attention.", exception.Message);
+            activity.Complete(HostOperationOutcome.Failed);
+        }
     }
 
     public async Task SetVoiceConsentAsync(bool consent)

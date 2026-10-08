@@ -84,7 +84,7 @@ public sealed class TrayRecoveryTests
             .And.Contain("EnableListeningFromTrayAsync(revision)")
             .And.Contain("DisableListeningFromTrayAsync")
             .And.Contain("StopSpeakingFromTrayAsync")
-            .And.Contain("if (!disposed) { action(); }")
+            .And.Contain("if (!disposed) { continuation(); }")
             .And.Contain("ClickSequenceOutcome.DoubleClick")
             .And.Contain("ClickSequenceOutcome.SingleClick")
             .And.Contain("Skill packages (inspection only)")

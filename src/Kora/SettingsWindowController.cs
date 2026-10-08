@@ -1,6 +1,9 @@
 using Avalonia;
 
 using Kora.Application.ViewModels;
+using Kora.Application.Hosting;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.Logging;
 
@@ -111,13 +114,16 @@ public sealed class SettingsWindowController : IDisposable
 
     private void OnWindowClosed(object? sender, EventArgs eventArgs)
     {
-        if (ReferenceEquals(window, sender))
+        HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
         {
-            DesktopLog.Debug(logger, "Settings window closed");
-            window!.PropertyChanged -= OnWindowPropertyChanged;
-            window.Closed -= OnWindowClosed;
-            window = null;
-            BindNativeLifetime(false);
-        }
+            if (ReferenceEquals(window, sender))
+            {
+                DesktopLog.Debug(logger, "Settings window closed");
+                window!.PropertyChanged -= OnWindowPropertyChanged;
+                window.Closed -= OnWindowClosed;
+                window = null;
+                BindNativeLifetime(false);
+            }
+        }, HostActivityLayer.Desktop, HostOperation.Presentation);
     }
 }

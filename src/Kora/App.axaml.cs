@@ -12,6 +12,8 @@ using Kora.Application;
 using Kora.Application.Maintenance;
 using Kora.Core.Configuration;
 using Kora.Core.Hosting;
+using Kora.Core.Diagnostics;
+using Kora.Application.Hosting;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -42,6 +44,10 @@ public sealed partial class App : Avalonia.Application
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
+        => HostRequestRunner.Run(RequestOrigin.HostSystem, InitializeFramework,
+            HostActivityLayer.Desktop, HostOperation.Startup);
+
+    private void InitializeFramework()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -128,6 +134,8 @@ public sealed partial class App : Avalonia.Application
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             host.BindCallOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
+            host.BindVoiceOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
+                && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             var dispatcher = Services.GetRequiredService<IUiDispatcher>();
             Services.GetRequiredService<DesktopInstanceOwnershipBridge>().BindCallbacks(
                 cancellationToken => dispatcher.InvokeAsync(() =>
@@ -174,6 +182,10 @@ public sealed partial class App : Avalonia.Application
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs eventArgs)
+        => HostRequestRunner.Run(RequestOrigin.HostSystem, DisposeDesktopControllers,
+            HostActivityLayer.Desktop, HostOperation.Recovery);
+
+    private void DisposeDesktopControllers()
     {
         Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();
         if (logger is not null)

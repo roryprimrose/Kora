@@ -12,6 +12,47 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Direct_voice_response_setting_without_ambient_context_preserves_voice_origin_and_call_refusal(bool protectedCall)
+    {
+        var fixture = new Fixture(enableResponseModeConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        fixture.Voice.Microphones = [new MicrophoneDevice("voice-fixture", "Synthetic microphone")];
+        fixture.Voice.DefaultMicrophoneId = "voice-fixture";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        if (protectedCall)
+        {
+            fixture.CallState.SetState(CallState.Unknown);
+            await fixture.Dispatcher.LastInvocation;
+        }
+        HostActivity.Current.Should().BeNull();
+
+        await fixture.ViewModel.ExecuteResponseModeCommandAsync(new(AppearanceCommandOperation.Reset),
+            SecurityAuditInitiator.VoiceCommand, cancellationToken: TestContext.Current.CancellationToken);
+
+        if (protectedCall)
+        {
+            fixture.OutputPreferences.SavedMode.Should().BeNull();
+            fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"denied\"");
+            fixture.Audit.Events.Should().Contain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand
+                && item.Outcome == SecurityAuditOutcome.Denied);
+        }
+        else
+        {
+            fixture.OutputPreferences.SavedMode.Should().Be(ResponseOutputMode.Hybrid);
+            fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"saved\"");
+        }
+        fixture.ManualCallStore.Tasks.Should().NotBeEmpty().And.OnlyContain(
+            record => record.Request.Origin == RequestOrigin.ActivatedVoice);
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        HostActivity.Current.Should().BeNull();
+    }
+
     [Fact]
     public async Task Device_response_native_exact_and_activated_routes_share_save_readback_without_autoplay_or_microphone_changes()
     {

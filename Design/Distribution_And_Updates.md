@@ -774,9 +774,11 @@ First launch obtains explicit consent, not recording permission from install,
 device selection or logon registration.
 Manual disablement lasts for the current process; a later app restart/logon again
 uses the automatic startup policy. Locked, disconnected, or unknown session
-states still block acquisition and require explicit recovery after unlock.
-Unlock/resume and permission/device recovery in the current run never reopen
-capture silently; consent withdrawal persists across restart. See the
+states still block acquisition. Normal authoritative unlock may restore only
+prior enabled intent after confirmed closure and fresh gates, without replaying
+capture; locked startup with no prior enabled intent cannot do so. Resume,
+disconnect and permission/device recovery require explicit Enable listening;
+consent withdrawal persists across restart. See the
 [canonical microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix).
 Uninstallation removes startup/deployment registrations and offers to retain user skills/settings.
 It does not delete shared profile skills.

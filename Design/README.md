@@ -241,7 +241,8 @@ is an offline design mockup, not an implemented application or a change to relea
   controller owns approval/countdown and gated fixed-action dispatch.
 - Ongoing microphone consent is explicit on first launch and persists separately
   from run-scoped disablement/recovery holds; ordinary safe restart can use it,
-  but unlock/resume and loss recovery require explicit enablement within the run.
+  normal unlock restores only previously enabled readiness after fresh gates,
+  while resume and other loss recovery require explicit enablement within the run.
 - An unaddressed standalone lock creates a durable Active control work session;
   Session approval is offered only after its binding is committed and presented,
   never from the selected window.

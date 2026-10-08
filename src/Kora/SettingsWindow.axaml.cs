@@ -67,11 +67,11 @@ public sealed partial class SettingsWindow : Window
         Closed += OnCaptureSurfaceUnavailable;
     }
 
-    private async void OnCaptureSurfaceUnavailable(object? sender, EventArgs eventArgs)
+    private void OnCaptureSurfaceUnavailable(object? sender, EventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel)
         {
-            await viewModel.EndPushToTalkAsync();
+            viewModel.EndPushToTalkCommand.Execute(null);
         }
     }
 
@@ -87,52 +87,52 @@ public sealed partial class SettingsWindow : Window
     private void OnPushToTalkFocusLost(object? sender, Avalonia.Input.FocusChangedEventArgs eventArgs) =>
         OnCaptureSurfaceUnavailable(sender, eventArgs);
 
-    private async void OnPushToTalkPressed(object? sender, Avalonia.Input.PointerPressedEventArgs eventArgs)
+    private void OnPushToTalkPressed(object? sender, Avalonia.Input.PointerPressedEventArgs eventArgs)
     {
         if (sender is Control control && eventArgs.GetCurrentPoint(control).Properties.IsLeftButtonPressed
             && DataContext is MainViewModel viewModel)
         {
             eventArgs.Handled = true;
             eventArgs.Pointer.Capture(control);
-            await viewModel.BeginPushToTalkAsync();
+            viewModel.BeginPushToTalkCommand.Execute(null);
         }
     }
 
-    private async void OnPushToTalkReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs eventArgs)
+    private void OnPushToTalkReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs eventArgs)
     {
         eventArgs.Handled = true;
         if (DataContext is MainViewModel viewModel)
         {
-            await viewModel.EndPushToTalkAsync();
+            viewModel.EndPushToTalkCommand.Execute(null);
         }
         eventArgs.Pointer.Capture(null);
     }
 
-    private async void OnPushToTalkCaptureLost(object? sender, Avalonia.Input.PointerCaptureLostEventArgs eventArgs)
+    private void OnPushToTalkCaptureLost(object? sender, Avalonia.Input.PointerCaptureLostEventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel)
         {
-            await viewModel.EndPushToTalkAsync();
+            viewModel.EndPushToTalkCommand.Execute(null);
         }
     }
 
-    private async void OnPushToTalkKeyDown(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
+    private void OnPushToTalkKeyDown(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
     {
         if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
             && DataContext is MainViewModel viewModel)
         {
             eventArgs.Handled = true;
-            await viewModel.BeginPushToTalkAsync();
+            viewModel.BeginPushToTalkCommand.Execute(null);
         }
     }
 
-    private async void OnPushToTalkKeyUp(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
+    private void OnPushToTalkKeyUp(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
     {
         if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
             && DataContext is MainViewModel viewModel)
         {
             eventArgs.Handled = true;
-            await viewModel.EndPushToTalkAsync();
+            viewModel.EndPushToTalkCommand.Execute(null);
         }
     }
 

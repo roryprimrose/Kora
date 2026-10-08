@@ -38,8 +38,18 @@ public sealed class WindowsPrivacySnapshotTests
     {
         new VoiceTranscriptEventArgs("help", 0.8f, 42).Generation.Should().Be(42);
         new VoiceRecognitionFailureEventArgs("unavailable", 42).Generation.Should().Be(42);
+        new VoiceRecognitionFailureEventArgs("unavailable", 42).Reason.Should().Be(VoiceRecognitionFailureReason.CaptureFailure);
+        new VoiceRecognitionFailureEventArgs("retired", 42, VoiceRecognitionFailureReason.PrivacyTransition)
+            .Reason.Should().Be(VoiceRecognitionFailureReason.PrivacyTransition);
     }
 
+    [Fact]
+    public void Unknown_recognition_failure_reason_is_rejected()
+    {
+        var invalid = () => new VoiceRecognitionFailureEventArgs("invalid", 42, (VoiceRecognitionFailureReason)42);
+
+        invalid.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("reason");
+    }
     [Fact]
     public void Privacy_changes_preserve_their_observation_reason()
     {

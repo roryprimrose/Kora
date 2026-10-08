@@ -19,31 +19,63 @@ public abstract class HostControlAdmission(
 
     protected abstract ValueTask<WorkSessionAuthorization> CreateSessionAsync(
         HostRequest request, Func<bool> eligible, CancellationToken token);
-    protected abstract ValueTask<T> WithSessionAsync<T>(HostRequest request, HostRevision generation,
-        Func<T> operation, CancellationToken token);
 
-    public async Task<T> RunAsync<T>(RequestOrigin origin, Func<bool> eligible,
-        Func<HostRequest, WorkSessionAuthorization, T> operation, CancellationToken cancellationToken)
+    protected bool IsDisposed => disposed;
+    protected bool IsEvidenceUnavailable => evidenceUnavailable;
+    protected void HoldEvidenceUnavailable() => evidenceUnavailable = true;
+
+    protected static RequestOrigin CaptureOriginalOrigin(RequestOrigin origin)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
-        cancellationToken = linked.Token;
         if (HostActivity.Current is not null) { origin = HostActivity.RequireCurrent().Request.Origin; }
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
             throw new InvalidOperationException("Preference control requires original local user input.");
         }
+        return origin;
+    }
+
+    protected static bool OwnsLiveContext(HostRequest request)
+    {
+        var live = HostActivity.RequireCurrent();
+        return !live.Activity!.IsStopped && ReferenceEquals(live.Request, request);
+    }
+
+    protected Task<T> RunSynchronousAsync<T>(RequestOrigin origin, Func<bool> eligible,
+        Func<HostRequest, WorkSessionAuthorization, T> operation,
+        Func<HostRequest, HostRevision, Func<T>, CancellationToken, ValueTask<T>> withSession,
+        CancellationToken cancellationToken) =>
+        RunCommittedAsync(origin, eligible, async (request, session, currentEligible, token) =>
+            await withSession(request, session.Generation, () =>
+            {
+                token.ThrowIfCancellationRequested();
+                if (!currentEligible() || !OwnsLiveContext(request))
+                {
+                    throw new InvalidOperationException("Preference input, ownership, privacy or call admission changed.");
+                }
+                return operation(request, session);
+            }, token).ConfigureAwait(false), static _ => HostTaskState.Succeeded, cancellationToken);
+
+    protected async Task<T> RunCommittedAsync<T>(RequestOrigin origin, Func<bool> eligible,
+        Func<HostRequest, WorkSessionAuthorization, Func<bool>, CancellationToken, Task<T>> operation,
+        Func<T, HostTaskState> terminalState, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
+        cancellationToken = linked.Token;
+        origin = CaptureOriginalOrigin(origin);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         T admittedResult;
         try
         {
-            if (disposed || evidenceUnavailable || !eligible()) { throw new InvalidOperationException("Preference control host admission is unavailable."); }
+            bool CurrentEligible() => !disposed && !evidenceUnavailable
+                && !cancellationToken.IsCancellationRequested && eligible();
+            if (!CurrentEligible()) { throw new InvalidOperationException("Preference control host admission is unavailable."); }
             if (session is null)
             {
                 var creation = HostRequest.Create(origin);
                 using var activity = HostActivity.BeginRoot(creation, HostActivityLayer.Application, HostOperation.Policy);
                 var intent = await workspace.RecordControlIntentAsync(creation, cancellationToken).ConfigureAwait(false);
-                try { session = await CreateSessionAsync(creation, eligible, cancellationToken).ConfigureAwait(false); }
+                try { session = await CreateSessionAsync(creation, CurrentEligible, cancellationToken).ConfigureAwait(false); }
                 catch { evidenceUnavailable = true; throw; }
                 try { await coordinator.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false); }
                 catch { evidenceUnavailable = true; throw; }
@@ -54,18 +86,12 @@ public abstract class HostControlAdmission(
             var admitted = await workspace.RecordControlIntentAsync(request, cancellationToken).ConfigureAwait(false);
             try
             {
-                var result = await WithSessionAsync(request, session.Generation, () =>
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (disposed || !eligible() || !ReferenceEquals(HostActivity.RequireCurrent().Request, request))
-                    {
-                        throw new InvalidOperationException("Preference input, ownership, privacy or call admission changed.");
-                    }
-                    return operation(request, session);
-                }, cancellationToken).ConfigureAwait(false);
-                try { await coordinator.RecordOutcomeAsync(admitted, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false); }
+                var result = await operation(request, session, CurrentEligible, cancellationToken).ConfigureAwait(false);
+                var outcome = terminalState(result);
+                try { await coordinator.RecordOutcomeAsync(admitted, outcome, CancellationToken.None).ConfigureAwait(false); }
                 catch { evidenceUnavailable = true; throw; }
-                requestActivity.Complete(HostOperationOutcome.Completed);
+                requestActivity.Complete(outcome == HostTaskState.Succeeded
+                    ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
                 admittedResult = result;
             }
             catch (OperationCanceledException)

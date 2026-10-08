@@ -4167,6 +4167,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -7732,7 +7733,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null, bool enableOutputConfiguration = false,
             bool enablePlaybackVolume = false, Exception? volumeReadFailure = null,
             bool enableResponseModeConfiguration = false, bool enableDiagnosticRetention = false,
-            Exception? diagnosticRetentionReadFailure = null)
+            Exception? diagnosticRetentionReadFailure = null, bool enableManualCallControl = true)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7745,6 +7746,7 @@ public sealed partial class MainViewModelTests : IDisposable
             SpeechOffers = new FakeSpeechOfferPreferences();
             AudioPreferences = new FakeAudioDevicePreferences();
             var audioStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
+            ManualCallStore = audioStore;
             OutputAdmission = new(audioStore, audioStore, new HostTaskCoordinator(audioStore));
             OutputConfiguration = enableOutputConfiguration ? new(
                 AudioPreferences, new Kora.Application.Voice.BoundedAudioOutputCatalog(
@@ -7852,8 +7854,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
-                DiagnosticConfiguration);
+                DiagnosticConfiguration,
+                enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
+            ViewModel.BindManualCallNativeLifetime(true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
             {
@@ -7873,6 +7877,7 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public QueryTaskStore HostStore { get; } = new();
+        public Kora.Application.UnitTests.Configuration.AudioControlTestStore ManualCallStore { get; }
         public Kora.Application.Voice.AudioControlAdmission OutputAdmission { get; }
         public OutputDeviceConfigurationService? OutputConfiguration { get; }
         public FakePlaybackVolumePreferences VolumePreferences { get; }

@@ -228,6 +228,8 @@ internal static class Program
         services.AddSingleton<IAudioControlSessionStore>(interactions);
         services.AddSingleton<IDiagnosticRetentionSessionStore>(interactions);
         services.AddSingleton<DiagnosticRetentionAdmission>();
+        services.AddSingleton<IManualCallControlStore>(interactions);
+        services.AddSingleton<Kora.Application.Communication.ManualCallControl>();
         services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();

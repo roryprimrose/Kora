@@ -83,6 +83,16 @@ queue/task/call override, model descriptor/tool or new grant is added. See
 
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
+Bounded R15 [manual-call parity](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08)
+admits only `call.manual-active` for the current process run. Native on/off/
+reset-off and exact typed/activated discovery/get/status/set/reset share genuine
+original-user intent/session generation and required audited admission, never
+audio/maintenance action authority. Inspection is passive cached state; reserved
+grammar precedes questions and cannot answer/rebind/replace pending approvals.
+Changed state retires old speech/input/callback generations without clearance
+replay or capture reopening. This is not a generic saved call registry, model
+tool, automatic detector, protection relaxation or completed R15.
+
 The bounded R10 assistant-name addition registers only the existing
 `assistant.name` display/PTT command-prefix option. Native Apply/reset and exact
 typed/activated voice `list assistant settings`, `get/set/reset assistant.name`

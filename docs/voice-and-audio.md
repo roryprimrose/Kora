@@ -12,6 +12,16 @@ never replays it. No global/call volume, microphone, permission, provider,
 rate or output-device policy changes. Unknown capability/evidence is explicit
 visual unavailability; hardware/acoustic audibility is not claimed.
 
+[Current-run manual call commands](commands.md#exact-current-run-manual-call-control)
+are reserved exact typed/PTT phrases, also installed in the current-prefix
+activation/recognition grammar. They are not ambient call detection or a wake
+engine. Inspection is cached and never speaks or opens capture. Changed manual
+state retires pending speech/input generations and late speech from old
+requests; off/reset does not replay, grant consent or release the listening
+hold. Use a separate fresh Enable listening/PTT when all current gates allow.
+Protected/Unknown calls refuse original voice mutations, not merely the final
+confirmation channel. Required evidence failure stays explicitly conservative.
+
 The bounded [exact input-device commands](commands.md#exact-input-device-preference)
 also expose this same preference through typed or already **activated** voice.
 They do not provide wake listening or receive speech while input is closed.

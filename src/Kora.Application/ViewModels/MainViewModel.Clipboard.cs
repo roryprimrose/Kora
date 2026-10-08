@@ -35,7 +35,8 @@ public sealed partial class MainViewModel
 
     private Task RunClipboardUiAsync(string command) => Kora.Application.Hosting.HostRequestRunner.RunAsync(
         HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
-        () => RouteTranscriptAsync(command, 1, Kora.Core.Auditing.SecurityAuditInitiator.LocalUser));
+        () => RouteTranscriptAsync(command, 1, Kora.Core.Auditing.SecurityAuditInitiator.LocalUser,
+            Interlocked.Read(ref manualCallSpeechRevision)));
 
     public void ClearClipboardPreview() => clipboardPreview.Clear();
 

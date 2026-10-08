@@ -104,6 +104,14 @@ is active. It does not detect Teams or any other communication provider.
 Clearing manual mode does not clear an enabled automatic Active, Suspected or
 Unknown observation, nor fabricate detector Clear.
 
+**Reset manual off** has the same narrow clearing effect. **Cached call status**
+shows the current run flag, independent automatic observation/availability and
+immutable policy/source revision, without probing or starting work. The same
+[exact manual commands](commands.md#exact-current-run-manual-call-control) use
+the current prefix and genuine original-user admission. Results do not speak
+or replace an existing question, approval or security preview; mutation is
+refused while those interactions are pending.
+
 When manual mode or an enabled Active, Suspected or Unknown observation applies:
 
 - **Visual responses during calls** defaults to on. Kora suppresses automatic
@@ -120,6 +128,12 @@ Enabling visual protection or disabling call-time activation remains supported.
 Protected-call entry invalidates pending synthesis/playback before slower UI
 work. Results and questions stay visual; clearing protection does not replay
 old speech, answer prompts, or automatically reopen the microphone.
+Every changed manual layer also retires already admitted input/callback and
+output generations, including old requests finishing after off/reset. Complete
+late results remain visual; enable listening explicitly before a fresh PTT.
+Required audit/receipt failure leaves the cached manual flag truthful and
+holds conservative evidence-unavailable protection instead of claiming
+rollback or authorizing speech/activation/reuse from unknown state.
 
 Voice-originated voice/in-call setting changes, including manual clear/reset,
 are rejected while protected. A later mouse confirmation does not change their

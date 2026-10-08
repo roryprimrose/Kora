@@ -64,7 +64,6 @@ public sealed class SettingsWindowController : IDisposable
             window.Show();
             BindNativeLifetime(window.IsVisible);
         }
-
         window.Activate();
     }
 
@@ -103,6 +102,7 @@ public sealed class SettingsWindowController : IDisposable
         Volatile.Write(ref nativeVisible, visible && !disposed ? 1 : 0);
         viewModel.BindDiagnosticRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindManualCallNativeLifetime(visible && !disposed);
     }
 
     private void OnWindowClosed(object? sender, EventArgs eventArgs)

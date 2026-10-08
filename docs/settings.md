@@ -600,6 +600,16 @@ removes only that layer, never an enabled automatic Active/Suspected/Unknown
 observation. Manual state is not persisted across restart. Controls recheck
 original request origin, observed call revision and live ownership/privacy.
 Stale changes are rejected, not queued for call clearance.
+**Reset manual off** clears only this run layer. **Cached call status** is passive:
+it shows the manual flag separately from automatic observation/availability,
+saved flags and effective conservative protection at the current source/policy
+revision. Native controls and [exact typed/activated commands](commands.md#exact-current-run-manual-call-control)
+share genuine committed original-user intent, session generation and required
+audited admission; inspection does not create an intent or approval.
+Questions/approvals keep their full preview and block mutations. Changed manual
+state retires old speech/input/callbacks; off/reset never replay or reopen.
+Failed required evidence/retirement is explicit, with conservative protection
+held and no automatic retry or false rollback. The manual flag is never saved.
 
 ### Visual responses during calls
 

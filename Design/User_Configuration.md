@@ -474,12 +474,20 @@ show the new effective value.
 Bounded R15 now supplies run-scoped manual call controls and truthful automatic
 availability in **Settings > Calls**, outside the future generic settings/tool
 registry. Original voice provenance, observed call revision and live ownership/
-privacy gate manual changes. Protected calls reject voice-originated voice and
+privacy/input/native-lifetime and committed original-user session-generation
+admission gate manual changes. Exact `list call settings`, get/status/set-on/
+set-off/reset-off for `call.manual-active` share those native controls, not a
+saved call tuple or model tool. Passive cached inspection never creates an
+effect/approval/activity or replaces a question/security preview. Changed
+manual state retires old speech/input/callbacks; off/reset never replay or reopen.
+Required correlated authority audits reuse the consolidated lease; lost
+evidence is explicit conservative protection, not rollback or less protection.
+Protected calls reject voice-originated voice and
 in-call option writes, including reset/clear semantics; read-only inspection and
 stop/cancel remain eligible. Saved output/activation preferences are retained.
 New call-protection downgrades and temporary/speak-once exceptions remain
 unavailable pending complete exact trusted review; they are not exposed as
-working verbal/model operations. See the [bounded R15 receipt](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07).
+working verbal/model operations. See the [bounded R15 manual parity](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08).
 
 Each registered option declares:
 

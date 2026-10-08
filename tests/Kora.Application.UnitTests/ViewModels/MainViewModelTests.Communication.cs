@@ -271,6 +271,7 @@ public sealed partial class MainViewModelTests
         fixture.CallPreferences.SavedSettings.Should().BeNull();
         fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeTrue();
         fixture.CallState.SetState(CallState.Clear);
+        fixture.ManualCallStore.BeforeOperation = () => fixture.CallState.SetState(CallState.Unknown);
         await fixture.ViewModel.EnableManualCallCommand.ExecuteAsync();
         fixture.ViewModel.IsManualCallActive.Should().BeFalse();
         fixture.ViewModel.ResponseBody.Should().Contain("Call policy changed");

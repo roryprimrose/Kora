@@ -1580,6 +1580,74 @@ Privacy is second in the recommended merge order after accessibility;
 combined-source revalidation is separately coordinated. Draft publication
 does not authorize merge, auto-merge or a new interactive experiment.
 
+##### Portable Coverage Repair (2026-10-08)
+
+PR #98 workflow `37761751218` retained a coverage report bound to published
+source `6fc92bce0021645a9423e334af1599858e5081f8`: portable tests passed, but
+the exact gate rejected 12702/12711 lines and 7124/7134 branch outcomes.
+The publish-inspection upload failure followed the aborted publication steps.
+The parent confirmed that the same source's hosted Windows run passed
+1033/1033 with zero failures/skips; this does not authorize those ten live
+methods locally or qualify the later repaired source as native acceptance.
+
+The test-only repair at `830f227f321ee86e2384e8f339e2f05c245ea142` adds 15
+deterministic cases. The originally missing paths, using line numbers from
+the retained source-bound report, are:
+
+| Production path | Previously uncovered path | Added evidence |
+| --- | --- | --- |
+| `HostRequestRunner.cs:18-21` | Synchronous cancellation | Preserve the exact cancellation exception, admitted origin, cancelled terminal outcome and restored ambient context, both root and nested |
+| `MainViewModel.cs:3037-3040` | Final explicit readiness rejection after admission | Changed authoritative permission cannot commit readiness or open capture |
+| `MainViewModel.ResponseModeConfiguration.cs:86` | Voice initiation without ambient host context | Exact synthetic voice-ready save and protected-call refusal retain original voice provenance, durable control records and denial audit without recording or autoplay |
+| `MainViewModel.VoicePrivacy.cs:419-427,457-460` | Final ownership denial, stale revision, disposal, handoff, changed permission or missing unlock intent; cancelled recovery | Public unlock races preserve privacy hold and terminate as cancelled; independently exercise the final atomic guard with existing reflection patterns, reading rather than rewriting its fields |
+| `PrivacyObservation.cs:28` | Both factory clock inputs | Unspecified time is bounded by monotonic reads; supplied time is preserved with fresh identities and the same clock frequency; neither invents OS delay |
+
+No production source, analyzer policy, threshold, assembly filter or coverage
+exclusion changed. No production hook was added. The final full no-restore
+Release solution build passed with zero warnings/errors. The 13 new Application
+cases passed together before the full portable selection. Two initial
+response-mode fixture assertions were corrected to use a synthetic ready
+microphone and the durable audio-control store, not the unrelated task store;
+no production defect was demonstrated.
+
+| Final portable suite | Passed / total | Failures | Runner skips |
+| --- | --- | --- | --- |
+| Core | 785/785 | 0 | 0 |
+| Application | 2461/2461 | 0 | 0 |
+| Tools | 38/38 | 0 | 0 |
+| Definitions | 6/6 | 0 | 0 |
+
+All 3290 final portable tests passed. The unchanged gate passed exactly
+**12711/12711 lines and 7134/7134 branches**, with both raw rates equal to
+`1`. An intermediate result had one missing clock-input branch despite
+rounding to "100.0%"; it was rejected, the missing assertion was added and Core
+coverage rerun. The final report combines only the four selected final suite
+reports. Nonfatal report-generator diagnostics about unavailable generated
+logging source text were retained; no measurements or filters were altered.
+
+The repository's CI portable commands were used with private output directories:
+
+```powershell
+dotnet build .\Kora.slnx --configuration Release --no-restore
+foreach ($suite in @('Core', 'Application', 'Tools', 'Definitions')) {
+    $prefix = $suite.ToLowerInvariant()
+    dotnet test --project ".\tests\Kora.$suite.UnitTests\Kora.$suite.UnitTests.csproj" --configuration Release --no-build --results-directory (Join-Path $resultsRoot $prefix) --report-trx --coverlet --coverlet-output-format cobertura --coverlet-file-prefix $prefix
+}
+dotnet reportgenerator "-reports:$finalReports" "-targetdir:$coverageReport" "-reporttypes:Cobertura;MarkdownSummaryGithub;TextSummary" "-assemblyfilters:+Kora.Core;+Kora.Application;+Kora.Tools;+Kora.Definitions"
+.\eng\Assert-CodeCoverage.ps1 -ReportPath (Join-Path $coverageReport 'Cobertura.xml') -MinimumLine 100 -MinimumBranch 100
+```
+
+`$finalReports` selects the final Core rerun and unchanged final Application,
+Tools and Definitions reports. Exact expanded commands, source/test blob
+identities, original CI report, attempted/final TRX and coverage checksums
+remain private. The following result-recording commit changes documentation
+only; its production/test trees match the validated repair. No restore,
+license runner, local Windows rerun or native/profile/device action occurred.
+The previous ten local exclusions and every outstanding native gate remain
+unchanged. Main remains `c78e81318fb3c5b279275f9ab8ef14748bfeb952`; no rebase
+or merge is part of this repair. The parent owns #97-first integration,
+combined-source rebase authorization and required CI review.
+
 ### Preparation and Approval
 
 - Record exact source/artifact hashes, supported Windows servicing build, CPU,

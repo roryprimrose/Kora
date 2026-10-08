@@ -25,7 +25,7 @@
       <Button Content="Review this exact verified release" Command="{Binding ReviewCommand}" IsEnabled="{Binding CanReview}" HorizontalAlignment="Left" />
       <StackPanel Orientation="Horizontal" Spacing="12">
         <Button Content="Open reviewed canonical release page" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}" />
-        <Button Content="Snooze this version (24h)" Command="{Binding SnoozeCommand}" IsEnabled="{Binding CanOpen}" />
+        <Button Content="Snooze this version (24h)" Command="{Binding SnoozeCommand}" IsEnabled="{Binding CanSnooze}" />
       </StackPanel>
       <TextBlock Text="No unsolicited window, focus, audio, microphone, model call or install approval. Unknown deployment mode never authorizes source mutation. Permission and snooze are not saved across restart." TextWrapping="Wrap" />
     </StackPanel>

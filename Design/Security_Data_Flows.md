@@ -95,6 +95,15 @@ approval, question, microphone, provisioning or OS authority. Evidence failure
 can follow a committed file: output remains unavailable until explicit recovery,
 never an invented rollback, substituted endpoint or automatic retry.
 
+The [device-default response-mode slice](User_Configuration.md#delivered-bounded-device-default-response-mode-r10)
+uses that same genuine audio admission and single shared session lease, with
+host-held enum choices, original channel, call/preference revisions and audited
+atomic readback. VoiceOnly changes presentation policy only: mandatory full
+visual warnings/security/questions/approval recovery cannot be hidden, silence
+is never approval, and setting input cannot answer an existing exact question.
+It grants no capture, consent, effect, provider, OS mixer or model-tool authority.
+Failure after a committed preference retains truthful unavailable recovery.
+
 ## Data Modes
 
 ### Local Only
@@ -685,6 +694,20 @@ The built-in environment controller is a separate trusted host path for exact ca
 It may initialise Kora data and offer approved external prerequisites, but cannot alter Kora code or use arbitrary supplied installer paths.
 See [Environment Setup](Environment_Setup.md).
 During the unsigned phase, application maintenance is notify-only with no model-callable or host-install-capable entry point.
+The delivered exact typed/activated `maintenance status`, `maintenance review`
+and `maintenance snooze` commands are original-user cached controls, not model
+tools. Native review/snooze share their dedicated maintenance-session durable
+intent and current-generation gateway; unrelated audio authority, incoming
+traces, release titles, source/model text and supplied URIs cannot select the
+cache record. Review binds the existing immutable canonical metadata only;
+snooze targets a fresh reviewed Available notice for this run, never an
+approval/security-required prompt. Pending exact questions/approvals are not
+answered, replaced or hidden. Ownership, original input/privacy/topology,
+protected call state, exact cache revision/identity and durable evidence are
+revalidated; failure/cancellation/late completion cannot become cached success.
+These commands cannot grant/renew network consent, check/refresh, navigate,
+download, install, elevate, activate source or start a runtime/provider.
+Full bounded visual output is preserved without audio/device probes.
 Any future updater requires an independently authenticated metadata trust root, native secure per-release approval, and separate acceptance evidence.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.
 The implemented external [source build-only interface](Distribution_And_Updates.md#source-bootstrap)
@@ -1000,7 +1023,14 @@ consumes existing effective due timestamps only. One admitted owner-startup
 transaction removes at most 128 due diagnostic logs and 32 due spans with all
 their at-most-1,024 owned links. Due backlog can remain; queries do not refresh
 it. No audit row/sequence/hash chain, session/task/interaction/grant or Perpetual
-record is pruned, and no retention preference is changed. This is logical
+record is pruned. Its startup triggers and bounds stay unchanged by the later
+[future-only retention preference](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04):
+canonical integer 1–365/default-reset30, original-input independent host
+admission and required audit/atomic save/readback/intent receipt. Only new
+ordinary SQLite rows use the policy; existing deadlines never change and
+apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
+their independent rules. Unavailable ordinary policy reports explicit
+independent delivery gaps without waiving mandatory trusted audit. This is logical
 row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
 and its continuation/checkpoint requirements remain independently unimplemented.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.

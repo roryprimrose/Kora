@@ -243,6 +243,20 @@ Kora writes structured JSON logs under:
 There is one rolling file per day named `kora-YYYYMMDD.log`. Kora retains up to
 30 days and 30 files.
 
+Independent [SQLite diagnostic retention](settings.md#sqlite-diagnostic-retention)
+is now configurable as canonical integer 1–365 days, default/reset 30, through
+shared native and exact typed/ACTIVATED host admission. It affects only newly
+committed ordinary SQLite logs/spans/owned links. Existing effective deadlines
+never change; apply-now/immediate deletion is unavailable and no set/reset
+starts cleanup. Schema-v2 evolution accepts only exact validated legacy v1
+30-day rows, preserving identities, payloads, trace/reference metadata and due
+times; unknown/corrupt formats fail closed without replacing authority.
+Audit stays default 90 with its existing 30–365 domain; file limits, sessions/
+history, grants/approvals and cleanup triggers are unchanged. Perpetual grants
+are never time-expired/retained/evicted. Ordinary policy corruption/unconfirmed
+writes cannot silently activate defaults: they explicitly report delivery gaps
+through the file/recovery path, independently of mandatory trusted audit.
+
 Logs support diagnostics and future local reasoning, but intentionally omit:
 
 - spoken or typed command text;
@@ -265,7 +279,10 @@ evidence and receipt are committed before completion. Startup marks intent-only
 work Interrupted and dispatched work without a verified receipt Unknown;
 it never automatically reruns either. The terminal version receipt is not
 proof of an operating-system effect or speech-playback completion.
-Private task, interaction and evidence journals are retained under the same
+Task/question/required-audit authority is consolidated in the private schema-v3
+interaction store with one transactional connection lease. The validated frozen
+legacy task ledger is retained only as an inert migration receipt; independent
+diagnostic evidence is not authority. Managed journals remain under the same
 verified profile boundary. Valid interrupted transactions reopen atomically;
 committed approvals/use counts/session generations are not replayed.
 Missing journals, corrupt/unsupported data, permissive permissions or unavailable
@@ -303,7 +320,9 @@ available cited span. Session/task IDs and traces are filters, not permission.
 `ExpiredButPresent` means a due record remains readable, not that it was
 deleted. `MissingOrRemoved` cannot distinguish an unrecorded segment from
 physical removal. Session/conversation sources report Unavailable. This view
-is not a complete history, interaction audit, authorization or effect receipt.
+is not a complete history, authorization or effect receipt. The separate explicit
+**AuthorityAudit** source described above reads committed interaction audit rows;
+the diagnostic projection and daily mirrors do not.
 Ownership/privacy denial, malformed filters/cursors, corrupt data and private
 access failures are visible; no store or permission repair is attempted.
 Closing or privacy closure clears/cancels the view without changing retained

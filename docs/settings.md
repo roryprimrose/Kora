@@ -12,6 +12,35 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## SQLite diagnostic retention
+
+**Settings > Logging** provides Refresh, Save future retention only and Reset to
+30 days. The single `logging.sqlite-diagnostic-retention-days` option accepts
+an exact integer **1–365**, default/reset **30**. Discovery/status shows saved or
+default provenance, desired/effective days, fresh revisions and explicit recovery.
+The [exact typed/current-name activated commands](commands.md#sqlite-diagnostic-retention)
+call the same host workflow; configuration is not a model tool or effect grant.
+
+Only newly committed **ordinary SQLite** logs, completed spans and their owned
+links use the confirmed policy. Existing deadlines never change, including
+across restart. **Apply-now and immediate deletion are unavailable.** Saving
+or resetting does not run pruning or change cleanup scheduling.
+
+Audit default **90** and its existing 30–365 domain, daily files **30 days/30
+files**, session/chat/history, every approval and every grant are unchanged.
+Perpetual grants never expire or undergo time retention/eviction. Future
+session/history suggestions are not current configuration options.
+
+Writes require original local input, owning unlocked host/privacy/call/input
+revalidation, independent host-resolved diagnostic session/generation, exact
+proposal/revisions, required typed audit and atomic durable save/readback.
+Closing/replacing the native surface invalidates its callback; no pending exact
+question/approval is answered or replaced. Corrupt or unconfirmed preferences
+stay unavailable across restart: inspect saved state and audit/intent receipts,
+explicitly repair and refresh. No silent default or automatic marker clearing.
+Ordinary SQLite delivery reports an explicit gap while independent file and
+required audit paths remain separate.
+
 ## Release maintenance (notify-only)
 
 Use **Settings > Maintenance > Review / check / open canonical release** or
@@ -47,6 +76,20 @@ obtains ZIP/MSI/EXE/source code, stages, executes, elevates, installs or changes
 source. Hashes are not publisher signatures. x86 has an application ZIP but
 no x86 installer/native capability acceptance. Deployment mode is unknown;
 replacement and prerequisite handling remain external/manual.
+
+Exact typed/activated **maintenance status**, **maintenance review** and
+**maintenance snooze** use this same cached native workflow. Status never
+checks or calls missing/failed metadata current; review displays the same
+exact immutable record/source/trust details and opens this native surface,
+not the browser. Snooze targets only the fresh reviewed Available notice
+for 24 hours in the current run, not approvals/security prompts or a saved
+reminder policy. Pending exact questions/approvals remain fully unchanged.
+Commands cannot grant/renew network permission or check/refresh/open/download/
+install/elevate/activate anything. They require current original input, owning
+private host, clear/unavailable call admission, durable session generation and
+exact cache revision/identity; failures require explicit recovery.
+See [exact cached commands and bounds](commands.md#exact-cached-release-maintenance).
+This does not complete the general R18 broker or R17 installed acceptance.
 
 ## Models
 
@@ -496,20 +539,37 @@ dependency readiness. Refresh does not enable listening.
 
 ### Device default
 
-Persistent **Both audible and visual**, **Audible only**, or **Visual only**
-preference.
+Persistent `Hybrid` (**both audible and visual**), `VoiceOnly` (**audible only**)
+or `VisualOnly` (**visual only**), default `Hybrid`. Choose **Inspect response
+mode**, select a presented mode and **Save device-default mode**.
+**Reset device default to Hybrid** saves only this default; it does not clear
+queue/task overrides or change call/mute fallback, speech, microphone or consent.
+Status reports saved/default/unavailable provenance, revision, desired/configured
+effective mode and live output policy. The [exact commands](commands.md#inspect-or-change-the-device-default-response-mode)
+use the same admitted audited atomic save/readback workflow.
+Stale choices and failed storage/evidence require a fresh inspection; corrupt
+saved state is unavailable, never silently Hybrid. Save/reset never plays or
+replays speech or opens capture. Required full visual response/preview remains
+available in VoiceOnly, including interrupted output, warnings and approvals.
+Unconfirmed write evidence survives restart; inspect saved state/audit receipts
+and explicitly repair it before refreshing. Inspection never silently clears
+an unconfirmed marker or reports success after failed apply evidence.
 
 ### Current queue
 
-Temporary response-mode override. It takes precedence over the device default.
+Existing process-local presentation override, outside the admitted device-default
+registry. It takes precedence over the device default.
 Select **Inherit** in the dropdown to remove the queue override and use the
-device default.
+device default. This is not a delivered durable session/queue workflow or exact
+configuration command.
 
 ### Current task
 
-Temporary response-mode override with the highest precedence.
+Existing process-local presentation override with the highest precedence,
+outside the admitted device-default registry.
 Select **Inherit** in the dropdown to remove the task override and use the
-queue override, or the device default when no queue override exists.
+queue override, or the device default when no queue override exists. This does
+not establish durable task-scoped configuration, a scheduler or task execution.
 
 ### Muted speaker fallback
 

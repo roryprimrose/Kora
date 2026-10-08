@@ -223,7 +223,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
         OutputDeviceConfigurationService? outputConfiguration = null,
-        PlaybackVolumeConfigurationService? playbackVolumeConfiguration = null)
+        PlaybackVolumeConfigurationService? playbackVolumeConfiguration = null,
+        ResponseModeConfigurationService? responseModeConfiguration = null,
+        DiagnosticRetentionConfigurationService? diagnosticRetentionConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -275,6 +277,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             selectedPlaybackVolume = playbackVolumeConfiguration.Get().Desired?.Percent ?? PlaybackVolume.Default.Percent;
             playbackVolumeConfiguration.Changed += OnPlaybackVolumeChanged;
         }
+        this.responseModeConfiguration = responseModeConfiguration;
+        this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
+        if (diagnosticRetentionConfiguration is not null)
+        {
+            try { diagnosticRetentionConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                diagnosticRetentionConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading SQLite diagnostic retention");
+            }
+            selectedDiagnosticRetentionDays = diagnosticRetentionConfiguration.Get().Desired?.Days ?? DiagnosticRetentionDays.DefaultDays;
+            diagnosticRetentionConfiguration.Changed += OnDiagnosticRetentionChanged;
+        }
+        if (responseModeConfiguration is not null)
+        {
+            responseModeConfiguration.Changed += OnResponseModeConfigurationChanged;
+        }
         if (outputConfiguration is not null)
         {
             outputConfiguration.Changed += OnOutputConfigurationChanged;
@@ -298,6 +317,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SavePlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedPlaybackVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetPlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
+        SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
+        ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
         ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
         ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
@@ -1259,7 +1285,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ResponseOutputMode DefaultResponseMode
     {
         get => defaultResponseMode;
-        set
+        internal set
         {
             if (!suppressResponseModeSave && !AdmitVoiceOptionMutation(ResponseOutputConfigurationAction)) { return; }
             if (!Enum.IsDefined(value))
@@ -1271,10 +1297,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 OnPropertyChanged(nameof(DefaultResponseModeOption));
                 NotifyOutputPolicyChanged();
-                if (!suppressResponseModeSave)
-                {
-                    SaveResponseOutputPreference(value);
-                }
             }
         }
     }
@@ -1282,7 +1304,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ResponseModeOverrideOption DefaultResponseModeOption
     {
         get => ResponseModeOptions.Single(option => option.Mode == DefaultResponseMode);
-        set
+        internal set
         {
             if (!ResponseModeOptions.Contains(value))
             {
@@ -1298,7 +1320,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ResponseOutputMode ConfiguredResponseMode
     {
         get => DefaultResponseMode;
-        set => DefaultResponseMode = value;
+        internal set => DefaultResponseMode = value;
     }
 
     public bool FallbackToVisualWhenOutputMuted
@@ -1380,6 +1402,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsSpeechOutputAvailable =>
         activeSpeechVoice is not null
         && (playbackVolumeConfiguration is null || playbackVolumeConfiguration.Get().AllowsSpeech)
+        && (responseModeConfiguration is null || responseModeConfiguration.Get().Available)
         && (outputConfiguration is null || outputConfiguration.Get(CallPolicyRevision).Available)
         && EffectiveOutputDevice is not null
         && !EffectiveOutputDevice.IsMuted;
@@ -2745,7 +2768,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             speechConfiguration.Reload();
             var savedSpeechProviderId = speechConfiguration.Get().Selection?.ProviderId;
             savedSpeechProviderIdForOffer = savedSpeechProviderId;
-            var savedResponseMode = responseOutputPreferences.LoadDefaultMode();
+            responseModeConfiguration?.Observe();
+            var savedResponseMode = responseModeConfiguration is null
+                ? responseOutputPreferences.LoadDefaultMode() : responseModeConfiguration.Get().Desired;
             var savedMutedOutputFallback = responseOutputPreferences.LoadMutedOutputVisualFallback();
             var savedCallAwareSettings = callAwarePreferences.Load() ?? CallAwareSettings.Default;
             communicationPolicy.LoadSettings(savedCallAwareSettings);
@@ -3334,15 +3359,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Task SetAllowVoiceActivationDuringCallsAsync(bool value) =>
         SetCallSettingsAsync(communicationPolicy.Current.Settings with { AllowVoiceActivationDuringCalls = value });
 
-    private void SaveResponseOutputPreference(ResponseOutputMode value)
-    {
-        _ = SavePreference(
-            () => responseOutputPreferences.SaveDefaultMode(value),
-            ResponseOutputConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "default response mode");
-    }
-
     private bool SaveMutedOutputFallbackPreference(bool value)
     {
         var audit = StartAudit(
@@ -3616,9 +3632,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteOutputDeviceCommandAsync(outputCommand, initiator);
             return;
         }
+        if (DiagnosticRetentionCommand.Parse(spokenText, AssistantName) is { } diagnosticRetentionCommand)
+        {
+            await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
+            return;
+        }
         if (PlaybackVolumeCommand.Parse(spokenText, AssistantName) is { } volumeCommand)
         {
             await ExecutePlaybackVolumeCommandAsync(volumeCommand, initiator);
+            return;
+        }
+        if (ResponseModeCommand.Parse(spokenText, AssistantName) is { } responseModeCommand)
+        {
+            await ExecuteResponseModeCommandAsync(responseModeCommand, initiator);
             return;
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
@@ -3636,6 +3662,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 or BuiltInAction.OpenSettings or BuiltInAction.OpenDocumentation or BuiltInAction.ExitApplication))
         {
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
+            return;
+        }
+        if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
+        {
+            await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
             return;
         }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
@@ -5076,6 +5107,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
+        OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
+        OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
+        OnPropertyChanged(nameof(DiagnosticRetentionStatus));
+        OnPropertyChanged(nameof(CanChangeResponseMode));
+        OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
     }
 
     private string[] GetRecognitionPhrases()
@@ -5088,6 +5124,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
+            .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands

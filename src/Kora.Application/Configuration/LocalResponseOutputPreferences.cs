@@ -9,6 +9,7 @@ namespace Kora.Application.Configuration;
 public sealed class LocalResponseOutputPreferences : IResponseOutputPreferences
 {
     private const string DefaultModeFileName = "response-output-mode.txt";
+    private const string UnconfirmedModeFileName = "response-output-mode-unconfirmed.txt";
     private const string MutedOutputFallbackFileName =
         "muted-output-visual-fallback.txt";
     private readonly IPreferenceStore store;
@@ -30,6 +31,19 @@ public sealed class LocalResponseOutputPreferences : IResponseOutputPreferences
     }
 
     public ResponseOutputMode? LoadDefaultMode()
+    {
+        if (store.ReadText(UnconfirmedModeFileName) is not null)
+        {
+            throw new InvalidDataException("A response-mode write has unconfirmed evidence. Inspect the saved mode and audit receipts before explicit repair and refresh.");
+        }
+        return ReadBackDefaultMode();
+    }
+
+    public void BeginDefaultModeWrite() => store.WriteText(UnconfirmedModeFileName, "1");
+
+    public void ConfirmDefaultModeWrite() => store.Delete(UnconfirmedModeFileName);
+
+    public ResponseOutputMode? ReadBackDefaultMode()
     {
         var contents = store.ReadText(DefaultModeFileName);
         if (contents is null)

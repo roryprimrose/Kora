@@ -246,7 +246,8 @@ log/audit/span/link records retain call-time host/W3C context and independent
 due dates. The daily-file provider remains independent. Required capture,
 file or database delivery failures report gaps and propagate rather than
 allowing dispatch or a success receipt with missing terminal audit evidence.
-There is still no session registry, history UI or general durable executor.
+The interaction store now supplies bounded session authority/metadata and exact
+task controls; full conversation/history UI and a general durable executor remain open.
 Ordinary diagnostics that lack host context are retained only with an explicit
 capture-owned `MissingHostContext` gap and `kora.bootstrap=false`; their trusted
 host/W3C/business columns remain null. This preserves existing content-free
@@ -281,6 +282,15 @@ Bounded ordinary diagnostic pruning is implemented below; a complete retained
 graph/history is not claimed. Session/conversation
 sources and interaction-audit receipts are not supplied by this projection.
 Model tool exposure, Ask Evidence, export and remote transmission remain gated.
+
+Explicit **AuthorityAudit** instead reads actual committed typed schema-v3
+interaction-store audit rows through the shared connection lease and immutable
+sequence ceiling. That consolidated store owns task/question/required-audit
+transactions; its validated frozen legacy ledger is not queried as live authority.
+These passive reads neither mutate authority nor reconstruct historical payloads,
+a causal graph or forensic tamper resistance. **All** remains SQLite diagnostic
+evidence-only and **CombinedLog** remains ordinary diagnostics-only. See
+[the exact committed source contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
 
 The independent **DailyLog** source now reads existing daily JSON diagnostic
 envelopes beneath `IApplicationDataPaths.LocalRoot/Logs`, with the writer's
@@ -640,7 +650,16 @@ Audit due dates and sequences remain unchanged, including expired audit rows;
 `security_audit_events`, interaction audit/hash chains, tasks, questions,
 sessions and all grants/Perpetual records are outside this operation.
 Audit continuation anchors/pruning, session retention/deletion, configurable
-preview/apply, artifact/backup disposal and full R04/D-009 acceptance remain open.
+apply-now, artifact/backup disposal and full R04/D-009 acceptance remain open.
+The later [future-only diagnostic setting](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04)
+admits integer 1–365/default-reset30 after required audit/atomic readback/receipt.
+It supplies one coherent deadline per new ordinary SQLite transaction only.
+Semantic schema v2 migrates validated legacy 30-day rows without rewriting
+rows/deadlines; writer/private-reader validation agree. The writer remains
+insert-only, so old span IDs cannot upsert fresh retention. Audit90/domain,
+files30/30, all authority and pruning triggers are unchanged; unavailable
+ordinary policy reports explicit independent gaps rather than becoming default
+or blocking required trusted audit on activity disposal.
 
 The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/

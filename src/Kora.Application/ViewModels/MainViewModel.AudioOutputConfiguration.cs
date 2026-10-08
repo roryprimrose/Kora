@@ -72,6 +72,9 @@ public sealed partial class MainViewModel
     }
 
     private Func<bool> CaptureAudioControlEligibility(RequestOrigin origin)
+        => CaptureConfigurationControlEligibility(origin);
+
+    private Func<bool> CaptureConfigurationControlEligibility(RequestOrigin origin)
     {
         var call = CallPolicyRevision;
         var recovery = Interlocked.Read(ref voiceRecoveryRevision);

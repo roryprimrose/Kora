@@ -316,7 +316,7 @@ public sealed class WindowsSqliteEvidenceSinkTests
     }
 
     [Theory]
-    [InlineData("PRAGMA user_version=2;")]
+    [InlineData("PRAGMA user_version=3;")]
     [InlineData("PRAGMA application_id=0;")]
     [InlineData("DROP INDEX ix_application_log_events_trace_id;")]
     [InlineData("CREATE TRIGGER hidden_rewrite AFTER INSERT ON application_log_events BEGIN DELETE FROM application_log_events; END;")]

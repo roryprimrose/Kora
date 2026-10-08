@@ -247,6 +247,11 @@ fresh-only portable line/branch coverage remained **100% / 100%**.
 After rebasing onto inference-proof main `a1febb7`, the root Release build,
 host **61** and affected Windows **86** tests passed again. Inference and
 speech live/consent evidence remains separate and was not exercised.
+The final production rebase onto bounded local-file-preview main `64b3a52`
+preserved that independent feature. Root Release build again passed with zero
+warnings/errors; all required suites passed at **850 / 2,584 / 60 / 6 / 1,135**
+(Core / Application / Tools / Definitions / Windows), with fresh-only portable
+coverage still exactly **100% line / 100% branch**.
 
 #### Experiment disposition for logical disposition
 

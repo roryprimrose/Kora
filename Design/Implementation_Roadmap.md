@@ -237,6 +237,16 @@ rebase preserved both its capability-scoped qualification/dependency wording
 and this delivered R12 status. No production/test sources changed. Root Release
 build again passed with zero warnings/errors; host **61** and affected Windows
 **68** reruns passed before the lease-guarded PR update.
+Subsequent rebases preserved independent runtime, speech, W1 and inference
+proof continuations and the production device-local in-call feedback increment.
+The desktop workspace now consumes `IsProtected`, including uncertain
+manual-call evidence with Clear/Unavailable automatic states. Combined full
+Release validation passed with zero warnings/errors and Core **793**,
+Application **2,572**, Tools **38**, Definitions **6**, Windows **1,121**;
+fresh-only portable line/branch coverage remained **100% / 100%**.
+After rebasing onto inference-proof main `a1febb7`, the root Release build,
+host **61** and affected Windows **86** tests passed again. Inference and
+speech live/consent evidence remains separate and was not exercised.
 
 #### Experiment disposition for logical disposition
 

@@ -1,5 +1,17 @@
 # Windows, tray, and appearance
 
+## Native local file inspection
+
+**Tray > Preview file (local inspection only)** opens the trusted Windows
+single-file picker. A separate metadata-only review shows the canonical path,
+identity, scope, original host session/origin, byte count and limits. Confirm
+that exact review locally before content is read; it expires after two minutes.
+The result is inert, immutable plain text with exact-byte digest and provenance,
+not a Markdown renderer, attachment or model submission. Close revokes it.
+Exact typed/current-name ACTIVATED `preview file` / `clear file preview` use the
+same host workflow. Folder/knowledge/retrieval/reasoning remain unavailable.
+See [commands and limits](commands.md#explicit-local-file-preview).
+
 ## Kora's presence
 
 Kora's presence is the animated group of dots that communicates the assistant's

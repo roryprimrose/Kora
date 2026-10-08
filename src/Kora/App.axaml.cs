@@ -34,6 +34,7 @@ public sealed partial class App : Avalonia.Application
     private SkillPackagesWindowController? skillPackagesWindow;
     private SessionsWindowController? sessionsWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
+    private LocalFilePreviewWindowController? fileWindow;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
@@ -121,6 +122,8 @@ public sealed partial class App : Avalonia.Application
             sessionsWindow.Bind();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
+            fileWindow = new LocalFilePreviewWindowController(viewModel, window);
+            viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow);
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
@@ -222,6 +225,8 @@ public sealed partial class App : Avalonia.Application
         sessionsWindow = null;
         clipboardWindow?.Dispose();
         clipboardWindow = null;
+        fileWindow?.Dispose();
+        fileWindow = null;
         maintenanceWindow?.Dispose();
         maintenanceWindow = null;
     }

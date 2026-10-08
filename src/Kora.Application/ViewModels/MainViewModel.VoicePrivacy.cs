@@ -214,6 +214,7 @@ public sealed partial class MainViewModel
         microphoneRefreshCancellation?.Cancel();
         clipboardPreview.Changed -= OnClipboardPreviewChanged;
         clipboardPreview.Dispose();
+        DisposeFilePreview();
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
         voiceRecognition.TranscriptRecognized -= OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed -= OnRecognitionFailed;
@@ -295,6 +296,7 @@ public sealed partial class MainViewModel
         {
             Interlocked.Exchange(ref privacyPresentationHeld, 1);
             ClearClipboardPreview();
+            ClearFilePreview();
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
@@ -858,7 +860,8 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (lifecycleAdmissionClosed || IsBusy || !clipboardPreview.IsQuiescent || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
+        if (lifecycleAdmissionClosed || IsBusy || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false
+            || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())
         {
@@ -869,6 +872,7 @@ public sealed partial class MainViewModel
         Interlocked.Exchange(ref handoffPreparationActive, 1);
         lifecycleAdmissionClosed = true;
         ClearClipboardPreview();
+        ClearFilePreview();
         HoldVoiceInput("Microphone closed · host handoff");
         textToSpeech.InvalidateOutput();
         try

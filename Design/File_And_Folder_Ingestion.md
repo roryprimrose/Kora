@@ -1,15 +1,71 @@
 # File and Folder Ingestion and Grounded Reasoning
 
-Status: proposed design and roadmap refinement for R26. No file/folder
-ingestion, managed knowledge source, index, retrieval tool, or hosted-model
-transmission described here is implemented or advertised by the current
-bootstrap.
+Status: the first bounded R26 foundation implements **local file inspection
+only**, described below. The broader ingestion/attachment, folder, managed
+knowledge source, index, retrieval, reasoning and hosted transmission design
+remains proposed and unavailable.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
 [User Configuration](User_Configuration.md),
 [Internal Model Tools](Internal_Model_Tools.md), and
 [Implementation Roadmap](Implementation_Roadmap.md#r26-file-and-folder-ingestion-delivery-plan).
+
+## Delivered Bounded Local File Preview
+
+**Tray > Preview file (local inspection only)** and exact `preview file`
+(typed or current-name ACTIVATED input) share `Kora.Tools.Files.LocalFilePreview`.
+They open the trusted native single-file picker, never resolve a typed/spoken
+path into read authority. Only fixed-drive absolute canonical `.txt`, `.md`,
+and `.markdown` selections are supported: 256 KiB source bytes including an
+optional UTF-8 BOM, 240 path characters, at most 32 path components, one file,
+no enumeration/recursion. These limits live in `LocalFilePolicy`.
+
+The Windows inspector opens **metadata only** and retains the file and all
+ancestor handles without delete sharing. The selected file additionally
+disallows write sharing. Handle-derived final path, volume/file identity,
+link count, size and last-write metadata must agree; no reparse component,
+hard link, hidden/system component, device, stream, non-fixed drive, path
+alias/escape, generated/source-control metadata or protected root is accepted.
+Kora roots come from `IApplicationDataPaths`; application/Windows/program and
+common application data roots are also denied. Failures reject the whole
+selection, not a success with undisclosed exclusions.
+
+The native review displays canonical path, origin/host session, source/review
+IDs, identity, bytes, last write, limits and privacy disclosure. **Confirm:
+read this exact selected file locally** is the only admission route. The
+review expires after two minutes (metadata-only revalidation); closed/stale
+review IDs, another host session/task, voice/system confirmation, expired
+origin/privacy/ownership/call generations and cancellation cannot read.
+Confirmation starts a fresh linked host operation, not a resurrected trace.
+
+One bounded read rechecks identity and length before/after reading. Strict
+UTF-8 never guesses an encoding or replaces malformed bytes. An optional BOM
+is excluded from displayed text but retained in the SHA-256 digest of exact
+source bytes. NUL/binary/control text is denied; Markdown is inert plain text,
+without rendering, link resolution or execution. An admitted revision binds
+original source/review/session metadata, fresh revision/item IDs, byte digest
+and admission time. Empty files are valid. Content is published only after
+native release and required typed requested/terminal audit outcomes.
+
+The **volatile preview** is not a durable workspace attachment or registered
+knowledge source. Nothing content-bearing is written to preferences, SQLite,
+artifacts, logs, speech, transcripts, model requests or the clipboard. Raw
+read buffers are cleared; discarded immutable CLR text becomes eligible for
+collection, not a claimed cryptographic memory erasure. Close, `clear file
+preview`, Cancel task, privacy/lock, generation changes, exit or ownership
+loss discard the selected revision and release review handles. Pending
+selection/read and unverified release block clean handoff; cancellation does
+not fabricate quiescence. No watcher, refresh/retry, ambient collection,
+network parsing, inference, egress or document-derived authority exists.
+
+Folder preview, UNC/removable-drive ingestion, durable attachments, registry,
+refresh, indexes, retrieval/citations, local/hosted grounded reasoning,
+screens/images and later formats remain unavailable. This slice does not
+qualify their gates. Native installed/accessibility acceptance remains
+separate from deterministic contract and real Windows filesystem tests.
+No experiment is removed: inference, storage, runtime and containment proofs
+are not exactly superseded by a volatile file preview.
 
 ## Product Outcome
 
@@ -368,6 +424,7 @@ Before advertising the initial file/folder capability:
 
 | Stage | Value | Dependencies | Completion evidence |
 |---|---|---|---|
+| R26.1a - Bounded local file inspection | Delivered foundation: native selection, metadata review, exact native confirmation, immutable strict-UTF-8 plain-text/Markdown preview; volatile only | Existing ownership/privacy, activity/audit, exact input routing and passive native presentation seams | Deterministic portable admission/decoding/generation tests and real Windows sharing/reparse/hard-link/protected-path/cancellation tests; no folder, persistence, model or retrieval authority; installed UX acceptance outstanding |
 | R26.0 - Finalize policy and limits | Agree initial formats, numeric limits, storage/retention, citation shape, local-runtime envelope, and hostile-document fixtures | R04 storage semantics, R06 tool/result bounds, R10 configuration registry, R12 session retention | Approved typed contracts and threat/acceptance fixtures; no runtime capability |
 | R26.1 - Native selection and immutable text snapshot | Add picker plus reviewed absolute path proposal, safe Windows enumeration/read, `.txt`/Markdown extraction, source registry, revision identity, native preview and deletion | R03 ownership/privacy, R04 durable storage/recovery, R05 review/questions, R10 settings | Real Windows file/folder/reparse/access/change/cancel/restart tests; no model exposure |
 | R26.2 - Lexical retrieval and citations | Deterministic chunk/index/search/read-excerpt, source selection, context budget, citation presentation, refresh/disable/remove cleanup | R26.1, R06 admitted descriptors, R12 session/artifact lifecycle, R14 source/citation UI | Grounding, hostile-content, cross-session/source isolation, stale/revoked and interrupted-cleanup evidence |
@@ -375,12 +432,10 @@ Before advertising the initial file/folder capability:
 | R26.4 - Hosted-model reasoning | Apply exact destination/source revision/excerpt review and hosted adapter egress; preserve citations and deletion boundaries | R26.3, admitted hosted provider under R08, remote-enabled policy and credentials | Real destination/account tests, payload capture/bounds, denial/revocation, timeout/cancel/unknown and no-fallback evidence |
 | R26.5 - Additional formats and hybrid retrieval | Admit parser/model packages independently; optional embeddings and scheduled refresh | R26.2 plus R25 for rich formats and format-specific dependency/licence/security gates | Per-format hostile corpus and citation proof; embedding identity, quality, privacy, migration, deletion and offline evidence |
 
-R26.1 is the earliest reasonable implementation target, but it is not an
-independent quick feature in the current repository. The roadmap currently
+The broader R26.1 attachment/registry/folder stage is not complete. The roadmap
 marks required storage/session/configuration/tool-loop work as partial or
 outstanding. Implementing path reads directly in a view model or inserting
 whole files into the existing 4,096-character local-model request would bypass
 the required source identity, context budget, retention, egress, and
-cross-session controls. Documentation can land now; implementation should
-begin only when the named prerequisite contracts are available or when the
-work is explicitly limited to an unadvertised native snapshot foundation.
+cross-session controls. The delivered R26.1a explicitly stops at volatile native inspection; those
+remaining contracts are not implied by this foundation.

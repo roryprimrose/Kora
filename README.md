@@ -52,6 +52,15 @@ preview but explicitly reports explanation unavailable until local tool-loop
 and clipboard-answering qualification. See
 [clipboard commands](docs/commands.md#explicit-local-clipboard-preview).
 
+Exact **preview file** and **Tray > Preview file (local inspection only)**
+open a native single-file picker followed by metadata review and exact native
+confirmation. One fixed-drive UTF-8 text/Markdown file up to 256 KiB becomes
+an immutable volatile plain-text preview with source/revision/item identity
+and byte digest. No model, clipboard, execution, egress, refresh or persistence
+is involved. Folder preview, attachments, knowledge sources, indexing,
+retrieval and grounded reasoning remain unavailable. See
+[file commands](docs/commands.md#explicit-local-file-preview).
+
 The requirements and commands here describe developer source use. Precompiled
 framework-dependent binary users do not need Git or an SDK; see the
 [distribution/runtime contract](Design/Distribution_And_Updates.md).

@@ -4164,6 +4164,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
+            .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

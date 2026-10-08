@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Threading;
 using Kora.Application.ViewModels;
+using Kora.Core.Voice;
 
 namespace Kora;
 
@@ -40,16 +41,17 @@ public sealed class SpeechCaptionWindowController : IDisposable
             return;
         }
         window ??= new SpeechCaptionWindow(viewModel);
-        if (window.IsVisible) { return; }
-        window.Show();
-        var screen = window.Screens.Primary;
-        if (screen is not null)
-        {
-            var margin = (int)(24 * screen.Scaling);
-            window.Position = new PixelPoint(
-                Math.Max(screen.WorkingArea.X + margin, screen.WorkingArea.Right - (int)(window.Bounds.Width * screen.Scaling) - margin),
-                Math.Max(screen.WorkingArea.Y + margin, screen.WorkingArea.Bottom - (int)(window.Bounds.Height * screen.Scaling) - margin));
-        }
+        if (!window.IsVisible) { window.Show(); }
+        var screen = window.Screens.Primary ?? throw new InvalidOperationException("The caption working area is unavailable.");
+        var placement = viewModel.SpeechCaptionPlacement ?? throw new InvalidOperationException("Caption placement is unconfirmed.");
+        var margin = (int)(24 * screen.Scaling);
+        window.Position = new PixelPoint(
+            placement is SpeechCaptionPlacement.TopLeft or SpeechCaptionPlacement.BottomLeft
+                ? screen.WorkingArea.X + margin
+                : Math.Max(screen.WorkingArea.X + margin, screen.WorkingArea.Right - (int)(window.Bounds.Width * screen.Scaling) - margin),
+            placement is SpeechCaptionPlacement.TopLeft or SpeechCaptionPlacement.TopRight
+                ? screen.WorkingArea.Y + margin
+                : Math.Max(screen.WorkingArea.Y + margin, screen.WorkingArea.Bottom - (int)(window.Bounds.Height * screen.Scaling) - margin));
     }
 
     private void OnPrivacyClosure(object? sender, EventArgs args) => Dispatcher.UIThread.Post(() => window?.Hide());

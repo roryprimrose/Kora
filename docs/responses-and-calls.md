@@ -58,7 +58,11 @@ See [Settings and explicit recovery](settings.md#in-call-feedback-override) and
 Optional [local speech text](settings.md#local-speech-text) is separate from the
 answer panel. It defaults to Off and shows only exact host-admitted current
 utterance playback, never queued/failed/suppressed text. It clears immediately
-when playback or its response/privacy/call/ownership generation is retired.
+when playback is stopped/cancelled or its response/privacy/call/ownership
+generation is retired, even when pinned. Normal completion can retain only
+already-observed text, labelled **PREVIOUS SPEECH**, for a bounded default
+5-second delay (configurable 0-30), or until unpinned. Unpin preserves the
+original deadline. Primary working-area corner placement is device-local.
 Visual-only and call-gated responses use the existing full answer panel, not a
 fictitious playback caption. Captions cannot answer questions, grant approval,
 replay speech or authorize any action; required native recovery is independent.

@@ -13,7 +13,13 @@
   <Border Padding="16" Background="{DynamicResource KoraPresencePanelBrush}"
       BorderBrush="{DynamicResource KoraBorderBrush}" BorderThickness="1">
     <StackPanel Spacing="8">
-      <TextBlock Text="CURRENT PLAYBACK · UTTERANCE" Classes="eyebrow" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding SpeechCaptionLabel}" Classes="eyebrow" />
+        <Button Grid.Column="1" Content="{Binding SpeechCaptionPinLabel}"
+            Command="{Binding ToggleSpeechCaptionPinCommand}"
+            AutomationProperties.Name="Pin or unpin current speech text"
+            AutomationProperties.HelpText="Keeps only already-played text visible after normal completion. Privacy, stop and source retirement still clear it." />
+      </Grid>
       <TextBox Text="{Binding SpeechCaptionText, Mode=OneWay}"
           IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
           MaxHeight="220" FontSize="16"

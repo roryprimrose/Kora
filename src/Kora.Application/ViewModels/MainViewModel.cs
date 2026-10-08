@@ -400,6 +400,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Get));
         SaveSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Set));
         ResetSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Reset));
+        ToggleSpeechCaptionPinCommand = CreateCommand(() =>
+        {
+            ChangeSpeechCaptionPin(!IsSpeechCaptionPinned, SecurityAuditInitiator.LocalUser);
+            return Task.CompletedTask;
+        });
+        SaveSpeechCaptionOptionCommand = CreateCommand(() => ExecuteSpeechTextCommandAsync(
+            new(AppearanceCommandOperation.Set, CaptionOption: SelectedSpeechCaptionOption), SecurityAuditInitiator.LocalUser,
+            SelectedSpeechCaptionChoice));
+        ResetSpeechCaptionOptionCommand = CreateCommand(() => ExecuteSpeechTextCommandAsync(
+            new(AppearanceCommandOperation.Reset, CaptionOption: SelectedSpeechCaptionOption), SecurityAuditInitiator.LocalUser));
         ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
         ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
@@ -4756,6 +4766,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsSpeaking = true;
         activeSpokenText = spokenText;
         ApplicationLog.Debug(logger, "Starting spoken response output");
+        var completedSpeech = false;
         try
         {
             // Admission checks cancellation; generation invalidation and StopAsync own resource release.
@@ -4776,6 +4787,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
                 }
             }
+            completedSpeech = true;
         }
         catch (OperationCanceledException)
         {
@@ -4819,7 +4831,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            RetireSpeechCaption();
+            if (completedSpeech) { CompleteSpeechCaption(); }
+            else { RetireSpeechCaption(); }
             activeSpokenText = null;
             IsSpeaking = false;
         }

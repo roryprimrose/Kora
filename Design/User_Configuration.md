@@ -73,8 +73,7 @@ host-held choice/save and reset share the same service as
 `list speech text settings`, `get/status display.speech-text`,
 `set display.speech-text to Off|CurrentUtterance`, and
 `reset display.speech-text`. The current assistant-name prefix is accepted only
-on the exact activated route; no fuzzy/model interpretation or broad caption
-command is advertised.
+on the exact activated route; no fuzzy/model interpretation is advertised.
 
 Discovery choices bind owner, original channel, durable admitted configuration
 session/generation, preference revision and live ownership/privacy/call gates.
@@ -86,6 +85,56 @@ only actual matching response playback may reveal approved text.
 Configuration never speaks, persists content, logs text, opens capture, changes
 output mode/call policy or substitutes for required native recovery.
 See [bounded delivery and separate proposals](Information_Display.md#delivered-bounded-local-utterance-slice-r25).
+
+### Delivered bounded caption UX options (R25) - 2026-10-09
+
+The same schema-1 native/exact typed/current-name ACTIVATED workflow now exposes:
+
+| ID | Type, choices and units | Unsaved/default/reset | Timing and reset |
+|---|---|---|---|
+| `display.speech-text-placement` | Primary working-area corner: `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` | `BottomRight` | Next eligible playback; retires old caption immediately; reset changes only this option |
+| `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 inclusive | 5 seconds | Delay after normal completion only; reset preserves placement and mode |
+| `display.speech-text-pin` | Boolean `true` / `false`, run-only current-caption state | `false` | Retains already-observed text until unpinned or source retirement; reset unpins, never persists |
+
+`list speech text settings` includes placement/delay IDs, typed choices, bounds,
+defaults, saved/effective values, source, revision, scope, timing, reset and
+recovery. `get/status <id>`, `set <id> to <exact value>` and `reset <id>` work
+for each option. Placement/delay use the existing host-held choice identity,
+original channel, admitted session/generation, revision, call/ownership/privacy
+gates, requested/terminal typed audit, atomic save/readback, completed intent
+receipt and durable unconfirmed marker. Native **Inspect speech text**, option/
+value selectors, **Save caption option only** and **Reset selected caption option**
+use the same service. Neither option enables speech text or changes its mode.
+
+The independent version-1 **`speech-caption-options.txt`** stores only the exact
+placement/delay tuple through `IApplicationDataPaths` and the shared atomic store.
+Existing **`speech-text-mode.txt`** bytes and Off default are unchanged; the
+existing **`speech-text-mode-unconfirmed.txt`** marker covers all caption writes.
+Unknown schema/corner, noncanonical or out-of-range delay, malformed UTF-8,
+unreadable storage or pending evidence throws/refuses, holds captions unavailable
+and requires explicit repair. No corrupt companion is guessed by reset.
+
+The caption's native **Pin / Unpin** control and exact pin commands affect only
+one already-observed response/playback identity. Pin state is passive ephemeral
+presentation, not a saved preference or effect authority; no new durable intent,
+audit or model tool is advertised for it. Pin get/status is visual-only;
+mutation retains original-channel protected-call and current host/private-source
+checks. No command speaks, replays, opens capture or replaces required panels.
+Normal successful completion labels retained text **PREVIOUS SPEECH**. Unpin
+uses the original completion deadline, so overdue text clears immediately.
+Stop/cancel/failure, response replacement, preference revision, call, lock,
+ownership/privacy/input recovery and disposal still retire immediately,
+even when pinned. Unobserved/queued text cannot be pinned or retained.
+
+Placement uses the primary screen's current working area and 24-DIP margin;
+there is no persisted native handle, arbitrary coordinate or display identity.
+Missing working area or unconfirmed placement fails presentation explicitly.
+Sentence alignment remains unavailable: the composed provider reports only
+utterance segment 0, not admitted sentence boundaries. No heuristic splitting,
+timing claim or new audio pipeline is introduced. Broader natural caption/viewer
+commands and native/accessibility/acoustic qualification remain open.
+Existing 3-sentence/80-word speech caps remain unchanged; brief spoken offers for
+over-limit detailed results are separate work, not delivered by captions.
 
 ### Delivered bounded Windows-provider-native speech rate (R10)
 

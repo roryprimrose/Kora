@@ -82,6 +82,10 @@ nonterminal or Unknown work, lost ownership/privacy/call admission, missing or
 corrupt storage fail closed. It never cancels, reconciles or abandons work to
 make disposition eligible. Resolve supported pre-dispatch waits explicitly;
 general uncertain-effect disposition is unavailable.
+The desktop control gate consumes the existing `IsProtected` call policy,
+including uncertain manual-call evidence even when automatic state reads
+Clear/Unavailable; independent passive inspection does not become mutation
+authority.
 
 Under the shared authority lease and one transaction, disposition advances
 generation, writes a non-reusable Removed tombstone, removes only that session's

@@ -148,7 +148,8 @@ public sealed class SessionsViewModelTests
         Read("Program.cs").Should().Contain("ISessionWorkspaceStore>(interactions)");
         Read("App.axaml.cs").Should().Contain("sessionsWindow?.Dispose()");
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("IsReady").And.Contain("IsHandoffRecoveryRequired")
-            .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision");
+            .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision")
+            .And.Contain("!main.CallObservation.IsProtected");
     }
 
     private static string Read(string name)

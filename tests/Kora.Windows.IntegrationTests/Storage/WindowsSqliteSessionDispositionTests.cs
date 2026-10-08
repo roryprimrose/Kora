@@ -2,6 +2,8 @@ using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Application.Communication;
+using Kora.Core.Communication;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -16,6 +18,27 @@ namespace Kora.Windows.IntegrationTests.Storage;
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSqliteSessionDispositionTests
 {
+    [WindowsFact]
+    public async Task Clear_or_unavailable_automatic_state_with_uncertain_manual_evidence_cannot_admit_disposition()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        foreach (var automatic in new[] { CallState.Clear, CallState.Unavailable })
+        {
+            var policy = new CallPolicyObservation(1, automatic, false, new(true, false), ManualControlEvidenceUnavailable: true);
+            var access = new CallAccess(policy);
+            var service = new SessionWorkspaceService(fixture.Store, new(fixture.Tasks), access,
+                NullLogger<SessionWorkspaceService>.Instance);
+            var act = () => PreviewAsync(fixture, service);
+            await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*unchanged private*");
+            access.CanInspect.Should().BeTrue();
+            access.CanControl.Should().BeFalse();
+            (await fixture.Store.ReadMetadataAsync(fixture.Request.SessionId, fixture.Token)).Authority.Generation.Value.Should().Be(1);
+        }
+        fixture.Count("host_tasks").Should().Be(1);
+    }
+
     [WindowsFact]
     public async Task Lost_or_rolled_back_tombstone_fails_recovery_and_cannot_recreate_a_disposed_identity()
     {
@@ -293,5 +316,12 @@ public sealed class WindowsSqliteSessionDispositionTests
     {
         using var viewer = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Presentation);
         return await service.PreviewDispositionAsync(fixture.Request.SessionId, new(1), metadataRevision, fixture.Token);
+    }
+
+    private sealed class CallAccess(CallPolicyObservation policy) : ISessionWorkspaceAccess
+    {
+        public bool CanInspect => true;
+        public bool CanControl => !policy.IsProtected;
+        public long ControlRevision => policy.Revision;
     }
 }

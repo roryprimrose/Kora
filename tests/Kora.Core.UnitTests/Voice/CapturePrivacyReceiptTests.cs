@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AwesomeAssertions;
 using Kora.Core.Platform;
 
@@ -5,6 +6,36 @@ namespace Kora.Core.UnitTests.Voice;
 
 public sealed class CapturePrivacyReceiptTests
 {
+    [Fact]
+    public void Unspecified_observation_time_uses_the_monotonic_clock_without_inventing_OS_delay()
+    {
+        var before = Stopwatch.GetTimestamp();
+
+        var observation = PrivacyObservation.Create();
+
+        var after = Stopwatch.GetTimestamp();
+        observation.Id.Should().NotBeEmpty();
+        observation.ObservedTimestamp.Should().BeGreaterThanOrEqualTo(before).And.BeLessThanOrEqualTo(after);
+        observation.TimestampFrequency.Should().Be(Stopwatch.Frequency);
+        observation.OsEventToNotificationDelayMilliseconds.Should().BeNull();
+    }
+
+    [Fact]
+    public void Supplied_observation_time_is_preserved_with_a_fresh_identity_and_the_same_clock_frequency()
+    {
+        var first = PrivacyObservation.Create(123456);
+        var second = PrivacyObservation.Create(123456);
+
+        first.ObservedTimestamp.Should().Be(123456);
+        second.ObservedTimestamp.Should().Be(first.ObservedTimestamp);
+        first.TimestampFrequency.Should().Be(Stopwatch.Frequency);
+        second.TimestampFrequency.Should().Be(first.TimestampFrequency);
+        first.Id.Should().NotBeEmpty().And.NotBe(second.Id);
+        second.Id.Should().NotBeEmpty();
+        first.OsEventToNotificationDelayMilliseconds.Should().BeNull();
+        second.OsEventToNotificationDelayMilliseconds.Should().BeNull();
+    }
+
     [Theory]
     [InlineData(499999, true)]
     [InlineData(500000, true)]

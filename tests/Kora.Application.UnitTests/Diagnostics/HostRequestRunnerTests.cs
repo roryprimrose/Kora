@@ -85,6 +85,46 @@ public sealed class HostRequestRunnerTests
         Activity.Current.Should().BeSameAs(hostile);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Sync_cancellation_preserves_the_exception_and_terminates_without_leaking_context(bool nested)
+    {
+        var sink = new Sink();
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var failure = new OperationCanceledException(cancellation.Token);
+        using var parent = nested
+            ? HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+                HostActivityLayer.Application, HostOperation.Request)
+            : null;
+        HostRequest? admitted = null;
+        var action = () => HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
+        {
+            admitted = HostActivity.RequireCurrent().Request;
+            Write(provider.CreateLogger("fixture"));
+            throw failure;
+        });
+
+        action.Should().Throw<OperationCanceledException>().Which.Should().BeSameAs(failure);
+
+        sink.Activities.Should().ContainSingle().Which.Outcome.Should().Be(HostOperationOutcome.Cancelled);
+        sink.Diagnostics.Should().ContainSingle().Which.Host.Should().BeSameAs(admitted);
+        sink.Gaps.Should().BeEmpty();
+        if (parent is not null)
+        {
+            admitted.Should().BeSameAs(parent.Request);
+            HostActivity.RequireCurrent().Should().BeSameAs(parent);
+            parent.Complete(HostOperationOutcome.Completed);
+        }
+        else
+        {
+            admitted!.Origin.Should().Be(RequestOrigin.LocalUi);
+            HostActivity.Current.Should().BeNull();
+        }
+    }
+
     private static void Write(ILogger logger)
     {
         if (logger.IsEnabled(LogLevel.Information))

@@ -1,3 +1,4 @@
+using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.ViewModels;
 
@@ -1119,6 +1120,109 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
         fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("ownership")]
+    [InlineData("revision")]
+    [InlineData("permission")]
+    public async Task Unlock_rechecks_changes_between_readiness_validation_and_atomic_enablement(string change)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        var checks = 0;
+        HostActivity? recovery = null;
+        fixture.ViewModel.BindVoiceOwnershipGate(() =>
+        {
+            recovery = HostActivity.RequireCurrent();
+            if (++checks != 2) { return true; }
+            if (change is "ownership") { return false; }
+            if (change is "revision") { PublishVoiceSession(fixture, WindowsSessionState.Locked); }
+            else
+            {
+                fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with
+                {
+                    MicrophoneAccess = MicrophoneAccessState.Denied,
+                };
+            }
+            return true;
+        });
+        fixture.WindowActions.Clear();
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        checks.Should().Be(2);
+        recovery.Should().NotBeNull();
+        recovery!.Outcome.Should().Be(HostOperationOutcome.Cancelled);
+        recovery.Activity!.IsStopped.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.WindowActions.Should().NotContain(WindowAction.Show);
+    }
+
+    [Theory]
+    [InlineData("revision")]
+    [InlineData("disposed")]
+    [InlineData("handoff")]
+    [InlineData("permission")]
+    [InlineData("no-unlock-intent")]
+    public async Task Atomic_readiness_commit_independently_rejects_each_retired_or_ineligible_state(string blocker)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        if (blocker is "disposed") { fixture.ViewModel.Dispose(); }
+        if (blocker is "handoff") { (await fixture.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue(); }
+        if (blocker is "permission")
+        {
+            fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with
+            {
+                MicrophoneAccess = MicrophoneAccessState.Denied,
+            };
+        }
+
+        // Exercise the final atomic boundary independently of earlier route guards, without modifying production state.
+        var revisionField = typeof(MainViewModel).GetField("voiceRecoveryRevision", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var revision = (long)revisionField.GetValue(fixture.ViewModel)!;
+        var commit = typeof(MainViewModel).GetMethod("TryEnableVoiceReadiness", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .CreateDelegate<Func<long, bool, bool>>(fixture.ViewModel);
+        var held = fixture.ViewModel.IsPrivacyPresentationHeld;
+
+        commit(blocker is "revision" ? revision - 1 : revision, blocker is "no-unlock-intent").Should().BeFalse();
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().Be(held);
+        fixture.Voice.IsListening.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+        ((long)revisionField.GetValue(fixture.ViewModel)!).Should().Be(revision);
+    }
+
+    [Fact]
+    public async Task Explicit_enable_rechecks_privacy_after_call_admission_before_committing_readiness()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        fixture.PrivacyObservation.BeforeRefresh = () => fixture.ViewModel.BindCallOwnershipGate(() =>
+        {
+            fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with
+            {
+                MicrophoneAccess = MicrophoneAccessState.Denied,
+            };
+            return true;
+        });
+
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Readiness changed.");
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.IsListening.Should().BeFalse();
     }
 
     [Theory]

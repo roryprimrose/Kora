@@ -1,0 +1,24 @@
+<Window
+    x:Class="Kora.SpeechCaptionWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Current speech"
+    Width="520"
+    SizeToContent="Height"
+    CanResize="False"
+    ShowActivated="False"
+    ShowInTaskbar="False"
+    WindowDecorations="None"
+    WindowStartupLocation="Manual">
+  <Border Padding="16" Background="{DynamicResource KoraPresencePanelBrush}"
+      BorderBrush="{DynamicResource KoraBorderBrush}" BorderThickness="1">
+    <StackPanel Spacing="8">
+      <TextBlock Text="CURRENT PLAYBACK · UTTERANCE" Classes="eyebrow" />
+      <TextBox Text="{Binding SpeechCaptionText, Mode=OneWay}"
+          IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+          MaxHeight="220" FontSize="16"
+          AutomationProperties.Name="Current spoken utterance"
+          AutomationProperties.HelpText="Exact text of current playback. Not a question, approval or replay control." />
+    </StackPanel>
+  </Border>
+</Window>

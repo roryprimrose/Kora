@@ -12,6 +12,27 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Local speech text
+
+Speech text is **Off** by default. In response settings select **Inspect speech
+text**, choose **CurrentUtterance**, then **Save speech text only**. Reset saves
+**Off**. The native caption shows selectable exact approved text only during
+matching actual response playback, not while synthesis is pending or speech is
+suppressed. It does not steal focus when shown.
+
+Exact typed or current-name activated commands are `list speech text settings`,
+`get display.speech-text`, `status display.speech-text`,
+`set display.speech-text to Off`, `set display.speech-text to CurrentUtterance`,
+and `reset display.speech-text`. These only inspect/save the device-local
+preference; they never speak, replay or open the microphone.
+
+Captions clear immediately on completion, interruption, replacement, lock,
+ownership/privacy/call change or unconfirmed configuration. Corrupt or pending
+preferences keep captions off; inspect saved state and audit receipts before
+explicit repair. Required approval/error panels remain visible independently.
+Sentence timing, pinning, placement preferences, dismissal delays, broad caption
+commands and rich browser/HTML/diagram rendering are not implemented.
+
 ## Windows-native speech rate
 
 **Settings > Speech & audio** provides a bounded draft, **Refresh Windows rate

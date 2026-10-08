@@ -55,6 +55,18 @@ See [Settings and explicit recovery](settings.md#in-call-feedback-override) and
 
 ## Visual response window
 
+Optional [local speech text](settings.md#local-speech-text) is separate from the
+answer panel. It defaults to Off and shows only exact host-admitted current
+utterance playback, never queued/failed/suppressed text. It clears immediately
+when playback or its response/privacy/call/ownership generation is retired.
+Visual-only and call-gated responses use the existing full answer panel, not a
+fictitious playback caption. Captions cannot answer questions, grant approval,
+replay speech or authorize any action; required native recovery is independent.
+No caption content is saved, logged or sent to a model.
+If the native caption surface fails, captions stop until restart; the complete
+answer and required recovery remain visual. Diagnostics record only the failure
+type, never caption content.
+
 Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected
 display.

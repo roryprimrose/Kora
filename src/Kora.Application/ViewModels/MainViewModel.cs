@@ -232,7 +232,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ManualCallControl? manualCallControl = null,
         AuditRetentionConfigurationService? auditRetentionConfiguration = null,
         WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
-        InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null)
+        InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
+        SpeechTextConfigurationService? speechTextConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -306,6 +307,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ApplicationLog.Error(logger, exception, "Reading in-call feedback");
             }
             inCallFeedbackConfiguration.Changed += OnInCallFeedbackChanged;
+        }
+        this.speechTextConfiguration = speechTextConfiguration;
+        if (speechTextConfiguration is not null)
+        {
+            try { speechTextConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                speechTextConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading speech-text presentation preference");
+            }
+            speechTextConfiguration.Changed += OnSpeechTextConfigurationChanged;
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
         this.auditRetentionConfiguration = auditRetentionConfiguration;
@@ -384,6 +396,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SelectedInCallFeedbackChoice ?? throw new InvalidOperationException("Refresh and choose one exact in-call feedback mode.")));
         ResetInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
             new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Get));
+        SaveSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Set));
+        ResetSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Reset));
         ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
         ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
@@ -1632,13 +1647,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string ResponseTitle
     {
         get => responseTitle;
-        private set => SetProperty(ref responseTitle, value);
+        private set
+        {
+            if (SetProperty(ref responseTitle, value)) { RetireSpeechCaptionSource(); }
+        }
     }
 
     public string ResponseBody
     {
         get => responseBody;
-        private set => SetProperty(ref responseBody, value);
+        private set
+        {
+            if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); }
+        }
     }
 
     public string Transcript
@@ -3357,6 +3378,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task StopSpeakingAsync()
     {
+        RetireSpeechCaption();
         try
         {
             await textToSpeech.StopAsync();
@@ -3788,6 +3810,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (PlaybackVolumeCommand.Parse(spokenText, AssistantName) is { } volumeCommand)
         {
             await ExecutePlaybackVolumeCommandAsync(volumeCommand, initiator);
+            return;
+        }
+        if (SpeechTextCommand.Parse(spokenText, AssistantName) is { } speechTextCommand)
+        {
+            await ExecuteSpeechTextCommandAsync(speechTextCommand, initiator);
             return;
         }
         if (ResponseModeCommand.Parse(spokenText, AssistantName) is { } responseModeCommand)
@@ -4452,6 +4479,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task CancelCurrentTaskAsync()
     {
+        RetireSpeechCaption();
         textToSpeech.InvalidateOutput();
         ClearClipboardPreview();
         ClearFilePreview();
@@ -4714,7 +4742,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             // Admission checks cancellation; generation invalidation and StopAsync own resource release.
-            Task Start() => textToSpeech.SpeakAsync(spokenText, activeSpeechVoice!, SelectedOutputDevice!, CancellationToken.None);
+            Task Start() => StartCaptionedSpeechAsync(spokenText, Eligible);
             if (exactReadback)
             {
                 await communicationPolicy.StartSpeech(Start, Eligible);
@@ -4774,6 +4802,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            RetireSpeechCaption();
             activeSpokenText = null;
             IsSpeaking = false;
         }
@@ -5242,6 +5271,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         bool requestWindow = true,
         bool refreshOutput = true)
     {
+        RetireSpeechCaptionSource();
         ClearResponseActions();
         if (!isInitializing && refreshOutput
             && responseState is not (AssistantState.Failure or AssistantState.Listening)
@@ -5316,6 +5346,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
+            .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);

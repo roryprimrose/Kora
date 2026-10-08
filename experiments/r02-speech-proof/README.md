@@ -25,6 +25,16 @@ No executable or historical evidence is retired by this policy.
 
 ## Baseline and contracts
 
+### R25 local caption disposition (2026-10-08)
+
+The disabled-by-default native current-utterance caption slice qualifies only
+host-approved text identity and deterministic playback/privacy/call/resource
+lifecycle presentation. It supplies no acoustic timing, audibility, capture,
+wake quality or installed/native accessibility evidence. This experiment and
+its unique historical observations remain maintained; its acoustic and
+packaged-host outstanding checklist is unchanged and is not a prerequisite to
+implementing local optional presentation. R25 is not D-002/D-007 or R10 acceptance.
+
 The session worktree was clean before `git fetch origin` and
 `git rebase origin/main`. Merged R01 PR #19, commit
 `7d5e6a352261dce48f2ca4d3048650ee13f51705`, was verified in ancestry and the

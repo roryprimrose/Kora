@@ -65,6 +65,28 @@ real-call/acoustic leakage/stop timing, speak-once/downgrade review, proactive
 configuration, general tools or A0-A4 acceptance. See the
 [experiment disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
 
+### Delivered bounded local speech text (R25)
+
+Schema-1 **`display.speech-text`** supports exact `Off` and `CurrentUtterance`;
+unsaved/default/reset is **Off**. Native **Inspect speech text**, explicit
+host-held choice/save and reset share the same service as
+`list speech text settings`, `get/status display.speech-text`,
+`set display.speech-text to Off|CurrentUtterance`, and
+`reset display.speech-text`. The current assistant-name prefix is accepted only
+on the exact activated route; no fuzzy/model interpretation or broad caption
+command is advertised.
+
+Discovery choices bind owner, original channel, durable admitted configuration
+session/generation, preference revision and live ownership/privacy/call gates.
+Requested and terminal typed audit outcomes, atomic preference write, exact
+readback, durable unconfirmed marker and completed control receipt precede
+activation. Corrupt or pending/restart values hold captions off and require
+explicit repair, not a default or replay. Captions themselves remain ephemeral:
+only actual matching response playback may reveal approved text.
+Configuration never speaks, persists content, logs text, opens capture, changes
+output mode/call policy or substitutes for required native recovery.
+See [bounded delivery and separate proposals](Information_Display.md#delivered-bounded-local-utterance-slice-r25).
+
 ### Delivered bounded Windows-provider-native speech rate (R10)
 
 The independent schema-1 option **`speech.windows-rate`** admits one canonical

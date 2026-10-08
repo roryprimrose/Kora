@@ -275,6 +275,7 @@ internal static class Program
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<SpeechTextConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton(TimeProvider.System);
@@ -406,6 +407,8 @@ internal static class Program
             new LocalResponseOutputPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalResponseOutputPreferences>>()));
+        services.AddSingleton<ISpeechTextPreferences>(provider =>
+            new LocalSpeechTextPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ICallAwarePreferences>(provider =>
             new LocalCallAwarePreferences(
                 provider.GetRequiredService<IPreferenceStore>(),

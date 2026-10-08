@@ -4176,6 +4176,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
+            .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
@@ -7743,9 +7744,11 @@ public sealed partial class MainViewModelTests : IDisposable
             Exception? diagnosticRetentionReadFailure = null, bool enableManualCallControl = true,
             bool enableAuditRetention = false, Exception? auditRetentionReadFailure = null,
             bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null,
-            bool enableInCallFeedback = false, Exception? feedbackReadFailure = null)
+            bool enableInCallFeedback = false, Exception? feedbackReadFailure = null,
+            bool enableSpeechText = false, Exception? captionReadFailure = null)
         {
             Catalog = new BuiltInCommandCatalog();
+            CaptionPreferences.LoadFailure = captionReadFailure;
             Dispatcher = new ImmediateDispatcher();
             Voice = new FakeVoiceRecognitionService(Dispatcher, Events);
             TextToSpeech = new FakeTextToSpeechService(Events);
@@ -7876,7 +7879,8 @@ public sealed partial class MainViewModelTests : IDisposable
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
-                AuditConfiguration, RateConfiguration, FeedbackConfiguration);
+                AuditConfiguration, RateConfiguration, FeedbackConfiguration,
+                enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -7894,6 +7898,7 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public BuiltInCommandCatalog Catalog { get; }
+        public CaptionPreferences CaptionPreferences { get; } = new();
 
         private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess
         {
@@ -8532,6 +8537,13 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl
     {
+        public Guid? CaptionPlaybackId { get; private set; }
+        public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
+            Guid playbackId, CancellationToken cancellationToken = default)
+        {
+            CaptionPlaybackId = playbackId;
+            return SpeakAsync(text, voice, outputDevice, cancellationToken);
+        }
         public WindowsSpeechRate? Rate { get; private set; } = WindowsSpeechRate.Default;
         public void SetWindowsSpeechRate(WindowsSpeechRate? rate)
         {
@@ -8615,7 +8627,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public bool HoldSpeechCompletionOnStop { get; set; }
 
-        public TaskCompletionSource SpeakStarted { get; } = new(
+        public TaskCompletionSource SpeakStarted { get; set; } = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int StopCalls { get; private set; }

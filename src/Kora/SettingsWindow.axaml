@@ -617,6 +617,26 @@
             </Border>
 
             <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Local speech text (off by default)" Classes="settings-title" />
+                  <TextBlock Text="Optional exact current utterance only after playback starts. Removed immediately on finish or retirement. No speech, replay, capture, model request or response/call policy changes. Pinning, sentence alignment, placement preferences and dismissal delay are not available."
+                      Classes="settings-description" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding SpeechTextConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding SpeechTextChoices}" SelectedItem="{Binding SelectedSpeechTextChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeSpeechText}"
+                      PlaceholderText="Inspect and choose exact speech text mode"
+                      AutomationProperties.Name="Local speech text mode" />
+                  <Button Content="Inspect speech text" Command="{Binding RefreshSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <Button Content="Save speech text only" Command="{Binding SaveSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <Button Content="Reset speech text to Off" Command="{Binding ResetSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Current queue" Classes="settings-title" />

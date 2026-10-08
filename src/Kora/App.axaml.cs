@@ -28,6 +28,7 @@ public sealed partial class App : Avalonia.Application
     private DocumentationWindowController? documentationWindow;
     private DetailWindowController? detailWindow;
     private ResponseWindowController? responseWindow;
+    private SpeechCaptionWindowController? speechCaptionWindow;
     private GrantListWindowController? grantListWindow;
     private QuestionWindowController? questionWindow;
     private EvidenceWindowController? evidenceWindow;
@@ -83,6 +84,7 @@ public sealed partial class App : Avalonia.Application
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>());
+            speechCaptionWindow = new SpeechCaptionWindowController(viewModel);
             grantListWindow = new GrantListWindowController(viewModel);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
                 Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>());
@@ -214,6 +216,8 @@ public sealed partial class App : Avalonia.Application
         detailWindow?.Dispose();
         detailWindow = null;
         responseWindow?.Dispose();
+        speechCaptionWindow?.Dispose();
+        speechCaptionWindow = null;
         responseWindow = null;
         grantListWindow?.Dispose();
         grantListWindow = null;

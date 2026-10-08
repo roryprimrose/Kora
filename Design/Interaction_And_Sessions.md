@@ -20,11 +20,21 @@ addresses existing immutable session IDs directly. Pending capacity, FIFO,
 fair manual admission, revisions, dependencies and restart interruption are
 host-owned; names/selected windows never substitute for IDs. Queue slots cover
 only this read-only profile, not providers, workers, audio or arbitrary resources.
-Native **Read exact queue**, **Enqueue local version**, **Dispatch ready local
+Native **Refresh selected work**, **Enqueue local version**, **Dispatch ready local
 versions fairly**, exact pending cancellation and separately labelled confirmed
 clear use the same workflow as typed/current-name activated commands. Selection
 alone neither enqueues nor dispatches. New work in Done/Removed sessions is denied.
 Passive history/queue inspection never renews activity or restores authority.
+
+The [R14 coordinated native work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+delivers list-plus-selected-session work, atomic bounded queue/task/question
+observation, stable identity/revision/order, observed eligibility/deadlines/
+capacity and explicit recovery/gaps. Native pending cancel/remove/clear and
+manual dispatch reuse exact command workflows; in-flight selection changes
+invalidate admission. Pending question identities stay visible independently
+of history/evidence and never gain a workspace reply/review target.
+Five-second passive work refresh preserves focus and does not disable native
+input, renew cancellation inspection, extend activity, resume or dispatch.
 
 The runnable bootstrap has one response title/body and latest transcript in `MainViewModel`, displayed by `ResponseWindow`.
 Typed and recognized spoken commands converge on the deterministic built-in command router.
@@ -54,9 +64,9 @@ adapter. A bounded native question/review route now composes the existing
 durable local-version query; no effect dispatcher is activated. See the
 [native question boundary](Interaction_Fallback.md#delivered-bounded-native-question---2026-10-07).
 There is no general typed form service,
-full session conversation/history UI, concurrent task
-scheduler, or model-facing session tool API.
-Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
+full conversation/composer UI, general concurrent provider/effect scheduler,
+or model-facing session tool API. The bounded history, native work ledger,
+question and passive detail slices do not qualify those broader capabilities.
 
 ### Delivered Bounded Ordered Interaction History - 2026-10-09
 

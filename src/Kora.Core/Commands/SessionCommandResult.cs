@@ -18,6 +18,7 @@ public sealed record SessionCommandResult(string Outcome, string Message)
     public SessionHistoryPage? History { get; init; }
     public SessionHistoryEvent? HistoryEvent { get; init; }
     public SessionQueueSnapshot? Queue { get; init; }
+    public SessionWorkSnapshot? Work { get; init; }
     public SessionQueueEntry? QueueEntry { get; init; }
     public IReadOnlyList<SessionQueueDispatchReceipt>? QueueDispatch { get; init; }
     public static byte[] Serialize(SessionCommandResult result)
@@ -35,6 +36,7 @@ public sealed record SessionCommandResult(string Outcome, string Message)
         Converters = { new JsonStringEnumConverter<HostTaskState>(), new JsonStringEnumConverter<RequestOrigin>(),
             new JsonStringEnumConverter<SessionHistoryKind>(), new JsonStringEnumConverter<SessionHistoryAvailability>(),
             new JsonStringEnumConverter<HostInteractionOutcome>(), new JsonStringEnumConverter<QuestionStatus>(),
-            new JsonStringEnumConverter<SessionQueueState>() },
+            new JsonStringEnumConverter<SessionQueueState>(), new JsonStringEnumConverter<SessionQueueEligibility>(),
+            new JsonStringEnumConverter<QuestionKind>() },
     };
 }

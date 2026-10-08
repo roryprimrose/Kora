@@ -193,14 +193,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         // for the addressed session only. No descriptor can claim an arbitrary resource lease.
         var blocked = entries.Select(entry => entry.Request.SessionId).Distinct().Where(session =>
         {
-            using var command = connection.CreateCommand();
-            command.CommandText = """
-                SELECT 1 FROM host_tasks t WHERE session_id=$session AND
-                (state=7 OR (state IN (0,1) AND NOT EXISTS
-                (SELECT 1 FROM session_queue q WHERE q.task_id=t.task_id))) LIMIT 1;
-                """;
-            command.Parameters.AddWithValue("$session", Id(session));
-            return command.ExecuteScalar() is not null || !RequireSession(connection, session).Authority.IsActive;
+            return HasUnclassifiedWorkOrWait(connection, session) || !RequireSession(connection, session).Authority.IsActive;
         }).ToHashSet();
         return SessionQueuePolicy.SelectReady(entries.Where(entry => !blocked.Contains(entry.Request.SessionId))
             .Select(entry => entry.RunId != runId && entry.IsPending ? entry with { State = SessionQueueState.Interrupted } : entry).ToArray(),
@@ -219,7 +212,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         return snapshot;
     }
 
-    private SessionQueueSnapshot QueueSnapshot(SqliteConnection connection, HostId<SessionIdentity> session)
+    private SessionQueueSnapshot QueueSnapshot(SqliteConnection connection, HostId<SessionIdentity> session, DateTimeOffset? observedAt = null)
     {
         var authority = RequireSession(connection, session);
         if (authority.State == 2) { throw new InvalidOperationException("Disposed sessions have no browsable queue."); }
@@ -230,10 +223,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var revision = (long)command.ExecuteScalar()!;
         return new(session, authority.Authority.Generation, revision,
             rows.Where(entry => entry.IsCurrent || entry.State == SessionQueueState.Unknown || entry.RunId == runId && entry.IsPending)
-                .Select(entry => ProjectQueue(connection, entry)).ToArray());
+                .Select(entry => ProjectQueue(connection, entry, observedAt)).ToArray());
     }
 
-    private SessionQueueEntry ProjectQueue(SqliteConnection connection, SessionQueueEntry entry)
+    private SessionQueueEntry ProjectQueue(SqliteConnection connection, SessionQueueEntry entry, DateTimeOffset? observedAt = null)
     {
         var task = ReadTask(connection, entry.Request.TaskId)!;
         if (entry.RunId != runId && (entry.IsPending || entry.IsCurrent))
@@ -242,7 +235,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         }
         return entry.IsPending && task.State == HostTaskState.Interrupted ? entry with { State = SessionQueueState.Interrupted }
             : entry.IsCurrent && task.State == HostTaskState.Unknown ? entry with { State = SessionQueueState.Unknown }
-            : entry.IsPending && entry.ExpiresAt <= time.GetUtcNow() ? entry with { State = SessionQueueState.Expired } : entry;
+            : entry.IsPending && entry.ExpiresAt <= (observedAt ?? time.GetUtcNow()) ? entry with { State = SessionQueueState.Expired } : entry;
     }
 
     private static long NextQueuePosition(SqliteConnection connection)

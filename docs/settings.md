@@ -26,8 +26,8 @@ links use the confirmed policy. Existing deadlines never change, including
 across restart. **Apply-now and immediate deletion are unavailable.** Saving
 or resetting does not run pruning or change cleanup scheduling.
 
-Audit default **90** and its existing 30–365 domain, daily files **30 days/30
-files**, session/chat/history, every approval and every grant are unchanged.
+Independently configured audit retention, daily files **30 days/30 files**,
+session/chat/history, every approval and every grant are unchanged by this option.
 Perpetual grants never expire or undergo time retention/eviction. Future
 session/history suggestions are not current configuration options.
 
@@ -40,6 +40,38 @@ stay unavailable across restart: inspect saved state and audit/intent receipts,
 explicitly repair and refresh. No silent default or automatic marker clearing.
 Ordinary SQLite delivery reports an explicit gap while independent file and
 required audit paths remain separate.
+
+## Future-only audit retention
+
+**Settings > Logging** also provides independent audit Refresh, Save future
+audit retention only and Reset to **90**. `logging.audit-retention-days` admits
+canonical integers **30–365**, default/reset **90**; typed/current-name
+ACTIVATED get/status/set/reset use this same workflow. `list logging settings`
+reports both complete admitted options and saved/default/effective provenance.
+
+Only NEW committed required authority audit and independently qualified SQLite
+diagnostic audit projections use the confirmed days. Their source identities
+remain distinct; neither diagnostic projections nor daily files become
+permission authority. Existing audit deadlines, payloads, hashes and citations
+stay exactly unchanged across restart and migration. **Apply-now, immediate
+deletion and audit pruning are unavailable.** Save/reset never runs cleanup.
+
+REQUESTED and terminal preference receipts use the prior policy; activation
+follows required audit, atomic save/exact readback and durable intent outcome.
+The separate durable unconfirmed marker prevents activation after lost
+evidence or late admission/confirmation failure. Corrupt/unknown/pending data
+refuses, never silently falls back to 90. Inspect saved state and audit/intent
+receipts before explicit repair and refresh. At startup, unconfirmed audit
+policy refuses authority recovery/writes; in-run failure shows held native
+status without replay. Native hide/reopen/dispose invalidates old callbacks.
+
+Audit days are not grant lifetime. All grant records and existing
+validity/scopes remain; Perpetual records have no expiry/retention/eviction.
+Session/chat/history, approvals/tasks/questions, ordinary SQLite
+**1–365/default-reset 30**, daily files **30 days/30 files**, resource/call/audio
+behavior and cleanup schedules are unchanged. No full retention-cleanup,
+forensic/encryption or installed/native/acoustic qualification is claimed.
+See the [canonical bounded contract](../Design/User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04).
 
 ## Release maintenance (notify-only)
 

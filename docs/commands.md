@@ -22,7 +22,7 @@ share one independent host-admitted workflow:
 
 | Exact command | Result |
 |---|---|
-| `list logging settings` | One SQLite-only option's integer schema/default/bounds, saved/effective provenance, revisions, timing, exclusions and recovery |
+| `list logging settings` | Both independent diagnostic/audit options' integer schema/default/bounds, saved/effective provenance, revisions, timing, exclusions and recovery |
 | `get logging.sqlite-diagnostic-retention-days` | Inspect the confirmed preference or explicit unavailable recovery |
 | `status logging.sqlite-diagnostic-retention-days` | Same bounded current status |
 | `set logging.sqlite-diagnostic-retention-days to 14` | Canonical integer 1–365; applies only to newly committed ordinary SQLite records after required audit and atomic save/readback/receipt |
@@ -37,10 +37,36 @@ revisions are fresh-checked. Pending exact questions/approvals remain intact.
 Protected-call original voice mutation is denied, never deferred or relabelled.
 
 **Existing deadlines stay exactly unchanged. Apply-now/immediate deletion is
-unavailable.** No set/reset triggers pruning. Audit default 90 (30–365 domain),
+unavailable.** No set/reset triggers pruning. Independent audit retention,
 daily files 30 days/30 files, session/chat/history, grants/approvals and cleanup
 schedule are unchanged. Perpetual grants have no time expiry/retention/eviction.
 See [settings and explicit recovery](settings.md#sqlite-diagnostic-retention).
+
+## Future-only audit retention
+
+Native **Settings > Logging** and exact typed/current-name ACTIVATED input
+share the independent audit workflow:
+
+| Exact command | Result |
+|---|---|
+| `get logging.audit-retention-days` | Complete saved/default/effective policy, 30–365 bounds/default 90, revision, timing/exclusions and explicit held recovery |
+| `status logging.audit-retention-days` | Same bounded current status |
+| `set logging.audit-retention-days to 180` | Canonical integer 30–365; changes NEW required authority audit and independent diagnostic audit projections after required prior-policy receipts and atomic save/readback/intent outcome |
+| `reset logging.audit-retention-days` | Removes only the audit override; future audit commits use 90 |
+
+Use the current assistant prefix, not an old alias. `list logging settings`
+includes this option alongside independent ordinary SQLite days. Inputs remain
+bounded to 1,024 UTF-8 bytes and complete output to 64 KiB; malformed reserved
+commands stay local and never route to inference. Original owner/session/
+generation/privacy/topology/input/call/native-lifetime and proposal revisions
+must remain eligible; protected-call original voice mutation is denied.
+
+Existing deadlines/payloads/citations are unchanged. Apply-now, immediate
+deletion, pruning and cleanup triggers are unavailable. This is not a grant
+lifetime control: every grant and its validity/scopes remain, and Perpetual
+records have no expiry/retention/eviction. No session/history/approval/task/
+question pruning or ordinary/file policy changes. See
+[held evidence and restart recovery](settings.md#future-only-audit-retention).
 
 ## Assistant display / PTT command-prefix setting
 

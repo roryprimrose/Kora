@@ -93,6 +93,8 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 1 apply now");
         fixture.DiagnosticPreferences.Value.Should().BeNull();
         await fixture.RunAsync("set logging.audit-retention-days to 1");
+        fixture.ViewModel.Transcript.Should().Contain("Audit retention requires");
+        await fixture.RunAsync("set logging.unknown-setting to 1");
         fixture.ViewModel.ResponseTitle.Should().Contain("Clarify");
         fixture.DiagnosticPreferences.WriteFailure = new IOException("atomic save failed");
         await fixture.RunAsync("set " + DiagnosticRetentionCommand.OptionId + " to 1");

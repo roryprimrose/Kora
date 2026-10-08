@@ -4167,6 +4167,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
@@ -7733,7 +7734,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null, bool enableOutputConfiguration = false,
             bool enablePlaybackVolume = false, Exception? volumeReadFailure = null,
             bool enableResponseModeConfiguration = false, bool enableDiagnosticRetention = false,
-            Exception? diagnosticRetentionReadFailure = null, bool enableManualCallControl = true)
+            Exception? diagnosticRetentionReadFailure = null, bool enableManualCallControl = true,
+            bool enableAuditRetention = false, Exception? auditRetentionReadFailure = null)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7769,6 +7771,10 @@ public sealed partial class MainViewModelTests : IDisposable
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
             DiagnosticPreferences.ReadFailure = diagnosticRetentionReadFailure;
             DiagnosticConfiguration = enableDiagnosticRetention ? new(DiagnosticPreferences, DiagnosticPolicy, DiagnosticAdmission, Audit) : null;
+            var auditStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
+            AuditAdmission = new(auditStore, auditStore, new HostTaskCoordinator(auditStore));
+            AuditPreferences.ReadFailure = auditRetentionReadFailure;
+            AuditConfiguration = enableAuditRetention ? new(AuditPreferences, AuditPolicy, AuditAdmission, Audit) : null;
             Probe = new StubProbe(new DependencyStatus(
                 "storage",
                 "Storage",
@@ -7855,7 +7861,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
-                enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null);
+                enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
+                AuditConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
@@ -7886,6 +7893,10 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeDiagnosticRetentionPreferences DiagnosticPreferences { get; } = new();
         public DiagnosticRetentionPolicy DiagnosticPolicy { get; } = new();
         public DiagnosticRetentionConfigurationService? DiagnosticConfiguration { get; }
+        public AuditRetentionAdmission AuditAdmission { get; }
+        public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
+        public AuditRetentionPolicy AuditPolicy { get; } = new();
+        public AuditRetentionConfigurationService? AuditConfiguration { get; }
 
         public ImmediateDispatcher Dispatcher { get; }
 

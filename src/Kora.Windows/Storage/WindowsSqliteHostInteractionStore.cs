@@ -5,6 +5,7 @@ using System.Text;
 
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
+using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -28,22 +29,25 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     private readonly Guid runId = Guid.NewGuid();
     private readonly TimeProvider time;
     private readonly EvidenceRetentionPolicy retentionPolicy;
+    private readonly AuditRetentionPolicy? auditPolicy;
     private readonly IHostInteractionTransactionCheckpoint? checkpoint;
     private string? inspectionIdentity;
 
     public WindowsSqliteHostInteractionStore(IApplicationDataPaths paths, WindowsSqliteHostTaskStore tasks,
-        TimeProvider? timeProvider = null, EvidenceRetentionPolicy? retentionPolicy = null)
-        : this(paths, tasks, timeProvider, checkpoint: null, retentionPolicy)
+        TimeProvider? timeProvider = null, EvidenceRetentionPolicy? retentionPolicy = null,
+        AuditRetentionPolicy? auditPolicy = null)
+        : this(paths, tasks, timeProvider, checkpoint: null, retentionPolicy, auditPolicy)
     {
     }
 
     internal WindowsSqliteHostInteractionStore(IApplicationDataPaths paths, WindowsSqliteHostTaskStore tasks,
         TimeProvider? timeProvider, IHostInteractionTransactionCheckpoint? checkpoint,
-        EvidenceRetentionPolicy? retentionPolicy = null)
+        EvidenceRetentionPolicy? retentionPolicy = null, AuditRetentionPolicy? auditPolicy = null)
     {
         this.tasks = tasks;
         time = timeProvider ?? TimeProvider.System;
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
+        this.auditPolicy = auditPolicy;
         this.checkpoint = checkpoint;
         database = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
             HostInteractionSchema.ApplicationId, HostInteractionSchema.AuthorityTables,
@@ -533,7 +537,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         var trace = live.Activity!;
         var committedAt = time.GetUtcNow();
         var envelope = new AuthorityAudit(live.Request, intent.Revision, session.Generation, audit,
-            trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt, retentionPolicy.AuditDue(committedAt), decision?.Outcome,
+            trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt,
+            auditPolicy is null ? retentionPolicy.AuditDue(committedAt) : auditPolicy.Due(committedAt), decision?.Outcome,
             decision?.Question?.Key.QuestionId, decision?.Question?.Key.Revision,
             decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? []);
         var json = HostInteractionCodec.Encode(envelope);
@@ -598,7 +603,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.QuestionRevision is { Value: <= 0 } || audit.GrantRevision is { Value: <= 0 }
             || audit.QuestionId?.Value == Guid.Empty || audit.ApprovalId?.Value == Guid.Empty
             || audit.Audit.ApprovalId == Guid.Empty
-            || audit.DueAt <= audit.CommittedAt
+            || !AuditRetentionDays.IsValidDeadline(audit.CommittedAt, audit.DueAt)
             || !IsHex(audit.TraceId, 32) || !IsHex(audit.SpanId, 16)
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))

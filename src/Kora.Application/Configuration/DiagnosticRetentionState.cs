@@ -19,12 +19,12 @@ public sealed record DiagnosticRetentionState(DiagnosticRetentionDays? Desired, 
     public string ApplicationTiming => "required audit, atomic save/readback and committed-intent receipt; newly committed rows only";
     public string Confirmation => "host-held proposal; original input; independent diagnostic session/generation; live owner/privacy/call and revisions";
     public string ResetEffect => "removes only SQLite diagnostic override; future commits use 30; existing deadlines unchanged";
-    public string Excluded => "audit default 90 (30-365 domain); daily files 30 days/30 files; sessions/history; all grants and approvals; cleanup triggers";
+    public string Excluded => "independent audit 30-365/default-reset 90; daily files 30 days/30 files; sessions/history; all grants and approvals; cleanup triggers";
     public string Syntax => DiagnosticRetentionCommand.Syntax;
 
-    public static string Serialize(DiagnosticRetentionState state, long callRevision, string outcome)
+    public static string Serialize(DiagnosticRetentionState state, long callRevision, string outcome, AuditRetentionState? auditState = null)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { State = state, CallRevision = callRevision, Outcome = outcome }, Json);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { State = state, AuditState = auditState, CallRevision = callRevision, Outcome = outcome }, Json);
         if (bytes.Length > SessionCommand.MaximumResultBytes)
         {
             throw new InvalidDataException("Diagnostic-retention result exceeds 64 KiB; no partial result is presented.");

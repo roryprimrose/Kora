@@ -25,7 +25,7 @@ Preview is not model-context selection or transmission consent. See
 Delivered exceptions to the proposed full catalogue: R10 has host-only typed
 configuration for appearance, installed provider/voice, spoken-summary caps,
 assistant display/PTT prefix, exact input/output preferences, per-Kora volume
-device-default response mode and future-only SQLite diagnostic retention. These share native and exact local workflows;
+device-default response mode and independent future-only SQLite diagnostic/audit retention. These share native and exact local workflows;
 none exposes a model-facing `settings.*` tool or arbitrary preference patch.
 The single `logging.sqlite-diagnostic-retention-days` option shares native and
 exact `list logging settings` / get/status/set/reset. Canonical integer 1–365,
@@ -35,6 +35,17 @@ save/readback/intent receipt. It changes only future ordinary SQLite commits;
 old deadlines, audit90/domain, files30/30, all session/history/grant/approval
 records and cleanup triggers stay unchanged. Apply-now is unavailable. See
 [the bounded contract](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04).
+The independent `logging.audit-retention-days` option admits exact integer
+30–365/default-reset90 through the same native/exact current-name discovery.
+Its separate audit-control session uses the merged common original-input
+admission, host-held proposal/source/policy revisions and prior-policy requested/
+terminal receipts, atomic readback and committed intent before activation.
+Only NEW required authority audit and separately qualified diagnostic audit
+projections change. Existing deadlines, all grants/authority records, ordinary
+SQLite/file policy and cleanup schedule are untouched. Held/corrupt audit
+configuration fails closed before new audit/authority writes, including restart.
+No model mutation, apply-now, audit pruning or complete R04/R10 qualification.
+See [the audit contract](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04).
 For appearance, the nine-option subset shares the existing native controls and
 exact local `list appearance settings`, `get <appearance.id>`,
 `set <appearance.id> to <value>` and `reset <appearance.id>` commands.

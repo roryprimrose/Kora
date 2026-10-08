@@ -2,7 +2,7 @@
 
 Status: partial. Bounded appearance, installed speech choices, assistant display/PTT
 prefix, spoken-summary caps, exact input/output preferences, per-Kora playback
-volume, device-default response mode and future-only SQLite diagnostic retention are delivered through shared native/
+volume, device-default response mode and independent future-only SQLite diagnostic/audit retention are delivered through shared native/
 exact typed and activated-voice workflows below. Broader scopes, setup and the
 complete verbal preference/model-facing contract remain proposed, subject to protected-call origin gates
 and mandatory secure workflows.
@@ -11,9 +11,71 @@ Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.
 
 ## Configuration Contract
 
+### Delivered bounded future-only audit retention (R10/R04)
+
+The independent schema-1 option `logging.audit-retention-days` accepts one
+canonical integer **30–365**, unsaved default/reset **90**. Native
+**Settings > Logging** Refresh/Save/Reset and exact typed/current-name ACTIVATED
+get/status/set/reset delegate to the same
+[audit configuration service](../src/Kora.Application/Configuration/AuditRetentionConfigurationService.cs).
+`list logging settings` returns both admitted retention descriptors, including
+saved/default/effective/unavailable provenance, bounds, revision, original-input
+confirmation, application timing, exclusions and explicit recovery. Complete
+input/output bounds remain 1,024 UTF-8 bytes/64 KiB. Apply-now, immediate
+deletion, natural-language aliases and model settings tools are unavailable.
+
+The [single audit-days domain](../src/Kora.Core/Configuration/AuditRetentionDays.cs)
+owns exact parsing, 30–365 validation and deadline metadata validation.
+`IApplicationDataPaths` and the shared atomic preference store own
+`audit-retention.txt` (version 1 plus canonical days) and the independent
+`audit-retention-unconfirmed.txt` marker. Missing confirmed storage is default
+90; malformed UTF-8, invalid days, unknown formats and pending confirmation are
+`InvalidDataException`, not default activation.
+
+Original local input uses a separate audit-control session/generation and the
+merged common durable-intent admission, never diagnostic/audio/manual-call
+authority. Host-held proposals, exact saved-source and effective-policy state,
+configuration/call/name/input revisions, ownership/unlocked privacy/topology
+and native visible-lifetime identity are revalidated. Protected-call original
+voice mutation is denied without UI relabelling. Pending questions, approvals
+and complete responses are not answered, retargeted, replaced or replayed.
+
+The REQUESTED preference receipt is committed under the **prior** audit policy.
+Atomic save/reset, exact readback, required terminal audit and committed-intent
+outcome precede marker confirmation and activation. The terminal preference
+receipt also uses the prior policy: it confirms the save, not a fabricated
+already-active policy effect. Only later commits use the new days. Lost terminal
+evidence, late cancellation/eligibility or confirmation failure holds the policy
+and durable marker; restart cannot activate the unconfirmed weaker value.
+Explicit recovery requires saved-state and required-receipt inspection before
+manual repair and fresh admission. Startup refuses unconfirmed audit policy
+before recovery/authority writes, rather than silently using 90. An in-run
+failure is shown in native Settings; new required audit/authority commits are
+held while passive admitted inspection of preserved rows remains independent.
+
+One confirmed current-run snapshot reaches both genuine NEW
+`InteractionStorageV1` required authority audit envelopes and independently
+qualified `EvidenceStorageV1` diagnostic audit projections. These are distinct
+sources: projections, daily files, arbitrary `SecurityAudit=true` properties,
+messages, trace/model/caller identifiers never become permission authority.
+Existing serialized audit bytes, IDs, hashes, revisions, relationships,
+references/citations and deadlines are untouched. Cold readers, schema-1/2
+legacy validation/migration and schema-3 authority readers validate each row's
+original integral audit-domain deadline, not the current setting.
+
+**No audit pruning or cleanup acceptance is delivered.** Set/reset triggers no
+cleanup, rewrites no old deadline and changes no janitor schedule. Ordinary
+SQLite days remain independently configurable **1–365/default-reset 30**;
+daily files stay **30 days/30 files**. No session/chat/history
+retention/delete/archive, task/question/approval pruning or grant changes are
+implemented. Every grant record and its existing validity/scopes survives;
+independent Perpetual records have no expiry/retention/eviction. Full
+R04/R10/A0–A4, installed/native, acoustic, encryption, forensic/tamperproof,
+artifact/backup disposal, runtime and release qualification remain open.
+
 ### Delivered bounded future-only SQLite diagnostic retention (R10/R04)
 
-Schema 1 registers only `logging.sqlite-diagnostic-retention-days`: canonical
+The diagnostic schema-1 option is `logging.sqlite-diagnostic-retention-days`: canonical
 integer **1–365**, unsaved default/reset **30**. Native **Settings > Logging**
 Refresh/Save/Reset and exact typed/current-name ACTIVATED
 `list logging settings` / get/status/set/reset share one
@@ -50,8 +112,8 @@ attempts to replace an old span ID: the current writer is insert-only and
 rejects duplicate IDs rather than upserting retention metadata.
 
 **Apply-now/immediate deletion is unavailable.** Set/reset never runs pruning
-or changes its startup schedule/triggers. Audit remains independent default 90
-(existing 30–365 domain), daily files 30 days/30 files, and every session,
+or changes its startup schedule/triggers. Audit remains independently configured
+(30–365/default-reset 90, as described above), daily files 30 days/30 files, and every session,
 history, approval and grant remains unchanged. Independent Perpetual grants
 have no time expiry/retention/eviction; other grants keep existing validity/scope
 rules. Suggested future session/history defaults do not implement those options.
@@ -710,7 +772,7 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 | Knowledge source limits | Host defaults within verified file/source/context maxima; user may lower them | "Limit knowledge files to one megabyte" |
 | Knowledge citation detail | Source plus heading/page/line location | "Show detailed knowledge citations" |
 | Diagnostic database retention | Delivered canonical integer 1–365; default/reset 30; only future ordinary SQLite commits, existing deadlines unchanged; apply-now unavailable; daily JSON stays 30 files/30 days | `set logging.sqlite-diagnostic-retention-days to 14` |
-| Audit retention | 90 days by default; configurable from 30-365 days | "Keep audit metadata for six months" |
+| Audit retention | Delivered canonical integer 30–365; default/reset 90; only NEW required authority audit and independently qualified diagnostic audit projections; old deadlines unchanged; apply-now/pruning unavailable | `set logging.audit-retention-days to 180` |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
@@ -725,9 +787,10 @@ Permitted conversation history uses durable standard SQLite under verified priva
 Diagnostic, audit and session retention are independent. Session deletion does
 not remove content-minimising audit records, while audit expiry does not remove
 perpetual grants. Browsing/search/reasoning never refreshes either diagnostic or
-audit retention. Reducing audit retention previews affected records and requires
-separate apply-now confirmation before reducing existing due dates; otherwise
-the new 30-365-day policy applies to new audit records. Removing source
+audit retention. The delivered audit option is future-only; apply-now and
+existing-deadline reduction are unavailable. Any future affected-record
+preview/apply-now flow remains proposed and requires separate approval.
+Removing source
 enablement explains any immediate destructive/invalidation effect before
 confirmation.
 

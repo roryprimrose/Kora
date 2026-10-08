@@ -642,17 +642,29 @@
       <TabItem Header="Logging">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
-            <TextBlock Text="SQLite diagnostic retention" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Future-only retention" FontSize="28" FontWeight="SemiBold" />
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Text="Ordinary SQLite diagnostic days (integer 1–365; default/reset 30)" Classes="settings-title" />
-                <TextBlock Text="Future newly committed ordinary SQLite logs and spans only. Existing deadlines never change. Apply-now and immediate deletion are unavailable. Audit default 90, daily files 30 days/30 files, session/history, all grants/approvals and cleanup triggers are unchanged."
+                <TextBlock Text="Future newly committed ordinary SQLite logs and spans only. Existing deadlines never change. Apply-now and immediate deletion are unavailable. Independently configured audit retention, daily files 30 days/30 files, session/history, all grants/approvals and cleanup triggers are unchanged."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding DiagnosticRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 <ComboBox ItemsSource="{Binding DiagnosticRetentionChoices}" SelectedItem="{Binding SelectedDiagnosticRetentionDays}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
                 <Button Content="Refresh SQLite retention only" Command="{Binding RefreshDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
                 <Button Content="Save future SQLite retention only" Command="{Binding SaveDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
                 <Button Content="Reset future SQLite retention to 30 days" Command="{Binding ResetDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+              </StackPanel>
+            </Border>
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Audit metadata days (integer 30–365; default/reset 90)" Classes="settings-title" />
+                <TextBlock Text="Only NEW committed required authority audit and independently qualified diagnostic audit projections. Existing deadlines and payloads never change. Requested/terminal preference receipts use the prior policy; confirmed activation affects later commits only. Apply-now, immediate deletion and audit pruning are unavailable. No grant expiry/retention/eviction, session/history, ordinary SQLite, file or cleanup-schedule changes."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding AuditRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding AuditRetentionChoices}" SelectedItem="{Binding SelectedAuditRetentionDays}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <Button Content="Refresh audit retention only" Command="{Binding RefreshAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <Button Content="Save future audit retention only" Command="{Binding SaveAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <Button Content="Reset future audit retention to 90 days" Command="{Binding ResetAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
               </StackPanel>
             </Border>
           </StackPanel>

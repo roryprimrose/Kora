@@ -259,11 +259,26 @@ never change; apply-now/immediate deletion is unavailable and no set/reset
 starts cleanup. Schema-v2 evolution accepts only exact validated legacy v1
 30-day rows, preserving identities, payloads, trace/reference metadata and due
 times; unknown/corrupt formats fail closed without replacing authority.
-Audit stays default 90 with its existing 30–365 domain; file limits, sessions/
+Independent audit retention defaults to 90; file limits, sessions/
 history, grants/approvals and cleanup triggers are unchanged. Perpetual grants
 are never time-expired/retained/evicted. Ordinary policy corruption/unconfirmed
 writes cannot silently activate defaults: they explicitly report delivery gaps
 through the file/recovery path, independently of mandatory trusted audit.
+
+[Future-only audit retention](settings.md#future-only-audit-retention) is now
+independently configurable from 30–365 days, default/reset 90. Confirmed policy
+reaches NEW required host authority audit and independently qualified diagnostic
+audit projections; existing deadlines, bytes, hashes and citations never
+change. REQUESTED/terminal preference receipts use the prior policy and
+activation follows required evidence/atomic readback/intent outcome.
+Corrupt or unconfirmed audit preferences hold new required audit/authority
+commits and refuse startup recovery/writes, never silently use 90; explicit
+inspection/repair/refresh is required. Passive preserved-row inspection does
+not activate settings. No audit pruning, apply-now, deletion, session/history,
+grant/approval/task/question, ordinary logging or cleanup-schedule change is
+delivered. All grants retain their records/validity/scopes; Perpetual remains
+without expiry/retention/eviction. These are metadata deadlines, not permission
+authority or forensic/encryption/complete-retention acceptance.
 
 Logs support diagnostics and future local reasoning, but intentionally omit:
 

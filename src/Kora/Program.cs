@@ -95,6 +95,13 @@ internal static class Program
                             provider = services.BuildServiceProvider();
                             App.Services = provider;
                             var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
+                            var auditConfiguration = provider.GetRequiredService<AuditRetentionConfigurationService>();
+                            try { auditConfiguration.Observe(); }
+                            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+                            {
+                                auditConfiguration.HoldUnavailable();
+                                throw new AuditRetentionUnavailableException(exception);
+                            }
                             var diagnosticConfiguration = provider.GetRequiredService<DiagnosticRetentionConfigurationService>();
                             try { diagnosticConfiguration.Observe(); }
                             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
@@ -118,7 +125,9 @@ internal static class Program
                         Log.Fatal("Kora terminated unexpectedly. BootstrapDiagnostic: {BootstrapDiagnostic}; ExceptionType: {ExceptionType}.",
                             true, exception.GetType().FullName);
                         WindowsInstanceCoordinator.ReportStartupFailure(
-                            "Kora could not complete durable host startup or execution. No automatic task replay is permitted.");
+                            exception is AuditRetentionUnavailableException
+                                ? "Audit retention is unconfirmed; required new audit and authority writes are held. Inspect device-local audit preference and required audit/intent receipts before explicit repair and restart; no fallback policy or automatic replay."
+                                : "Kora could not complete durable host startup or execution. No automatic task replay is permitted.");
                     }
                     finally
                     {
@@ -191,11 +200,12 @@ internal static class Program
         WindowsInstanceCoordinator coordinator)
     {
         var diagnosticPolicy = new DiagnosticRetentionPolicy();
-        var evidence = new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy);
+        var auditPolicy = new AuditRetentionPolicy();
+        var evidence = new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy);
         evidence.Initialize();
         var tasks = new WindowsSqliteHostTaskStore(paths);
         Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
-        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks);
+        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy);
         Task.Run(() => interactions.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         services.AddLogging(builder =>
         {
@@ -220,6 +230,7 @@ internal static class Program
         services.AddSingleton<IApplicationDataPaths>(paths);
         services.AddSingleton(evidence);
         services.AddSingleton(diagnosticPolicy);
+        services.AddSingleton(auditPolicy);
         services.AddSingleton<WindowsSqliteDiagnosticRetention>();
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
@@ -228,6 +239,8 @@ internal static class Program
         services.AddSingleton<IAudioControlSessionStore>(interactions);
         services.AddSingleton<IDiagnosticRetentionSessionStore>(interactions);
         services.AddSingleton<DiagnosticRetentionAdmission>();
+        services.AddSingleton<IAuditRetentionSessionStore>(interactions);
+        services.AddSingleton<AuditRetentionAdmission>();
         services.AddSingleton<IManualCallControlStore>(interactions);
         services.AddSingleton<Kora.Application.Communication.ManualCallControl>();
         services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
@@ -326,6 +339,9 @@ internal static class Program
         services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
             new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DiagnosticRetentionConfigurationService>();
+        services.AddSingleton<IAuditRetentionPreferences>(provider =>
+            new LocalAuditRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<AuditRetentionConfigurationService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));

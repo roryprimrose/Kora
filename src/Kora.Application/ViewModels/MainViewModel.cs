@@ -226,7 +226,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         PlaybackVolumeConfigurationService? playbackVolumeConfiguration = null,
         ResponseModeConfigurationService? responseModeConfiguration = null,
         DiagnosticRetentionConfigurationService? diagnosticRetentionConfiguration = null,
-        ManualCallControl? manualCallControl = null)
+        ManualCallControl? manualCallControl = null,
+        AuditRetentionConfigurationService? auditRetentionConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -281,6 +282,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         this.responseModeConfiguration = responseModeConfiguration;
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
+        this.auditRetentionConfiguration = auditRetentionConfiguration;
+        if (auditRetentionConfiguration is not null)
+        {
+            try { auditRetentionConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                auditRetentionConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading future-only audit retention");
+            }
+            selectedAuditRetentionDays = auditRetentionConfiguration.Get().Desired.Days;
+            auditRetentionConfiguration.Changed += OnAuditRetentionChanged;
+        }
         if (diagnosticRetentionConfiguration is not null)
         {
             try { diagnosticRetentionConfiguration.Observe(); }
@@ -323,6 +336,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedAuditRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
@@ -3654,8 +3671,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteOutputDeviceCommandAsync(outputCommand, initiator);
             return;
         }
+        if (AuditRetentionCommand.Parse(spokenText, AssistantName) is { } auditRetentionCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no audit-retention change was dispatched.";
+                return;
+            }
+            await ExecuteAuditRetentionCommandAsync(auditRetentionCommand, initiator);
+            return;
+        }
         if (DiagnosticRetentionCommand.Parse(spokenText, AssistantName) is { } diagnosticRetentionCommand)
         {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no logging-retention control was dispatched.";
+                return;
+            }
             await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
             return;
         }
@@ -5143,6 +5175,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
         OnPropertyChanged(nameof(DiagnosticRetentionStatus));
+        OnPropertyChanged(nameof(CanChangeAuditRetention));
+        OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
+        OnPropertyChanged(nameof(AuditRetentionStatus));
         OnPropertyChanged(nameof(CanChangeResponseMode));
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
     }
@@ -5158,6 +5193,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

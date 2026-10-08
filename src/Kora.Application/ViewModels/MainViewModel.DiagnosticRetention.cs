@@ -32,7 +32,7 @@ public sealed partial class MainViewModel
     public AsyncCommand SaveDiagnosticRetentionCommand { get; }
     public AsyncCommand ResetDiagnosticRetentionCommand { get; }
     public bool CanChangeDiagnosticRetention => diagnosticRetentionConfiguration is not null && IsCallMutationHostEligible
-        && !diagnosticRetentionControlActive && !IsResponseInteractionPending;
+        && !diagnosticRetentionControlActive && !auditRetentionControlActive && !IsResponseInteractionPending;
     public bool CanChangeDiagnosticRetentionNative => CanChangeDiagnosticRetention && diagnosticRetentionNativeLifetime();
     public string DiagnosticRetentionStatus => diagnosticRetentionConfiguration is null
         ? "SQLite diagnostic-retention admission unavailable; no preference change. Apply-now unavailable."
@@ -73,6 +73,10 @@ public sealed partial class MainViewModel
         try
         {
             await diagnosticRetentionConfiguration!.RefreshAsync(origin, eligible, cancellationToken);
+            if (command.Operation == AppearanceCommandOperation.List && auditRetentionConfiguration is not null)
+            {
+                await RefreshLoggingAuditDiscoveryAsync(origin, eligible, cancellationToken);
+            }
             var saved = false;
             if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
             {
@@ -83,7 +87,9 @@ public sealed partial class MainViewModel
             }
             if (!eligible()) { return; }
             var result = DiagnosticRetentionState.Serialize(diagnosticRetentionConfiguration.Get(), CallPolicyRevision,
-                command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? saved ? "saved" : "denied" : "observed");
+                command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? saved ? "saved" : "denied"
+                    : command.Operation == AppearanceCommandOperation.List && auditRetentionConfiguration?.Get().Available == false ? "unavailable" : "observed",
+                command.Operation == AppearanceCommandOperation.List ? auditRetentionConfiguration?.Get() : null);
             if (IsSpeaking) { Transcript = result; }
             else { PresentResponse(AssistantState.Information, "SQLite diagnostic retention.", result, refreshOutput: false); }
         }

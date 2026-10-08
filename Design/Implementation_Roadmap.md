@@ -140,6 +140,10 @@ Related: [MVP Scope](MVP_Scope.md), [Decision Register](Decision_Register.md), [
 
 ## R10/R04 bounded future-only SQLite diagnostic retention - 2026-10-08
 
+The subsequent independent [audit option](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
+is separately described below; this diagnostic slice's original scope/receipts
+remain historical and unchanged.
+
 The owner-approved [single diagnostic-days option](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04)
 is implemented with shared native and exact typed/current-name ACTIVATED
 discovery/get/status/set/reset. Canonical integer 1–365, default/reset30, affects
@@ -189,6 +193,65 @@ worker/runtime/acoustic/hardware or released-profile proofs. Existing storage
 and [deferred retention decision](Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition)
 remain authoritative. No full R04/R10, A0–A4, installed/native/acoustic,
 encryption/forensic/runtime or release acceptance is claimed.
+
+## R10/R04 bounded future-only audit retention - 2026-10-08
+
+The owner selected canonical **30–365/default-reset90**, future-only audit
+metadata, not grant lifetime. Shared native/exact typed/current-name ACTIVATED
+discovery/get/status/set/reset uses the separate
+[audit configuration/admission](../src/Kora.Application/Configuration/AuditRetentionConfigurationService.cs)
+with the merged common original-input/durable-intent mechanism. Saved/default/
+effective provenance, bounded output, exact proposals/source/policy revisions,
+owner/privacy/topology/call/input and native-lifetime gates remain explicit.
+
+The [authoritative audit-days domain](../src/Kora.Core/Configuration/AuditRetentionDays.cs)
+and confirmed snapshot reach actual NEW committed
+[schema-3 required authority audit](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)
+and independently qualified [diagnostic audit projections](../src/Kora.Windows/Storage/WindowsSqliteEvidenceSink.cs).
+No nested shared lease or projection-to-authority promotion is introduced.
+Prior-policy REQUESTED/terminal preference receipts, atomic exact readback and
+durable intent outcome precede marker confirmation/activation. Lost evidence/
+corrupt/unknown/unconfirmed preferences hold required new commits and refuse
+startup authority writes; explicit inspection/repair/refresh is required,
+never a default90 fallback, replay or success-shaped failure.
+
+Maintained [portable failure/admission tests](../tests/Kora.Application.UnitTests/Configuration/AuditRetentionConfigurationServiceTests.cs),
+[native/typed/activated parity](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AuditRetention.cs)
+and [real private authority/projection/lease fixtures](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteAuditRetentionConfigurationTests.cs)
+exercise exact30/365/90, reset/source/revision provenance, immutable old bytes/
+deadlines/commit digests/citations, cold/legacy validation, held terminal evidence,
+independent ordinary policy and concurrent original-host trace isolation.
+
+**Preserved scope:** ordinary SQLite1–365/default-reset30; files30days/30files;
+all session/history/task/question/approval/grant records and validity/scopes,
+independent Perpetual without expiry/retention/eviction; existing janitor schedule
+and #92 run-only manual-call/resource-retirement behavior. Apply-now, immediate
+deletion and audit pruning remain unavailable. No full R04/R10/A0–A4 or
+forensic/tamperproof/encryption/installed/native/acoustic/runtime/release
+qualification is claimed.
+
+**Experiment assessment:** maintained equivalence now includes the bounded
+future-only audit preference, deadline metadata and private-store reopen/
+migration cases. It does not supersede unique storage-engine/encryption/DPAPI/
+rekey/artifact/backup, worker/runtime/containment/acoustic/hardware or release/
+source-tool receipts and consumers. No executable experiment, historical
+receipt or consumer is edited, rerun, retired or deleted for this delivery.
+
+Current availability adds this bounded audit option to R10/R04, not a general
+retention/deletion registry. The R10 inventory's delivered diagnostic option
+remains independent; remaining session/history and other-retention controls,
+apply-now, audit pruning/continuation and full acceptance stay open.
+
+Local source qualification against actual merged baseline
+`7c0429e8d430856ad24a21569ca38434db6f7fe3` (#92): Release solution build,
+zero compiler/analyzer warnings/errors; Core **750**, Application **2,289**,
+Tools **38**, Definitions **6**, and full source-covered Windows **998** tests
+passed, no skips. Current-source portable line and branch rates are each
+**exactly 100%**, using unchanged threshold/filter tooling. The fresh no-restore
+probe first reported missing assets; locked restore then used only the approved
+Networking-AAA feed, with no dependency/lock/config changes. These are maintained
+hardware-free/source-fixture receipts, not a live Kora/audio/provider/privileged
+trial or installed/native/acoustic/storage-erasure qualification.
 
 ## Current Merged Snapshot - 2026-10-07
 

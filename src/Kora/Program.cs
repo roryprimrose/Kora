@@ -336,6 +336,9 @@ internal static class Program
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>
             new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PlaybackVolumeConfigurationService>();
+        services.AddSingleton<IWindowsSpeechRatePreferences>(provider =>
+            new LocalWindowsSpeechRatePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<WindowsSpeechRateConfigurationService>();
         services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
             new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DiagnosticRetentionConfigurationService>();

@@ -7,4 +7,7 @@ public sealed record SpeechProvider(
     bool IsInstalled,
     bool IsBuiltIn,
     long? DownloadSizeBytes,
-    string? DefaultVoiceId);
+    string? DefaultVoiceId)
+{
+    public SpeechRateSupport RateSupport { get; init; } = SpeechRateSupport.Unsupported;
+}

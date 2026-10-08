@@ -2,7 +2,7 @@
 
 Status: partial. Bounded appearance, installed speech choices, assistant display/PTT
 prefix, spoken-summary caps, exact input/output preferences, per-Kora playback
-volume, device-default response mode and independent future-only SQLite diagnostic/audit retention are delivered through shared native/
+volume, Windows-provider-native rate, device-default response mode and independent future-only SQLite diagnostic/audit retention are delivered through shared native/
 exact typed and activated-voice workflows below. Broader scopes, setup and the
 complete verbal preference/model-facing contract remain proposed, subject to protected-call origin gates
 and mandatory secure workflows.
@@ -10,6 +10,73 @@ and mandatory secure workflows.
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
+
+### Delivered bounded Windows-provider-native speech rate (R10)
+
+The independent schema-1 option **`speech.windows-rate`** admits one canonical
+integer **-10 through 10 inclusive**, engine-normal/unsaved default/reset **0**.
+These are the Windows `System.Speech.Synthesis.SpeechSynthesizer.Rate` API's
+[documented native units](https://learn.microsoft.com/en-us/dotnet/api/system.speech.synthesis.speechsynthesizer.rate?view=net-10.0-pp),
+not a percentage, multiplier or universal words-per-minute scale. The
+[single domain value](../src/Kora.Core/Configuration/WindowsSpeechRate.cs)
+rejects padding, leading zeros, plus signs, negative zero, fractions and suffixes.
+There is no common speed mapping or Kokoro speed implementation.
+
+Native **Settings > Speech & audio** exposes an unsaved bounded draft and
+explicit Refresh/Save/Reset. Exact typed/current-name **ACTIVATED**
+`list rate settings`, `get/status speech.windows-rate`,
+`set speech.windows-rate to <canonical integer>` and `reset speech.windows-rate`
+use the same [rate workflow](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs).
+Input/control bounds remain 1,024 UTF-8 bytes and complete results 64 KiB.
+Discovery/status explicitly includes provider, advertised support, desired/
+effective native rate, saved/default/unavailable source, bounds/default,
+configuration/provider/call revisions, application timing, reset and recovery.
+Only an available installed Windows provider advertising **WindowsNative**
+and a qualified owned adapter can mutate. Kokoro is explicitly unsupported:
+its synthesis and settings remain unchanged, and a saved Windows rate is not
+reported as a Kokoro effect. Unknown provider/capability state fails closed.
+
+The shared atomic preference store and `IApplicationDataPaths` own the
+version-1 `speech-windows-rate.txt` file and independent
+`speech-windows-rate-unconfirmed.txt` marker. Missing confirmed storage means
+normal 0; invalid UTF-8/format/rate, unreadable or unconfirmed evidence does not
+activate a default. Source-generated diagnostics and native visual recovery
+surface failures. Inspect saved state and required audit/intent receipts before
+explicit repair and fresh refresh; ordinary refresh never clears a pending marker.
+Reset removes only this Windows rate override.
+
+Genuine common audio-control admission resolves original user input and the
+host-owned active session/generation, using the existing consolidated interaction
+lease exactly once. Host-held proposals bind source and provider revisions;
+the current saved selection and live installed catalogue are revalidated without
+accepting caller records as authority. Current name/input generation, protected/
+Unknown call policy, ownership/unlocked privacy/topology and the native surface's
+expiring visible-lifetime identity remain gates. Hide/reopen/dispose cannot revive
+a prior native callback; a voice request cannot become UI-originated authority.
+REQUESTED and terminal trusted audits, exact atomic readback and committed-intent
+receipt precede confirmation/activation. Late failure retains the durable marker,
+so an unconfirmed mutation cannot activate on restart.
+
+Changed rate retires active and queued output generations through the existing
+owned cancellation/retirement path. The serialized synthesis lifetime prevents a
+new synthesis from overtaking unfinished retirement; stale completions cannot
+start playback or claim success. Only future eligible Windows synthesis sets
+`Rate` on Kora's own synthesizer before starting synthesis. Set/reset/refresh
+does not claim acoustic speed or audibility. Native setter failure explicitly
+holds rate output with full visual recovery, without clearing an independent
+voice/output preference. Set/reset/refresh
+never synthesizes, autoplays, replays, acquires capture, grants consent, changes
+provider/voice/output selection, installs/downloads assets or changes global
+SAPI/mixer/default-device settings. Existing call/output/zero-volume gates and
+complete mandatory visual previews, interrupted responses and recovery remain.
+
+All session/task/question/approval/grant/retention metadata and policies are
+unchanged: ordinary SQLite 1–365/default30, audit 30–365/default90 (including
+prior-policy configuration receipts), daily files 30/30 and cleanup scheduling.
+This is deterministic source/native-seam qualification only, not acoustic,
+installed/native accessibility, full R10/A0–A4 or runtime/release acceptance.
+The unique R02 speech experiment remains maintained historical evidence; this
+rate implementation does not replace wake/model/license/acoustic receipts.
 
 ### Delivered bounded future-only audit retention (R10/R04)
 
@@ -313,6 +380,8 @@ No rate, microphone/tray recovery, model tools, provisioning
 authority, general registry rewrite or full R10/acoustic acceptance is delivered.
 Summary caps are delivered by the separate bounded slice below.
 Playback volume is delivered by its separate admitted audio-control slice below.
+Windows-native rate is delivered by its separate admitted provider-qualified
+slice above; the original provider/voice slice supplies no rate authority.
 
 ### Delivered bounded spoken summary limits (R10)
 

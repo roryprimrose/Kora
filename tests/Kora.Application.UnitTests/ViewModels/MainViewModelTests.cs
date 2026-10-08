@@ -4166,6 +4166,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
+            .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
@@ -7735,7 +7736,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enablePlaybackVolume = false, Exception? volumeReadFailure = null,
             bool enableResponseModeConfiguration = false, bool enableDiagnosticRetention = false,
             Exception? diagnosticRetentionReadFailure = null, bool enableManualCallControl = true,
-            bool enableAuditRetention = false, Exception? auditRetentionReadFailure = null)
+            bool enableAuditRetention = false, Exception? auditRetentionReadFailure = null,
+            bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7767,6 +7769,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit ??= new FakeSecurityAuditLog();
+            SpeechConfiguration = new(Preferences, TextToSpeech, Audit, NullLogger<SpeechConfigurationService>.Instance);
+            RatePreferences.ReadFailure = rateReadFailure;
+            RateConfiguration = enableWindowsSpeechRate ? new(RatePreferences, TextToSpeech, SpeechConfiguration, OutputAdmission, Audit,
+                NullLogger<WindowsSpeechRateConfigurationService>.Instance) : null;
             var diagnosticStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
             DiagnosticPreferences.ReadFailure = diagnosticRetentionReadFailure;
@@ -7852,8 +7858,7 @@ public sealed partial class MainViewModelTests : IDisposable
                     NullLogger<Kora.Application.Tools.ReadOnlyCapabilityRegistry>.Instance),
                 new AppearanceConfigurationService(AppearancePreferences, Audit,
                     NullLogger<AppearanceConfigurationService>.Instance),
-                new SpeechConfigurationService(Preferences, TextToSpeech, Audit,
-                    NullLogger<SpeechConfigurationService>.Instance),
+                SpeechConfiguration,
                 clipboard,
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
@@ -7862,9 +7867,10 @@ public sealed partial class MainViewModelTests : IDisposable
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
-                AuditConfiguration);
+                AuditConfiguration, RateConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
+            if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
             {
@@ -7889,6 +7895,9 @@ public sealed partial class MainViewModelTests : IDisposable
         public OutputDeviceConfigurationService? OutputConfiguration { get; }
         public FakePlaybackVolumePreferences VolumePreferences { get; }
         public PlaybackVolumeConfigurationService? VolumeConfiguration { get; }
+        public SpeechConfigurationService SpeechConfiguration { get; }
+        public FakeWindowsSpeechRatePreferences RatePreferences { get; } = new();
+        public WindowsSpeechRateConfigurationService? RateConfiguration { get; }
         public DiagnosticRetentionAdmission DiagnosticAdmission { get; }
         public FakeDiagnosticRetentionPreferences DiagnosticPreferences { get; } = new();
         public DiagnosticRetentionPolicy DiagnosticPolicy { get; } = new();
@@ -8504,8 +8513,14 @@ public sealed partial class MainViewModelTests : IDisposable
         }
     }
 
-    private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService, IPlaybackVolumeControl
+    private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl
     {
+        public WindowsSpeechRate? Rate { get; private set; } = WindowsSpeechRate.Default;
+        public void SetWindowsSpeechRate(WindowsSpeechRate? rate)
+        {
+            Rate = rate;
+            InvalidateOutput();
+        }
         private long outputGeneration;
         public PlaybackVolume? Volume { get; private set; } = PlaybackVolume.Default;
         public void SetPlaybackVolume(PlaybackVolume? volume)
@@ -8543,7 +8558,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 IsInstalled: true,
                 IsBuiltIn: true,
                 DownloadSizeBytes: null,
-                DefaultVoiceId: "female"),
+                DefaultVoiceId: "female") { RateSupport = SpeechRateSupport.WindowsNative },
         ];
 
         public IReadOnlyList<SpeechVoice> Voices { get; set; } =

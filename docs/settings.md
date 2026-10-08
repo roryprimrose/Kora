@@ -12,6 +12,38 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## Windows-native speech rate
+
+**Settings > Speech & audio** provides a bounded draft, **Refresh Windows rate
+preference only**, **Save Windows-native rate only** and **Reset Windows rate to
+normal (0)**. The independent `speech.windows-rate` accepts canonical integer
+**-10 through 10**, default/reset **0**. These are native Windows engine units,
+not percent, a multiplier or universal words per minute. See the
+[Microsoft API](https://learn.microsoft.com/en-us/dotnet/api/system.speech.synthesis.speechsynthesizer.rate?view=net-10.0-pp).
+
+Discovery/status explicitly qualifies provider support. Save/reset requires
+the installed available **Windows** provider and qualified Kora-owned adapter.
+**Kokoro is unsupported and unchanged**; a saved Windows rate is retained but
+never reported as a Kokoro speed effect. Unknown state stays unavailable.
+[Exact typed/current-name ACTIVATED commands](commands.md#inspect-or-change-windows-native-speech-rate)
+use the same admitted host workflow, not model settings tools.
+
+Saving/resetting retires active and queued speech. Only future eligible Windows
+synthesis consumes the owned engine rate, after the previous synthesis lifetime
+quiesces; changing it never starts or replays speech. Full interrupted responses
+and mandatory previews stay visual. No capture/consent, provider/voice/output
+selection, asset install/download, global SAPI/mixer/default-device, zero-volume/
+protected-call policy or retention/grant/history setting changes.
+
+Original input, host-owned audio session/generation, current name/provider/source/
+policy/privacy/topology and visible native-lifetime identity must remain current.
+Required requested/terminal audit, atomic save/exact readback and committed intent
+precede activation. Corrupt or unconfirmed files cannot silently default on restart.
+Inspect saved state and audit/intent receipts before explicit repair and refresh;
+refresh does not clear an unconfirmed marker. Reset removes only the rate override.
+Deterministic source/native-seam tests do not establish acoustic or installed
+acceptance.
+
 ## SQLite diagnostic retention
 
 **Settings > Logging** provides Refresh, Save future retention only and Reset to

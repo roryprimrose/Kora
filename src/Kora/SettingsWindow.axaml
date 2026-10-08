@@ -533,6 +533,23 @@
               </Grid>
             </Border>
 
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Windows-native speech rate (-10 through 10)" Classes="settings-title" />
+                  <TextBlock Text="Windows provider only; 0 is engine-normal/default/reset. Native units are not percent or words per minute. Kokoro is unsupported and unchanged. Saving retires active/queued speech; only future eligible Windows synthesis uses the rate. No replay, preview, microphone or global Windows setting change."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                  <TextBlock Text="{Binding WindowsSpeechRateStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding WindowsSpeechRateChoices}" SelectedItem="{Binding SelectedWindowsSpeechRate}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
+                  <Button Content="Refresh Windows rate preference only" Command="{Binding RefreshWindowsSpeechRateCommand}" IsEnabled="{Binding CanInspectWindowsSpeechRateNative}" />
+                  <Button Content="Save Windows-native rate only" Command="{Binding SaveWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
+                  <Button Content="Reset Windows rate to normal (0)" Command="{Binding ResetWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
             <Button
                 Content="Refresh devices and readiness"
                 Command="{Binding RefreshCommand}"

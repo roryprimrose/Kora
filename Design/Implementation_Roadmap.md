@@ -2551,7 +2551,7 @@ Do not advertise any deferred capability solely because an interface/schema is d
 | ID and work package | State/priority | Needs | Separate delivery gate |
 |---|---|---|---|
 | R24 - Local frequent-speaker learning and enrolled verification | Optional; P3 | R03, R04, R05, R09, R10, R15 | Separate learning consent and verifier enrollment; protected per-SID/device storage, minimization/reset/delete, drift/playback/predominant-speaker tests and verifier FAR/FRR/anti-spoof/secure-OS proof. Learning is personalization, never identity/authority; missing either never blocks baseline voice. Close D-006 only for the advertised capability. |
-| R25 - Optional speech captions and richer browser/static HTML/diagram results | Bounded disabled-by-default local current-utterance captions delivered; richer rendering and broader caption UX remain optional/separately gated P3 | R05, R08, R09, R14, R15 for remaining integration/proof, not blanket implementation prerequisites | Exact native/typed/activated local configuration, actual matching host-admitted playback identity/generation/segment and immediate response/privacy/call/ownership retirement. No caption content persistence/logging/model egress or speech/capture/authority changes. Sentence alignment, pinning, placement preferences, dismissal delay and broad commands remain separate. Rich viewers still require immutable content, renderer isolation, disabled bridges/active content, finite approved assets/navigation and resource bounds. R10 acoustic proof and installed/native accessibility acceptance remain open; neither is claimed or retired by this slice. |
+| R25 - Optional speech captions and richer browser/static HTML/diagram results | Bounded disabled-by-default local current-utterance captions plus run-only pinning, primary-screen corner placement and 0-30-second normal-completion delay delivered; sentence alignment/richer rendering/broader UX remain optional/separately gated P3 | R05, R08, R09, R14, R15 for remaining integration/proof, not blanket implementation prerequisites | Exact native/typed/activated local discovery/get/set/reset, actual matching host-admitted playback identity/generation/segment and immediate stop/cancel/response/privacy/call/ownership retirement even when pinned. Normal completion retains only observed text labelled previous speech; default delay 5 seconds, unpin preserves original deadline. Atomic typed placement/delay preferences never enable captions. No caption content persistence/logging/model egress or speech/capture/authority changes. Sentence alignment remains unavailable without admitted sentence boundaries; display selection/arbitrary placement and broader natural caption/viewer commands remain separate. Rich viewers still require immutable content, renderer isolation, disabled bridges/active content, finite approved assets/navigation and resource bounds. R10 acoustic proof and installed/native accessibility acceptance remain open; neither is claimed or retired by this slice. |
 | R26 - File/folder/screen/image context and knowledge retrieval/indexing | R26.1a local inspection and R26.1b selected immutable revision lexical retrieval delivered; broader stages deferred/P3; [exact retrieval boundary](File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval); [provider/memory/knowledge direction](Model_Providers_Memory_And_Knowledge.md) and [file/folder staged plan](File_And_Folder_Ingestion.md#r26-file-and-folder-ingestion-delivery-plan) remain specified | R03, R04, R05, R06, R07, R08, R10, R12, R14; connector-backed retrieval also R20 | Native picker + metadata-only review + exact confirmation admit one immutable volatile strict-UTF-8 text/Markdown preview (256 KiB), source/revision/item identity and original-byte digest. Host-only deterministic bounded lexical scan/native exact citations revalidate original session/task/privacy/ownership/generation and required terminal audit. Fixed-drive canonical verified handles still deny reparse/hard-link/protected/generated/source-control/unstable paths. No folder, durable attachment/registry, refresh, persistent/vector index, model/egress, clipboard or execution authority. Beyond this bounded foundation, deliver reviewed immutable UTF-8 text/Markdown file/folder source revisions, broader scoped lexical retrieval/citations, qualified local reasoning and separately admitted hosted egress. Admit later formats, OCR/vision and hybrid/vector indexing independently. Preserve explicit source/session/destination scope, Windows reparse/access controls, provenance, context budgets, refresh/revocation/deletion and bounded citations. No ambient collection, direct view-model path reads, whole-file prompt stuffing, blanket enterprise cache, model-chosen arbitrary paths or silent context reuse. All experiments retained; inference/storage/runtime proofs are not exactly superseded. Installed native/accessibility acceptance and broader R26.1–5 gates remain outstanding. |
 | R27 - General executable imports and standalone application execution | Deferred; P3 | I: consumed R01/R05/R10/R11/R12/R13/R21 contracts; E/Q: applicable R02 execution profiles only | Resolve standalone-binary rollback policy; prove complete dependency discovery and immutable folder snapshots, registered execution profiles, real OS containment and content-bound applicability/revocation. Do not extend fixed bundled scripts into arbitrary shell strings or user-supplied executable authority. |
 | R28 - Write-capable connectors, repository/Git or broader desktop automation | Deferred; P3 | R05, R08, R12, R13, R20, R26 | Add explicit versioned tools and per-domain policy/resource/identity/recovery proofs. Revalidate external changes and uncertain writes; no self-modification, model-selected executable handlers or silent automatic write retries. Declarative authoring is not authorization for these capabilities. |
@@ -3137,3 +3137,67 @@ concurrent call-feedback and file-preview work (Core 931, Application
 **100% line / 100% branch** coverage gate. These are deterministic/source
 mechanism results, not real-user/native-accessibility or complete release
 qualification.
+
+## R25 Bounded Local Caption UX Delivered - 2026-10-09
+
+This follows merged #109's disabled-by-default current-utterance slice after
+fetching/rebasing onto #114 main, `e5b89ba`, preserving merged #107 and #110-#114
+work without changing call feedback, session retention/deletion or scheduling.
+Delivered only primary-screen working-area corner placement, a canonical
+integer **0-30-second** normal-completion dismissal delay (default/reset **5**),
+and run-only current-caption **Pin / Unpin**. The existing **Off** default and
+mode-file bytes are unchanged. Native/exact typed/current-name ACTIVATED
+discovery/get/status/set/reset expose exact IDs, types/units/choices, defaults,
+saved/effective source, revision, scope, timing, reset and recovery.
+
+Placement/delay reuse the existing host-held admitted session/generation,
+original-channel/call/privacy/ownership gates and requested/terminal typed audit,
+atomic write/exact readback, completed intent receipt and unconfirmed marker.
+The independent version-1 caption option tuple contains only corner/delay,
+through the shared atomic store and `IApplicationDataPaths`; corruption,
+unknown schema/corner, noncanonical/out-of-range delay, unreadable state and
+pending evidence refuse rather than defaulting. Reset preserves the companion
+and mode; no option change enables captions or starts speech/capture.
+
+Only observed matching response/playback identity/generation/utterance segment 0
+can be retained after normal successful completion, labelled **PREVIOUS SPEECH**.
+Pin state is ephemeral, not a durable setting or effect authority; unpin uses
+the original completion deadline. Stop/cancel/failure, replacement, configuration
+revision, call, lock, privacy/ownership/input recovery and disposal retire
+immediately even when pinned; no late frame or pin command can revive retired
+or reveal queued/unplayed text. Caption content is never stored, logged,
+admitted to history or sent to a model. Required native recovery stays separate.
+
+**Still open:** sentence-level alignment needs real host-admitted sentence
+boundaries; the composed playback adapter reports only utterance segment 0.
+This slice adds no heuristic timing, splitting or audio pipeline. Display
+selection/arbitrary positions, broad natural caption/navigation aliases,
+word alignment, rich browser/static HTML/diagram rendering, installed/native
+accessibility and acoustic qualification remain separately gated. Existing
+ordinary-speech **3-sentence/80-word** caps and over-limit full visual refusal
+are unchanged. A brief spoken offer to show an over-limit detailed result is
+separate open R09/R10 work, not delivered or inferred from captions.
+
+Maintained domain, parser, admitted configuration/audit, private atomic storage,
+fake-clock/playback and native source-binding tests cover exact defaults/bounds,
+restart/reset/companions, stale/foreign selections, corruption and evidence
+failure, original protected-call voice denial, observed-only pin/expiry,
+completion versus interruption and late/unknown playback identity.
+See [the authoritative option contract](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09),
+[speech/privacy contract](Call_Aware_Speech.md#delivered-bounded-local-caption-ux---2026-10-09)
+and [native user workflow](../docs/settings.md#local-speech-text).
+
+Direct root validation on the combined #114 base: locked restore through the
+machine-required feed (no feed configuration, credentials or dependency changes
+committed), **zero-warning/zero-error Release build**, Core **972**, Application
+**2,773**, Tools **69**, Definitions **6**, Windows **1,177** tests passed
+(**4,997** total, **zero failures/skips**). Fresh latest-only portable reports
+enforce exactly **14,736/14,736 lines** and **8,568/8,568 branches**, raw rates
+**1/1**, with unchanged 100% thresholds and no new exclusions.
+These deterministic/source checks are not installed, live-device/audio/call,
+accessibility, acoustic or A0-A4 acceptance.
+
+**Experiment disposition:** all experiment executables and historical receipts
+remain intact. Fake time/playback, local preference and native-binding evidence
+do not replace hardware/acoustic/provider/native runtime or privacy-stop proof.
+No experiment is promoted, rerun, retired or deleted.

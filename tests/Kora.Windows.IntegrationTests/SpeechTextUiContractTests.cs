@@ -18,11 +18,13 @@ public sealed class SpeechTextUiContractTests
         text.Attribute("Text")!.Value.Should().Be("{Binding SpeechCaptionText, Mode=OneWay}");
         text.Attribute("IsReadOnly")!.Value.Should().Be("True");
         text.Attribute("AutomationProperties.Name")!.Value.Should().Be("Current spoken utterance");
-        caption.Descendants().Should().NotContain(node => node.Name.LocalName == "Button");
+        caption.Descendants().Single(node => node.Name.LocalName is "Button")
+            .Attribute("Command")!.Value.Should().Be("{Binding ToggleSpeechCaptionPinCommand}");
         var settings = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
         settings.Single(node => string.Equals(node.Attribute("SelectedItem")?.Value, "{Binding SelectedSpeechTextChoice}", StringComparison.Ordinal))
             .Attribute("ItemsSource")!.Value.Should().Be("{Binding SpeechTextChoices}");
-        foreach (var command in new[] { "RefreshSpeechTextCommand", "SaveSpeechTextCommand", "ResetSpeechTextCommand" })
+        foreach (var command in new[] { "RefreshSpeechTextCommand", "SaveSpeechTextCommand", "ResetSpeechTextCommand",
+            "SaveSpeechCaptionOptionCommand", "ResetSpeechCaptionOptionCommand" })
         {
             settings.Single(node => string.Equals(node.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeSpeechText}");

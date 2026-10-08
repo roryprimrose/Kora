@@ -13,12 +13,15 @@ public sealed class SpeechTextConfigurationService(
     private readonly Lock gate = new();
     private readonly Guid owner = Guid.NewGuid();
     private IReadOnlyList<SpeechTextChoice> choices = [];
+    private IReadOnlyList<SpeechTextChoice> captionChoices = [];
     private SpeechTextMode? saved;
+    private SpeechCaptionOptions? savedOptions;
     private long revision;
     private bool applying;
     private bool held = true;
     public event EventHandler? Changed;
     public IReadOnlyList<SpeechTextChoice> Choices { get { lock (gate) { return choices; } } }
+    public IReadOnlyList<SpeechTextChoice> CaptionChoices { get { lock (gate) { return captionChoices; } } }
 
     public SpeechTextState Get(string outcome = "observed")
     {
@@ -26,7 +29,8 @@ public sealed class SpeechTextConfigurationService(
         {
             return new(outcome, revision, saved, held ? null : saved ?? SpeechTextMode.Off,
                 held ? "unavailable" : saved is null ? "default" : "saved", !held,
-                held ? "Speech-text preference or admission/evidence is unconfirmed. Captions remain off; inspect saved state and audit receipts before explicit repair." : null);
+                held ? "Speech-text preference or admission/evidence is unconfirmed. Captions remain off; inspect saved state and audit receipts before explicit repair." : null,
+                savedOptions, held ? null : savedOptions ?? SpeechCaptionOptions.Default);
         }
     }
 
@@ -45,11 +49,14 @@ public sealed class SpeechTextConfigurationService(
             try
             {
                 var value = Read();
-                if (!held && saved == value) { return; }
+                var options = preferences.LoadOptions();
+                if (!held && saved == value && savedOptions == options) { return; }
                 saved = value;
+                savedOptions = options;
                 held = false;
                 revision = checked(revision + 1);
                 choices = [];
+                captionChoices = [];
                 Changed?.Invoke(this, EventArgs.Empty);
             }
             catch { HoldUnavailable(); throw; }
@@ -74,10 +81,17 @@ public sealed class SpeechTextConfigurationService(
                     entered = true;
                     held = true;
                     saved = Read();
+                    savedOptions = preferences.LoadOptions();
                     revision = checked(revision + 1);
                     expectedRevision = revision;
                     choices = Array.AsReadOnly(Enum.GetValues<SpeechTextMode>().Select(mode =>
                         new SpeechTextChoice(mode, revision, owner, authority, request.Origin, eligible)).ToArray());
+                    captionChoices = Array.AsReadOnly(
+                        Enum.GetValues<SpeechCaptionPlacement>().Select(placement => (SpeechCaptionValue)new SpeechCaptionValue.Placement(placement))
+                            .Concat(Enumerable.Range(SpeechCaptionOptions.MinimumDelaySeconds,
+                                SpeechCaptionOptions.MaximumDelaySeconds - SpeechCaptionOptions.MinimumDelaySeconds + 1)
+                                .Select(seconds => new SpeechCaptionValue.Delay(seconds)))
+                            .Select(value => new SpeechTextChoice(null, revision, owner, authority, request.Origin, eligible, value)).ToArray());
                     Changed?.Invoke(this, EventArgs.Empty);
                     return true;
                 }
@@ -103,6 +117,8 @@ public sealed class SpeechTextConfigurationService(
         }
         var entered = false;
         var expectedRevision = 0L;
+        SpeechCaptionOptions? expectedOptions = null;
+        SpeechTextMode? expectedMode = null;
         try
         {
             var accepted = await admission.RunAsync(origin, eligible, (request, authority) =>
@@ -110,15 +126,28 @@ public sealed class SpeechTextConfigurationService(
                 lock (gate)
                 {
                     if (held || applying || choice.Owner != owner || choice.Session != authority || choice.Revision != revision
-                        || choice.Origin != request.Origin || !choice.Eligible() || !choices.Any(item => ReferenceEquals(item, choice))
-                        || Read() != saved)
+                        || choice.Origin != request.Origin || !choice.Eligible()
+                        || !choices.Concat(captionChoices).Any(item => ReferenceEquals(item, choice)))
                     {
                         throw new InvalidOperationException("Speech-text choice, session/generation or saved state changed. Inspect and choose again.");
                     }
+                    if (Read() != saved || preferences.LoadOptions() != savedOptions)
+                    {
+                        HoldUnavailable();
+                        throw new InvalidOperationException("Saved speech-text settings changed. Inspect and choose again.");
+                    }
                     applying = true;
                     entered = true;
+                    expectedMode = choice.CaptionValue is null ? choice.Mode : saved;
+                    expectedOptions = choice.CaptionValue is { } value
+                        ? (savedOptions ?? SpeechCaptionOptions.Default).With(value) : savedOptions;
                     var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ConfigurationWrite,
-                        "configuration.speech-text", SecurityAuditOutcome.Requested,
+                        choice.CaptionValue?.Option switch
+                        {
+                            SpeechCaptionOption.Placement => "configuration.speech-caption-placement",
+                            SpeechCaptionOption.DismissalDelay => "configuration.speech-caption-dismissal-delay",
+                            _ => "configuration.speech-text",
+                        }, SecurityAuditOutcome.Requested,
                         request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
                         "preferences.device-local");
                     auditLog.Write(audit);
@@ -132,8 +161,9 @@ public sealed class SpeechTextConfigurationService(
                             try
                             {
                                 preferences.BeginWrite();
-                                preferences.Save(choice.Mode);
-                                if (Read(readBack: true) != choice.Mode) { throw new InvalidDataException("Speech-text readback does not match the exact selection."); }
+                                if (choice.CaptionValue is null) { preferences.Save(expectedMode!.Value); }
+                                else { preferences.SaveOptions(expectedOptions!); }
+                                RequireReadback();
                             }
                             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentOutOfRangeException)
                             {
@@ -142,9 +172,11 @@ public sealed class SpeechTextConfigurationService(
                                 throw;
                             }
                             auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
-                            saved = choice.Mode;
+                            saved = expectedMode;
+                            savedOptions = expectedOptions;
                             expectedRevision = revision;
                             choices = [];
+                            captionChoices = [];
                         });
                     if (denied is { } reason)
                     {
@@ -159,11 +191,14 @@ public sealed class SpeechTextConfigurationService(
                 lock (gate)
                 {
                     if (revision != expectedRevision || !eligible()) { throw new InvalidOperationException("Speech-text apply admission changed before its receipt completed."); }
-                    if (Read(readBack: true) != choice.Mode) { throw new InvalidDataException("Speech-text changed before its completed receipt."); }
+                    RequireReadback();
                     preferences.ConfirmWrite();
                     try
                     {
-                        if (Read() != choice.Mode) { throw new InvalidDataException("Confirmed speech-text readback does not match the selection."); }
+                        if (Read() != expectedMode || preferences.LoadOptions() != expectedOptions)
+                        {
+                            throw new InvalidDataException("Confirmed speech-text readback does not match the selection.");
+                        }
                     }
                     catch { preferences.BeginWrite(); throw; }
                     held = false;
@@ -174,6 +209,14 @@ public sealed class SpeechTextConfigurationService(
         }
         catch { if (entered) { HoldUnavailable(); } throw; }
         finally { if (entered) { lock (gate) { applying = false; } } }
+
+        void RequireReadback()
+        {
+            if (Read(readBack: true) != expectedMode || preferences.ReadBackOptions() != expectedOptions)
+            {
+                throw new InvalidDataException("Speech-text readback does not match the exact selection.");
+            }
+        }
     }
 
     public void HoldUnavailable()
@@ -182,6 +225,7 @@ public sealed class SpeechTextConfigurationService(
         {
             held = true;
             choices = [];
+            captionChoices = [];
             revision = checked(revision + 1);
             Changed?.Invoke(this, EventArgs.Empty);
         }

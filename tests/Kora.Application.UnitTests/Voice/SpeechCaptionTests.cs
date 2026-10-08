@@ -89,4 +89,133 @@ public sealed class SpeechCaptionTests
         eligible = true;
         caption.Observe(new(true, 0, id, 8), response).Should().BeNull();
     }
+
+    private sealed class Clock : TimeProvider
+    {
+        public long Seconds { get; set; }
+        public Action? OnTimestamp { get; set; }
+        public override long TimestampFrequency => 1;
+        public override long GetTimestamp()
+        {
+            var callback = OnTimestamp;
+            OnTimestamp = null;
+            callback?.Invoke();
+            return Seconds;
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    [InlineData(30)]
+    public void Normal_completion_retains_only_observed_text_until_the_exact_deadline(int seconds)
+    {
+        var clock = new Clock();
+        var caption = new SpeechCaption(clock);
+        var response = Guid.NewGuid();
+        var id = caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi), "Approved text.", static () => true,
+            new(SpeechCaptionPlacement.BottomRight, seconds));
+        var frame = new SpeechPlaybackFrame(true, 0.5, id, 3);
+        caption.Observe(frame, response).Should().Be("Approved text.");
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().BeNull();
+        caption.Complete();
+        caption.IsPreviousSpeech.Should().BeTrue();
+        if (seconds > 0)
+        {
+            clock.Seconds = seconds - 1;
+            caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().Be("Approved text.");
+        }
+        clock.Seconds = seconds;
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().BeNull();
+        caption.SetPinned(true, response, frame).Should().BeFalse();
+        caption.Observe(frame, response).Should().BeNull();
+    }
+
+    [Fact]
+    public void Pinning_extends_only_observed_text_and_unpinning_keeps_the_original_deadline()
+    {
+        var clock = new Clock();
+        var eligible = true;
+        var caption = new SpeechCaption(clock);
+        var response = Guid.NewGuid();
+        var id = caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi), "Approved text.", () => eligible);
+        caption.SetPinned(true, response, SpeechPlaybackFrame.Inactive).Should().BeFalse();
+        var frame = new SpeechPlaybackFrame(true, 0.5, id, 3);
+        caption.Observe(frame, response).Should().Be("Approved text.");
+        caption.SetPinned(true, response, frame).Should().BeTrue();
+        caption.Complete();
+        clock.Seconds = 100;
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().Be("Approved text.");
+        caption.IsPinned.Should().BeTrue();
+        caption.SetPinned(false, response, SpeechPlaybackFrame.Inactive).Should().BeTrue();
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().BeNull();
+        id = caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi), "Next text.", () => eligible);
+        frame = frame with { PlaybackId = id };
+        caption.SetPinned(true, response, frame).Should().BeTrue();
+        caption.Complete();
+        eligible = false;
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().BeNull();
+        caption.IsPinned.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Unobserved_completion_and_foreign_playback_cannot_create_or_retain_a_caption()
+    {
+        var caption = new SpeechCaption();
+        var response = Guid.NewGuid();
+        caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi), "Unplayed text.", static () => true);
+        caption.Complete();
+        caption.IsPreviousSpeech.Should().BeFalse();
+        var id = caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi), "Played text.", static () => true);
+        caption.Observe(new(true, 0.5, id, 3), response).Should().NotBeNull();
+        caption.Complete();
+        caption.Observe(new(true, 0.5, Guid.NewGuid(), 3), response).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("same")]
+    [InlineData("generation")]
+    [InlineData("segment")]
+    [InlineData("unqualified")]
+    public void Completed_caption_accepts_no_foreign_frame_and_never_claims_renewed_playback(string stage)
+    {
+        var caption = new SpeechCaption(new Clock());
+        var response = Guid.NewGuid();
+        var id = caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi), "Played text.", static () => true);
+        var frame = new SpeechPlaybackFrame(true, 0.5, id, 3);
+        caption.Observe(frame, response).Should().NotBeNull();
+        caption.Complete();
+        frame = stage switch
+        {
+            "generation" => frame with { Generation = 4 },
+            "segment" => frame with { Segment = 1 },
+            "unqualified" => frame with { PlaybackId = null },
+            _ => frame,
+        };
+        if (stage is "same")
+        {
+            caption.Observe(frame, response).Should().Be("Played text.");
+            caption.IsPreviousSpeech.Should().BeTrue();
+        }
+        else { caption.Observe(frame, response).Should().BeNull(); }
+    }
+
+    [Fact]
+    public void Replacement_during_pin_expiry_check_cannot_pin_the_new_source()
+    {
+        var clock = new Clock();
+        var caption = new SpeechCaption(clock);
+        var response = Guid.NewGuid();
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var id = caption.Bind(response, request, "Played text.", static () => true);
+        caption.Observe(new(true, 0.5, id, 3), response).Should().NotBeNull();
+        caption.Complete();
+        clock.OnTimestamp = () =>
+        {
+            var next = caption.Bind(response, request, "New text.", static () => true);
+            caption.Observe(new(true, 0.5, next, 4), response).Should().Be("New text.");
+        };
+        caption.SetPinned(true, response, SpeechPlaybackFrame.Inactive).Should().BeFalse();
+        caption.IsPinned.Should().BeFalse();
+    }
 }

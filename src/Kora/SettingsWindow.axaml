@@ -638,7 +638,7 @@
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Local speech text (off by default)" Classes="settings-title" />
-                  <TextBlock Text="Optional exact current utterance only after playback starts. Removed immediately on finish or retirement. No speech, replay, capture, model request or response/call policy changes. Pinning, sentence alignment, placement preferences and dismissal delay are not available."
+                  <TextBlock Text="Optional exact utterance after playback starts. Normal completion retains observed text for 0-30 seconds (default 5), or until unpinned. Stop, replacement and privacy retirement still clear immediately. Placement selects a primary-screen corner. No speech, replay, capture, model request or response/call policy changes. Sentence alignment is unavailable."
                       Classes="settings-description" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding SpeechTextConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
@@ -650,6 +650,13 @@
                   <Button Content="Inspect speech text" Command="{Binding RefreshSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
                   <Button Content="Save speech text only" Command="{Binding SaveSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
                   <Button Content="Reset speech text to Off" Command="{Binding ResetSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <ComboBox ItemsSource="{Binding SpeechCaptionOptionsList}" SelectedItem="{Binding SelectedSpeechCaptionOption}"
+                      IsEnabled="{Binding CanChangeSpeechText}" AutomationProperties.Name="Speech caption option" />
+                  <ComboBox ItemsSource="{Binding SpeechCaptionOptionChoices}" SelectedItem="{Binding SelectedSpeechCaptionChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeSpeechText}"
+                      PlaceholderText="Inspect and choose exact caption option" AutomationProperties.Name="Speech caption option value" />
+                  <Button Content="Save caption option only" Command="{Binding SaveSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <Button Content="Reset selected caption option" Command="{Binding ResetSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
                 </StackPanel>
               </Grid>
             </Border>

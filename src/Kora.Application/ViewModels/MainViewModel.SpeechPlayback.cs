@@ -13,9 +13,14 @@ public sealed partial class MainViewModel
 
     public void RefreshSpeechPlaybackFrame()
     {
-        if (disposed || !IsSpeaking || !CanRevealPrivatePresentation)
+        if (disposed || !CanRevealPrivatePresentation)
         {
             RetireSpeechCaption();
+            SetSpeechPlaybackFrame(SpeechPlaybackFrame.Inactive);
+            return;
+        }
+        if (!IsSpeaking)
+        {
             SetSpeechPlaybackFrame(SpeechPlaybackFrame.Inactive);
             return;
         }
@@ -36,6 +41,7 @@ public sealed partial class MainViewModel
     private void SetSpeechPlaybackFrame(SpeechPlaybackFrame frame)
     {
         SetSpeechCaptionText(speechCaption.Observe(frame, captionResponseId));
+        NotifyCaptionState();
         if (speechPlaybackFrame == frame)
         {
             return;

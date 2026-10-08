@@ -240,7 +240,7 @@ The design covers all these preference categories:
 | Providers and connections | Processing mode, default provider/model, validated endpoint, supported identity and connector enablement | Local model setup current; general choice/sign-in/connector flows planned |
 | Skills and local data | Sources, enabled revisions/default source, refresh, SQLite diagnostic retention, audit retention and diagnostic verbosity | Delivered native/exact independent future-only ordinary SQLite 1–365/default-reset30 and audit 30–365/default-reset90. Only NEW committed authority audit and qualified projections use audit policy; existing deadlines/all grants stay unchanged. Apply-now/audit pruning unavailable; files30/30 and cleanup scheduling unchanged; other registry options planned |
 | Startup and maintenance | Logon registration, initial presentation, notify-only checks/interval/channel and release reminders | Native startup/notify-only maintenance plus exact cached status/review/eligible current-run snooze; general controls planned, no command-triggered check or browser opening |
-| Rich viewing | Captions/placement/dismissal, text scale, automatic details, browser choice, Markdown source/rendering and diagrams | General typed viewing planned; embedded guide/basic text current |
+| Rich viewing | Captions/placement/dismissal, text scale, automatic details, browser choice, Markdown source/rendering and diagrams | Exact local caption mode/corner/0-30-second delay and run-only pin delivered; sentence alignment, general typed viewing and rich renderers planned; embedded guide/basic text current |
 
 The existing process-local presentation resolver orders task, queue and device
 default; the delivered mode registry admits only the device default, not durable
@@ -352,8 +352,9 @@ current basic response/embedded-guide features.
 | Ask or choose | Intended behavior and current limitation |
 |---|---|
 | "Show the full answer" | Show the identified existing result; basic response text is current, general rich details planned |
-| "Show the words you're saying" / "Hide speech text" | Planned captions tied to actual playback, not suppressed or queued speech |
-| "Pin that text" / "Unpin that text" | Planned item/caption pinning; current response-window **Always show** retains the response |
+| `list speech text settings`; `get/status/set/reset display.speech-text` | Delivered Off/CurrentUtterance native/exact typed/activated control; only matching actual playback reveals text; natural aliases remain planned |
+| `get/status/set/reset display.speech-text-placement` / `display.speech-text-dismissal-delay` | Delivered primary-screen corner and canonical 0-30-second delay, default BottomRight/5; same admitted atomic/audited control, no speech or caption enablement |
+| Native **Pin / Unpin**; `get/status/set/reset display.speech-text-pin` | Delivered run-only pin of already-observed caption, false/true; previous-speech label after normal completion; source/privacy/stop retirement always wins; natural "that text" and general item pinning remain planned |
 | "Show the source" | Show inert source and provenance, not execute it |
 | "Show the diagram" | Render a supported validated diagram or explain why only source is available |
 | "Preview that HTML" | Static isolated preview; no executable scripts, forms or automatic remote assets |

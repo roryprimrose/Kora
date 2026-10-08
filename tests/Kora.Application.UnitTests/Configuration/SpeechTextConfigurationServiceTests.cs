@@ -195,6 +195,71 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         await fixture.Awaiting(_ => fixture.Refresh()).Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Fact]
+    public async Task Caption_options_discover_save_restart_and_reset_independently_without_enabling_speech_text()
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.Observe();
+        fixture.Service.Get().EffectiveCaptionOptions.Should().Be(SpeechCaptionOptions.Default);
+        await fixture.Refresh();
+        fixture.Service.CaptionChoices.Should().HaveCount(35);
+        fixture.Service.CaptionChoices.Select(choice => choice.Label).Should().Contain("TopLeft").And.Contain("30");
+        await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.Placement(SpeechCaptionPlacement.TopLeft)));
+        fixture.Service.Get().Effective.Should().Be(SpeechTextMode.Off);
+        fixture.Create().Get().EffectiveCaptionOptions.Should().BeNull();
+        var restart = fixture.Create();
+        restart.Observe();
+        restart.Get().EffectiveCaptionOptions!.Placement.Should().Be(SpeechCaptionPlacement.TopLeft);
+        await fixture.Refresh();
+        await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.Delay(30)));
+        fixture.Service.Get().EffectiveCaptionOptions.Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.TopLeft, 30));
+        await fixture.Refresh();
+        await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.Placement(SpeechCaptionPlacement.BottomRight)));
+        fixture.Service.Get().EffectiveCaptionOptions.Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.BottomRight, 30));
+        await fixture.Refresh();
+        await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.Delay(5)));
+        fixture.Service.Get().EffectiveCaptionOptions.Should().Be(SpeechCaptionOptions.Default);
+        fixture.Audit.Events.Select(item => item.ActionId).Should().Contain("configuration.speech-caption-placement")
+            .And.Contain("configuration.speech-caption-dismissal-delay");
+        SpeechTextState.Serialize(fixture.Service.Get()).Should().Contain(SpeechTextCommand.DelayId).And.Contain(SpeechTextCommand.PlacementId);
+        SpeechTextState.Serialize(fixture.Service.Get(), SpeechCaptionOption.Placement).Should().Contain("\"default\":\"BottomRight\"");
+        SpeechTextState.Serialize(fixture.Service.Get(), SpeechCaptionOption.DismissalDelay).Should().Contain("\"maximum\":30");
+    }
+
+    [Theory]
+    [InlineData("readback")]
+    [InlineData("confirm")]
+    [InlineData("foreign")]
+    [InlineData("changed")]
+    [InlineData("io")]
+    public async Task Caption_option_failure_and_companion_changes_never_publish_confirmed_defaults(string stage)
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        var choice = fixture.Service.CaptionChoices[^1];
+        if (stage is "foreign")
+        {
+            var other = fixture.Create();
+            await other.RefreshAsync(RequestOrigin.LocalUi, static () => true, fixture.Token);
+            choice = other.CaptionChoices[^1];
+        }
+        if (stage is "changed") { fixture.Preferences.Options = new(SpeechCaptionPlacement.TopLeft, 0); }
+        if (stage is "io") { fixture.Preferences.SaveFailure = new IOException(); }
+        if (stage is "readback") { fixture.Preferences.AfterSave = () => fixture.Preferences.Options = SpeechCaptionOptions.Default; }
+        if (stage is "confirm") { fixture.Preferences.AfterConfirm = () => fixture.Preferences.Options = SpeechCaptionOptions.Default; }
+        await fixture.Awaiting(_ => fixture.Apply(choice)).Should().ThrowAsync<Exception>();
+        if (stage is "foreign")
+        {
+            fixture.Service.Get().EffectiveCaptionOptions.Should().Be(SpeechCaptionOptions.Default);
+            fixture.Preferences.Writes.Should().Be(0);
+        }
+        else
+        {
+            fixture.Service.Get().EffectiveCaptionOptions.Should().BeNull();
+            fixture.Service.CaptionChoices.Should().BeEmpty();
+        }
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         public Fixture()
@@ -220,6 +285,10 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
     }
     private sealed class Preferences : ISpeechTextPreferences
     {
+        public SpeechCaptionOptions? Options { get; set; }
+        public SpeechCaptionOptions? LoadOptions() => Pending ? throw new InvalidDataException() : ReadBackOptions();
+        public SpeechCaptionOptions? ReadBackOptions() => Options;
+        public void SaveOptions(SpeechCaptionOptions options) { if (SaveFailure is { } failure) { throw failure; } Options = options; Writes++; AfterSave?.Invoke(); }
         public SpeechTextMode? Mode { get; set; }
         public bool Pending { get; set; }
         public int Writes { get; private set; }

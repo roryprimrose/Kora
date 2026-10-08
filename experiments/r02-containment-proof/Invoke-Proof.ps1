@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string] $EvidenceDirectory = (Join-Path $PSScriptRoot "artifacts\proof-$([Guid]::NewGuid().ToString('N'))"),
-    [string] $PowerShellPath = (Get-Command pwsh -ErrorAction Stop).Source
+    [string] $PowerShellPath = (Get-Command pwsh -ErrorAction Stop | Select-Object -First 1).Source,
+    [switch] $NetworkHandoff
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,7 +32,8 @@ if ($version.Major -ne 7 -or $version -lt [Version]'7.4') {
 if ($LASTEXITCODE -ne 0) { throw "Experiment build failed: $LASTEXITCODE" }
 & $exe self-test
 if ($LASTEXITCODE -ne 0) { throw "Deterministic receipt tests failed: $LASTEXITCODE" }
-& $exe run $EvidenceDirectory $PowerShellPath
+$mode = if ($NetworkHandoff) { 'run-with-network-handoff' } else { 'run' }
+& $exe $mode $EvidenceDirectory $PowerShellPath
 $proofExit = $LASTEXITCODE
 if ($proofExit -notin 0, 2) { throw "OS trial failed: $proofExit; inspect retained evidence and errors." }
 

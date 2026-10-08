@@ -2,7 +2,7 @@
 
 Status: partial. Bounded appearance, installed speech choices, assistant display/PTT
 prefix, spoken-summary caps, exact input/output preferences, per-Kora playback
-volume and device-default response mode are delivered through shared native/
+volume, device-default response mode and future-only SQLite diagnostic retention are delivered through shared native/
 exact typed and activated-voice workflows below. Broader scopes, setup and the
 complete verbal preference/model-facing contract remain proposed, subject to protected-call origin gates
 and mandatory secure workflows.
@@ -10,6 +10,55 @@ and mandatory secure workflows.
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
+
+### Delivered bounded future-only SQLite diagnostic retention (R10/R04)
+
+Schema 1 registers only `logging.sqlite-diagnostic-retention-days`: canonical
+integer **1–365**, unsaved default/reset **30**. Native **Settings > Logging**
+Refresh/Save/Reset and exact typed/current-name ACTIVATED
+`list logging settings` / get/status/set/reset share one
+[configuration service](../src/Kora.Application/Configuration/DiagnosticRetentionConfigurationService.cs).
+Discovery reports desired/effective days, saved/default/unavailable provenance,
+bounds, reset/timing, configuration/call revisions, independent session admission,
+explicit recovery and `applyNowAvailable=false`. No natural-language aliases,
+model settings tools or arbitrary patch capability are added.
+
+Original local input, current owner/unlocked privacy/topology/input/call state,
+independent diagnostic-control session/generation and the exact host-held
+revisioned proposal are revalidated. Native callbacks additionally require the
+same live visible Settings surface. Pending exact questions/approvals stay
+unchanged; protected-call voice requests cannot relabel themselves through UI,
+headers, model text or trace identifiers.
+
+The domain owns canonical bounds/schema/defaults; supplied application paths
+and the shared atomic preference store own `sqlite-diagnostic-retention.txt`
+and its separate `sqlite-diagnostic-retention-unconfirmed.txt` marker.
+Requested/terminal trusted audit, durable atomic save, exact readback and the
+committed-intent terminal receipt precede confirmation/activation. Failed or
+unconfirmed writes remain unavailable across cold restart; malformed UTF-8,
+unknown schemas and invalid saved days throw `InvalidDataException`. Recovery
+requires explicit saved-state/evidence inspection and refresh, never a silent
+default or automatic marker clearing.
+
+The effective policy reaches genuine newly committed SQLite ordinary log/span/
+owned-link transactions, with one coherent deadline for each span and all links.
+Semantic evidence schema v2 validates integral 1–365-day committed deadlines.
+Only exact valid legacy schema-v1 30-day rows migrate, preserving every row ID,
+payload, correlation, reference and deadline. All admitted readers use the same
+validation. Already committed records never adopt the new days, including
+attempts to replace an old span ID: the current writer is insert-only and
+rejects duplicate IDs rather than upserting retention metadata.
+
+**Apply-now/immediate deletion is unavailable.** Set/reset never runs pruning
+or changes its startup schedule/triggers. Audit remains independent default 90
+(existing 30–365 domain), daily files 30 days/30 files, and every session,
+history, approval and grant remains unchanged. Independent Perpetual grants
+have no time expiry/retention/eviction; other grants keep existing validity/scope
+rules. Suggested future session/history defaults do not implement those options.
+Unavailable ordinary policy explicitly reports source-qualified delivery gaps
+through the independent file/recovery path; mandatory trusted audit and
+authority stores remain admitted under their own rules, never ordinary fallback.
+Full R04/R10/D-009, installed/native, acoustic and forensic acceptance remain open.
 
 ### Delivered bounded device-default response mode (R10)
 
@@ -652,7 +701,7 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 | Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
 | Knowledge source limits | Host defaults within verified file/source/context maxima; user may lower them | "Limit knowledge files to one megabyte" |
 | Knowledge citation detail | Source plus heading/page/line location | "Show detailed knowledge citations" |
-| Diagnostic database retention | 30 days by default; independently configurable within the registered bounded schema; daily JSON remains limited to 30 files/30 days | "Keep diagnostic events for fourteen days" |
+| Diagnostic database retention | Delivered canonical integer 1–365; default/reset 30; only future ordinary SQLite commits, existing deadlines unchanged; apply-now unavailable; daily JSON stays 30 files/30 days | `set logging.sqlite-diagnostic-retention-days to 14` |
 | Audit retention | 90 days by default; configurable from 30-365 days | "Keep audit metadata for six months" |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 

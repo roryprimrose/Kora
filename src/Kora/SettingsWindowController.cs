@@ -56,6 +56,8 @@ public sealed class SettingsWindowController : IDisposable
         if (!window.IsVisible)
         {
             window.Show();
+            var settingsWindow = window;
+            viewModel.BindDiagnosticRetentionNativeLifetime(() => !disposed && ReferenceEquals(window, settingsWindow) && settingsWindow.IsVisible);
         }
 
         window.Activate();
@@ -86,6 +88,7 @@ public sealed class SettingsWindowController : IDisposable
         {
             DesktopLog.Debug(logger, "Settings window closed");
             window = null;
+            viewModel.BindDiagnosticRetentionNativeLifetime(static () => false);
         }
     }
 }

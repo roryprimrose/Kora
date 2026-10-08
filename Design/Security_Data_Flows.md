@@ -1023,7 +1023,14 @@ consumes existing effective due timestamps only. One admitted owner-startup
 transaction removes at most 128 due diagnostic logs and 32 due spans with all
 their at-most-1,024 owned links. Due backlog can remain; queries do not refresh
 it. No audit row/sequence/hash chain, session/task/interaction/grant or Perpetual
-record is pruned, and no retention preference is changed. This is logical
+record is pruned. Its startup triggers and bounds stay unchanged by the later
+[future-only retention preference](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04):
+canonical integer 1–365/default-reset30, original-input independent host
+admission and required audit/atomic save/readback/intent receipt. Only new
+ordinary SQLite rows use the policy; existing deadlines never change and
+apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
+their independent rules. Unavailable ordinary policy reports explicit
+independent delivery gaps without waiving mandatory trusted audit. This is logical
 row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
 and its continuation/checkpoint requirements remain independently unimplemented.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.

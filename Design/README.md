@@ -101,6 +101,14 @@ set/reset, coherent atomic selection persistence, revisions and existing
 protected-call original-channel gates. Asset provisioning, other speech options,
 model settings tools and acoustic acceptance are not established by this slice.
 
+R10/R04 now additionally registers
+[future-only SQLite diagnostic days](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04):
+native/exact typed/ACTIVATED discovery/get/status/set/reset, canonical integer
+1–365/default-reset30, independent original-user/session admission and required
+audit/atomic readback/receipt activation. Existing deadlines never change;
+apply-now is unavailable. Audit90/domain, daily files30/30, history, every grant/
+approval and pruning schedule remain unchanged; full R04/R10 remains open.
+
 The [bounded R03/R09 native tray recovery](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
 provides truthful generic input state, five-second single-flight metadata
 refresh, revision-bound microphone preference selection (including System

@@ -650,7 +650,16 @@ Audit due dates and sequences remain unchanged, including expired audit rows;
 `security_audit_events`, interaction audit/hash chains, tasks, questions,
 sessions and all grants/Perpetual records are outside this operation.
 Audit continuation anchors/pruning, session retention/deletion, configurable
-preview/apply, artifact/backup disposal and full R04/D-009 acceptance remain open.
+apply-now, artifact/backup disposal and full R04/D-009 acceptance remain open.
+The later [future-only diagnostic setting](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04)
+admits integer 1–365/default-reset30 after required audit/atomic readback/receipt.
+It supplies one coherent deadline per new ordinary SQLite transaction only.
+Semantic schema v2 migrates validated legacy 30-day rows without rewriting
+rows/deadlines; writer/private-reader validation agree. The writer remains
+insert-only, so old span IDs cannot upsert fresh retention. Audit90/domain,
+files30/30, all authority and pruning triggers are unchanged; unavailable
+ordinary policy reports explicit independent gaps rather than becoming default
+or blocking required trusted audit on activity disposal.
 
 The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/

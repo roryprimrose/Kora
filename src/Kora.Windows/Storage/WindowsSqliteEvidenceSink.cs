@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Kora.Core.Dependencies;
+using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -43,20 +44,29 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     };
     private readonly RestrictedSqliteDatabase database;
     private readonly EvidenceRetentionPolicy retentionPolicy;
+    private readonly DiagnosticRetentionPolicy? diagnosticPolicy;
     private readonly TimeProvider timeProvider;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
 
     public WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
-        EvidenceRetentionPolicy? retentionPolicy = null, TimeProvider? timeProvider = null)
-        : this(paths, retentionPolicy, timeProvider, checkpoint: null)
+        EvidenceRetentionPolicy? retentionPolicy = null, TimeProvider? timeProvider = null,
+        DiagnosticRetentionPolicy? diagnosticPolicy = null)
+        : this(paths, retentionPolicy, timeProvider, checkpoint: null, diagnosticPolicy)
     {
     }
 
     internal WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
-        EvidenceRetentionPolicy? retentionPolicy, TimeProvider? timeProvider, ISqliteTransactionCheckpoint? checkpoint)
+        EvidenceRetentionPolicy? retentionPolicy, TimeProvider? timeProvider, ISqliteTransactionCheckpoint? checkpoint,
+        DiagnosticRetentionPolicy? diagnosticPolicy = null)
     {
-        database = new RestrictedSqliteDatabase(paths, PartitionName, "evidence.db", ApplicationId, Schema);
+        database = new RestrictedSqliteDatabase(paths, PartitionName, "evidence.db", ApplicationId, Schema,
+            new(1, 2, Schema, (connection, _, token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                ValidateDatabase(connection, legacy: true);
+            }));
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
+        this.diagnosticPolicy = diagnosticPolicy;
         this.timeProvider = timeProvider ?? TimeProvider.System;
         this.checkpoint = checkpoint;
     }
@@ -110,7 +120,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         using var transaction = connection.BeginTransaction();
         checkpoint?.BeforeWrite(connection, transaction);
         var committed = timeProvider.GetUtcNow().UtcTicks;
-        var due = retentionPolicy.DiagnosticDue(new DateTimeOffset(committed, TimeSpan.Zero)).UtcTicks;
+        var due = DiagnosticDue(new DateTimeOffset(committed, TimeSpan.Zero)).UtcTicks;
         Insert(connection, transaction, "activity_spans", values, payload, committed, due);
         for (var ordinal = 0; ordinal < envelope.Links.Count; ordinal++)
         {
@@ -142,7 +152,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         using var transaction = connection.BeginTransaction();
         checkpoint?.BeforeWrite(connection, transaction);
         var committed = timeProvider.GetUtcNow();
-        var due = audit ? retentionPolicy.AuditDue(committed) : retentionPolicy.DiagnosticDue(committed);
+        var due = audit ? retentionPolicy.AuditDue(committed) : DiagnosticDue(committed);
         Insert(connection, transaction, table, values, payload, committed.UtcTicks, due.UtcTicks);
         checkpoint?.BeforeCommit(connection, transaction);
         database.VerifyFiles();
@@ -178,13 +188,16 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
     internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken) =>
         ValidateDatabase(database.OpenReadOnly(cancellationToken));
 
-    private static SqliteConnection ValidateDatabase(SqliteConnection connection)
+    private DateTimeOffset DiagnosticDue(DateTimeOffset committed) =>
+        diagnosticPolicy is null ? retentionPolicy.DiagnosticDue(committed) : diagnosticPolicy.Due(committed);
+
+    private static SqliteConnection ValidateDatabase(SqliteConnection connection, bool legacy = false)
     {
         try
         {
-            ValidateRows(connection, "application_log_events");
+            ValidateRows(connection, "application_log_events", legacy);
             ValidateRows(connection, "security_audit_events");
-            ValidateRows(connection, "activity_spans");
+            ValidateRows(connection, "activity_spans", legacy);
             ValidateAuditSequence(connection);
             using var foreignKeys = connection.CreateCommand();
             foreignKeys.CommandText = "PRAGMA foreign_key_check;";
@@ -207,7 +220,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
         }
     }
 
-    private static void ValidateRows(SqliteConnection connection, string table)
+    private static void ValidateRows(SqliteConnection connection, string table, bool legacy = false)
     {
         using var command = connection.CreateCommand();
         command.CommandText = $"SELECT * FROM {table};";
@@ -253,7 +266,8 @@ public sealed partial class WindowsSqliteEvidenceSink : IEvidenceSink
             var days = (due - committed).TotalDays;
             if (string.Equals(table, "security_audit_events", StringComparison.Ordinal)
                 ? days is < 30 or > 365 || days != Math.Truncate(days)
-                : days != EvidenceRetentionPolicy.DiagnosticDays)
+                : legacy ? days != EvidenceRetentionPolicy.DiagnosticDays
+                    : days is < DiagnosticRetentionDays.Minimum or > DiagnosticRetentionDays.Maximum || days != Math.Truncate(days))
             {
                 throw new InvalidDataException("The persisted effective retention due date is invalid.");
             }

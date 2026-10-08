@@ -95,6 +95,13 @@ internal static class Program
                             provider = services.BuildServiceProvider();
                             App.Services = provider;
                             var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
+                            var diagnosticConfiguration = provider.GetRequiredService<DiagnosticRetentionConfigurationService>();
+                            try { diagnosticConfiguration.Observe(); }
+                            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+                            {
+                                diagnosticConfiguration.HoldUnavailable();
+                                DesktopLog.Error(startupLogger, exception, "Reading SQLite diagnostic retention before startup evidence");
+                            }
                             DesktopLog.Information(startupLogger, "Starting Kora desktop host");
                             Task.Run(() => provider.GetRequiredService<DurableHostRecovery>()
                                 .RecoverAsync(CancellationToken.None)).GetAwaiter().GetResult();
@@ -183,7 +190,8 @@ internal static class Program
         DesktopInstanceOwnershipBridge ownershipBridge,
         WindowsInstanceCoordinator coordinator)
     {
-        var evidence = new WindowsSqliteEvidenceSink(paths);
+        var diagnosticPolicy = new DiagnosticRetentionPolicy();
+        var evidence = new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy);
         evidence.Initialize();
         var tasks = new WindowsSqliteHostTaskStore(paths);
         Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
@@ -211,12 +219,15 @@ internal static class Program
         services.AddSingleton<ArtifactCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
         services.AddSingleton(evidence);
+        services.AddSingleton(diagnosticPolicy);
         services.AddSingleton<WindowsSqliteDiagnosticRetention>();
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
         services.AddSingleton<IAudioControlSessionStore>(interactions);
+        services.AddSingleton<IDiagnosticRetentionSessionStore>(interactions);
+        services.AddSingleton<DiagnosticRetentionAdmission>();
         services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
@@ -310,6 +321,9 @@ internal static class Program
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>
             new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PlaybackVolumeConfigurationService>();
+        services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
+            new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<DiagnosticRetentionConfigurationService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));

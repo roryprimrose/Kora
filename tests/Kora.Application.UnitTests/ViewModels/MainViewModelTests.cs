@@ -16,6 +16,7 @@ using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Core.Hosting;
@@ -4165,6 +4166,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
+            .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -7729,7 +7731,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null,
             Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null, bool enableOutputConfiguration = false,
             bool enablePlaybackVolume = false, Exception? volumeReadFailure = null,
-            bool enableResponseModeConfiguration = false)
+            bool enableResponseModeConfiguration = false, bool enableDiagnosticRetention = false,
+            Exception? diagnosticRetentionReadFailure = null)
         {
             Catalog = new BuiltInCommandCatalog();
             Dispatcher = new ImmediateDispatcher();
@@ -7760,6 +7763,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit ??= new FakeSecurityAuditLog();
+            var diagnosticStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
+            DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
+            DiagnosticPreferences.ReadFailure = diagnosticRetentionReadFailure;
+            DiagnosticConfiguration = enableDiagnosticRetention ? new(DiagnosticPreferences, DiagnosticPolicy, DiagnosticAdmission, Audit) : null;
             Probe = new StubProbe(new DependencyStatus(
                 "storage",
                 "Storage",
@@ -7844,7 +7851,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
-                    ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null);
+                    ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
+                DiagnosticConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
             if (subscribeToWindowActions)
@@ -7869,6 +7877,10 @@ public sealed partial class MainViewModelTests : IDisposable
         public OutputDeviceConfigurationService? OutputConfiguration { get; }
         public FakePlaybackVolumePreferences VolumePreferences { get; }
         public PlaybackVolumeConfigurationService? VolumeConfiguration { get; }
+        public DiagnosticRetentionAdmission DiagnosticAdmission { get; }
+        public FakeDiagnosticRetentionPreferences DiagnosticPreferences { get; } = new();
+        public DiagnosticRetentionPolicy DiagnosticPolicy { get; } = new();
+        public DiagnosticRetentionConfigurationService? DiagnosticConfiguration { get; }
 
         public ImmediateDispatcher Dispatcher { get; }
 

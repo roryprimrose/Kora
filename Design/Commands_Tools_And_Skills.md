@@ -25,8 +25,16 @@ Preview is not model-context selection or transmission consent. See
 Delivered exceptions to the proposed full catalogue: R10 has host-only typed
 configuration for appearance, installed provider/voice, spoken-summary caps,
 assistant display/PTT prefix, exact input/output preferences, per-Kora volume
-and device-default response mode. These share native and exact local workflows;
+device-default response mode and future-only SQLite diagnostic retention. These share native and exact local workflows;
 none exposes a model-facing `settings.*` tool or arbitrary preference patch.
+The single `logging.sqlite-diagnostic-retention-days` option shares native and
+exact `list logging settings` / get/status/set/reset. Canonical integer 1–365,
+default/reset 30, is activated only after original-user independent diagnostic
+session/generation/revision admission, required typed audit and atomic durable
+save/readback/intent receipt. It changes only future ordinary SQLite commits;
+old deadlines, audit90/domain, files30/30, all session/history/grant/approval
+records and cleanup triggers stay unchanged. Apply-now is unavailable. See
+[the bounded contract](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04).
 For appearance, the nine-option subset shares the existing native controls and
 exact local `list appearance settings`, `get <appearance.id>`,
 `set <appearance.id> to <value>` and `reset <appearance.id>` commands.

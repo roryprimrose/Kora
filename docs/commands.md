@@ -15,6 +15,33 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+## SQLite diagnostic retention
+
+Native **Settings > Logging** and exact typed/current-name ACTIVATED commands
+share one independent host-admitted workflow:
+
+| Exact command | Result |
+|---|---|
+| `list logging settings` | One SQLite-only option's integer schema/default/bounds, saved/effective provenance, revisions, timing, exclusions and recovery |
+| `get logging.sqlite-diagnostic-retention-days` | Inspect the confirmed preference or explicit unavailable recovery |
+| `status logging.sqlite-diagnostic-retention-days` | Same bounded current status |
+| `set logging.sqlite-diagnostic-retention-days to 14` | Canonical integer 1–365; applies only to newly committed ordinary SQLite records after required audit and atomic save/readback/receipt |
+| `reset logging.sqlite-diagnostic-retention-days` | Remove only this override; future commits use default 30 |
+
+Use **Kora,** or the current configured prefix, not an old alias. The complete
+input is at most 1,024 UTF-8 bytes and output 64 KiB; controls, ambiguous/extra
+words, noncanonical integers and unrelated logging targets clarify/reject
+locally. No natural-language/model mutation or guessed setting is admitted.
+Original-channel host/session/generation/privacy/call/input and expected
+revisions are fresh-checked. Pending exact questions/approvals remain intact.
+Protected-call original voice mutation is denied, never deferred or relabelled.
+
+**Existing deadlines stay exactly unchanged. Apply-now/immediate deletion is
+unavailable.** No set/reset triggers pruning. Audit default 90 (30–365 domain),
+daily files 30 days/30 files, session/chat/history, grants/approvals and cleanup
+schedule are unchanged. Perpetual grants have no time expiry/retention/eviction.
+See [settings and explicit recovery](settings.md#sqlite-diagnostic-retention).
+
 ## Assistant display / PTT command-prefix setting
 
 Typed input and explicitly activated voice use the same host configuration

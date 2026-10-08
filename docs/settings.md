@@ -12,6 +12,35 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+## SQLite diagnostic retention
+
+**Settings > Logging** provides Refresh, Save future retention only and Reset to
+30 days. The single `logging.sqlite-diagnostic-retention-days` option accepts
+an exact integer **1–365**, default/reset **30**. Discovery/status shows saved or
+default provenance, desired/effective days, fresh revisions and explicit recovery.
+The [exact typed/current-name activated commands](commands.md#sqlite-diagnostic-retention)
+call the same host workflow; configuration is not a model tool or effect grant.
+
+Only newly committed **ordinary SQLite** logs, completed spans and their owned
+links use the confirmed policy. Existing deadlines never change, including
+across restart. **Apply-now and immediate deletion are unavailable.** Saving
+or resetting does not run pruning or change cleanup scheduling.
+
+Audit default **90** and its existing 30–365 domain, daily files **30 days/30
+files**, session/chat/history, every approval and every grant are unchanged.
+Perpetual grants never expire or undergo time retention/eviction. Future
+session/history suggestions are not current configuration options.
+
+Writes require original local input, owning unlocked host/privacy/call/input
+revalidation, independent host-resolved diagnostic session/generation, exact
+proposal/revisions, required typed audit and atomic durable save/readback.
+Closing/replacing the native surface invalidates its callback; no pending exact
+question/approval is answered or replaced. Corrupt or unconfirmed preferences
+stay unavailable across restart: inspect saved state and audit/intent receipts,
+explicitly repair and refresh. No silent default or automatic marker clearing.
+Ordinary SQLite delivery reports an explicit gap while independent file and
+required audit paths remain separate.
+
 ## Release maintenance (notify-only)
 
 Use **Settings > Maintenance > Review / check / open canonical release** or

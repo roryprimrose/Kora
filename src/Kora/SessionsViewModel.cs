@@ -57,6 +57,16 @@ internal sealed partial class SessionsViewModel(
         : [.. sessions.Records.Where(record => sessionFilter == SessionListFilter.All
             || record.Authority.IsActive == (sessionFilter == SessionListFilter.Active))];
     public SessionWorkspaceEntry? SelectedSessionRecord => selected;
+    internal bool ReferencesSession(HostId<SessionIdentity> session) =>
+        selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
+        || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal);
+
+    internal void RevokeSessionList()
+    {
+        sessions = null;
+        Notify();
+    }
+
     public IReadOnlyList<HostTaskRecord> TaskRecords => tasks?.Records ?? [];
     public bool CanInspectTask => CanRead && selectedTask is not null;
     public bool CanCancelTask => CanInspectTask && inspectedTask is

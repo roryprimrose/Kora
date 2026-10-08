@@ -21,7 +21,7 @@ namespace Kora.Windows.Storage;
 /// Tasks, questions and required authority audit share one lease and transaction.
 /// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ICommittedAuthorityAuditReader
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ISessionRetentionStore, ICommittedAuthorityAuditReader
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -30,31 +30,38 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     private readonly TimeProvider time;
     private readonly EvidenceRetentionPolicy retentionPolicy;
     private readonly AuditRetentionPolicy? auditPolicy;
+    private readonly SessionRetentionPolicy sessionRetentionPolicy;
+    private readonly IApplicationDataPaths paths;
+    private readonly HashSet<HostId<SessionIdentity>> liveControlSessions = [];
     private readonly IHostInteractionTransactionCheckpoint? checkpoint;
     private string? inspectionIdentity;
 
     public WindowsSqliteHostInteractionStore(IApplicationDataPaths paths, WindowsSqliteHostTaskStore tasks,
         TimeProvider? timeProvider = null, EvidenceRetentionPolicy? retentionPolicy = null,
-        AuditRetentionPolicy? auditPolicy = null)
-        : this(paths, tasks, timeProvider, checkpoint: null, retentionPolicy, auditPolicy)
+        AuditRetentionPolicy? auditPolicy = null, SessionRetentionPolicy? sessionRetentionPolicy = null)
+        : this(paths, tasks, timeProvider, checkpoint: null, retentionPolicy, auditPolicy, sessionRetentionPolicy)
     {
     }
 
     internal WindowsSqliteHostInteractionStore(IApplicationDataPaths paths, WindowsSqliteHostTaskStore tasks,
         TimeProvider? timeProvider, IHostInteractionTransactionCheckpoint? checkpoint,
-        EvidenceRetentionPolicy? retentionPolicy = null, AuditRetentionPolicy? auditPolicy = null)
+        EvidenceRetentionPolicy? retentionPolicy = null, AuditRetentionPolicy? auditPolicy = null,
+        SessionRetentionPolicy? sessionRetentionPolicy = null)
     {
         this.tasks = tasks;
+        this.paths = paths;
         time = timeProvider ?? TimeProvider.System;
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
         this.auditPolicy = auditPolicy;
+        this.sessionRetentionPolicy = sessionRetentionPolicy ?? new();
         this.checkpoint = checkpoint;
         database = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
             HostInteractionSchema.ApplicationId, HostInteractionSchema.CurrentTables,
             new(1, 2, HostInteractionSchema.Tables, MigrateMetadata),
             new(2, 3, HostInteractionSchema.MetadataTables, ConsolidateTasks),
             new(3, 4, HostInteractionSchema.AuthorityTables, MigrateHistory),
-            new(4, HostInteractionSchema.Version, HostInteractionSchema.HistoryTables, MigrateQueue));
+            new(4, 5, HostInteractionSchema.HistoryTables, MigrateQueue),
+            new(5, HostInteractionSchema.Version, HostInteractionSchema.QueueTables, MigrateRetention));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -63,7 +70,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             if (!database.HasExistingPartition()) { tasks.RequireFreshAuthority(cancellationToken); }
             using var lease = database.AcquireLease(out var created, cancellationToken);
             using var connection = Open(created, cancellationToken);
-            tasks.BindAuthority(database, ValidateAuthority, runId);
+            tasks.BindAuthority(database, ValidateAuthority, runId, ObserveTaskActivity);
             var identity = database.ReadIdentity();
             if (inspectionIdentity is not null && !Same(inspectionIdentity, identity))
             {
@@ -453,7 +460,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             }
             tasks.RequireRetiredAuthority(cancellationToken);
             ValidateAuthority(connection);
-            tasks.BindAuthority(database, ValidateAuthority, runId);
+            tasks.BindAuthority(database, ValidateAuthority, runId, ObserveTaskActivity);
             return connection;
         }
 
@@ -469,6 +476,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         ValidateConsolidatedAuthority(connection);
         SessionHistoryPersistence.Validate(connection);
         ValidateQueue(connection);
+        ValidateRetention(connection);
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -539,6 +547,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         {
             throw new InvalidDataException("Only the live typed host security path may append authority audit.");
         }
+        if (audit.ActionId.StartsWith("session.create.", StringComparison.Ordinal)
+            && !Same(audit.ActionId, "session.create.named"))
+        {
+            // Host preference/control collaborators retain exact authority for this run. Never expire it underneath them.
+            liveControlSessions.Add(session.SessionId);
+        }
         using var head = connection.CreateCommand();
         head.Transaction = transaction;
         head.CommandText = "SELECT sequence,hash FROM authority_head WHERE singleton=1;";
@@ -571,6 +585,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         if (decision is not null)
         {
             SessionHistoryPersistence.Decision(connection, transaction, live.Request, session.Generation, decision.Outcome, sequence);
+            if (decision.Question?.Status == QuestionStatus.Answered
+                || decision.Outcome == HostInteractionOutcome.Cancelled
+                    && live.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            {
+                TouchActivity(connection, transaction, session.SessionId);
+            }
         }
         return sequence;
     }
@@ -631,7 +651,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
             || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
-                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue")
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention")
                 || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
                 || !Same(change.Id, id.ToString("D"))))
         {
@@ -777,7 +797,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         return grants.ToImmutable();
     }
 
-    private static void WriteSession(SqliteConnection connection, SqliteTransaction transaction,
+    private void WriteSession(SqliteConnection connection, SqliteTransaction transaction,
         WorkSessionAuthorization session, int state, long sequence)
     {
         Execute(connection, transaction, """
@@ -785,6 +805,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             ON CONFLICT(session_id) DO UPDATE SET generation=excluded.generation,state=excluded.state,audit_sequence=excluded.audit_sequence;
             """, ("$id", Id(session.SessionId)), ("$generation", session.Generation.Value), ("$state", state), ("$audit", sequence));
         SessionHistoryPersistence.Seed(connection, transaction, session.SessionId, session.Generation, baseline: false);
+        SeedActivity(connection, transaction, session.SessionId);
+        if (state == 0) { TouchActivity(connection, transaction, session.SessionId); }
     }
 
     private static void WriteQuestion(SqliteConnection connection, SqliteTransaction transaction,

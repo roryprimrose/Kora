@@ -14,6 +14,8 @@ public sealed partial class SessionWorkspaceService(
     SessionQueueService? queue = null)
 {
     public event Action<HostTaskObservation>? WaitingTaskCancelled;
+    private SessionRetentionService? retention;
+    public void BindRetention(SessionRetentionService service) => retention = service;
 
     private void NotifyCancellation(HostTaskObservation observation) => WaitingTaskCancelled?.Invoke(observation);
     public Task<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, CancellationToken token) =>
@@ -26,10 +28,10 @@ public sealed partial class SessionWorkspaceService(
             return snapshot;
         });
     public Task<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) =>
-        ReadAsync(() => store.ReadSessionsAsync(after, limit, token));
+        ReadAsync(() => store.ReadSessionsAsync(after, limit, token), token);
 
     public Task<SessionPage<SessionWorkspaceEntry>> ReadMetadataAsync(Guid? after, int limit, CancellationToken token) =>
-        ReadAsync(() => store.ReadMetadataPageAsync(after, limit, token));
+        ReadAsync(() => store.ReadMetadataPageAsync(after, limit, token), token);
 
     public Task<SessionWorkspaceEntry> CreateAsync(SessionName name, RequestOrigin origin, CancellationToken token) =>
         ControlAsync(new(Guid.NewGuid()), origin,
@@ -41,17 +43,17 @@ public sealed partial class SessionWorkspaceService(
             (request, eligible) => store.RenameSessionAsync(request, expectedGeneration, expectedMetadataRevision, name, eligible, token), token);
 
     public Task<SessionPage<HostQuestionRecord>> ReadQuestionsAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) =>
-        ReadAsync(() => store.ReadQuestionPageAsync(session, after, limit, token));
+        ReadAsync(() => store.ReadQuestionPageAsync(session, after, limit, token), token);
 
     public Task<SessionPage<HostTaskRecord>> ReadTasksAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) =>
-        ReadAsync(() => store.ReadTaskPageAsync(session, after, limit, token));
+        ReadAsync(() => store.ReadTaskPageAsync(session, after, limit, token), token);
 
     public Task<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session, SessionHistoryCursor? cursor,
         int limit, CancellationToken token) =>
-        ReadAsync(() => History.ReadHistoryAsync(session, cursor, limit, token));
+        ReadAsync(() => History.ReadHistoryAsync(session, cursor, limit, token), token);
 
     public Task<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session, Guid eventId, CancellationToken token) =>
-        ReadAsync(() => History.ReadHistoryEventAsync(session, eventId, token));
+        ReadAsync(() => History.ReadHistoryEventAsync(session, eventId, token), token);
 
     private ISessionHistoryStore History => store as ISessionHistoryStore
         ?? throw new InvalidOperationException("The admitted store does not provide durable history.");
@@ -66,12 +68,13 @@ public sealed partial class SessionWorkspaceService(
         return result;
     }
 
-    private async Task<T> ReadAsync<T>(Func<ValueTask<T>> read)
+    private async Task<T> ReadAsync<T>(Func<ValueTask<T>> read, CancellationToken token)
     {
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Storage);
         try
         {
             RequireInspection();
+            if (retention is not null) { await retention.RunAsync(token).ConfigureAwait(false); }
             var revision = access.ControlRevision;
             var page = await read().ConfigureAwait(false);
             RequireInspection();

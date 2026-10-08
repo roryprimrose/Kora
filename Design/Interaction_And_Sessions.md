@@ -1,8 +1,9 @@
 # Human Interaction and Persistent Sessions
 
 Status: agreed product direction; bounded durable question/grant/session metadata,
-exact session/task controls and consolidated schema-v5 task/question/queue/required-audit
-authority with bounded ordered interaction history implemented. The deterministic
+exact session/task controls and consolidated schema-v6 task/question/queue/required-audit
+authority with bounded ordered interaction history and inventoried configurable
+session retention implemented. The deterministic
 local-version queue and its exact pending cancellation are delivered; cancellation
 of the separate genuine current-run local-version pre-dispatch question wait
 remains gateway-bound. Full conversation, effect and model-assisted routing
@@ -67,6 +68,55 @@ There is no general typed form service,
 full conversation/composer UI, general concurrent provider/effect scheduler,
 or model-facing session tool API. The bounded history, native work ledger,
 question and passive detail slices do not qualify those broader capabilities.
+
+### R12 Bounded Session Retention Delivered - 2026-10-09
+
+Schema v6 preserves v5 queue authority and adds one durable per-session meaningful-activity timestamp. Default
+archive is 24 hours and deletion 30 days from that same timestamp, not from
+creation/archive. Create/resume, admitted substantive original-user work,
+accepted final answers/cancellation and real dispatch/terminal progress refresh
+it monotonically. Drafts, passive browse, rename and control/configuration
+bookkeeping do not. Unknown historical activity gets a conservative migration
+baseline; no chronology is fabricated. Native future-only
+[configuration](User_Configuration.md#r12-bounded-session-retention-delivered---2026-10-09)
+does not alter existing due dates without subsequent meaningful activity.
+
+Startup/access checks and an owned one-minute host-only maintenance timer
+process at most 32 candidates, never execute or schedule work. Intent-recorded,
+dispatched, Unknown work, unresolved questions and current-run control
+authorities hold rather than being abandoned; held controls cannot starve due
+idle sessions. Exact-generation audited host-only Perpetual session marking
+holds the whole session, independently of Perpetual permission grants. There
+is no new marking UI. Archive revokes source/generation/scoped authority but
+preserves content and does not reset the activity clock.
+
+Deletion awaits source/presentation revocation, removes owned history,
+question/draft/answer, task/event/wait/run, observation, scoped-grant and metadata
+content, legacy task copies and authenticated owned artifacts/staging, and
+clears SQLite row/index/free-page and committed rollback-journal copies.
+Unrelated sessions, independent artifact deletion owners and independently
+Perpetual grants survive. Only exact-ID content-free authority tombstones,
+redacted history gaps and content-minimised independent required audit remain;
+late append/publication is denied. Removing authority alone is not acceptance:
+a separate final inventory receipt is required and interrupted acceptance
+retries storage cleanup without execution.
+
+Unrecognised ownership, malformed envelopes, uncertain key publication,
+uninventoried storage/backup entries or hot/nonempty journals fail closed.
+No managed-backup publisher/ownership format is delivered; arbitrary copies
+are held, not guessed or claimed erased. No provider/user-export, forensic or
+media-erasure acceptance is claimed. This entry supersedes older statements
+below that retention/timers were absent from their historical bounded slices.
+Full R12 remains partial; blocked R11 is required only for the remaining
+execution/queue integration, not this non-executing maintenance increment.
+
+Validation: locked restore; Release 0 warnings/errors; Core 985, Application
+2,792, Tools 69, Definitions 6, Windows 1,192 passed, zero failures/skips;
+portable coverage 100% lines/branches. Tests check actual plaintext absence
+from database/journal, owned file removal, preservation, holds, cancellation,
+invalid persistence/migration, interrupted acceptance and bounded fairness.
+See the [dated roadmap receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09);
+installed/native/RC and full R12/A3 qualification remain open.
 
 ### Delivered Bounded Ordered Interaction History - 2026-10-09
 

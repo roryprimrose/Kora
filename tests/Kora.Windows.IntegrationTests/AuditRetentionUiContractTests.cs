@@ -27,7 +27,7 @@ public sealed class AuditRetentionUiContractTests
         File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindowController.cs"))
             .Should().Contain("BindAuditRetentionNativeLifetime").And.Contain("Volatile.Read(ref nativeVisibilityRevision) == revision");
         var composition = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
-        composition.Should().Contain("new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy)")
+        composition.Should().Contain("new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy, sessionRetentionPolicy: sessionPolicy)")
             .And.Contain("diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy")
             .And.Contain("services.AddSingleton(auditPolicy)")
             .And.Contain("services.AddSingleton<IAuditRetentionSessionStore>(interactions)")

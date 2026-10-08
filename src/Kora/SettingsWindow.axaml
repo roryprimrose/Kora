@@ -727,6 +727,30 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Sessions">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <TextBlock Text="Session inactivity retention" FontSize="28" FontWeight="SemiBold" />
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Archive and delete on the same meaningful-activity clock" Classes="settings-title" />
+                <TextBlock Text="Default: archive after 24 hours; delete after 30 idle days. Choose whole days from 1 to 365, with deletion later than archive. Changes apply only to new sessions or subsequent meaningful activity; existing due dates stay unchanged. No apply-now or execution integration. Perpetual sessions and live or uncertain work are held."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SessionRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Archive after idle days" />
+                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding SelectedSessionArchiveDays}"
+                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Session archive inactivity days" />
+                <TextBlock Text="Delete after idle days" />
+                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding SelectedSessionDeleteDays}"
+                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Session deletion inactivity days" />
+                <Button Content="Refresh session retention" Command="{Binding RefreshSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <Button Content="Save future session retention" Command="{Binding SaveSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <Button Content="Reset future session retention to 1 / 30 days" Command="{Binding ResetSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
       <TabItem Header="Logging">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">

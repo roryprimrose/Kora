@@ -77,6 +77,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
             Execute(connection, transaction, "INSERT INTO host_task_runs VALUES($task,$run);",
                 ("$task", Id(work.TaskId)), ("$run", runId.ToString("D")));
             WriteQueue(connection, transaction, entry, sequence);
+            if (work.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            {
+                TouchActivity(connection, transaction, work.SessionId);
+            }
             return QueueSnapshot(connection, control.SessionId);
         }, token, eligible, requireIdle: false);
 
@@ -143,6 +147,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 changes: [QueueChange(admitted), TaskChange(dispatched)]);
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, dispatched);
             WriteQueue(connection, transaction, admitted, sequence);
+            TouchActivity(connection, transaction, expected.Request.SessionId);
             return admitted;
         }, token, eligible, requireIdle: false);
 
@@ -174,6 +179,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 changes: [QueueChange(next), TaskChange(task)]);
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, task);
             WriteQueue(connection, transaction, next, sequence);
+            if (outcome is SessionQueueState.Succeeded or SessionQueueState.Failed)
+            {
+                TouchActivity(connection, transaction, expected.Request.SessionId);
+            }
             return next;
         }, token, eligible, requireIdle: false);
 
@@ -309,11 +318,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT 1 FROM (
-                SELECT json_extract(c.value,'$.Id') AS id, MAX(a.sequence) AS sequence
+                SELECT json_extract(c.value,'$.Id') AS id,
+                    json_extract(a.envelope,'$.Request.SessionId.Value') AS session_id, MAX(a.sequence) AS sequence
                 FROM security_audit_events a, json_each(a.envelope,'$.Changes') c
                 WHERE json_extract(c.value,'$.Kind')='queue' GROUP BY json_extract(c.value,'$.Id')
             ) latest LEFT JOIN session_queue q ON q.task_id=latest.id
-            WHERE q.audit_sequence IS NULL OR q.audit_sequence<>latest.sequence LIMIT 1;
+            JOIN work_sessions s ON s.session_id=latest.session_id
+            WHERE (q.audit_sequence IS NULL AND s.state<>2)
+                OR (q.audit_sequence IS NOT NULL AND q.audit_sequence<>latest.sequence) LIMIT 1;
             """;
         if (command.ExecuteScalar() is not null)
         {

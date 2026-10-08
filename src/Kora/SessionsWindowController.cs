@@ -27,6 +27,7 @@ internal sealed class SessionsWindowController(
             main.ReportHostInteractionFailure("Sessions unavailable: live private desktop ownership is required.");
             return;
         }
+
         if (window is null)
         {
             var opened = new SessionsWindow(new(service, evidence, access, logger));
@@ -35,6 +36,15 @@ internal sealed class SessionsWindowController(
             opened.Show();
         }
         window.Activate();
+    }
+
+    internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
+    {
+        if (window?.DataContext is SessionsViewModel state)
+        {
+            if (state.ReferencesSession(session)) { window.Close(); }
+            else { state.RevokeSessionList(); }
+        }
     }
 
     private void OnOpen(object? sender, EventArgs args) => Open();

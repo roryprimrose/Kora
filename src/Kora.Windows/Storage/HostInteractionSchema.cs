@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 5;
+    internal const int Version = 6;
     internal static readonly string[] Tables =
     [
         """
@@ -116,5 +116,16 @@ internal static class HostInteractionSchema
             audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
         """;
     internal static readonly string[] HistoryTables = [.. AuthorityTables, .. HistorySchema];
-    internal static readonly string[] CurrentTables = [.. HistoryTables, QueueTable];
+    internal static readonly string[] QueueTables = [.. HistoryTables, QueueTable];
+    internal const string RetentionTable = """
+        CREATE TABLE session_retention(
+            session_id TEXT PRIMARY KEY NOT NULL REFERENCES work_sessions(session_id),
+            last_activity TEXT NOT NULL,
+            archive_days INTEGER NOT NULL CHECK(archive_days>=1),
+            delete_days INTEGER NOT NULL CHECK(delete_days>archive_days AND delete_days<=365),
+            perpetual INTEGER NOT NULL CHECK(perpetual IN (0,1)),
+            purged INTEGER NOT NULL CHECK(purged IN (0,1)),
+            exemption_audit INTEGER REFERENCES security_audit_events(sequence)) STRICT
+        """;
+    internal static readonly string[] CurrentTables = [.. QueueTables, RetentionTable];
 }

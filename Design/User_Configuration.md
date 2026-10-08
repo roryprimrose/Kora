@@ -4,12 +4,51 @@ Status: partial. Bounded appearance, installed speech choices, assistant display
 prefix, spoken-summary caps, exact input/output preferences, per-Kora playback
 volume, Windows-provider-native rate, device-default response mode, independent in-call feedback and future-only SQLite diagnostic/audit retention are delivered through shared native/
 exact typed and activated-voice workflows below. Broader scopes, setup and the
-complete verbal preference/model-facing contract remain proposed, subject to protected-call origin gates
+complete verbal preference/model-facing contract remain proposed; native future-only
+session archive/deletion preferences are also delivered, subject to protected-call origin gates
 and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
+
+### R12 Bounded Session Retention Delivered - 2026-10-09
+
+Native **Settings > Sessions** exposes archive-after and delete-after whole-day
+choices with explicit Refresh/Save/Reset. Unsaved/default/reset means **1 day
+(24 hours) archive / 30 days deletion**, both from the same last-meaningful-
+activity timestamp. Archive must be positive, deletion strictly greater than
+archive and at most 365 days. Domain validation rejects invalid combinations;
+saved malformed/noncanonical/schema/UTF-8 values throw `InvalidDataException`,
+never an implicit default. No typed, voice, model or apply-now route is added.
+
+Schema-1 **`session-retention.txt`** and
+**`session-retention-unconfirmed.txt`** use `IApplicationDataPaths` and the shared
+atomic store. Original local-user intent, owning unlocked native lifetime and
+unchanged host/call revision admission, REQUESTED/terminal trusted audit,
+readback and durable completed control receipt precede confirmation/activation.
+Unknown/unconfirmed/inaccessible state holds policy and new clock writes.
+Inspect saved state and receipts, explicitly repair, then refresh; ordinary
+refresh cannot clear an unconfirmed marker or claim rollback.
+
+Changes affect only new sessions or subsequent meaningful activity. Existing
+sessions retain their snapshotted archive/deletion intervals and due dates;
+shortening or resetting never silently applies an immediate purge on a later
+tick. Status discloses future-only behavior and unavailable apply-now. Ordinary
+diagnostic/audit retention, independent Perpetual grants and other preference
+files are unchanged. Host-only audited Perpetual session marking is a separate
+exemption, with no new marking UI.
+
+Live/dispatched/Unknown work, unresolved questions, current-run control
+authorities and uncertain copy inventories hold maintenance. See the
+[storage/removal contract](Interaction_And_Sessions.md#r12-bounded-session-retention-delivered---2026-10-09).
+Full R12 still needs blocked R11 for execution/queue integration; this preference
+slice does not enable execution or scheduling.
+
+Validation: locked restore and zero-warning/error Release build; Core 985,
+Application 2,792, Tools 69, Definitions 6, Windows 1,192 passed with zero
+failures/skips; portable line/branch coverage 100%/100%. See the
+[dated evidence receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09).
 
 ### Delivered bounded device-local in-call feedback (R10/R15)
 

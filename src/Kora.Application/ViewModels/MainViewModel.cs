@@ -234,7 +234,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AuditRetentionConfigurationService? auditRetentionConfiguration = null,
         WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
         InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
-        SpeechTextConfigurationService? speechTextConfiguration = null)
+        SpeechTextConfigurationService? speechTextConfiguration = null,
+        SessionRetentionConfigurationService? sessionRetentionConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -321,6 +322,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             speechTextConfiguration.Changed += OnSpeechTextConfigurationChanged;
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
+        this.sessionRetentionConfiguration = sessionRetentionConfiguration;
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         if (auditRetentionConfiguration is not null)
         {
@@ -380,6 +382,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SelectedWindowsSpeechRate.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
+        SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
+        ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
         SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
@@ -1685,6 +1690,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => responseBody;
         private set
         {
+            sessionPresentationSources.Clear();
             if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); }
         }
     }

@@ -124,6 +124,12 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SessionsViewModel>>());
             sessionsWindow.Bind();
+            var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
+            Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
+            sessionRetention.Revoking += sessionsWindow.RevokeSession;
+            sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
+            sessionRetention.Failed += viewModel.ReportHostInteractionFailure;
+            sessionRetention.Start();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
             fileWindow = new LocalFilePreviewWindowController(viewModel, window);

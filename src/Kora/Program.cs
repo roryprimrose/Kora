@@ -115,6 +115,10 @@ internal static class Program
                             DesktopLog.Information(startupLogger, "Starting Kora desktop host");
                             Task.Run(() => provider.GetRequiredService<DurableHostRecovery>()
                                 .RecoverAsync(CancellationToken.None)).GetAwaiter().GetResult();
+                            provider.GetRequiredService<SessionRetentionConfigurationService>().Observe();
+                            Task.Run(() => provider.GetRequiredService<WindowsSqliteHostInteractionStore>()
+                                .ApplyRetentionAsync(() => provider.GetRequiredService<SessionRetentionConfigurationService>().Available,
+                                    static (_, _) => ValueTask.CompletedTask, CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             Task.Run(() => provider.GetRequiredService<WindowsSqliteDiagnosticRetention>()
                                 .RunAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             startup.Complete(HostOperationOutcome.Completed);
@@ -219,11 +223,12 @@ internal static class Program
     {
         var diagnosticPolicy = new DiagnosticRetentionPolicy();
         var auditPolicy = new AuditRetentionPolicy();
+        var sessionPolicy = new SessionRetentionPolicy();
         var evidence = new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy);
         evidence.Initialize();
         var tasks = new WindowsSqliteHostTaskStore(paths);
         Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
-        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy);
+        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy, sessionRetentionPolicy: sessionPolicy);
         Task.Run(() => interactions.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         services.AddLogging(builder =>
         {
@@ -249,11 +254,14 @@ internal static class Program
         services.AddSingleton(evidence);
         services.AddSingleton(diagnosticPolicy);
         services.AddSingleton(auditPolicy);
+        services.AddSingleton(sessionPolicy);
         services.AddSingleton<WindowsSqliteDiagnosticRetention>();
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
+        services.AddSingleton<ISessionRetentionStore>(interactions);
+        services.AddSingleton<SessionRetentionService>();
         services.AddSingleton<ISharedSkillSessionStore>(interactions);
         services.AddSingleton<ISharedSkillSourceReader, WindowsProfileSkillReader>();
         services.AddSingleton<LocalSharedSkillPreferences>();
@@ -377,6 +385,9 @@ internal static class Program
         services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
             new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DiagnosticRetentionConfigurationService>();
+        services.AddSingleton<ISessionRetentionPreferences>(provider =>
+            new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<SessionRetentionConfigurationService>();
         services.AddSingleton<IAuditRetentionPreferences>(provider =>
             new LocalAuditRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<AuditRetentionConfigurationService>();

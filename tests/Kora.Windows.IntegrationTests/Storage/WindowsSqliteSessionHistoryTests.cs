@@ -154,7 +154,7 @@ public sealed class WindowsSqliteSessionHistoryTests
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
         await CreateQuestionAsync(fixture);
-        fixture.Mutate("DROP TABLE session_queue; DROP TABLE session_history; DROP TABLE session_history_heads; PRAGMA user_version=3;");
+        fixture.Mutate("DROP TABLE session_retention; DROP TABLE session_queue; DROP TABLE session_history; DROP TABLE session_history_heads; PRAGMA user_version=3;");
         fixture.Reopen(new InteractionTransactionCheckpoint { Commit = (_, _) => throw new IOException("Injected migration interruption") });
         var interrupted = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
         await interrupted.Should().ThrowAsync<IOException>();

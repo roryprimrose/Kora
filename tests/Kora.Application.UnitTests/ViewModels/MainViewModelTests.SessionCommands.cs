@@ -15,6 +15,24 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Retention_revokes_only_matching_session_presentations_and_never_unrelated_later_responses()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = BindSessions(fixture);
+        await fixture.RunAsync("session list");
+        var content = fixture.ViewModel.ResponseBody;
+        fixture.ViewModel.RevokeSessionPresentation(new(Guid.NewGuid()));
+        fixture.ViewModel.ResponseBody.Should().Be(content);
+        fixture.ViewModel.RevokeSessionPresentation(store.Session.Authority.SessionId);
+        fixture.ViewModel.ResponseBody.Should().StartWith("Session presentation revoked");
+        await fixture.RunAsync("session list");
+        await fixture.RunAsync("session help");
+        content = fixture.ViewModel.ResponseBody;
+        fixture.ViewModel.RevokeSessionPresentation(store.Session.Authority.SessionId);
+        fixture.ViewModel.ResponseBody.Should().Be(content);
+    }
+
+    [Fact]
     public async Task Busy_bootstrap_keeps_exact_session_controls_available_without_cancelling_or_reasoning()
     {
         var fixture = await Fixture.CreateInitializedAsync();

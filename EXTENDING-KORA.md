@@ -36,6 +36,15 @@ Check the [current/proposed tool inventory](Design/Internal_Model_Tools.md) and
 or claiming availability. Readiness observations are not runtime qualification.
 Clipboard preview is not model context selection or transmission consent.
 
+The [provider policy/handoff workflow](Design/Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+is a composed host seam, not a provider tool or native settings feature.
+Use the [Core policy](src/Kora.Core/Dependencies/ModelProviderPolicy.cs),
+[ModelTurnHost consumer](src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs)
+and [shared-question workflow](src/Kora.Application/Dependencies/ModelProviderHandoffWorkflow.cs)
+rather than a second provider loop or approval manager. Its volatile revisioned
+review capability does not qualify runtime bytes, grant tools or admit egress;
+durable policy/native UI and adapters remain dependent work.
+
 ## Put code and content in the right layer
 
 | Layer | Owns | Dependency direction |

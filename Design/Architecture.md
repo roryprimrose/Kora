@@ -33,6 +33,13 @@ dependent work; no schema, model context or hosted authority is added.
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.
 
+The [provider policy/review increment](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+keeps mode/selection rules in Core and a volatile revisioned session policy plus
+exact HostQuestionService review workflow in Application. The existing
+ModelTurnHost consumes one-provider choices and revalidates policy changes.
+Review is not egress or qualification; native provider settings, durable
+policy/schema integration and production adapters remain unavailable.
+
 There are two adapter families:
 
 - Agent SDK adapter: delegates iteration to an SDK while enforcing Kora's control points.

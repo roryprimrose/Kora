@@ -190,6 +190,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
         }
         CompleteAudit(requested, result);
         activity.Complete(ToActivityOutcome(result.Outcome));
+        turn.TerminalResult = result;
         return result;
     }
 
@@ -266,6 +267,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
         if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
@@ -384,6 +386,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
         Task outstanding;
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
+        lock (policyGate) { policies.Clear(); }
         lifetime.Dispose();
     }
 }

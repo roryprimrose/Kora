@@ -16,7 +16,9 @@ internal sealed record ModelProviderRegistration(
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
             _ => ModelQualificationGate.None,
         };
-        return required != ModelQualificationGate.None && (Evidence & required) == required
+        const ModelQualificationGate known = ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost
+            | ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle | ModelQualificationGate.ExecutionAccount;
+        return Selection.IsValid && (Evidence & ~known) == ModelQualificationGate.None && (Evidence & required) == required
             && now < ExpiresAt && Adapter is not null;
     }
 }

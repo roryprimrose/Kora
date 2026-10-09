@@ -501,6 +501,15 @@ Re-detect and re-approve after a transformation changes the outgoing content.
 
 ### Runtime Egress Enforcement
 
+The [exact provider handoff workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+binds original-user host intent, immutable complete envelope/evidence lineage,
+destination/catalogue and policy revisions, question revision, session/task
+generation and control revision. LocalOnly cannot propose hosted disclosure,
+and LocalOnly evidence is refused. Removal requires a new review; expired/stale/
+cancelled/declined or audit-failed review returns no disclosure authority.
+An approved one-use confirmation still encounters the independent unavailable
+production qualification and missing final-request egress gates.
+
 The [R02 outcomes](Runtime_Provider_Feasibility.md#evidence-baseline-and-interpretation)
 reject prompt/tool-hook-only mediation: failed tool output bypassed the
 successful-result hook. Every result status and exception must be host-bounded

@@ -106,6 +106,66 @@ tests passed, none skipped. Current portable reports cover all 16,170 lines
 and 9,528 branches (100%/100%). No real provider/native qualification trial,
 installation, account or network-policy change was performed.
 
+### R08/D-014 Volatile Provider Policy and Exact Handoff Workflow - 2026-10-09
+
+The [bounded policy/workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+consumes the delivered provider-neutral ModelTurnHost and existing
+HostQuestionService authority/audit transactions. Core owns typed session modes,
+per-turn choices, observable reasons and canonical selection validation;
+Application owns volatile revision publication, exact review/removal and the
+host admission consumer. No sibling persistence schema or broad presentation
+code is changed.
+
+LocalOnly cannot offer hosted disclosure; LocalFirst requires exact one-use
+original-user review; HostedPreferred still requires independent remote egress.
+Context/destination/policy/question/session/task/control revisions are bound
+and revalidated. The host-audited local Unavailable result can offer a new review,
+never race providers or automatically retry/fallback
+([implementation and tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Policy.cs)).
+
+**I:** the consumed host/session/task/privacy/ownership, question and typed audit
+seams are implemented, with deterministic hostile-origin, cross-session,
+exact-limit, stale/expired/cancellation/late-callback and audit-failure tests.
+**E:** production adapters/accounts/acquisition, local L1-L5/L6 and exact-profile
+RT1/RT2/PV1 remain unavailable/open. **Q:** native provider settings and exact
+preview/admission, durable session policy, production final-request egress,
+streaming and offered-profile/RC acceptance remain dependent work. Review is not
+qualification; R04-R08/D-014 are not accepted end to end
+([qualification boundary](Runtime_Provider_Feasibility.md#qualification-scope-and-maintained-test-migration)).
+
+Experiment disposition: retain Node, RT1, RT2, MG1 and local-inference
+executables, unique procedures and historical receipts. Their actual SDK/native
+request/lifecycle/session-I/O/retry/account/hardware subjects are not exactly
+replaced by host-policy tests; shared RT1 derivations and
+[maintained runtime preparation consumers](../eng/RuntimeValidation.Common.ps1)
+remain. No assertion is labelled migrated and no code is removed; the
+[inventory](#experiment-disposition-inventory) retains its exact-equivalence
+and consumer closure requirements.
+
+Local validation receipt on reviewed base
+`1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`: missing initial assets required only
+locked solution restore through the machine-local feed. The final Release build
+and all applicable suites passed; after exercising enabled fault/outcome
+diagnostics, latest portable reports pass the unchanged exact coverage gate.
+These are deterministic/local regression results, not runtime qualification.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s)
+
+dotnet test --project .\tests\Kora.<suite>.UnitTests\Kora.<suite>.UnitTests.csproj --configuration Release --no-build --report-trx --coverlet --coverlet-output-format cobertura
+Core: total 1170, failed 0, skipped 0
+Application: total 3177, failed 0, skipped 0
+Tools: total 69, failed 0, skipped 0
+Definitions: total 6, failed 0, skipped 0
+
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --report-trx
+Windows: total 1224, failed 0, skipped 0
+
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .\.net-test-artifacts\final-base3\coverage-report\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+line=1 branch=1 lines=16738 branches=10063
+```
+
 ### R14 immutable selected-session receipt details - 2026-10-09
 
 Built on current main including #119 native theme/UX proof and #120 trusted

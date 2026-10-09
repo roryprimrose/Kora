@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Dependencies;
 
 [Collection("Host tracing")]
-public sealed class ModelTurnHostTests : IDisposable
+public sealed partial class ModelTurnHostTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -483,14 +483,19 @@ public sealed class ModelTurnHostTests : IDisposable
     }
 
     private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
-        ISecurityAuditLog, IApplicationInfo, ILogger<ModelTurnHost>, IDisposable
+        ISecurityAuditLog, IApplicationInfo, ILogger<ModelTurnHost>, ILogger<ModelProviderHandoffWorkflow>, IDisposable
     {
-        internal HostRequest Request { get; } = HostRequest.Create(RequestOrigin.LocalUi);
+        internal HostRequest Request { get; }
         internal WorkSessionAuthorization Session { get; set; }
         internal HostTaskObservation? Task { get; set; }
         internal ManualTime Time { get; } = new();
         internal Adapter Adapter { get; } = new();
         internal ModelTurnHost Host { get; }
+        internal ModelTurnHost PolicyHost { get; }
+        internal Kora.Application.UnitTests.Interaction.InteractionFixture.TransactionalStore Questions { get; }
+        internal ModelProviderHandoffWorkflow Workflow { get; }
+        internal Action<SecurityAuditEvent>? OnAudit { get; set; }
+        internal HostRequest? ExpectedAuditRequest { get; set; }
         internal bool Current { get; set; } = true;
         internal Action? OnRead { get; set; }
         internal Action? OnVersion { get; set; }
@@ -506,14 +511,21 @@ public sealed class ModelTurnHostTests : IDisposable
         private readonly DependencyBootstrapper dependencies = new([], NullLogger<DependencyBootstrapper>.Instance);
         private readonly ReadOnlyCapabilityRegistry registry;
         private readonly List<ModelTurnHost> ownedHosts = [];
-        internal Fixture()
+        internal Fixture(RequestOrigin origin = RequestOrigin.LocalUi)
         {
+            Request = HostRequest.Create(origin);
             Session = new(Request.SessionId, new(1), true);
             Task = new(new(Request, new(1), HostTaskState.IntentRecorded), new(1), "host", true, null);
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             registry = new(this, new(), new(), new(this), new(dependencies), new(runtimes), new(runtimes),
                 NullLogger<ReadOnlyCapabilityRegistry>.Instance);
             Host = Qualified(ModelProviderSelection.OllamaCandidate);
+            PolicyHost = new(this, this, this, registry, this, this, Time,
+                [new(ModelProviderSelection.OllamaCandidate, Gates(ModelProviderSelection.OllamaCandidate), Time.Now.AddMinutes(5), Adapter),
+                new(ModelProviderSelection.CopilotCandidate, Gates(ModelProviderSelection.CopilotCandidate), Time.Now.AddMinutes(5), Adapter)]);
+            ownedHosts.Add(PolicyHost);
+            Questions = new(new(Task.Task, Session, new(true, true, false, true), null, [], []));
+            Workflow = new(PolicyHost, new(Questions, Time), this, this);
         }
         internal HostActivity Root() => HostActivity.BeginRoot(Request, HostActivityLayer.Application, HostOperation.Request);
         internal ModelTurnHost Production()
@@ -547,8 +559,9 @@ public sealed class ModelTurnHostTests : IDisposable
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (AuditFailure) { throw new IOException("audit unavailable"); }
-            HostActivity.RequireCurrent().Request.Should().BeSameAs(Request);
+            HostActivity.RequireCurrent().Request.Should().BeSameAs(ExpectedAuditRequest ?? Request);
             Audits.Add(auditEvent);
+            OnAudit?.Invoke(auditEvent);
         }
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;

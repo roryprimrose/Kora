@@ -1,6 +1,6 @@
 # Model Providers, Memory, and Grounded Knowledge
 
-Status: accepted product direction, bounded provider-neutral host controls
+Status: accepted product direction, bounded provider-neutral host controls and volatile provider-policy/review workflow
 implemented, reviewed user-memory admission policy implemented, and remaining proposed architecture. Provider
 qualification, durable user memory, knowledge ingestion, retrieval, and hosted
 handoff described here are not complete or advertised by the current
@@ -523,9 +523,9 @@ denied here because exact destination/content egress approval is not implemented
 
 This package preserves current bootstrap readiness/unavailable messages,
 buffered local reasoner and exact offline controls. It does not upgrade that
-bootstrap to a qualified neutral adapter. Local only, Local first, Hosted
-preferred, reviewed handoff, durable memory and local/hosted grounded answering
-remain disabled planned product modes.
+bootstrap to a qualified neutral adapter. Native Local only, Local first, Hosted
+preferred settings, hosted disclosure, durable memory and local/hosted grounded answering
+remain disabled planned product modes; the policy/workflow increment below does not enable them.
 
 Experiment disposition: the Node runtime, actual .NET RT1, RT2 lifecycle,
 MG1 management and local-inference proofs were reviewed against this boundary.
@@ -536,3 +536,77 @@ serialization, runtime/session storage, retry transports, provider accounts,
 real answer quality, offline network denial or server cessation. Those unique
 assertions, recorded artifacts and rejected hook-only witness remain retained;
 no experiment assertion is claimed migrated and no experiment is removed.
+
+### Delivered Provider Policy and Exact Handoff Workflow - 2026-10-09
+
+The [Core policy](../src/Kora.Core/Dependencies/ModelProviderPolicy.cs) and
+[host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs)
+implement volatile session-bound LocalOnly, LocalFirst and HostedPreferred
+semantics, with explicit Default/Local/Hosted choices for each new turn.
+LocalOnly never offers hosted disclosure; LocalFirst defaults local and requires
+exact review for a hosted choice; HostedPreferred defaults hosted but still
+fails closed without independent egress authority.
+
+An original LocalUi/ActivatedVoice host request with a matching active session
+and committed nonterminal task can publish the next policy revision. Replacing
+policy invalidates old review bindings and admitted turns. Unknown
+mode/choice/provider, empty model/session IDs, invalid revisions and unknown
+qualification bits are rejected by the
+[shared selection validation](../src/Kora.Core/Dependencies/ModelProviderSelection.cs),
+[policy](../src/Kora.Core/Dependencies/ModelProviderPolicy.cs) and
+[qualification gate](../src/Kora.Application/Dependencies/ModelProviderRegistration.cs).
+
+The [composed workflow](../src/Kora.Application/Dependencies/ModelProviderHandoffWorkflow.cs)
+reuses HostQuestionService and its atomic original-intent/question/audit
+transaction. A [host-issued offer](../src/Kora.Application/Dependencies/ModelHandoffOffer.cs)
+exposes the exact immutable context, destination/catalogue revision, typed
+observable reason, question key/revision, session generation, task revision and
+privacy/ownership control revision. Approve, decline, cancel, expired and stale
+outcomes are typed; removing exact evidence IDs retires the old offer and creates
+a reduced envelope requiring fresh review. No confidence field, default answer,
+grant or model-selected Kora identity is accepted.
+
+The workflow can offer review after the
+[audited local Unavailable terminal result](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs)
+of a host-issued policy-bound turn; it does not automatically dispatch another
+provider. Other [typed reasons](../src/Kora.Core/Dependencies/ModelHandoffReason.cs)
+must come from host-owned capability/budget/acceptance or explicit-user decisions,
+not model text. One-use review is bound to the original user/request, exact
+context object including evidence lineage, exact policy and destination revision,
+validity interval and live authority observations. Changes before confirmation,
+after question commit, during terminal audit or before hosted admission fail
+closed ([focused tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Policy.cs)).
+
+The complete serialized envelope, including JSON escaping, evidence provenance
+and tool catalogue overhead, remains bounded to 32,768 UTF-8 bytes and 16 evidence
+items; no truncation occurs
+([envelope](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs),
+[exact-limit tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Policy.cs)).
+HostedEligible is classification, not permission; LocalOnly evidence cannot
+enter an offer. Required audit failures throw and return no new policy/review
+capability; cancellation and late callbacks cannot acquire one
+([workflow tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Policy.cs)).
+
+**Boundary:** confirmation is neither runtime qualification nor a final-request
+egress receipt. Production still composes no adapters or qualification evidence,
+and even qualified test registrations plus approved review return DeniedEgress
+at the [turn host](../src/Kora.Application/Dependencies/ModelTurnHost.cs).
+No account/model acquisition, network send, RT1/RT2/PV1 proof, memory
+storage/retrieval, prompt ranking or native provider-settings/review UI is
+delivered. The generic native question surface cannot itself issue this
+workflow's review capability. Durable session policy awaits dependent
+native/persistence integration; no shared schema is changed. Bootstrap behavior
+is unchanged.
+
+Experiment disposition remains **retain**, with no executable or receipt
+removal. The [RT1 final HTTP boundary](../experiments/r02-dotnet-control-proof/RequestBoundary.cs),
+[RT2 actual native lifecycle observations](../experiments/r02-runtime-lifecycle-proof/LifecycleTests.cs)
+and [MG1 actual-runtime envelope/admission](../experiments/r02-dotnet-management-proof/Envelope.cs)
+have different subjects from this host policy workflow. The
+[runtime preparation consumer](../eng/RuntimeValidation.Common.ps1) still
+verifies and derives the historical profiles; RT2/MG1 share RT1 fixtures, and
+Node remains the rejected hook-only witness. Unique native/session-I/O/retry/
+account/local-floor/offline procedures and outstanding gates remain in the
+[inventory](Implementation_Roadmap.md#experiment-disposition-inventory).
+Deterministic policy tests do not establish exact SDK/native equivalence or
+close R08/D-014 acceptance.

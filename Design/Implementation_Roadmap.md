@@ -46,8 +46,8 @@ authoritative work inspection.
 Maintained deterministic policy, source/clock/restart/race/cancellation/audit
 and native/exact-route tests supplement the existing capability checks.
 Validation receipt: locked root restore and Release build (zero warnings/errors);
-Core 1,111, Application 2,971, Tools 69, Definitions 6 and Windows integration
-1,218 tests passed with zero skips/failures (5,375 total). Latest complete
+Core 1,113, Application 2,971, Tools 69, Definitions 6 and Windows integration
+1,220 tests passed with zero skips/failures (5,379 total). Latest complete
 portable reports pass the unchanged exact 100% line/branch coverage gate.
 Headless native tests preserve passive focus and pending questions, prove
 queue/history/activity parity, exact route parity, owning-lease stale rejection,

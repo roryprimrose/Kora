@@ -6,6 +6,35 @@ namespace Kora.Core.UnitTests.Interaction;
 
 public sealed class LocalEventBrokerStateTests
 {
+    [Theory]
+    [InlineData(3, 8, 6, 75)]
+    [InlineData(11, 1, 5, -45)]
+    public void Spring_gap_and_autumn_overlap_cannot_extend_deferral_expiry_or_fatigue(int month, int day, int hour, int localMinutes)
+    {
+        var transition = new DateTime(1, 1, 1, 2, 0, 0, DateTimeKind.Unspecified);
+        var rule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(new(2026, 1, 1), new(2026, 12, 31),
+            TimeSpan.FromHours(1), TimeZoneInfo.TransitionTime.CreateFixedDateRule(transition, 3, 8),
+            TimeZoneInfo.TransitionTime.CreateFixedDateRule(transition, 11, 1));
+        var zone = TimeZoneInfo.CreateCustomTimeZone("deterministic-dst", TimeSpan.FromHours(-5),
+            "Test zone", "Standard", "Daylight", [rule]);
+        var now = new DateTimeOffset(2026, month, day, hour, 55, 0, TimeSpan.Zero);
+        var until = now.Add(LocalEventBrokerState.Deferral);
+        var item = LocalEventTests.Event() with { ObservedAt = now, ExpiresAt = now.AddMinutes(30) };
+        var receipt = new LocalEventReceipt(item, LocalEventDisposition.Deferred, until, now);
+        var state = LocalEventBrokerState.Empty(now) with
+        {
+            Receipts = [receipt],
+            Budgets = [new(LocalEventCategory.Work, now, 1, now)],
+        };
+        var restored = LocalEventBrokerState.Deserialize(LocalEventBrokerState.Serialize(state));
+        (TimeZoneInfo.ConvertTime(until, zone).DateTime - TimeZoneInfo.ConvertTime(now, zone).DateTime)
+            .Should().Be(TimeSpan.FromMinutes(localMinutes));
+        (until - now).Should().Be(TimeSpan.FromMinutes(15));
+        restored.Reason(receipt, until.AddTicks(-1)).Should().Be(LocalEventReason.Deferred);
+        restored.Reason(receipt, until).Should().Be(LocalEventReason.Eligible);
+        restored.Reason(receipt, item.ExpiresAt).Should().Be(LocalEventReason.Expired);
+    }
+
     private static LocalEventReceipt Receipt(LocalEventDisposition disposition = LocalEventDisposition.Eligible) =>
         new(LocalEventTests.Event(), disposition, null, LocalEventTests.Now);
 

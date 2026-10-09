@@ -358,6 +358,8 @@ RT1 source-built bytes and RT2 all-path gates stay BLOCKED. MG1's released-runti
 
 Validation on `444e7cd` main with code head `0798163`: root Release build had zero warnings/errors. Core **1,314**, Application **3,616**, Tools **90**, Definitions **6** and Windows **1,299** passed, with zero failures/skips. Clean reports and the existing coverage gate confirmed **18,387/18,387 portable lines** and **11,058/11,058 branches** (100%/100%).
 
+After preserving merged memory #150 on `9d982af`, the root Release build again had zero warnings/errors. Core **1,322**, Application **3,649**, Tools **90**, Definitions **6** and Windows **1,308** passed with zero failures/skips. Clean portable reports confirmed **18,443/18,443 lines** and **11,096/11,096 branches** (100%/100%). The subsequent #147 rebase changes maintained receipts only, not feature code.
+
 ### R08/D-014 Volatile Provider Policy and Exact Handoff Workflow - 2026-10-09
 
 The [bounded policy/workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)

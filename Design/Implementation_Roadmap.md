@@ -51,15 +51,22 @@ Final privacy receipt on base `444e7cd25bc10640766dd61d50e3c6566d1ae70e`, code h
 
 ### R14 Advanced Native Read-Only Evidence Filters - 2026-10-10
 
-The optional [native Advanced filters area](../src/Kora/EvidenceWindow.axaml) exposes existing typed request/invocation/approval/audit-correlation IDs, inclusive ISO UTC/offset times, diagnostic severity and typed audit outcome through the [native parser](../src/Kora/EvidenceViewModel.Filters.cs) and existing [bounded query service](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs). Default All remains SQLite-only; DailyLog/CombinedLog ordinary records never become committed AuthorityAudit.
+The optional [native Advanced filters area](../src/Kora/EvidenceWindow.axaml) exposes existing typed request/invocation/approval/audit-correlation IDs, inclusive ISO UTC/offset times, diagnostic severity and typed audit outcome through the [native parser](../src/Kora/EvidenceViewModel.Filters.cs).
+It uses the existing [bounded query service](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs). Default All remains SQLite-only; DailyLog/CombinedLog ordinary records never become committed AuthorityAudit.
 
-Both time edges are inclusive: SQLite/AuthorityAudit compare commit time, DailyLog observation time; CombinedLog retains independent snapshots and time semantics, not an atomic graph. Blank is unset; malformed/noncanonical identifiers, ambiguous/invalid times, reversed ranges and undefined enums refuse without an unfiltered/default read. Unsupported source/typed-filter combinations explicitly refuse. Any basic/advanced filter edit clears old results/selection/cursor, cancels an in-flight read and suppresses late content; Next retains the exact immutable query.
+Both time edges are inclusive: SQLite/AuthorityAudit compare commit time, DailyLog observation time; CombinedLog retains independent snapshots and time semantics, not an atomic graph. Blank is unset; malformed/noncanonical identifiers, ambiguous/invalid times, reversed ranges and undefined enums refuse without an unfiltered/default read.
+Unsupported source/typed-filter combinations explicitly refuse. Any basic/advanced filter edit clears old results/selection/cursor, cancels an in-flight read and suppresses late content; Next retains the exact immutable query.
 
-Maintained evidence is [native typed/filter/culture/lifecycle and real SQLite/daily/combined tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs), [committed authority native filters](../tests/Kora.Windows.IntegrationTests/Storage/WindowsCommittedAuthorityAuditTests.cs), [inert XAML contract](../tests/Kora.Windows.IntegrationTests/EvidenceViewModelTests.cs) and [authenticated per-field continuation binding](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs). Existing 50-record/complete-64-KiB output and reader scan/time/snapshot/expiry bounds remain unchanged; no schema/index, shared authority, durable filter preference, model tool, copy/export, deletion or activity-extension path is added.
+Maintained evidence is [native typed/filter/culture/lifecycle and real SQLite/daily/combined tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs), [committed authority native filters](../tests/Kora.Windows.IntegrationTests/Storage/WindowsCommittedAuthorityAuditTests.cs),
+[inert XAML contract](../tests/Kora.Windows.IntegrationTests/EvidenceViewModelTests.cs) and [authenticated per-field continuation binding](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs).
+Existing 50-record/complete-64-KiB output and reader scan/time/snapshot/expiry bounds remain unchanged; no schema/index, shared authority, durable filter preference, model tool, copy/export, deletion or activity-extension path is added.
 
-This deterministic read-only slice is not full R14/workspace/Ask Evidence or installed visual/screen-reader/DPI acceptance. Experiment disposition: retain unique executables/receipts and their consumers unchanged. [Storage](../experiments/r02-storage-proof/README.md), [runtime](../experiments/r02-runtime-proof/README.md), [containment](../experiments/r02-containment-proof/README.md) and [speech](../experiments/r02-speech-proof/README.md) proofs exercise capacity/crypto/recovery, runtime/provider/mediation, process containment and acoustic/resource behaviors not invoked by filtering; these tests do not replace their release evidence or authorize archival.
+This deterministic read-only slice is not full R14/workspace/Ask Evidence or installed visual/screen-reader/DPI acceptance. Experiment disposition: retain unique executables/receipts and their consumers unchanged.
+[Storage](../experiments/r02-storage-proof/README.md), [runtime](../experiments/r02-runtime-proof/README.md), [containment](../experiments/r02-containment-proof/README.md) and [speech](../experiments/r02-speech-proof/README.md) proofs exercise capacity/crypto/recovery, runtime/provider/mediation, process containment and acoustic/resource behaviors not invoked by filtering.
+These tests do not replace their release evidence or authorize archival.
 
-Local receipt for implementation `d97987474984ee9e0736407bb1f7b2e65a8cf0eb`, rebased onto reviewed main `c8365251488a063bd2e9ea76a6fb91002ea376bb`: missing worktree assets were restored locked using the machine-approved feed. The final Release solution build and all five suites passed with zero failures/skips. Fresh four-suite portable reports passed the unchanged [100% coverage gate](../eng/Assert-CodeCoverage.ps1), raw line/branch rates exactly `1`; source-generated logging source-file notices from report generation do not affect the zero-warning build or coverage totals.
+Local receipt for implementation `d97987474984ee9e0736407bb1f7b2e65a8cf0eb`, rebased onto reviewed main `c8365251488a063bd2e9ea76a6fb91002ea376bb`: missing worktree assets were restored locked using the machine-approved feed. The final Release solution build and all five suites passed with zero failures/skips.
+Fresh four-suite portable reports passed the unchanged [100% coverage gate](../eng/Assert-CodeCoverage.ps1), raw line/branch rates exactly `1`; source-generated logging source-file notices from report generation do not affect the zero-warning build or coverage totals.
 
 ```text
 dotnet build .\Kora.slnx --configuration Release --no-restore
@@ -73,6 +80,9 @@ All five suites: failed 0; skipped 0
 Line coverage: 100.0%; Branch coverage: 100.0%
 lines-covered/valid: 18223/18223; branches-covered/valid: 10975/10975
 ```
+
+Queue-main rebase preserved `444e7cd25bc10640766dd61d50e3c6566d1ae70e` (#145). Compared with the full-suite implementation receipt above, only the roadmap receipt and two upstream publication-evidence files changed; production/test/manifests were identical.
+A fresh Release solution build again had zero warnings/errors, and all 120 focused native/query/SQLite/daily/combined/authority tests passed with zero failures/skips.
 
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 

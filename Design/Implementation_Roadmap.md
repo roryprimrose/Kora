@@ -135,6 +135,79 @@ session controls do not wait for hosted management; speech preferences do not
 wait for production wake. Only their actually consumed contracts and directly
 affected safety/regression checks constrain those bounded deliveries.
 
+### R12 Bounded Session Retention Delivered - 2026-10-09
+
+Delivered independently of blocked R11: schema-v6 session retention on one
+durable last-meaningful-activity clock; default **24-hour archive / 30-day
+deletion** and typed, atomic, device-local future-only preferences in native
+Settings > Sessions. Archive/delete use the same timestamp, not creation or
+archive time. Accepted original-user work, final answers, real task progress and
+explicit resume advance it monotonically; drafts, rename, passive retrieval and
+configuration/control bookkeeping do not. Older schemas receive an explicit
+conservative migration baseline, not invented activity chronology.
+
+Host-only maintenance runs before startup presentation, before session reads and
+on an owned one-minute timer, at most 32 candidates per batch. Live, dispatched,
+Unknown/unresolved work and current-run control authorities hold rather than
+being abandoned; holds cannot crowd idle content out of the batch. An audited,
+exact-generation host-only Perpetual session exemption has no marking UI.
+Independent Perpetual grants and unrelated sessions/independent artifact owners
+survive. Sources and matching native/response presentation are revoked before
+rewrite; inactive/Removed authorities reject late publication and appends.
+
+Deletion removes owned task/event/wait/run/question/observation/grant/metadata
+and ordered-history/terminal queue content, legacy task copies, authenticated artifacts and
+staging. SQLite secure-delete clears row/index/free-page content and committed
+PERSIST journals are verified empty, including a legacy no-op journal. Only
+content-free exact-ID tombstones/redacted gaps and independent required audit
+remain. Final inventory acceptance is separate from authority revocation;
+interrupted acceptance stays unaccepted and retries storage maintenance, never
+execution. Unknown/corrupt ownership, uninventoried files/backup directories and
+uncertain key publication fail closed. No delivered managed-backup publisher
+exists; this does not guess ownership or claim removal of arbitrary backups.
+No forensic/media erase, provider copy, user export or full A3 claim is made.
+
+Validation after rebase onto `5755aa7d` (#118), preserving #114/#116: root Release
+build with the previously restored locked assets, **0 warnings / 0 errors**; no
+additional restore, dependency or repository feed configuration change was
+necessary. Core **1,028**, Application **2,860**, Tools **69**, Definitions **6**,
+Windows **1,215** tests passed, all **0 failed /
+0 skipped**. The unchanged portable
+coverage gate passes **100% lines / 100% branches**. Focused tests prove actual
+plaintext sentinel absence from SQLite/journal and actual owned artifact/staging
+removal, independent-owner/Perpetual preservation, cancellation, malformed saved
+state, audit/receipt/confirmation failures, migration, interrupted acceptance
+and bounded hold fairness, v5 queue migration, queued/Unknown holds,
+terminal queue inventory deletion, passive/control clock stability and
+late-callback/no-replay restart rejection. This is maintained deterministic evidence, not
+installed/native accessibility, filesystem crash/power-loss or RC qualification.
+
+Full R12 remains partial: full composer/conversation bodies, search/model
+reasoning, general execution/effect cancellation and broader per-session work/queue
+integration remain open. R11's embedded skill execution/runner remains blocked
+and was neither consumed nor awaited. The unrelated stale call-policy branch
+was not merged/rebased or used. See [configuration](User_Configuration.md#r12-bounded-session-retention-delivered---2026-10-09)
+and [storage/lifecycle contract](Interaction_And_Sessions.md#r12-bounded-session-retention-delivered---2026-10-09).
+
+Integration with #114/#116 preserves the delivered ordered history and fixed
+local-version scheduling receipts above. Authoritative migration order is
+v3 task authority → v4 history → v5 queue → v6 retention. Pending/running/Unknown
+work holds maintenance; terminal queue rows join the inventoried deletion and
+required audits remain independently retained against exact Removed tombstones.
+Accepted queue work and real dispatch/final receipts renew meaningful activity;
+queue controls and passive reads do not. Restart still projects Interrupted/
+Unknown work without replay and rejects stale callbacks. This supersedes only
+older statements that the bounded fixed local-version queue was absent; broader
+effects, workers, full conversation, managed backups and RC acceptance remain open.
+Confirmed retention preferences are loaded before storage clock migration;
+invalid/unconfirmed saved state cannot seed clocks with fallback defaults.
+The #118 authoritative selected-session work surface, filtered session list,
+exact controls, passive focus/selection-preserving refresh and question
+coexistence are preserved. Work reads use the same retention admission and
+cancellation boundary; matching retained sources close/clear the live surface,
+while unrelated selected work survives session-list invalidation. The affected
+native/session/history/queue/retention suite passes **194** tests.
+
 ### R12/R14 bounded ordered interaction history - 2026-10-09
 
 Delivered subset: one authoritative typed event projection and schema-v4
@@ -2531,7 +2604,7 @@ all 13 final x64/x86 PE manifest-resource bytes with declared source bytes.
 |---|---|---|---|---|
 | R10 - Implement typed configuration and capability-scoped setup | **Bounded native/exact configuration delivered**: nine appearance options, installed provider/voice pair, assistant display/PTT prefix, spoken-summary caps, exact microphone/output preferences, [per-Kora 0-100 volume](User_Configuration.md#delivered-bounded-per-kora-playback-volume-r10), [device-default Hybrid/VoiceOnly/VisualOnly](User_Configuration.md#delivered-bounded-device-default-response-mode-r10) and [future-only ordinary SQLite diagnostic days](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04). Diagnostic integer1–365/default-reset30 preserves old deadlines, audit90/domain, files30/30 and all authority; apply-now and cleanup-trigger changes unavailable. Shared domain validation, revisions, atomic save/audit/readback, live invalidation and explicit recovery retain original-channel admission. Volume default/reset 100 is unity; zero prevents synthesis/autoplay with full visual recovery, and raising/resetting never replays. Mode delivery adds no session/task/queue override or fallback/call-policy change; mandatory visual previews remain. Full R10/I03/I04/I08/I11/I14 and native/acoustic acceptance remain open; [dependency inventory](Dependency_Catalogue.md) is not a complete executable catalogue or provisioning budget | P1 - consistent voice/UI controls without unsafe mutations | I: consumed R04/R05/R06/R09 contracts; E/Q: R02-L2/L5 for local-model setup claims, affected speech profile evidence only | Retain delivered descriptors and workflows; register remaining speech/input/output options, queue/deadline/other-retention/concurrency, runtime, grants/calls, appearance/startup and admitted extension settings. Broader scopes, general verbal/model settings, whole-profile reset/undo and safe recovery/conflicts remain open. Turn admitted dependency entries into versioned source/identity/verification/ownership/probe/consent/refusal records; experimental/unimplemented adapters stay unavailable. Distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance, optional-provider refusal without repeated prompts/downloads or cloud fallback, host-owned installation/sign-in/secure workflows and device-local protected-call origin gates. |
 | R11 - Deliver registered embedded multi-script skills and containment | **Bounded catalogue/identity/native review delivered**; runner unavailable; I17 partial proof is not admission; partial readiness/lock I08/I12 | P0 - finish lock without admitting arbitrary execution | I: consumed R03/R04/R05/R06/R10 contracts; E/Q: applicable R02 W1-W4/D-013 for worker exposure, not catalogue/review work | Embed lock manifest/instructions/fixtures, entry script and shared helper; verify `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1` complete framed identities and dependent-grant revocation. Direct/model/skill routes use the same pinned task exactly once with immutable source review. Complete W4: admit only fixed profiled workers with exact declared-resource review, best-effort transitive tracking/gap disclosure, protected required runtime/adapter admission, attributable network denial, bounded output/cancellation/Unknown receipts and real OS filesystem/child-process/credential/Kora-resource isolation. Prove observed lock outcome. Reject unsupported profiles or an unapproved broker substitution. Prepare power packages but do not enable OS power until R16. |
-| R12 - Complete session lifecycle, history and per-session work/queues | **Bounded authority workspace, metadata, exact task controls, native logical disposition, [ordered interaction history](#r12r14-bounded-ordered-interaction-history---2026-10-09) and the fixed local-version queue delivered**. Schema v5 preserves v4 ordered history and v3 task/question/required-audit authority; exact citations and bounded snapshot retrieval remain passive. Done is readable; Removed IDs allow only redacted citations. Full R12/A3 conversation/effect-queue/retention/recoverable-copy deletion acceptance remains open. | P1 - durable, inspectable long-running work | Consumed R04/R05/#102/#114 subset for history/queue; R06, R10, R11 for remaining lifecycle/execution integration | Implement full inventoried content/copy deletion beyond logical disposition, full conversation composer/bodies, search/model history reasoning, immutable artifacts and broader task lifecycle. Names never select authority; passive browse never resumes or extends activity. General effect queues/leases/cancellation, configurable archive/deletion, source revocation and managed-copy erasure remain outstanding. Preserve independent Perpetual records; bounded queues/history/redaction and current-row removal are not full deletion acceptance or replay authority. |
+| R12 - Complete session lifecycle, history and per-session work/queues | **Bounded authority workspace, metadata, exact task controls, native logical disposition, [ordered interaction history](#r12r14-bounded-ordered-interaction-history---2026-10-09), fixed local-version queue and [session retention](#r12-bounded-session-retention-delivered---2026-10-09) delivered**. Schema v6 preserves v5 queue, v4 ordered history and v3 task/question/required-audit authority while adding a meaningful-activity clock, future-only 24-hour archive/30-day deletion, source revocation, live/uncertain holds and inventoried content/artifact/staging/journal removal. Independent Perpetual records and unrelated content survive; authority revocation alone is not deletion acceptance. Done is readable; Removed IDs allow only redacted citations. Full R12/A3 remains partial. | P1 - durable, inspectable long-running work | Consumed R04/R05/#102/#114/#116 and R10 preference subset; blocked R11 is not needed by delivered non-executing retention or fixed local-version queue, but remains required for general execution integration | Implement full conversation composer/bodies, search/model history reasoning, broader immutable artifacts and task lifecycle. Names never select authority; passive browse never resumes or extends activity. General effect queues/leases/cancellation remain outstanding. Future managed-backup formats require explicit ownership/inventory and acceptance; uninventoried copies hold. Preserve independent Perpetual records, actual copy-removal tests and no replay authority; no forensic erase or full deletion/RC acceptance is claimed. |
 | R13 - Add bounded independent management and concurrent execution | Bounded exact controls plus [deterministic fixed local-version queues, revisioned atomic admission/receipts, FIFO/fair manual dispatch and no-replay recovery](#r13-deterministic-local-version-queue-increment---2026-10-09) delivered in schema v5. Host default one slot; limits 1–2 apply only to fixed synchronous local reads, not effect/provider qualification. Released-profile MG1 proof is not production management integration. | P1 - remain responsive while useful work runs | I: consumed R05/R06/R10/R12/#114 contracts; R08 only for model assistance; E/Q: local concurrency budgets only for local inference, MG1/management PV1 only for hosted assistance | Retain bounded exact deterministic core; complete broader contextual routing/status/choices, in-task wait/deadline and effect-specific cancel without hosted inference. Carry MG1's serialized 32 KiB input/4 KiB typed output, independent 15-second host deadline, one in-flight, rolling 30 attempts/hour/profile, fresh conversations and no forwarded retry into the host. Reject unknown targets/revisions and late output; Unknown needs observed receipts, not SDK acknowledgement. Add model assistance only after applicable runtime/account admission. Independently qualify real two-slot isolated task contexts/grants, resource leases, termination and reconciliation; fixed version tests and synthetic conversation counts are not provider/hardware evidence. No management task tools or approval authority; power follows R01. |
 | R14 - Build the coordinated Sessions workspace and interaction surfaces | Bounded Sessions list/details/lifecycle, durable names, exact controls and native question review remain delivered. [Authoritative selected-session work](#r14-authoritative-selected-session-work-increment---2026-10-09) now coordinates bounded atomic work/queue/questions, shared-policy eligibility/deadlines/capacity/gaps and exact revision-bound native controls with passive focus-preserving refresh. [Ordered history](#r12r14-bounded-ordered-interaction-history---2026-10-09) and independent evidence remain separate sources. | P1 - make sessions, decisions and results understandable | Consumed R05/R12/#114/R13/#116 subsets; R09 and broader task contracts for remaining coordination | Full conversation composer/bodies, history search/model reasoning, general effect/provider work and immutable artifact/script integration remain unavailable. AuthorityAudit reads committed rows, not diagnostic lookalikes or forensic proof. Ask Evidence/model tools/export need separate admission. Browsing never retargets approvals, extends activity or creates replay; names never resolve authority. Native installed visual/screen-reader/DPI and full R14/A4 acceptance remain open. |
 | R15 - Complete call-aware feedback, authorization and request-origin gates | Bounded manual mode and independent [device-local Voice/UI/Both/Inherit feedback](#r10r15-bounded-device-local-in-call-feedback---2026-10-08), shared native/typed/activated parity and truthful status, conservative speech/origin and legacy reuse checks delivered; full R15 partial, detector unavailable I14 | P0 - prevent call leakage and reusable-authority surprises | R03, R05, R09, R10, R13, R14 | Maintained deterministic/manual/durable tests cover mixed evidence, Unknown, feedback precedence, current configuration/call/session/input/name revisions, original input/native lifetime, required-audit/shared-lease/atomic failures, restart markers, pending previews, output/input retirement and reuse/dispatch/disposal races. Saved legacy suppression/activation remains independent; Unknown always withholds speech. New protection downgrades and exceptions remain unavailable pending complete exact review. Remaining: qualified real detectors/source freshness, broader voice/call/proactive registry, production exact effect dispatch/generation wiring and native/acoustic/call acceptance. No automatic detector, authority migration or A0-A4 completion is claimed. |

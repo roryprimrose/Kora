@@ -37,6 +37,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
     private readonly RestrictedStorageDirectory interactionPartition;
     private Action<SqliteConnection>? validateAuthority;
     private Guid? authorityRun;
+    private Action<SqliteConnection, SqliteTransaction, HostTaskRecord, bool>? observeActivity;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
 
     public WindowsSqliteHostTaskStore(IApplicationDataPaths paths)
@@ -68,11 +69,13 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         """;
     private static readonly string[] LegacySchema = [.. Schema, HandoffTable];
 
-    internal void BindAuthority(RestrictedSqliteDatabase authority, Action<SqliteConnection> validate, Guid runId)
+    internal void BindAuthority(RestrictedSqliteDatabase authority, Action<SqliteConnection> validate, Guid runId,
+        Action<SqliteConnection, SqliteTransaction, HostTaskRecord, bool>? activity = null)
     {
         database = authority;
         validateAuthority = validate;
         authorityRun = runId;
+        observeActivity = activity;
     }
 
     internal void RequireFreshAuthority(CancellationToken token)
@@ -399,6 +402,8 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         }
 
         WriteTask(connection, transaction, record);
+        observeActivity?.Invoke(connection, transaction, record,
+            expectedRevision == 0 && !requireExisting && record.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice);
         if (expectedRevision == 0 && authorityRun is { } run)
         {
             using var source = connection.CreateCommand();
@@ -414,6 +419,33 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         // Once COMMIT succeeds, cancellation must not turn a durable receipt into a cancelled result.
         transaction.Commit();
         boundary.Complete();
+    }
+
+    internal void PurgeRetiredSession(HostId<SessionIdentity> session, CancellationToken token)
+    {
+        using var lease = legacy.AcquireReadLease(token);
+        using var connection = legacy.Open(created: false, token);
+        ValidateTasks(connection);
+        legacy.RequireEmptyArtifactInventory();
+        using var settings = connection.CreateCommand();
+        settings.CommandText = "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0; SELECT frozen FROM task_authority_handoff WHERE singleton=1;";
+        if (settings.ExecuteScalar() is not long frozen || frozen != 1)
+        {
+            throw new InvalidDataException("Legacy deletion requires the validated retired handoff.");
+        }
+        using var transaction = connection.BeginTransaction();
+        using var delete = connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText = """
+            DELETE FROM host_task_events WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
+            DELETE FROM host_tasks WHERE session_id=$id;
+            """;
+        delete.Parameters.AddWithValue("$id", session.Value.ToString("D"));
+        delete.ExecuteNonQuery();
+        token.ThrowIfCancellationRequested();
+        transaction.Commit();
+        connection.Close();
+        legacy.ClearCommittedJournal();
     }
 
     internal static void WriteTask(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord record)

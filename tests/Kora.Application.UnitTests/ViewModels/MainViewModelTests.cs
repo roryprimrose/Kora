@@ -7745,7 +7745,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableAuditRetention = false, Exception? auditRetentionReadFailure = null,
             bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null,
             bool enableInCallFeedback = false, Exception? feedbackReadFailure = null,
-            bool enableSpeechText = false, Exception? captionReadFailure = null)
+            bool enableSpeechText = false, Exception? captionReadFailure = null, bool enableSessionRetention = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -7789,6 +7789,8 @@ public sealed partial class MainViewModelTests : IDisposable
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
             DiagnosticPreferences.ReadFailure = diagnosticRetentionReadFailure;
             DiagnosticConfiguration = enableDiagnosticRetention ? new(DiagnosticPreferences, DiagnosticPolicy, DiagnosticAdmission, Audit) : null;
+            SessionRetentionConfiguration = enableSessionRetention
+                ? new(SessionRetentionPreferences, new(), DiagnosticAdmission, Audit) : null;
             var auditStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             AuditAdmission = new(auditStore, auditStore, new HostTaskCoordinator(auditStore));
             AuditPreferences.ReadFailure = auditRetentionReadFailure;
@@ -7880,7 +7882,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 DiagnosticConfiguration,
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
                 AuditConfiguration, RateConfiguration, FeedbackConfiguration,
-                enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null);
+                enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
+                SessionRetentionConfiguration);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -7920,6 +7923,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeDiagnosticRetentionPreferences DiagnosticPreferences { get; } = new();
         public DiagnosticRetentionPolicy DiagnosticPolicy { get; } = new();
         public DiagnosticRetentionConfigurationService? DiagnosticConfiguration { get; }
+        public FakeSessionRetentionPreferences SessionRetentionPreferences { get; } = new();
+        public SessionRetentionConfigurationService? SessionRetentionConfiguration { get; }
         public AuditRetentionAdmission AuditAdmission { get; }
         public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
         public AuditRetentionPolicy AuditPolicy { get; } = new();

@@ -11,6 +11,14 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private SessionWorkspaceService? sessionCommands;
+    private readonly HashSet<Guid> sessionPresentationSources = [];
+
+    public void RevokeSessionPresentation(HostId<SessionIdentity> session)
+    {
+        if (!sessionPresentationSources.Contains(session.Value)) { return; }
+        sessionPresentationSources.Clear();
+        ResponseBody = "Session presentation revoked by inactivity retention. Refresh the exact retained session before inspecting it again.";
+    }
 
     public void BindSessionCommands(SessionWorkspaceService service) => sessionCommands = service;
 
@@ -62,6 +70,8 @@ public sealed partial class MainViewModel
             var result = await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
             ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
+            if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }
+            foreach (var row in result.Sessions) { sessionPresentationSources.Add(row.Id); }
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException
             or UnauthorizedAccessException or OperationCanceledException)

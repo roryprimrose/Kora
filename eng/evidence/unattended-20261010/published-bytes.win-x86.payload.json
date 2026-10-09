@@ -1,0 +1,2378 @@
+{
+  "schema": 2,
+  "inspectorVersion": "1.0.0",
+  "inspectionProfile": "windows-framework-dependent-v1",
+  "repository": "https://github.com/roryprimrose/Kora",
+  "revision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "buildOrigin": "Unattended 2026-10-10; isolated exact-revision Windows build; SDK 10.0.401; runtime 10.0.12; pwsh 7.6.6; feature proof version 0.1.0; static-only",
+  "rid": "win-x86",
+  "frameworks": [
+    {
+      "name": "Microsoft.NETCore.App",
+      "version": "10.0.0"
+    },
+    {
+      "name": "Microsoft.WindowsDesktop.App",
+      "version": "10.0.0"
+    }
+  ],
+  "files": [
+    {
+      "path": "av_libglesv2.dll",
+      "bytes": 4794032,
+      "sha256": "1e4df6ab43cc25cdaa5405048cb1088b5ca26660adfdddaeaf88c8954464244a"
+    },
+    {
+      "path": "Avalonia.Base.dll",
+      "bytes": 2356736,
+      "sha256": "10f1e2633a5776d79807aeafcdccd8990dd8296b6ff6b16914ae441439dbc230"
+    },
+    {
+      "path": "Avalonia.Controls.dll",
+      "bytes": 1351680,
+      "sha256": "5afb5aa5dfdb05914e021c7ef750d9a57505736960766d6fa88b60e01d659af5"
+    },
+    {
+      "path": "Avalonia.DesignerSupport.dll",
+      "bytes": 214528,
+      "sha256": "2f43b1b0df344100ebb4ee0e828a8417644118af1a41de25b44fd9ef169c019c"
+    },
+    {
+      "path": "Avalonia.Desktop.dll",
+      "bytes": 15360,
+      "sha256": "e85fa49a6834fa8e7b05e4cc83c3ea23b4b89ef5b7f0591ce66b1d7854e3e118"
+    },
+    {
+      "path": "Avalonia.Dialogs.dll",
+      "bytes": 242688,
+      "sha256": "a9208ade8be7a3daf0203b89fc40574c22e0596fb77bcc13eb4d07eb22cf4c32"
+    },
+    {
+      "path": "Avalonia.dll",
+      "bytes": 4096,
+      "sha256": "7517904f146bef9971c4eb2090aca5e590d51c99762f6d33715fbe444769d38b"
+    },
+    {
+      "path": "Avalonia.Fonts.Inter.dll",
+      "bytes": 1892864,
+      "sha256": "2fd1bbf9b6c62b3b6deee6257fddc70e9efc9c36dc225bea08f999d3f4f661c8"
+    },
+    {
+      "path": "Avalonia.FreeDesktop.AtSpi.dll",
+      "bytes": 562688,
+      "sha256": "df4d3a06c790d89b74fe5a2ae8e2ba7f2814c61c82c66ea14d3fe846cc2932c4"
+    },
+    {
+      "path": "Avalonia.FreeDesktop.dll",
+      "bytes": 256512,
+      "sha256": "7c19c897080a208122a6e545a79818091d36cb82e3c005ccf36d09efa7492eac"
+    },
+    {
+      "path": "Avalonia.HarfBuzz.dll",
+      "bytes": 22016,
+      "sha256": "62cecb41cdad1ce91bea3a70a4d6a2d0991eea23a97299cf968fc0d84369cde1"
+    },
+    {
+      "path": "Avalonia.Markup.dll",
+      "bytes": 45568,
+      "sha256": "0c37cf412bd2ae8ed65df58102f51cd29c6e4722a7389084d7b9e4bc56b7426f"
+    },
+    {
+      "path": "Avalonia.Markup.Xaml.dll",
+      "bytes": 74752,
+      "sha256": "b085cdeb5eae603cb284c626ba0d069be902a8c301767dce566b075421c955a9"
+    },
+    {
+      "path": "Avalonia.Metal.dll",
+      "bytes": 15360,
+      "sha256": "88e3ae4c031e6d7eebcfeea9e36e5e11162e067e3c4312de94ee4fa6e7e55f26"
+    },
+    {
+      "path": "Avalonia.MicroCom.dll",
+      "bytes": 15360,
+      "sha256": "a35da409659bbc7fe1568bc6b6b0fca8495c8a9b9feecec469a433c76f8ca36b"
+    },
+    {
+      "path": "Avalonia.Native.dll",
+      "bytes": 352256,
+      "sha256": "95489e1f24c9c816620df9586f186c5eb18480345f7401d9841af00acee14240"
+    },
+    {
+      "path": "Avalonia.OpenGL.dll",
+      "bytes": 128512,
+      "sha256": "1c674f1f909d26eff224893251462a8a4c73e24b9c4c7057210ceca88b1916aa"
+    },
+    {
+      "path": "Avalonia.Remote.Protocol.dll",
+      "bytes": 75776,
+      "sha256": "6daf7d6e4c3aed5474817b7385eff844e1a3db3fdc91c56b7f65bb01dcffd769"
+    },
+    {
+      "path": "Avalonia.Skia.dll",
+      "bytes": 125440,
+      "sha256": "363e384409908043cfab4e9d58b89ee988e9426bba7c4d3235d40cbe75637d6a"
+    },
+    {
+      "path": "Avalonia.Themes.Fluent.dll",
+      "bytes": 733184,
+      "sha256": "4edd7c6111992b0885afcd2115b571e4b5b25345d9bf07601d1087ac06e02e38"
+    },
+    {
+      "path": "Avalonia.Vulkan.dll",
+      "bytes": 191488,
+      "sha256": "10b3340a7e543a47b2e7e6c5d4aa3a7f8b14852132aa4fb64d98b539adcf3f84"
+    },
+    {
+      "path": "Avalonia.Win32.Automation.dll",
+      "bytes": 124416,
+      "sha256": "da1da0aa60822a9cae8fee3852abc84b45b8061c74c92f3a5dd20f740fea2406"
+    },
+    {
+      "path": "Avalonia.Win32.dll",
+      "bytes": 963584,
+      "sha256": "77061ab9ab28aa6d23a665d92003cda01151c7560349c5b3877a7f6abdd3744b"
+    },
+    {
+      "path": "Avalonia.X11.dll",
+      "bytes": 408576,
+      "sha256": "c3051166a1e4132cfde651ec88e0414a0a79093c7be8f29387015dc895898408"
+    },
+    {
+      "path": "e_sqlite3.dll",
+      "bytes": 1533952,
+      "sha256": "d13eb819d1353d98c684c88672868bbfcc6a52eb5987bdf2557ec02fabce4ea7"
+    },
+    {
+      "path": "HarfBuzzSharp.dll",
+      "bytes": 122400,
+      "sha256": "2d31f8658a16073c1f0d8524f927ed9316ca5ae9158a46e5710a1ef876ed523d"
+    },
+    {
+      "path": "KokoroSharp.dll",
+      "bytes": 101888,
+      "sha256": "e5c425f474001f973c655b020cad4fcfc6b52dac1deb7f812ba2ea06e247d47e"
+    },
+    {
+      "path": "Kora.Application.dll",
+      "bytes": 1620480,
+      "sha256": "7946df2655ee3602950e82f24cf90ffce228af2abb68bd66c98bba1204f6927f"
+    },
+    {
+      "path": "Kora.Application.pdb",
+      "bytes": 263500,
+      "sha256": "30307598a727939f5a8486420a15422d1c9a01eb276ecc1f1c6314ff71d79415"
+    },
+    {
+      "path": "Kora.Core.dll",
+      "bytes": 677888,
+      "sha256": "3498df2407bb5bcde5423da37fceb9a7cf2ce007804daaf12a19df6f25b09b6d"
+    },
+    {
+      "path": "Kora.Core.pdb",
+      "bytes": 166060,
+      "sha256": "0cbd3e06d6802c6325644d262398e60eb4cee6c2fa5e263868637b252ce83dc4"
+    },
+    {
+      "path": "Kora.Definitions.dll",
+      "bytes": 19968,
+      "sha256": "47dd6ef9bc7b7552e454af00d88fd03c4a1febf91d0a6616ab587fa9e172f813"
+    },
+    {
+      "path": "Kora.Definitions.pdb",
+      "bytes": 13120,
+      "sha256": "412d1a73adcd7de30a93458911ab807ad2fe69c5d89610596a34a15d88668df8"
+    },
+    {
+      "path": "Kora.deps.json",
+      "bytes": 38855,
+      "sha256": "937c02bf7bb28745f3a2b88e71eba6bc49aa88f04ec30cb9a72d4bf8db84ebfd"
+    },
+    {
+      "path": "Kora.dll",
+      "bytes": 688128,
+      "sha256": "b31e8f3664c2731b57950ce71d5472fc395d6580853d7e81fe190608bc68a52d"
+    },
+    {
+      "path": "Kora.exe",
+      "bytes": 164352,
+      "sha256": "2a21f95f0ee40c9568c4aad489ebda1b8040a56edf649029c1e6ae08583eb982"
+    },
+    {
+      "path": "Kora.pdb",
+      "bytes": 131804,
+      "sha256": "8f1e3d488b369083a5f6a5677f7d4d58a3628998b05b5d9ec46397c77b2695e0"
+    },
+    {
+      "path": "Kora.runtimeconfig.json",
+      "bytes": 519,
+      "sha256": "96bc2946dff8790400d652ec7f8de7bb043e954980d59470c112788b68a1fbd3"
+    },
+    {
+      "path": "Kora.Tools.dll",
+      "bytes": 53760,
+      "sha256": "551ed41bf9c683cebef7f900b27ebc5945d4ff3584f8b353be76e2d9b8246164"
+    },
+    {
+      "path": "Kora.Tools.pdb",
+      "bytes": 23096,
+      "sha256": "2682b3faa2ce8c478e46c14b58aa6a1cf4e9a7db635df6965c1b007abda5e3a6"
+    },
+    {
+      "path": "Kora.Windows.dll",
+      "bytes": 741376,
+      "sha256": "4d3bc730fe019e8dc296c4a2049ebb3ffc4da7c1fabfd6a849837b0d8da29c48"
+    },
+    {
+      "path": "Kora.Windows.pdb",
+      "bytes": 162468,
+      "sha256": "08d773207281323d44d585f0c37e2288be65c976a25b0fbce51775f3566897e9"
+    },
+    {
+      "path": "libHarfBuzzSharp.dll",
+      "bytes": 1518624,
+      "sha256": "99a97ab4b2b4b60f37930584d79849bd3ef2d1252c51ac47df9805deb08912af"
+    },
+    {
+      "path": "libHarfBuzzSharp.pdb",
+      "bytes": 20705280,
+      "sha256": "d830a0134f7dbb1cc6002542fd874d87edb415de3e8e3e841d1306ec6f528a54"
+    },
+    {
+      "path": "libSkiaSharp.dll",
+      "bytes": 10124128,
+      "sha256": "2e49b47ff56a0f6ccf61932d33e01e9046c319da35bbb16f9ec9572a9dcf675f"
+    },
+    {
+      "path": "libSkiaSharp.pdb",
+      "bytes": 86761472,
+      "sha256": "0636110c85e35a4acabd8df236e4a9410c2ab65258a929b92864817ee790f2a8"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 5808,
+      "sha256": "3ae8fb82a4ff768f6ef4e24abd0c2a198838822968d0be097d8051daf3e0847c"
+    },
+    {
+      "path": "licenses/Avalonia__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Angle.Windows.Natives__2.1.27548.20260419.txt",
+      "bytes": 1675,
+      "sha256": "54aff7276217df9f6b5181613999d208c9e40d2b1d51bf55217837e6871a4a63"
+    },
+    {
+      "path": "licenses/Avalonia.BuildServices__11.3.2.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Desktop__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Fonts.Inter__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.FreeDesktop__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.FreeDesktop.AtSpi__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.HarfBuzz__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Headless__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Native__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Remote.Protocol__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Skia__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Themes.Fluent__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.Win32__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Avalonia.X11__12.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/AwesomeAssertions__9.6.0.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/coverlet.MTP__10.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/HarfBuzzSharp__8.3.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/HarfBuzzSharp.NativeAssets.Linux__8.3.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/HarfBuzzSharp.NativeAssets.WebAssembly__8.3.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/HarfBuzzSharp.NativeAssets.Win32__8.3.1.3.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/KokoroSharp__0.8.4.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Markdig__1.4.0.html",
+      "bytes": 2916,
+      "sha256": "f1c800c97564a38ef0ad24a4d3a15d1e21e499e2b06b396b27978b8f6d55db66"
+    },
+    {
+      "path": "licenses/Meziantou.Analyzer__3.0.290.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/MicroCom.Runtime__0.11.6.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.ApplicationInsights__2.23.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Bcl.AsyncInterfaces__6.0.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Data.Sqlite__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Data.Sqlite.Core__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Configuration__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Configuration.Abstractions__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Configuration.FileExtensions__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Configuration.Json__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.DependencyInjection__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.DependencyInjection.Abstractions__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.FileProviders.Abstractions__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.FileProviders.Physical__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.FileSystemGlobbing__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Logging__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Logging.Abstractions__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Options__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Extensions.Primitives__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.ML.OnnxRuntime__1.30.0.txt",
+      "bytes": 1094,
+      "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674"
+    },
+    {
+      "path": "licenses/Microsoft.ML.OnnxRuntime.Managed__1.30.0.txt",
+      "bytes": 1094,
+      "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674"
+    },
+    {
+      "path": "licenses/Microsoft.Testing.Extensions.Telemetry__2.5.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Testing.Extensions.TrxReport__2.5.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Testing.Extensions.TrxReport.Abstractions__2.5.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Testing.Platform__2.5.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Testing.Platform.MSBuild__2.5.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.VisualStudio.Threading.Analyzers__18.7.23.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Win32.Registry__5.0.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Microsoft.Win32.SystemEvents__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/MisakiSharp__2.2.0.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/NAudio__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NAudio.Asio__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NAudio.Core__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NAudio.Dmo__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NAudio.Midi__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NAudio.Wasapi__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NAudio.WinForms__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NAudio.WinMM__3.1.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Neovolve.Logging.Xunit.v3__7.2.0.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/NumSharp__0.30.0.txt",
+      "bytes": 11558,
+      "sha256": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6"
+    },
+    {
+      "path": "licenses/OpenTK.Audio.OpenAL__5.0.0-pre.13.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/OpenTK.Core__5.0.0-pre.13.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/OpenTK.Mathematics__5.0.0-pre.13.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Serilog__4.4.0.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/Serilog.Extensions.Logging__10.0.0.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/Serilog.Sinks.File__7.0.0.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/SkiaSharp__3.119.4.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/SkiaSharp.NativeAssets.Linux__3.119.4.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/SkiaSharp.NativeAssets.WebAssembly__3.119.4.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/SkiaSharp.NativeAssets.Win32__3.119.4.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/SQLitePCLRaw.bundle_e_sqlite3__2.1.12.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/SQLitePCLRaw.core__2.1.12.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/SQLitePCLRaw.lib.e_sqlite3__2.1.12.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/SQLitePCLRaw.provider.e_sqlite3__2.1.12.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/System.Numerics.Tensors__9.0.5.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/System.Security.AccessControl__6.0.1.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/System.Speech__10.0.12.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/Tmds.DBus.Protocol__0.94.1.html",
+      "bytes": 2442,
+      "sha256": "0ff20ddac3d7ee3c94cd6b60bef6537b4c4f6815063ab28228ab8ca563b1fe8e"
+    },
+    {
+      "path": "licenses/WixToolset.BootstrapperApplicationApi__7.0.0.txt",
+      "bytes": 3565,
+      "sha256": "3358af585772039e45d1192213838f906a478463ac3bb4da208ec0d874c2219b"
+    },
+    {
+      "path": "licenses/xunit.analyzers__2.1.0.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3.assert__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3.common__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3.core.mtp-v2__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3.extensibility.core__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3.mtp-v2__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3.runner.common__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "licenses/xunit.v3.runner.inproc.console__4.0.1.html",
+      "bytes": 16364,
+      "sha256": "821602941cab0a35e9f461326976dede9239410a988bdcfc88348cc3f57bc6a5"
+    },
+    {
+      "path": "Markdig.dll",
+      "bytes": 501760,
+      "sha256": "125b3cc757287e2b43a7fbf72bdf5eaa2dfa4af2fa6e6110a1ce745e1212a24d"
+    },
+    {
+      "path": "MicroCom.Runtime.dll",
+      "bytes": 15360,
+      "sha256": "2538ec6f3c24e901a90e33c37788b9a4e4b6ae8158cab7328a00a00bb28eab9e"
+    },
+    {
+      "path": "Microsoft.Data.Sqlite.dll",
+      "bytes": 177464,
+      "sha256": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf"
+    },
+    {
+      "path": "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+      "bytes": 65872,
+      "sha256": "da04edc338d5aa0f38a1f5fa5ff3ee7e36affe9c961daf3ea724a428bd746bc6"
+    },
+    {
+      "path": "Microsoft.Extensions.DependencyInjection.dll",
+      "bytes": 95528,
+      "sha256": "2d0e268bf76b4ce36a55ebb2767354db956c6660de65d6cccfc35c957fb12cfc"
+    },
+    {
+      "path": "Microsoft.Extensions.Logging.Abstractions.dll",
+      "bytes": 66856,
+      "sha256": "7c242f8ca612fa1acc61f78efd5f8c89e01bd0bd47dc4ecc65e0e6e24f1a1668"
+    },
+    {
+      "path": "Microsoft.Extensions.Logging.dll",
+      "bytes": 51536,
+      "sha256": "05b76234f2a5eb945b268ced706cb4d81446778ea6bd6910298b5e9111170b4a"
+    },
+    {
+      "path": "Microsoft.Extensions.Options.dll",
+      "bytes": 65360,
+      "sha256": "b4ff561da6a7b11b68341f9fd32cab3f8b23cdd8b40332b9fd8bed73a9ee7de3"
+    },
+    {
+      "path": "Microsoft.Extensions.Primitives.dll",
+      "bytes": 44880,
+      "sha256": "67642533eb87e8dadeb9026de59ff4b66cc9bf35c0cfbedfef7b79bc6d8b30bc"
+    },
+    {
+      "path": "Microsoft.ML.OnnxRuntime.dll",
+      "bytes": 241976,
+      "sha256": "3fbf9ebc45474fa27e680bc97553c8bf247d8ec49933699a7e0aad0cf7aa141f"
+    },
+    {
+      "path": "Microsoft.Windows.SDK.NET.dll",
+      "bytes": 24877600,
+      "sha256": "0ec371d93798852e36461c8adddbeadce0f963a04752f0b64e54fe19c1c834a7"
+    },
+    {
+      "path": "MisakiSharp.dll",
+      "bytes": 69360640,
+      "sha256": "8d20db9721a35c41a3af4417b45659f86ae818f23f53fd40b64acd1b884fd09b"
+    },
+    {
+      "path": "NAudio.Asio.dll",
+      "bytes": 67584,
+      "sha256": "8849538dd5c46c126b2c114e677d21c3b7cca7b87305667cfaaacda887a3f423"
+    },
+    {
+      "path": "NAudio.Core.dll",
+      "bytes": 348672,
+      "sha256": "2414b224766b74619b9ef313ea46d6f66a23cdbd34bc18c66370120c41ebc1d3"
+    },
+    {
+      "path": "NAudio.dll",
+      "bytes": 10752,
+      "sha256": "5c36f9c00813e40be3ef6fc411db1f4b20e838d8bf08084a3ea8f1ed059ee580"
+    },
+    {
+      "path": "NAudio.Dmo.dll",
+      "bytes": 101376,
+      "sha256": "bac9758eb96183752c462cc0640f1ce4fa4a7ce7e1a9543cd32606aba0f0899c"
+    },
+    {
+      "path": "NAudio.Midi.dll",
+      "bytes": 57344,
+      "sha256": "1b04f32424fff937f9ccbffa4ae2d78dad47a81e4651a015f48321aaa7d72083"
+    },
+    {
+      "path": "NAudio.Wasapi.dll",
+      "bytes": 467456,
+      "sha256": "b9402d5d2f72c23b0d62a8147e0d61e568b6c22388a31ffc1aec256ff9dd45ab"
+    },
+    {
+      "path": "NAudio.WinForms.dll",
+      "bytes": 35840,
+      "sha256": "33a35d8769b97cafb08f322a4e2486bc5b1d1fe87a3b90b17971cb0407eb3bb0"
+    },
+    {
+      "path": "NAudio.WinMM.dll",
+      "bytes": 77824,
+      "sha256": "cebfd5d0f0f9c5dc92224dae6f4c136337c23e57a593da43fbbc410458601aee"
+    },
+    {
+      "path": "NumSharp.dll",
+      "bytes": 3622912,
+      "sha256": "b4930daa8c8cb7985f524355a9bcc8708d28cdfa4d6bf0c8b20ecfbd5665561f"
+    },
+    {
+      "path": "OpenTK.Audio.OpenAL.dll",
+      "bytes": 89088,
+      "sha256": "b4182c3b8ab368f54a18fa67269639f1955214663fddde2fa096ac954bb8138f"
+    },
+    {
+      "path": "OpenTK.Core.dll",
+      "bytes": 12288,
+      "sha256": "a38a423e386ba371f4f89af3677bcbf02f8f488fc2640beed503946fc9fecffa"
+    },
+    {
+      "path": "OpenTK.Mathematics.dll",
+      "bytes": 368128,
+      "sha256": "32273bf6f77b1fb5a698a30a81bad037e8bfb6f40265181c6802727af68252fc"
+    },
+    {
+      "path": "package-notices/HarfBuzzSharp.NativeAssets.Linux__8.3.1.3__THIRD-PARTY-NOTICES.txt",
+      "bytes": 139775,
+      "sha256": "21504c46c4c58aa64c1055bd2dcbc5f9a136b4b8c412ed3cc6740e22c5b127f5"
+    },
+    {
+      "path": "package-notices/HarfBuzzSharp.NativeAssets.WebAssembly__8.3.1.3__THIRD-PARTY-NOTICES.txt",
+      "bytes": 139775,
+      "sha256": "21504c46c4c58aa64c1055bd2dcbc5f9a136b4b8c412ed3cc6740e22c5b127f5"
+    },
+    {
+      "path": "package-notices/HarfBuzzSharp.NativeAssets.Win32__8.3.1.3__THIRD-PARTY-NOTICES.txt",
+      "bytes": 139775,
+      "sha256": "21504c46c4c58aa64c1055bd2dcbc5f9a136b4b8c412ed3cc6740e22c5b127f5"
+    },
+    {
+      "path": "package-notices/Microsoft.Bcl.AsyncInterfaces__6.0.0__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 46990,
+      "sha256": "a6344bfb229bc08d1071cec400eea216e307439f961c5943ec1b56d2245acb95"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Configuration__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Configuration.Abstractions__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Configuration.FileExtensions__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Configuration.Json__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.DependencyInjection__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.DependencyInjection.Abstractions__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.FileProviders.Abstractions__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.FileProviders.Physical__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.FileSystemGlobbing__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Logging__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Logging.Abstractions__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Options__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.Extensions.Primitives__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/Microsoft.ML.OnnxRuntime__1.30.0__ThirdPartyNotices.txt",
+      "bytes": 344457,
+      "sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622"
+    },
+    {
+      "path": "package-notices/Microsoft.ML.OnnxRuntime.Managed__1.30.0__ThirdPartyNotices.txt",
+      "bytes": 344457,
+      "sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622"
+    },
+    {
+      "path": "package-notices/Microsoft.VisualStudio.Threading.Analyzers__18.7.23__NOTICE",
+      "bytes": 206950,
+      "sha256": "3453f9c302d8f713d07206e351ec35a80ed1b99cfc10a4b2361bcd4b9348605f"
+    },
+    {
+      "path": "package-notices/Microsoft.Win32.Registry__5.0.0__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 44279,
+      "sha256": "78e22d4d24a710d2a09426c09060f3448204778ed506b1da55447a6089b54fae"
+    },
+    {
+      "path": "package-notices/Microsoft.Win32.SystemEvents__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "package-notices/SkiaSharp.NativeAssets.Linux__3.119.4__THIRD-PARTY-NOTICES.txt",
+      "bytes": 139775,
+      "sha256": "21504c46c4c58aa64c1055bd2dcbc5f9a136b4b8c412ed3cc6740e22c5b127f5"
+    },
+    {
+      "path": "package-notices/SkiaSharp.NativeAssets.WebAssembly__3.119.4__THIRD-PARTY-NOTICES.txt",
+      "bytes": 139775,
+      "sha256": "21504c46c4c58aa64c1055bd2dcbc5f9a136b4b8c412ed3cc6740e22c5b127f5"
+    },
+    {
+      "path": "package-notices/SkiaSharp.NativeAssets.Win32__3.119.4__THIRD-PARTY-NOTICES.txt",
+      "bytes": 139775,
+      "sha256": "21504c46c4c58aa64c1055bd2dcbc5f9a136b4b8c412ed3cc6740e22c5b127f5"
+    },
+    {
+      "path": "package-notices/System.Numerics.Tensors__9.0.5__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 75640,
+      "sha256": "40686c6447a7d5b5d3693068e4571b5f483d7ed335aeee773ef662440de4c5d5"
+    },
+    {
+      "path": "package-notices/System.Security.AccessControl__6.0.1__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 47729,
+      "sha256": "7e96bfbc9187981d10b946a1f2c26609d968e645dd7521e6129389d03473e519"
+    },
+    {
+      "path": "package-notices/System.Speech__10.0.12__THIRD-PARTY-NOTICES.TXT",
+      "bytes": 78041,
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21"
+    },
+    {
+      "path": "payload-manifest.json",
+      "bytes": 32135,
+      "sha256": "29adb108ca5b057b5beadfb40ef8ea9ad39935004c70741c11be86c6c1380c40"
+    },
+    {
+      "path": "Serilog.dll",
+      "bytes": 163840,
+      "sha256": "3ee17790b1bf00eabca2176288de6c058977bc5b07e6d9839cf6a88433d72311"
+    },
+    {
+      "path": "Serilog.Extensions.Logging.dll",
+      "bytes": 28672,
+      "sha256": "80d3edbe3e3ac0b4c5bc764474220e7da11df8d285e0098f3dc1b65a734c8507"
+    },
+    {
+      "path": "Serilog.Sinks.File.dll",
+      "bytes": 36864,
+      "sha256": "4f4282671c2ac68284b4dc99f7a76eac9cbd4e659978cef642cff9e6c01b676d"
+    },
+    {
+      "path": "SkiaSharp.dll",
+      "bytes": 490848,
+      "sha256": "2fd080f18840fe3775dd33f6d4645c1a382a01484363b729ba3ec248e94db1ee"
+    },
+    {
+      "path": "SQLitePCLRaw.batteries_v2.dll",
+      "bytes": 5120,
+      "sha256": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b"
+    },
+    {
+      "path": "SQLitePCLRaw.core.dll",
+      "bytes": 51200,
+      "sha256": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84"
+    },
+    {
+      "path": "SQLitePCLRaw.provider.e_sqlite3.dll",
+      "bytes": 36864,
+      "sha256": "eb6696e55882c3000333146b1cd4970439601e11fdedae941105ca921f615bd6"
+    },
+    {
+      "path": "System.Numerics.Tensors.dll",
+      "bytes": 410888,
+      "sha256": "eacb2e5b00d82d85b5e8ec5bffcf78a1e867d734d75f316302626295ce5cdb88"
+    },
+    {
+      "path": "System.Speech.dll",
+      "bytes": 686888,
+      "sha256": "e46eaea092cadc589f6bd457430e72e5255c7166c41a9f0f19630e9fd4bf97c7"
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.md",
+      "bytes": 39869,
+      "sha256": "747fb0c17748c3829d420d8dabd16fccff0a4e0d14eb47e34a8b6f054deacd87"
+    },
+    {
+      "path": "Tmds.DBus.Protocol.dll",
+      "bytes": 232960,
+      "sha256": "60a1c5255731d8ac843cab53108be8ba1ed02759ce3db0da5b49939ebe97bd8a"
+    },
+    {
+      "path": "WinRT.Runtime.dll",
+      "bytes": 528944,
+      "sha256": "bcf3a14e8712a90837fc5c0d8c8a24696af2bd7f74e9767597ec81ededfb23db"
+    }
+  ],
+  "peFiles": [
+    {
+      "path": "av_libglesv2.dll",
+      "machine": "I386",
+      "managed": false,
+      "authenticodeCertificateTableBytes": 14000,
+      "embeddedResources": [],
+      "imports": [
+        "api-ms-win-core-synch-l1-2-0.dll",
+        "dxgi.dll",
+        "KERNEL32.dll",
+        "USER32.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Base.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Controls.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.DesignerSupport.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Desktop.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Dialogs.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Fonts.Inter.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.FreeDesktop.AtSpi.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.FreeDesktop.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.HarfBuzz.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Markup.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Markup.Xaml.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Metal.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.MicroCom.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Native.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.OpenGL.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Remote.Protocol.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Skia.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Themes.Fluent.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Vulkan.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Win32.Automation.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.Win32.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Avalonia.X11.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "e_sqlite3.dll",
+      "machine": "I386",
+      "managed": false,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "KERNEL32.dll"
+      ]
+    },
+    {
+      "path": "HarfBuzzSharp.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10272,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "KokoroSharp.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Kora.Application.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [
+        "Kora.Docs.commands.md",
+        "Kora.Docs.getting-started.md",
+        "Kora.Docs.privacy-safety-and-logs.md",
+        "Kora.Docs.readme.md",
+        "Kora.Docs.responses-and-calls.md",
+        "Kora.Docs.settings.md",
+        "Kora.Docs.skill-and-task-execution-design.md",
+        "Kora.Docs.tools-and-built-in-skills.md",
+        "Kora.Docs.troubleshooting.md",
+        "Kora.Docs.voice-and-audio.md",
+        "Kora.Docs.windows-and-tray.md"
+      ],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Kora.Core.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Kora.Definitions.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [
+        "Kora.Skills.Session.Lock.Manifest",
+        "Kora.Skills.Session.Lock.Fixtures",
+        "Kora.Skills.Session.Shutdown.Manifest",
+        "Kora.Skills.Session.Shutdown.Fixtures",
+        "Kora.Skills.Session.Restart.Manifest",
+        "Kora.Skills.Session.Restart.Fixtures",
+        "Kora.Skills.Session.Lock.Instructions",
+        "Kora.Skills.Session.Shutdown.Instructions",
+        "Kora.Skills.Session.Restart.Instructions",
+        "Kora.Scripts.Session.Lock",
+        "Kora.Scripts.Session.Shutdown",
+        "Kora.Scripts.Session.Restart",
+        "Kora.Scripts.Shared.SessionControl"
+      ],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Kora.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [
+        "!AvaloniaResources"
+      ],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Kora.exe",
+      "machine": "I386",
+      "managed": false,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "ADVAPI32.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-time-l1-1-0.dll",
+        "KERNEL32.dll",
+        "SHELL32.dll",
+        "USER32.dll"
+      ]
+    },
+    {
+      "path": "Kora.Tools.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Kora.Windows.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "libHarfBuzzSharp.dll",
+      "machine": "I386",
+      "managed": false,
+      "authenticodeCertificateTableBytes": 10272,
+      "embeddedResources": [],
+      "imports": [
+        "KERNEL32.dll"
+      ]
+    },
+    {
+      "path": "libSkiaSharp.dll",
+      "machine": "I386",
+      "managed": false,
+      "authenticodeCertificateTableBytes": 10080,
+      "embeddedResources": [],
+      "imports": [
+        "FONTSUB.dll",
+        "KERNEL32.dll",
+        "ole32.dll",
+        "USER32.dll"
+      ]
+    },
+    {
+      "path": "Markdig.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "MicroCom.Runtime.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Data.Sqlite.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10040,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10064,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Extensions.DependencyInjection.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10024,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Extensions.Logging.Abstractions.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10024,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Extensions.Logging.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10064,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Extensions.Options.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10064,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Extensions.Primitives.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10064,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.ML.OnnxRuntime.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10040,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Microsoft.Windows.SDK.NET.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10272,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "MisakiSharp.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.Asio.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.Core.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.Dmo.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.Midi.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.Wasapi.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.WinForms.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NAudio.WinMM.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "NumSharp.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "OpenTK.Audio.OpenAL.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "OpenTK.Core.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "OpenTK.Mathematics.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Serilog.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Serilog.Extensions.Logging.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Serilog.Sinks.File.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "SkiaSharp.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10080,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "SQLitePCLRaw.batteries_v2.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "SQLitePCLRaw.core.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "SQLitePCLRaw.provider.e_sqlite3.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "System.Numerics.Tensors.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10504,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "System.Speech.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10024,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "Tmds.DBus.Protocol.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 0,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    },
+    {
+      "path": "WinRT.Runtime.dll",
+      "machine": "I386",
+      "managed": true,
+      "authenticodeCertificateTableBytes": 10288,
+      "embeddedResources": [],
+      "imports": [
+        "mscoree.dll"
+      ]
+    }
+  ],
+  "nativeAssets": [
+    {
+      "package": "Avalonia.Angle.Windows.Natives/2.1.27548.20260419",
+      "asset": "runtimes/win-x86/native/av_libglesv2.dll",
+      "published": "av_libglesv2.dll",
+      "kind": "native-pe"
+    },
+    {
+      "package": "HarfBuzzSharp.NativeAssets.Win32/8.3.1.3",
+      "asset": "runtimes/win-x86/native/libHarfBuzzSharp.dll",
+      "published": "libHarfBuzzSharp.dll",
+      "kind": "native-pe"
+    },
+    {
+      "package": "HarfBuzzSharp.NativeAssets.Win32/8.3.1.3",
+      "asset": "runtimes/win-x86/native/libHarfBuzzSharp.pdb",
+      "published": "libHarfBuzzSharp.pdb",
+      "kind": "symbols-or-import-library"
+    },
+    {
+      "package": "SkiaSharp.NativeAssets.Win32/3.119.4",
+      "asset": "runtimes/win-x86/native/libSkiaSharp.dll",
+      "published": "libSkiaSharp.dll",
+      "kind": "native-pe"
+    },
+    {
+      "package": "SkiaSharp.NativeAssets.Win32/3.119.4",
+      "asset": "runtimes/win-x86/native/libSkiaSharp.pdb",
+      "published": "libSkiaSharp.pdb",
+      "kind": "symbols-or-import-library"
+    },
+    {
+      "package": "SQLitePCLRaw.lib.e_sqlite3/2.1.12",
+      "asset": "runtimes/win-x86/native/e_sqlite3.dll",
+      "published": "e_sqlite3.dll",
+      "kind": "native-pe"
+    }
+  ],
+  "nativeImportReview": "Static normal-import inventory only; delay loads and dynamic loading need real Windows trials.",
+  "licences": [
+    {
+      "package": "Avalonia.Angle.Windows.Natives/2.1.27548.20260419",
+      "nugetContentHash": "sha512-l17nI3XVDN3oMnpjf2pnmJg0YTwK4m6NLsn/itAjDMdObTFxN77D5F1M9sRMSfViSY3KKcse1ROczwgoWLJsnA==",
+      "declaredLicence": "LICENSE",
+      "licenceType": "file",
+      "licenceFileSha256": "54aff7276217df9f6b5181613999d208c9e40d2b1d51bf55217837e6871a4a63",
+      "legacyLicenceUrl": "https://aka.ms/deprecateLicenseUrl",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.Desktop/12.1.3",
+      "nugetContentHash": "sha512-kjCpRlBIK5OZDnQ01Hd43CF0Mq4eQ9ndABiDCJAGtLD7lbzX6KxJ08vIK4N1VAiY4/enAUz8oT8q4O6bSybrBQ==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.Fonts.Inter/12.1.3",
+      "nugetContentHash": "sha512-kNh670aMSkTk/2gA0F1rnghio4PL4op89Ypreq2BL9J/A/3PYxhoMfTPEgHUjOcPliPOyXsk5/86WzlJNeeETA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.FreeDesktop.AtSpi/12.1.3",
+      "nugetContentHash": "sha512-t9dP6VQAKGlXtftNuj7QzFtE54AI1qH1dwFmDEJlvI5gweCLNR8ebgRCLlO/bSLWzzV8dZtb6mB/glZ8soisDw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.FreeDesktop/12.1.3",
+      "nugetContentHash": "sha512-yEvk7qm0QPzgQwFZZTAIUXt31sQOSSeOSVTDrcm/Pk+5klNN+8C08kIJs9ZD8RY9esHVk2g6VHPab6DceJYRCw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.HarfBuzz/12.1.3",
+      "nugetContentHash": "sha512-XcO9BBsmZHMIK+e+yy1TGsytlhqa7o4ih2Y7B0Q7OKh91GEEerbEc6v/X2kRmluKxyYNSmkwH5Uzj53FtjJngA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.Native/12.1.3",
+      "nugetContentHash": "sha512-TP6G8mF8vPufxycwe/dfLTsNhqQOGBt2Os5MtJshUGfVQ8zlYUG8K8JckPE+dweuDraAKq305aHXseReD7UgXQ==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.Remote.Protocol/12.1.3",
+      "nugetContentHash": "sha512-HcF69DKyihgg5coLOSp7GTqxQvWAy58LMKauwcHA28uSBJVwu0h5+gTNdJA8Sn/nqJVTRDU98zYsk6i1QSwDVQ==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.Skia/12.1.3",
+      "nugetContentHash": "sha512-fYfSecJ6vQT3zB9vWl2DOoBK6JM4Mzxpz7KbUPxJePjY/yUl2OyhjKCyUcGZF2DV5mpAYfCOT4rdKEk8hP/lCA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.Themes.Fluent/12.1.3",
+      "nugetContentHash": "sha512-ens/GHfXXk0W1ZScHZ2XG6DFiVyUVKR+0O8QK6zkviMNAPQCNwkftXlRVSFSQGtBYxXoJHZMsKYvCLEtVyzkug==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.Win32/12.1.3",
+      "nugetContentHash": "sha512-RXSOmQGV5uKS9orIeE8a5oGz9QukzBnQTP3dtT9uJUhIIuZracy3ItoW8gtlZGBs3lzhEFTZlOk1Fn/Zxj/iAg==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia.X11/12.1.3",
+      "nugetContentHash": "sha512-NWkfAGgERPlYRKpiB18t5auSFA/Ffd++uZsUEtHPc/maitjydNJVDmtY21pUqR2QvAeTCl1nRAagi+j9bKVyKw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Avalonia/12.1.3",
+      "nugetContentHash": "sha512-l0VGyGn1OwqFrhmIhIHivvrQP0DtBD4Vn2F1vLYgGA2X2qHg0DMVRAln/6xOTLBUYoTopiVAujN0jtH8MpVSeA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "HarfBuzzSharp.NativeAssets.Win32/8.3.1.3",
+      "nugetContentHash": "sha512-bx8CE8Js+XGX8PUxAHCBDEORt5aaBYtMN4Hr9QFs57Xithh6yjUyYqksizH6eRDhJkwsGI+SXWmPmMm8lZC9Pw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "HarfBuzzSharp/8.3.1.3",
+      "nugetContentHash": "sha512-NGZ2+ZVNPM+NdHB/asW0/ykWngyHWwcqjrbN2nDeH1B/aptPGlCUl8wkQ2cSJxw5fdWgdmIPmNuTPWpLwNVXWg==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "KokoroSharp/0.8.4",
+      "nugetContentHash": "sha512-vR1erU/6clbTypcoLhfI5jMnLbvO/Mtp2mh26SNq3UnRTDi7GLwuQqcHcrKoklclYu5aEQIi8IZJ8uPBbMsSzQ==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Markdig/1.4.0",
+      "nugetContentHash": "sha512-lLhaiI/mNDTNzgLqnmknhf4LjgTqOAyjx5+GNz0X3AxYMxUhmFppF2WVMdER+SDqwhE5wUF1pzs/cuLwFxs7xA==",
+      "declaredLicence": "BSD-2-Clause",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/BSD-2-Clause",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "MicroCom.Runtime/0.11.6",
+      "nugetContentHash": "sha512-NdNWGDiZ6eS/Mf/9+QHR91cj1K7Hy+PX9yrHI/zM7xFYuj9IWT2uxtB6sCHjrnxAeLV9fut1R6zHDUGKX6f9lQ==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Data.Sqlite.Core/10.0.12",
+      "nugetContentHash": "sha512-2aL9eL5HQr0V4b8V909SD+jQAx6qnTTl7sT/v3D8dIvmr2UGdpZIQxqm1pj2Js3e4EYTvpw0oMH7DjapJJuPPw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Data.Sqlite/10.0.12",
+      "nugetContentHash": "sha512-xUq9xUc653ue7ac2rMfCaf8UQN+U3zS8poWYlugycpvJllplMM0Mk7v/+MM0CTlu9zGvbGML4BPH8YWhrUOfGw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.12",
+      "nugetContentHash": "sha512-9/qymSh7hVDMGTGwrLz8MRp5zRyXy9adGDOs4HwRdnLil3oZGYuWeZjbmHgCQ9BL1qBroVfgUK3U/nb61617Cw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Extensions.DependencyInjection/10.0.12",
+      "nugetContentHash": "sha512-lXyK2O5GoYvfxW8eCFcD16JFbcoSTM1sJkAM0UHS1jZyl9NYMW64Tqm6OQFT0IDBjZi+xHt95/Zg+nxZhGFhZg==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Extensions.Logging.Abstractions/10.0.12",
+      "nugetContentHash": "sha512-+24lC4plfbEDNfLAdTV/SWKS7dW+16X4HdydO3R++134kSNTzcbYA4KpR1Hdh6uWisB8Za3AzwyOn+K+NxWIug==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Extensions.Logging/10.0.12",
+      "nugetContentHash": "sha512-6I46fTPfgYkrjRYfRXbho9WOvOelTnNjWuZws/hzGHDASH1LEJeA4VKK9k3wJvido8o7jJSB5WkMTonX7HM1bA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Extensions.Options/10.0.12",
+      "nugetContentHash": "sha512-TDYD33TSRpXKZWlmTXNlj5kCihxatmv2Ec1u6C+bMYLphCS7PoSLE9Pjd/nunDoE7yETk+LLKjVJX78HYtWjpA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.Extensions.Primitives/10.0.12",
+      "nugetContentHash": "sha512-dYfCLR52UA+3DL7C4I/pvSaRPkNqxrUAQmbFL2u0zvYKKzqgrFCJl08Df+F1aYc8leu9JvpC9bsURUdpExcBXQ==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Microsoft.ML.OnnxRuntime.Managed/1.30.0",
+      "nugetContentHash": "sha512-KHW+vp+i4Mdf6RhIsMvurTVepafXHjg8/VQ0o6sa2wEK0KzV/4iEoRTUvsymcRP+XPAM/r6kZCaTADdV6Xn4RA==",
+      "declaredLicence": "LICENSE.txt",
+      "licenceType": "file",
+      "licenceFileSha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674",
+      "legacyLicenceUrl": "https://aka.ms/deprecateLicenseUrl",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "MisakiSharp/2.2.0",
+      "nugetContentHash": "sha512-ldGseoE8qsCuaQlJU8WhxwGkHQvtx3FMXdFXArMKq2DItEGGtQbJ5t4jw7tVGgf9E3I2uLg2ZHR/JNVTAVauHw==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio.Asio/3.1.0",
+      "nugetContentHash": "sha512-v+ZgbdCaE/XyhByYNC+xgNdRNWy43GHWYJ+fLrXwjOLXYUToq45G5EGzdqlY//3KsX1zuVn+mU+SBBZ744zK6g==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio.Core/3.1.0",
+      "nugetContentHash": "sha512-8Hrd3Uqb2wEB64eZYF+0vl9xBadeSn6JnFDsHuGrw87ucJ+pB7u5NzVpHl8OlCNvIvH+sD9b2h4JOqXBuZGYwg==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio.Dmo/3.1.0",
+      "nugetContentHash": "sha512-XhVjBgIyj6qnZRfeGS2CkL6mffRLnT4WK/hAoNGZsqJK1p+XpWe0nFbUA+6Cmgj18oLoHYk2KouPw/Q94mTCnA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio.Midi/3.1.0",
+      "nugetContentHash": "sha512-McIiQyY5o0Q3QlF5oRm+b0A8IE0SorA/9HvNi88bH3MdSnGp7cM/9sze/zqbS/9PFdKYVRZPtoLwqoAF4BgjeA==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio.Wasapi/3.1.0",
+      "nugetContentHash": "sha512-iTG+oBJaiID344yz84PrTiVF98av5SsuOUu7ICskcUd6f5ShHDMskG9sE4XUM05Vdlwy88bMQDDC3e+85Mv8yw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio.WinForms/3.1.0",
+      "nugetContentHash": "sha512-oIjQu3bp9QtAB6wAf04pgeDUce+dIrSDcvNp689e/xYStyktG33nY2GwW7d1mS2zDAeA/YhUjY5DkakDWs9+1w==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio.WinMM/3.1.0",
+      "nugetContentHash": "sha512-2LXIZwBQKxDZP+GvTvC9zrHiF0LQ3lvTi5dqgS175hY/bOtqFlDRRhzEnVv/lLFlQ+a1I/ZQ3m6CclTvztkf6A==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NAudio/3.1.0",
+      "nugetContentHash": "sha512-wD5UttLb5Eu/caAYPy/siDg7xf3KVkdJfMLXr+cJfAvxgh6wDnWOBxXfhYNMUiIaQRr2VPDjgPH2QIzBSP6gqw==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "NumSharp/0.30.0",
+      "nugetContentHash": "sha512-1f8m2B/m/ZSsICaqLszspCyA9/sTHK7wBKEH5KsxGg/r3QCYTc2HnfYOGMeCytvo8/j0v/umn5umLOLhdExlFA==",
+      "declaredLicence": "LICENSE",
+      "licenceType": "file",
+      "licenceFileSha256": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+      "legacyLicenceUrl": "https://aka.ms/deprecateLicenseUrl",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "OpenTK.Audio.OpenAL/5.0.0-pre.13",
+      "nugetContentHash": "sha512-q+YYwBHlP54/wjlapXRmv8Wy6IiCfoL8nz/+laMKXrlCxIBQ807dh2GowOc5Z6Sllr9I45GRQlqL8xbeniqrIQ==",
+      "declaredLicence": null,
+      "licenceType": null,
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": null,
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "OpenTK.Core/5.0.0-pre.13",
+      "nugetContentHash": "sha512-NohlYrmuR/H8dMMFzTEdTD7GgWa+mLpXzgnVa1Wixp8tzojdoalO+HYW/ixG1lzzYyBSMoENrZyRgt6njZxnkw==",
+      "declaredLicence": null,
+      "licenceType": null,
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": null,
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "OpenTK.Mathematics/5.0.0-pre.13",
+      "nugetContentHash": "sha512-65qbZS49AfrTM6jtZ2RDTWAzLe13ywCXIiSP5QrAJLmZT6sQqHGd1LfFXLhx8Ccp77qy7qh/LHsxpUOlkgZTCg==",
+      "declaredLicence": null,
+      "licenceType": null,
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": null,
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Serilog.Extensions.Logging/10.0.0",
+      "nugetContentHash": "sha512-vx0kABKl2dWbBhhqAfTOk53/i8aV/5VaT3a6il9gn72Wqs2pM7EK2OB6No6xdqK2IaY6Zf9gdjLuK9BVa2rT+Q==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Serilog.Sinks.File/7.0.0",
+      "nugetContentHash": "sha512-fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Serilog/4.4.0",
+      "nugetContentHash": "sha512-ZC6Le3rr4TVJJjS4KsQAesxeF1EhW9qcZmmG7eP5Y2G3+gTGkJEUXkq4+tZNPtyp05I0wWOxnIjwtxFweJsObw==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "SkiaSharp.NativeAssets.Win32/3.119.4",
+      "nugetContentHash": "sha512-XOpbx/4CReO2wYsq2s6rbvdauc6dntG4Zv499sHGTJ87bwZaFXszFkwql3+FIZMc8kUPeaj3Mx2ezIJmo8a1Kg==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "SkiaSharp/3.119.4",
+      "nugetContentHash": "sha512-53NOSUZ1Us+91Sm0uCkIivh/k7jOowRErZT2sIWwPFN9mLUvdxnE6rS4sWo4255+Rd2MWUSF+j0NMZHD6Cke+Q==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "SQLitePCLRaw.bundle_e_sqlite3/2.1.12",
+      "nugetContentHash": "sha512-mAgscpQMLw5/nfA1Q5oJVAT29yROUo1ifZGbbTpx/lwZpSxMUGoYbKfmvdm8oXER+RzxqBmmQzeBEVKfeHv2nw==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "SQLitePCLRaw.core/2.1.12",
+      "nugetContentHash": "sha512-ETpNw9DY3ckWLgRRAeCHj+GKOuPi61aeczkXhgHexUvqoZBAYg8RYESE2J7O1M7+o6QbdSEZwrw9bfqztUVWXg==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "SQLitePCLRaw.lib.e_sqlite3/2.1.12",
+      "nugetContentHash": "sha512-fWi8Dbknuhgg72fWinIdjXVaqO1hHL4YBBwVLnr7e1c9TAZwJ0QE38j9syW1hwx6HaqEVTwI+O07WPdZn8Rp0w==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "SQLitePCLRaw.provider.e_sqlite3/2.1.12",
+      "nugetContentHash": "sha512-W3oH4XIfCzFrgUSDKHhN6N+dgzA5YHOR2VxX8GB6Qy7CyrJJgxPEG8NirgYWlPQC5P2jz2knSsexWu4tDUL33g==",
+      "declaredLicence": "Apache-2.0",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/Apache-2.0",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "System.Numerics.Tensors/9.0.5",
+      "nugetContentHash": "sha512-hS5G2PmTFHt534LfQB1WIKALMHrZu2rNdzzRr1UfDBSpFcJrKBL38ShOr/yy5s11GFzZKyLp55jdLN5LRA5t2A==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "System.Speech/10.0.12",
+      "nugetContentHash": "sha512-IrIKdPfbeCtgDeKQvJE2EtS8sSLxxpBRzCCpkg/4jORLwmhSUrVZtIrnbbaWQxo3tjnXK6aHH6MNsvi3S3PuTg==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    },
+    {
+      "package": "Tmds.DBus.Protocol/0.94.1",
+      "nugetContentHash": "sha512-11YMr7FnAbL83bQmVxlhbIKHvSLxjO81D12Ej0QMSGXMDTxNA9MTOa4MQxx43nv5el/efuPHwzyrj6a5ha2gug==",
+      "declaredLicence": "MIT",
+      "licenceType": "expression",
+      "licenceFileSha256": null,
+      "legacyLicenceUrl": "https://licenses.nuget.org/MIT",
+      "metadataAvailable": true,
+      "review": "Not legal clearance; review bundled third-party native/model/text notices separately."
+    }
+  ],
+  "licensingEvidence": [
+    {
+      "path": "LICENSE",
+      "present": true,
+      "bytes": 5808,
+      "sha256": "3ae8fb82a4ff768f6ef4e24abd0c2a198838822968d0be097d8051daf3e0847c"
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.md",
+      "present": true,
+      "bytes": 39869,
+      "sha256": "747fb0c17748c3829d420d8dabd16fccff0a4e0d14eb47e34a8b6f054deacd87"
+    }
+  ],
+  "nativeCapabilityGaps": [
+    "win-x86 declares ONNX Runtime packages without an ONNX Runtime native payload; inference closure is not qualified."
+  ],
+  "releaseBlockers": [
+    "win-x86 declares ONNX Runtime packages without an ONNX Runtime native payload; inference closure is not qualified.",
+    "Per-release redistribution clearance is not established by static inspection.",
+    "Installed Windows protection and runtime-only acceptance require separate evidence.",
+    "Bundled-resource and worker acceptance require separate evidence."
+  ],
+  "releaseAcceptance": "BLOCKED: win-x86 declares ONNX Runtime packages without an ONNX Runtime native payload; inference closure is not qualified. Per-release redistribution clearance is not established by static inspection. Installed Windows protection and runtime-only acceptance require separate evidence. Bundled-resource and worker acceptance require separate evidence."
+}

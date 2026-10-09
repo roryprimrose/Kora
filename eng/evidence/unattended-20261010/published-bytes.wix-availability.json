@@ -1,0 +1,32 @@
+[
+  {
+    "relative": "wixtoolset.sdk\\7.0.0\\tools\\net472\\x64\\wix.exe",
+    "available": false,
+    "sha256": null
+  },
+  {
+    "relative": "wixtoolset.sdk\\7.0.0\\OSMFEULA.txt",
+    "available": false,
+    "sha256": null
+  },
+  {
+    "relative": "wixtoolset.sdk\\7.0.0\\LICENSE.TXT",
+    "available": false,
+    "sha256": null
+  },
+  {
+    "relative": "wixtoolset.netfx.wixext\\7.0.0\\wixtoolset.netfx.wixext.7.0.0.nupkg",
+    "available": false,
+    "sha256": null
+  },
+  {
+    "relative": "wixtoolset.util.wixext\\7.0.0\\wixtoolset.util.wixext.7.0.0.nupkg",
+    "available": false,
+    "sha256": null
+  },
+  {
+    "relative": "wixtoolset.bootstrapperapplicationapi\\7.0.0\\OSMFEULA.txt",
+    "available": true,
+    "sha256": "3358AF585772039E45D1192213838F906A478463AC3BB4DA208EC0D874C2219B"
+  }
+]

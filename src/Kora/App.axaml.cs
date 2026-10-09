@@ -140,7 +140,7 @@ public sealed partial class App : Avalonia.Application
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
             fileWindow = new LocalFilePreviewWindowController(viewModel, window);
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
-                Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>());
+                Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow);
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen

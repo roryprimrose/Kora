@@ -1,8 +1,8 @@
 # File and Folder Ingestion and Grounded Reasoning
 
 Status: bounded R26 foundations implement **local file inspection and
-selected immutable revision lexical retrieval**, described below. The broader
-ingestion/attachment, folder, managed knowledge source, persistent/vector
+selected immutable revision and bounded immediate-folder lexical retrieval**, described below. The broader
+ingestion/attachment, recursive folder, managed knowledge source, persistent/vector
 index, multi-source retrieval, reasoning and hosted transmission design
 remains proposed and unavailable.
 
@@ -65,7 +65,8 @@ selection/read and unverified release block clean handoff; cancellation does
 not fabricate quiescence. No watcher, refresh/retry, ambient collection,
 network parsing, inference, egress or document-derived authority exists.
 
-Folder preview, UNC/removable-drive ingestion, durable attachments, registry,
+R26.1c below extends this foundation to immediate-folder preview and search.
+UNC/removable-drive ingestion, durable attachments, registry,
 refresh, persistent/vector indexes, local/hosted grounded reasoning,
 screens/images and later formats remain unavailable. This slice does not
 qualify their gates. Native installed/accessibility acceptance remains
@@ -137,6 +138,24 @@ particular R02 inference answer quality, actual resource/offline/cessation,
 RT1/RT2/MG1 and durable storage/enterprise-cache trials remain distinct and
 retained. This slice does not qualify grounded reasoning or installed native
 accessibility acceptance.
+
+## Delivered Bounded Folder-Scoped Lexical Retrieval - 2026-10-09
+
+R26.1c extends the volatile R26.1a/b foundation, not the durable R26.2 lifecycle. **Tray > Preview folder (immediate files, local lexical search)** and exact `preview folder` use the trusted native single-folder picker. Typed/voice paths do not authorize reads ([native selection](../src/Kora/LocalFilePreviewWindowController.cs), [commands](../src/Kora.Core/Context/LocalFileCommand.cs)).
+
+Admission is all-or-nothing: **1–32 immediate files**, **1 MiB (1,048,576 bytes) combined original bytes**, and the unchanged **256 KiB (262,144 bytes) per file**, including any UTF-8 BOM. Empty individual files remain valid; empty folders are rejected. Files are ordered by ordinal canonical path, independent of enumeration order. Any subdirectory, including an empty, generated, hidden or text-named directory, rejects the whole selection; there is no recursion or silent partial admission ([folder policy](../src/Kora.Core/Context/LocalFolderPolicy.cs)).
+
+The Windows inspector applies the same fixed-drive absolute canonical path, verified-handle, sharing, ancestor, reparse, hard-link, hidden/system, protected/generated/source-control and unstable-source policy to the root and every immediate file. Unsupported extensions, including archives/binaries, reject the whole inventory before content reads. Strict UTF-8 and binary/control-text sniffing remain the single-file decoder's authority; renaming binary data does not bypass decoding ([inspector](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs), [file policy](../src/Kora.Core/Context/LocalFilePolicy.cs)).
+
+Metadata-only review lists the complete canonical root identity, original host session/origin, review/source IDs, and every file's path, native identity, bytes and last-write observation, with count/byte/recursion/privacy disclosure. **Confirm: read every exact reviewed immediate file locally** confirms only that inventory within the existing two-minute review deadline. All root/ancestor/file handles remain retained until capture or revocation; each file excludes write/delete sharing ([native review](../src/Kora/LocalFilePreviewWindow.cs), [broker](../src/Kora.Tools/Files/LocalFilePreview.cs)).
+
+Exact inventory and retained identities are revalidated before and after capture. Each file uses the same two consistency passes, EOF probe, strict decoding and original-byte SHA-256 digest as R26.1a. Read work is bounded by 2 MiB plus at most 32 EOF probe bytes. Every item must succeed; any membership, identity, length, encoding, cancellation or release failure discards all staged revisions and clears raw buffers. Publication still requires verified native release and typed requested/terminal audit outcomes ([capture](../src/Kora.Tools/Files/LocalFilePreview.cs), [native consistency](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs)).
+
+The immutable folder reference selects the complete admitted set; each file retains its own fresh revision/item IDs and digest under the common reviewed source ID. `LocalFileSearch` and `ILocalFileRetrieval` search that set through the **same `lexical-lines-v1` implementation**, not independent per-file result merging. Unique matched terms and saturated frequency rank globally, then ordinal canonical file order and source offset break ties. The existing eight-citation / 16 KiB combined UTF-8 excerpt bounds apply once to the whole folder; all matching chunks are counted and truncation is explicit. No terms span files. Citations still bind the correct exact file source/revision/item/digest and unchanged UTF-16/line/column/heading/excerpt semantics ([folder revision](../src/Kora.Core/Context/LocalFolderRevision.cs), [shared retrieval](../src/Kora.Core/Context/LocalFileLexicalRetrieval.cs)).
+
+The native surface inspects each complete inert file and searches only the selected immutable folder. `search folder` / `inspect folder` focus native query entry; queries and excerpts do not enter transcripts, history, models, speech, clipboard, logs or durable storage. `clear folder preview`, close, Cancel task, privacy/lock, call/ownership/generation change and disposal revoke the same shared broker. Single-file and folder selections replace rather than expand one another. Outstanding capture/search still blocks clean handoff until genuinely quiescent ([presentation](../src/Kora/LocalFilePreviewWindow.cs), [host gates](../src/Kora.Application/ViewModels/MainViewModel.Files.cs), [shared revocation](../src/Kora.Tools/Files/LocalFilePreview.cs)).
+
+**This slice is folder-scoped admission + lexical search only, volatile only.** There is no durable cross-session attachment, managed registry, refresh, ambient watching, disable/remove lifecycle, persistent/vector index, embeddings, local-model reasoning, hosted egress or document-derived authority. R26.2 lifecycle and R26.3/4/5 runtime/format gates remain separate; R08 remains unqualified. No executable experiment is superseded. Installed native/accessibility acceptance remains outstanding; maintained portable tests and real Windows sharing/reparse/hard-link/protected-path/inventory tests cover this bounded slice ([Core tests](../tests/Kora.Core.UnitTests/Context/LocalFolderTests.cs), [broker tests](../tests/Kora.Tools.UnitTests/Files/LocalFolderTests.cs), [host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Folders.cs), [Windows tests](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Folders.cs)).
 
 ## Product Outcome
 
@@ -496,6 +515,8 @@ Before advertising the initial file/folder capability:
 | Stage | Value | Dependencies | Completion evidence |
 |---|---|---|---|
 | R26.1a - Bounded local file inspection | Delivered foundation: native selection, metadata review, exact native confirmation, immutable strict-UTF-8 plain-text/Markdown preview; volatile only | Existing ownership/privacy, activity/audit, exact input routing and passive native presentation seams | Deterministic portable admission/decoding/generation tests and real Windows sharing/reparse/hard-link/protected-path/cancellation tests; no folder, persistence, model or retrieval authority; installed UX acceptance outstanding |
+| R26.1b - Selected-revision lexical retrieval | Delivered: exact single-file immutable revision search, shared lexical-lines-v1 chunks/ranking and native citations; volatile only | R26.1a and existing ownership/privacy/call/audit boundaries | Bounded exact excerpts, digest/item citations, cancellation/revocation/isolation and no-egress tests; no additional filesystem, model or persistence authority |
+| R26.1c - Bounded folder-scoped lexical retrieval | Delivered: reviewed complete set of 1–32 immediate files, 1 MiB combined bytes, unchanged 256 KiB per file; any subdirectory/inadmissible item rejects the whole selection; native search only, volatile only | R26.1a/b and existing ownership/privacy/call/audit boundaries; no R08/runtime dependency | [Portable admission/retrieval](../tests/Kora.Core.UnitTests/Context/LocalFolderTests.cs), [broker revocation/audit](../tests/Kora.Tools.UnitTests/Files/LocalFolderTests.cs), [host no-egress/no-persistence](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Folders.cs) and [real Windows denial/inventory/bounds](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Folders.cs); installed UX acceptance outstanding; R26.2 lifecycle remains gated |
 | R26.0 - Finalize policy and limits | Agree initial formats, numeric limits, storage/retention, citation shape, local-runtime envelope, and hostile-document fixtures | R04 storage semantics, R06 tool/result bounds, R10 configuration registry, R12 session retention | Approved typed contracts and threat/acceptance fixtures; no runtime capability |
 | R26.1 - Native selection and immutable text snapshot | Add picker plus reviewed absolute path proposal, safe Windows enumeration/read, `.txt`/Markdown extraction, source registry, revision identity, native preview and deletion | R03 ownership/privacy, R04 durable storage/recovery, R05 review/questions, R10 settings | Real Windows file/folder/reparse/access/change/cancel/restart tests; no model exposure |
 | R26.2 - Lexical retrieval and citations | Deterministic chunk/index/search/read-excerpt, source selection, context budget, citation presentation, refresh/disable/remove cleanup | R26.1, R06 admitted descriptors, R12 session/artifact lifecycle, R14 source/citation UI | Grounding, hostile-content, cross-session/source isolation, stale/revoked and interrupted-cleanup evidence |
@@ -503,10 +524,10 @@ Before advertising the initial file/folder capability:
 | R26.4 - Hosted-model reasoning | Apply exact destination/source revision/excerpt review and hosted adapter egress; preserve citations and deletion boundaries | R26.3, admitted hosted provider under R08, remote-enabled policy and credentials | Real destination/account tests, payload capture/bounds, denial/revocation, timeout/cancel/unknown and no-fallback evidence |
 | R26.5 - Additional formats and hybrid retrieval | Admit parser/model packages independently; optional embeddings and scheduled refresh | R26.2 plus R25 for rich formats and format-specific dependency/licence/security gates | Per-format hostile corpus and citation proof; embedding identity, quality, privacy, migration, deletion and offline evidence |
 
-The broader R26.1 attachment/registry/folder stage is not complete. The roadmap
+The broader R26.1 durable attachment/registry and recursive-folder stage is not complete. The roadmap
 marks required storage/session/configuration/tool-loop work as partial or
 outstanding. Implementing path reads directly in a view model or inserting
 whole files into the existing 4,096-character local-model request would bypass
 the required source identity, context budget, retention, egress, and
-cross-session controls. The delivered R26.1a explicitly stops at volatile native inspection; those
+cross-session controls. Delivered R26.1a/b/c explicitly stop at volatile native inspection and scoped lexical search; those
 remaining contracts are not implied by this foundation.

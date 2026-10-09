@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 
+using Kora.Application.UnitTests.Interaction;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -8,6 +9,24 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task Committed_logical_disposition_retires_exact_owned_broker_suppression_without_replaying_or_extending_work()
+    {
+        using var fixture = new Fixture();
+        using var events = new LocalEventBrokerTests.Fixture { Session = fixture.Session.SessionId };
+        events.Events = [events.Event()];
+        await using var broker = events.Create();
+        await events.Observe(broker);
+        fixture.Service.BindLocalEvents(broker);
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var preview = await fixture.Service.PreviewDispositionAsync(fixture.Session.SessionId, new(1), 0, fixture.Token);
+        var receipt = await fixture.Service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, fixture.Token);
+        receipt.SessionId.Should().Be(events.Session);
+        fixture.TaskWrites.Should().HaveCount(2);
+        events.Saved!.Receipts.Should().BeEmpty();
+        events.Audits.Should().Contain(item => item.Event.ActionId == "local-event.retire");
+    }
+
     [Fact]
     public async Task Disposition_requires_host_held_preview_and_commits_only_one_exact_original_control()
     {

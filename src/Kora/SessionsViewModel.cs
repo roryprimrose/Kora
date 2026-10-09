@@ -3,6 +3,7 @@ using System.Text;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Application.Interaction;
 using Kora.Application.Infrastructure;
 using Kora.Core.Authorization;
 using Kora.Core.Commands;
@@ -17,7 +18,7 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel(
     SessionWorkspaceService service, DurableEvidenceQuery evidence, ISessionWorkspaceAccess access,
-    ILogger<SessionsViewModel> logger) : ObservableObject
+    ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -408,6 +409,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearLocalEvents();
         selectionEpoch++;
         workSnapshot = null;
         workRecords = [];

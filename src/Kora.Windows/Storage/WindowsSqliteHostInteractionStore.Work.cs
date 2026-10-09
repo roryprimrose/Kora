@@ -10,7 +10,12 @@ namespace Kora.Windows.Storage;
 public sealed partial class WindowsSqliteHostInteractionStore
 {
     public ValueTask<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session,
-        long admissionRevision, SessionQueueLimits limits, CancellationToken token) => new(Task.Run(() =>
+        long admissionRevision, SessionQueueLimits limits, CancellationToken token) =>
+        WithCurrentWorkAsync(session, admissionRevision, limits, static snapshot => snapshot, token);
+
+    public ValueTask<T> WithCurrentWorkAsync<T>(HostId<SessionIdentity> session,
+        long admissionRevision, SessionQueueLimits limits, Func<SessionWorkSnapshot, T> observation,
+        CancellationToken token) => new(Task.Run(() =>
     {
         using var lease = database.AcquireReadLease(token);
         using var connection = Open(created: false, token);
@@ -57,7 +62,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
         _ = SessionCommandResult.Serialize(new("observed", SessionWorkSnapshot.Scope) { Work = snapshot });
         token.ThrowIfCancellationRequested();
         database.VerifyFiles();
-        return snapshot;
+        var result = observation(snapshot);
+        token.ThrowIfCancellationRequested();
+        database.VerifyFiles();
+        return result;
     }, token));
 
     private static (List<HostTaskRecord> Records, int Omitted) ReadWorkTasks(SqliteConnection connection, HostId<SessionIdentity> session)

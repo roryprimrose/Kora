@@ -1,5 +1,31 @@
 # Security and Data Flows
 
+## Trusted local event broker boundary
+
+The [R18 visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+has no model/tool publication or execution API. Only current authoritative
+fixed local-version work/question snapshots and verified maintenance cache
+can establish source identities. Exact user commands act on host-held IDs/
+revisions and original provenance; names, model text, incoming trace headers,
+focus or event metadata cannot supply authority. Source lease/cache lock,
+session/profile/generation/deadline and native/input/call/privacy/lock/owner
+revalidation fail closed.
+
+Fixed summaries and bounded suppression preferences contain no user content,
+question text, remote notes, paths or model output. Structured logs contain
+counts and fixed exception types only; host identity/audit correlation uses
+admitted Activity tags and causal links, never content or Baggage. Required
+typed requested/terminal audit, atomic save, exact readback and confirmation
+precede visual delivery; uncertain storage cannot fabricate rollback/replay.
+Clock rollback holds. Retirement clears owned suppression before deletion
+without reversing broker/authority lock order.
+
+Only an already-open native work surface can passively deliver. No focus,
+question replacement, voice target, activity renewal, grant consumption,
+work effect, ambient wake, model, network, browser or installer results.
+Speech is off even under VoiceOnly. Pending foreground questions/approvals
+remain intact; cached maintenance Check/Open stays separately native.
+
 ## Deterministic fixed local-version queue boundary
 
 The native selected-session work surface is a passive consumer of one bounded

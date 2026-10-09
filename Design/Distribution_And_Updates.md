@@ -811,6 +811,13 @@ Never describe a failed check as proof that the installation is current.
 
 ### Delivered bounded R17/R18 native foundation
 
+The later [R18 local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+can observe only this already-verified, unsnoozed, unexpired cache in an
+already-open native selected work surface. It performs no check, review/open,
+new consent, download, install or model call, and does not close any installed
+release/protected-deployment gate. Broker dismiss/defer is separate from the
+existing exact-release native maintenance review/snooze and Check/Open actions.
+
 Settings **Maintenance** and Tray **Release maintenance (notify-only)** open
 one explicit native review surface with running version, channel, truthful
 status, last-verification/staleness, expected application ZIP/digest, and an

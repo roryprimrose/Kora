@@ -16,6 +16,16 @@ Windows login sessions, voice capture generations, provider/SDK conversations, a
 
 ## Current Implementation and Design Gap
 
+The [R18 local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+now observes only fixed authoritative local-version queue/question state and
+already-verified cached maintenance in the already-open selected Sessions
+surface. Its exact event IDs/revisions, fixed summaries, independent fatigue,
+dismiss/defer/expiry and atomic bounded suppression are not new conversation,
+question, execution or grant authority. Pending original questions remain
+separately bound; passive delivery/status never resumes, dispatches, retargets
+voice or updates meaningful activity. Session retirement removes owned broker
+receipts before deletion; restart reconstructs no source or effects from them.
+
 The [R13 fixed local-version queue](Work_Management.md#delivered-deterministic-local-version-queue)
 addresses existing immutable session IDs directly. Pending capacity, FIFO,
 fair manual admission, revisions, dependencies and restart interruption are

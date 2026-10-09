@@ -4,6 +4,8 @@ using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.Hosting;
+using Kora.Application.Interaction;
+using Kora.Application.UnitTests.Interaction;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -25,6 +27,26 @@ public sealed class SessionRetentionServiceTests : IDisposable
     };
     public SessionRetentionServiceTests() => ActivitySource.AddActivityListener(listener);
     public void Dispose() => listener.Dispose();
+
+    [Fact]
+    public async Task Bound_broker_retires_suppression_before_the_authority_delete_callback_without_reentering_its_gate()
+    {
+        using var events = new LocalEventBrokerTests.Fixture();
+        await using var broker = events.Create();
+        await events.Observe(broker);
+        await using var fixture = new Fixture(broker);
+        fixture.Store.Id = events.Session;
+        var revoked = false;
+        fixture.Service.Revoking += id =>
+        {
+            id.Should().Be(events.Session);
+            events.Saved!.Receipts.Should().BeEmpty();
+            revoked = true;
+        };
+        await fixture.Service.RunAsync(fixture.Token);
+        revoked.Should().BeTrue();
+        events.Audits.Should().Contain(item => item.Event.ActionId == "local-event.retire");
+    }
 
     [Theory]
     [InlineData(false)]
@@ -128,12 +150,12 @@ public sealed class SessionRetentionServiceTests : IDisposable
     {
         private readonly Preferences preferences = new();
         private readonly SessionRetentionConfigurationService configuration;
-        internal Fixture()
+        internal Fixture(LocalEventBroker? broker = null)
         {
             Admission = new(ControlStore, ControlStore, new HostTaskCoordinator(ControlStore));
             configuration = new(preferences, new(), Admission, new Audit());
             configuration.Observe();
-            Service = new(Store, configuration, Access, Dispatcher, Time, Logger);
+            Service = new(Store, configuration, Access, Dispatcher, Time, Logger, broker);
         }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         internal AudioControlTestStore ControlStore { get; } = new();
@@ -159,7 +181,7 @@ public sealed class SessionRetentionServiceTests : IDisposable
     private sealed class Store : ISessionRetentionStore
     {
         internal SessionRetentionBatch Result { get; } = new(1, 2, 3, true);
-        internal HostId<SessionIdentity> Id { get; } = new(Guid.NewGuid());
+        internal HostId<SessionIdentity> Id { get; set; } = new(Guid.NewGuid());
         internal Exception? Failure { get; set; }
         internal Action? BeforeRevoke { get; set; }
         internal bool CancelSource { get; set; }

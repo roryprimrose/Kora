@@ -20,6 +20,47 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R18 trusted local visual broker increment - 2026-10-09
+
+Merged scheduler #116, selected work surface #118 and retention #117 unblock
+the [bounded host event broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09).
+It observes only authoritative fixed local-version work/question metadata and
+already-verified cached maintenance; stable IDs/source and broker revisions,
+UTC deadlines, coalescing/deduplication, independent category budgets,
+exact dismiss/fifteen-minute defer, bounded atomic suppression and no-replay
+restart are delivered. Fresh source leases/cache locks and session/profile/
+origin/native-lifetime/call/privacy/lock/ownership fences remain mandatory.
+Unknown/corrupt/obsolete/unconfirmed/future-clock state fails closed.
+
+R05 exact pending questions remain independent and cannot be answered/replaced
+by notices. R10 output remains visual even under VoiceOnly; no new speech
+admission is created. R13 manual dispatch, queue/history receipts and meaningful
+activity are unchanged. R14 uses only its already-open native selected work
+surface without focus or voice retargeting. R15 protected-call/Unknown evidence
+holds the broker; no call-end speech or listening replay exists. R17 cached
+release availability adds no Check/Open, network, consent, download or install.
+Retention removes owned suppression before inventoried deletion under explicit
+broker-before-authority lock order. State failure holds notices, not independent
+authoritative work inspection.
+
+Maintained deterministic policy, source/clock/restart/race/cancellation/audit
+and native/exact-route tests supplement the existing capability checks.
+Validation receipt: locked root restore and Release build (zero warnings/errors);
+Core 1,113, Application 2,971, Tools 69, Definitions 6 and Windows integration
+1,220 tests passed with zero skips/failures (5,379 total). Latest complete
+portable reports pass the unchanged exact 100% line/branch coverage gate.
+Headless native tests preserve passive focus and pending questions, prove
+queue/history/activity parity, exact route parity, owning-lease stale rejection,
+corrupt-state work-surface isolation and receipt removal before inventoried
+retention. The scheduler fake now uses one deterministic clock throughout;
+no production scheduling contract changed.
+This is not general model conversation, all-session ambient notification,
+reminders/quiet hours, detector-driven speech, general executor/effects or
+installed screen-reader/DPI/native release acceptance. Full R18 and the
+remaining R05/R10/R13/R14/R15/R17 enablement/RC gates stay partial.
+Experiment disposition: retain all R02 executables and historical receipts;
+none is exactly superseded or promoted to production by this increment.
+
 ### R14 authoritative selected-session work increment - 2026-10-09
 
 After merged durable history #114 and deterministic scheduler #116, the

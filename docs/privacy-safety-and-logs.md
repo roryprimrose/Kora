@@ -1,5 +1,32 @@
 # Privacy, safety, and logs
 
+## Trusted local event privacy
+
+The [bounded visual broker](commands.md#trusted-local-events) reads only
+authoritative fixed local-version work/question metadata and the already-
+verified maintenance cache. No model text can create events. Stable IDs,
+revisions, source/generation, UTC expiry and fixed summaries are not grants,
+question answers or executable work. Admission is revalidated against current
+source, original input/native lifetime and call/privacy/lock/owner epochs.
+
+Only `local-events.json` and `local-events-unconfirmed.txt` are added under
+the supplied application Preferences path. At most 64 content-free suppression
+receipts, four category budgets and a UTC high watermark are retained; no user
+text, paths, remote notes, response/model content or effect payload is stored.
+These suppression records are not conversation/history. Requested/terminal
+trusted audit and exact atomic readback/confirmation precede delivery. Unknown,
+corrupt, obsolete, unconfirmed or future-clock state holds without default,
+rollback, automatic repair or replay. Session retirement removes owned records;
+unrelated preferences and global fatigue remain independent.
+
+Logs record counts and fixed exception types only. Activities carry admitted
+host identities/audit correlation and causal links, never content or Baggage.
+Passive delivery/status never renews meaningful activity, steals focus,
+replaces a question, changes voice target, consumes grants, resumes/dispatches
+work, speaks, opens capture or causes model/network/browser/install activity.
+No new consent is created. Restart requires fresh source authority and cannot
+replay presented/dismissed/expired effects.
+
 ## Fixed deterministic queue privacy
 
 The [native authoritative work surface](windows-and-tray.md#authoritative-sessions-work)

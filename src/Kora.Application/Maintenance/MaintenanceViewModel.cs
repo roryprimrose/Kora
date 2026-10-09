@@ -4,6 +4,7 @@ using Kora.Application.Infrastructure;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Maintenance;
 using Microsoft.Extensions.Logging;
 
@@ -49,6 +50,32 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     internal CachedTarget CaptureCachedTarget()
     {
         lock (cachedGate) { return new(this, revision, channel, result, reviewed, IsStale); }
+    }
+
+    internal LocalEvent? ReadLocalEvent(HostId<SessionIdentity> session)
+    {
+        lock (cachedGate) { return ReadLocalEventCore(session); }
+    }
+
+    internal T WithLocalEvent<T>(HostId<SessionIdentity> session, Func<LocalEvent?, T> observation)
+    {
+        lock (cachedGate) { return observation(ReadLocalEventCore(session)); }
+    }
+
+    private LocalEvent? ReadLocalEventCore(HostId<SessionIdentity> session)
+    {
+        var now = time.GetUtcNow();
+        if (!CanReview || result!.Status != ReleaseAvailability.Available) { return null; }
+        var verified = result.VerifiedAt!.Value;
+        var release = result.Release!;
+        if (verified > now || now >= verified.Add(Freshness)
+            || release.Version == snoozedVersion && snoozedUntil!.Value > now)
+        { return null; }
+        var subject = Guid.ParseExact(release.Id.ToString("x32", CultureInfo.InvariantCulture), "N");
+        return new(LocalEvent.Identity(LocalEventSource.CachedMaintenance, session.Value, subject),
+            1, LocalEventSource.CachedMaintenance, LocalEventType.MaintenanceAvailable,
+            session, null, subject, checked(revision + 1), verified.UtcTicks,
+            0, RequestOrigin.HostSystem, null, now, verified.Add(Freshness));
     }
 
     internal bool IsCachedTargetCurrent(CachedTarget target, MaintenanceCommand command)

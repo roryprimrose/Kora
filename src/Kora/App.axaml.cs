@@ -122,8 +122,12 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                Services.GetRequiredService<ILogger<SessionsViewModel>>());
+                Services.GetRequiredService<ILogger<SessionsViewModel>>(),
+                Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>());
             sessionsWindow.Bind();
+            var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
+            Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
+            viewModel.BindLocalEvents(localEvents);
             var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;

@@ -1,4 +1,5 @@
 using Kora.Application.Configuration;
+using Kora.Application.Interaction;
 using Kora.Core.Diagnostics;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -10,7 +11,8 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionRetentionService(
     ISessionRetentionStore store, SessionRetentionConfigurationService configuration,
-    ISessionWorkspaceAccess access, IUiDispatcher dispatcher, TimeProvider time, ILogger<SessionRetentionService> logger) : IAsyncDisposable
+    ISessionWorkspaceAccess access, IUiDispatcher dispatcher, TimeProvider time, ILogger<SessionRetentionService> logger,
+    LocalEventBroker? localEvents = null) : IAsyncDisposable
 {
     private readonly SemaphoreSlim serial = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
@@ -98,15 +100,20 @@ public sealed partial class SessionRetentionService(
             HostActivityLayer.Application, HostOperation.Retention);
         try
         {
-            var result = await store.ApplyRetentionAsync(Eligible, async (id, cancellation) =>
+            Task<SessionRetentionBatch> ApplyAsync(Func<HostId<SessionIdentity>, CancellationToken, Task> retire) =>
+                store.ApplyRetentionAsync(Eligible, async (id, cancellation) =>
             {
                 cancellation.ThrowIfCancellationRequested();
+                await retire(id, cancellation).ConfigureAwait(false);
                 await dispatcher.InvokeAsync(() =>
                 {
                     Revoking?.Invoke(id);
                     return Task.CompletedTask;
                 }).ConfigureAwait(false);
-            }, token).ConfigureAwait(false);
+            }, token).AsTask();
+            var result = localEvents is null
+                ? await ApplyAsync(static (_, _) => Task.CompletedTask).ConfigureAwait(false)
+                : await localEvents.WithRetirementAsync(ApplyAsync, token).ConfigureAwait(false);
             Completed(logger, result.Archived, result.Deleted, result.Held, result.HasMore);
             host.Complete(HostOperationOutcome.Completed);
             return result;

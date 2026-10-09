@@ -12,6 +12,21 @@ public sealed class SharedSkillTests
     private const string Valid = "---\nname: inspect-example\nversion: 1.0.0\ndescription: Inspect a selected example\n---\n# Instructions\nExplain the supplied text, without tools.";
 
     [Fact]
+    public void Consent_identity_is_exact_metadata_not_a_mutable_root_name_or_old_snapshot()
+    {
+        var source = new SharedSkillSource(SourceId, ".agents\\skills", new string('a', 48));
+        new SharedSkillSource(SourceId, source.ProfileRelativeRoot, source.DirectoryIdentity).Should().Be(source);
+        new SharedSkillSource(Guid.NewGuid(), source.ProfileRelativeRoot, source.DirectoryIdentity).Should().NotBe(source);
+        new SharedSkillSource(SourceId, source.ProfileRelativeRoot, new string('b', 48)).Should().NotBe(source);
+        new SharedSkillSource(SourceId, ".AGENTS\\skills", source.DirectoryIdentity).Should().NotBe(source);
+        var old = Parse(Valid);
+        var newSource = new SharedSkillSource(Guid.NewGuid(), source.ProfileRelativeRoot, source.DirectoryIdentity);
+        SharedSkillSnapshot.Parse(newSource.Id, old.RelativeFile, old.Bytes.ToArray(), false)
+            .SourceQualifiedIdentity.Should().NotBe(old.SourceQualifiedIdentity);
+        old.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Fact]
     public void Compatible_instruction_snapshot_preserves_exact_bytes_and_has_no_authority()
     {
         var bytes = Encoding.UTF8.GetBytes("\uFEFF" + Valid.Replace("\n", "\r\n", StringComparison.Ordinal));

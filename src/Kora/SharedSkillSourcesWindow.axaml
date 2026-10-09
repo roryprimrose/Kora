@@ -13,6 +13,8 @@
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <Button x:Name="RegisterSource" Content="Choose and register profile root (read only)" />
       <Button x:Name="RefreshSources" Content="Refresh registrations" />
+      <Button x:Name="UnregisterSource" Content="Withdraw local read consent"
+              AutomationProperties.Name="Unregister the exact selected source without changing shared files" />
     </StackPanel>
     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10">
       <ComboBox x:Name="SourceSelector" MinWidth="360" AutomationProperties.Name="Registered exact shared profile roots" />

@@ -53,6 +53,18 @@ profile skill-root scan or candidate probing. The prior ambient
 Existing Kora-owned artifact and VS Code prompt/instruction routes are not
 expanded or authorized by a shared source registration.
 
+**Withdraw local read consent** unregisters only the explicitly selected saved
+source. Native confirmation shows its exact host-issued source ID,
+profile-relative root and pinned directory identity and binds the write to the
+complete observed registration revision. It removes only Kora's registration
+and owned catalogue/text/hex presentation snapshots; user-owned shared files are
+never written, deleted or repaired. Unrelated registrations retain their exact
+metadata and order. No enablement, execution, grant or model exposure changes.
+A missing original directory remains withdrawable using verified saved metadata
+without selecting or reading that directory again. Re-registering its path
+requires a fresh native folder selection and a **new host-issued source ID**;
+old sources and snapshots never inherit the new consent.
+
 `ISharedSkillSourceReader` is the Core platform seam.
 `WindowsProfileSkillReader` resolves the Windows profile with
 `SHGetKnownFolderPath(FOLDERID_Profile)`; no user name, environment override,
@@ -122,7 +134,26 @@ and durable shared-control session/generation admitted, with requested/terminal
 typed audit outcomes. Each local operation records its durable intent/outcome
 and uses the existing host activity parentage. Logs contain bounded counts or
 exception types, never paths, package text, metadata, digest or rendered errors.
-Privacy closure cancels pending reads and destroys native content views.
+Withdrawal uses the same original-native-input, durable session/generation
+lease, requested/terminal typed audit, atomic preference publication and exact
+read-back. Registration and withdrawal share the preference mutation fence;
+changed or invalid saved registrations reject a stale confirmation rather than
+dropping unknown entries. Withdrawal clears owned snapshots immediately and
+cancels an in-flight discovery/recheck. Before/after registration and window/
+selection/lifetime fences prevent late display. Once removed, discovery and
+recheck of the old source are unavailable.
+
+Audit, write, read-back, cancellation or admission failure is not a successful
+receipt or proof of rollback: publication may already be durable. Unconfirmed
+mutations close further reads until a fresh admitted **Refresh registrations**
+observes valid preferences; audit/session evidence failures can require host
+recovery. The attempted source identity remains read-closed for the owning
+host lifetime even if an old registration is restored; refresh permits retrying
+withdrawal of saved metadata, not silently regranting that identity. A fresh
+native selection with a new source ID is required to read it again.
+Corrupt preferences cannot be reset, repaired or unregistered through
+this workflow. Privacy closure and window disposal cancel pending work and
+destroy native content views, including confirmation metadata.
 
 Enable/disable/invoke, remote transmission/model-context exposure, editing,
 Kora-specific authoring, executable imports and runtime dependency admission

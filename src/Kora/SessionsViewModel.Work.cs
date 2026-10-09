@@ -67,6 +67,7 @@ internal sealed partial class SessionsViewModel
             throw new OperationCanceledException("The selected session changed during observation.");
         }
         ApplyWork(snapshot);
+        await RefreshLocalEventsAsync(target.Authority.SessionId, epoch);
     }
 
     private void ApplyWork(SessionWorkSnapshot? snapshot)

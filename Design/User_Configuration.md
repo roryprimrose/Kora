@@ -12,6 +12,22 @@ Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.
 
 ## Configuration Contract
 
+### R18 bounded local event suppression
+
+The [local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+adds no speech/network consent or preference editor. Fixed category budgets
+and fifteen-minute exact defer are host policy, not a reminder scheduler.
+Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use the shared
+atomic device-local preference store. They retain only 64 bounded content-free
+suppression receipts, four fatigue budgets and a UTC high watermark; exact
+source expiry is never extended. Unknown/obsolete/corrupt/unconfirmed/future
+state holds without defaults or replay. Restoring ownership or clearing a call
+does not automatically show/speak notices; only fresh already-open native
+observation may admit an unexpired deferral. Session retirement clears owned
+receipts, not unrelated preferences or global fatigue budgets. General
+reminders, quiet hours, proactive speech configuration and apply-now remain
+undelivered.
+
 ### R12 Bounded Session Retention Delivered - 2026-10-09
 
 Native **Settings > Sessions** exposes archive-after and delete-after whole-day

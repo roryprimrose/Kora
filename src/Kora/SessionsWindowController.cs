@@ -1,5 +1,6 @@
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Application.Interaction;
 using Kora.Application.ViewModels;
 using Kora.Core.Storage;
 
@@ -9,7 +10,7 @@ namespace Kora;
 
 internal sealed class SessionsWindowController(
     MainViewModel main, SessionWorkspaceService service, DurableEvidenceQuery evidence,
-    ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger) : IDisposable
+    ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null) : IDisposable
 {
     private SessionsWindow? window;
     private bool disposed;
@@ -30,7 +31,7 @@ internal sealed class SessionsWindowController(
 
         if (window is null)
         {
-            var opened = new SessionsWindow(new(service, evidence, access, logger));
+            var opened = new SessionsWindow(new(service, evidence, access, logger, localEvents));
             opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
             window = opened;
             opened.Show();

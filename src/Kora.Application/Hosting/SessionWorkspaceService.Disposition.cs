@@ -23,7 +23,7 @@ public sealed partial class SessionWorkspaceService
         return preview;
     }
 
-    public Task<SessionDispositionReceipt> ConfirmDispositionAsync(SessionDispositionPreview preview,
+    public async Task<SessionDispositionReceipt> ConfirmDispositionAsync(SessionDispositionPreview preview,
         RequestOrigin origin, Func<bool> admission, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(preview);
@@ -40,9 +40,11 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidOperationException("No matching live native disposition preview. Preview again before explicit confirmation.");
         }
-        return ControlAsync(preview.Session.Authority.SessionId, origin,
+        var receipt = await ControlAsync(preview.Session.Authority.SessionId, origin,
             (request, eligible) => store.DisposeSessionAsync(request, preview, eligible, token), token,
-            () => access.ControlRevision == pending.ControlRevision && admission(), existingSubject: true, terminalCommitted: true);
+            () => access.ControlRevision == pending.ControlRevision && admission(), existingSubject: true, terminalCommitted: true).ConfigureAwait(false);
+        if (localEvents is not null) { await localEvents.RetireSessionAsync(receipt.SessionId, token).ConfigureAwait(false); }
+        return receipt;
     }
 
     private sealed record PendingDisposition(SessionDispositionPreview Preview, long ControlRevision);

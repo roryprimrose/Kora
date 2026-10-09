@@ -441,6 +441,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             () => !string.IsNullOrWhiteSpace(CommandText)
                   && (!IsBusy || IsSetupStatusCommand()
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
@@ -3872,6 +3873,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (Kora.Core.Interaction.LocalEventCommand.Parse(spokenText, AssistantName) is { } eventCommand)
+        {
+            await ExecuteLocalEventCommandAsync(eventCommand, initiator);
+            return;
+        }
         if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
         {
             await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
@@ -5384,6 +5390,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
+            .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands

@@ -67,6 +67,14 @@ core is not MG1 production inference or two-slot effect/provider qualification.
 
 ## Delivered native authority observation
 
+The [bounded R18 visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+consumes these same fixed-profile queue/task/question facts, not model progress
+or response text. Broker status/review/dismiss/defer touches only bounded
+suppression metadata; it cannot alter FIFO, dependencies, deadlines, receipts,
+question targets, meaningful activity, grants or manual dispatch. Category
+limits and unavailable broker storage never establish work eligibility or
+disable the independent authoritative work snapshot.
+
 The [R14 selected-session work surface](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
 adds a bounded atomic `SessionWorkSnapshot` over delivered queue/task/question
 authority. Native and `queue list` use the same host/store snapshot and configured

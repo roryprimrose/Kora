@@ -4,6 +4,13 @@ Status: bounded manual host mode, independent device-local feedback and conserva
 full R15 remains partial. Automatic tool detection is unavailable, not implemented.
 The remaining detector and configurable exception contracts below are proposed.
 
+The [delivered R18 broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+is visual/native only. It neither requests synthesis/playback nor inherits
+Voice/Both feedback as permission. Protected Active/Suspected/Unknown call
+evidence holds its admission; a changed call/privacy/lock/owner epoch retires
+held action eligibility. Call end never opens a window, speaks a backlog,
+changes a question target, enables listening or creates reusable authority.
+
 ## Delivered Bounded Manual Mode - 2026-10-07
 
 Settings > Calls provides native **I'm in a call** and **Clear manual call mode**

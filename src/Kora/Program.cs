@@ -288,6 +288,10 @@ internal static class Program
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton<ISessionQueueStore>(interactions);
+        services.AddSingleton<ISessionWorkStore>(interactions);
+        services.AddSingleton<Kora.Application.Interaction.ILocalEventSource, Kora.Application.Interaction.AuthorityLocalEventSource>();
+        services.AddSingleton<Kora.Application.Interaction.ILocalEventStateStore, Kora.Application.Interaction.LocalEventStateStore>();
+        services.AddSingleton<Kora.Application.Interaction.LocalEventBroker>();
         services.AddSingleton(new SessionQueueLimits());
         services.AddSingleton<IDeterministicVersionQueueAction, DeterministicVersionQueueAction>();
         services.AddSingleton(provider => new SessionQueueService(

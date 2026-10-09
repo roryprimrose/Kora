@@ -78,6 +78,32 @@
                   AutomationProperties.Name="Explicitly confirm removal of the displayed pending queue at its exact revision; active work and history remain" />
         </WrapPanel>
         <StackPanel Grid.Row="3" Spacing="4">
+          <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <ListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"
+                   SelectedItem="{Binding SelectedLocalEvent, Mode=OneWay}"
+                   AutomationProperties.Name="Content-free exact host event IDs and revisions; pending questions remain independent">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding DisplaySummary}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Event.Id, StringFormat='Exact event {0}'}" />
+                  <TextBlock Text="{Binding Event.Revision, StringFormat='Revision {0}'}" />
+                  <TextBlock Text="{Binding Reason, StringFormat='Delivery state {0}'}" />
+                  <TextBlock Text="{Binding Event.ExpiresAt, StringFormat='Original expiry {0:O}'}" />
+                  <TextBlock Text="{Binding DeferredUntil, StringFormat='Deferred until {0:O}'}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <WrapPanel>
+            <Button x:Name="ReviewLocalEvent" Content="Review exact event" IsEnabled="{Binding CanControlLocalEvent}"
+                    AutomationProperties.Name="Review only the selected exact event ID and revision; does not answer or retarget any question" />
+            <Button x:Name="DismissLocalEvent" Content="Dismiss exact event" IsEnabled="{Binding CanControlLocalEvent}"
+                    AutomationProperties.Name="Dismiss only the selected exact event revision; no task cancellation or maintenance action" />
+            <Button x:Name="DeferLocalEvent" Content="Defer exact event 15 minutes" IsEnabled="{Binding CanControlLocalEvent}"
+                    AutomationProperties.Name="Defer only this event for fifteen minutes, capped at its original expiry; no work deadline extension" />
+          </WrapPanel>
           <TextBlock Text="Pending questions — exact original targets; answer only in the separate Questions window" TextWrapping="Wrap" FontWeight="SemiBold" />
           <ScrollViewer MaxHeight="160">
           <ItemsControl ItemsSource="{Binding PendingQuestions}" AutomationProperties.Name="Pending questions remain visible beside work and history; never retargeted by selection">

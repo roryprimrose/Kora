@@ -2,6 +2,16 @@
 
 ## Authoritative Sessions work
 
+The already-open selected work surface also has a **trusted local events**
+status list. Only fixed authoritative local-version work/question facts and
+fresh cached maintenance can create a row. Fixed summaries have no titles or
+question/remote text. Delivery is visual, focus-preserving and rate-limited;
+PresentedNoReplay/dismissed/deferred/expired/category-limited rows are passive
+status, not repeated notifications. Exact native review/dismiss/fifteen-minute
+defer uses the [same broker as commands](commands.md#trusted-local-events).
+No question target, voice output, task/approval deadline, grant or dispatch
+changes. Maintenance Check/Open remains in its native window.
+
 Open **Tray > Sessions**, **open sessions**, or the existing compact keyboard
 shortcut. The bounded All/Active/Done list sits beside selected exact-session
 work: queued/current/waiting/blocked/cancelled/removed/Unknown receipts, stable

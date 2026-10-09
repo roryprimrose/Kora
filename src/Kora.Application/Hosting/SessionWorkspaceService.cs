@@ -16,6 +16,8 @@ public sealed partial class SessionWorkspaceService(
     public event Action<HostTaskObservation>? WaitingTaskCancelled;
     private SessionRetentionService? retention;
     public void BindRetention(SessionRetentionService service) => retention = service;
+    private Kora.Application.Interaction.LocalEventBroker? localEvents;
+    public void BindLocalEvents(Kora.Application.Interaction.LocalEventBroker broker) => localEvents = broker;
 
     private void NotifyCancellation(HostTaskObservation observation) => WaitingTaskCancelled?.Invoke(observation);
     public Task<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, CancellationToken token) =>

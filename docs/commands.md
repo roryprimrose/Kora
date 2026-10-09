@@ -15,6 +15,39 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+## Trusted local events
+
+An already-open **Sessions** selected work surface shows bounded trusted
+local-version queue/question observations and already-verified maintenance
+availability. No window opens, focus changes or speech occurs automatically.
+Native **Review exact event**, **Dismiss exact event**, and **Defer exact event
+15 minutes** share the same broker as these exact typed/current-name activated
+commands:
+
+| Exact syntax | Result |
+|---|---|
+| `event status <event-id> <revision>` | Passive current metadata and explicit delivery/stale/unavailable reason |
+| `event review <event-id> <revision>` | Same bounded passive review; not a question answer or maintenance Open |
+| `event dismiss <event-id> <revision>` | Reject only that exact event revision |
+| `event defer <event-id> <revision>` | Defer fifteen minutes, capped at the original source expiry |
+
+Copy the exact canonical D GUID and positive revision from the current native
+row. Names, arbitrary IDs, stale revisions, extra words and old/current-source
+changes refuse. Refresh and reselect after a mutation; its revision advances.
+Activated input still needs normal current-name activation/voice consent, but
+this response is always visual. Pending foreground questions/approvals remain
+unchanged; answer them separately. No ambient microphone, model, network,
+dispatch, deadline extension, grant or maintenance Check/Open is added.
+
+PresentedNoReplay is status, not another notification. Category-limited,
+dismissed, deferred and expired rows do not repeat their summary. Fixed
+hourly limits are Work 3, Failure 2, Attention 2, Maintenance 1, with one-minute
+spacing. At most eight rows are visible, with omitted counts. Corrupt,
+unconfirmed, unavailable or full suppression storage holds the broker; work
+inspection remains independent. Restart never reconstructs current events or
+replays presented/dismissed/expired effects. Fresh native observation may admit
+an unexpired explicit deferral under its original deadline.
+
 ## Deterministic local-version queue
 
 Native **Sessions** queue controls and exact typed/current-name activated input

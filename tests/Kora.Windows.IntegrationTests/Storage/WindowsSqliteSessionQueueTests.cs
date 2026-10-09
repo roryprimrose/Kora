@@ -10,7 +10,7 @@ using Kora.Windows.Storage;
 namespace Kora.Windows.IntegrationTests.Storage;
 
 [Collection(nameof(DurableStorageCompositionTestGroup))]
-public sealed class WindowsSqliteSessionQueueTests
+public sealed partial class WindowsSqliteSessionQueueTests
 {
     [WindowsFact]
     public async Task Fair_exact_FIFO_admission_preserves_history_and_one_current_task_per_session()

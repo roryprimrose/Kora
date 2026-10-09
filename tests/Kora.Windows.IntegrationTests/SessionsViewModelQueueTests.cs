@@ -33,7 +33,7 @@ public sealed class SessionsViewModelQueueTests
         await viewer.RefreshAsync();
         await viewer.SelectAsync(viewer.Sessions.Single());
         action.Reads.Should().Be(0);
-        viewer.CanControlQueue.Should().BeFalse();
+        viewer.CanControlQueue.Should().BeTrue("selection now loads the passive authoritative work snapshot, never dispatching");
         await viewer.ReadQueueAsync();
         viewer.CanControlQueue.Should().BeTrue();
         await viewer.EnqueueVersionAsync();

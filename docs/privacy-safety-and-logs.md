@@ -2,6 +2,17 @@
 
 ## Fixed deterministic queue privacy
 
+The [native authoritative work surface](windows-and-tray.md#authoritative-sessions-work)
+reads one bounded atomic queue/task/question snapshot. Session filtering,
+selection, passive refresh and history/immutable-detail inspection do not write intent
+or meaningful activity, change priority, dispatch, resume, renew grants or
+retarget voice/questions/approvals. Controls bind the exact displayed IDs/
+revisions and selection epoch to the existing host command/commit gates.
+Pending-question cards are metadata; only the separate original Questions
+window can answer/review. Background refresh preserves focus, stops on close
+and clears late/private/unavailable records rather than claiming empty success.
+No new persistence, network/model egress or content logging is introduced.
+
 The [local-version queue](commands.md#deterministic-local-version-queue) stores
 only host request/task/session IDs, revisions, generation, fixed-profile state,
 dependency identity and eligibility timing in the private schema-v5 interaction
@@ -52,8 +63,9 @@ and the non-reusable tombstone. Exact known Removed IDs can read redacted
 citations only. SQLite free pages/journals, inert migration copies and exports/
 provider copies are not erased. No new history retention timer, automatic purge,
 backup deletion or forensic-erasure claim is added. Full composer/search/model
-history reasoning, Ask Evidence, broad export, queues and scheduler remain
-unavailable.
+history reasoning, Ask Evidence and broad export remain unavailable; the
+separate fixed local-version queue/native work surface is not a general
+effect/provider scheduler.
 
 ## Committed authority audit inspection
 

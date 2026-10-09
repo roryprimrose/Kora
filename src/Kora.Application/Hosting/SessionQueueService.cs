@@ -26,6 +26,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
     private readonly Dictionary<HostId<TaskIdentity>, (HostId<SessionIdentity> Session, ActivityContext Context)> causes = [];
     private readonly Lock causeGate = new();
     private volatile bool disposed;
+    internal SessionQueueLimits Limits => limits;
 
     internal SessionQueueService(ISessionQueueStore store, ISessionWorkspaceStore workspace,
         HostTaskCoordinator tasks, ISessionWorkspaceAccess access, IDeterministicVersionQueueAction action,
@@ -68,9 +69,13 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             RequireEligible(Eligible);
             if (inspect)
             {
+                var work = command.Operation == SessionCommandOperation.QueueList
+                    ? await (store as ISessionWorkStore ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
+                        .ReadWorkAsync(session, revision, limits, token).ConfigureAwait(false) : null;
+                work?.RequireSubject(session);
                 var result = command.Operation == SessionCommandOperation.QueueList
                     ? new SessionCommandResult("observed", QueueDisclosure)
-                    { Queue = await store.ReadQueueAsync(session, token).ConfigureAwait(false) }
+                    { Queue = work!.Queue, Work = work }
                     : new SessionCommandResult("observed", QueueDisclosure)
                     { QueueEntry = await store.ReadQueueEntryAsync(session, RequireTask(command), token).ConfigureAwait(false) };
                 token.ThrowIfCancellationRequested();

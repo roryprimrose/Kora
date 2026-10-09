@@ -103,6 +103,55 @@ public sealed class SessionQueuePolicyTests
     private static SessionQueueEntry? Select(IReadOnlyList<SessionQueueEntry> entries, int slots = 1) =>
         SessionQueuePolicy.SelectReady(entries, new Dictionary<HostId<TaskIdentity>, HostTaskState>(), Run, Now, 4, new(executionSlots: slots));
 
+    [Fact]
+    public void Presentation_eligibility_uses_the_dispatch_policy_and_names_every_fail_closed_reason()
+    {
+        var head = Entry(new(Guid.NewGuid()), 2);
+        var other = Entry(new(Guid.NewGuid()), 1);
+        var states = new Dictionary<HostId<TaskIdentity>, HostTaskState>();
+        SessionQueueEligibility Observe(SessionQueueEntry entry, IReadOnlyList<SessionQueueEntry>? rows = null,
+            bool active = true, bool blocked = false, bool unknown = false) =>
+            SessionQueuePolicy.Eligibility(entry, rows ?? [entry], states, Run, Now, 4, new(),
+                active, blocked, unknown);
+        Observe(head).Should().Be(SessionQueueEligibility.Ready);
+        Observe(head with { State = SessionQueueState.Unknown }).Should().Be(SessionQueueEligibility.UnknownQuarantine);
+        Observe(head with { State = SessionQueueState.Interrupted }).Should().Be(SessionQueueEligibility.InterruptedNoReplay);
+        Observe(head with { RunId = Guid.NewGuid() }).Should().Be(SessionQueueEligibility.InterruptedNoReplay);
+        Observe(head with { State = SessionQueueState.Running }).Should().Be(SessionQueueEligibility.Current);
+        Observe(head with { State = SessionQueueState.Running, RunId = Guid.NewGuid() }).Should().Be(SessionQueueEligibility.UnknownQuarantine);
+        Observe(head with { State = SessionQueueState.Expired }).Should().Be(SessionQueueEligibility.Expired);
+        Observe(head with { EnqueuedAt = Now.AddMinutes(-30), ExpiresAt = Now }).Should().Be(SessionQueueEligibility.Expired);
+        Observe(head with { State = SessionQueueState.Cancelled }).Should().Be(SessionQueueEligibility.Completed);
+        Observe(head with { State = SessionQueueState.Succeeded, RunId = Guid.NewGuid() }).Should().Be(SessionQueueEligibility.Completed);
+        Observe(head, active: false).Should().Be(SessionQueueEligibility.SessionDone);
+        Observe(head, unknown: true).Should().Be(SessionQueueEligibility.UnknownQuarantine);
+        Observe(head, [head, head with { State = SessionQueueState.Unknown }]).Should().Be(SessionQueueEligibility.UnknownQuarantine);
+        Observe(head, blocked: true).Should().Be(SessionQueueEligibility.UnclassifiedWorkOrWait);
+        Observe(head with { AdmissionRevision = 9 }).Should().Be(SessionQueueEligibility.AdmissionChanged);
+        Observe(head, [head, head with { State = SessionQueueState.Running }]).Should().Be(SessionQueueEligibility.SessionCurrent);
+        Observe(head, [head, head with { Position = 1 }]).Should().Be(SessionQueueEligibility.EarlierPendingEntry);
+        var dependent = head with { Dependency = new(Guid.NewGuid()) };
+        Observe(dependent).Should().Be(SessionQueueEligibility.DependencyNotSucceeded);
+        states[dependent.Dependency!.Value] = HostTaskState.Unknown;
+        Observe(dependent).Should().Be(SessionQueueEligibility.DependencyNotSucceeded);
+        states[dependent.Dependency.Value] = HostTaskState.Succeeded;
+        Observe(dependent).Should().Be(SessionQueueEligibility.Ready);
+        Observe(head, [head, other with { State = SessionQueueState.Running }]).Should().Be(SessionQueueEligibility.GlobalCapacity);
+        Observe(head, [head, other with { State = SessionQueueState.Running, RunId = Guid.NewGuid() }]).Should().Be(SessionQueueEligibility.Ready);
+        Observe(head, [head, head with { Position = 3 }, other]).Should().Be(SessionQueueEligibility.Ready);
+        Observe(head, [head, other with { State = SessionQueueState.Unknown }]).Should().Be(SessionQueueEligibility.Ready);
+        var malformed = () => Observe(head with { State = (SessionQueueState)99 });
+        malformed.Should().Throw<InvalidDataException>();
+        var noEntry = () => SessionQueuePolicy.Eligibility(null!, [], states, Run, Now, 4, new());
+        noEntry.Should().Throw<ArgumentNullException>();
+        var noRows = () => SessionQueuePolicy.Eligibility(head, null!, states, Run, Now, 4, new());
+        noRows.Should().Throw<ArgumentNullException>();
+        var noStates = () => SessionQueuePolicy.Eligibility(head, [], null!, Run, Now, 4, new());
+        noStates.Should().Throw<ArgumentNullException>();
+        var noLimits = () => SessionQueuePolicy.Eligibility(head, [], states, Run, Now, 4, null!);
+        noLimits.Should().Throw<ArgumentNullException>();
+    }
+
     private static SessionQueueEntry Entry(HostId<SessionIdentity> session, long position) =>
         new(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.LocalUi), new(1), new(1),
             position, SessionQueueState.Pending, Run, 4, Now, Now.AddMinutes(30));

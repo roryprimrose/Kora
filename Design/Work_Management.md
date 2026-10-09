@@ -65,6 +65,20 @@ See [exact syntax](../docs/commands.md#deterministic-local-version-queue).
 The rest of this document describes the broader proposed lanes; this bounded
 core is not MG1 production inference or two-slot effect/provider qualification.
 
+## Delivered native authority observation
+
+The [R14 selected-session work surface](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+adds a bounded atomic `SessionWorkSnapshot` over delivered queue/task/question
+authority. Native and `queue list` use the same host/store snapshot and configured
+limits; dispatch eligibility calls the same domain policy as fair scheduling.
+All live queue entries plus 25 recent receipts, up to 50 nonqueue task records
+and 50 pending question identities carry explicit omitted counts and a complete
+64 KiB ceiling. Current admission deadlines derive from their exact audit
+receipt, not presentation time. Passive refresh never extends activity or
+dispatches; selection never answers or retargets a question. Unknown, blocked
+heads, retired admission and no-replay recovery remain distinct observations.
+The remaining lanes below are proposed, not enabled by this native increment.
+
 ## Two Independent Lanes
 
 Kora has a work-management lane and a task-execution lane.

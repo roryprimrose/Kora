@@ -12,6 +12,14 @@ native answer/approval controls.
 
 ## Delivered Bounded Passive Session History - 2026-10-09
 
+The [coordinated work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+places authoritative work and exactly bound pending-question metadata beside
+this separate history reader. Reading history/evidence never replaces those
+cards or changes their reply target. Stable work IDs/revisions, FIFO order,
+observed deadlines/capacity and explicit eligibility/gap states come from a
+single bounded authority snapshot, not logs or rendered detail text. Separate
+immutable/volatile viewers remain uncomposed as queue content.
+
 The native Sessions window now offers **Read exact history** and **Next history
 snapshot page**, with an explicit immutable-session-ID field and accessible
 button/field names. The same Application service provides exact typed/activated
@@ -37,7 +45,8 @@ remain unavailable. Shared-profile skill content and local file/clipboard
 previews remain volatile inspections. No history content enters diagnostics,
 activity tags or model context; only fresh admitted actual playback can create
 captions. This is partial R12/R14 delivery, not a full conversation composer,
-history search/model reasoning, Ask Evidence, queue or scheduler. Real installed
+history search/model reasoning or Ask Evidence. The separately delivered fixed
+queue/native work surface is not a general scheduler. Real installed
 visual/screen-reader/DPI acceptance remains open.
 
 ## Delivered Exact Host-Record Review - 2026-10-07

@@ -25,7 +25,7 @@ the queue cannot open a microphone or speak a response.
 | Exact syntax | Result |
 |---|---|
 | `queue help` | Bounded syntax and unavailable scope |
-| `queue list <session-id>` | Current pending/admitted entries and exact queue revision |
+| `queue list <session-id>` | Current entries/revision plus bounded atomic work snapshot, recent receipts, pending question identities, capacity and eligibility reasons |
 | `queue status <session-id> <task-id>` | Exact retained work receipt; unknown IDs provide no authority |
 | `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>]` | Add one fixed local application-version read; dependency requires an existing exact task |
 | `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
@@ -41,8 +41,17 @@ IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
 fail closed. The selected session's ID is visible and never inferred from a
 name, model response or window title.
 
-Enqueue does not start work. Choose **Read exact queue** before native
-enqueue/dispatch/cancel or **Confirm clear displayed pending queue**.
+Enqueue does not start work. Selecting an exact session passively reads work;
+**Refresh selected work** refreshes that observation. Choose **Inspect selected
+work ID**, **Cancel selected eligible work**, **Remove pending ID** or
+**Confirm clear displayed pending queue** only for displayed exact revisions.
+The native controls call the same exact command workflows. Stale controls refuse
+instead of following another selection or revision. Only the separate genuine
+pre-dispatch local-version question wait can use exact task cancellation;
+admitted/effect work is not cancellable in this delivered slice.
+All/Active/Done filtering affects only the current bounded session page.
+Five-second passive work refresh never dispatches, reprioritizes, extends
+meaningful activity, moves focus or retargets voice/questions/approvals.
 Dispatch is manual, FIFO within a session and fair across ready sessions;
 the invoking session gains no priority. Capacity is ten pending entries
 per session and one admitted task per session. The shipped host uses one

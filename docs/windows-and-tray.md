@@ -1,5 +1,35 @@
 # Windows, tray, and appearance
 
+## Authoritative Sessions work
+
+Open **Tray > Sessions**, **open sessions**, or the existing compact keyboard
+shortcut. The bounded All/Active/Done list sits beside selected exact-session
+work: queued/current/waiting/blocked/cancelled/removed/Unknown receipts, stable
+task/request IDs, revisions/generation/FIFO order, observed deadlines, pending
+capacity and dispatch eligibility/reasons. Ready is an observation, not
+permission; failures/recovery and omitted records remain explicit. There are
+up to 25 recent queue receipts and 50 nonqueue task/pending-question records
+each; use exact history/status for omitted retained records.
+
+Selection and five-second idle refresh are passive and preserve focus.
+Use **Inspect selected work ID**, eligible **Cancel**, **Remove pending ID**
+or **Confirm clear displayed pending queue** for the exact displayed revisions.
+Stale/session/selection changes refuse. **Enqueue local version** adds only
+the fixed harmless read; **Dispatch ready local versions fairly** is a separate
+manual decision, never automatic or preferential to the selected session.
+
+Pending question metadata stays visible beside history/evidence; answer only
+in the original separate Questions window. A question wait has its own expiry,
+no scheduler slot and no active-task clock to extend. Browse/filter/close never
+resumes work, changes voice/approval targets, consumes grants or extends activity.
+Done/disposition/redacted history and restart Interrupted/Unknown quarantine
+retain existing gates. Details/files/skills/captions remain separate immutable
+or volatile inspections, not queue payloads.
+
+This is not a conversation composer, general effect cancellation, provider/
+worker qualification, Ask Evidence, export or rich browser. Real installed
+screen-reader/DPI acceptance remains open.
+
 ## Native local file inspection
 
 **Tray > Preview file (local inspection only)** opens the trusted Windows

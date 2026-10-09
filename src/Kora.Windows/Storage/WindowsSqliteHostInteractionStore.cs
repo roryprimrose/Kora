@@ -21,7 +21,7 @@ namespace Kora.Windows.Storage;
 /// Tasks, questions and required authority audit share one lease and transaction.
 /// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ICommittedAuthorityAuditReader
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ICommittedAuthorityAuditReader
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;

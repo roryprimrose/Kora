@@ -57,6 +57,14 @@ Windows x64 native code is actually loaded by the proof; x86 assets are
 publication-only evidence. The runner and full proof intentionally require
 Windows DPAPI and ACLs. Linux is not a supported product OS at this stage.
 
+The distinct [2026-10-09 unattended asset receipt](evidence/unattended-20261009-native-assets.json)
+records another successful publication of those exact pinned assets. Both
+sizes, hashes and PE architectures match the historical reports. The
+[run provenance and measurements](MEASUREMENTS.md#unattended-rerun---2026-10-09)
+identify the clean source revision and bounded execution: x64 native loading
+only, no installed/clean-machine or x86 execution claim. Historical receipts
+and dependency pins are unchanged.
+
 The restored native package includes other architectures and operating systems
 besides the selected Windows x64/x86 assets. Package availability does not
 imply supported product platforms or proven loadability.

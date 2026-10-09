@@ -13,9 +13,9 @@ $os = Get-CimInstance Win32_OperatingSystem
 $processors = @(Get-CimInstance Win32_Processor)
 $power = (& powercfg /getactivescheme | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not record active power scheme.' }
-$revision = (& git rev-parse HEAD | Out-String).Trim()
+$revision = (& git -C $PSScriptRoot rev-parse HEAD | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Could not record repository revision.' }
-$status = @(& git status --porcelain)
+$status = @(& git -C $PSScriptRoot status --porcelain)
 if ($LASTEXITCODE -ne 0) { throw 'Could not record repository status.' }
 $exe = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama.exe'
 $exeEvidence = $null

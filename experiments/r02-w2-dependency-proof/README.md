@@ -67,6 +67,43 @@ Handoffs:
 
 ## Reproduce safely
 
+### File-only unattended preparation
+
+For a bounded rerun without owned-scratch/live-trial consent, use a **new**
+output directory:
+
+```powershell
+.\experiments\r02-w2-dependency-proof\Prepare-Proof.ps1 `
+    -EvidenceDirectory "$PWD\experiments\r02-w2-dependency-proof\artifacts\preparation-01"
+$LASTEXITCODE
+```
+
+This separate entry point runs the complete deterministic `W2Tests` suite and
+builds both managed payload variants, but never invokes `Invoke-Proof.ps1`,
+the fixture executable, a payload executable, or embedded PowerShell probes.
+Only missing project assets trigger focused locked restores; a dependency-lock
+mismatch stops preparation rather than updating pins. Existing evidence
+directories are rejected without modification. SDK/build tools and the test
+runner execute; "file-only" means no containment trial or payload launch, not
+that no process runs.
+
+`preparation.json` records actual source revision, clean/dirty status, exact
+source/lock and payload hashes, command exits, and fresh TRX totals. Source
+names and recorded output arguments are relative/redacted; raw build/test logs
+can contain machine paths and must stay private. No payload binaries are
+published. Exit **0** means **PreparedOnly**, not admitted or containment-proved;
+exit **1** means preparation failure. Native loading and protected installed
+checks remain **Blocked/Not run**; no compiler acquisition, elevation, policy
+change, runtime copy, native API trial, network trial or real control effect is
+performed. `ConsentOwnedScratch` belongs only to the separately scoped live
+runner below and is not accepted here.
+
+The [2026-10-09 preparation receipt](evidence/preparation-20261009/README.md)
+is a new bounded result; original measured evidence is preserved. This optional
+preparation command does not turn the historical candidate suite into default CI.
+
+### Separately consented historical live runner
+
 Prerequisites: non-elevated Windows x64, local NTFS temporary storage, pinned
 .NET SDK 10.0.401, existing reviewed PowerShell 7.4+ major 7. The measured engine
 is PowerShell 7.6.6 on Windows build 26300 x64 / .NET 10.0.12. This developer host

@@ -6,7 +6,7 @@ using Kora.Core.Context;
 
 namespace Kora;
 
-internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDisposable
+internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserFolderPicker, IDisposable
 {
     private readonly MainViewModel host;
     private readonly Window owner;
@@ -52,6 +52,32 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
         }
     }
 
+    public async Task<string?> SelectFolderAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (disposed || !Dispatcher.UIThread.CheckAccess() || !owner.StorageProvider.CanPickFolder)
+        {
+            throw new InvalidOperationException("Trusted native folder selection is unavailable.");
+        }
+        var selected = await owner.StorageProvider.OpenFolderPickerAsync(new()
+        {
+            Title = "Select one folder of immediate UTF-8 text/Markdown files (no subdirectories)",
+            AllowMultiple = false,
+        });
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (selected.Count == 0) { return null; }
+            if (selected.Count != 1) { throw new InvalidOperationException("Exactly one local folder must be selected."); }
+            return selected[0].TryGetLocalPath()
+                ?? throw new InvalidOperationException("Only a native fixed-drive local folder selection is supported.");
+        }
+        finally
+        {
+            foreach (var folder in selected) { folder.Dispose(); }
+        }
+    }
+
     private void OnChanged(object? sender, EventArgs args)
     {
         try { Refresh(); }
@@ -68,7 +94,9 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
         if (disposed) { return; }
         var revision = host.FileRevision;
         var review = host.FileReview;
-        var id = revision?.RevisionId ?? review?.ReviewId ?? Guid.Empty;
+        var folderRevision = host.FolderRevision;
+        var folderReview = host.FolderReview;
+        var id = revision?.RevisionId ?? review?.ReviewId ?? folderRevision?.Reference.RevisionId ?? folderReview?.ReviewId ?? Guid.Empty;
         if (id == showing) { return; }
         CloseView();
         if (id == Guid.Empty) { return; }
@@ -82,6 +110,19 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
             view.ShowRevision(revision, query => host.SearchFileAsync(exactSource, query),
                 () => !disposed && host.FileRevision?.Reference == exactSource);
         }
+        else if (folderRevision is not null)
+        {
+            var exactSource = folderRevision.Reference;
+            view.ShowFolderRevision(folderRevision, query => host.SearchFolderAsync(exactSource, query),
+                () => !disposed && host.FolderRevision?.Reference == exactSource);
+        }
+        else if (folderReview is not null)
+        {
+            var exactId = folderReview.ReviewId;
+            view.ShowFolderReview(folderReview, () => !disposed && host.FolderReview?.ReviewId == exactId
+                ? host.ConfirmFilePreviewAsync(exactId)
+                : Task.FromException(new InvalidOperationException("The exact folder review is stale; no read was authorized.")));
+        }
         else
         {
             var exactId = review!.ReviewId;
@@ -91,7 +132,8 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IDispo
         }
         view.Show(owner);
         view.Activate();
-        if (disposed || (host.FileRevision?.RevisionId ?? host.FileReview?.ReviewId ?? Guid.Empty) != id) { CloseView(); }
+        if (disposed || (host.FileRevision?.RevisionId ?? host.FileReview?.ReviewId
+            ?? host.FolderRevision?.Reference.RevisionId ?? host.FolderReview?.ReviewId ?? Guid.Empty) != id) { CloseView(); }
     }
 
     private void OnClosed(object? sender, EventArgs args)

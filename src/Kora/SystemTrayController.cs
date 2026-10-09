@@ -96,6 +96,12 @@ public sealed class SystemTrayController : IDisposable
                 "Local file preview failed. No success is claimed. Failure type: " + exception.GetType().Name));
         previewFile.Click += (_, _) => RunAfterNativeMenuCloses(() => previewFileCommand.Execute(null));
         menu.Add(previewFile);
+        var previewFolder = new NativeMenuItem("Preview folder (immediate files, local lexical search)");
+        var previewFolderCommand = new AsyncCommand(viewModel.PreviewFolderAsync,
+            exception => viewModel.ReportHostInteractionFailure(
+                "Local folder preview failed. No success is claimed. Failure type: " + exception.GetType().Name));
+        previewFolder.Click += (_, _) => RunAfterNativeMenuCloses(() => previewFolderCommand.Execute(null));
+        menu.Add(previewFolder);
         if (reviewMaintenance is not null)
         {
             var maintenanceItem = new NativeMenuItem("Release maintenance (notify-only)");

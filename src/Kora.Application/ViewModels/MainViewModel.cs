@@ -867,7 +867,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
-        || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null;
+        || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null
+        || FolderReview is not null || FolderRevision is not null;
 
     public bool IsLocalModelSetupActive
     {

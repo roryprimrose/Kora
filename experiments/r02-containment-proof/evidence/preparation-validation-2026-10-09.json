@@ -1,0 +1,68 @@
+{
+  "preparationOnly": true,
+  "sourceRevision": "e0692f438a058de0a20021b3420a981849706dbf",
+  "sourceInputsLocallyModified": false,
+  "restore": {
+    "reason": "Focused project assets absent in the isolated worktree",
+    "project": "experiments\\r02-containment-proof\\ContainmentProof.csproj",
+    "lockedMode": true,
+    "exitCode": 0
+  },
+  "build": {
+    "configuration": "Release",
+    "noRestore": true,
+    "warnings": 0,
+    "errors": 0,
+    "exitCode": 0
+  },
+  "deterministicSelfTestAssertions": 5,
+  "passedDeterministicSelfTestAssertions": 5,
+  "failedDeterministicSelfTestAssertions": 0,
+  "assertions": [
+    {
+      "name": "Missing receipt stays Unknown",
+      "passed": true
+    },
+    {
+      "name": "Uncorrelated receipt stays Unknown",
+      "passed": true
+    },
+    {
+      "name": "Correlated observation is retained",
+      "passed": true
+    },
+    {
+      "name": "UnauthorizedAccessException classifies as Denied",
+      "passed": true
+    },
+    {
+      "name": "IOException stays Unknown, not denial evidence",
+      "passed": true
+    }
+  ],
+  "preparationRunnerExitCode": 0,
+  "liveTrialsPerformed": false,
+  "osAssertions": "Not run",
+  "osProofExitCode": null,
+  "administratorObserverPerformed": false,
+  "appContainerProfileCreated": false,
+  "syntheticCredentialCreated": false,
+  "localNetworkTrialPerformed": false,
+  "auditOrFirewallChangesPerformed": false,
+  "privilegeOrElevationPerformed": false,
+  "runtimeInstallationPerformed": false,
+  "realComputerControlApiPerformed": false,
+  "ownedTrialScratchCreated": false,
+  "trialCleanup": "Not run; no live resources created",
+  "supportedReferenceOsQualified": false,
+  "protectedRuntimeClosureQualified": false,
+  "networkAttribution": "Unproven",
+  "productionProfileCertified": false,
+  "unclosedGates": [
+    "C01-C07",
+    "W1-W4",
+    "R11",
+    "R16",
+    "R17"
+  ]
+}

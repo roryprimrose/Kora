@@ -104,6 +104,7 @@ public sealed partial class SessionWorkspaceService
                 case SessionCommandOperation.Resume:
                     var lifecycle = await store.ChangeIdleLifecycleAsync(request, new(command.Generation),
                         command.Operation == SessionCommandOperation.Resume, eligible, token).ConfigureAwait(false);
+                    SessionLifecycleChanged?.Invoke(subject);
                     result = new("committed", "Lifecycle committed for exact ID. No tasks or approvals replayed; refresh metadata.")
                     {
                         Sessions = [new(lifecycle.SessionId.Value, lifecycle.IsActive, lifecycle.Generation.Value, null, null)],

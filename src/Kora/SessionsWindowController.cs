@@ -11,7 +11,7 @@ namespace Kora;
 internal sealed class SessionsWindowController(
     MainViewModel main, SessionWorkspaceService service, DurableEvidenceQuery evidence,
     ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
-    DetailWindowController? details = null) : IDisposable
+    DetailWindowController? details = null, Kora.Application.Memory.MemoryManagementService? memories = null) : IDisposable
 {
     private SessionsWindow? window;
     private bool disposed;
@@ -20,6 +20,8 @@ internal sealed class SessionsWindowController(
     {
         main.SessionsRequested += OnOpen;
         main.PrivacyClosureRequested += OnPrivacyClosure;
+        service.SessionLifecycleChanged += RevokeSession;
+        service.SessionRetired += RevokeSession;
     }
 
     internal void Open()
@@ -35,7 +37,7 @@ internal sealed class SessionsWindowController(
             var opened = new SessionsWindow(new(service, evidence, access, logger, localEvents,
                 content => details?.OpenHistoryDetail(content, window)
                     ?? "History details unavailable: the native viewer is not composed.",
-                session => details?.RevokeSession(session)));
+                session => details?.RevokeSession(session), memories));
             opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
             window = opened;
             opened.Show();
@@ -61,6 +63,8 @@ internal sealed class SessionsWindowController(
         disposed = true;
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
+        service.SessionLifecycleChanged -= RevokeSession;
+        service.SessionRetired -= RevokeSession;
         window?.Close();
         window = null;
     }

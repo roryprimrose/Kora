@@ -462,6 +462,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             () => !string.IsNullOrWhiteSpace(CommandText)
                   && (!IsBusy || IsSetupStatusCommand()
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
+                      || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
@@ -3920,6 +3921,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteSessionCommandAsync(sessionCommand, initiator);
             return;
         }
+        if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
+        {
+            await ExecuteMemoryCommandAsync(memoryCommand, initiator);
+            return;
+        }
         if (string.Equals(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript,
             "open sessions", StringComparison.Ordinal))
         {
@@ -5411,6 +5417,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)

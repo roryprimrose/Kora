@@ -137,7 +137,9 @@
           </ItemsControl>
           </ScrollViewer>
         </StackPanel>
-        <Grid Grid.Row="4" RowDefinitions="Auto,*" RowSpacing="6">
+        <TabControl Grid.Row="4">
+        <TabItem Header="History and evidence">
+        <Grid RowDefinitions="Auto,*" RowSpacing="6">
           <ListBox x:Name="HistoryRecords" MaxHeight="150" ItemsSource="{Binding HistoryRecords}"
                    SelectedItem="{Binding SelectedHistoryRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
                    AutomationProperties.Name="Immutable history receipts for the exact history subject; detail opening requires the selected session">
@@ -157,6 +159,54 @@
                      AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
         </ScrollViewer>
         </Grid>
+        </TabItem>
+        <TabItem Header="Session memories">
+          <ScrollViewer>
+            <StackPanel Spacing="8">
+              <TextBlock Text="Active selected session only. List contains metadata, not values. Inspect exact content and classification before review; admission is a separate action. No Remember trigger, model tool, recall or hosted disclosure."
+                         TextWrapping="Wrap" />
+              <Button x:Name="ListMemories" Content="_List selected session memories" IsEnabled="{Binding CanReadMemories}"
+                      AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
+              <ListBox x:Name="MemoryRecords" MaxHeight="160" ItemsSource="{Binding MemoryRecords}"
+                       SelectedItem="{Binding SelectedMemory, Mode=OneWay}" IsEnabled="{Binding CanReadMemories}"
+                       AutomationProperties.Name="Content-free memory inventory; selection is passive">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Id}" />
+                      <TextBlock Text="{Binding Revision, StringFormat='Revision {0}'}" />
+                      <TextBlock Text="{Binding Scope.Kind, StringFormat='Scope {0}'}" />
+                      <TextBlock Text="{Binding Scope.Identity}" />
+                      <TextBlock Text="{Binding Review, StringFormat='Review {0}'}" />
+                      <TextBlock Text="{Binding Retention, StringFormat='Retention {0}'}" />
+                      <TextBlock Text="{Binding CreatedAt, StringFormat='Created {0:O}'}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <WrapPanel>
+                <Button x:Name="InspectMemory" Content="Inspect exact memory" IsEnabled="{Binding CanInspectMemory}" />
+                <Button x:Name="AcceptMemory" Content="Review exact content: accept" IsEnabled="{Binding CanReviewMemory}"
+                        AutomationProperties.Name="Review this inspected exact revision and classification; accept does not admit or enable" />
+                <Button x:Name="RejectMemory" Content="Review exact content: reject" IsEnabled="{Binding CanReviewMemory}" />
+                <Button x:Name="AdmitMemory" Content="Admit reviewed revision" IsEnabled="{Binding CanAdmitMemory}"
+                        AutomationProperties.Name="Explicitly admit only this exact reviewed pending revision under unchanged private session boundary" />
+                <Button x:Name="DisableMemory" Content="Disable admitted memory" IsEnabled="{Binding CanDisableMemory}" />
+                <Button x:Name="ForgetMemory" Content="Forget exact memory" IsEnabled="{Binding CanEditMemory}"
+                        AutomationProperties.Name="Explicitly forget this exact revision; clear body and review, retain non-reusable tombstone; not forensic erasure" />
+              </WrapPanel>
+              <controls:NamedTextBlock Text="{Binding MemoryDetail}" TextWrapping="Wrap"
+                                       AutomationProperties.Name="Explicitly inspected exact memory content, classification, lineage and review receipt or content-free mutation outcome" />
+              <ComboBox ItemsSource="{Binding MemoryClasses}" SelectedItem="{Binding MemoryClass, Mode=TwoWay}"
+                        IsEnabled="{Binding CanEditMemory}" AutomationProperties.Name="Replacement memory content classification; not sensitivity proof" />
+              <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanEditMemory}"
+                       AutomationProperties.Name="Exact replacement value; no truncation or normalization; 512 UTF-16 code units, 1024 UTF-8 value bytes, 2048 serialized candidate bytes" />
+              <Button x:Name="EditMemory" Content="Replace exact revision; return to Proposed/Pending" IsEnabled="{Binding CanEditMemory}"
+                      AutomationProperties.Name="Edit clears earlier review and use; replacement stays volatile until new inspect, review and admission" />
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+        </TabControl>
       </Grid>
     </Grid>
     <WrapPanel Grid.Row="5">

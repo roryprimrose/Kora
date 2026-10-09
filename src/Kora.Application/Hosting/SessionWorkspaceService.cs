@@ -18,6 +18,8 @@ public sealed partial class SessionWorkspaceService(
     SessionQueueService? queue = null)
 {
     public event Action<HostTaskObservation>? WaitingTaskCancelled;
+    public event Action<HostId<SessionIdentity>>? SessionRetired;
+    public event Action<HostId<SessionIdentity>>? SessionLifecycleChanged;
     private SessionRetentionService? retention;
     public void BindRetention(SessionRetentionService service) => retention = service;
     private Kora.Application.Interaction.LocalEventBroker? localEvents;
@@ -131,15 +133,28 @@ public sealed partial class SessionWorkspaceService(
         }
     }
 
-    public Task<WorkSessionAuthorization> ChangeLifecycleAsync(HostId<SessionIdentity> session,
-        HostRevision expectedGeneration, bool active, RequestOrigin origin, CancellationToken token) =>
-        ControlAsync(session, origin,
-            (request, eligible) => store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, eligible, token), token);
+    public async Task<WorkSessionAuthorization> ChangeLifecycleAsync(HostId<SessionIdentity> session,
+        HostRevision expectedGeneration, bool active, RequestOrigin origin, CancellationToken token)
+    {
+        var result = await ControlAsync(session, origin,
+            (request, eligible) => store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, eligible, token), token).ConfigureAwait(false);
+        SessionLifecycleChanged?.Invoke(session);
+        return result;
+    }
+
+    internal Task<MemoryCommandResult> ExecuteMemoryControlAsync(HostId<SessionIdentity> session, RequestOrigin origin,
+        Func<bool> admission, Func<HostRequest, Func<bool>, ValueTask<MemoryCommandResult>> operation, CancellationToken token)
+    {
+        // A callback cannot relabel its existing host/model context as a new local user action.
+        if (HostActivity.Current is { } current) { origin = current.Request.Origin; }
+        return ControlAsync(session, origin, operation, token, admission, existingSubject: true,
+            terminalState: result => result.Outcome is "observed" or "Succeeded" ? HostTaskState.Succeeded : HostTaskState.Denied);
+    }
 
     private async Task<T> ControlAsync<T>(HostId<SessionIdentity> session, RequestOrigin origin,
         Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token,
         Func<bool>? additionalAdmission = null, bool inspection = false, bool existingSubject = false,
-        bool terminalCommitted = false)
+        bool terminalCommitted = false, Func<T, HostTaskState>? terminalState = null)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
@@ -182,7 +197,7 @@ public sealed partial class SessionWorkspaceService(
             // must remain visible; it cannot be described as a rollback or replayed automatically.
             if (!terminalCommitted)
             {
-                await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
+                await tasks.RecordOutcomeAsync(intent, terminalState?.Invoke(result) ?? HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
             }
             activity.Complete(HostOperationOutcome.Completed);
             return result;

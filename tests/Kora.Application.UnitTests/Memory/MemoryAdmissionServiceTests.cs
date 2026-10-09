@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.UnitTests.Memory;
 
 [Collection("Host tracing")]
-public sealed class MemoryAdmissionServiceTests : IDisposable
+public sealed partial class MemoryAdmissionServiceTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -646,7 +646,7 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         HostActivity.Current.Should().BeSameAs(root);
     }
 
-    private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
+    private sealed partial class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
         IMemoryScopeAccess, IMemoryStore, ISecurityAuditLog, ILogger<MemoryAdmissionService>, IDisposable
     {
         internal HostRequest Request { get; private set; } = HostRequest.Create(RequestOrigin.LocalUi);
@@ -763,7 +763,14 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         private ValueTask<T> Write<T>() { Writes++; throw new NotSupportedException(); }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => Write<SessionDispositionPreview>();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) => Write<SessionDispositionReceipt>();
-        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token) => Write<HostTaskRecord>();
+        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
+        {
+            if (!MemoryControlEnabled) { return Write<HostTaskRecord>(); }
+            Request = request;
+            var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            ControlIntents.Add(intent);
+            return ValueTask.FromResult(intent);
+        }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) => throw new NotSupportedException();

@@ -64,6 +64,16 @@ internal sealed partial class SessionsWindow : Window
         Resume.Click += async (_, _) => await model.ChangeLifecycleAsync(active: true);
         PreviewDisposition.Click += async (_, _) => await model.PreviewDispositionAsync();
         ConfirmDisposition.Click += async (_, _) => await model.ConfirmDispositionAsync();
+        ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
+        MemoryRecords.SelectionChanged += (_, _) =>
+            model.SelectMemory(MemoryRecords.SelectedItem as Kora.Core.Commands.MemorySummary);
+        InspectMemory.Click += async (_, _) => await model.InspectMemoryAsync();
+        AcceptMemory.Click += async (_, _) => await model.ReviewMemoryAsync(accept: true);
+        RejectMemory.Click += async (_, _) => await model.ReviewMemoryAsync(accept: false);
+        AdmitMemory.Click += async (_, _) => await model.AdmitMemoryAsync();
+        EditMemory.Click += async (_, _) => await model.EditMemoryAsync();
+        DisableMemory.Click += async (_, _) => await model.DisableMemoryAsync();
+        ForgetMemory.Click += async (_, _) => await model.ForgetMemoryAsync();
         CloseView.Click += (_, _) => Close();
         var refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         async void OnRefreshTick(object? sender, EventArgs args)

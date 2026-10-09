@@ -303,7 +303,8 @@ model-facing settings tools remain future work.
 ### Application theme
 
 - **System** - default; follows live Windows light or dark appearance.
-- **Light** - always use Kora's light palette.
+- **Light** - always use Kora's light palette, with darker secondary text for
+  descriptions and inactive navigation labels.
 - **Dark** - always use Kora's dark palette.
 
 The theme applies immediately to Settings, the presence, response surface,

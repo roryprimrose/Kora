@@ -233,6 +233,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
             controllers.Add(new DocumentationWindowController(session.Documents, session.Main,
                 NullLogger<DocumentationWindowController>.Instance, details));
             questions = new NativeQuestionHost(session.Interactions, TimeProvider.System, NullLogger<NativeQuestionViewModel>.Instance);
+            questions.BindWorkspace(session.Sessions);
             controllers.Add(new QuestionWindowController(session.Main, questions, session.VersionQuery,
                 new AssemblyApplicationInfo(), new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance),
                 () => session.Access.Open, NullLogger<QuestionWindowController>.Instance));

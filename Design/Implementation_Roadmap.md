@@ -74,7 +74,7 @@ subset under the three-tier policy. It does not depend on inference, queues,
 scheduler or remote/runtime qualification. R04/R05/R12/R14 remain partial:
 full composer/conversation bodies, search/model history reasoning, Ask Evidence,
 broad export, general effects/work scheduling, managed-copy deletion/retention
-and real native/accessibility acceptance remain unavailable/open.
+and full native/accessibility acceptance remain unavailable/open.
 Shared-profile skill inspection and immutable local file previews remain
 volatile control/inspection data; their text/paths/provenance are never admitted
 to history or model context. History cannot reconstruct captions or authorize
@@ -89,6 +89,14 @@ R12/A3 acceptance. Storage experiments retain unique recovery/capacity/copy/
 native evidence; no experiment file is deleted or archived.
 See [the authoritative contract](Interaction_And_Sessions.md#delivered-bounded-ordered-interaction-history---2026-10-09)
 and [native user workflow](../docs/windows-and-tray.md#bounded-passive-interaction-history).
+
+The [2026-10-09 bounded native continuation](Deferred_Validation.md#2026-10-09-bounded-native-ux-and-light-text-continuation)
+records actual scratch-native Create/Rename and exact-ID passive history
+observations, including metadata-only fresh history and retained committed
+question/answer history. The [receipt](../tests/Kora.NativeUxFixture/evidence/2026-10-09-native-ux.json)
+keeps these source/payload identities separate from later palette approval.
+This is completed bounded evidence, not full R12/R14 acceptance, installed
+qualification or a new prerequisite for unrelated development.
 
 ### Experiment Disposition Inventory
 
@@ -846,6 +854,16 @@ of inventing bytes/digests. Full source/resource acquisition/review, generic
 voice targeting, Sessions/history, effect gateways and D-001/D-005/D-008/D-009/
 D-013 acceptance remain open. Native desktop/speech/accessibility trials need
 separate approval and were not run.
+
+That statement records the original delivery, not the current entire evidence
+inventory. The [2026-10-09 continuation](Deferred_Validation.md#2026-10-09-bounded-native-ux-and-light-text-continuation)
+adds bounded native exact-question review/draft/submit, focus/terminal-status
+persistence, stale-revision/generation refusal and synthetic privacy observations,
+with failed/inconclusive probes retained. The later darker light-text profile
+has its own 29-check validation and operator readability approval. Neither
+profile closes full R05/R14 or the remaining speech/OS/installed/effect-source
+gates; the [three-tier policy](Acceptance_Criteria.md#three-tier-qualification-policy)
+already keeps unrelated feature development independent.
 
 Maintained [portable review tests](../tests/Kora.Application.UnitTests/Interaction/HostQuestionReviewServiceTests.cs)
 and [native production-store tests](../tests/Kora.Windows.IntegrationTests/NativeQuestionTests.cs)

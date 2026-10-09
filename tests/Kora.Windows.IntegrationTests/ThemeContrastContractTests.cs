@@ -36,6 +36,14 @@ public sealed class ThemeContrastContractTests
         AssertRatioAtLeast(brushes, "KoraMutedForegroundBrush", "KoraSurfaceAltBrush", NormalTextMinimumRatio);
     }
 
+    [Fact]
+    public void Light_secondary_text_is_darker_than_the_previous_palette()
+    {
+        var brushes = LoadThemeBrushes("Light");
+        RelativeLuminance(brushes["KoraMutedForegroundBrush"])
+            .Should().BeLessThan(RelativeLuminance(ParseHexColor("#5E6470")));
+    }
+
     [Theory]
     [InlineData("Light")]
     [InlineData("Dark")]

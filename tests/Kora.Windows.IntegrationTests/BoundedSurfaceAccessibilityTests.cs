@@ -2,6 +2,8 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -17,6 +19,38 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class BoundedSurfaceAccessibilityTests
 {
+    [Fact]
+    public async Task Light_navigation_uses_secondary_text_without_changing_dark_navigation()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var window = new SettingsWindow(fixture.Main) { RequestedThemeVariant = ThemeVariant.Dark };
+            try
+            {
+                window.Show();
+                window.UpdateLayout();
+                var tabs = window.FindControl<TabControl>("SettingsTabs")!;
+                var inactive = tabs.Items.OfType<TabItem>().First(tab => !tab.IsSelected);
+                var darkForeground = ((ISolidColorBrush)inactive.Foreground!).Color;
+                var presentation = new Avalonia.Application();
+                NativeUxFixtureHost.LoadPresentation(presentation);
+                var resources = presentation.Resources;
+                presentation.Resources = new ResourceDictionary();
+                window.Resources.MergedDictionaries.Add(resources);
+                window.UpdateLayout();
+                ((ISolidColorBrush)inactive.Foreground!).Color.Should().Be(darkForeground);
+
+                window.RequestedThemeVariant = ThemeVariant.Light;
+                window.UpdateLayout();
+                window.TryGetResource("KoraMutedForegroundBrush", ThemeVariant.Light, out var muted).Should().BeTrue();
+                inactive.Foreground.Should().BeSameAs(muted);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData("5", "Response timeout in seconds")]
     [InlineData("10", "Presence timeout in seconds")]

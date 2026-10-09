@@ -161,6 +161,22 @@ Rebase receipt: preserved the intervening volatile provider-policy/handoff secti
 
 The first combined Windows run recorded 1 failure/1,247 passes in the existing [50 ms audio-open cleanup fixture](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs): `DisposeAsync` reported `"Native capture work is still closing; quiescence is not confirmed."` Its occurrence cause remains unconfirmed. An initially unqualified selector ran zero tests and was corrected, not counted as validation. The fully-qualified exact rerun passed 1/1; the unchanged full Windows rerun passed 1,248/1,248. No audio source, test, timer, threshold or exclusion was changed.
 
+Queue-integrated rebase receipt: conflict-free rebase onto main `42f1382d91fa5a2d164a7e86e6346940f6c3fcff` ([#127](https://github.com/roryprimrose/Kora/pull/127)), preserving admitted queue settings/consuming serialization and provider/memory authority. Tested source head: `c42be4548bcf6b35104001b3351b9c1cf618ce6d`. No sibling branch or main was merged/cherry-picked.
+
+Fresh combined Release build and all five suites passed on this source head; Windows ran after the portable suites with no changes to test settings or timers. This distinct attempt had zero failures/skips; the earlier failed-attempt receipt above remains historical. Latest-only portable aggregation used one fresh report per assembly, with unchanged exact gates and no exclusions.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project <required project> --configuration Release --no-build --report-trx
+Core: 1183 passed; Application: 3280 passed; Tools: 69 passed; Definitions: 6 passed.
+Windows: 1250 passed. All five: 5788 passed, 0 failed, 0 skipped.
+Portable suites additionally: --coverlet --coverlet-output-format cobertura.
+Latest-only reportgenerator: four matching Cobertura reports, portable assembly filters.
+eng\Assert-CodeCoverage.ps1 -ReportPath <combined Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage 100%: 17216/17216; branch coverage 100%: 10331/10331.
+```
+
 ### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
 
 The first D-014 implementation package delivers the

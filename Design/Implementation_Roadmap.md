@@ -30,7 +30,20 @@ Maintained evidence: [Core grammar/domain boundaries](../tests/Kora.Core.UnitTes
 
 Experiment assessment: no experiment assertion is exactly superseded by this model-free volatile proposal/UI addition. Retain all [storage proof](../experiments/r02-storage-proof/README.md#proof-code-lifecycle) crypto/copy/native/recovery assertions and receipts, plus [runtime](../experiments/r02-runtime-proof/README.md) and [local-inference](../experiments/r02-local-inference-proof/README.md) mediation/provider/quality/resource evidence. No executable or consumer is removed or rerun.
 
-Existing RT1 witness, management input-validation and synthetic runtime-extraction consumers remain unchanged. No eng proof-tool changes, hardware/provider trials, full R12/D-014 qualification or release acceptance are claimed. Validation and merge receipts are recorded below after final execution.
+Existing RT1 witness, management input-validation and synthetic runtime-extraction consumers remain unchanged. No eng proof-tool changes, hardware/provider trials, full R12/D-014 qualification or release acceptance are claimed.
+
+Local validation receipt: initial base `ca7e5393bbf1f8c62d17b19baa9752728e817e21`; conflict-free rebase onto main `9d156f30f469440e06d515368a5a2e399f51cea9`, preserving proof-only #141/#143. Code head `4eb5fcde2aeaf332dc062ffeeccb124f34586a30`; the subsequent receipt-only commit changes no executable code. Missing assets were restored locked from the approved Networking-AAA feed only.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1322; Application: 3602; Tools: 90; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: 1303; all five suites failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <latest-only-final-main-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0% (18273/18273); Branch coverage: 100.0% (10992/10992)
+```
 
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 

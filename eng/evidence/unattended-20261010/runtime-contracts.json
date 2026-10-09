@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "proof": "maintained-runtime-receipt-admission-contracts",
+  "executionDateLocal": "2026-10-10",
+  "repositoryHead": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "status": "Pass",
+  "scope": "Deterministic preparation and synthetic receipt/admission contracts only; not native runtime, provider or privacy acceptance.",
+  "execution": {
+    "isolatedLinkedWorktreeVerified": true,
+    "rootCheckoutUsedForEditsOrBuilds": false,
+    "powershell": "7.6.6",
+    "noProfile": true,
+    "nonInteractive": true,
+    "freshOutputOutsideCheckout": true,
+    "filtered": false,
+    "exitCode": 0,
+    "distinctChecksPerRun": 49,
+    "runCount": 2,
+    "totalCheckExecutions": 98,
+    "passedCheckExecutions": 98,
+    "failedCheckExecutions": 0
+  },
+  "runs": [
+    {
+      "culture": "en-AU",
+      "startedAtUtc": "2026-10-09T20:44:41.0865285+00:00",
+      "completedAtUtc": "2026-10-09T20:44:43.7284359+00:00",
+      "status": "Pass",
+      "total": 49,
+      "passed": 49,
+      "failed": 0,
+      "rawReceipt": "contracts-noninteractive-en-AU/contracts.json",
+      "rawReceiptSha256": "802662d4b146e27e70ffd4affef5e66f6ed6009e81c279063fc796be953fc273",
+      "rawRunRecord": "run-noninteractive-en-AU.json",
+      "rawTranscript": "execution-noninteractive-en-AU.log",
+      "historicalFilesCompared": 133,
+      "historicalFilesUnchanged": 133,
+      "temporarySyntheticFilesRemaining": 0
+    },
+    {
+      "culture": "en-US",
+      "startedAtUtc": "2026-10-09T20:44:43.9668401+00:00",
+      "completedAtUtc": "2026-10-09T20:44:44.8032128+00:00",
+      "status": "Pass",
+      "total": 49,
+      "passed": 49,
+      "failed": 0,
+      "rawReceipt": "contracts-noninteractive-en-US/contracts.json",
+      "rawReceiptSha256": "563cfa185a25b80785829c48be4e1cf3b1eb3dbcecf208769607de107dbe8878",
+      "rawRunRecord": "run-noninteractive-en-US.json",
+      "rawTranscript": "execution-noninteractive-en-US.log",
+      "historicalFilesCompared": 133,
+      "historicalFilesUnchanged": 133,
+      "temporarySyntheticFilesRemaining": 0
+    }
+  ],
+  "coverage": [
+    { "category": "Historical profile separation and complete regression receipts", "checks": 8 },
+    { "category": "Exact artifact and embedded assembly identity", "checks": 8 },
+    { "category": "Output and checkout ownership guards", "checks": 3 },
+    { "category": "Stage admission, operator requests and management bounds", "checks": 6 },
+    { "category": "Invariant UTC receipt parsing", "checks": 2 },
+    { "category": "Native coordinator missing-approval rejection", "checks": 2 },
+    { "category": "Synthetic released lifecycle receipt acceptance and rejection", "checks": 15 },
+    { "category": "Maintained PowerShell syntax", "checks": 5 }
+  ],
+  "checks": [
+    "Source-built and released SDK identities stay separate",
+    "Shared native identity is recorded without SDK equivalence",
+    "Historical receipts cannot be exported as fresh native validation",
+    "Rejected stale evidence creates no export files",
+    "All 45 historical controls include the expected rejected hook-only FAIL",
+    "Filtered historical controls are not accepted",
+    "Historical hook-only FAIL cannot be relabelled Pass",
+    "Duplicate trial identity is not complete evidence",
+    "Missing inputs stay Blocked without acquisition",
+    "Explicit nonexistent inputs fail rather than produce successful preparation",
+    "Exact input bytes pass without execution",
+    "Changed input bytes fail rather than produce successful preparation",
+    "Artifact receipt excludes supplied absolute paths",
+    "Package and embedded assembly hashes are independently checked",
+    "Correct package hash alone cannot admit a wrong assembly",
+    "Duplicate assembly entries fail explicitly",
+    "Contracts never overwrite an existing output directory",
+    "Preparation cannot write receipts into its repository",
+    "A non-linked checkout cannot run preparation",
+    "Passing preparation cannot admit any native, account or production stage",
+    "Deterministic R13 remains independent of hosted gates",
+    "Generated request is not an approval or provider selection",
+    "Dedicated-host trial bound remains 60 seconds",
+    "MG1 complete bounds and Unknown quarantine are retained",
+    "No guessed cost ceiling or alert-only spending admission",
+    "UTC receipt stays invariant in en-AU",
+    "UTC receipt stays invariant in en-US",
+    "Synthetic native coordinator cannot run without explicit approval",
+    "Released RT2 requires its own explicit bounded-profile approval",
+    "Complete released bounded receipts preserve all-path Blocked",
+    "Released lifecycle cannot reuse stale receipts",
+    "Duplicate lifecycle identity rejects released RT2",
+    "Source lifecycle mislabeled as released rejects released RT2",
+    "Source assembly substituted into released receipts rejects released RT2",
+    "Changed native payload rejects released RT2",
+    "Mixed fixture assemblies rejects released RT2",
+    "Missing owned cleanup rejects released RT2",
+    "Observed owned survivor rejects released RT2",
+    "Credential marker at model boundary rejects released RT2",
+    "Denied model marker rejects released RT2",
+    "Bounded receipt promoting all-path admission rejects released RT2",
+    "Watcher loss rejects released RT2",
+    "Recorded observation query gap rejects released RT2",
+    "Missing live socket positive control rejects released RT2",
+    "PowerShell syntax: RuntimeValidation.Common.ps1",
+    "PowerShell syntax: Prepare-RuntimeValidation.ps1",
+    "PowerShell syntax: Test-RuntimeValidationContracts.ps1",
+    "PowerShell syntax: Invoke-SyntheticRuntimeValidation.ps1",
+    "PowerShell syntax: Invoke-ReleasedRuntimeLifecycle.ps1"
+  ],
+  "testedFiles": [
+    {
+      "file": "eng/Test-RuntimeValidationContracts.ps1",
+      "sha256": "ff4870c8571f6fe78d2be057f99d151dbc491af4d671ccf76ee746b5c94eaae2"
+    },
+    {
+      "file": "eng/RuntimeValidation.Common.ps1",
+      "sha256": "75d24b1f69d89785c77878e30cbd465977ac10ef8599342a81198cfeac873f82"
+    },
+    {
+      "file": "eng/Distribution.Common.ps1",
+      "sha256": "0c14f4add0bee4cb48a9650c9b8c666455160d30a0da9c5640aafe0c3326f63a"
+    },
+    {
+      "file": "eng/Prepare-RuntimeValidation.ps1",
+      "sha256": "cf699f3835d9098d17d3da914d784498c9b360ceccd921f3724bc2a70bbbd95a"
+    },
+    {
+      "file": "eng/Invoke-SyntheticRuntimeValidation.ps1",
+      "sha256": "8e2aa8ceb0c44e79fe44c2f234692d901897232bbe6bbe427925e8db8e5c5564"
+    },
+    {
+      "file": "eng/Invoke-ReleasedRuntimeLifecycle.ps1",
+      "sha256": "b2f045bb8f7a27651abbf4eacc54e38dbd4a865938fb30e66e0b6f3ccdaabb90"
+    }
+  ],
+  "historicalPreservation": {
+    "trackedFiles": 133,
+    "unchangedAfterEachRun": true,
+    "directories": [
+      "experiments/r02-runtime-proof",
+      "experiments/r02-dotnet-control-proof",
+      "experiments/r02-runtime-lifecycle-proof",
+      "experiments/r02-dotnet-management-proof"
+    ],
+    "rawBeforeInventory": "historical-before.json",
+    "rawAfterInventories": [
+      "historical-after-noninteractive-en-AU.json",
+      "historical-after-noninteractive-en-US.json"
+    ],
+    "historicalGuardAndPinsChanged": false,
+    "historicalCoordinatorEligibility": "Not evaluated; no coordinator passed its early output-location or approval guard."
+  },
+  "admission": {
+    "nativeLaunchApprovalGranted": false,
+    "nativeRuntimeLaunch": "Not run",
+    "hostComponentBuildOrTests": "Not run",
+    "packageAcquisitionOrRestore": "Not run",
+    "dedicatedHostRt2": "Blocked",
+    "executionPv1": "Blocked",
+    "managementPv1": "Blocked",
+    "r08": "Blocked",
+    "r13ModelAssisted": "Blocked",
+    "r13DeterministicCore": "Independent; own production prerequisites not evaluated",
+    "providerOrAccountTrial": "Not run",
+    "traceCollectionElevationInstallOrPolicyChange": "Not run",
+    "freshNativePrivacyOrProductionAcceptance": false
+  },
+  "cleanup": {
+    "temporaryCodeCreated": false,
+    "syntheticBinaryAndPackageRemovedByHarness": true,
+    "negativeTestCheckoutRemovedByHarness": true,
+    "rawEvidenceRetainedOutsideGit": true,
+    "worktreeRetainedForParentCleanup": true
+  },
+  "fixesRequired": false
+}

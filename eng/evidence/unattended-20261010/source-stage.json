@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "date": "2026-10-10",
+  "qualification": "exact-revision-source-bootstrap-stage",
+  "status": "passed-build-and-static-only",
+  "revision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "repository": "https://github.com/roryprimrose/Kora.git",
+  "worktree": "unattended-source-bootstrap-validation",
+  "branch": "agents/unattended-source-bootstrap-validation",
+  "sourceIdentity": {
+    "rootName": "stage-20261010-ce76541d",
+    "outsideAllRepositoryWorktrees": true,
+    "canonicalClone": true,
+    "detached": true,
+    "cleanAfterBootstrap": true,
+    "cleanAfterBothRids": true,
+    "porcelainStatusAfterBothRids": [],
+    "toolingCleanBeforeAndAfterQualification": true,
+    "rootCheckoutEditedOrBuilt": false
+  },
+  "toolchain": {
+    "sdk": "10.0.401",
+    "installedRuntime": "10.0.12",
+    "powershell": "7.6.6",
+    "bootstrapVersion": "1.1.0",
+    "inspectorVersion": "1.0.0",
+    "inspectionSchema": 2,
+    "inspectionProfile": "windows-framework-dependent-v1"
+  },
+  "build": {
+    "channel": "local-source",
+    "configuration": "Release",
+    "version": "0.1.0",
+    "selfContained": false,
+    "dependencyRestore": "locked-multi-rid",
+    "trustBuildCode": true,
+    "sourceInputHashes": 202,
+    "bootstrapToolHashes": 8,
+    "publishCountPerRid": 1,
+    "warningsPerSuccessfulBuild": 0,
+    "errorsPerSuccessfulBuild": 0,
+    "initialNoRestore": {
+      "win-x64": { "exitCode": 1, "reason": "NETSDK1004-missing-project.assets.json" },
+      "win-x86": { "exitCode": 1, "reason": "NETSDK1004-missing-project.assets.json" }
+    }
+  },
+  "checks": {
+    "previewReadOnly": true,
+    "syntheticBootstrapContracts": 82,
+    "actualStageContracts": 18,
+    "winX64PublishContracts": 27,
+    "winX86PublishContracts": 27,
+    "totalContracts": 154,
+    "failedContracts": 0,
+    "explicitActualStageVerification": "passed",
+    "boundedStaticSmoke": {
+      "status": "passed",
+      "kind": "bounded-static-child",
+      "timeoutSeconds": 60,
+      "applicationLaunched": false
+    },
+    "noBuildRerun": {
+      "status": "reused",
+      "receiptSha256Unchanged": true,
+      "receiptLastWriteTimeUnchanged": true
+    },
+    "finalX64StageIntegrityAfterX86": "passed"
+  },
+  "children": [
+    {
+      "scope": "synthetic-bootstrap-contracts",
+      "timeoutSeconds": 300,
+      "exitCode": 0,
+      "timedOut": false,
+      "started": "2026-10-10T07:46:29.2812181+11:00",
+      "ended": "2026-10-10T07:48:27.5847842+11:00"
+    },
+    {
+      "scope": "actual-source-bootstrap-and-both-rid-static-qualification",
+      "timeoutSeconds": 1800,
+      "exitCode": 0,
+      "timedOut": false,
+      "started": "2026-10-10T07:46:29.6527063+11:00",
+      "ended": "2026-10-10T07:52:04.056131+11:00"
+    }
+  ],
+  "payloads": [
+    {
+      "rid": "win-x64",
+      "files": 87,
+      "bytes": 260990934,
+      "nativePeCount": 7,
+      "nativePeArchitecture": "Amd64",
+      "declaredNativeAssets": 10,
+      "sqlitePackage": "SQLitePCLRaw.lib.e_sqlite3/2.1.12",
+      "inspectionSha256": "f37b6b39feeb9fd037b1a0c3e403959dc3e162780394adf3be57809aad480b78",
+      "sha256SumsSha256": "eb2367872e91098b3f1bff3c45d856b46b9fc3cd150ed12092be235a1da0dc89"
+    },
+    {
+      "rid": "win-x86",
+      "files": 83,
+      "bytes": 244140855,
+      "nativePeCount": 5,
+      "nativePeArchitecture": "I386",
+      "declaredNativeAssets": 6,
+      "sqlitePackage": "SQLitePCLRaw.lib.e_sqlite3/2.1.12",
+      "inspectionSha256": "18ee3c33820ec972962f21a16749dcc02e944de0e2e42b73fc7c229a792d3ac7",
+      "sha256SumsSha256": "5f7bb1c1b96589afc0378c2d80cca1cb0f0e3ec1687980e05a8398b536e570b1",
+      "nativeCapabilityGaps": [
+        "win-x86 declares ONNX Runtime packages without an ONNX Runtime native payload; inference closure is not qualified."
+      ]
+    }
+  ],
+  "sourceBuildReceiptSha256": "2550e55b57fd8102316605011d4ad968d6cc9a57764d8a1afb1cf2a020069e86",
+  "retainedEvidence": {
+    "relativeLocator": "coordinating-session/files/maintained-proofs/source-stage",
+    "files": 123,
+    "readOnly": true,
+    "manifestOtherFileCount": 122,
+    "rawEvidenceManifestSha256": "144978e60372fed8605efc5512a41a0454a11804aec61b9089cfe06556d77590",
+    "reviewedToolClosureSha256": "3480d758f6a7561c26065a73da66da021d748292fe9833ae4dc87360898ab2ce",
+    "contractReceipts": [
+      { "scope": "synthetic-bootstrap", "sha256": "6bc4893c87b692134c3e0860dc15521e8e8b9ccfd726932eab5774a85f46e69f" },
+      { "scope": "actual-stage", "sha256": "b9798c4cf556682eeecae65c37bb6c1105f59a19c3f7777cc6e69c426f73ebee" },
+      { "scope": "win-x64-publish", "sha256": "e7bca39e8b67cc3960956e58b4cfc8533ef2614f7cca4c093c3eb8b6836cbcca" },
+      { "scope": "win-x86-publish", "sha256": "d1b93648908c147104b48aff235c4b6632cfc23bb5e49a4878111d7a81187d83" }
+    ]
+  },
+  "cleanup": {
+    "removedOwnedTemporaryDirectories": [
+      "stage-20261010-ce76541d",
+      "contracts-20261010-ce76541d",
+      "initial-20261010-ce76541d",
+      "x86-20261010-ce76541d",
+      "mutations-20261010-ce76541d"
+    ],
+    "removedTemporaryHarnessFiles": [
+      "source-stage-child.ps1",
+      "source-stage-actual.ps1"
+    ],
+    "allListedPathsVerifiedAbsent": true,
+    "rawReceiptsAndLogsRetained": true,
+    "sharedPackageCacheRetained": true,
+    "assignedWorktreeRetainedForParent": true
+  },
+  "limits": {
+    "applicationLaunched": false,
+    "nativePayloadLoaded": false,
+    "installationOrActivation": false,
+    "physicalAudioOrDeviceEffects": false,
+    "uiOrAccountSetup": false,
+    "elevationOrGlobalMachineConfiguration": false,
+    "newConsentOrLicenceAcceptance": false,
+    "activation": "unavailable",
+    "protectedDeploymentQualified": false,
+    "installedRuntimeSmokeQualified": false,
+    "x86OnnxInferenceQualified": false,
+    "releaseRedistributionAccepted": false,
+    "officialReleaseProvenance": false,
+    "bitReproducibilityClaimed": false,
+    "wixAssemblyPerformed": false,
+    "broaderUnitSuitesRun": false
+  },
+  "productionCodeChanges": false
+}

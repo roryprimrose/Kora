@@ -111,6 +111,9 @@ public sealed class SessionsListSearchTests
                 field.IsFocused.Should().BeTrue();
                 model.ListQuery.Should().BeEmpty();
                 model.Sessions.Should().BeEmpty();
+                model.ListQuery = "not an immutable ID";
+                model.CanSearchList.Should().BeFalse();
+                model.Status.Should().Contain("Invalid session metadata query").And.Contain("Nothing is normalized");
             }
             finally { window.Close(); }
             model.ListQuery.Should().BeEmpty();

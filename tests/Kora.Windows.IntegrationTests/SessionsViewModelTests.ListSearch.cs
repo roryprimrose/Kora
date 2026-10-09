@@ -1,3 +1,5 @@
+using System.Xml.Linq;
+
 using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
@@ -12,6 +14,25 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsViewModelTests
 {
+    [Fact]
+    public void NativeMetadataControlsBindExplicitModesBoundedContinuationAndNoTruncationSeparatelyFromHistory()
+    {
+        var source = Read("SessionsWindow.axaml");
+        var document = XDocument.Parse(source);
+        var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+            && element.Attribute("Text")?.Value.Contains("ListQuery", StringComparison.Ordinal) == true);
+        field.Attribute("MaxLength").Should().BeNull();
+        field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanEditListSearch}");
+        source.Should().Contain("ListSearchKinds").And.Contain("NameSubstring").And.Contain("canonical lowercase exact immutable ID")
+            .And.Contain("CanNextListSearch").And.Contain("including after zero matches")
+            .And.Contain("CanCancelListSearch").And.Contain("Clear metadata search")
+            .And.Contain("metadata-search scope across pages").And.Contain("HistoryQuery");
+        var code = Read("SessionsWindow.axaml.cs");
+        code.Should().Contain("SearchList.Click +=").And.Contain("model.SearchListAsync(next: true)")
+            .And.Contain("model.CancelListSearch()").And.Contain("model.ClearListSearch(); ListQuery.Focus();")
+            .And.Contain("ListQuery.KeyDown +=").And.Contain("model.CanSearchList");
+    }
+
     [Theory]
     [InlineData("query")]
     [InlineData("kind")]

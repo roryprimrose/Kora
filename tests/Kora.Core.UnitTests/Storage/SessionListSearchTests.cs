@@ -89,6 +89,9 @@ public sealed class SessionListSearchTests
         var valid = string.Concat(Enumerable.Repeat("🐈", 120));
         SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, SessionListFilter.All, valid).Should().BeTrue();
         SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, SessionListFilter.All, valid + "a").Should().BeFalse();
+        SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, SessionListFilter.All, new('a', 121)).Should().BeFalse();
+        SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, SessionListFilter.All, new('界', 161)).Should().BeFalse();
+        SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, SessionListFilter.All, new('a', 100000)).Should().BeFalse();
         SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, SessionListFilter.All, new string((char)0xd800, 1)).Should().BeFalse();
         SessionListSearch.IsValid((SessionListSearchKind)99, SessionListFilter.All, "x").Should().BeFalse();
         SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, (SessionListFilter)99, "x").Should().BeFalse();

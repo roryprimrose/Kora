@@ -53,8 +53,10 @@ internal sealed partial class SessionsViewModel(
         set
         {
             if (!CanRead || !Enum.IsDefined(value)) { return; }
+            var searching = listSearchMode;
             InvalidateListSearch();
             sessionFilter = value;
+            if (searching) { status = ListQueryHint; }
             if (selected is not null && !Sessions.Contains(selected)) { ClearSelection(); }
             OnPropertyChanged();
             Notify();
@@ -72,6 +74,7 @@ internal sealed partial class SessionsViewModel(
     {
         InvalidateListSearch();
         sessions = null;
+        status = "Session metadata source/lifecycle changed. Rows and search continuation revoked; Refresh or Search requires fresh private admission.";
         Notify();
     }
 
@@ -251,7 +254,7 @@ internal sealed partial class SessionsViewModel(
         LeaveListSearch();
         var retained = selected?.Authority.SessionId;
         sessions = await service.ReadMetadataAsync(null, 25, lifetime.Token);
-        if (retained is { } id && sessions.Records.Any(record => record.Authority.SessionId == id))
+        if (retained is { } id && Sessions.Any(record => record.Authority.SessionId == id))
         {
             await RefreshSelectedWorkAsync();
         }

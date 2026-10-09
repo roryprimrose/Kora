@@ -8,6 +8,8 @@ namespace Kora.Core.Storage;
 /// <summary>Volatile metadata navigation policy. Names and query digests grant no session authority.</summary>
 public sealed class SessionListSearch
 {
+    private readonly Guid exactId;
+
     public SessionListSearch(SessionListSearchKind kind, SessionListFilter filter, string value)
     {
         if (!Enum.IsDefined(kind) || !Enum.IsDefined(filter))
@@ -17,6 +19,11 @@ public sealed class SessionListSearch
         ArgumentNullException.ThrowIfNull(value);
         if (kind is SessionListSearchKind.NameSubstring)
         {
+            // A valid scalar occupies at most two UTF-16 units; bound validation work before parsing.
+            if (value.Length > SessionName.MaximumScalars * 2)
+            {
+                throw new InvalidDataException("The query exceeds the authoritative session-name bounds.");
+            }
             Value = new SessionName(value).Value;
         }
         else
@@ -26,7 +33,7 @@ public sealed class SessionListSearch
             {
                 throw new InvalidDataException("Enter a nonempty immutable session ID in canonical lowercase D format.");
             }
-            ExactId = id;
+            exactId = id;
             Value = value;
         }
         Kind = kind;
@@ -38,12 +45,12 @@ public sealed class SessionListSearch
     public SessionListSearchKind Kind { get; }
     public SessionListFilter Filter { get; }
     public string Value { get; }
-    public Guid? ExactId { get; }
+    public Guid? ExactId => Kind is SessionListSearchKind.ExactId ? exactId : null;
     public string Digest { get; }
 
     public bool Matches(SessionWorkspaceEntry entry) =>
         (Filter is SessionListFilter.All || entry.Authority.IsActive == (Filter is SessionListFilter.Active))
-        && (Kind is SessionListSearchKind.ExactId ? entry.Authority.SessionId.Value == ExactId
+        && (Kind is SessionListSearchKind.ExactId ? entry.Authority.SessionId.Value == exactId
             : entry.Metadata?.Name.Value.Contains(Value, StringComparison.Ordinal) == true);
 
     public static bool IsValid(SessionListSearchKind kind, SessionListFilter filter, string value)

@@ -23,7 +23,7 @@ internal sealed partial class SessionsViewModel
             if (!CanEditListSearch) { return; }
             InvalidateListSearch();
             listQuery = value;
-            status = "Session metadata query changed. Search starts a fresh bounded scan; no history, action or name authority.";
+            status = ListQueryHint;
             Notify();
         }
     }
@@ -36,7 +36,7 @@ internal sealed partial class SessionsViewModel
             if (!CanEditListSearch || !Enum.IsDefined(value)) { return; }
             InvalidateListSearch();
             listSearchKind = value;
-            status = "Query mode changed. NameSubstring is literal ordinal/case-sensitive; ExactId requires canonical lowercase D format.";
+            status = ListQueryHint;
             Notify();
         }
     }
@@ -46,6 +46,11 @@ internal sealed partial class SessionsViewModel
         && SessionListSearch.IsValid(listSearchKind, sessionFilter, listQuery);
     public bool CanNextListSearch => CanSearchList && sessions is not null && listSearch?.Next is not null;
     public bool CanCancelListSearch => !closed && listSearchCancellation is not null;
+
+    private string ListQueryHint => SessionListSearch.IsValid(listSearchKind, sessionFilter, listQuery)
+        ? "Session metadata query changed. Search starts a fresh bounded scan; no history, action or name authority."
+        : "Invalid session metadata query. NameSubstring requires nonblank single-line NFC text, no control/format or surrounding whitespace, "
+            + "at most 120 scalars / 480 UTF-8 bytes. ExactId requires a nonempty canonical lowercase D GUID. Nothing is normalized, truncated or searched.";
 
     public void CancelListSearch() => listSearchCancellation?.Cancel();
 
@@ -129,8 +134,8 @@ internal sealed partial class SessionsViewModel
 
     private void LeaveListSearch()
     {
-        InvalidateListSearch();
         listSearchMode = false;
+        InvalidateListSearch();
     }
 
     private void RevokeListSearchPresentation()

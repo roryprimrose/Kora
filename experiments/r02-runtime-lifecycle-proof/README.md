@@ -1,11 +1,20 @@
 # R02-RT2 bounded runtime lifecycle observation
 
 **RT2 BLOCKED, not runtime isolation acceptance.** This is a runnable Windows
-x64 experiment, not production SDK composition. The final run passes 20/20
+x64 experiment, not production SDK composition. The retained 2026-10-06 run passes 20/20
 tests: 13 actual runtime lifecycle trials, six deterministic observer tests,
 and one live file/socket/diagnostic positive-control test. Two PowerShell
 receipt-locale contracts also pass. See [evidence](EVIDENCE.md) and
 [disposition](evidence/disposition.json).
+
+**Fresh unattended replay (2026-10-09 UTC): prerequisite-blocked.** Two receipt
+locale contracts pass, but no RT1 or RT2 .NET tests execute. Preparation rejects
+the current SDK package with NU1403; a separate source build is not byte-identical.
+The approved-input guard also rejects the baseline RT1 README's historical
+digest. No pin, lock, historical receipt or reproduction requirement is changed.
+See the [fresh report](UNATTENDED-20261009.md) and
+[redacted receipt](evidence/unattended-20261009.json). The historical passing
+counts above are not fresh results.
 
 **Current disposition:** migrate applicable lifecycle/diagnostic/persistence,
 event-loss/short-lived-path and quiescence assertions into maintained production

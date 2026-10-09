@@ -1,0 +1,344 @@
+{
+  "schema": "Kora.W2Preparation.v1",
+  "startedUtc": "2026-10-09T11:02:41.0772657+00:00",
+  "sourceRevision": "e0692f438a058de0a20021b3420a981849706dbf",
+  "sourceDirty": true,
+  "sourceStatus": [
+    " M experiments/r02-w2-dependency-proof/README.md",
+    " M experiments/r02-w2-dependency-proof/evidence/README.md",
+    "?? experiments/r02-w2-dependency-proof/Prepare-Proof.ps1"
+  ],
+  "sdk": "10.0.401",
+  "powershell": "7.6.6",
+  "scope": "FileOnlyPreparation",
+  "status": "PreparedOnly",
+  "exitCode": 0,
+  "steps": [
+    {
+      "executable": "dotnet",
+      "arguments": [
+        "restore",
+        "experiments\\r02-w2-dependency-proof\\tests\\W2Tests.csproj",
+        "--locked-mode",
+        "--verbosity",
+        "quiet"
+      ],
+      "startedUtc": "2026-10-09T11:02:42.3805645+00:00",
+      "endedUtc": "2026-10-09T11:02:44.6720600+00:00",
+      "exitCode": 0,
+      "log": "01-dotnet.log"
+    },
+    {
+      "executable": "dotnet",
+      "arguments": [
+        "restore",
+        "experiments\\r02-w2-dependency-proof\\payload\\Payload.csproj",
+        "--locked-mode",
+        "--verbosity",
+        "quiet"
+      ],
+      "startedUtc": "2026-10-09T11:02:44.6781353+00:00",
+      "endedUtc": "2026-10-09T11:02:46.5395772+00:00",
+      "exitCode": 0,
+      "log": "02-dotnet.log"
+    },
+    {
+      "executable": "dotnet",
+      "arguments": [
+        "build",
+        "experiments\\r02-w2-dependency-proof\\tests\\W2Tests.csproj",
+        "--configuration",
+        "Release",
+        "--no-restore",
+        "--verbosity",
+        "quiet"
+      ],
+      "startedUtc": "2026-10-09T11:02:46.5399646+00:00",
+      "endedUtc": "2026-10-09T11:02:49.7032247+00:00",
+      "exitCode": 0,
+      "log": "03-dotnet.log"
+    },
+    {
+      "executable": "dotnet",
+      "arguments": [
+        "test",
+        "--project",
+        "experiments\\r02-w2-dependency-proof\\tests\\W2Tests.csproj",
+        "--configuration",
+        "Release",
+        "--no-build",
+        "--",
+        "--report-trx",
+        "--results-directory",
+        "$EvidenceDirectory\\tests"
+      ],
+      "startedUtc": "2026-10-09T11:02:49.7036303+00:00",
+      "endedUtc": "2026-10-09T11:03:01.0797976+00:00",
+      "exitCode": 0,
+      "log": "04-dotnet.log"
+    },
+    {
+      "executable": "dotnet",
+      "arguments": [
+        "build",
+        "experiments\\r02-w2-dependency-proof\\payload\\Payload.csproj",
+        "--configuration",
+        "Release",
+        "--no-restore",
+        "--verbosity",
+        "quiet",
+        "-p:PayloadVariant=Declared",
+        "--output",
+        "$EvidenceDirectory\\declared"
+      ],
+      "startedUtc": "2026-10-09T11:03:01.2963015+00:00",
+      "endedUtc": "2026-10-09T11:03:06.7691333+00:00",
+      "exitCode": 0,
+      "log": "05-dotnet.log"
+    },
+    {
+      "executable": "dotnet",
+      "arguments": [
+        "build",
+        "experiments\\r02-w2-dependency-proof\\payload\\Payload.csproj",
+        "--configuration",
+        "Release",
+        "--no-restore",
+        "--verbosity",
+        "quiet",
+        "-p:PayloadVariant=Undeclared",
+        "--output",
+        "$EvidenceDirectory\\undeclared"
+      ],
+      "startedUtc": "2026-10-09T11:03:06.7696084+00:00",
+      "endedUtc": "2026-10-09T11:03:14.7910564+00:00",
+      "exitCode": 0,
+      "log": "06-dotnet.log"
+    }
+  ],
+  "tests": {
+    "total": 97,
+    "executed": 97,
+    "passed": 97,
+    "failed": 0,
+    "notExecuted": 0,
+    "report": "tests\\W2Tests_net10.0-windows7.0_x64.trx"
+  },
+  "sourceFiles": [
+    {
+      "name": "Directory.Build.targets",
+      "sha256": "AD98A44FAAD41A5FD42A335724AB9CA393B5317465AAB197B7949A4BAE3D8C62"
+    },
+    {
+      "name": "Directory.Packages.props",
+      "sha256": "8CA08C666D0539B4B27FC63B241887211CA0D16045E89E5E20EC9306479072C9"
+    },
+    {
+      "name": "eng\\Get-BuildVersion.ps1",
+      "sha256": "A83FA1908830BD8583E2E4E20F236901B8607C6A87E5820DE44CE7B64383E680"
+    },
+    {
+      "name": "experiments\\r02-containment-proof\\DescendantObservations.cs",
+      "sha256": "84AE31800D9F6D1F708E8211730E71EC2D2D6CC3386537774FFB454CAA84CBC1"
+    },
+    {
+      "name": "experiments\\r02-containment-proof\\InvocationPolicy.cs",
+      "sha256": "DF1BA5734B73C1B80440FE79CFFAA0115A6985B9BA2E5ABD9B7CFB4148F7E54D"
+    },
+    {
+      "name": "experiments\\r02-containment-proof\\Model.cs",
+      "sha256": "2779AD976AAE0A2734D03791A9000EF8D50604E257C23AFB53DFD0663EBBAE50"
+    },
+    {
+      "name": "experiments\\r02-containment-proof\\Native.cs",
+      "sha256": "86521DE533605F7A84C8EC4DEF4A12777A83FA43EFA3E21704DF1E86BD296F2C"
+    },
+    {
+      "name": "experiments\\r02-containment-proof\\NativeProcessHandle.cs",
+      "sha256": "4FF531604BD71CFCBD33A8C176EBD6426E66D2479DB00870E0A67C0431E4285E"
+    },
+    {
+      "name": "experiments\\r02-containment-proof\\NetworkCollection.cs",
+      "sha256": "71102CA21EC9AC20527C8FBAB0C2746731B4986912EB553B0A4FC9C76BC1AA4F"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Admission.cs",
+      "sha256": "47A9A55AA170D6C5BF3B728E3EC0D4D75457A91C0137C5BFC81040BF2F57BC15"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Compile-Native.ps1",
+      "sha256": "37A53A1AF5513842F6B28B1E538B273528E80B2969F48F624D170BC72BF46B18"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Directory.Build.props",
+      "sha256": "C71D5EE362BC2FFC6E0ACC47F2B4DB8C64D4EB47D491D79DB2F88BC2E8328A6A"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Export-Evidence.ps1",
+      "sha256": "3C33E6DEAF18C72FF84E11AC4D276DE9661C21F288332145F7D417810CBD6A80"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Host.cs",
+      "sha256": "E45074BDACCC89CBAD1F3B7381F71F51552DA9F761633F747CB4A30778392A9F"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Images.cs",
+      "sha256": "42D8D8967D1E8C844CECEC3644B3E87F8EA86F9F895729A1EA7AC0AB8EAFF5B8"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\instructions.txt",
+      "sha256": "4CA46FCAF802C850861F1D4C0CB2D623794BDB0FCA742C815D531A30087B90A0"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Invoke-Proof.ps1",
+      "sha256": "264CD9D7A9D4A9C5F7D4E4E50F865CA3ABBBEE4B5E60C8B418A03C03B2D9A017"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\native\\payload.c",
+      "sha256": "9703B65AEDE8F3CF375F0B354173E8553A9700FAE560F356FAF90BDD4166280D"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\NativePolicy.cs",
+      "sha256": "F354F75E5DF37E9EE25C9D9CE242EF5F8D27D41846658BB3D9647128A52E9E3A"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\packages.lock.json",
+      "sha256": "3ADCA8EE913405BBFC61802308086157370BED623CC0DC4D20883AAC4495A442"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\packages.lock.json",
+      "sha256": "3ADCA8EE913405BBFC61802308086157370BED623CC0DC4D20883AAC4495A442"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\Payload.cs",
+      "sha256": "868A3EB37EAE56F0438CC5991B34CA93BE1F86D2A1560125BA1CEA7046EDBD55"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\Payload.csproj",
+      "sha256": "B5B1AE5F939AA30502E0DF9FB0B0D0076CE4CC152985BB2FE189BD8486B4B0CE"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\payload\\Program.cs",
+      "sha256": "05028DB86C70968E29657300A8CC51CC821FDE096BA8DD8A24C70A4721EBDF0C"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Prepare-Proof.ps1",
+      "sha256": "133D2031441E432BD536BC051141456C069A4C7598C244D3DCE2C4D4C88A3072"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Program.cs",
+      "sha256": "8AF38A19912820FFC9C15CC63E03A85CD5296FC9AEF0602E19323A4D34936976"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\README.md",
+      "sha256": "AF0E40FE46BF5553502C9306BB676BD5F825CA0CC5D649792E04C210B1973687"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\scripts\\entry.ps1",
+      "sha256": "81E9A19D02E7659FD3CCD76474E35CB7E7E3161293FF24F10B26EEBE115E5E98"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\scripts\\helper.ps1",
+      "sha256": "CF8AB6A087C38102C2677A31F5FF8A1BF92BD307CE4512463C094C8D4DD03B20"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\scripts\\probe.ps1",
+      "sha256": "7BD2B7B1A20178123188FC6190FF26639F58D26E78E544F534A2424719F463E1"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\skill.json",
+      "sha256": "681D65389DFE72F9D7F6DB29AF20487EAEB0408D5B074BCB119FC65A30E73867"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\AdmissionTests.cs",
+      "sha256": "6BCC64E0ADCD610FF94C5E3E7331ED38E8CBCB94D1593B67BB443AD80702DA2B"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\DescendantObservationsTests.cs",
+      "sha256": "3BF201634A9BD14ACB62A76994AD792E627A573F34FA2550AAB6FC0D44E21A09"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\InvocationPolicyTests.cs",
+      "sha256": "B32D1AF0C7955F273B28410D18C42C4248863FED03ABE58EF2E54625CA659F8C"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\NetworkCollectionTests.cs",
+      "sha256": "506CCF6433A2B0926D843F3DF33A6C2770410F72F30579BDD09A085D783DD4FE"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\packages.lock.json",
+      "sha256": "34CE72D51A6D6613C080050CC8AB074D2CCC8CD8C542208AC15D4B699EF1624C"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\tests\\W2Tests.csproj",
+      "sha256": "6739ED53748922EA7871898B2E359A8FE6BA66DDE5B1879E3D8A3F1C846AB557"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\W2Proof.csproj",
+      "sha256": "E366EF64990C0C748BFC398381A0179EA2E39EB37502F4D0AE816CAD6965E07B"
+    },
+    {
+      "name": "experiments\\r02-w2-dependency-proof\\Worker.cs",
+      "sha256": "77E1DE2DB3EECBDEE4916ED42D93A814FB3950CE27B25D73693D01AA8597099A"
+    },
+    {
+      "name": "global.json",
+      "sha256": "4977AE364D92D2679ACC93FCB364EB2D7C990A320EDEBF034B01B9ED14098D84"
+    }
+  ],
+  "payloadFiles": [
+    {
+      "name": "declared\\W2Payload.deps.json",
+      "sha256": "C540D994420459F926E38D00F4ABCCBF085C63FE796026CB5F4139928B363598"
+    },
+    {
+      "name": "declared\\W2Payload.dll",
+      "sha256": "737869F0694EA88F70AB4991161BF9BB4B49ADDE0E138AAF72CBF854CAEEE4F4"
+    },
+    {
+      "name": "declared\\W2Payload.exe",
+      "sha256": "ED9D1E7CBBFF6AD8C484713D06419FC25E41AA877E8A751E83968A157A39EA2F"
+    },
+    {
+      "name": "declared\\W2Payload.pdb",
+      "sha256": "0E5BA4E227A87951DE7AF42239EC0684A3EAA2288CC8CBC23693F3BF67E811D8"
+    },
+    {
+      "name": "declared\\W2Payload.runtimeconfig.json",
+      "sha256": "3E965CD7CFD553C2FF4E842D8D8019AAAE2DA0A21D92FF85A87573DD8D1B95C6"
+    },
+    {
+      "name": "undeclared\\W2Payload.deps.json",
+      "sha256": "C540D994420459F926E38D00F4ABCCBF085C63FE796026CB5F4139928B363598"
+    },
+    {
+      "name": "undeclared\\W2Payload.dll",
+      "sha256": "26407D5A35D2066CCE3C5E71B322A60C8E916F2DCA4F9996CA0D911E4ABD3640"
+    },
+    {
+      "name": "undeclared\\W2Payload.exe",
+      "sha256": "ED9D1E7CBBFF6AD8C484713D06419FC25E41AA877E8A751E83968A157A39EA2F"
+    },
+    {
+      "name": "undeclared\\W2Payload.pdb",
+      "sha256": "FE8AF0A3732A1584C7593E6832C81CE6EBC1DD152FA9BD3BDE25F367FD9E8364"
+    },
+    {
+      "name": "undeclared\\W2Payload.runtimeconfig.json",
+      "sha256": "3E965CD7CFD553C2FF4E842D8D8019AAAE2DA0A21D92FF85A87573DD8D1B95C6"
+    }
+  ],
+  "qualification": "NotRun",
+  "notRun": [
+    "Invoke-Proof",
+    "Worker",
+    "RestrictedToken",
+    "AppContainer",
+    "NativeLoading",
+    "InstalledProtection",
+    "WindowsControlEffects",
+    "NetworkTrials",
+    "ProductionLifecycle"
+  ],
+  "endedUtc": "2026-10-09T11:03:15.4359306+00:00"
+}

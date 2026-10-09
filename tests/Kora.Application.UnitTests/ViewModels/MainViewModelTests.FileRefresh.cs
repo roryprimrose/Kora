@@ -59,8 +59,17 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ConfirmFilePreviewAsync(previousReview);
         var file = fixture.ViewModel.FileRevision;
         var source = fixture.ViewModel.FolderRevision;
+        using (var system = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Request))
+        {
+            if (folder) { await fixture.ViewModel.RefreshFolderPreviewAsync(source!.Reference); }
+            else { await fixture.ViewModel.RefreshFilePreviewAsync(file!.Reference); }
+            fixture.ViewModel.ResponseTitle.Should().Contain("Stale");
+        }
         if (native)
         {
+            if (folder) { await fixture.ViewModel.RefreshFolderPreviewAsync(source!.Reference with { RevisionId = Guid.NewGuid() }); }
+            else { await fixture.ViewModel.RefreshFilePreviewAsync(file!.Reference with { RevisionId = Guid.NewGuid() }); }
+            fixture.ViewModel.ResponseTitle.Should().Contain("Stale");
             if (folder) { await fixture.ViewModel.RefreshFolderPreviewAsync(source!.Reference); }
             else { await fixture.ViewModel.RefreshFilePreviewAsync(file!.Reference); }
         }
@@ -137,5 +146,41 @@ public sealed partial class MainViewModelTests
         files.Reads.Should().Be(folder ? 0 : 1);
         folders.Reads.Should().Be(folder ? 2 : 0);
         fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeRefreshRefusalIsExplicitRetiresOldPreviewAndNeverClaimsSuccess(bool folder)
+    {
+        var fixture = new Fixture();
+        using var preview = new LocalFilePreview(new RefusingRefreshInspector(folder ? new FolderInspector() : new FakeFileInspector()),
+            fixture.Audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        fixture.ViewModel.BindFilePreview(preview, new FakeFilePicker(), folders: new NativeFolderPicker(), refresh: new(preview));
+        if (folder) { await fixture.ViewModel.PreviewFolderAsync(); }
+        else { await fixture.ViewModel.PreviewFileAsync(); }
+        await fixture.ViewModel.ConfirmFilePreviewAsync(fixture.ViewModel.FileReview?.ReviewId ?? fixture.ViewModel.FolderReview!.ReviewId);
+        if (folder) { await fixture.ViewModel.RefreshFolderPreviewAsync(fixture.ViewModel.FolderRevision!.Reference); }
+        else { await fixture.ViewModel.RefreshFilePreviewAsync(fixture.ViewModel.FileRevision!.Reference); }
+        fixture.ViewModel.ResponseTitle.Should().Contain("Unavailable");
+        fixture.ViewModel.ResponseBody.Should().Contain("Failure/cancel leaves no preview").And.Contain("native picker");
+        fixture.ViewModel.FileRevision.Should().BeNull();
+        fixture.ViewModel.FolderRevision.Should().BeNull();
+        fixture.ViewModel.FileReview.Should().BeNull();
+        fixture.ViewModel.FolderReview.Should().BeNull();
+        await preview.WaitForQuiescenceAsync();
+        fixture.HostStore.Records.Should().BeEmpty();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    private sealed class RefusingRefreshInspector(ILocalFileInspector original) : ILocalFileInspector
+    {
+        private int inspections;
+        public Task<ILocalFileSelection> InspectAsync(string selectedPath, CancellationToken cancellationToken) =>
+            ++inspections == 1 ? original.InspectAsync(selectedPath, cancellationToken)
+                : Task.FromException<ILocalFileSelection>(new IOException("Synthetic source missing."));
+        public Task<ILocalFolderSelection> InspectFolderAsync(string selectedPath, CancellationToken cancellationToken) =>
+            ++inspections == 1 ? original.InspectFolderAsync(selectedPath, cancellationToken)
+                : Task.FromException<ILocalFolderSelection>(new IOException("Synthetic source missing."));
     }
 }

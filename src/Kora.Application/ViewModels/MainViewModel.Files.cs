@@ -73,15 +73,29 @@ public sealed partial class MainViewModel
 
     public void ClearFilePreview() => filePreview?.Clear();
 
-    public Task RefreshFilePreviewAsync(LocalFileReference exactSource) =>
-        RefreshPreviewAsync(FileRevision?.Reference == exactSource ? FileRevision?.Review.Request : null,
-            FileRevision?.Review.Cause, gate => fileRefresh!.ExecuteAsync(exactSource, gate, CancellationToken.None));
+    public Task RefreshFilePreviewAsync(LocalFileReference exactSource)
+    {
+        if (FileRevision is not { } admitted || admitted.Reference != exactSource)
+        {
+            PresentFileOutcome(LocalFileOutcome.Stale);
+            return Task.CompletedTask;
+        }
+        return RefreshPreviewAsync(admitted.Review.Request, admitted.Review.Cause,
+            gate => fileRefresh!.ExecuteAsync(exactSource, gate, CancellationToken.None));
+    }
 
-    public Task RefreshFolderPreviewAsync(LocalFolderReference exactSource) =>
-        RefreshPreviewAsync(FolderRevision?.Reference == exactSource ? FolderRevision?.Review.Request : null,
-            FolderRevision?.Review.Cause, gate => fileRefresh!.ExecuteAsync(exactSource, gate, CancellationToken.None));
+    public Task RefreshFolderPreviewAsync(LocalFolderReference exactSource)
+    {
+        if (FolderRevision is not { } admitted || admitted.Reference != exactSource)
+        {
+            PresentFileOutcome(LocalFileOutcome.Stale);
+            return Task.CompletedTask;
+        }
+        return RefreshPreviewAsync(admitted.Review.Request, admitted.Review.Cause,
+            gate => fileRefresh!.ExecuteAsync(exactSource, gate, CancellationToken.None));
+    }
 
-    private async Task RefreshPreviewAsync(HostRequest? original, ActivityContext? cause,
+    private async Task RefreshPreviewAsync(HostRequest original, ActivityContext cause,
         Func<Func<bool>, Task<LocalFileOutcome>> refresh)
     {
         var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
@@ -90,7 +104,7 @@ public sealed partial class MainViewModel
         bool Eligible() => IsClipboardEligible(origin, callRevision)
             && (origin != RequestOrigin.ActivatedVoice || (IsVoiceEnabled && HasVoiceConsent
                 && Volatile.Read(ref voiceRecoveryRevision) == voiceRevision));
-        if (original is null || cause is null || fileRefresh is null || !Eligible())
+        if (fileRefresh is null || !Eligible())
         {
             PresentFileOutcome(LocalFileOutcome.Stale);
             return;
@@ -98,7 +112,7 @@ public sealed partial class MainViewModel
         // The host-held admission, not command text or incoming trace headers, selects this continuation.
         var request = new HostRequest(new(Guid.NewGuid()), original.SessionId, original.TaskId, origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
-            [new ActivityLink(cause.Value)]);
+            [new ActivityLink(cause)]);
         ShowInformation("Explicit local preview refresh requested",
             "Starting a fresh metadata review of the exact admitted physical source. The old immutable preview and citations "
             + "are retired when this operation starts; no content is read until a separate new native confirmation. "

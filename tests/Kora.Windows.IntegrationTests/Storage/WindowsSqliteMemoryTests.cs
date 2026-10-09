@@ -37,6 +37,18 @@ public sealed partial class WindowsSqliteMemoryTests
         }
         fixture.Count("reviewed_memory").Should().Be(MemoryPolicy.MaximumEntries);
         await FinishIntent(fixture);
+        var access = new Access();
+        var sessions = new Kora.Application.Hosting.SessionWorkspaceService(fixture.Store, new(fixture.Tasks), access,
+            NullLogger<Kora.Application.Hosting.SessionWorkspaceService>.Instance);
+        var other = await sessions.CreateAsync(new("Other exact session"), RequestOrigin.LocalUi, fixture.Token);
+        await using (var management = new MemoryManagementService(sessions, fixture.Store, access, access,
+            fixture.Store, new Audit(), NullLogger<MemoryAdmissionService>.Instance, fixture.Time))
+        {
+            var result = await management.ExecuteAsync(new(Kora.Core.Commands.MemoryCommandOperation.Propose,
+                other.Authority.SessionId.Value, Candidate: Candidate), RequestOrigin.LocalUi, () => true, fixture.Token);
+            result.Outcome.Should().Be("CapacityExceeded");
+            result.Memories.Should().BeEmpty();
+        }
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
         fixture.Count("reviewed_memory").Should().Be(MemoryPolicy.MaximumEntries);

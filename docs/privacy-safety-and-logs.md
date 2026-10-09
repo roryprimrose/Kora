@@ -1,12 +1,10 @@
 # Privacy, safety, and logs
 
-## Reviewed memory foundation (not enabled in the desktop)
+## Reviewed session memory controls
 
-Kora has a provider-independent reviewed memory domain and internal host
-workflow with a bounded session-only private durable store, not an enabled desktop memory feature. There is currently no
-native review/list/edit UI, cross-session recall, provider-memory write
-or automatic attachment to model requests. Ordinary conversation is not
-silently saved as memory.
+Kora has a provider-independent reviewed memory domain and a bounded session-only private durable store.
+[Native and exact typed/activated controls](commands.md#create-and-manage-reviewed-session-memories) create a deliberate original-user volatile proposal and list/inspect/review/admit/edit/disable/forget exact session memories.
+There is no cross-session recall, provider-memory write or automatic attachment to model requests. Ordinary conversation is not silently saved as memory.
 
 The foundation separates untrusted proposals, explicit user review and host
 admission; edits remove prior review/use authority, disabled memories are
@@ -16,17 +14,17 @@ lineage are checked before use, with explicit failures for unknown state,
 forbidden content classes, size limits and revision conflicts. Credentials,
 secrets, health information, inferred traits, transient tasks and model claims
 are prohibited classes, not retention preferences. A model's class label is
-not evidence that its text is safe or a user approval.
+not evidence that its text is safe or a user approval. An original-user classification is not secrecy detection either.
 
 Any future local-use surface must expose exact memory IDs/revisions and source
 provenance. Local retention never grants hosted disclosure. The internal
 session-only store shares authoritative audit and session lifecycle/retention;
 proposals and edited replacement bodies stay volatile until exact review and admission.
-Uninventoried managed copies hold deletion acceptance. Native controls and
-broader scopes remain dependent work. Forgetting is not forensic erasure or
+Drafts and unadmitted bodies are discarded on closure, session/privacy/ownership changes or restart.
+Uninventoried managed copies hold deletion acceptance. Broader scopes and provider use remain dependent work. Forgetting is not forensic erasure or
 removal of previously returned/exported/provider copies.
 Logs and Activities carry host IDs and typed outcomes, not memory content.
-See the [authoritative delivery boundary](../Design/Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09).
+See the [authoritative proposal boundary](../Design/Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10).
 
 ## Trusted local event privacy
 

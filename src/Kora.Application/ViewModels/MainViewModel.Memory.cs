@@ -1,5 +1,4 @@
 using System.Text;
-using Kora.Application.Diagnostics;
 using Kora.Application.Memory;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -14,12 +13,22 @@ public sealed partial class MainViewModel
     internal void BindMemoryCommands(MemoryManagementService service)
     {
         memoryCommands = service;
-        PrivacyClosureRequested += (_, _) => service.ClearInspection();
+        PrivacyClosureRequested += (_, _) =>
+        {
+            service.ClearVolatile();
+            ClearMemoryCommandDraft();
+        };
+    }
+
+    private void ClearMemoryCommandDraft()
+    {
+        if (MemoryCommand.Parse(CommandText, AssistantName) is not null) { CommandText = string.Empty; }
     }
 
     internal async Task ExecuteMemoryCommandAsync(MemoryCommand command, SecurityAuditInitiator initiator)
     {
         if (disposed) { return; }
+        ClearMemoryCommandDraft();
         if (command.Operation == MemoryCommandOperation.Invalid)
         {
             ShowInformation("Memory command not accepted.", command.Error!);
@@ -50,7 +59,7 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is InvalidOperationException or IOException
             or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
-            ApplicationLog.Error(logger, exception, "Running original-user memory management");
+            MemoryCommandFailed(logger, exception.GetType().Name);
             if (disposed || !IsHostInputEligible) { return; }
             ShowFailure("Memory command not confirmed.", exception.Message
                 + " Refresh the exact session/identity/revision after resolving privacy, ownership, call or storage gates."

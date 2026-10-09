@@ -13,12 +13,14 @@ public sealed record MemoryCommand(MemoryCommandOperation Operation, Guid? Sessi
     public const int MaximumInputBytes = MemoryPolicy.MaximumCandidateUtf8Bytes + 512;
     public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["memory help", "list memories"];
     public const string Syntax = "memory help | memory list <session-id> | memory inspect/get <session-id> <memory-id> <revision>"
+        + " | memory propose <session-id> ExplicitFact|ResponsePreference|WorkflowPreference|Decision \"<exact value>\""
         + " | memory review <session-id> <memory-id> <revision> accept|reject"
         + " | memory admit/disable/forget <session-id> <memory-id> <revision>"
         + " | memory edit/set <session-id> <memory-id> <revision> ExplicitFact|ResponsePreference|WorkflowPreference|Decision \"<exact value>\"."
         + " Canonical nonempty D GUIDs and positive decimal revisions only. Double a quote inside the final quoted value."
         + " Session only; list is content-free. Inspect before review; review does not admit."
-        + " Edit clears review and returns to Proposed/Pending. No proposal trigger, recall, model tool or hosted disclosure.";
+        + " Propose creates a volatile Proposed/Pending user candidate; it does not review or admit."
+        + " Edit clears review and returns to Proposed/Pending. No conversational Remember trigger, recall, model tool or hosted disclosure.";
 
     public static MemoryCommand? Parse(string input, string assistantName)
     {
@@ -65,6 +67,12 @@ public sealed record MemoryCommand(MemoryCommandOperation Operation, Guid? Sessi
         if (words.Length < 3 || !ExactId(words[2], out var session)) { return Invalid(); }
         var verb = words[1].ToLowerInvariant();
         if (verb is "list" && words.Length == 3 && value is null) { return new(MemoryCommandOperation.List, session); }
+        if (verb is "propose" && words.Length == 4 && value is not null)
+        {
+            var candidate = CandidateFor(words[3], value);
+            return MemoryPolicy.ValidateCandidate(candidate) == MemoryReason.None
+                ? new(MemoryCommandOperation.Propose, session, Candidate: candidate) : Invalid();
+        }
         if (words.Length < 5 || !ExactId(words[3], out var memory)
             || !long.TryParse(words[4], NumberStyles.None, CultureInfo.InvariantCulture, out var revision) || revision <= 0)
         {
@@ -90,15 +98,7 @@ public sealed record MemoryCommand(MemoryCommandOperation Operation, Guid? Sessi
         }
         if (verb is "edit" or "set" && words.Length == 6 && value is not null)
         {
-            var contentClass = words[5].ToLowerInvariant() switch
-            {
-                "explicitfact" => MemoryContentClass.ExplicitFact,
-                "responsepreference" => MemoryContentClass.ResponsePreference,
-                "workflowpreference" => MemoryContentClass.WorkflowPreference,
-                "decision" => MemoryContentClass.Decision,
-                _ => MemoryContentClass.Unknown,
-            };
-            var candidate = new MemoryCandidate(contentClass, value);
+            var candidate = CandidateFor(words[5], value);
             if (MemoryPolicy.ValidateCandidate(candidate) == MemoryReason.None)
             {
                 return new(MemoryCommandOperation.Edit, session, memory, revision, Candidate: candidate);
@@ -106,6 +106,15 @@ public sealed record MemoryCommand(MemoryCommandOperation Operation, Guid? Sessi
         }
         return Invalid();
     }
+
+    private static MemoryCandidate CandidateFor(string name, string value) => new(name.ToLowerInvariant() switch
+    {
+        "explicitfact" => MemoryContentClass.ExplicitFact,
+        "responsepreference" => MemoryContentClass.ResponsePreference,
+        "workflowpreference" => MemoryContentClass.WorkflowPreference,
+        "decision" => MemoryContentClass.Decision,
+        _ => MemoryContentClass.Unknown,
+    }, value);
 
     private static bool ExactId(string value, out Guid id) =>
         Guid.TryParseExact(value, "D", out id) && id != Guid.Empty

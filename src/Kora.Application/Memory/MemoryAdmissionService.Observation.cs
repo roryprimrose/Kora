@@ -13,7 +13,21 @@ internal sealed partial class MemoryAdmissionService
         {
             lifecycleRevision++;
             foreach (var id in records.Values.Where(row => row.Scope.Kind == MemoryScopeKind.Session
-                && row.Scope.Identity == session.Value).Select(row => row.Id).ToArray()) { records.Remove(id); }
+                && row.Scope.Identity == session.Value).Select(row => row.Id).ToArray())
+            {
+                records.Remove(id);
+                volatileIdentities.Remove(id);
+            }
+        }
+    }
+
+    internal void ClearCache()
+    {
+        lock (stateGate)
+        {
+            lifecycleRevision++;
+            records.Clear();
+            volatileIdentities.Clear();
         }
     }
 

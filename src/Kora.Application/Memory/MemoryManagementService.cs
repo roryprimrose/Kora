@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Memory;
 
-/// <summary>Original-user management only. No proposal, use, model tool or disclosure entry point.</summary>
+/// <summary>Original-user session proposals and management only. No use, model tool or disclosure entry point.</summary>
 internal sealed class MemoryManagementService : IAsyncDisposable
 {
     private readonly SessionWorkspaceService sessions;
@@ -21,6 +21,7 @@ internal sealed class MemoryManagementService : IAsyncDisposable
     private readonly Dictionary<HostId<MemoryIdentity>, (MemoryRecord Record, long Control)> inspections = [];
     private bool disposed;
     private Task? disposal;
+    private long? observedControl;
 
     public MemoryManagementService(SessionWorkspaceService sessions, ISessionWorkspaceStore workspace,
         ISessionWorkspaceAccess access, ICapabilityHostAccess host, IMemoryStore store,
@@ -37,6 +38,18 @@ internal sealed class MemoryManagementService : IAsyncDisposable
     internal void ClearInspection()
     {
         lock (stateGate) { inspections.Clear(); }
+    }
+
+    internal void ClearVolatile()
+    {
+        Admission.ClearCache();
+        ClearInspection();
+    }
+
+    internal void ClearSessionDrafts(HostId<SessionIdentity> session)
+    {
+        Admission.ClearSessionCache(session);
+        ClearInspection();
     }
 
     internal void ExpireSession(HostId<SessionIdentity> session)
@@ -60,6 +73,10 @@ internal sealed class MemoryManagementService : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(admission);
+        if (Kora.Core.Diagnostics.HostActivity.HasScope && Kora.Core.Diagnostics.HostActivity.Current is null)
+        {
+            throw new InvalidOperationException("Memory management requires live original local user input.");
+        }
         if (Kora.Core.Diagnostics.HostActivity.Current is { } current)
         {
             if (current.Activity!.IsStopped || current.Outcome != Kora.Core.Diagnostics.HostOperationOutcome.Unknown)
@@ -80,6 +97,8 @@ internal sealed class MemoryManagementService : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             var control = access.ControlRevision;
+            if (observedControl is { } previous && previous != control) { ClearVolatile(); }
+            observedControl = control;
             bool Eligible() => !disposed && !token.IsCancellationRequested && admission()
                 && access.Underlying.CanControl && access.ControlRevision == control;
             access.Admitted = Eligible;
@@ -95,9 +114,20 @@ internal sealed class MemoryManagementService : IAsyncDisposable
             {
                 var rows = await Admission.ObserveSessionAsync(token).ConfigureAwait(false);
                 MemoryCommandResult result;
-                if (command.Operation == MemoryCommandOperation.List)
+                if (command.Operation == MemoryCommandOperation.Propose)
                 {
-                    result = new("observed", "Exact active-session metadata only; no recall, proposal or disclosure.")
+                    if (command.MemoryId is not null || command.Revision != 0 || command.Accept)
+                    {
+                        throw new InvalidOperationException("A new user proposal cannot supply memory identity, revision or review authority.");
+                    }
+                    var proposed = await Admission.ProposeAsync(command.Candidate, MemoryScope.Session(session),
+                        MemoryProposalOrigin.User, token).ConfigureAwait(false);
+                    result = new(proposed.Outcome.ToString(), proposed.Reason.ToString())
+                    { Memories = proposed.Record is { } created ? [Summary(created)] : [] };
+                }
+                else if (command.Operation == MemoryCommandOperation.List)
+                {
+                    result = new("observed", "Exact active-session metadata only; no recall or disclosure.")
                     { Memories = [.. rows.Select(Summary)] };
                 }
                 else

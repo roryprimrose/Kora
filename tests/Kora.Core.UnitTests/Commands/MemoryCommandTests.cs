@@ -15,6 +15,7 @@ public sealed class MemoryCommandTests
     [InlineData("memory help", MemoryCommandOperation.Help)]
     [InlineData("list memories", MemoryCommandOperation.Help)]
     [InlineData("memory list " + Session, MemoryCommandOperation.List)]
+    [InlineData("memory propose " + Session + " Decision \"exact \"\"quote\"\" café\"", MemoryCommandOperation.Propose)]
     [InlineData("memory inspect " + Target, MemoryCommandOperation.Inspect)]
     [InlineData("memory get " + Target, MemoryCommandOperation.Inspect)]
     [InlineData("memory review " + Target + " accept", MemoryCommandOperation.Review)]
@@ -31,7 +32,7 @@ public sealed class MemoryCommandTests
             var result = MemoryCommand.Parse(prefix + input, "Kora")!;
             result.Operation.Should().Be(operation);
             if (operation is not MemoryCommandOperation.Help) { result.SessionId.Should().Be(Guid.Parse(Session)); }
-            if (operation is MemoryCommandOperation.Edit)
+            if (operation is MemoryCommandOperation.Edit or MemoryCommandOperation.Propose)
             {
                 result.Candidate.Should().Be(new MemoryCandidate(MemoryContentClass.Decision, "exact \"quote\" café"));
             }
@@ -52,6 +53,9 @@ public sealed class MemoryCommandTests
     [InlineData("memory edit " + Target + " Decision \"unterminated")]
     [InlineData("memory edit " + Target + " Decision \"value\" trailing")]
     [InlineData("memory propose \"not delivered\"")]
+    [InlineData("memory propose " + Session + " Credential \"secret\"")]
+    [InlineData("memory propose " + Target + " Decision \"value\"")]
+    [InlineData("memory propose " + Session + " Decision")]
     [InlineData("memory remember \"not delivered\"")]
     [InlineData("memory")]
     [InlineData("memory help \"value\"")]
@@ -72,10 +76,17 @@ public sealed class MemoryCommandTests
             new string('\\', 512), " ", "line\nbreak", "\ud800", "e\u0301" })
         {
             var candidate = new MemoryCandidate(MemoryContentClass.Decision, value);
-            var command = MemoryCommand.Parse("memory edit " + Target + " Decision \"" + value + "\"", "Kora")!;
             var valid = MemoryPolicy.ValidateCandidate(candidate) == MemoryReason.None;
-            command.Operation.Should().Be(valid ? MemoryCommandOperation.Edit : MemoryCommandOperation.Invalid);
-            if (valid) { command.Candidate!.Value.Should().Be(value); }
+            foreach (var (selector, operation) in new[]
+            {
+                ("memory edit " + Target, MemoryCommandOperation.Edit),
+                ("memory propose " + Session, MemoryCommandOperation.Propose)
+            })
+            {
+                var command = MemoryCommand.Parse(selector + " Decision \"" + value + "\"", "Kora")!;
+                command.Operation.Should().Be(valid ? operation : MemoryCommandOperation.Invalid);
+                if (valid) { command.Candidate!.Value.Should().Be(value); }
+            }
         }
         MemoryCommand.Parse("unrelated command", "Kora").Should().BeNull();
         MemoryCommand.Parse("memorysuffix", "Kora").Should().BeNull();
@@ -92,6 +103,21 @@ public sealed class MemoryCommandTests
     public void ReplacementSupportsEveryAdmittedContentClassification(string name, MemoryContentClass contentClass) =>
         MemoryCommand.Parse("memory edit " + Target + " " + name + " \"exact value\"", "Kora")!.Candidate
             .Should().Be(new MemoryCandidate(contentClass, "exact value"));
+
+    [Theory]
+    [InlineData("ExplicitFact", MemoryContentClass.ExplicitFact)]
+    [InlineData("ResponsePreference", MemoryContentClass.ResponsePreference)]
+    [InlineData("WorkflowPreference", MemoryContentClass.WorkflowPreference)]
+    [InlineData("Decision", MemoryContentClass.Decision)]
+    public void ProposalRequiresNoExistingIdentityAndPreservesExactClassAndValue(string name, MemoryContentClass contentClass)
+    {
+        var command = MemoryCommand.Parse("memory propose " + Session + " " + name + " \" exact value \"", "Kora")!;
+        command.Operation.Should().Be(MemoryCommandOperation.Propose);
+        command.MemoryId.Should().BeNull();
+        command.Revision.Should().Be(0);
+        command.Accept.Should().BeFalse();
+        command.Candidate.Should().Be(new MemoryCandidate(contentClass, " exact value "));
+    }
 
     [Fact]
     public void OversizedSerializedInventoryFailsExplicitlyWithoutTruncation()

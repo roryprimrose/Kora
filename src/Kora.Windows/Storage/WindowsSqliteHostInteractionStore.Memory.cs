@@ -83,6 +83,20 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var all = ReadMemory(connection);
             var rows = all.Where(row => row.Scope.Identity == request.SessionId.Value).ToImmutableArray();
             var commit = transition(rows);
+            if (commit.VolatileIdentityCount < 0)
+            {
+                throw new InvalidDataException("The host-owned volatile memory identity count is invalid.");
+            }
+            if (commit.Result is { Outcome: MemoryOutcome.Succeeded, Record: not null })
+            {
+                RequireFreshMetadataIntent(intent);
+            }
+            if (commit.Replacement is null && commit.Result is
+                { Outcome: MemoryOutcome.Succeeded, Record: { Revision.Value: 1, Review: MemoryReviewState.Proposed } }
+                && all.Length + (long)commit.VolatileIdentityCount >= MemoryPolicy.MaximumEntries)
+            {
+                return new MemoryResult(MemoryOutcome.CapacityExceeded, MemoryReason.Capacity);
+            }
             if (commit.Replacement is not { } replacement) { return commit.Result; }
             RequireFreshMetadataIntent(intent);
             ValidateMemoryRecord(replacement, boundary.Profile);

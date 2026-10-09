@@ -20,6 +20,35 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R12/D-014 Bounded Original-User Session Memory Proposals - 2026-10-10
+
+The [original-user proposal increment](Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10) adds native **New session memory from draft** and exact typed/activated `memory propose` input to the same admission workflow used by delivered management. Host-issued identity/lineage/revision needs no existing memory. Creation is only volatile Proposed/Pending metadata.
+
+Exact inspect → explicit review → separate admission remains required. Domain text limits, 128 durable/volatile identity capacity including shells/tombstones, fresh exact original intent, private session/generation/owner/control admission, cancellation, audit/storage failure and late callback fences remain authoritative. Closure/privacy/session changes and restart discard drafts/unadmitted bodies. No speech/history/log/provider content is added.
+
+Maintained evidence: [Core grammar/domain boundaries](../tests/Kora.Core.UnitTests/Commands/MemoryCommandTests.cs), [Application hostile/revoked/failure/capacity tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.Proposals.cs), [private SQLite native/exact create-to-inspect/review/admit and discard tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Proposals.cs), and [static native binding contract](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.cs).
+
+Experiment assessment: no experiment assertion is exactly superseded by this model-free volatile proposal/UI addition. Retain all [storage proof](../experiments/r02-storage-proof/README.md#proof-code-lifecycle) crypto/copy/native/recovery assertions and receipts, plus [runtime](../experiments/r02-runtime-proof/README.md) and [local-inference](../experiments/r02-local-inference-proof/README.md) mediation/provider/quality/resource evidence. No executable or consumer is removed or rerun.
+
+Existing RT1 witness, management input-validation and synthetic runtime-extraction consumers remain unchanged. No eng proof-tool changes, hardware/provider trials, full R12/D-014 qualification or release acceptance are claimed.
+
+Local validation receipt: initial base `ca7e5393bbf1f8c62d17b19baa9752728e817e21`; conflict-free rebase onto main `9d156f30f469440e06d515368a5a2e399f51cea9`, preserving proof-only #141/#143. Code head `4eb5fcde2aeaf332dc062ffeeccb124f34586a30`; the subsequent receipt-only commit changes no executable code. Missing assets were restored locked from the approved Networking-AAA feed only.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1322; Application: 3602; Tools: 90; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: 1303; all five suites failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <latest-only-final-main-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0% (18273/18273); Branch coverage: 100.0% (10992/10992)
+```
+
+Follow-up receipt for [PR #150](https://github.com/roryprimrose/Kora/pull/150): rebased onto `c8365251488a063bd2e9ea76a6fb91002ea376bb` (#144) and reran the zero-warning Release build, all five suites and unchanged exact coverage gate with the same counts. A further rebase onto `444e7cd25bc10640766dd61d50e3c6566d1ae70e` (#145) adds only two proof receipt files; verified identical production/test/build-input trees and repeated the zero-warning build.
+
+Final privacy receipt on base `444e7cd25bc10640766dd61d50e3c6566d1ae70e`, code head `cd82be25e0a56d170e39e8e35f727b24dbb4eff9`: failed memory commands emit only exception type, never a diagnostic exception payload containing user text. The injected-storage-error test verifies this boundary. Release build 0 warnings/errors; Core 1322, Application 3603, Tools 90, Definitions 6, Windows 1303 pass with 0 failures/skips. Latest-only unchanged gate: 18275/18275 lines and 10992/10992 branches, 100%/100%.
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

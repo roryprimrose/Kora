@@ -461,6 +461,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }
         ClearMemories();
         ClearLocalEvents();
         selectionEpoch++;

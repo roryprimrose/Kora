@@ -137,14 +137,20 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(4, "only the bounded name draft, exact immutable history ID, volatile lexical query and exact memory replacement are editable; no conversation composer exists");
+            .Should().HaveCount(4, "only the bounded name draft, exact immutable history ID, volatile lexical query and exact memory proposal/replacement are editable; no conversation composer exists");
         source.Should().Contain("MemoryDraft, Mode=TwoWay").And.Contain("CanEditMemory")
             .And.Contain("selection is passive").And.Contain("Review exact content: accept")
             .And.Contain("Admit reviewed revision").And.Contain("not forensic erasure");
+        source.Should().Contain("New session memory from draft").And.Contain("CanProposeMemory")
+            .And.Contain("no review, admission, recall or transmission");
+        document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+            && element.Attribute("Text")?.Value.Contains("MemoryDraft", StringComparison.Ordinal) == true)
+            .Attribute("MaxLength").Should().BeNull("the authoritative domain rejects oversized values instead of UI truncation");
         source.Should().Contain("NameDraft").And.Contain("CanCreate").And.Contain("CanRename");
         source.Should().Contain("HistorySessionId").And.Contain("CanHistory").And.Contain("CanNextHistory")
             .And.Contain("Read bounded ordered session history without resuming");
         var code = Read("SessionsWindow.axaml.cs");
+        code.Should().Contain("ProposeMemory.Click +=").And.Contain("model.ProposeMemoryAsync()");
         code.Should().Contain("model.SelectAsync").And.Contain("Key.Escape").And.NotContain("SubmitAsync")
             .And.NotContain("ApproveAsync").And.NotContain("Clipboard").And.NotContain("Reasoner");
         Read("SessionsWindowController.cs").Should().Contain("PrivacyClosureRequested +=")

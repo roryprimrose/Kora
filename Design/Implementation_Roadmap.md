@@ -356,6 +356,8 @@ Scope closes the native **review consumer** gap, not D-014/R08 acceptance. Produ
 
 RT1 source-built bytes and RT2 all-path gates stay BLOCKED. MG1's released-runtime repeat is narrower evidence, not production/account acceptance. Unique runtime/native/account/local-floor/offline procedures and all experiment receipts/executables remain **retain**. No maintained-proof owner files, experiments, preferences or schemas change.
 
+Validation on `444e7cd` main with code head `0798163`: root Release build had zero warnings/errors. Core **1,314**, Application **3,616**, Tools **90**, Definitions **6** and Windows **1,299** passed, with zero failures/skips. Clean reports and the existing coverage gate confirmed **18,387/18,387 portable lines** and **11,058/11,058 branches** (100%/100%).
+
 ### R08/D-014 Volatile Provider Policy and Exact Handoff Workflow - 2026-10-09
 
 The [bounded policy/workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)

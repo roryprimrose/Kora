@@ -47,6 +47,8 @@ Line coverage: 100.0% (18273/18273); Branch coverage: 100.0% (10992/10992)
 
 Follow-up receipt for [PR #150](https://github.com/roryprimrose/Kora/pull/150): rebased onto `c8365251488a063bd2e9ea76a6fb91002ea376bb` (#144) and reran the zero-warning Release build, all five suites and unchanged exact coverage gate with the same counts. A further rebase onto `444e7cd25bc10640766dd61d50e3c6566d1ae70e` (#145) adds only two proof receipt files; verified identical production/test/build-input trees and repeated the zero-warning build.
 
+Final privacy receipt on base `444e7cd25bc10640766dd61d50e3c6566d1ae70e`, code head `cd82be25e0a56d170e39e8e35f727b24dbb4eff9`: failed memory commands emit only exception type, never a diagnostic exception payload containing user text. The injected-storage-error test verifies this boundary. Release build 0 warnings/errors; Core 1322, Application 3603, Tools 90, Definitions 6, Windows 1303 pass with 0 failures/skips. Latest-only unchanged gate: 18275/18275 lines and 10992/10992 branches, 100%/100%.
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

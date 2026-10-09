@@ -323,6 +323,57 @@ capacity/copy/crypto consumers and runtime/lifecycle/containment/speech/
 distribution or real installed-native evidence. No harness is promoted,
 deleted, archived or reclassified as a production executor by this increment.
 
+### R10/R13 bounded fixed queue settings - 2026-10-09
+
+The existing synchronous read-only local-version queue now exposes only its authoritative domain ranges: pending capacity **1-10/default-reset 10** and global fixed-read slots **1-2/default-reset 1** ([domain](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [preferences](../src/Kora.Core/Configuration/SessionQueuePreferences.cs)).
+Native **Settings > Sessions** and exact typed/current-name activated list/get/status/set/per-option reset share original-input admission and host-held revisions.
+Native drafts expire on hide/reopen or concurrent edits; protected original-voice mutation denies without downgrade.
+Required typed REQUESTED/terminal audit, shared atomic save/readback, durable completed control receipt and confirmed readback precede activation ([service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [native workflow](../src/Kora.Application/ViewModels/MainViewModel.QueueConfiguration.cs)).
+
+Schema-1 device-local `session-queue.txt`/`session-queue-unconfirmed.txt` use `IApplicationDataPaths`; malformed/noncanonical/unknown schema or UTF-8 and unconfirmed/inaccessible state refuse, never default or claim rollback ([atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
+Short enqueue/admission/observation transactions serialize with edits and revalidate revisions/confirmed storage; running reads and whole dispatch batches do not hold that gate.
+Current limits feed [queue admission/fair dispatch](../src/Kora.Application/Hosting/SessionQueueService.cs), [native/exact work](../src/Kora.Application/Hosting/SessionWorkspaceService.cs) and [local event observation](../src/Kora.Application/Interaction/AuthorityLocalEventSource.cs).
+Lowering pending capacity never evicts/reclassifies queued entries; lowering slots never cancels/reinterprets active admissions.
+Existing deadlines remain unchanged ([race tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs), [durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+
+Pending lifetime **30 minutes** and admission budget **5 minutes** remain fixed/unavailable to edit.
+The proposed broader 1-50 capacity/deadline table is not this enabled profile.
+No schema migration, automatic dispatch, worker, resource lease, provider/audio/model tool or general execution is added.
+Full R10/R13/A3, real two-slot resource/provider/hardware qualification and installed native/accessibility acceptance remain open under the [three-tier policy](Acceptance_Criteria.md#three-tier-qualification-policy).
+See the [user contract](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) and [exact commands](../docs/commands.md#fixed-queue-settings).
+
+#### Validation receipt
+
+Tested base: `1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`.
+After the initial no-restore build reported NETSDK1004 missing isolated assets, locked restore used only the required machine-local Azure Artifacts source; no repository feed/lock configuration changed.
+Root Release build completed with **0 warnings / 0 errors**.
+The [domain fixtures](../tests/Kora.Core.UnitTests/Configuration/SessionQueuePreferencesTests.cs), [service/failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs), [native/exact routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs) and [UI contract](../tests/Kora.Windows.IntegrationTests/SessionQueueConfigurationUiContractTests.cs) cover the bounded delivery, not physical qualification.
+
+Final required suites: Core **1,165**, Application **3,192**, Tools **69**, Definitions **6**, Windows **1,226**; all passed with zero failures/skips.
+Latest-per-suite portable Cobertura inputs passed the unchanged [100% line and branch gate](../eng/Assert-CodeCoverage.ps1), not rounded near-100% or merged obsolete coverage runs.
+Commands and relevant result excerpts:
+
+```powershell
+dotnet restore .\Kora.slnx --locked-mode --source https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json
+dotnet build .\Kora.slnx --configuration Release --no-restore
+# Build succeeded. 0 Warning(s), 0 Error(s).
+# Each required suite: dotnet test --project <project> --configuration Release --no-build
+# Portable suites additionally used --report-trx --coverlet --coverlet-output-format cobertura.
+# Passed: Core 1165, Application 3192, Tools 69, Definitions 6, Windows 1226; zero failed/skipped.
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .\.net-test-artifacts\coverage-report\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+# Line coverage: 100.0% (minimum 100.0%)
+# Branch coverage: 100.0% (minimum 100.0%)
+```
+
+#### Experiment disposition
+
+Retain every experiment and historical receipt; none is retired, promoted or rerun by this slice.
+The [MG1 disposition](../experiments/r02-dotnet-management-proof/README.md#profile-and-historical-separation) retains actual released SDK/runtime HTTP/stdio and identity/byte/deadline/account separation absent from these local preference tests.
+The [RT2 lifecycle disposition](../experiments/r02-runtime-lifecycle-proof/README.md) retains real native lifecycle/file/socket/quiescence observation.
+The [containment disposition](../experiments/r02-containment-proof/README.md#scope-and-contracts) retains unique attributable network/token/ACL/child evidence and unproven strict denial gates.
+Exact maintained assertion equivalence and complete consumer/reference replacement are not established; deterministic capacity/revision tests cannot replace those native/provider/hardware procedures.
+Unrelated speech, inference, storage and distribution experiments remain outside this configuration scope under the [existing inventory](#experiment-disposition-inventory).
+
 ### R13 deterministic local-version queue increment - 2026-10-09
 
 The bounded deterministic host core now adds exact-ID/native per-session

@@ -14,7 +14,7 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 `SessionQueueService` and the consolidated store own a complete bounded
 read-only slice: exact existing session IDs, original-user request/task IDs,
-session generation, entry revision and queue revision; ten pending entries
+session generation, entry revision and queue revision; default ten pending entries
 per session; one admitted current task per session; host default one global
 slot (fixed read-only limits 1–2); FIFO heads and deterministic
 least-recent-admission session fairness. A continuously ready session gets a
@@ -64,6 +64,21 @@ Perpetual grants and volatile inspection/caption isolation remain unchanged.
 See [exact syntax](../docs/commands.md#deterministic-local-version-queue).
 The rest of this document describes the broader proposed lanes; this bounded
 core is not MG1 production inference or two-slot effect/provider qualification.
+
+### Bounded queue settings
+
+The delivered [R10/R13 configuration workflow](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) admits device-local pending capacity **1-10/default-reset 10** and fixed read-only slots **1-2/default-reset 1** only.
+Native Settings and exact typed/current-name activated commands share host-held revisions, original-input privacy/call/ownership admission, atomic preferences, required audit/readback and durable control receipts.
+
+The [queue service](../src/Kora.Application/Hosting/SessionQueueService.cs) reads current confirmed limits for each enqueue and fair admission, not once per batch; [native/exact work](../src/Kora.Application/Hosting/SessionWorkspaceService.cs) and [event observation](../src/Kora.Application/Interaction/AuthorityLocalEventSource.cs) consume the same configuration.
+Short consuming transactions serialize with edits and refuse stale revisions or changed saved state.
+The gate is released before active callbacks, preserving independent configuration/management.
+Lowering pending capacity never evicts existing work; lowering slots never cancels active admissions.
+FIFO, fairness and the existing pending/admission deadlines remain unchanged ([deterministic races](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs), [durable deadline checks](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+
+Pending lifetime remains **30 minutes** and active budget **5 minutes**, both unavailable to edit.
+No automatic dispatch, schema migration, general execution, effect/resource/provider workers or real two-slot qualification is added.
+The broader proposed ranges below are not enabled by these preferences ([domain limits](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [fixed deadline policy](../src/Kora.Core/Hosting/SessionQueuePolicy.cs)).
 
 ## Delivered native authority observation
 

@@ -235,7 +235,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
         InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
         SpeechTextConfigurationService? speechTextConfiguration = null,
-        SessionRetentionConfigurationService? sessionRetentionConfiguration = null)
+        SessionRetentionConfigurationService? sessionRetentionConfiguration = null,
+        SessionQueueConfigurationService? queueConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -322,6 +323,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             speechTextConfiguration.Changed += OnSpeechTextConfigurationChanged;
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
+        this.queueConfiguration = queueConfiguration;
+        if (queueConfiguration is not null)
+        {
+            try { queueConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                queueConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading fixed local-version queue settings");
+            }
+            queueConfiguration.Changed += OnQueueConfigurationChanged;
+        }
         this.sessionRetentionConfiguration = sessionRetentionConfiguration;
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         if (auditRetentionConfiguration is not null)
@@ -382,6 +394,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SelectedWindowsSpeechRate.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        RefreshQueueConfigurationCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveQueuePendingCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
+            Kora.Core.Configuration.SessionQueueOption.PendingPerSession, SelectedQueuePending.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetQueuePendingCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
+            Kora.Core.Configuration.SessionQueueOption.PendingPerSession), SecurityAuditInitiator.LocalUser));
+        SaveQueueSlotsCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
+            Kora.Core.Configuration.SessionQueueOption.ExecutionSlots, SelectedQueueSlots.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetQueueSlotsCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
+            Kora.Core.Configuration.SessionQueueOption.ExecutionSlots), SecurityAuditInitiator.LocalUser));
         RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
@@ -3836,6 +3857,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
             return;
         }
+        if (SessionQueueConfigurationCommand.Parse(spokenText, AssistantName) is { } queueConfigurationCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no queue-setting control was dispatched.";
+                return;
+            }
+            await ExecuteQueueConfigurationCommandAsync(queueConfigurationCommand, initiator);
+            return;
+        }
         if (WindowsSpeechRateCommand.Parse(spokenText, AssistantName) is { } rateCommand)
         {
             await ExecuteWindowsSpeechRateCommandAsync(rateCommand, initiator);
@@ -5359,6 +5390,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
         OnPropertyChanged(nameof(DiagnosticRetentionStatus));
+        SynchronizeQueueConfiguration();
         OnPropertyChanged(nameof(CanChangeAuditRetention));
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
         OnPropertyChanged(nameof(AuditRetentionStatus));
@@ -5384,6 +5416,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(SessionQueueConfigurationCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)

@@ -254,6 +254,28 @@ public sealed class AuthorityLocalEventSourceTests
         await missingRead.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Confirmed_queue_configuration_feeds_event_observation_and_changed_revision_refuses_presentation(bool retire)
+    {
+        using var f = new Fixture();
+        await using var configuration = new Kora.Application.UnitTests.Configuration.SessionQueueConfigurationTestFixture();
+        await configuration.Refresh();
+        await configuration.Set("2", Kora.Core.Configuration.SessionQueueOption.ExecutionSlots);
+        var source = f.Create(configuration.Service);
+        var events = await source.ReadAsync(f.Request.SessionId, f.Token);
+        f.ObservedLimits!.ExecutionSlots.Should().Be(2);
+        (await source.WithCurrentAsync(f.Request.SessionId, events, () => true, f.Token)).Should().BeTrue();
+        f.OnCurrent = () =>
+        {
+            if (retire) { configuration.Service.HoldUnavailable(); }
+            else { configuration.PreferencesStore.Value = new(); }
+        };
+        var observe = () => source.WithCurrentAsync(f.Request.SessionId, events, () => true, f.Token);
+        await observe.Should().ThrowAsync<InvalidOperationException>();
+    }
+
     private sealed class Fixture : ISessionWorkStore, ISessionWorkspaceAccess, IReleaseMetadataClient, ICanonicalReleasePageOpener, IUiDispatcher, ISecurityAuditLog, IDisposable
     {
         private readonly ActivityListener listener = new()
@@ -281,7 +303,8 @@ public sealed class AuthorityLocalEventSourceTests
         public bool CanInspect => CanControl;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; }
-        internal AuthorityLocalEventSource Create() => new(this, this, State, new(), Time);
+        internal Kora.Core.Hosting.SessionQueueLimits? ObservedLimits { get; private set; }
+        internal AuthorityLocalEventSource Create(Kora.Application.Configuration.SessionQueueConfigurationService? configuration = null) => new(this, this, State, new(), Time, configuration);
         internal SessionWorkSnapshot Snapshot(SessionQueueState state = SessionQueueState.Pending, SessionQueueEligibility eligibility = SessionQueueEligibility.Ready)
         {
             var entry = new SessionQueueEntry(Request, new(1), new(1), 1, state, Guid.NewGuid(), 0, Time.Now, Time.Now.AddMinutes(30));
@@ -289,7 +312,7 @@ public sealed class AuthorityLocalEventSourceTests
                 new(Request.SessionId, new(1), 0, [entry]), 1, 10, 1, [new(entry, eligibility, null)], 0, [], 0, [], 0);
         }
         public ValueTask<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long admissionRevision,
-            SessionQueueLimits limits, CancellationToken token) { OnRead?.Invoke(); return ValueTask.FromResult(Current); }
+            SessionQueueLimits limits, CancellationToken token) { ObservedLimits = limits; OnRead?.Invoke(); return ValueTask.FromResult(Current); }
         public ValueTask<T> WithCurrentWorkAsync<T>(HostId<SessionIdentity> session, long admissionRevision, SessionQueueLimits limits,
             Func<SessionWorkSnapshot, T> observation, CancellationToken token) { OnCurrent?.Invoke(); return ValueTask.FromResult(observation(Current)); }
         public Task<ReleaseCheck> CheckAsync(ReleaseChannel channel, string currentVersion, ReleaseArchitecture architecture, CancellationToken cancellationToken)

@@ -27,9 +27,10 @@ public sealed partial class SessionWorkspaceService(
     public Task<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(async () =>
         {
-            var snapshot = await (store as ISessionWorkStore
+            var snapshot = queue is not null ? await queue.ReadWorkAsync(session, access.ControlRevision, token).ConfigureAwait(false)
+                : await (store as ISessionWorkStore
                 ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
-                .ReadWorkAsync(session, access.ControlRevision, queue?.Limits ?? new SessionQueueLimits(), token).ConfigureAwait(false);
+                .ReadWorkAsync(session, access.ControlRevision, new SessionQueueLimits(), token).ConfigureAwait(false);
             snapshot.RequireSubject(session);
             return snapshot;
         }, token);

@@ -230,6 +230,7 @@ public sealed partial class MainViewModel
         if (playbackVolumeConfiguration is not null) { playbackVolumeConfiguration.Changed -= OnPlaybackVolumeChanged; }
         if (windowsSpeechRateConfiguration is not null) { windowsSpeechRateConfiguration.Changed -= OnWindowsSpeechRateChanged; }
         if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
+        if (queueConfiguration is not null) { queueConfiguration.Changed -= OnQueueConfigurationChanged; }
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }

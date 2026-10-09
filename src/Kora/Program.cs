@@ -298,7 +298,8 @@ internal static class Program
             provider.GetRequiredService<ISessionQueueStore>(), provider.GetRequiredService<ISessionWorkspaceStore>(),
             provider.GetRequiredService<HostTaskCoordinator>(), provider.GetRequiredService<ISessionWorkspaceAccess>(),
             provider.GetRequiredService<IDeterministicVersionQueueAction>(), provider.GetRequiredService<SessionQueueLimits>(),
-            provider.GetRequiredService<ILogger<SessionQueueService>>()));
+            provider.GetRequiredService<ILogger<SessionQueueService>>(),
+            configuration: provider.GetRequiredService<SessionQueueConfigurationService>()));
         services.AddSingleton(TimeProvider.System);
         services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
         {
@@ -392,6 +393,9 @@ internal static class Program
         services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
             new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DiagnosticRetentionConfigurationService>();
+        services.AddSingleton<ISessionQueuePreferences>(provider =>
+            new LocalSessionQueuePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<SessionQueueConfigurationService>();
         services.AddSingleton<ISessionRetentionPreferences>(provider =>
             new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SessionRetentionConfigurationService>();

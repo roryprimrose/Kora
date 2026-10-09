@@ -157,6 +157,10 @@ Line coverage 100%; branch coverage 100% (16542 lines, 9859 branches).
 
 This is source/maintained-test evidence, not installed storage, real provider/native memory I/O, OS power-loss/forensic deletion or release/profile qualification.
 
+Rebase receipt: preserved the intervening volatile provider-policy/handoff sections from main `55dc2816032841a14adde37fc333a711c810e4f1` (#125), resolving only the shared status paragraph. Rebuilt combined sources in Release with zero warnings/errors. Fresh suites pass Core **1,170**, Application **3,187**, Tools **69**, Definitions **6** and Windows **1,248** (**5,680 total**, zero failures/skips in the final runs). Matching latest-only reports pass exact **16,811/16,811 portable lines** and **10,113/10,113 branches**, with unchanged gates.
+
+The first combined Windows run recorded 1 failure/1,247 passes in the existing [50 ms audio-open cleanup fixture](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs): `DisposeAsync` reported `"Native capture work is still closing; quiescence is not confirmed."` Its occurrence cause remains unconfirmed. An initially unqualified selector ran zero tests and was corrected, not counted as validation. The fully-qualified exact rerun passed 1/1; the unchanged full Windows rerun passed 1,248/1,248. No audio source, test, timer, threshold or exclusion was changed.
+
 ### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
 
 The first D-014 implementation package delivers the

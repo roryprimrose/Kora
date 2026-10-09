@@ -1,0 +1,94 @@
+{
+  "preparationOnly": true,
+  "utc": "2026-10-09T11:01:23.6197356+00:00",
+  "sourceRevision": "e0692f438a058de0a20021b3420a981849706dbf",
+  "sourceInputsLocallyModified": false,
+  "sdkVersion": "10.0.401",
+  "sdkSelectionSha256": "4977AE364D92D2679ACC93FCB364EB2D7C990A320EDEBF034B01B9ED14098D84",
+  "osVersion": "10.0.26300.0",
+  "architecture": "X64",
+  "powerShellVersion": "7.6.6",
+  "powerShellExecutableSha256": "BFB46AF89433268872DDB43D1CA7A3F433452EE91ED356A9786940F90118E285",
+  "sources": [
+    {
+      "name": "ContainmentProof.csproj",
+      "sha256": "FE1C023DA95F2DDB65EF9A59EF2B8A9AAB137F58B689AF1E068D67A2FBD79025"
+    },
+    {
+      "name": "DescendantObservations.cs",
+      "sha256": "84AE31800D9F6D1F708E8211730E71EC2D2D6CC3386537774FFB454CAA84CBC1"
+    },
+    {
+      "name": "Directory.Build.props",
+      "sha256": "B970824F974F084A5A0DEF6F58FFC358C2E4D3A27A59566C71C1C6C110602429"
+    },
+    {
+      "name": "Export-Evidence.ps1",
+      "sha256": "7980CBDE9BB0D3D735E35F7E4117669C44A0EAF944719553E1E3E7E68C16BD2B"
+    },
+    {
+      "name": "FixedProbe.ps1",
+      "sha256": "FC061C256A4C4E7B14356BAD80D4366FBEA83A74106ABBF2ABA2283E39CEB449"
+    },
+    {
+      "name": "Host.cs",
+      "sha256": "7C5FD4CCBAC81321DB176142E0FF6E058391FDA7BF5C73A9AD22E3FBFF23CF2B"
+    },
+    {
+      "name": "InvocationPolicy.cs",
+      "sha256": "DF1BA5734B73C1B80440FE79CFFAA0115A6985B9BA2E5ABD9B7CFB4148F7E54D"
+    },
+    {
+      "name": "Invoke-Proof.ps1",
+      "sha256": "914FF2BFC19687794F8E8814279DD4AB21AE897A5251EB5B1FE81CFFDCD3C9BA"
+    },
+    {
+      "name": "Model.cs",
+      "sha256": "2779AD976AAE0A2734D03791A9000EF8D50604E257C23AFB53DFD0663EBBAE50"
+    },
+    {
+      "name": "Native.cs",
+      "sha256": "86521DE533605F7A84C8EC4DEF4A12777A83FA43EFA3E21704DF1E86BD296F2C"
+    },
+    {
+      "name": "NativeProcessHandle.cs",
+      "sha256": "4FF531604BD71CFCBD33A8C176EBD6426E66D2479DB00870E0A67C0431E4285E"
+    },
+    {
+      "name": "NetworkCollection.cs",
+      "sha256": "71102CA21EC9AC20527C8FBAB0C2746731B4986912EB553B0A4FC9C76BC1AA4F"
+    },
+    {
+      "name": "NetworkObserver.cs",
+      "sha256": "343CF92331CCCC16EB13140AD536065BCAB514E83DC6506285C12AC7D9A8C4E2"
+    },
+    {
+      "name": "Program.cs",
+      "sha256": "9331B552084FC1A04F06A3C5FAA7E14BC60CCB496B01237D2BE4433545C0E003"
+    },
+    {
+      "name": "ProofTests.cs",
+      "sha256": "AE2AE530AA7692036EDC08D713430FA7B5636425940D9FE3DE6F5EDCEBD81F17"
+    },
+    {
+      "name": "Worker.cs",
+      "sha256": "157FE480240EB04D8D4038B72BED8624D49A77DB88A64DA4ECDA3EB0A40D4CBD"
+    }
+  ],
+  "candidate": [
+    {
+      "name": "ContainmentProof.exe",
+      "sha256": "BF85FE58F257076889F5A4A99A8C5DDC9A751C1657909170CB57824675D1F3AA"
+    },
+    {
+      "name": "ContainmentProof.dll",
+      "sha256": "5E685CAC1E5194DAC446774ADF711C718AE184ADD99B4C25F5F6C05845D7A957"
+    }
+  ],
+  "receiptTests": "Passed (5 deterministic assertions; not OS containment evidence)",
+  "liveTrialsPerformed": false,
+  "supportedReferenceOsQualified": false,
+  "protectedRuntimeClosureQualified": false,
+  "networkAttribution": "Unproven",
+  "productionProfileCertified": false
+}

@@ -168,6 +168,15 @@ Core 1,129, Application 3,048, Tools 69, Definitions 6 and Windows 1,224
 (5,476 total) passed with zero failures/skips. Fresh portable reports pass
 16,192/16,192 lines and 9,534/9,534 branches (exact 100%/100%).
 
+Strict auto-merge required subsequent rebases after workflow-only #3 and
+memory-admission #123 (`d66f966`). Version/publication contracts and selected
+native tests passed after #3; no production source/dependencies changed there.
+The #123 combined Release build and all required suites passed: Core 1,152,
+Application 3,099, Tools 69, Definitions 6, Windows 1,224 (5,550 total;
+zero failures/skips). Fresh portable coverage is 16,469/16,469 lines and
+9,809/9,809 branches (exact 100%/100%). Memory adds no persisted artifact
+body source or desktop composition, so this receipt-detail boundary is unchanged.
+
 #### R14 experiment equivalence assessment
 
 | Existing evidence | Maintained equivalence and disposition for this slice |

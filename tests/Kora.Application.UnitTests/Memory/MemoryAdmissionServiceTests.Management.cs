@@ -188,10 +188,12 @@ public sealed partial class MemoryAdmissionServiceTests
         internal bool MemoryControlEnabled { get; private set; }
         internal List<HostTaskRecord> ControlIntents { get; } = [];
         internal List<HostTaskRecord> ControlOutcomes { get; } = [];
+        internal SessionWorkspaceService? ManagementSessions { get; private set; }
         internal MemoryManagementService Management()
         {
             MemoryControlEnabled = true;
-            return new(new SessionWorkspaceService(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance),
+            ManagementSessions = new(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance);
+            return new(ManagementSessions,
                 this, this, this, this, this, this, new FixedTime());
         }
         public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)

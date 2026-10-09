@@ -27,7 +27,8 @@ internal sealed partial class MemoryAdmissionService
             long lifecycle;
             lock (stateGate) { lifecycle = lifecycleRevision; }
             var boundary = await scopes.ResolveAsync(issuer.Request, token).ConfigureAwait(false);
-            if (MemoryPolicy.CheckBoundary(MemoryScope.Session(issuer.Request.SessionId), boundary) != MemoryReason.None)
+            if (!access.CanInspect
+                || MemoryPolicy.CheckBoundary(MemoryScope.Session(issuer.Request.SessionId), boundary) != MemoryReason.None)
             {
                 throw new InvalidOperationException("The private session memory boundary is closed.");
             }

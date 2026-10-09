@@ -674,8 +674,10 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         internal Action? OnStoreCommit { get; set; }
         internal Action? OnAfterStoreCommit { get; set; }
         internal Action? OnBoundaryRead { get; set; }
+        internal bool InspectEnabled { get; set; } = true;
+        internal bool SkipStoreTransition { get; set; }
         public bool IsCurrentHost => Current;
-        public bool CanInspect => CanControl;
+        public bool CanInspect => InspectEnabled && CanControl;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; } = 1;
         internal Fixture(bool durable = false)
@@ -695,6 +697,7 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
             Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
         {
+            if (SkipStoreTransition) { return ValueTask.FromResult(new MemoryResult(MemoryOutcome.Denied, MemoryReason.AuthorityClosed)); }
             OnStoreTransition?.Invoke();
             var commit = transition([.. Stored.Values]);
             OnStoreCommit?.Invoke();
@@ -798,7 +801,14 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision generation, long revision, SessionName name, Func<bool> eligible, CancellationToken token) => Write<SessionWorkspaceEntry>();
         public ValueTask<SessionPage<HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> eligible, CancellationToken token) => Write<WorkSessionAuthorization>();
+        public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> eligible, CancellationToken token)
+        {
+            if (!MemoryControlEnabled) { return Write<WorkSessionAuthorization>(); }
+            eligible().Should().BeTrue();
+            Session = Session with { IsActive = active, Generation = new(generation.Value + 1) };
+            Boundary = Boundary! with { Generation = Session.Generation };
+            return ValueTask.FromResult(Session);
+        }
     }
 
     private sealed class FixedTime : TimeProvider

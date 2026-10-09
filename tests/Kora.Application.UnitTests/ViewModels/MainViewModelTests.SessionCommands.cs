@@ -276,7 +276,7 @@ public sealed partial class MainViewModelTests
         fixture.HostStore.Records.Should().NotContain(record => record.State == HostTaskState.Succeeded);
     }
 
-    private sealed class SessionCommandStore(Fixture fixture) : ISessionWorkspaceStore, ISessionWorkspaceAccess
+    private sealed partial class SessionCommandStore(Fixture fixture) : ISessionWorkspaceStore, ISessionWorkspaceAccess
     {
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
             HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -288,6 +288,12 @@ public sealed partial class MainViewModelTests
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken)
         {
             BeforeTaskRead?.Invoke();
+            if (MemoryEnabled && TaskResult is null)
+            {
+                var current = fixture.HostStore.Records.LastOrDefault(record => record.Request.TaskId == task);
+                return ValueTask.FromResult(current is null ? null
+                    : new HostTaskObservation(current, Session.Authority.Generation, "memory-command-test", true, null));
+            }
             return ValueTask.FromResult(TaskResult);
         }
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
@@ -311,7 +317,7 @@ public sealed partial class MainViewModelTests
         internal Exception? Failure { get; set; }
         public bool CanInspect => fixture.ViewModel.CanRevealPrivatePresentation;
         public bool CanControl => CanInspect && !fixture.ViewModel.IsProtectedCall;
-        public long ControlRevision => fixture.ViewModel.CallPolicyRevision;
+        public long ControlRevision => fixture.ViewModel.CallPolicyRevision + (MemoryEnabled ? 1 : 0);
 
         public async ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
         {

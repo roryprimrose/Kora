@@ -43,7 +43,7 @@ public sealed record MemoryCommand(MemoryCommandOperation Operation, Guid? Sessi
         var quote = text.IndexOf('"', StringComparison.Ordinal);
         if (quote >= 0)
         {
-            if (quote == 0 || text[quote - 1] != ' ') { return Invalid(); }
+            if (text[quote - 1] != ' ') { return Invalid(); }
             var builder = new StringBuilder();
             var closed = false;
             for (var index = quote + 1; index < text.Length; index++)

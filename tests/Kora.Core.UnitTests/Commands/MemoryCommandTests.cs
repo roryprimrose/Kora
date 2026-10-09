@@ -41,6 +41,7 @@ public sealed class MemoryCommandTests
     [Theory]
     [InlineData("memory list")]
     [InlineData("memory list profile")]
+    [InlineData("memory list " + Session + " \"value\"")]
     [InlineData("memory list 00000000-0000-0000-0000-000000000000")]
     [InlineData("memory inspect " + Session + " " + Memory + " 0")]
     [InlineData("memory inspect " + Session + " " + Memory + " +1")]
@@ -52,6 +53,15 @@ public sealed class MemoryCommandTests
     [InlineData("memory edit " + Target + " Decision \"value\" trailing")]
     [InlineData("memory propose \"not delivered\"")]
     [InlineData("memory remember \"not delivered\"")]
+    [InlineData("memory")]
+    [InlineData("memory help \"value\"")]
+    [InlineData("memory inspect " + Target + " \"value\"")]
+    [InlineData("memory inspect " + Session + " invalid 1")]
+    [InlineData("memory inspect " + Target + " extra")]
+    [InlineData("memory unsupported " + Target)]
+    [InlineData("memory review " + Target + " accept \"value\"")]
+    [InlineData("memory edit " + Target + " Decision")]
+    [InlineData("memory edit " + Target + " Decision\"value\"")]
     public void Ambiguous_broader_and_unsupported_commands_are_denied_not_model_routed(string input) =>
         MemoryCommand.Parse(input, "Kora")!.Operation.Should().Be(MemoryCommandOperation.Invalid);
 
@@ -68,6 +78,27 @@ public sealed class MemoryCommandTests
             if (valid) { command.Candidate!.Value.Should().Be(value); }
         }
         MemoryCommand.Parse("unrelated command", "Kora").Should().BeNull();
+        MemoryCommand.Parse("memorysuffix", "Kora").Should().BeNull();
+        MemoryCommand.Parse("Kora", "Kora").Should().BeNull();
+        MemoryCommand.Parse("Korax memory help", "Kora").Should().BeNull();
+        MemoryCommand.Parse("memory edit " + Target + " Decision \"" + new string('x', MemoryCommand.MaximumInputBytes) + "\"", "Kora")!
+            .Operation.Should().Be(MemoryCommandOperation.Invalid);
+    }
+
+    [Theory]
+    [InlineData("ExplicitFact", MemoryContentClass.ExplicitFact)]
+    [InlineData("ResponsePreference", MemoryContentClass.ResponsePreference)]
+    [InlineData("WorkflowPreference", MemoryContentClass.WorkflowPreference)]
+    public void ReplacementSupportsEveryAdmittedContentClassification(string name, MemoryContentClass contentClass) =>
+        MemoryCommand.Parse("memory edit " + Target + " " + name + " \"exact value\"", "Kora")!.Candidate
+            .Should().Be(new MemoryCandidate(contentClass, "exact value"));
+
+    [Fact]
+    public void OversizedSerializedInventoryFailsExplicitlyWithoutTruncation()
+    {
+        var result = new MemoryCommandResult("observed", new string('x', SessionCommand.MaximumResultBytes));
+        var serialize = () => MemoryCommandResult.Serialize(result);
+        serialize.Should().Throw<InvalidDataException>().WithMessage("*64 KiB*");
     }
 
     [Fact]

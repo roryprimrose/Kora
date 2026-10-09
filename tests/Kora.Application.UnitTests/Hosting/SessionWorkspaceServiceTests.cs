@@ -77,7 +77,10 @@ public sealed partial class SessionWorkspaceServiceTests
     public async Task Explicit_control_owns_fresh_original_intent_and_commits_terminal_receipt(RequestOrigin origin, bool active)
     {
         using var fixture = new Fixture();
+        HostId<SessionIdentity>? changed = null;
+        if (active) { fixture.Service.SessionLifecycleChanged += session => changed = session; }
         var result = await fixture.Service.ChangeLifecycleAsync(fixture.Request.SessionId, new(1), active, origin, fixture.Token);
+        changed.Should().Be(active ? fixture.Request.SessionId : (HostId<SessionIdentity>?)null);
         result.Should().Be(new WorkSessionAuthorization(fixture.Request.SessionId, new(2), active));
         fixture.TaskWrites.Should().HaveCount(2);
         var intent = fixture.TaskWrites[0];

@@ -186,7 +186,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         content.Children.Add(new TextBlock
         {
             Text = "Clipboard preview is excluded pending separate exact-fixture approval. "
-                + "Do not start Narrator/audio or change Windows display settings in this phase. "
+                + "Narrator audio and Windows display changes require a separate operator decision; the fixture never starts or changes them. "
                 + "All screenshots/automation must target this fixture PID, never the whole desktop.",
             TextWrapping = TextWrapping.Wrap,
         });

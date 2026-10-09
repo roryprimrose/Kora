@@ -30,6 +30,24 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 
 ## Proof Checklists
 
+### Focus-free preparation for interactive native accessibility
+
+The maintained [native UX validation runner](../eng/Invoke-NativeUxValidation.ps1)
+and [operator walkthrough](../tests/Kora.NativeUxFixture/README.md) target the
+remaining screen-reader, text-scale and physical mixed-DPI observations, using
+the existing isolated synthetic fixture. Default preparation opens no windows,
+sends no input and changes no Windows settings. It binds focused headless test
+results, source fingerprints and complete payload hashes in an external local
+evidence bundle. Actual native launch requires a separate explicit operator
+switch when desktop focus is available; Narrator and display changes remain
+manual operator decisions.
+
+Preparation is not native acceptance. Sign-off requires clean exact-payload
+interactive trials and explicit operator outcomes, records Blocked/Fail honestly,
+and does not close full R05/R12/R14/A4 or real privacy/audio/installed gates.
+Previously completed scoped observations and historical receipts below remain
+unchanged. No experiment harness is replaced or retired.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

@@ -35,8 +35,8 @@ public sealed partial class MainViewModel
 
     private void SynchronizeProviderModeConfiguration()
     {
-        if (disposed || providerModeConfiguration is null) { return; }
-        SelectedProviderModeChoice = ProviderModeChoices.FirstOrDefault(choice => choice.Mode == providerModeConfiguration.Get().Desired);
+        if (disposed) { return; }
+        SelectedProviderModeChoice = ProviderModeChoices.FirstOrDefault(choice => choice.Mode == providerModeConfiguration!.Get().Desired);
         OnPropertyChanged(nameof(ProviderModeChoices));
         OnPropertyChanged(nameof(ProviderModeConfigurationStatus));
         OnPropertyChanged(nameof(CanChangeProviderMode));

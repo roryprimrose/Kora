@@ -32,11 +32,13 @@ public sealed class ProviderModeConfigurationServiceTests : IDisposable
         await using var f = new Fixture();
         f.Service.Get().Available.Should().BeFalse();
         f.Service.Observe();
+        f.Service.Observe();
         f.Service.Get().Saved.Should().BeNull();
         f.Service.Get().Desired.Should().Be(ModelProviderMode.LocalOnly);
         f.Service.Get().Source.Should().Be("default");
         await f.Refresh();
         f.Service.Choices.Select(choice => choice.Mode).Should().Equal(ModelProviderModePreference.Choices);
+        f.Service.Choices.Select(choice => choice.Label).Should().Equal("LocalOnly", "LocalFirst", "HostedPreferred");
         var revision = f.Service.Get().Revision;
         (await f.Select(mode)).Should().BeTrue();
         f.Service.Get().Revision.Should().BeGreaterThan(revision);
@@ -193,6 +195,56 @@ public sealed class ProviderModeConfigurationServiceTests : IDisposable
         await FluentActions.Awaiting(() => f.Service.SelectAsync(f.Service.Choices[1], f.Policy.Current.Revision, RequestOrigin.LocalUi,
             SecurityAuditInitiator.TypedCommand, f.Policy, static () => true, cancelled.Token)).Should().ThrowAsync<OperationCanceledException>();
         f.Preferences.Writes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("host")]
+    [InlineData("revision")]
+    [InlineData("saved")]
+    public async Task DiscoveryReceiptRacesInvalidateChoices(string stage)
+    {
+        await using var f = new Fixture();
+        await f.Refresh();
+        f.Store.BeforeCommit = task =>
+        {
+            if (task.State != HostTaskState.Succeeded) { return; }
+            if (stage is "host") { f.Eligible = false; }
+            if (stage is "revision") { f.Service.HoldUnavailable(); }
+            if (stage is "saved") { f.Preferences.Mode = ModelProviderMode.LocalFirst; }
+        };
+        await FluentActions.Awaiting(f.Refresh).Should().ThrowAsync<InvalidOperationException>();
+        f.Service.Choices.Should().BeEmpty();
+        f.Service.Get().Available.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task NotificationsCannotReenterACommittingDiscoveryOrSeed()
+    {
+        await using var f = new Fixture();
+        Task? reentrant = null;
+        var notified = false;
+        f.Service.Changed += (_, _) =>
+        {
+            if (notified) { return; }
+            notified = true;
+            reentrant = f.Refresh();
+            f.Service.Invoking(service => service.WithInitialMode((_, _) => true)).Should().Throw<InvalidOperationException>();
+        };
+        await f.Refresh();
+        await reentrant!.Invoking(async task => await task).Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task ObservedAndUnavailableNotificationsAreExplicit()
+    {
+        await using var f = new Fixture();
+        var changes = 0;
+        f.Service.Changed += (_, _) => changes++;
+        f.Service.Observe();
+        f.Preferences.Mode = ModelProviderMode.LocalFirst;
+        f.Service.Observe();
+        f.Service.HoldUnavailable();
+        changes.Should().Be(3);
     }
 
     private sealed class Fixture : IAsyncDisposable

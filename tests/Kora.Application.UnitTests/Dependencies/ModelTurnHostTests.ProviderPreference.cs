@@ -160,4 +160,98 @@ public sealed partial class ModelTurnHostTests
         (await f.PolicyHost.SetPolicyAsync(replacement, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         (await f.PolicyHost.InitializePolicyAsync(Token)).Policy.Should().BeSameAs(replacement);
     }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("stopped")]
+    [InlineData("completed")]
+    public async Task InitialPolicyRejectsMissingAndRetiredActivity(string stage)
+    {
+        using var f = new Fixture();
+        using var root = stage is "missing" ? null : f.Root();
+        if (stage is "stopped") { root!.Activity!.Stop(); }
+        if (stage is "completed") { root!.Complete(HostOperationOutcome.Completed); }
+        (await f.PolicyHost.InitializePolicyAsync(Token)).Result.Reason.Should().Be(ModelTurnReason.HostContextRequired);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InitialCancellationNeverPublishesPolicy(bool duringRead)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        using var cancelled = new CancellationTokenSource();
+        if (duringRead)
+        {
+            f.OnRead = () => { cancelled.Cancel(); throw new OperationCanceledException(cancelled.Token); };
+        }
+        else { await cancelled.CancelAsync(); }
+        var result = await f.PolicyHost.InitializePolicyAsync(cancelled.Token);
+        result.Result.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        result.Policy.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("host")]
+    [InlineData("policy")]
+    public async Task ExistingPolicyCannotBeBorrowedAfterTerminalAuditChangesAuthority(string stage)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var first = (await f.PolicyHost.InitializePolicyAsync(Token)).Policy!;
+        using var cancelled = new CancellationTokenSource();
+        Task<ModelTurnResult>? replacement = null;
+        f.OnAudit = item =>
+        {
+            if (item.Outcome != SecurityAuditOutcome.Succeeded) { return; }
+            f.OnAudit = null;
+            if (stage is "cancel") { cancelled.Cancel(); }
+            if (stage is "host") { f.Current = false; }
+            if (stage is "policy") { replacement = f.PolicyHost.SetPolicyAsync(first with { Revision = new(2) }, Token); }
+        };
+        var result = await f.PolicyHost.InitializePolicyAsync(cancelled.Token);
+        result.Policy.Should().BeNull();
+        result.Result.Reason.Should().Be(ModelTurnReason.PolicyChanged);
+        if (replacement is not null) { (await replacement).Outcome.Should().Be(ModelTurnOutcome.Succeeded); }
+    }
+
+    [Fact]
+    public async Task ReentrantVolatilePublicationWinsOverInitialSeed()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        Task<ModelTurnResult>? replacement = null;
+        f.OnAudit = item =>
+        {
+            if (item.Outcome != SecurityAuditOutcome.Succeeded) { return; }
+            f.OnAudit = null;
+            replacement = f.PolicyHost.SetPolicyAsync(Policy(f), Token);
+        };
+        var result = await f.PolicyHost.InitializePolicyAsync(Token);
+        result.Policy.Should().BeNull();
+        (await replacement!).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        (await f.PolicyHost.InitializePolicyAsync(Token)).Policy!.Mode.Should().Be(ModelProviderMode.LocalFirst);
+    }
+
+    [Fact]
+    public async Task CancellationDuringInitialTerminalAuditDoesNotPublish()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        using var cancelled = new CancellationTokenSource();
+        f.OnAudit = item => { if (item.Outcome == SecurityAuditOutcome.Succeeded) { cancelled.Cancel(); } };
+        (await f.PolicyHost.InitializePolicyAsync(cancelled.Token)).Result.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+    }
+
+    [Fact]
+    public async Task UncomposedPreferenceAndDeniedSessionCannotStartPolicyBoundTurn()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        await f.Host.Invoking(host => host.InitializePolicyAsync(Token)).Should().ThrowAsync<InvalidOperationException>();
+        f.CanControl = false;
+        (await f.PolicyHost.AdmitAsync(ModelTurnChoice.Default, f.Context(), null, Token)).Turn.Should().BeNull();
+    }
 }

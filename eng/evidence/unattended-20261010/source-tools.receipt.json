@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "proof": "maintained-source-tool-archive-acquisition-contracts",
+  "operatorDate": "2026-10-10",
+  "sourceRevision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "sourceStateAtExecution": "clean isolated worktree",
+  "entryPoint": "eng/Test-SourceToolsContracts.ps1",
+  "commandTemplate": "pwsh -NoProfile -NonInteractive -File .\\eng\\Test-SourceToolsContracts.ps1 -OutputDirectory \"$ProofRoot\\baseline-20261010-0745\"",
+  "outputDirectoryWasFresh": true,
+  "exitCode": 0,
+  "assertionsPassed": 123,
+  "staticOnly": true,
+  "environment": {
+    "platform": "Windows",
+    "powerShell": "7.6.6",
+    "powerShellRuntime": ".NET 10.0.12",
+    "git": "2.55.0.windows.5",
+    "dependencyRestorePerformed": false
+  },
+  "acquisitionBoundary": {
+    "releaseListing": "maintained Get-CanonicalReleases function fake",
+    "releaseAndTagRecords": "maintained Get-GitHubRecord function fake",
+    "commitAndTreeRecords": "maintained Invoke-Gh function fake",
+    "assetDownload": "maintained Read-SourceCommandBytes function fake",
+    "fakeReleaseId": 17,
+    "fakeAssetId": 42,
+    "downloadedCodeExecuted": false,
+    "realAcquisitionOrPublicationPerformed": false
+  },
+  "assurance": {
+    "bootstrapVersion": "1.1.0",
+    "fixtureVersion": "0.1.0-beta9",
+    "unsigned": true,
+    "productionAccepted": false,
+    "activation": "unavailable",
+    "provenance": "exact canonical Git blobs; not an independent signature"
+  },
+  "archive": {
+    "name": "Kora-0.1.0-beta9-source-tools.zip",
+    "bytes": 16838,
+    "sha256": "a95fed344b02e24cd83e16a59933aa7b6690b52dbe62c5b1fb1bae4325da6678",
+    "retryArchiveSha256": "a95fed344b02e24cd83e16a59933aa7b6690b52dbe62c5b1fb1bae4325da6678",
+    "declaredToolCount": 8,
+    "totalZipEntryCount": 9
+  },
+  "declaredTools": [
+    {
+      "path": "eng/Invoke-SourceBootstrap.ps1",
+      "bytes": 858,
+      "gitBlob": "6bfe8c3f420a20c8a004d32d34ca6262468fe18d",
+      "sha256": "d6a579052daf97418c9279f8b0676735bbbd8a2c7bc4abc4fbac536667cda9e0"
+    },
+    {
+      "path": "eng/SourceBootstrap.Common.ps1",
+      "bytes": 22509,
+      "gitBlob": "1c15b8b12896ea55e2b0294876e327f6ca4f9373",
+      "sha256": "469f720d7c543858b8063839d6119843b80fccba23896da88b5ecddeef729c29"
+    },
+    {
+      "path": "eng/Test-SourceStage.ps1",
+      "bytes": 665,
+      "gitBlob": "7230ef2348300b3b159da43ebf4a893c029caf79",
+      "sha256": "1d86807ea3b4372b447e2d973c9303979bc9c5c4def8e750d6a8e48cef88b756"
+    },
+    {
+      "path": "eng/Get-BuildVersion.ps1",
+      "bytes": 3504,
+      "gitBlob": "1ee7e4cc2dac413d74ef9059d4ee11d574047de8",
+      "sha256": "feb8753eae34744ab3150b313e7d2e59313cf644de260d7739087c0dcdaa1b64"
+    },
+    {
+      "path": "eng/SourceCheckout.Common.ps1",
+      "bytes": 956,
+      "gitBlob": "72225ae6ba8f647313fff583a82ce4e31d87fa97",
+      "sha256": "b7a39cb9a839beef334e935451088f31dea572763b359b746819289ab0384349"
+    },
+    {
+      "path": "eng/Distribution.Common.ps1",
+      "bytes": 3599,
+      "gitBlob": "224f4861d2de27a391f2c836ea09e615a5832f2b",
+      "sha256": "06f0853f1c9fe9343d217d6746d166c8bc369e8424c95a38cb4f35a4ad007481"
+    },
+    {
+      "path": "eng/NativeInspection.Common.ps1",
+      "bytes": 5663,
+      "gitBlob": "563f6e2476913e3e0cb22d09066b88308e050211",
+      "sha256": "2cf1f8ac30aa562d62d76a80c1a261c2d2e9c36e1cc199c1f971b22f8c74f8db"
+    },
+    {
+      "path": "eng/Inspect-Publish.ps1",
+      "bytes": 7499,
+      "gitBlob": "6075666868108bd2456c8066a64d0ed09b946a0a",
+      "sha256": "71b1c8762a2567b23355d76d9dc6798384d8c8e772f71a14e989ec8321bac556"
+    }
+  ],
+  "rawArtifacts": [
+    {
+      "relativePath": "baseline-20261010-0745.log",
+      "sha256": "220fe5dce7bb059a9f1c7df29a611039a6f28a0f64e41639876aa004e56c37c6"
+    },
+    {
+      "relativePath": "baseline-20261010-0745/tests.json",
+      "sha256": "1ae1dcc5685a04ed6f48387a2915b80313b9e1544d279aab936fa42d08f24eb1"
+    },
+    {
+      "relativePath": "baseline-20261010-0745/acquired/acquisition.json",
+      "sha256": "a365165e8d6725627960fae3905233b0bb474bdef780ded28d52304c64826937"
+    }
+  ],
+  "historicalEvidenceModified": false,
+  "contractOrHelperChanges": [],
+  "qualificationExclusions": [
+    "live GitHub releases, accounts, credentials and publication",
+    "independent publisher authentication or signatures",
+    "execution of acquired scripts, source compilation and dependency restoration",
+    "installer or application execution",
+    "protected deployment, installed gates and production acceptance",
+    "device, GUI, elevation, provisioning, license consent and OS policy effects"
+  ]
+}

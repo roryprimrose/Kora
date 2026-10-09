@@ -14,6 +14,23 @@ internal sealed partial class SessionsWindow : Window
         DataContext = model;
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
+        SearchList.Click += async (_, _) => await model.SearchListAsync();
+        NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
+        CancelListSearch.Click += (_, _) => model.CancelListSearch();
+        ClearListSearch.Click += (_, _) => { model.ClearListSearch(); ListQuery.Focus(); };
+        ListQuery.KeyDown += async (_, args) =>
+        {
+            if (args.Key == Key.Enter && model.CanSearchList)
+            {
+                args.Handled = true;
+                await model.SearchListAsync();
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.ClearListSearch();
+            }
+        };
         Records.SelectionChanged += async (_, _) =>
         {
             await model.SelectAsync(Records.SelectedItem as SessionWorkspaceEntry);

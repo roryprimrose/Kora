@@ -211,6 +211,10 @@ public sealed partial class SessionWorkspaceServiceTests
         internal bool ReviseDuringControl { get; init; }
         internal string? Failure { get; init; }
         internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; init; }
+        internal Func<Guid?, int, SessionPage<SessionWorkspaceEntry>>? ListReader { get; set; }
+        internal Func<HostId<SessionIdentity>, SessionWorkspaceEntry>? ExactListReader { get; set; }
+        internal Action? AfterListRead { get; set; }
+        internal int ListReads { get; private set; }
         internal Action? AfterHistoryRead { get; set; }
         internal Exception? HistoryFailure { get; set; }
         internal SessionHistoryEvent? HistoryEvent { get; set; }
@@ -249,11 +253,18 @@ public sealed partial class SessionWorkspaceServiceTests
                 ? new SessionPage<WorkSessionAuthorization>([Session], Session.SessionId.Value) : new([], null));
         }
 
-        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(MetadataPage ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null));
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken)
+        {
+            ListReads++;
+            var result = ListReader?.Invoke(after, limit) ?? MetadataPage
+                ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null);
+            AfterListRead?.Invoke();
+            return ValueTask.FromResult(result);
+        }
 
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
+            if (ExactListReader is { } reader) { return ValueTask.FromResult(reader(session)); }
             if (RevokeDuringDispositionResolution) { AdvanceRevision(); }
             if (RevokeDuringTaskResolution) { CanInspect = false; }
             return ValueTask.FromResult(new SessionWorkspaceEntry(

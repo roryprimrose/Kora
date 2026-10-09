@@ -96,6 +96,18 @@ Line coverage: 100.0% (18279/18279); Branch coverage: 100.0% (11013/11013)
 Raw line-rate/branch-rate: 1 / 1
 ```
 
+### R14 Passive Session-List Metadata Search - 2026-10-10
+
+Delivered [native name/exact-ID list navigation](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) across bounded persisted metadata pages, separately from history lexical search and Evidence. Explicit modes, canonical-ID ordering, cross-page All/Active/Done scope, query/host/admission-bound continuation, complete byte/scan limits and truthful mutable-keyset recovery reuse existing private store and domain validation.
+
+[Core policy tests](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs), [passive workflow tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs), [actual private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs) and [headless native controls](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs) cover beyond-first-50 matches, Unicode/duplicate names, unnamed/exact IDs, state/removal, bounds, mutable changes, fail-closed cursors and passive preservation.
+
+No schema/index, new source or snapshot authority, conversation/history lexical scope, diagnostic filter, memory/skill/provider/file mutation, model or voice targeting is added. Caption monitor selection is outside this authorized increment. Existing memory proposals and selected work refresh remain functional. Composer/full conversation, general history/model/provider and installed screen-reader/DPI/native gates remain open.
+
+Experiment equivalence assessment: no executable or historical receipt is wholly superseded by bounded metadata navigation. Retain unique [storage crypto/copy/native/recovery assertions](../experiments/r02-storage-proof/README.md#proof-code-lifecycle), [runtime mediation/provider evidence](../experiments/r02-runtime-proof/README.md), [local-inference quality/resource assertions](../experiments/r02-local-inference-proof/README.md), containment and speech receipts. New tests do not invoke or reclassify them.
+
+Consumer assessment: the existing workspace list, exact controls, passive work timer, immutable history detail resolver and memory management share unchanged IDs/revisions/admission seams. Core Tools/Definitions dependency direction and typed/voice `session search` history grammar are unchanged. Runtime conformance/historical witness and management/runtime-extraction consumers remain; no experiment or eng/proof tooling is removed or rerun.
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

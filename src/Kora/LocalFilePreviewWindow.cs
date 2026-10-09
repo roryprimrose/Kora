@@ -25,7 +25,7 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         AutomationProperties.SetName(button, "Confirm exact local file read");
         button.Command = new AsyncCommand(confirm, exception =>
             reportFailure("Local file admission failed; no success is claimed. Failure type: " + exception.GetType().Name));
-        Compose(Describe(review) + "\n256 KiB strict UTF-8 limit; one file, no recursion or excluded items.\n"
+        Compose(Describe(review) + DescribeRefresh(review.PreviousMetadata) + "\n256 KiB strict UTF-8 limit; one file, no recursion or excluded items.\n"
             + "Reparse/link, protected, generated, source-control, hidden/system and unstable inputs are denied, not silently excluded.\n"
             + "Confirm in this native review only. Typed/voice paths and document instructions cannot authorize reads.",
             button, null);
@@ -38,14 +38,15 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         AutomationProperties.SetName(button, "Confirm exact complete local folder read");
         button.Command = new AsyncCommand(confirm, exception =>
             reportFailure("Local folder admission failed; no success is claimed. Failure type: " + exception.GetType().Name));
-        Compose(Describe(review) + $"\nLimits: {LocalFolderPolicy.MaximumFiles} immediate files / "
+        Compose(Describe(review) + DescribeRefresh(review) + $"\nLimits: {LocalFolderPolicy.MaximumFiles} immediate files / "
             + $"{LocalFolderPolicy.MaximumCombinedBytes} combined bytes / {LocalFilePolicy.MaximumBytes} bytes per file.\n"
             + "No recursion. Any subdirectory or inadmissible item rejects the whole folder; no silent exclusions.\n"
             + "Review every item below. Exact native confirmation only; review expires after two minutes.",
             button, null);
     }
 
-    internal void ShowFolderRevision(LocalFolderRevision revision, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent)
+    internal void ShowFolderRevision(LocalFolderRevision revision, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
+        Func<Task> refresh)
     {
         Title = "Immutable complete local folder preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nFolder revision: {revision.Reference.RevisionId:D}",
@@ -64,15 +65,48 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         DockPanel.SetDock(files, Dock.Top);
         body.Children.Insert(1, files);
         ShowSearch(body, search, isCurrent, folder: true);
+        ShowRefresh(body, refresh, folder: true);
     }
 
-    internal void ShowRevision(LocalFileRevision revision, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent)
+    internal void ShowRevision(LocalFileRevision revision, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
+        Func<Task> refresh)
     {
         Title = "Immutable local file preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nRevision: {revision.RevisionId:D} / item: {revision.ItemId:D}\n"
             + $"SHA-256 (exact source bytes): {revision.Digest}\nAdmitted: {revision.AdmittedAt:O}",
             null, revision.Text);
         ShowSearch(body, search, isCurrent, folder: false);
+        ShowRefresh(body, refresh, folder: false);
+    }
+
+    private void ShowRefresh(DockPanel body, Func<Task> refresh, bool folder)
+    {
+        var button = new Button { Content = folder ? "Refresh this folder preview" : "Refresh this file preview" };
+        AutomationProperties.SetName(button, button.Content.ToString());
+        button.Command = new AsyncCommand(refresh, exception =>
+            reportFailure("Refresh unavailable; no refreshed preview claimed. Use the native picker again. Failure type: "
+                + exception.GetType().Name));
+        ToolTip.SetTip(button, "Retires this immutable preview. Reviews the same physical source again; confirm separately before content reads.");
+        DockPanel.SetDock(button, Dock.Top);
+        body.Children.Insert(1, button);
+    }
+
+    private static string DescribeRefresh(LocalFileMetadata? previous) => previous is null ? string.Empty
+        : $"\nREFRESH metadata review — old preview and citations retired. No new content read.\n"
+            + $"Previous bytes: {previous.ByteLength} / last write: {previous.LastWrite:O} / identity: {previous.FileIdentity}\n"
+            + "Same canonical physical file only; separate confirmation required. Failure/cancel requires a fresh native selection.";
+
+    private static string DescribeRefresh(LocalFolderReview review)
+    {
+        if (review.PreviousMetadata is not { } previous) { return string.Empty; }
+        var current = review.Metadata.Files.ToDictionary(file => file.CanonicalPath, StringComparer.OrdinalIgnoreCase);
+        var old = previous.Files.ToDictionary(file => file.CanonicalPath, StringComparer.OrdinalIgnoreCase);
+        return "\nREFRESH metadata review — old preview and citations retired. No new content read.\n"
+            + $"Previous inventory: {previous.Files.Count} files / {previous.CombinedBytes} bytes\n"
+            + string.Join("\n", current.Values.Select(file => !old.TryGetValue(file.CanonicalPath, out var before)
+                ? $"Added: {file.CanonicalPath}" : $"Present ({(file == before ? "metadata unchanged" : "metadata changed/replaced")}): {file.CanonicalPath}"))
+            + "\n" + string.Join("\n", old.Keys.Where(path => !current.ContainsKey(path)).Select(path => $"Removed: {path}"))
+            + "\nSame canonical physical folder only; complete new inventory and separate confirmation required. Failure/cancel requires a fresh native selection.";
     }
 
     private void ShowSearch(DockPanel body, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent, bool folder)

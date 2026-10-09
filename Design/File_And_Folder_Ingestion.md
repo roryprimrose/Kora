@@ -1,7 +1,7 @@
 # File and Folder Ingestion and Grounded Reasoning
 
 Status: bounded R26 foundations implement **local file inspection and
-selected immutable revision and bounded immediate-folder lexical retrieval**, described below. The broader
+selected immutable revision, bounded immediate-folder lexical retrieval and explicit volatile preview refresh**, described below. The broader
 ingestion/attachment, recursive folder, managed knowledge source, persistent/vector
 index, multi-source retrieval, reasoning and hosted transmission design
 remains proposed and unavailable.
@@ -62,12 +62,12 @@ collection, not a claimed cryptographic memory erasure. Close, `clear file
 preview`, Cancel task, privacy/lock, generation changes, exit or ownership
 loss discard the selected revision and release review handles. Pending
 selection/read and unverified release block clean handoff; cancellation does
-not fabricate quiescence. No watcher, refresh/retry, ambient collection,
+not fabricate quiescence. No watcher, automatic refresh/retry, ambient collection,
 network parsing, inference, egress or document-derived authority exists.
 
 R26.1c below extends this foundation to immediate-folder preview and search.
 UNC/removable-drive ingestion, durable attachments, registry,
-refresh, persistent/vector indexes, local/hosted grounded reasoning,
+managed-source refresh, persistent/vector indexes, local/hosted grounded reasoning,
 screens/images and later formats remain unavailable. This slice does not
 qualify their gates. Native installed/accessibility acceptance remains
 separate from deterministic contract and real Windows filesystem tests.
@@ -156,6 +156,22 @@ The immutable folder reference selects the complete admitted set; each file reta
 The native surface inspects each complete inert file and searches only the selected immutable folder. `search folder` / `inspect folder` focus native query entry; queries and excerpts do not enter transcripts, history, models, speech, clipboard, logs or durable storage. `clear folder preview`, close, Cancel task, privacy/lock, call/ownership/generation change and disposal revoke the same shared broker. Single-file and folder selections replace rather than expand one another. Outstanding capture/search still blocks clean handoff until genuinely quiescent ([presentation](../src/Kora/LocalFilePreviewWindow.cs), [host gates](../src/Kora.Application/ViewModels/MainViewModel.Files.cs), [shared revocation](../src/Kora.Tools/Files/LocalFilePreview.cs)).
 
 **This slice is folder-scoped admission + lexical search only, volatile only.** There is no durable cross-session attachment, managed registry, refresh, ambient watching, disable/remove lifecycle, persistent/vector index, embeddings, local-model reasoning, hosted egress or document-derived authority. R26.2 lifecycle and R26.3/4/5 runtime/format gates remain separate; R08 remains unqualified. No executable experiment is superseded. Installed native/accessibility acceptance remains outstanding; maintained portable tests and real Windows sharing/reparse/hard-link/protected-path/inventory tests cover this bounded slice ([Core tests](../tests/Kora.Core.UnitTests/Context/LocalFolderTests.cs), [broker tests](../tests/Kora.Tools.UnitTests/Files/LocalFolderTests.cs), [host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Folders.cs), [Windows tests](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Folders.cs)).
+
+## Delivered Explicit Volatile Preview Refresh - 2026-10-10
+
+R26.1d extends only the host-held, currently admitted R26.1a/c file or immediate-folder preview. Native **Refresh this file/folder preview** and exact typed/current-name ACTIVATED `refresh file` / `refresh folder` share [`LocalFileRefresh`](../src/Kora.Tools/Files/LocalFileRefresh.cs) and the existing preview broker. They cannot supply a path, pick another source, confirm a read or submit a document to a model. Reserved refresh suffixes/malformed commands refuse locally, not through inference.
+
+The broker captures the exact previous source/revision reference, original host request/session/task and eligibility/control lifetime. The operation reopens only the original trusted canonical path through the unchanged Windows inspector, requiring the same original physical file or directory identity. The same fixed-drive, ancestor, reparse, hard-link, protected/generated/source-control, hidden/system and stable-sharing policy still applies. Missing, replaced, aliased or unverified roots deny refresh; recovery is a fresh explicit native picker selection, never silent source rebinding.
+
+Changed bytes/size/mtime of that same physical file are eligible for a **fresh metadata-only review** with a new review ID, linked activity and two-minute deadline. For a folder, the complete newly enumerated immediate inventory is reviewed: 1–32 files, 1 MiB combined original bytes, unchanged 256 KiB per file, same formats, no recursion or exclusions. The native review shows new identities/count/bytes and previous metadata; folder members added, removed or changed/replaced are visible. “Metadata unchanged” is not a content freshness or byte-equality claim.
+
+**Separate new native confirmation is required before content reads.** Old confirmations cannot be reused. Strict UTF-8/binary/control failures discovered during capture reject the entire candidate. Both consistency passes, exact complete inventory validation, raw-buffer clearing, native release and required typed terminal audit precede publication. The source ID and original request are retained; every successful revision and item obtains fresh identities and exact original-byte digests. Old exact references/citations never resolve into new content, even if bytes happen to be unchanged.
+
+The existing single-slot broker **retires the old immutable preview and callbacks when refresh starts**, rather than keeping an unlabeled old snapshot visible or relabeling it current. Review, cancellation or failure is not refresh success and leaves no admitted preview. Close/Clear/Cancel task, original or current privacy/call/control generations, ownership loss, disposal, audit failure and late metadata/capture/search all retain the same fail-closed resource-quiescence fences. Unverified native release blocks clean handoff/exit and further admission; restart/recovery is required. Starting a competing refresh/selection/search while work is outstanding returns Busy, not another read.
+
+This remains **volatile only**: original user files are untouched; no preference, source registry, durable attachment/history/artifact/index/body, watcher/scheduler, network, recursive enumeration, egress/model context, clipboard, speech, executable or document authority is added. Full R26.1/2 durable source lifecycle, qualified local/hosted reasoning, OCR/vector/later formats and installed native/accessibility gates remain open. No experiment is exactly superseded: maintained refresh tests cover this bounded contract, not historical/native/inference/storage/runtime/containment proofs. All experiment consumers and unique proofs are retained.
+
+Focused evidence: [Core exact commands](../tests/Kora.Core.UnitTests/Context/LocalFileTests.cs), [broker metadata/identity/audit/revocation](../tests/Kora.Tools.UnitTests/Files/LocalFileRefreshTests.cs), [host no-egress/no-persistence](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileRefresh.cs), [actual Windows same-identity and denial fixtures](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Refresh.cs).
 
 ## Product Outcome
 
@@ -517,6 +533,7 @@ Before advertising the initial file/folder capability:
 | R26.1a - Bounded local file inspection | Delivered foundation: native selection, metadata review, exact native confirmation, immutable strict-UTF-8 plain-text/Markdown preview; volatile only | Existing ownership/privacy, activity/audit, exact input routing and passive native presentation seams | Deterministic portable admission/decoding/generation tests and real Windows sharing/reparse/hard-link/protected-path/cancellation tests; no folder, persistence, model or retrieval authority; installed UX acceptance outstanding |
 | R26.1b - Selected-revision lexical retrieval | Delivered: exact single-file immutable revision search, shared lexical-lines-v1 chunks/ranking and native citations; volatile only | R26.1a and existing ownership/privacy/call/audit boundaries | Bounded exact excerpts, digest/item citations, cancellation/revocation/isolation and no-egress tests; no additional filesystem, model or persistence authority |
 | R26.1c - Bounded folder-scoped lexical retrieval | Delivered: reviewed complete set of 1–32 immediate files, 1 MiB combined bytes, unchanged 256 KiB per file; any subdirectory/inadmissible item rejects the whole selection; native search only, volatile only | R26.1a/b and existing ownership/privacy/call/audit boundaries; no R08/runtime dependency | [Portable admission/retrieval](../tests/Kora.Core.UnitTests/Context/LocalFolderTests.cs), [broker revocation/audit](../tests/Kora.Tools.UnitTests/Files/LocalFolderTests.cs), [host no-egress/no-persistence](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Folders.cs) and [real Windows denial/inventory/bounds](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Folders.cs); installed UX acceptance outstanding; R26.2 lifecycle remains gated |
+| R26.1d - Explicit volatile preview refresh | Delivered: exact host-held original canonical physical file/folder; fresh complete metadata review and separate native confirmation; unchanged bounds and source ID, fresh revision/items/digests; old single-slot preview retired at start | R26.1a/c and original/current host control, session/task, privacy/call/ownership/generation, audit/release boundaries | [Refresh broker](../tests/Kora.Tools.UnitTests/Files/LocalFileRefreshTests.cs), [host](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileRefresh.cs), [actual Windows files](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Refresh.cs); no registry/durability/watch/egress, installed UX and broader R26.2 acceptance open |
 | R26.0 - Finalize policy and limits | Agree initial formats, numeric limits, storage/retention, citation shape, local-runtime envelope, and hostile-document fixtures | R04 storage semantics, R06 tool/result bounds, R10 configuration registry, R12 session retention | Approved typed contracts and threat/acceptance fixtures; no runtime capability |
 | R26.1 - Native selection and immutable text snapshot | Add picker plus reviewed absolute path proposal, safe Windows enumeration/read, `.txt`/Markdown extraction, source registry, revision identity, native preview and deletion | R03 ownership/privacy, R04 durable storage/recovery, R05 review/questions, R10 settings | Real Windows file/folder/reparse/access/change/cancel/restart tests; no model exposure |
 | R26.2 - Lexical retrieval and citations | Deterministic chunk/index/search/read-excerpt, source selection, context budget, citation presentation, refresh/disable/remove cleanup | R26.1, R06 admitted descriptors, R12 session/artifact lifecycle, R14 source/citation UI | Grounding, hostile-content, cross-session/source isolation, stale/revoked and interrupted-cleanup evidence |
@@ -529,5 +546,5 @@ marks required storage/session/configuration/tool-loop work as partial or
 outstanding. Implementing path reads directly in a view model or inserting
 whole files into the existing 4,096-character local-model request would bypass
 the required source identity, context budget, retention, egress, and
-cross-session controls. Delivered R26.1a/b/c explicitly stop at volatile native inspection and scoped lexical search; those
+cross-session controls. Delivered R26.1a/b/c/d explicitly stop at volatile native inspection, scoped lexical search and exact explicit preview refresh; those
 remaining contracts are not implied by this foundation.

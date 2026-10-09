@@ -125,6 +125,9 @@ public sealed class LocalFileTests
         LocalFileCommand.Parse("clear file preview")!.Operation.Should().Be(LocalFileOperation.Clear);
         LocalFileCommand.Parse("search file")!.Operation.Should().Be(LocalFileOperation.Inspect);
         LocalFileCommand.Parse("inspect file")!.Operation.Should().Be(LocalFileOperation.Inspect);
+        LocalFileCommand.Parse("refresh file")!.Operation.Should().Be(LocalFileOperation.Refresh);
+        LocalFileCommand.Parse("refresh folder")!.Operation.Should().Be(LocalFileOperation.RefreshFolder);
+        LocalFileCommand.FixedPhrases.Should().Contain("refresh file").And.Contain("refresh folder");
         LocalFileCommand.Parse("search file for secrets")!.Operation.Should().Be(LocalFileOperation.Invalid);
         LocalFileCommand.Parse("inspect file c team file txt")!.Operation.Should().Be(LocalFileOperation.Invalid);
         foreach (var text in new[] { "preview file c team file txt", "confirm file", "confirm folder", "preview file now" })
@@ -132,6 +135,17 @@ public sealed class LocalFileTests
             LocalFileCommand.Parse(text).Should().BeNull();
         }
     }
+
+    [Theory]
+    [InlineData(@"refresh file C:\Team\guide.md")]
+    [InlineData("refresh file now")]
+    [InlineData("refresh files")]
+    [InlineData("refresh file:")]
+    [InlineData(@"refresh folder C:\Team")]
+    [InlineData("refresh folder now")]
+    [InlineData("refresh folders")]
+    public void ReservedRefreshSuffixesNeverSupplySourceOrConfirmationAuthority(string phrase) =>
+        LocalFileCommand.Parse(phrase)!.Operation.Should().Be(LocalFileOperation.Invalid);
 
     [Theory]
     [InlineData("review")]

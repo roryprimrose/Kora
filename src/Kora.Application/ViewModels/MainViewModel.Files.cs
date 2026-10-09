@@ -13,6 +13,7 @@ public sealed partial class MainViewModel
     private IUserFilePicker? filePicker;
     private IUserFolderPicker? folderPicker;
     private LocalFileSearch? fileSearch;
+    private LocalFileRefresh? fileRefresh;
     public LocalFileReview? FileReview => filePreview?.Review;
     public LocalFileRevision? FileRevision => filePreview?.Current;
     public LocalFolderReview? FolderReview => filePreview?.FolderReview;
@@ -21,13 +22,14 @@ public sealed partial class MainViewModel
     public event EventHandler? FileInspectionRequested;
 
     public void BindFilePreview(LocalFilePreview service, IUserFilePicker picker, LocalFileSearch? search = null,
-        IUserFolderPicker? folders = null)
+        IUserFolderPicker? folders = null, LocalFileRefresh? refresh = null)
     {
         if (filePreview is not null) { throw new InvalidOperationException("File preview is already bound."); }
         filePreview = service;
         filePicker = picker;
         fileSearch = search;
         folderPicker = folders;
+        fileRefresh = refresh;
         service.Changed += OnFilePreviewChanged;
     }
 
@@ -70,6 +72,60 @@ public sealed partial class MainViewModel
     }
 
     public void ClearFilePreview() => filePreview?.Clear();
+
+    public Task RefreshFilePreviewAsync(LocalFileReference exactSource)
+    {
+        if (FileRevision is not { } admitted || admitted.Reference != exactSource)
+        {
+            PresentFileOutcome(LocalFileOutcome.Stale);
+            return Task.CompletedTask;
+        }
+        return RefreshPreviewAsync(admitted.Review.Request, admitted.Review.Cause,
+            gate => fileRefresh!.ExecuteAsync(exactSource, gate, CancellationToken.None));
+    }
+
+    public Task RefreshFolderPreviewAsync(LocalFolderReference exactSource)
+    {
+        if (FolderRevision is not { } admitted || admitted.Reference != exactSource)
+        {
+            PresentFileOutcome(LocalFileOutcome.Stale);
+            return Task.CompletedTask;
+        }
+        return RefreshPreviewAsync(admitted.Review.Request, admitted.Review.Cause,
+            gate => fileRefresh!.ExecuteAsync(exactSource, gate, CancellationToken.None));
+    }
+
+    private async Task RefreshPreviewAsync(HostRequest original, ActivityContext cause,
+        Func<Func<bool>, Task<LocalFileOutcome>> refresh)
+    {
+        if (HostActivity.HasScope && HostActivity.Current is null)
+        {
+            PresentFileOutcome(LocalFileOutcome.Stale);
+            return;
+        }
+        var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
+        var callRevision = CallPolicyRevision;
+        var voiceRevision = Volatile.Read(ref voiceRecoveryRevision);
+        bool Eligible() => IsClipboardEligible(origin, callRevision)
+            && (origin != RequestOrigin.ActivatedVoice || (IsVoiceEnabled && HasVoiceConsent
+                && Volatile.Read(ref voiceRecoveryRevision) == voiceRevision));
+        if (fileRefresh is null || !Eligible())
+        {
+            PresentFileOutcome(LocalFileOutcome.Stale);
+            return;
+        }
+        // The host-held admission, not command text or incoming trace headers, selects this continuation.
+        var request = new HostRequest(new(Guid.NewGuid()), original.SessionId, original.TaskId, origin);
+        using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
+            [new ActivityLink(cause)]);
+        ShowInformation("Explicit local preview refresh requested",
+            "Starting a fresh metadata review of the exact admitted physical source. The old immutable preview and citations "
+            + "are retired when this operation starts; no content is read until a separate new native confirmation. "
+            + "If refresh fails or is cancelled, use the native picker for a fresh review. Original files are never modified.");
+        var outcome = await refresh(Eligible);
+        PresentFileOutcome(outcome);
+        activity.Complete(outcome == LocalFileOutcome.Reviewed ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+    }
 
     public async Task<LocalFileSearchResult> SearchFileAsync(LocalFileReference exactSource, string query)
     {
@@ -144,6 +200,18 @@ public sealed partial class MainViewModel
             FileInspectionRequested?.Invoke(this, EventArgs.Empty);
             return;
         }
+        if (command.Operation == LocalFileOperation.Refresh)
+        {
+            if (FileRevision is not { } exact) { PresentFileOutcome(LocalFileOutcome.Stale); return; }
+            await RefreshFilePreviewAsync(exact.Reference);
+            return;
+        }
+        if (command.Operation == LocalFileOperation.RefreshFolder)
+        {
+            if (FolderRevision is not { } exact) { PresentFileOutcome(LocalFileOutcome.Stale); return; }
+            await RefreshFolderPreviewAsync(exact.Reference);
+            return;
+        }
         if (command.Operation == LocalFileOperation.SelectFolder && folderPicker is null)
         {
             PresentFileOutcome(LocalFileOutcome.Unavailable);
@@ -169,6 +237,9 @@ public sealed partial class MainViewModel
             + $"Preview folder reviews all immediate files only: {LocalFolderPolicy.MaximumFiles} files / "
             + $"{LocalFolderPolicy.MaximumCombinedBytes} combined bytes maximum; 256 KiB per file. "
             + "Any subdirectory, unsupported file or failed item rejects the whole selection. Search/inspect folder focuses native lexical search. "
+            + "Refresh file/folder reopens only the exact admitted physical source for a fresh metadata review; confirm again before reads. "
+            + "Starting refresh retires the old preview and citations. Failure/cancel leaves no preview; use the native picker again. "
+            + "Missing/replaced or aliased original roots cannot be rebound by refresh. Original files are never modified. "
             + "Durable attachments, knowledge sources, persistent/vector indexes and reasoning are unavailable.");
     }
 

@@ -236,7 +236,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
         SpeechTextConfigurationService? speechTextConfiguration = null,
         SessionRetentionConfigurationService? sessionRetentionConfiguration = null,
-        SessionQueueConfigurationService? queueConfiguration = null)
+        SessionQueueConfigurationService? queueConfiguration = null,
+        ProviderModeConfigurationService? providerModeConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -301,6 +302,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             playbackVolumeConfiguration.Changed += OnPlaybackVolumeChanged;
         }
         this.responseModeConfiguration = responseModeConfiguration;
+        this.providerModeConfiguration = providerModeConfiguration;
         this.inCallFeedbackConfiguration = inCallFeedbackConfiguration;
         if (inCallFeedbackConfiguration is not null)
         {
@@ -362,6 +364,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             responseModeConfiguration.Changed += OnResponseModeConfigurationChanged;
         }
+        if (providerModeConfiguration is not null)
+        {
+            providerModeConfiguration.Changed += OnProviderModeConfigurationChanged;
+        }
         if (outputConfiguration is not null)
         {
             outputConfiguration.Changed += OnOutputConfigurationChanged;
@@ -416,6 +422,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
+        RefreshProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Get));
+        SaveProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Set));
+        ResetProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Reset));
         RefreshInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
             new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
         SaveInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
@@ -3889,6 +3898,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteResponseModeCommandAsync(responseModeCommand, initiator);
             return;
         }
+        if (ProviderModeCommand.Parse(spokenText, AssistantName) is { } providerModeCommand)
+        {
+            await ExecuteProviderModeCommandAsync(providerModeCommand, initiator);
+            return;
+        }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
             ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
         if (AssistantNameCommand.Parse(spokenText, AssistantName) is { } assistantCommand
@@ -5403,6 +5417,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(AuditRetentionStatus));
         OnPropertyChanged(nameof(CanChangeResponseMode));
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
+        OnPropertyChanged(nameof(CanChangeProviderMode));
+        OnPropertyChanged(nameof(ProviderModeConfigurationStatus));
         OnPropertyChanged(nameof(IsInCallFeedbackOverrideApplied));
         OnPropertyChanged(nameof(InCallFeedbackStatus));
         OnPropertyChanged(nameof(CanInspectInCallFeedback));
@@ -5428,6 +5444,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

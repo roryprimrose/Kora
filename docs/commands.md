@@ -17,9 +17,26 @@ The exact phrases on this page remain the current-release command reference.
 
 Provider-neutral host controls add no new command or qualified model tool loop.
 Existing bootstrap reasoning and unavailable messages remain unchanged;
-hosted inference, Local only/Local first/Hosted preferred modes, reviewed
-handoff and durable memory are not enabled by this host-only foundation.
+hosted inference and native reviewed handoff are not enabled by this host-only foundation.
+Device-local initial provider mode settings are delivered separately below.
 Clipboard and file preview/search commands still perform no model submission.
+
+## Inspect or change the device-local provider mode
+
+Native **Settings > Providers** Inspect/Save/Reset and exact typed/current-name activated commands share the [provider-mode workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs).
+
+| Exact syntax | Result |
+|---|---|
+| `list provider settings` | Discover the single device-local option, choices, default, revision, timing and recovery |
+| `get providers.default-mode` / `status providers.default-mode` | Confirmed saved/default/unavailable provenance and desired initial mode |
+| `set providers.default-mode to LocalOnly` | Save the privacy-first initial mode |
+| `set providers.default-mode to LocalFirst` | Save local-first semantics for subsequent session initialization |
+| `set providers.default-mode to HostedPreferred` | Save hosted preference only; no adapter or egress permission is enabled |
+| `reset providers.default-mode` | Explicitly save LocalOnly, preserving existing session policies and other preferences |
+
+Unsaved/default/reset is **LocalOnly**. Only a session's first policy-bound turn consumes this device preference; existing volatile policies and per-turn Default/Local/Hosted choices are unchanged. HostedPreferred remains fail-closed with no composed adapter and no egress authority ([consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs), [tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
+
+Original user intent, current owning unlocked host, active control session/generation, unchanged choice/call/preference revisions, required audit, atomic readback and completed control receipt precede confirmation. Protected/Unknown original voice writes refuse. Corrupt or unconfirmed storage never becomes a default; inspect saved state and receipts, explicitly repair, then refresh ([workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs), [storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs)).
 
 ## Trusted local events
 

@@ -639,8 +639,9 @@ No account/model acquisition, network send, RT1/RT2/PV1 proof, memory
 storage/retrieval, prompt ranking or native provider-settings/review UI is
 delivered. The generic native question surface cannot itself issue this
 workflow's review capability. Durable session policy awaits dependent
-native/persistence integration; no shared schema is changed. Bootstrap behavior
-is unchanged.
+native/persistence integration in that increment; the durable preference delivery
+below closes only the device-local persistence/settings gap. Bootstrap behavior
+is unchanged ([initial-policy consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs)).
 
 Experiment disposition remains **retain**, with no executable or receipt
 removal. The [RT1 final HTTP boundary](../experiments/r02-dotnet-control-proof/RequestBoundary.cs),
@@ -654,3 +655,17 @@ account/local-floor/offline procedures and outstanding gates remain in the
 [inventory](Implementation_Roadmap.md#experiment-disposition-inventory).
 Deterministic policy tests do not establish exact SDK/native equivalence or
 close R08/D-014 acceptance.
+
+### Delivered R10 Durable Provider Mode Preference - 2026-10-09
+
+Native **Settings > Providers** and exact typed/current-name activated discovery/get/set/reset share the [provider-mode workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs). Only `providers.default-mode` is registered: LocalOnly, LocalFirst and HostedPreferred. Unsaved/default/reset is **LocalOnly**; no hosted handoff is offered without explicit opt-in ([domain rules](../src/Kora.Core/Dependencies/ModelProviderModePreference.cs)).
+
+Schema-1 `provider-mode.txt` and `provider-mode-unconfirmed.txt` use `IApplicationDataPaths` and the shared atomic preference store. Unknown schema/shape, noncanonical modes, invalid UTF-8, oversized or unconfirmed state throws `InvalidDataException`, never a default. Reset explicitly saves LocalOnly, following response-mode set-to-default semantics; other preferences are untouched ([storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs)).
+
+Host-held choices bind owner, preference revision, original channel, admitted active session/generation and live ownership/privacy/call eligibility. Original intent, REQUESTED/terminal trusted audit, atomic save/readback and durable completed control receipt precede confirmation. Protected/Unknown original voice writes are denied; interrupted writes remain unavailable across restart and require explicit saved-state/evidence repair ([workflow tests](../tests/Kora.Application.UnitTests/Configuration/ProviderModeConfigurationServiceTests.cs)).
+
+At the first policy-bound turn, the [host](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs) seeds revision 1 from confirmed device state after existing session/task admission. Subsequent device edits do not replace an initialized session's volatile policy. Default/Local/Hosted choices, LocalOnly refusal, LocalFirst exact handoff review and revision invalidation retain their existing semantics ([consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
+
+Preference publication adds no adapter, qualification, account, destination, network, grant or egress path. HostedPreferred remains unavailable without an adapter and DeniedEgress even with fully qualified fake registrations. Bootstrap reasoning is unchanged; native handoff review UI and real hosted inference remain undelivered ([fail-closed tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
+
+Deterministic fake/private-storage, shared SQLite lease and native binding tests cover this bounded increment; no experiment evidence is removed or claimed migrated ([storage integration](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteProviderModeConfigurationTests.cs), [native contract](../tests/Kora.Windows.IntegrationTests/ProviderModeConfigurationUiContractTests.cs)).

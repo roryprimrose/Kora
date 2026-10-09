@@ -954,6 +954,23 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Providers">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <TextBlock Text="Device-local provider mode" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="LocalOnly is the unsaved/reset default. This preference seeds subsequent sessions; existing session policies and per-turn choices are unchanged. No provider adapter, account, network or egress permission is enabled."
+                       Classes="settings-description" TextWrapping="Wrap" />
+            <ComboBox ItemsSource="{Binding ProviderModeChoices}" SelectedItem="{Binding SelectedProviderModeChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderMode}"
+                      AutomationProperties.Name="Device-local provider mode" />
+            <Button Content="Inspect provider mode" Command="{Binding RefreshProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+            <Button Content="Save provider mode" Command="{Binding SaveProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+            <Button Content="Reset provider mode to LocalOnly" Command="{Binding ResetProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+            <TextBlock Text="{Binding ProviderModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
       <TabItem x:Name="ReadinessTab" Header="Readiness">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">

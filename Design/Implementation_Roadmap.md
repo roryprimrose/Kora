@@ -59,6 +59,21 @@ Maintained evidence is [native typed/filter/culture/lifecycle and real SQLite/da
 
 This deterministic read-only slice is not full R14/workspace/Ask Evidence or installed visual/screen-reader/DPI acceptance. Experiment disposition: retain unique executables/receipts and their consumers unchanged. [Storage](../experiments/r02-storage-proof/README.md), [runtime](../experiments/r02-runtime-proof/README.md), [containment](../experiments/r02-containment-proof/README.md) and [speech](../experiments/r02-speech-proof/README.md) proofs exercise capacity/crypto/recovery, runtime/provider/mediation, process containment and acoustic/resource behaviors not invoked by filtering; these tests do not replace their release evidence or authorize archival.
 
+Local receipt for implementation `d97987474984ee9e0736407bb1f7b2e65a8cf0eb`, rebased onto reviewed main `c8365251488a063bd2e9ea76a6fb91002ea376bb`: missing worktree assets were restored locked using the machine-approved feed. The final Release solution build and all five suites passed with zero failures/skips. Fresh four-suite portable reports passed the unchanged [100% coverage gate](../eng/Assert-CodeCoverage.ps1), raw line/branch rates exactly `1`; source-generated logging source-file notices from report generation do not affect the zero-warning build or coverage totals.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1314; Application: 3579; Tools: 90; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: total 1337; failed 0; succeeded 1337; skipped 0
+All five suites: failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <fresh-r14-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0%; Branch coverage: 100.0%
+lines-covered/valid: 18223/18223; branches-covered/valid: 10975/10975
+```
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

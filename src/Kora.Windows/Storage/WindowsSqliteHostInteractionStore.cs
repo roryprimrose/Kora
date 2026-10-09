@@ -10,6 +10,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Memory;
 using Kora.Core.Storage;
 
 using Microsoft.Data.Sqlite;
@@ -21,7 +22,7 @@ namespace Kora.Windows.Storage;
 /// Tasks, questions and required authority audit share one lease and transaction.
 /// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ISessionRetentionStore, ICommittedAuthorityAuditReader
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ISessionRetentionStore, ICommittedAuthorityAuditReader, IMemoryStore
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -61,7 +62,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             new(2, 3, HostInteractionSchema.MetadataTables, ConsolidateTasks),
             new(3, 4, HostInteractionSchema.AuthorityTables, MigrateHistory),
             new(4, 5, HostInteractionSchema.HistoryTables, MigrateQueue),
-            new(5, HostInteractionSchema.Version, HostInteractionSchema.QueueTables, MigrateRetention));
+            new(5, 6, HostInteractionSchema.QueueTables, MigrateRetention),
+            memoryMigration: new(6, HostInteractionSchema.Version, HostInteractionSchema.RetentionTables, MigrateMemory));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -242,8 +244,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 var changes = new List<AuthorityChange> { SessionChange(session, state) };
                 changes.AddRange(questions.Select(QuestionChange));
                 changes.AddRange(grants.Select(GrantChange));
+                var memories = MemoryInvalidations(connection, request.SessionId);
+                changes.AddRange(memories.Select(MemoryChange));
                 var sequence = AppendAudit(connection, transaction, intent, session, audit, changes: changes);
                 WriteSession(connection, transaction, session, state, sequence);
+                foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
                 foreach (var question in questions)
                 {
                     WriteQuestion(connection, transaction, question, sequence);
@@ -456,6 +461,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 using var transaction = connection.BeginTransaction();
                 tasks.ImportAuthority(connection, transaction, cancellationToken);
                 Execute(connection, transaction, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                SeedMemoryProfile(connection, transaction);
                 transaction.Commit();
             }
             tasks.RequireRetiredAuthority(cancellationToken);
@@ -477,6 +483,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         SessionHistoryPersistence.Validate(connection);
         ValidateQueue(connection);
         ValidateRetention(connection);
+        ValidateMemory(connection);
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -651,7 +658,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
             || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
-                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention")
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention" or "memory")
                 || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
                 || !Same(change.Id, id.ToString("D"))))
         {

@@ -50,9 +50,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var removed = new WorkSessionAuthorization(request.SessionId,
                 new(checked(target.Authority.Generation.Value + 1)), false);
             var completed = intent.Next(HostTaskState.Succeeded);
+            var memories = MemoryInvalidations(connection, request.SessionId);
             var sequence = AppendAudit(connection, transaction, intent, removed, audit,
-                changes: [SessionChange(removed, 2), TaskChange(completed)]);
+                changes: [SessionChange(removed, 2), TaskChange(completed), .. memories.Select(MemoryChange)]);
             WriteSession(connection, transaction, removed, 2, sequence);
+            foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
             SessionHistoryPersistence.Redact(connection, transaction, request.SessionId);
             Execute(connection, transaction, """
@@ -126,6 +128,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM host_observations WHERE session_id=$id ORDER BY request_id;",
             "SELECT * FROM host_questions WHERE session_id=$id ORDER BY question_id;",
             "SELECT * FROM scoped_grants WHERE session_id=$id ORDER BY approval_id;",
+            "SELECT * FROM reviewed_memory WHERE session_id=$id ORDER BY memory_id;",
             "SELECT * FROM host_tasks WHERE session_id=$id AND task_id<>$control ORDER BY task_id;",
             "SELECT * FROM session_history WHERE session_id=$id AND (json_extract(projection,'$.TaskId') IS NULL OR json_extract(projection,'$.TaskId')<>$control) ORDER BY sequence;",
             "SELECT w.* FROM host_task_waits w JOIN host_tasks t ON t.task_id=w.task_id WHERE t.session_id=$id ORDER BY w.task_id;",

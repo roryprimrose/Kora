@@ -25,10 +25,12 @@ The [reviewed memory admission foundation](Model_Providers_Memory_And_Knowledge.
 places strong identity/scope/lineage, payload limits and eligibility policy in
 Core and the host-owned reviewed state workflow in Application. It reuses
 existing host Activity, ownership/privacy, session metadata and typed audit;
-it creates no parallel provider loop. Its volatile workspace and internal
-profile/source observation seam are not composed into the desktop. Durable
-storage, native original-input CRUD/review and retrieval/use visibility remain
-dependent work; no schema, model context or hosted authority is added.
+it creates no parallel provider loop. The [session-only durable increment](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09)
+extends the existing private interaction SQLite lease/audit transaction and
+session retention inventory to schema v7. Application resolves the private
+session boundary; broader profile/project/source authority stays closed.
+Native original-input CRUD/review, retrieval/use visibility, model context and
+hosted disclosure remain unavailable; store registration exposes no UI/tool.
 
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.

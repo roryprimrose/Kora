@@ -751,6 +751,8 @@ Lifecycle is **Active** or **Done**; work state is separate: idle, queued, runni
 Done means archived, not "every action succeeded". Deleted is irreversible removal, not another browsable status.
 A terminal task result does not automatically mark the whole session Done.
 
+The [bounded reviewed-memory store](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09) retains only exact admitted session-owned candidates. Authoritative Done/retirement, disposition and retention invalidate their bodies/receipts with typed audit in the existing transaction and retain non-reusable tombstones. Restart reads data, not review/use or egress authority; native memory controls and broader scopes remain unavailable.
+
 Host-owned records include:
 
 - Session ID/title, lifecycle, selected state, creation/last meaningful activity, archive time/reason, retention-policy revision, and deletion due time.

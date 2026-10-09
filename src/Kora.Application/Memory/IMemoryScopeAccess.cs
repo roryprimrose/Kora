@@ -7,4 +7,6 @@ namespace Kora.Application.Memory;
 internal interface IMemoryScopeAccess
 {
     MemoryBoundary? Observe(HostRequest request);
+
+    ValueTask<MemoryBoundary?> ResolveAsync(HostRequest request, CancellationToken token);
 }

@@ -8,13 +8,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Memory;
 
-/// <summary>Bounded host-owned admission workspace. It is not durable storage or a model-facing tool.</summary>
+/// <summary>Bounded host-owned admission workspace with an optional authoritative durable transaction.</summary>
 internal sealed partial class MemoryAdmissionService(
     ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access, ICapabilityHostAccess host,
     IMemoryScopeAccess scopes, ISecurityAuditLog audit, ILogger<MemoryAdmissionService> logger,
-    TimeProvider time) : IDisposable
+    TimeProvider time, IMemoryStore? storage = null) : IDisposable
 {
     private readonly Dictionary<HostId<MemoryIdentity>, MemoryRecord> records = [];
+    private readonly HashSet<HostId<SessionIdentity>> expiredSessions = [];
     private readonly Lock stateGate = new();
     private long lifecycleRevision;
     private bool disposed;
@@ -75,9 +76,10 @@ internal sealed partial class MemoryAdmissionService(
                 scope ??= current?.Scope ?? MemoryScope.Session(request.SessionId);
             }
             var control = access.ControlRevision;
-            var before = scopes.Observe(request);
+            var before = await scopes.ResolveAsync(request, token).ConfigureAwait(false);
             MemoryResult result;
-            var reason = MemoryPolicy.CheckBoundary(scope, before);
+            var reason = storage is not null && scope?.Kind != MemoryScopeKind.Session
+                ? MemoryReason.ScopeMismatch : MemoryPolicy.CheckBoundary(scope, before);
             if (reason != MemoryReason.None)
             {
                 result = new(MemoryOutcome.Denied, reason);
@@ -94,6 +96,12 @@ internal sealed partial class MemoryAdmissionService(
             else
             {
                 var session = await workspace.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false);
+                if (storage is not null)
+                {
+                    return await ExecuteStoredAsync(operation, id, expected, scope!, candidate, origin, accept,
+                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, token)
+                        .ConfigureAwait(false);
+                }
                 lock (stateGate)
                 {
                     // No await follows this fence: lifecycle callbacks cannot interleave with mutation.
@@ -156,6 +164,76 @@ internal sealed partial class MemoryAdmissionService(
         }
     }
 
+    private async Task<MemoryResult> ExecuteStoredAsync(MemoryOperation operation, HostId<MemoryIdentity>? id,
+        HostRevision expected, MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
+        bool accept, MemoryDestination destination, MemoryBoundary boundary, HostActivity issuer, long control,
+        long lifecycle, SessionWorkspaceEntry session, SecurityAuditEvent requested, Func<HostActivity> continuation,
+        HostActivity activity, CancellationToken token)
+    {
+        MemoryRecord? original = null;
+        lock (stateGate) { original = id is { } identity ? records.GetValueOrDefault(identity) : null; }
+        MemoryRecord? updated = null;
+        MemoryResult? proposedResult = null;
+        bool Admitted()
+        {
+            lock (stateGate)
+            {
+                return lifecycle == lifecycleRevision && HostEligible(control, issuer)
+                    && scopes.Observe(issuer.Request) == boundary
+                    && (id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), original));
+            }
+        }
+        var result = await storage!.TransactMemoryAsync(issuer.Request, boundary, rows =>
+        {
+            lock (stateGate)
+            {
+                foreach (var row in rows)
+                {
+                    // Keep an unpersisted edit/review only while its exact redacted disk revision still matches.
+                    if (!records.TryGetValue(row.Id, out var cached) || DurableProjection(cached) != row)
+                    {
+                        records[row.Id] = row;
+                    }
+                }
+                original = id is { } identity ? records.GetValueOrDefault(identity) : null;
+                var value = !Admitted() || session.Authority.SessionId != boundary.Session
+                    || !session.Authority.IsActive || session.Authority.Generation != boundary.Generation
+                    ? new MemoryResult(MemoryOutcome.Denied, MemoryReason.AuthorityClosed)
+                    : Transition(operation, original, expected, scope, candidate, origin, accept, destination,
+                        boundary, issuer.Request);
+                CompleteAudit(requested, value, continuation);
+                if (!Admitted())
+                {
+                    value = new(MemoryOutcome.Denied, MemoryReason.AuthorityClosed);
+                    CompleteAudit(requested, value, continuation);
+                }
+                updated = value.Outcome == MemoryOutcome.Succeeded && operation != MemoryOperation.Use ? value.Record : null;
+                var persisted = rows.FirstOrDefault(row => row.Id == updated?.Id);
+                // Proposed/reviewed bodies never reach disk. Edits immediately redact any earlier admitted body.
+                var replacement = updated is not null && (persisted is not null || updated.Review == MemoryReviewState.Admitted)
+                    ? DurableProjection(updated) : null;
+                proposedResult = value;
+                return new(value, persisted, replacement, operation == MemoryOperation.Admit ? original : null);
+            }
+        }, Admitted, token).ConfigureAwait(false);
+        if (result != proposedResult) { CompleteAudit(requested, result, continuation); }
+        lock (stateGate)
+        {
+            if (result.Outcome == MemoryOutcome.Succeeded && updated is not null
+                && lifecycle == lifecycleRevision && !disposed
+                && (id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), original)))
+            {
+                records[updated.Id] = updated;
+            }
+        }
+        activity.Complete(ToActivityOutcome(result.Outcome));
+        return Finish(result, operation, continuation);
+    }
+
+    private static MemoryRecord DurableProjection(MemoryRecord record) =>
+        record.Retention == MemoryRetentionState.Forgotten || record.Review == MemoryReviewState.Admitted
+            ? record : record with { Candidate = null, Receipt = null, Review = MemoryReviewState.Proposed };
+
     private MemoryResult Transition(MemoryOperation operation, MemoryRecord? current, HostRevision expected,
         MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin, bool accept,
         MemoryDestination destination, MemoryBoundary boundary, HostRequest request)
@@ -197,6 +275,8 @@ internal sealed partial class MemoryAdmissionService(
         MemoryRecord updated;
         switch (operation)
         {
+            case MemoryOperation.Review when current.Candidate is null:
+                return new(MemoryOutcome.InvalidTransition, MemoryReason.NotReviewed);
             case MemoryOperation.Review when current.Review == MemoryReviewState.Proposed:
                 updated = current with
                 {
@@ -230,9 +310,15 @@ internal sealed partial class MemoryAdmissionService(
         return new(MemoryOutcome.Succeeded, MemoryReason.None, updated);
     }
 
-    private bool HostEligible(long control, HostActivity issuer) =>
-        !disposed && host.IsCurrentHost && access.CanControl && access.ControlRevision == control
-        && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown;
+    private bool HostEligible(long control, HostActivity issuer)
+    {
+        lock (stateGate)
+        {
+            return !disposed && host.IsCurrentHost && access.CanControl && access.ControlRevision == control
+                && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown
+                && (storage is null || !expiredSessions.Contains(issuer.Request.SessionId));
+        }
+    }
 
     internal void ExpireSession(HostId<SessionIdentity> session)
     {
@@ -240,6 +326,7 @@ internal sealed partial class MemoryAdmissionService(
         lock (stateGate)
         {
             lifecycleRevision++;
+            expiredSessions.Add(session);
             foreach (var item in records.Values.Where(item => item.Scope.Kind == MemoryScopeKind.Session
                 && item.Scope.Identity == session.Value).ToArray())
             {

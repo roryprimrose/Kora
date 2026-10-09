@@ -787,6 +787,31 @@ Same-root refresh preserves the Kora source ID and original admitted host reques
 
 No watcher/scheduler/recursion, registry, durable attachment/history/index, model/egress/clipboard/speech or document execution/approval authority is added. Full managed-source lifecycle, R26.2 acceptance, qualified local/hosted reasoning, OCR/vector and installed-native/accessibility gates remain open. All unique historical/native/inference/storage/runtime/containment experiments and consumers are retained; no experiment is exactly replaced by bounded volatile refresh.
 
+Final local validation on implementation head `a8de68d01c213d335f7ce1948510623ca31608ff`, rebased on `444e7cd25bc10640766dd61d50e3c6566d1ae70e`: direct synchronous root Release build and all five full suites pass with zero warnings/errors, failures or skips. Initial missing assets (NETSDK1004) justified one locked restore through the authorized machine-local feed. Focused broker/host/native trials preceded final validation. An initial exact coverage failure identified redundant host freshness reads and one unexercised refusal result; capture-once admission and refusal tests fixed these without exclusions or threshold changes.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+
+dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
+total: 1321; failed: 0; succeeded: 1321; skipped: 0
+dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
+total: 3580; failed: 0; succeeded: 3580; skipped: 0
+dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
+total: 137; failed: 0; succeeded: 137; skipped: 0
+dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTests.csproj --configuration Release --no-build
+total: 6; failed: 0; succeeded: 6; skipped: 0
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+total: 1311; failed: 0; succeeded: 1311; skipped: 0
+
+Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100
+lines: 18284 / 18284; branches: 11058 / 11058
+```
+
+The four final portable invocations also collected fresh Coverlet Cobertura/TRX reports under the feature-owned ignored `.net-test-artifacts\refresh-final-20261010` tree. The unchanged CI assembly filter and gate accept exact line-rate/branch-rate `1`, not rounded percentages. ReportGenerator reports absent compiler-generated `LoggerMessage.g.cs` source documents; these are generated-source lookup notices, not build/test warnings or missing coverage, and the exact report still passes. No dependency manifests, lockfiles, eng proof scripts, shared SQLite schema, experiment files, exclusions or thresholds changed.
+
+The experiment equivalence/consumer check retained the storage proof's intertwined migration/crypto/native/artifact consumers, actual local-inference quality/context/offline/resource trials, RT2 observer/quiescence and unresolved all-path runtime evidence, and native containment token/ACL/network/child measurements. Existing design, dependency-license, released-runtime and opt-in proof consumers remain intact. Volatile lexical refresh is not equivalent to any of those native/inference/durable/installed proofs.
+
 ### R26.1c bounded folder-scoped lexical retrieval - 2026-10-09
 
 Delivered on R26.1a/b: native folder selection, complete metadata-only review, exact native confirmation, and volatile immutable immediate-file revisions. Fixed limits are 32 files, 1 MiB combined original bytes and unchanged 256 KiB per file. Empty folders and any subdirectory or inadmissible item reject the whole selection. The same verified Windows handles, strict decoder, original-byte digests, shared revocation/audit broker and lexical-lines-v1 ranking/citation implementation serve file and folder selections ([exact boundary and staged plan](File_And_Folder_Ingestion.md#delivered-bounded-folder-scoped-lexical-retrieval---2026-10-09)).

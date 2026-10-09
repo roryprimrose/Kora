@@ -161,6 +161,13 @@ The existing cancellation regression and complete suites pass without weakening
 admission or changing maintenance effects. No installation, elevation, account,
 network-policy change, native audio or destructive user-data trial was performed.
 
+Pre-publication rebase onto provider host-control #121 (`02ecc68`) preserved
+both roadmap deliveries and introduced no artifact persistence or adapter
+composition. The combined Release build again passed with zero warnings/errors;
+Core 1,129, Application 3,048, Tools 69, Definitions 6 and Windows 1,224
+(5,476 total) passed with zero failures/skips. Fresh portable reports pass
+16,192/16,192 lines and 9,534/9,534 branches (exact 100%/100%).
+
 #### R14 experiment equivalence assessment
 
 | Existing evidence | Maintained equivalence and disposition for this slice |

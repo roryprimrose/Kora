@@ -8,7 +8,7 @@ public sealed record ModelProviderPolicy(
     ModelProviderSelection Local, ModelProviderSelection Hosted)
 {
     public bool IsValid => Session.Value != Guid.Empty && Revision.Value > 0
-        && Mode is ModelProviderMode.LocalOnly or ModelProviderMode.LocalFirst or ModelProviderMode.HostedPreferred
+        && ModelProviderModePreference.IsValid(Mode)
         && ValidSelection(Local, ModelProviderIdentity.Ollama) && ValidSelection(Hosted, ModelProviderIdentity.Copilot);
 
     public ModelProviderSelection? Select(ModelTurnChoice choice)

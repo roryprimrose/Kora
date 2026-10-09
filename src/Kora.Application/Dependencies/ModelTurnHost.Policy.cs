@@ -10,6 +10,103 @@ public sealed partial class ModelTurnHost
     private readonly Dictionary<HostId<SessionIdentity>, ModelProviderPolicy> policies = [];
     private readonly Lock policyGate = new();
 
+    /// <summary>Seeds a session once from confirmed device state; subsequent preference edits do not replace its policy.</summary>
+    public async Task<(ModelTurnResult Result, ModelProviderPolicy? Policy)> InitializePolicyAsync(CancellationToken token)
+    {
+        var current = HostActivity.Current;
+        if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown)
+        { return (Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostContextRequired), null); }
+        using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Policy);
+        var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,
+            "model.policy", SecurityAuditOutcome.Requested, SecurityAuditInitiator.System, current.Request.SessionId.Value.ToString("D"));
+        audit.Write(requested);
+        try
+        {
+            var control = access.ControlRevision;
+            bool Live() => Eligible(control) && !current.Activity!.IsStopped && current.Outcome == HostOperationOutcome.Unknown;
+            var session = await workspace.ReadMetadataAsync(current.Request.SessionId, token).ConfigureAwait(false);
+            var task = await workspace.ReadTaskAsync(current.Request.SessionId, current.Request.TaskId, token).ConfigureAwait(false);
+            lock (policyGate)
+            {
+                var reason = current.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+                    ? ModelTurnReason.OriginalUserRequired
+                    : !Live() || session.Authority.SessionId != current.Request.SessionId || !session.Authority.IsActive
+                        || session.Authority.Generation.Value <= 0 || !OwnsTask(task, current.Request, session.Authority.Generation)
+                        ? ModelTurnReason.HostAdmissionClosed : ModelTurnReason.None;
+                if (token.IsCancellationRequested || reason != ModelTurnReason.None)
+                {
+                    var denied = token.IsCancellationRequested ? Finish(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)
+                        : Finish(ModelTurnOutcome.Denied, reason);
+                    CompleteAudit(requested, denied);
+                    activity.Complete(ToActivityOutcome(denied.Outcome));
+                    return (denied, null);
+                }
+                var previous = policies.GetValueOrDefault(current.Request.SessionId);
+                if (previous is not null)
+                {
+                    var result = Finish(ModelTurnOutcome.Succeeded, ModelTurnReason.None);
+                    CompleteAudit(requested, result);
+                    if (token.IsCancellationRequested || !Live() || !IsCurrentPolicy(previous))
+                    {
+                        result = token.IsCancellationRequested
+                            ? Finish(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)
+                            : Finish(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged);
+                        CompleteAudit(requested, result);
+                        activity.Complete(ToActivityOutcome(result.Outcome));
+                        return (result, null);
+                    }
+                    activity.Complete(HostOperationOutcome.Completed);
+                    return (result, previous);
+                }
+                var configuration = providerModeConfiguration
+                    ?? throw new InvalidOperationException("Durable provider-mode configuration is not composed.");
+                return configuration.WithInitialMode<(ModelTurnResult, ModelProviderPolicy?)>((mode, confirmed) =>
+                {
+                    var policy = new ModelProviderPolicy(current.Request.SessionId, new(1), mode,
+                        ModelProviderSelection.OllamaCandidate, ModelProviderSelection.CopilotCandidate);
+                    var result = Finish(ModelTurnOutcome.Succeeded, ModelTurnReason.None);
+                    CompleteAudit(requested, result);
+                    if (token.IsCancellationRequested || !Live() || !confirmed()
+                        || policies.ContainsKey(policy.Session))
+                    {
+                        result = token.IsCancellationRequested ? Finish(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)
+                            : Finish(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged);
+                        CompleteAudit(requested, result);
+                        activity.Complete(ToActivityOutcome(result.Outcome));
+                        return (result, null);
+                    }
+                    policies[policy.Session] = policy;
+                    activity.Complete(HostOperationOutcome.Completed);
+                    return (result, policy);
+                });
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            var result = Finish(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled);
+            CompleteAudit(requested, result);
+            activity.Complete(HostOperationOutcome.Cancelled);
+            return (result, null);
+        }
+        catch (Exception exception)
+        {
+            Fault(logger, exception.GetType().Name);
+            CompleteAudit(requested, new(ModelTurnOutcome.Unknown, ModelTurnReason.ProviderOutcome));
+            activity.Complete(HostOperationOutcome.Unknown);
+            throw;
+        }
+    }
+
+    /// <summary>Starts a policy-bound turn using the session's durably seeded mode and unchanged per-turn semantics.</summary>
+    public async Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
+        ModelHandoffReview? review, CancellationToken token)
+    {
+        var initialized = await InitializePolicyAsync(token).ConfigureAwait(false);
+        return initialized.Policy is { } policy
+            ? await AdmitAsync(policy, choice, context, review, token).ConfigureAwait(false)
+            : new(initialized.Result);
+    }
+
     /// <summary>Publishes a new volatile policy only after original-user admission and required audit.</summary>
     public async Task<ModelTurnResult> SetPolicyAsync(ModelProviderPolicy policy, CancellationToken token)
     {

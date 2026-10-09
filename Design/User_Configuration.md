@@ -401,6 +401,18 @@ through the independent file/recovery path; mandatory trusted audit and
 authority stores remain admitted under their own rules, never ordinary fallback.
 Full R04/R10/D-009, installed/native, acoustic and forensic acceptance remain open.
 
+### Delivered R10 Durable Provider Mode Preference - 2026-10-09
+
+Native **Settings > Providers** offers explicit Inspect/Save/Reset using host-held choices; exact typed/current-name activated input uses `list provider settings`, `get`/`status providers.default-mode`, `set providers.default-mode to LocalOnly|LocalFirst|HostedPreferred` and `reset providers.default-mode` ([native workflow](../src/Kora.Application/ViewModels/MainViewModel.ProviderModeConfiguration.cs), [parser](../src/Kora.Application/Configuration/ProviderModeCommand.cs)).
+
+Only the device-local initial provider mode is delivered. Unsaved/default/reset means **LocalOnly**. Discovery reports schema, enum choices/default, device scope, revision, saved/default/unavailable provenance, desired mode, timing, reset effect and recovery; it does not claim an effective provider or available hosted adapter ([result contract](../src/Kora.Application/Configuration/ProviderModeCommandResult.cs)).
+
+Schema-1 `provider-mode.txt` and `provider-mode-unconfirmed.txt` use `IApplicationDataPaths` and the shared atomic store. Malformed/unknown/noncanonical/invalid-UTF-8/oversized or unconfirmed state fails explicitly with `InvalidDataException`. Reset saves LocalOnly, not file deletion, following the response-mode convention; no unrelated preference is reset ([storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs), [private-storage tests](../tests/Kora.Application.UnitTests/Configuration/LocalModelProviderModePreferencesTests.cs)).
+
+Original user intent, active session/generation, unchanged host-held choice and call/preference revisions, trusted REQUESTED/terminal audit, exact atomic readback and durable terminal control receipt precede confirmation. Protected/Unknown original activated-voice writes are denied without relabelling. Failed/interrupted writes retain an unconfirmed marker across restart; inspect saved state and receipts, explicitly repair, then refresh ([service](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs)).
+
+The confirmed device preference seeds the first policy-bound turn of a session only; later edits do not overwrite existing session policies or admitted turns. Existing Default/Local/Hosted turn semantics and exact handoff review remain authoritative. No account, adapter qualification, network/egress authority or actual hosted dispatch is added; HostedPreferred still fails closed ([host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs), [fail-closed tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
+
 ### Delivered bounded device-default response mode (R10)
 
 Schema 1 admits only `responses.default-mode`: the existing `ResponseOutputMode`

@@ -4177,6 +4177,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
@@ -7749,7 +7750,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null,
             bool enableInCallFeedback = false, Exception? feedbackReadFailure = null,
             bool enableSpeechText = false, Exception? captionReadFailure = null, bool enableSessionRetention = false,
-            bool enableQueueConfiguration = false, Exception? queueReadFailure = null)
+            bool enableQueueConfiguration = false, Exception? queueReadFailure = null, bool enableProviderModeConfiguration = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -7889,7 +7890,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
                 AuditConfiguration, RateConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
-                SessionRetentionConfiguration, QueueConfiguration);
+                SessionRetentionConfiguration, QueueConfiguration,
+                enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -7908,6 +7910,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public BuiltInCommandCatalog Catalog { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
+        public FakeProviderPreferences ProviderPreferences { get; } = new();
 
         private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess
         {

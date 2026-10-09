@@ -2,6 +2,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
+using Kora.Application.Configuration;
+using Kora.Application.Hosting;
+using Kora.Application.Voice;
 using Kora.Application.Tools;
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
@@ -485,7 +488,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
     private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
         ISecurityAuditLog, IApplicationInfo, ILogger<ModelTurnHost>, ILogger<ModelProviderHandoffWorkflow>, IDisposable
     {
-        internal HostRequest Request { get; }
+        internal HostRequest Request { get; set; }
         internal WorkSessionAuthorization Session { get; set; }
         internal HostTaskObservation? Task { get; set; }
         internal ManualTime Time { get; } = new();
@@ -494,10 +497,14 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal ModelTurnHost PolicyHost { get; }
         internal Kora.Application.UnitTests.Interaction.InteractionFixture.TransactionalStore Questions { get; }
         internal ModelProviderHandoffWorkflow Workflow { get; }
+        internal SavedProviderPreferences ProviderPreferences { get; } = new();
+        internal ProviderModeConfigurationService ProviderConfiguration { get; }
+        private readonly AudioControlAdmission providerAdmission;
         internal Action<SecurityAuditEvent>? OnAudit { get; set; }
         internal HostRequest? ExpectedAuditRequest { get; set; }
         internal bool Current { get; set; } = true;
         internal Action? OnRead { get; set; }
+        internal Func<Task>? BeforeRead { get; set; }
         internal Action? OnVersion { get; set; }
         internal bool AuditFailure { get; set; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
@@ -517,12 +524,15 @@ public sealed partial class ModelTurnHostTests : IDisposable
             Session = new(Request.SessionId, new(1), true);
             Task = new(new(Request, new(1), HostTaskState.IntentRecorded), new(1), "host", true, null);
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
+            var store = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
+            providerAdmission = new(store, store, new HostTaskCoordinator(store));
+            ProviderConfiguration = new(ProviderPreferences, providerAdmission, this);
             registry = new(this, new(), new(), new(this), new(dependencies), new(runtimes), new(runtimes),
                 NullLogger<ReadOnlyCapabilityRegistry>.Instance);
             Host = Qualified(ModelProviderSelection.OllamaCandidate);
             PolicyHost = new(this, this, this, registry, this, this, Time,
                 [new(ModelProviderSelection.OllamaCandidate, Gates(ModelProviderSelection.OllamaCandidate), Time.Now.AddMinutes(5), Adapter),
-                new(ModelProviderSelection.CopilotCandidate, Gates(ModelProviderSelection.CopilotCandidate), Time.Now.AddMinutes(5), Adapter)]);
+                new(ModelProviderSelection.CopilotCandidate, Gates(ModelProviderSelection.CopilotCandidate), Time.Now.AddMinutes(5), Adapter)], ProviderConfiguration);
             ownedHosts.Add(PolicyHost);
             Questions = new(new(Task.Task, Session, new(true, true, false, true), null, [], []));
             Workflow = new(PolicyHost, new(Questions, Time), this, this);
@@ -530,7 +540,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal HostActivity Root() => HostActivity.BeginRoot(Request, HostActivityLayer.Application, HostOperation.Request);
         internal ModelTurnHost Production()
         {
-            var host = new ModelTurnHost(this, this, this, registry, this, this, Time);
+            var host = new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration);
             ownedHosts.Add(host);
             return host;
         }
@@ -552,8 +562,12 @@ public sealed partial class ModelTurnHostTests : IDisposable
             var turn = (await Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, Context(), Token)).Turn!;
             return await Host.RunAsync(turn, token ?? Token);
         }
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
-        { OnRead?.Invoke(); return ValueTask.FromResult(new SessionWorkspaceEntry(Session, null)); }
+        public async ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            OnRead?.Invoke();
+            if (BeforeRead is { } before) { await before().ConfigureAwait(false); }
+            return new SessionWorkspaceEntry(Session, null);
+        }
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
             ValueTask.FromResult(Task);
         public void Write(SecurityAuditEvent auditEvent)
@@ -573,7 +587,20 @@ public sealed partial class ModelTurnHostTests : IDisposable
         public void Dispose()
         {
             foreach (var host in ownedHosts) { host.DisposeAsync().AsTask().IsCompletedSuccessfully.Should().BeTrue(); }
+            providerAdmission.DisposeAsync().AsTask().IsCompletedSuccessfully.Should().BeTrue();
             dependencies.Dispose();
+        }
+
+        internal sealed class SavedProviderPreferences : IModelProviderModePreferences
+        {
+            internal ModelProviderMode? Mode { get; set; }
+            internal bool Pending { get; set; }
+            internal bool Corrupt { get; set; }
+            public ModelProviderMode? Load() => Pending || Corrupt ? throw new InvalidDataException("Unavailable provider preference") : Mode;
+            public ModelProviderMode? ReadBack() => Mode;
+            public void BeginWrite() => Pending = true;
+            public void Save(ModelProviderMode mode) => Mode = mode;
+            public void ConfirmWrite() => Pending = false;
         }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();

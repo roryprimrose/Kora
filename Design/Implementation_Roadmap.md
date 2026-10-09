@@ -344,12 +344,12 @@ See the [user contract](User_Configuration.md#delivered-bounded-fixed-local-vers
 
 #### Validation receipt
 
-Tested base: `1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`.
+Tested base after conflict-free rebase preserving the merged provider sections: `55dc2816032841a14adde37fc333a711c810e4f1`; tested code head `4357eca75129ff45e0b03a2c51f8c75d2eeee797`.
 After the initial no-restore build reported NETSDK1004 missing isolated assets, locked restore used only the required machine-local Azure Artifacts source; no repository feed/lock configuration changed.
 Root Release build completed with **0 warnings / 0 errors**.
 The [domain fixtures](../tests/Kora.Core.UnitTests/Configuration/SessionQueuePreferencesTests.cs), [service/failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs), [native/exact routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs) and [UI contract](../tests/Kora.Windows.IntegrationTests/SessionQueueConfigurationUiContractTests.cs) cover the bounded delivery, not physical qualification.
 
-Final required suites: Core **1,165**, Application **3,192**, Tools **69**, Definitions **6**, Windows **1,226**; all passed with zero failures/skips.
+Final required suites after rebase: Core **1,183**, Application **3,270**, Tools **69**, Definitions **6**, Windows **1,226**; all passed with zero failures/skips.
 Latest-per-suite portable Cobertura inputs passed the unchanged [100% line and branch gate](../eng/Assert-CodeCoverage.ps1), not rounded near-100% or merged obsolete coverage runs.
 Commands and relevant result excerpts:
 
@@ -359,7 +359,7 @@ dotnet build .\Kora.slnx --configuration Release --no-restore
 # Build succeeded. 0 Warning(s), 0 Error(s).
 # Each required suite: dotnet test --project <project> --configuration Release --no-build
 # Portable suites additionally used --report-trx --coverlet --coverlet-output-format cobertura.
-# Passed: Core 1165, Application 3192, Tools 69, Definitions 6, Windows 1226; zero failed/skipped.
+# Passed after rebase: Core 1183, Application 3270, Tools 69, Definitions 6, Windows 1226; zero failed/skipped.
 .\eng\Assert-CodeCoverage.ps1 -ReportPath .\.net-test-artifacts\coverage-report\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
 # Line coverage: 100.0% (minimum 100.0%)
 # Branch coverage: 100.0% (minimum 100.0%)

@@ -283,6 +283,26 @@ screen-reader or OS-session acceptance is claimed by fixture tests.
 
 ### Bounded passive interaction history
 
+After reading history, select a receipt in its bounded sequence/kind/availability/
+exact-ID list and choose **Open immutable receipt details**. This requires the
+history subject to match the selected session. The host freshly resolves that
+persisted event into the existing native read-only details window; it does not
+invent an artifact body or recover bootstrap/model response text. Native chrome
+shows the retained session, immutable item/sequence, digest and private source
+classification. Reopening the same receipt activates its existing viewer;
+conflicting snapshots require closing and refreshing, never silent replacement.
+Search/source viewing is passive; copying requires explicit private-disclosure
+confirmation. Close releases only presentation.
+
+History reading preserves focused controls, selected work and pending questions.
+Opening details may activate that owned viewer but never resumes or retargets
+work, changes queue priority, extends activity, or creates execution authority.
+Privacy/ownership loss clears private presentation. Logical disposition and
+automatic retention retire matching open details before deletion. Logical
+disposition retains redacted citations; inventoried retention purges old IDs,
+which become unavailable, and keeps only a content-free redacted gap/tombstone. File previews,
+lexical citations and skill inspection stay separate and volatile.
+
 The same **Sessions** window now also has a bounded
 [fixed local-version queue](commands.md#deterministic-local-version-queue).
 Select an exact existing session, choose **Read exact queue**, then explicitly

@@ -29,6 +29,8 @@
       <Button x:Name="ReadHistory" Content="_Read exact history" IsEnabled="{Binding CanHistory}"
               AutomationProperties.Name="Read bounded ordered session history without resuming, replying, replaying or changing voice target" />
       <Button x:Name="NextHistory" Content="Next history snapshot page" IsEnabled="{Binding CanNextHistory}" />
+      <Button x:Name="OpenHistoryDetail" Content="Open immutable receipt _details" IsEnabled="{Binding CanOpenHistoryDetail}"
+              AutomationProperties.Name="Freshly resolve the exact selected session history receipt into read-only native details; no artifact body or execution authority" />
     </StackPanel>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
       <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
@@ -122,10 +124,26 @@
           </ItemsControl>
           </ScrollViewer>
         </StackPanel>
-        <ScrollViewer Grid.Row="4">
+        <Grid Grid.Row="4" RowDefinitions="Auto,*" RowSpacing="6">
+          <ListBox x:Name="HistoryRecords" MaxHeight="150" ItemsSource="{Binding HistoryRecords}"
+                   SelectedItem="{Binding SelectedHistoryRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
+                   AutomationProperties.Name="Immutable history receipts for the exact history subject; detail opening requires the selected session">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Sequence}" />
+                  <TextBlock Text="{Binding Kind}" />
+                  <TextBlock Text="{Binding Availability}" />
+                  <TextBlock Text="{Binding Id}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        <ScrollViewer Grid.Row="1">
           <controls:NamedTextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
                      AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
         </ScrollViewer>
+        </Grid>
       </Grid>
     </Grid>
     <WrapPanel Grid.Row="5">

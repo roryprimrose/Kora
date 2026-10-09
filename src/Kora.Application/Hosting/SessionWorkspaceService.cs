@@ -1,7 +1,11 @@
+using System.Text;
+
 using Kora.Core.Authorization;
+using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Presentation;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging;
@@ -56,6 +60,24 @@ public sealed partial class SessionWorkspaceService(
 
     public Task<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session, Guid eventId, CancellationToken token) =>
         ReadAsync(() => History.ReadHistoryEventAsync(session, eventId, token), token);
+
+    public Task<AdmittedDetailContent> ReadHistoryDetailAsync(HostId<SessionIdentity> session, Guid eventId, CancellationToken token) =>
+        ReadAsync(async () =>
+        {
+            var record = await History.ReadHistoryEventAsync(session, eventId, token).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("The exact retained history receipt is unavailable. Refresh history.");
+            token.ThrowIfCancellationRequested();
+            if (record.SessionId != session || record.Id != eventId)
+            {
+                throw new InvalidDataException("History detail ownership does not match the exact requested receipt.");
+            }
+            return new AdmittedDetailContent(new(new(record.Id), record.Sequence), DetailContentKind.PlainText,
+                DetailContentOrigin.SessionHistory, DetailSensitivity.DisclosureConfirmationRequired,
+                "Host-committed history receipt",
+                "Persisted session history; availability, baseline and provenance are recorded metadata, not an artifact body or execution authority.",
+                Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistoryPage.Scope)
+                { HistoryEvent = record })), historySession: session);
+        }, token);
 
     private ISessionHistoryStore History => store as ISessionHistoryStore
         ?? throw new InvalidOperationException("The admitted store does not provide durable history.");

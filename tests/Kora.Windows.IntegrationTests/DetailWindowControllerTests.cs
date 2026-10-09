@@ -6,6 +6,10 @@ using Kora.Application.Documentation;
 using Kora.Application.Presentation;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
+using Kora.Core.Diagnostics;
+using Kora.Core.Storage;
+using Kora.Windows.IntegrationTests.Audio;
+using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -13,6 +17,80 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed class DetailWindowControllerTests
 {
+    [WindowsFact]
+    public async Task Due_retention_clears_history_viewers_before_inventoried_deletion_and_never_resolves_purged_identity()
+    {
+        using var store = new InteractionStorageFixture();
+        await store.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(store, HostTaskState.Succeeded);
+        using var root = HostActivity.BeginRoot(store.Request, HostActivityLayer.Application, HostOperation.Request);
+        var service = WindowsSqliteSessionWorkspaceTests.Service(store, new());
+        var page = await service.ReadHistoryAsync(store.Request.SessionId, null, 25, store.Token);
+        var content = await service.ReadHistoryDetailAsync(store.Request.SessionId, page.Records[0].Id, store.Token);
+        using var f = new Fixture();
+        f.Controller.BindHistoryAccess(() => true);
+        f.Controller.OpenHistoryDetail(content, null);
+        var view = f.Views.Single();
+        view.State.Search("history");
+        var clock = await store.Store.ReadRetentionAsync(store.Request.SessionId, store.Token);
+        store.Time.Now = clock.DeleteDue;
+        var revoked = false;
+        using var retention = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Application, HostOperation.Retention);
+        var batch = await store.Store.ApplyRetentionAsync(() => true, (session, _) =>
+        {
+            view.State.Content.Should().NotBeNull();
+            f.Controller.RevokeSession(session);
+            view.State.Content.Should().BeNull();
+            view.State.ActiveText.Should().BeEmpty();
+            view.State.SearchQuery.Should().BeEmpty();
+            revoked = true;
+            return ValueTask.CompletedTask;
+        }, store.Token);
+        revoked.Should().BeTrue();
+        batch.Deleted.Should().Be(1);
+        var purged = () => service.ReadHistoryDetailAsync(store.Request.SessionId, page.Records[0].Id, store.Token);
+        await purged.Should().ThrowAsync<InvalidOperationException>().WithMessage("*unavailable*");
+        (await service.ReadHistoryAsync(store.Request.SessionId, null, 25, store.Token)).Records
+            .Should().OnlyContain(record => record.Availability == SessionHistoryAvailability.Redacted);
+        await f.Controller.CopyAsync(content.Reference, view.State.Generation, true);
+        f.Clipboard.Writes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task History_viewers_reuse_exact_receipts_require_private_admission_and_revoke_only_owned_sessions()
+    {
+        using var f = new Fixture();
+        var session = new HostId<SessionIdentity>(Guid.NewGuid());
+        var content = new AdmittedDetailContent(new(new(Guid.NewGuid()), 1), DetailContentKind.PlainText,
+            DetailContentOrigin.SessionHistory, DetailSensitivity.DisclosureConfirmationRequired,
+            "Receipt", "Persisted history", "immutable receipt", historySession: session);
+        f.Controller.OpenHistoryDetail(content, null).Should().Contain("privacy");
+        f.Controller.BindHistoryAccess(() => true);
+        f.Controller.OpenHistoryDetail(content, null);
+        f.Controller.OpenHistoryDetail(content, null).Should().Contain("Activated");
+        var receipt = f.Views.Single();
+        receipt.Activations.Should().Be(2);
+        await f.Controller.CopyAsync(content.Reference, receipt.State.Generation, false);
+        f.Clipboard.Writes.Should().BeEmpty();
+        f.Controller.BindHistoryAccess(() => false);
+        await f.Controller.CopyAsync(content.Reference, receipt.State.Generation, true);
+        f.Clipboard.Writes.Should().BeEmpty();
+        f.Controller.BindHistoryAccess(() => true);
+        await f.Controller.CopyAsync(content.Reference, receipt.State.Generation, true);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(content.Source);
+        f.Controller.OpenEmbeddedPage(f.Documents.GetStartPage(), null);
+        f.Controller.RevokeSession(new(Guid.NewGuid()));
+        receipt.Cleared.Should().BeFalse();
+        f.Controller.RevokeSession(session);
+        receipt.State.Content.Should().BeNull();
+        receipt.State.ActiveText.Should().BeEmpty();
+        receipt.Cleared.Should().BeTrue();
+        f.Views[1].Cleared.Should().BeFalse();
+        await f.Controller.CopyAsync(content.Reference, receipt.State.Generation, true);
+        f.Clipboard.Writes.Should().ContainSingle();
+    }
+
     [Fact]
     public void SameRevisionActivatesExistingViewerWithoutRerenderOrNewWindow()
     {

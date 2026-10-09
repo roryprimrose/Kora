@@ -48,7 +48,8 @@ public sealed partial class DetailWindow : Window, IDetailView
         Required<TextBlock>("ProvenanceLabel").Text =
             $"Origin: {content.Origin} · Sensitivity: {content.Sensitivity} · {content.Provenance}";
         Required<TextBlock>("ReferenceLabel").Text =
-            $"Item: {content.Reference.ItemId.Value:D} · Revision: {content.Reference.Revision} · Not session authority";
+            $"Item: {content.Reference.ItemId.Value:D} · Revision: {content.Reference.Revision} · Not session authority"
+            + (content.HistorySession is { } session ? $" · Retained session: {session.Value:D}" : string.Empty);
         Required<TextBlock>("DigestLabel").Text = $"SHA-256: {content.Digest} · UTF-8 bytes: {content.Utf8Bytes}";
         Required<TextBlock>("RendererStatus").Text = state.Status;
         disclosure.IsVisible = content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired;

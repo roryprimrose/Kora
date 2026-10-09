@@ -26,6 +26,11 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
         new(StringComparer.Ordinal);
     private bool disposed;
+    private Func<bool> historyAccess = () => false;
+
+    internal void BindHistoryAccess(Func<bool> admission) => historyAccess = admission;
+    private bool CanAccess(AdmittedDetailContent content) =>
+        canAccess() && (content.Origin != DetailContentOrigin.SessionHistory || historyAccess());
 
     internal DetailWindowController(
         IUserDocumentationProvider documentation, MainViewModel viewModel,
@@ -60,14 +65,30 @@ public sealed partial class DetailWindowController : IDisposable
             return "Details unavailable: this is not the current immutable embedded page.";
         }
         AdmittedDetailContent content;
-        DetailViewerState state;
         try
         {
             content = Admit(page);
-            state = registry.Open(content, canAccess());
         }
         catch (InvalidDataException) { return "Embedded page admission failed; nothing was truncated or opened."; }
         catch (ArgumentException) { return "Embedded page labels or Unicode source are invalid; nothing was opened."; }
+        return OpenContent(content, owner);
+    }
+
+    internal string OpenHistoryDetail(AdmittedDetailContent content, Window? owner)
+    {
+        if (content.Origin != DetailContentOrigin.SessionHistory || content.HistorySession is null)
+        {
+            throw new InvalidDataException("Only freshly resolved retained history may enter this detail route.");
+        }
+        return OpenContent(content, owner);
+    }
+
+    private string OpenContent(AdmittedDetailContent content, Window? owner)
+    {
+        if (disposed || !CanAccess(content)) { return "Details unavailable: the privacy/input gate is closed."; }
+        DetailViewerState state;
+        try { state = registry.Open(content, CanAccess(content)); }
+        catch (InvalidDataException) { return "Details unavailable: the immutable receipt changed. Close it and refresh history."; }
         catch (InvalidOperationException) { return "Details unavailable: close a viewer or check the privacy/input gate."; }
         if (windows.TryGetValue(content.Reference, out var existing))
         {
@@ -76,7 +97,7 @@ public sealed partial class DetailWindowController : IDisposable
         }
         var generation = state.Generation;
         var result = renderer.Render(content.Source, content.Kind, content.Reference);
-        if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !canAccess())
+        if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);
             return "Details unavailable: the privacy/input gate closed.";
@@ -134,21 +155,22 @@ public sealed partial class DetailWindowController : IDisposable
             return;
         }
         string? source;
+        var accessible = state.Content is { } content && CanAccess(content);
         var allowed = selectionStart is { } start
-            ? state.TryGetCopySelection(canAccess(), confirmed, start, selectionLength, out source)
-            : state.TryGetCopySource(canAccess(), confirmed, out source);
+            ? state.TryGetCopySelection(accessible, confirmed, start, selectionLength, out source)
+            : state.TryGetCopySource(accessible, confirmed, out source);
         if (!allowed) { return; }
         try
         {
             // Revalidate the exact live state immediately before invoking the platform write.
-            if (disposed || !canAccess() || state.Generation != generation || state.Content is null
+            if (disposed || state.Content is null || !CanAccess(state.Content) || state.Generation != generation
                 || !windows.TryGetValue(reference, out var current) || !ReferenceEquals(current.State, state))
             {
                 state.ReportStatus("Copy blocked: revision/access/privacy changed.");
                 return;
             }
             await clipboard.WritePlainTextAsync(entry.View, source!);
-            if (state.Generation == generation && canAccess() && state.Content is not null)
+            if (state.Generation == generation && state.Content is not null && CanAccess(state.Content))
             {
                 state.ReportStatus(selectionStart is null
                     ? "Exact source copied as Unicode plain text outside Kora."
@@ -168,6 +190,17 @@ public sealed partial class DetailWindowController : IDisposable
     }
 
     private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs) => ClearForPrivacy();
+
+    internal void RevokeSession(HostId<SessionIdentity> session)
+    {
+        foreach (var entry in windows.Where(pair => pair.Value.State.Content?.HistorySession == session
+            || pair.Value.State.Content?.SessionSource?.SessionId == session).ToArray())
+        {
+            windows.Remove(entry.Key);
+            registry.Close(entry.Key);
+            entry.Value.View.ClearAndClose();
+        }
+    }
 
     internal void ClearForPrivacy()
     {

@@ -34,6 +34,7 @@ public sealed class MaintenanceCommands(MaintenanceViewModel state, ISessionWork
         string output;
         try
         {
+            token.ThrowIfCancellationRequested();
             bool Admitted() => !disposed && !unavailable && eligible();
             if (!Admitted()) { throw new InvalidOperationException("Maintenance host admission is unavailable."); }
             if (session is null)

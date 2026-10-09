@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 using AwesomeAssertions;
 
@@ -6,11 +7,69 @@ using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Core.Presentation;
 
 namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Theory]
+    [InlineData(SessionHistoryAvailability.Available)]
+    [InlineData(SessionHistoryAvailability.MetadataOnly)]
+    [InlineData(SessionHistoryAvailability.Redacted)]
+    [InlineData(SessionHistoryAvailability.Unavailable)]
+    public async Task History_details_preserve_authoritative_availability_identity_and_exact_serialization_without_writes(
+        SessionHistoryAvailability availability)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        f.HistoryEvent = new(Guid.NewGuid(), f.Request.SessionId, 7, new(2), SessionHistoryKind.Task,
+            availability, f.Request.RequestId.Value, f.Request.TaskId.Value, null, 1, new('a', 64), null,
+            true, null, [], null, [], HostTaskState.Succeeded, null, null, null);
+        var content = await f.Service.ReadHistoryDetailAsync(f.Request.SessionId, f.HistoryEvent.Id, f.Token);
+        content.HistorySession.Should().Be(f.Request.SessionId);
+        content.Reference.ItemId.Value.Should().Be(f.HistoryEvent.Id);
+        content.Reference.Revision.Should().Be(7);
+        content.Origin.Should().Be(DetailContentOrigin.SessionHistory);
+        content.Sensitivity.Should().Be(DetailSensitivity.DisclosureConfirmationRequired);
+        content.SessionSource.Should().BeNull();
+        content.Source.Should().Be(Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistoryPage.Scope)
+        { HistoryEvent = f.HistoryEvent })));
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+        f.Logger.Messages.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("foreign")]
+    [InlineData("event")]
+    [InlineData("privacy")]
+    [InlineData("late-privacy")]
+    [InlineData("revision")]
+    [InlineData("cancel")]
+    [InlineData("storage")]
+    public async Task History_detail_resolution_rejects_missing_foreign_cancelled_or_changed_admission(string mode)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var id = Guid.NewGuid();
+        f.HistoryEvent = mode is "missing" ? null : new(mode is "event" ? Guid.NewGuid() : id,
+            mode is "foreign" ? new(Guid.NewGuid()) : f.Request.SessionId, 1, new(1), SessionHistoryKind.Task,
+            SessionHistoryAvailability.MetadataOnly, null, null, null, 1, new('a', 64), null, true,
+            null, [], null, [], HostTaskState.Unknown, null, null, null);
+        if (mode is "privacy") { f.CanInspect = false; }
+        if (mode is "late-privacy") { f.AfterHistoryRead = () => f.CanInspect = false; }
+        if (mode is "revision") { f.AfterHistoryRead = f.AdvanceRevision; }
+        using var cancellation = new CancellationTokenSource();
+        if (mode is "cancel") { f.AfterHistoryRead = cancellation.Cancel; }
+        if (mode is "storage") { f.HistoryFailure = new IOException("missing private storage"); }
+        var act = () => f.Service.ReadHistoryDetailAsync(f.Request.SessionId, id, cancellation.Token);
+        await act.Should().ThrowAsync<Exception>();
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
@@ -38,6 +97,9 @@ public sealed partial class SessionWorkspaceServiceTests
             HistoryEventId = fixture.HistoryEvent.Id,
         }, origin, () => true, fixture.Token);
         result.HistoryEvent.Should().Be(fixture.HistoryEvent);
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        (await fixture.Service.ReadHistoryDetailAsync(fixture.Request.SessionId, fixture.HistoryEvent.Id, fixture.Token))
+            .Source.Should().Contain(content);
         fixture.TaskWrites.Should().BeEmpty();
         fixture.ControlCalls.Should().Be(0);
         tags.Should().NotContain(value => value.Contains(content, StringComparison.Ordinal));

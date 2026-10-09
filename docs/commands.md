@@ -525,6 +525,16 @@ queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
 
+The native history page can open immutable **receipt details** for an exact
+event belonging to the selected session. This freshly resolves the same
+authoritative record as `session get` into the shared native plain-text viewer;
+it adds no new typed/voice/model command, artifact persistence or execution
+route. Availability/redaction/baseline and provenance remain visible.
+Search/source and explicit disclosure-confirmed copy reuse existing viewer
+policy. Work/queue/questions, lexical file citations and skill inspections
+remain distinct; browsing never extends activity, reprioritizes or resumes.
+Privacy closure and pre-deletion retention/disposition retire owned viewers.
+
 Activated voice uses the existing enablement/consent/capture/privacy boundary
 and retains its originating channel and observed call/recovery revision through
 commit. During protected calls, reads require permitted activation and private

@@ -10,7 +10,8 @@ namespace Kora;
 
 internal sealed class SessionsWindowController(
     MainViewModel main, SessionWorkspaceService service, DurableEvidenceQuery evidence,
-    ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null) : IDisposable
+    ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
+    DetailWindowController? details = null) : IDisposable
 {
     private SessionsWindow? window;
     private bool disposed;
@@ -31,7 +32,10 @@ internal sealed class SessionsWindowController(
 
         if (window is null)
         {
-            var opened = new SessionsWindow(new(service, evidence, access, logger, localEvents));
+            var opened = new SessionsWindow(new(service, evidence, access, logger, localEvents,
+                content => details?.OpenHistoryDetail(content, window)
+                    ?? "History details unavailable: the native viewer is not composed.",
+                session => details?.RevokeSession(session)));
             opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
             window = opened;
             opened.Show();

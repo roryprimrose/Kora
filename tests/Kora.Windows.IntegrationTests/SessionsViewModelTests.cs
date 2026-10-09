@@ -137,7 +137,10 @@ public sealed partial class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(3, "only the bounded name draft, exact immutable history ID and volatile lexical query are editable; no conversation composer exists");
+            .Should().HaveCount(4, "only the bounded name draft, exact immutable history ID, volatile lexical query and exact memory replacement are editable; no conversation composer exists");
+        source.Should().Contain("MemoryDraft, Mode=TwoWay").And.Contain("CanEditMemory")
+            .And.Contain("selection is passive").And.Contain("Review exact content: accept")
+            .And.Contain("Admit reviewed revision").And.Contain("not forensic erasure");
         source.Should().Contain("NameDraft").And.Contain("CanCreate").And.Contain("CanRename");
         source.Should().Contain("HistorySessionId").And.Contain("CanHistory").And.Contain("CanNextHistory")
             .And.Contain("Read bounded ordered session history without resuming");

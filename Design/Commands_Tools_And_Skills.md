@@ -193,6 +193,19 @@ work is never relabelled stopped. No model descriptor/tool exposure, transcript
 persistence, inferred management, queue/executor, general effect cancellation,
 deletion or retention is delivered.
 
+Delivered exact session-only memory controls: native **Sessions > Session memories**
+and typed/activated `memory help/list/inspect/get/review/admit/edit/set/disable/forget`
+share the [management service](../src/Kora.Application/Memory/MemoryManagementService.cs)
+and [exact-ID/revision grammar](../src/Kora.Core/Commands/MemoryCommand.cs).
+List exposes content-free identity/scope/review/retention/creation metadata;
+inspection explicitly reveals one revision. Review requires that exact inspection;
+acceptance and admission are separate original-user actions. Edits return to
+Proposed/Pending; disable closes use; forget retains a non-reusable tombstone.
+Fresh original host control intent and current private session/ownership gates
+apply to every operation. No model tool, Remember/proposal trigger, recall,
+provider prompt attachment or hosted disclosure is delivered. See
+[the dated delivery contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-memory-management-surface---2026-10-09).
+
 Exact `maintenance status/review/snooze` uses the shared cached native maintenance
 workflow and a dedicated original-user control session, not audio-session or
 trace authority. Immutable cached identity/revision/channel/age and existing

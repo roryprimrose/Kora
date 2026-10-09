@@ -1,8 +1,8 @@
 # Model Providers, Memory, and Grounded Knowledge
 
 Status: accepted product direction, bounded provider-neutral host controls and volatile provider-policy/review workflow
-implemented, reviewed user-memory admission and bounded session-only durable storage implemented, and remaining proposed architecture. Provider
-qualification, native memory controls, knowledge ingestion, retrieval ranking, and hosted
+implemented, reviewed user-memory admission, bounded session-only durable storage and native/exact memory management implemented, and remaining proposed architecture. Provider
+qualification, broader memory recall, knowledge ingestion, retrieval ranking, and hosted
 handoff described here are not complete or advertised by the current
 bootstrap.
 
@@ -135,9 +135,33 @@ JSON intended for simple settings. Security-sensitive configuration continues
 to use its authoritative domain policy and audit path rather than becoming a
 free-form memory.
 
+### Delivered Native Memory Management Surface - 2026-10-09
+
+The [shared management service](../src/Kora.Application/Memory/MemoryManagementService.cs) composes the existing admission workflow and `IMemoryStore`, without adding a model tool or proposal trigger.
+Native **Sessions > Session memories** and exact typed/activated commands use the same service and fresh original-user [control intent](../src/Kora.Application/Hosting/SessionWorkspaceService.cs).
+
+The [exact grammar](../src/Kora.Core/Commands/MemoryCommand.cs) provides `memory help`, `memory list <session-id>`, `memory inspect/get <session-id> <memory-id> <revision>`,
+`memory review <session-id> <memory-id> <revision> accept|reject`, `memory admit/disable/forget <session-id> <memory-id> <revision>`, and `memory edit/set <session-id> <memory-id> <revision> <class> "<exact value>"`.
+
+- [List results](../src/Kora.Core/Commands/MemorySummary.cs) contain identity, revision, exact session scope, review/retention state and creation time; no candidate or lineage.
+  Only explicit exact inspection returns content, classification, lineage and receipt. Results are bounded to 64 KiB by the [serializer](../src/Kora.Core/Commands/MemoryCommandResult.cs).
+- [Review](../src/Kora.Application/Memory/MemoryManagementService.cs) requires inspection of the same current candidate, classification and control revision. Accept remains Reviewed/Pending; a separate admission enables it.
+  Edit clears review and returns to Proposed/Pending, immediately redacting the earlier durable body. Disable closes use; re-enabling requires edit, inspect, review and admit. Forget retains a content-free non-reusable tombstone, not a claim of forensic erasure.
+- [Session observation](../src/Kora.Application/Memory/MemoryAdmissionService.Observation.cs) and each mutation revalidate exact active session/generation, ownership, privacy/control revision, cancellation and lifecycle.
+  Lifecycle, disposition, retention and privacy closure revoke cached inspection/presentation. Invalid persisted state propagates `InvalidDataException`, never an empty successful inventory or cached-body fallback.
+- [Typed/activated routing](../src/Kora.Application/ViewModels/MainViewModel.Memory.cs) is visual-only and precedes inference; inspected values are not spoken, attached to history or sent to a provider.
+  Model/HostSystem and completed host callbacks cannot relabel themselves as fresh original input. Failed receipts explicitly require inspecting durable state; no rollback or automatic retry is claimed.
+
+The [command-level transition matrix and mutation-boundary tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.ManagementMatrix.cs) cover each state/action, model-origin rejection and session/ownership/privacy changes.
+[SQLite surface tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Management.cs) exercise the authoritative round-trip, redaction/tombstones and corrupt saved state without cached fallback.
+
+Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing **Remember this**/proposal triggers remain separate, undelivered workstreams.
+This surface deliberately has no create/propose route: it manages records produced by the already-delivered admission workflow, without converting arbitrary conversation or a model response into a memory.
+
 ### Delivered Reviewed Memory Admission - 2026-10-09
 
-This first package's volatile/storage gaps are historical. The [durable increment below](#delivered-session-only-durable-memory-storage---2026-10-09) supersedes those gaps only; broader scopes, native controls and provider integration remain unavailable.
+This first package's volatile/storage gaps are historical. The [durable increment below](#delivered-session-only-durable-memory-storage---2026-10-09) supersedes those gaps; the [management surface](#delivered-native-memory-management-surface---2026-10-09) adds native/exact controls.
+Broader scopes and provider integration remain unavailable.
 
 The first dependency-safe memory package delivers a provider-independent
 [Core domain and policy](../src/Kora.Core/Memory/MemoryPolicy.cs) and an internal

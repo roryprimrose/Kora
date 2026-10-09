@@ -21,7 +21,8 @@ internal sealed partial class SessionsViewModel(
     SessionWorkspaceService service, DurableEvidenceQuery evidence, ISessionWorkspaceAccess access,
     ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
     Func<AdmittedDetailContent, string>? openHistoryDetail = null,
-    Action<HostId<SessionIdentity>>? revokeHistoryDetails = null) : ObservableObject
+    Action<HostId<SessionIdentity>>? revokeHistoryDetails = null,
+    Kora.Application.Memory.MemoryManagementService? memories = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -460,6 +461,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearMemories();
         ClearLocalEvents();
         selectionEpoch++;
         workSnapshot = null;
@@ -498,6 +500,7 @@ internal sealed partial class SessionsViewModel(
         try
         {
             NotifyWork();
+            NotifyMemories();
             NotifyQueue();
             OnPropertyChanged(nameof(Sessions));
             OnPropertyChanged(nameof(SelectedSessionRecord));

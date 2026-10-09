@@ -290,6 +290,7 @@ internal static class Program
         services.AddSingleton<ISessionQueueStore>(interactions);
         services.AddSingleton<ISessionWorkStore>(interactions);
         services.AddSingleton<Kora.Core.Memory.IMemoryStore>(interactions);
+        services.AddSingleton<Kora.Application.Memory.MemoryManagementService>();
         services.AddSingleton<Kora.Application.Interaction.ILocalEventSource, Kora.Application.Interaction.AuthorityLocalEventSource>();
         services.AddSingleton<Kora.Application.Interaction.ILocalEventStateStore, Kora.Application.Interaction.LocalEventStateStore>();
         services.AddSingleton<Kora.Application.Interaction.LocalEventBroker>();

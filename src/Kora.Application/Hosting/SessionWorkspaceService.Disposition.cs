@@ -43,6 +43,7 @@ public sealed partial class SessionWorkspaceService
         var receipt = await ControlAsync(preview.Session.Authority.SessionId, origin,
             (request, eligible) => store.DisposeSessionAsync(request, preview, eligible, token), token,
             () => access.ControlRevision == pending.ControlRevision && admission(), existingSubject: true, terminalCommitted: true).ConfigureAwait(false);
+        SessionRetired?.Invoke(receipt.SessionId);
         if (localEvents is not null) { await localEvents.RetireSessionAsync(receipt.SessionId, token).ConfigureAwait(false); }
         return receipt;
     }

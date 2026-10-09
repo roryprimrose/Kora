@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests.Storage;
 
 [Collection(nameof(DurableStorageCompositionTestGroup))]
-public sealed class WindowsSqliteMemoryTests
+public sealed partial class WindowsSqliteMemoryTests
 {
     private static MemoryCandidate Candidate => new(MemoryContentClass.ResponsePreference, "exact reviewed memory café");
 
@@ -410,7 +410,7 @@ public sealed class WindowsSqliteMemoryTests
         while (reader.Read()) { reader.GetString(0).Should().NotContain("exact reviewed memory"); }
     }
 
-    private sealed class Access : ISessionWorkspaceAccess, ICapabilityHostAccess
+    private sealed class Access : ISessionWorkspaceAccess, ICapabilityHostAccess, IEvidenceQueryAccess
     {
         public bool CanInspect => true;
         public bool CanControl { get; set; } = true;

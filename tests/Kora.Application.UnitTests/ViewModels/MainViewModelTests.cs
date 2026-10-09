@@ -4166,6 +4166,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)

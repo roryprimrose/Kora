@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.UnitTests.Memory;
 
 [Collection("Host tracing")]
-public sealed class MemoryAdmissionServiceTests : IDisposable
+public sealed partial class MemoryAdmissionServiceTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -79,8 +79,8 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         (await fixture.Service.ProposeAsync(Candidate, null, MemoryProposalOrigin.User, Token)).Reason
             .Should().Be(MemoryReason.ScopeMismatch);
         fixture.OnStoreTransition = () => fixture.Session = fixture.Session with { IsActive = false };
-        (await fixture.Service.UseAsync(admitted.Id, new(admitted.Revision.Value + 1), MemoryDestination.Local, Token))
-            .Reason.Should().Be(MemoryReason.NotEnabled);
+        var use = () => fixture.Service.UseAsync(admitted.Id, new(admitted.Revision.Value + 1), MemoryDestination.Local, Token);
+        await use.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -646,7 +646,7 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         HostActivity.Current.Should().BeSameAs(root);
     }
 
-    private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
+    private sealed partial class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
         IMemoryScopeAccess, IMemoryStore, ISecurityAuditLog, ILogger<MemoryAdmissionService>, IDisposable
     {
         internal HostRequest Request { get; private set; } = HostRequest.Create(RequestOrigin.LocalUi);
@@ -674,8 +674,10 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         internal Action? OnStoreCommit { get; set; }
         internal Action? OnAfterStoreCommit { get; set; }
         internal Action? OnBoundaryRead { get; set; }
+        internal bool InspectEnabled { get; set; } = true;
+        internal bool SkipStoreTransition { get; set; }
         public bool IsCurrentHost => Current;
-        public bool CanInspect => CanControl;
+        public bool CanInspect => InspectEnabled && CanControl;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; } = 1;
         internal Fixture(bool durable = false)
@@ -695,14 +697,27 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
             Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
         {
+            if (SkipStoreTransition) { return ValueTask.FromResult(new MemoryResult(MemoryOutcome.Denied, MemoryReason.AuthorityClosed)); }
             OnStoreTransition?.Invoke();
             var commit = transition([.. Stored.Values]);
             OnStoreCommit?.Invoke();
             token.ThrowIfCancellationRequested();
             if (!admitted()) { throw new InvalidOperationException("Memory admission closed at commit."); }
+            if (Session.SessionId != request.SessionId || !Session.IsActive || Session.Generation != boundary.Generation
+                || Boundary != boundary)
+            {
+                throw new InvalidOperationException("The authoritative session memory boundary changed.");
+            }
             if (FailStoreCommit) { throw new IOException("Injected atomic commit failure."); }
             if (StoreResult is { } overrideResult) { return ValueTask.FromResult(overrideResult); }
-            if (commit.Replacement is { } replacement) { Stored[replacement.Id] = replacement; }
+            if (commit.Replacement is { } replacement)
+            {
+                Stored[replacement.Id] = replacement;
+                if (MemoryControlEnabled)
+                {
+                    ControlOutcomes.Add(ControlIntents.Single(row => row.Request == request).Next(HostTaskState.Succeeded));
+                }
+            }
             OnAfterStoreCommit?.Invoke();
             return ValueTask.FromResult(commit.Result);
         }
@@ -763,16 +778,37 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         private ValueTask<T> Write<T>() { Writes++; throw new NotSupportedException(); }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => Write<SessionDispositionPreview>();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) => Write<SessionDispositionReceipt>();
-        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token) => Write<HostTaskRecord>();
+        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
+        {
+            if (!MemoryControlEnabled) { return Write<HostTaskRecord>(); }
+            Request = request;
+            var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            ControlIntents.Add(intent);
+            return ValueTask.FromResult(intent);
+        }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token)
+        {
+            if (!MemoryControlEnabled) { throw new NotSupportedException(); }
+            var record = ControlOutcomes.LastOrDefault(row => row.Request.TaskId == task)
+                ?? ControlIntents.LastOrDefault(row => row.Request.TaskId == task);
+            return ValueTask.FromResult(record is null ? null
+                : new HostTaskObservation(record, Session.Generation, "memory-management-test", true, null));
+        }
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target, Func<bool> eligible, CancellationToken token) => Write<HostTaskObservation>();
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> eligible, CancellationToken token) => Write<SessionWorkspaceEntry>();
         public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision generation, long revision, SessionName name, Func<bool> eligible, CancellationToken token) => Write<SessionWorkspaceEntry>();
         public ValueTask<SessionPage<HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> eligible, CancellationToken token) => Write<WorkSessionAuthorization>();
+        public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> eligible, CancellationToken token)
+        {
+            if (!MemoryControlEnabled) { return Write<WorkSessionAuthorization>(); }
+            eligible().Should().BeTrue();
+            Session = Session with { IsActive = active, Generation = new(generation.Value + 1) };
+            Boundary = Boundary! with { Generation = Session.Generation };
+            return ValueTask.FromResult(Session);
+        }
     }
 
     private sealed class FixedTime : TimeProvider

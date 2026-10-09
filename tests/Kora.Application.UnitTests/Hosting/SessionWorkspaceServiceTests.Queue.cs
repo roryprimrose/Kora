@@ -268,7 +268,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Guid QueueRun => queueRun;
         internal QueueClock QueueTime { get; } = new();
         internal SessionQueueService QueueService(int slots = 1, TimeProvider? clock = null) =>
-            new(this, this, new(this), this, this, new(executionSlots: slots), new QueueLogger(this), clock);
+            new(this, this, new(this), this, this, new(executionSlots: slots), new QueueLogger(this), clock ?? QueueTime);
         internal SessionCommand QueueCommand(SessionCommandOperation operation) => new(operation, Request.SessionId.Value, 1)
         {
             WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(), TaskRevision = 1,
@@ -294,7 +294,7 @@ public sealed partial class SessionWorkspaceServiceTests
         {
             QueueCheck("enqueue");
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
-            var now = DateTimeOffset.UtcNow;
+            var now = QueueTime.GetUtcNow();
             QueueRows.Add(new(work, generation, new(1), ++QueueRevision, SessionQueueState.Pending, queueRun,
                 admissionRevision, now, now.AddMinutes(30), dependency));
             return ValueTask.FromResult(QueueSnapshot(control.SessionId));
@@ -314,7 +314,7 @@ public sealed partial class SessionWorkspaceServiceTests
         {
             QueueCheck("find");
             return ValueTask.FromResult(SessionQueuePolicy.SelectReady(QueueRows,
-                new Dictionary<HostId<TaskIdentity>, HostTaskState>(), queueRun, DateTimeOffset.UtcNow, admissionRevision, limits));
+                new Dictionary<HostId<TaskIdentity>, HostTaskState>(), queueRun, QueueTime.GetUtcNow(), admissionRevision, limits));
         }
         public ValueTask<SessionQueueEntry> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
             SessionQueueLimits limits, Func<bool> eligible, CancellationToken token)

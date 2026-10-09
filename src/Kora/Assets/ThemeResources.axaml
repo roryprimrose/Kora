@@ -5,7 +5,8 @@
     <ResourceDictionary x:Key="Light">
       <SolidColorBrush x:Key="KoraWindowBackgroundBrush" Color="#F4F5F8" />
       <SolidColorBrush x:Key="KoraForegroundBrush" Color="#24202F" />
-      <SolidColorBrush x:Key="KoraMutedForegroundBrush" Color="#5E6470" />
+      <SolidColorBrush x:Key="KoraMutedForegroundBrush" Color="#4C525D" />
+      <StaticResource x:Key="TabItemHeaderForegroundUnselected" ResourceKey="KoraMutedForegroundBrush" />
       <SolidColorBrush x:Key="KoraAccentBrush" Color="#6653B5" />
       <SolidColorBrush x:Key="KoraPrimaryBrush" Color="#7663C7" />
       <SolidColorBrush x:Key="KoraAccentForegroundBrush" Color="#FFFFFF" />

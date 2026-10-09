@@ -30,6 +30,45 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 
 ## Proof Checklists
 
+### 2026-10-09 Bounded Native UX and Light-Text Continuation
+
+**Disposition: scoped native observations recorded; light-mode secondary-text
+readability approved by the operator. Full R05/R12/R14/A4 qualification remains
+open.** The [sanitized receipt](../tests/Kora.NativeUxFixture/evidence/2026-10-09-native-ux.json)
+records the actual uncommitted source base, separate tested payload identities,
+completed observations, failed/inconclusive probes, cleanup and exclusions.
+It contains no profile paths, account identity, screenshots, bulk logs or binaries.
+Raw trial scripts, snapshots and receipts remain local research evidence.
+
+The corrected scratch-only native fixture produced bounded observations for
+Maintenance's disabled consent and keyboard cycles, complete repeated Appearance
+keyboard cycles, exact question review/draft/submit and focus/status persistence,
+stale session-generation and question-revision refusal, guide/detail lifetime,
+native session Create/Rename and passive exact-ID history, and synthetic
+privacy closure/reopening. Later stale-session probes were inconclusive, not
+an every-trial repeatability pass. Fresh named-session history correctly had
+four metadata-only Gap/Task records rather than an invented zero-row result;
+retained version history exposed one exact question and one committed answer.
+All native attempts ended with exit 0 and exact scratch-child cleanup.
+
+The first question attempt was blocked by missing fixture workspace wiring,
+then corrected in the test host without changing authority. Corrected mechanical
+attempts passed 76 focused tests against matching source/payload identities.
+The later light-text change used different application bytes, passed 29 directly
+affected checks, and obtained a separate native Light selection and operator
+approval for the darker descriptions/inactive navigation labels. Earlier native
+observations are not relabeled as observations of the changed palette profile.
+Historical receipts and incomplete aggregate metadata remain explicitly scoped.
+
+Do not schedule these completed bounded observations as wholly unperformed,
+or turn remaining full acceptance into an unrelated feature-development gate.
+Remaining qualification includes complete all-surface/native repeatability,
+screen-reader announcements, mixed speech targeting, rendered contrast/text
+scale, physical DPI/multimonitor and real privacy/ownership/audio/installed
+boundaries. No D-001/D-005/D-008/D-009/D-013 gate is closed by this receipt.
+The native fixture and maintained regressions remain; no unique experiment
+harness is superseded or retired. Temporary orchestration scaffolding was removed.
+
 The [2026-10-09 unattended inference preflight](Local_Inference.md#unattended-provisioning-admission---2026-10-09)
 records conditional host approval but rejects the delivered acquisition path
 **before installation**: pinned tagged Inno source declares a broad
@@ -59,10 +98,12 @@ fixture/threshold receipts and remaining acoustic/packaged-host consumers:
 this preference slice is not a maintained replacement for that experiment.
 
 The [R05/R14 bounded native question delivery](Implementation_Roadmap.md#r05r14-bounded-native-shared-question---2026-10-07)
-adds automated trusted-UI state, exact review and production-store query tests,
-not native desktop acceptance. Still obtain separate scoped approval for
-keyboard/focus-restoration, screen-reader announcements, contrast/text scale,
-DPI/multimonitor, mixed speech targeting and live privacy/ownership transitions.
+initially added automated trusted-UI state, exact review and production-store
+query tests. The [2026-10-09 continuation](#2026-10-09-bounded-native-ux-and-light-text-continuation)
+now records bounded native keyboard/focus/state observations and separate
+light-text approval, not full desktop acceptance. Remaining screen-reader,
+contrast/text-scale, DPI/multimonitor, mixed speech and live privacy/ownership
+trials still require their own scoped preparation and approval.
 It admits no effect proposal/dispatcher or missing source/containment/
 deployment capability and closes none of D-001/D-005/D-008/D-009/D-013.
 

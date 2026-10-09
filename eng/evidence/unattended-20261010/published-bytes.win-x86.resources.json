@@ -1,0 +1,80 @@
+[
+  {
+    "resourceId": "Kora.Skills.Session.Lock.Manifest",
+    "bytes": 974,
+    "sha256": "1870c9daaf60411c8cfb1374b22f943951cc8dd90774b662388f82932fc11279",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Lock.Fixtures",
+    "bytes": 92,
+    "sha256": "7f57052e4b01b9fdd5bc65c6e8f3c155a49e5b452a6b513ac6a2f1fb0b0ad6f7",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Shutdown.Manifest",
+    "bytes": 1053,
+    "sha256": "7a07a2d9d979c6d1b88c1f17b35465c0e7db7ba8819e4169342968c38d899192",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Shutdown.Fixtures",
+    "bytes": 97,
+    "sha256": "af0a38b9a572c13bc707ec1ca3c577e46b3ba1a077f6adda55ae8e9a867e5d2b",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Restart.Manifest",
+    "bytes": 1039,
+    "sha256": "3c3783872f000d3065561587d7700c94fcd32f7d7ae4aaa01d5d39abe77c1b71",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Restart.Fixtures",
+    "bytes": 96,
+    "sha256": "8f7458dcbcde2c9dbce85b5c0f3c5d77470fc0c2f5b53613214be314d462ff4a",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Lock.Instructions",
+    "bytes": 917,
+    "sha256": "36a3757aa2a18bbff2d2be0be611c29e7afdf8bb72f4ff745b5809e8e9137411",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Shutdown.Instructions",
+    "bytes": 1015,
+    "sha256": "53821f7ef138c90b9c187bf807c988b603164b23be3fee4db8dc838e558d8f3b",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Skills.Session.Restart.Instructions",
+    "bytes": 1009,
+    "sha256": "354323ed637eae7088cb3ade6ec8dff6faed9491059f632b812731b2b8f74c43",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Scripts.Session.Lock",
+    "bytes": 150,
+    "sha256": "6af3a3a7cdb51f74a3eb90e8a408ecf1efaea95faeb6499550844a58cb86381f",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Scripts.Session.Shutdown",
+    "bytes": 154,
+    "sha256": "54821c738ba38ce62ad757fa8b9d934fc244120e2bb1b7162de35703802a6077",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Scripts.Session.Restart",
+    "bytes": 153,
+    "sha256": "69711b340b470eed27b6edbecab9595d9a90bd8c8dea8819ac5fe6b7738fa2b5",
+    "invocationAvailable": false
+  },
+  {
+    "resourceId": "Kora.Scripts.Shared.SessionControl",
+    "bytes": 475,
+    "sha256": "00f9324577bb2af7ec9a1a6899bb7414278b7b0dd179032ffb7bb78bbd415fda",
+    "invocationAvailable": false
+  }
+]

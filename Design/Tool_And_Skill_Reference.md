@@ -372,6 +372,16 @@ model tool and leaves R06 caller lanes unchanged. Exact embedded bytes and
 hashes are discoverable locally without enablement or approval authority.
 All package invocation descriptors remain unavailable pending worker,
 deployment, network and real-control admission.
+R21's separate **Shared profile sources (read only)** native window admits
+explicit bounded registration/list/immutable inspection/recheck and exact
+**Withdraw local read consent** confirmation. Withdrawal binds source ID,
+directory identity, profile-relative root and observed registration revision;
+it removes only Kora's registration and owned snapshots, even when the original
+root is missing. Shared files and unrelated registrations are untouched.
+Audit/write/read-back failures are unconfirmed, not rollback or success.
+This host-only affordance is not a `skills.*` tool, enable/disable/invoke,
+model exposure or grant change. See
+[the delivered boundary and recovery](Skill_Storage.md#delivered-bounded-r21-native-inspection).
 Source roots are bounded, explicit,
 read-only registrations; discovery is not execution, enablement, or remote egress.
 Skill identity includes partition/source, declared ID and digest-pinned revision.

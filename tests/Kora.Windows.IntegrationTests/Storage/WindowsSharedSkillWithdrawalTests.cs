@@ -1,0 +1,120 @@
+using System.Text.Json;
+
+using AwesomeAssertions;
+
+using Kora.Application.Auditing;
+using Kora.Application.Configuration;
+using Kora.Application.Diagnostics;
+using Kora.Application.Hosting;
+using Kora.Application.Skills;
+using Kora.Core.Auditing;
+using Kora.Core.Diagnostics;
+using Kora.Core.Skills;
+using Kora.Windows.Storage;
+
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Kora.Windows.IntegrationTests.Storage;
+
+[Collection("Host tracing")]
+public sealed class WindowsSharedSkillWithdrawalTests
+{
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Actual_atomic_preferences_native_lease_and_typed_audit_withdraw_only_known_consent(
+        bool missingDirectory, bool failedTerminalAudit)
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.Tasks.InitializeAsync(fixture.Token);
+        await fixture.Store.InitializeAsync(fixture.Token);
+        var shared = Path.Combine(fixture.Paths.LocalRoot, "fixture-shared", "skills");
+        Directory.CreateDirectory(shared);
+        var file = Path.Combine(shared, "SKILL.md");
+        const string privateText = "Private fixture skill text; no execution authority.";
+        File.WriteAllText(file, privateText);
+        var source = new SharedSkillSource(Guid.NewGuid(), "fixture-shared\\skills", new string('a', 48));
+        var other = new SharedSkillSource(Guid.NewGuid(), "fixture-other\\skills", new string('b', 48));
+        var preferences = new LocalSharedSkillPreferences(fixture.Paths);
+        preferences.Save([source, other]);
+        if (missingDirectory) { Directory.Delete(shared, recursive: true); }
+        var sink = new WindowsSqliteEvidenceSink(fixture.Paths);
+        sink.Initialize();
+        var gaps = new Gaps();
+        using var provider = new EvidenceLoggerProvider([sink], gaps);
+        using var logs = LoggerFactory.Create(builder => builder.AddProvider(provider));
+        var audit = new TerminalAudit(new LoggerSecurityAuditLog(logs.CreateLogger<LoggerSecurityAuditLog>()))
+        { FailSucceeded = failedTerminalAudit };
+        await using var admission = new SharedSkillAdmission(fixture.Store, fixture.Store, new HostTaskCoordinator(fixture.Tasks));
+        var service = new SharedSkillDiscoveryService(preferences, new NeverRead(), admission, audit,
+            NullLogger<SharedSkillDiscoveryService>.Instance);
+        var confirmed = await service.LoadSourcesAsync(static () => true, fixture.Token);
+        var withdrawal = () => service.UnregisterAsync(source, confirmed, static () => true, fixture.Token);
+        if (failedTerminalAudit)
+        {
+            await withdrawal.Should().ThrowAsync<IOException>();
+            var read = () => service.DiscoverAsync(other, static () => true, fixture.Token);
+            await read.Should().ThrowAsync<InvalidOperationException>();
+        }
+        else { (await withdrawal()).Should().Equal(other); }
+        new LocalSharedSkillPreferences(fixture.Paths).Load().Should().Equal(other);
+        var preferenceDirectory = Path.Combine(fixture.Paths.LocalRoot, "Preferences");
+        Directory.GetFiles(preferenceDirectory, "*.tmp").Should().BeEmpty();
+        File.ReadAllText(Path.Combine(preferenceDirectory, "shared-skill-sources.json")).Should().NotContain(privateText);
+        if (!missingDirectory) { File.ReadAllText(file).Should().Be(privateText); }
+        else { Directory.Exists(shared).Should().BeFalse(); }
+        fixture.Count("host_questions").Should().Be(0);
+        fixture.Count("scoped_grants").Should().Be(0);
+        gaps.Values.Should().BeEmpty();
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(fixture.Paths.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db"),
+            Mode = SqliteOpenMode.ReadOnly, Pooling = false,
+        }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT envelope FROM security_audit_events ORDER BY audit_sequence;";
+        using var rows = command.ExecuteReader();
+        var events = new List<AuditEnvelope>();
+        while (rows.Read()) { events.Add(JsonSerializer.Deserialize<AuditEnvelope>(rows.GetString(0))!); }
+        events.Select(item => item.Audit.Outcome).Should().Equal(SecurityAuditOutcome.Requested,
+            failedTerminalAudit ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Succeeded);
+        events.Should().OnlyContain(item => item.Audit.ActionId == "skills.source.unregister"
+            && item.Audit.TargetId == $"shared-source.{source.Id:N}"
+            && item.Diagnostic.Host!.Origin == Kora.Core.Hosting.RequestOrigin.LocalUi
+            && item.Diagnostic.Host.RequestId.Value == item.Audit.CorrelationId
+            && item.Diagnostic.Trace != null);
+        events[0].Diagnostic.Host.Should().Be(events[1].Diagnostic.Host);
+        events[0].Diagnostic.Trace!.TraceId.Should().Be(events[1].Diagnostic.Trace!.TraceId);
+        JsonSerializer.Serialize(events).Should().NotContain(privateText).And.NotContain(source.ProfileRelativeRoot);
+        (await service.LoadSourcesAsync(static () => true, fixture.Token)).Should().Equal(other);
+    }
+
+    private sealed class NeverRead : ISharedSkillSourceReader
+    {
+        public ValueTask<SharedSkillSource> SelectAsync(string selectedRoot, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Withdrawal must not select or repair a directory.");
+        public ValueTask<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Withdrawal must not read shared content.");
+    }
+
+    private sealed class TerminalAudit(ISecurityAuditLog inner) : ISecurityAuditLog
+    {
+        internal bool FailSucceeded { get; init; }
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            if (FailSucceeded && auditEvent.Outcome == SecurityAuditOutcome.Succeeded)
+            { throw new IOException("Fixture terminal audit unavailable after durable preference publication."); }
+            inner.Write(auditEvent);
+        }
+    }
+
+    private sealed class Gaps : IEvidenceGapReporter
+    {
+        internal List<EvidenceGap> Values { get; } = [];
+        public void Report(EvidenceGap gap) => Values.Add(gap);
+    }
+}

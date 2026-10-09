@@ -44,6 +44,23 @@ public sealed partial class WindowsProfileSkillReaderTests : IDisposable
         catalogue.Packages.Single().Text.Should().Be(Text);
     }
 
+    [WindowsFact]
+    public async Task Fresh_explicit_selection_of_the_same_path_issues_new_source_identity_without_mutating_files()
+    {
+        var reader = new WindowsProfileSkillReader(Profile);
+        var before = File.ReadAllBytes(SkillFile);
+        var original = await reader.SelectAsync(SourceRoot, TestContext.Current.CancellationToken);
+        var fresh = await reader.SelectAsync(SourceRoot, TestContext.Current.CancellationToken);
+        fresh.Id.Should().NotBe(original.Id);
+        fresh.ProfileRelativeRoot.Should().Be(original.ProfileRelativeRoot);
+        fresh.DirectoryIdentity.Should().Be(original.DirectoryIdentity);
+        var oldSnapshot = (await reader.DiscoverAsync(original, TestContext.Current.CancellationToken)).Packages.Single();
+        var freshSnapshot = (await reader.DiscoverAsync(fresh, TestContext.Current.CancellationToken)).Packages.Single();
+        freshSnapshot.RevisionDigest.Should().Be(oldSnapshot.RevisionDigest);
+        freshSnapshot.SourceQualifiedIdentity.Should().NotBe(oldSnapshot.SourceQualifiedIdentity);
+        File.ReadAllBytes(SkillFile).Should().Equal(before);
+    }
+
     [Theory]
     [InlineData("profile")]
     [InlineData("profile-parent")]

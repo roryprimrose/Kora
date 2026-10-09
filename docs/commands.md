@@ -1222,6 +1222,17 @@ tool references, additional uninspected entries and reasons.
 **Recheck selected revision** labels a changed live revision stale without
 changing the displayed old snapshot; list again for a new review.
 
+To stop Kora reading one source, select its registered metadata and choose
+**Withdraw local read consent**. Review and confirm the exact source ID,
+profile-relative root and directory identity in the native **Unregister source**
+confirmation. This removes only Kora's registration and local inspection
+snapshots, not your shared files. It changes no enablement, execution or grants;
+other source registrations remain intact. Even a missing original folder can
+be unregistered without reading or restoring it. A changed registration list
+requires refreshing and confirming again. Re-registering the path requires a
+fresh folder selection and receives a new source ID; old snapshots do not
+regain consent.
+
 The narrow reader requires flat YAML `name`, `version` (for example `1.0.0`)
 and `description`. Unsupported metadata/YAML, scripts or extra package files,
 executable/unknown fenced code and unresolved references remain unavailable,
@@ -1234,6 +1245,16 @@ Registration persists only root consent and directory identity in device-local
 atomic preferences. Corrupt/unknown saved registrations block discovery; restore
 a verified registration file or the original source explicitly. No silent reset,
 repair or rebinding occurs. Closing privacy cancels reads and clears the view.
+Withdrawal cancels in-flight inspection/recheck and clears text/hex snapshots
+immediately; late results cannot redisplay a removed source. A write, read-back,
+audit or admission failure does not prove rollback: the removal may already be
+saved. Read authority and the view remain closed after an unconfirmed mutation
+until **Refresh registrations** freshly observes valid saved state (or the
+host's audit/session evidence boundary is recovered). No successful receipt is
+claimed on failure.
+For the attempted source, refreshing does not revive its old identity in the
+current host: retry unregistering any remaining saved metadata, then select the
+folder afresh to obtain a new source ID if you want to grant local reading again.
 
 **Enable, disable, invoke, Kora-specific authoring and model exposure are
 unavailable here.** Registration/review grants no execution, egress, approval

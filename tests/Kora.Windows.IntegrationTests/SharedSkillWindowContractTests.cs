@@ -33,6 +33,14 @@ public sealed class SharedSkillWindowContractTests
             .And.Contain("exception.GetType().Name").And.NotContain("exception.Message")
             .And.NotContain("exception.ToString()");
         controller.Should().Contain("ClearPrivateContent()");
+        controller.Should().Contain("RunAsync(UnregisterAsync, supersede: true)")
+            .And.Contain("previous.CancelAsync()").And.Contain("opened.ClearCatalogue()")
+            .And.Contain("CurrentWindow(opened, token)").And.Contain("opened.SelectedSource != source")
+            .And.Contain("opened.RegisteredSources").And.Contain("ConfirmWithdrawalAsync(source, token)")
+            .And.Contain("discovery.UnregisterAsync(source, confirmedSources");
+        Read("SharedSkillSourcesWindow.Withdrawal.cs").Should().Contain("source.DirectoryIdentity")
+            .And.Contain("source.Id:N").And.Contain("JsonSerializer.Serialize(source.ProfileRelativeRoot)")
+            .And.Contain("dialog.ShowDialog<bool>").And.NotContain("StorageProvider");
     }
 
     private static string Read(string name)

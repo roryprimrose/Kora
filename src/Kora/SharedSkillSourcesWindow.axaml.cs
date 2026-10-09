@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Collections.ObjectModel;
 
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
@@ -9,12 +10,14 @@ namespace Kora;
 
 public sealed partial class SharedSkillSourcesWindow : Window
 {
-    private IReadOnlyList<SharedSkillSource> sources = [];
+    private ReadOnlyCollection<SharedSkillSource> sources = Array.AsReadOnly(Array.Empty<SharedSkillSource>());
     private SharedSkillCatalogue? catalogue;
+    private bool closed;
 
     public SharedSkillSourcesWindow() => throw new InvalidOperationException("Use the admitted local shared source inspection route.");
 
-    internal SharedSkillSourcesWindow(Func<Task> register, Func<Task> refresh, Func<Task> discover, Func<Task> verify)
+    internal SharedSkillSourcesWindow(Func<Task> register, Func<Task> refresh, Func<Task> discover, Func<Task> verify,
+        Func<Task> unregister)
     {
         AvaloniaXamlLoader.Load(this);
         this.FindControl<TextBox>("SharedSource")!.ContextMenu = null;
@@ -25,9 +28,13 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<Button>("RefreshSources")!.Click += async (_, _) => await refresh();
         this.FindControl<Button>("DiscoverSource")!.Click += async (_, _) => await discover();
         this.FindControl<Button>("VerifyRevision")!.Click += async (_, _) => await verify();
+        this.FindControl<Button>("UnregisterSource")!.Click += async (_, _) => await unregister();
         this.FindControl<ComboBox>("SourceSelector")!.SelectionChanged += (_, _) => ClearCatalogue();
         this.FindControl<ComboBox>("SharedPackageSelector")!.SelectionChanged += (_, _) => ShowSelectedPackage();
+        Closed += (_, _) => { closed = true; ClearPrivateContent(); };
     }
+
+    internal IReadOnlyList<SharedSkillSource> RegisteredSources => Array.AsReadOnly(sources.ToArray());
 
     internal SharedSkillSource? SelectedSource
     {
@@ -49,7 +56,8 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     internal void SetSources(IReadOnlyList<SharedSkillSource> value)
     {
-        sources = value;
+        if (closed) { throw new InvalidOperationException("The source inspection window is closed."); }
+        sources = Array.AsReadOnly(value.ToArray());
         var selector = this.FindControl<ComboBox>("SourceSelector")!;
         selector.ItemsSource = sources.Select(source => $"{JsonSerializer.Serialize(source.ProfileRelativeRoot)} | {source.Id:N}").ToArray();
         selector.SelectedIndex = -1;
@@ -59,6 +67,8 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     internal void SetCatalogue(SharedSkillCatalogue value)
     {
+        if (closed || SelectedSource != value.Source)
+        { throw new InvalidOperationException("The exact selected source inspection is no longer current."); }
         catalogue = value;
         var selector = this.FindControl<ComboBox>("SharedPackageSelector")!;
         selector.ItemsSource = value.Packages.Select(package =>
@@ -78,6 +88,8 @@ public sealed partial class SharedSkillSourcesWindow : Window
         this.FindControl<ComboBox>("SharedPackageSelector")!.IsEnabled = !busy;
     }
 
+    internal void SetWithdrawalBusy(bool busy) => this.FindControl<Button>("UnregisterSource")!.IsEnabled = !busy;
+
     internal void ClearCatalogue()
     {
         catalogue = null;
@@ -90,7 +102,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     internal void ClearPrivateContent()
     {
-        sources = [];
+        sources = Array.AsReadOnly(Array.Empty<SharedSkillSource>());
         this.FindControl<ComboBox>("SourceSelector")!.ItemsSource = Array.Empty<string>();
         ClearCatalogue();
         Report(string.Empty);

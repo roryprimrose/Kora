@@ -3245,7 +3245,7 @@ receipts do not close that gate or installed/native/durable acceptance.
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
 | R20 - Deliver one admitted read-only MCP integration and bundled integration skill | Outstanding; connector/task choice still open | P2 - first safe external-source value | I: consumed R06/R10/R11 contracts; E: actual connector/profile proof; Q: R19 for RC inclusion, not implementation | Select one supported tool/task; implement host-owned setup/sign-in/credential references, connection lifecycle, capability discovery and exact identity/policy mapping. Pin and enable the bundled read-only skill; enforce bounded provenance, fresh source permission and per-result model egress. Pass a controllable MCP-server suite plus the same tests on the real connector. No arbitrary installation, writes or generic call-anything escape hatch. |
-| R21 - Add explicit shared-source skill discovery and enablement | **Bounded read-only registration/list/immutable inspection/recheck delivered**; enable/disable/invoke/model exposure and authoring unavailable | P2 - reuse existing skills safely | I: consumed R05/R06/R10/R11 contracts; E: source/skill profile proof; Q: R19 for RC inclusion, not discovery implementation | Explicit native registration grants only a bounded local read. Known-folder/handle identity, strict versioned YAML/UTF-8, count/depth/byte limits and incompatible/unavailable disclosure are implemented and tested; no ambient personal-skill model ingestion. Remaining separately confirmed enable/disable/invoke and Kora-specific fork/authoring work stays gated. Shared roots are never written or promoted to bundled trust. This slice does not close R20/R21/R23 or full Slice B. |
+| R21 - Add explicit shared-source skill discovery and enablement | **Bounded read-only registration/list/immutable inspection/recheck and exact local-read-consent withdrawal delivered**; enable/disable/invoke/model exposure and authoring unavailable | P2 - reuse existing skills safely | I: consumed R05/R06/R10/R11 contracts; E: source/skill profile proof; Q: R19 for RC inclusion, not discovery implementation | Explicit native registration grants only a bounded local read; identity/revision-bound native withdrawal removes only that registration and owned snapshots, including missing roots, never shared files or grants. Known-folder/handle identity, strict versioned YAML/UTF-8, count/depth/byte limits and incompatible/unavailable disclosure are implemented and tested; no ambient personal-skill model ingestion. Remaining separately confirmed enable/disable/invoke and Kora-specific fork/authoring work stays gated. Shared roots are never written or promoted to bundled trust. This slice does not close R20/R21/R23 or full Slice B. |
 | R22 - Deliver voice/UI declarative skill authoring | Outstanding | P2 - create useful workflows without executable imports | R05, R10, R12, R14, R20, R21 | Implement Builder clarification/shared draft, exact diff/capability summary, schema/dependency checks and data-only simulated examples. Stage/save/restore/delete only owned revisions with exact confirmation; save to the Kora user store and confirm enablement separately. Add bounded skill-revision file selection/read, not general filesystem access. Invoke only admitted tools under normal grants/egress; save/tests/enablement confer no execution permission. No compilation, external test/build commands, Git writes or application-code modification. |
 | R23 - Accept Slice B/C and manifest-scoped release regression | Proof outstanding | P0 - integration/authoring must not weaken the core | Q: R19 and enabled R20/R21/R22 scope; complete B/C claims require their full scope | Record applicable connector/account/access-revocation, hostile-source, source-revision, draft/save/enable and simulated-test results. Repeat affected A0-A4/privacy/cancellation/egress/grant tests and update capability/reference/user documentation to exact delivered availability and explicit exclusions. The full initial A/B/C scope is complete only after its gates, not after a catalogue or authoring UI exists; partial manifest-scoped releases must not claim that outcome. |
 
@@ -3844,6 +3844,38 @@ concurrent call-feedback and file-preview work (Core 931, Application
 **100% line / 100% branch** coverage gate. These are deterministic/source
 mechanism results, not real-user/native-accessibility or complete release
 qualification.
+
+### Exact native local-read-consent withdrawal - 2026-10-10
+
+R21 additionally delivers **Withdraw local read consent** for one explicitly
+selected saved source, with native confirmation of exact source ID,
+profile-relative root and directory identity against the complete observed
+registration revision. The existing shared-control admission and preference
+fence serialize registration/withdrawal, with atomic publication, exact
+read-back and requested/terminal typed audit. Missing original directories need
+no filesystem selection or read to withdraw known consent. Invalid/unknown/
+duplicate saved state and stale confirmation fail closed without reset or
+dropping unrelated registrations.
+
+Withdrawal clears owned catalogue/text/hex snapshots and cancels in-flight
+reads/rechecks; exact source/selection/window/lifetime fences refuse late
+display. Re-registering requires fresh native selection and a new host-issued
+source ID. Durable mutation followed by audit/read-back/admission failure is
+explicitly unconfirmed, not rollback or success; reads stay closed pending
+fresh admitted observation/recovery. Shared files, enablement, execution,
+grants, runner/model routing, schema and other feature partitions are unchanged.
+
+Maintained evidence extends the
+[domain identity tests](../tests/Kora.Core.UnitTests/Skills/SharedSkillTests.cs),
+[Application consent/failure/race tests](../tests/Kora.Application.UnitTests/Skills/SharedSkillDiscoveryServiceTests.cs),
+[actual private atomic preference/typed audit tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSharedSkillWithdrawalTests.cs)
+and [headless native confirmation/snapshot/lifetime tests](../tests/Kora.Windows.IntegrationTests/SharedSkillWithdrawalWindowTests.cs).
+These deterministic fixtures replace no unique experiment evidence.
+Existing distribution/native/runtime/containment/dependency/historical
+consumers and witnesses retain their prior dispositions; no experiment code,
+proof gate or claim of real installed/user/native accessibility qualification
+is removed or promoted. R19, full R21/R23 and Slice B execution/authoring gates
+remain open.
 
 ## R25 Bounded Local Caption UX Delivered - 2026-10-09
 

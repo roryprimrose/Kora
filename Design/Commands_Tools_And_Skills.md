@@ -3,12 +3,15 @@
 Status: proposed interaction contract, not a shipped tool loop or skill runner.
 
 R21 now provides a native host-only explicit shared-profile registration/list/
-inspect/recheck route. Its strict versioned instruction reader retains exact
+inspect/recheck and exact native local-read-consent withdrawal route. Its strict
+versioned instruction reader retains exact
 source-qualified immutable snapshots and truthful incompatible/unavailable
 reasons. It is **not** a `skills.*` tool, slash artifact route, model catalogue,
 enablement or runner. Ambient personal skill folders no longer feed the startup
 artifact-to-model catalogue. Registration grants only the selected bounded
-local read; no model exposure, source edits, dependency installation, execution,
+local read, and withdrawal removes only that exact saved registration and
+owned snapshots, never shared files or grants. Neither operation is available
+through typed/voice/model tool routing. No model exposure, source edits, dependency installation, execution,
 egress, approval or bundled trust. See
 [Skill Storage](Skill_Storage.md#delivered-bounded-r21-native-inspection).
 

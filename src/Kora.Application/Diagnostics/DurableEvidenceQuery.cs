@@ -178,6 +178,12 @@ public sealed partial class DurableEvidenceQuery(
         {
             throw new ArgumentException("Evidence correlation identifiers cannot be empty.", nameof(query));
         }
+        if (query.Severity is not null && query.Source is EvidenceSource.AuthorityAudit or EvidenceSource.Span or EvidenceSource.Link
+            || query.AuditOutcome is not null && query.Source is EvidenceSource.Log or EvidenceSource.Span
+                or EvidenceSource.Link or EvidenceSource.DailyLog or EvidenceSource.CombinedLog)
+        {
+            throw new NotSupportedException("This evidence source does not provide the selected typed diagnostic severity or audit outcome.");
+        }
         W3C(query.TraceId, 32);
         W3C(query.SpanId, 16);
         Text(query.Text, 256);

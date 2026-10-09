@@ -149,6 +149,31 @@ Next page continues only that snapshot. Selecting a cited record exposes its
 parent/explicit link availability; Read selected trace and Open selected
 segment use the same typed query service, never paths or SQL.
 
+The optional **Advanced filters** area adds exact request, invocation, approval
+and audit-correlation GUIDs, inclusive **From / Until** timestamps, diagnostic
+severity and typed security-audit outcome. Blank fields are unset; GUIDs must
+be nonempty hyphenated values without surrounding whitespace. ISO timestamps
+require `Z` or an explicit offset and normalize to UTC; both edges include the
+boundary instant. SQLite and AuthorityAudit compare commit time; DailyLog
+compares observation time, and CombinedLog preserves those independent time
+semantics. Correlation on an ordinary diagnostic is not a committed audit.
+Severity requires All, Log, Audit, DailyLog or CombinedLog; audit outcome
+requires All, Audit or AuthorityAudit. Unsupported choices fail visibly, not
+as empty success. **Clear advanced filters** unsets the optional fields/choices
+without reading. Malformed values, invalid ranges and undefined enum values
+never fall back to an unfiltered read.
+
+Every basic/advanced filter edit clears previous content, selection and cursor,
+and cancels an in-flight read; late content cannot restore the retired query.
+Search explicitly creates a fresh snapshot; Next uses the same immutable typed
+query and signed continuation. Trace/segment reads retain their existing
+source-specific navigation semantics rather than inheriting unrelated advanced
+search restrictions. The [native filter/parser](../src/Kora/EvidenceViewModel.Filters.cs),
+[query validation](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)
+and [native/real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
+are the maintained evidence for this deterministic filtering slice, not
+installed/native accessibility, model reasoning or release qualification.
+
 The complete compact serialized page, including correlation, typed values,
 stable citations and disclosure, is limited to 50 records / 64 KiB UTF-8.
 Over-budget individual content is explicitly marked `ContentOmitted`, not

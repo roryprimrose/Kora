@@ -5,6 +5,7 @@ using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
 using Kora.Core.Diagnostics;
+using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -18,6 +19,69 @@ namespace Kora.Windows.IntegrationTests.Storage;
 [Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsCommittedAuthorityAuditTests
 {
+    [WindowsFact]
+    public async Task NativeAdvancedFiltersReadExactCommittedMetadataWithoutPromotingDiagnostics()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await fixture.GrantAsync("once");
+        var original = fixture.Request;
+        fixture.Request = InteractionStorageFixture.NewRequest();
+        await fixture.AdmitAsync(newSession: true);
+        var viewer = new Kora.EvidenceViewModel(Service(fixture), () => true,
+            NullLogger<Kora.EvidenceViewModel>.Instance) { Source = EvidenceSource.AuthorityAudit };
+        var bytes = SHA256.HashData(File.ReadAllBytes(fixture.DatabasePath));
+        await viewer.SearchAsync();
+        var all = viewer.Records.ToArray();
+        all.Should().HaveCountGreaterThan(1);
+        var selected = all.First(record => record.Host == original && record.ApprovalId != null);
+        var filters = new Action[]
+        {
+            () => viewer.RequestFilter = original.RequestId.Value.ToString("D"),
+            () => viewer.InvocationFilter = original.InvocationId!.Value.Value.ToString("D"),
+            () => viewer.ApprovalFilter = selected.ApprovalId!.Value.ToString("D"),
+            () => viewer.CorrelationFilter = selected.CorrelationId!.Value.ToString("D"),
+            () => viewer.AuditOutcome = selected.Audit!.Outcome,
+            () => viewer.FromFilter = selected.CommittedUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            () => viewer.UntilFilter = selected.CommittedUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+        };
+        foreach (var apply in filters)
+        {
+            viewer.ClearAdvancedFilters();
+            apply();
+            await viewer.SearchAsync();
+            viewer.Records.Should().Contain(record => record.Reference == selected.Reference)
+                .And.OnlyContain(record => record.AuthorityProvenance != null && record.Reference.Source == EvidenceSource.AuthorityAudit);
+        }
+        viewer.RequestFilter = original.RequestId.Value.ToString("D");
+        viewer.InvocationFilter = original.InvocationId!.Value.Value.ToString("D");
+        viewer.ApprovalFilter = selected.ApprovalId!.Value.ToString("D");
+        viewer.CorrelationFilter = selected.CorrelationId!.Value.ToString("D");
+        viewer.AuditOutcome = selected.Audit!.Outcome;
+        viewer.FromFilter = selected.CommittedUtc!.Value.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        viewer.UntilFilter = viewer.FromFilter;
+        await viewer.SearchAsync();
+        viewer.Records.Should().ContainSingle().Which.Reference.Should().Be(selected.Reference);
+        viewer.Status.Should().Contain(EvidencePage.AuthorityDisclosure);
+        viewer.ResultText.Should().Contain("AuthorityProvenance");
+        viewer.ClearAdvancedFilters();
+        viewer.FromFilter = selected.CommittedUtc.Value.AddTicks(1).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        await viewer.SearchAsync();
+        viewer.Records.Should().NotContain(record => record.Reference == selected.Reference);
+        viewer.ClearAdvancedFilters();
+        viewer.UntilFilter = selected.CommittedUtc.Value.AddTicks(-1).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        await viewer.SearchAsync();
+        viewer.Records.Should().NotContain(record => record.Reference == selected.Reference);
+        viewer.ClearAdvancedFilters();
+        viewer.AuditOutcome = selected.Audit.Outcome == SecurityAuditOutcome.Succeeded
+            ? SecurityAuditOutcome.Denied : SecurityAuditOutcome.Succeeded;
+        viewer.CorrelationFilter = selected.CorrelationId.Value.ToString("D");
+        await viewer.SearchAsync();
+        viewer.Records.Should().BeEmpty();
+        SHA256.HashData(File.ReadAllBytes(fixture.DatabasePath)).Should().Equal(bytes);
+        viewer.Close();
+    }
+
     [WindowsFact]
     public async Task Consolidation_preserves_commit_bytes_and_frozen_legacy_is_not_an_inspection_source()
     {

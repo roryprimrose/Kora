@@ -506,6 +506,28 @@ snapshot; later records do not silently extend it. Each page includes stable
 `kora-evidence` citations and at most 50 records / 64 KiB of serialized output,
 including metadata. A record too large for one page is explicitly marked
 `ContentOmitted`; content is never silently truncated.
+
+Expand **Advanced filters (optional)** for exact request, invocation, approval
+and audit-correlation GUIDs, **From / Until** times, severity and typed audit
+outcome. Blank fields are unset. GUIDs require nonempty hyphenated form without
+surrounding whitespace. Times require ISO `yyyy-MM-ddTHH:mm:ss` with optional
+1-7 fractional digits and `Z` or an explicit `+/-HH:mm` offset, normalized to
+UTC. **Both bounds are inclusive**: equal bounds select that exact instant.
+SQLite/AuthorityAudit compare commit time; DailyLog compares observation time;
+CombinedLog does not turn these into an atomic timeline. An ordinary log's
+audit correlation does not promote it into committed authority.
+
+Severity supports **All, Log, Audit, DailyLog, CombinedLog**; typed audit outcome
+supports **All, Audit, AuthorityAudit** only. Unsupported combinations show an
+explicit error with recovery, not a misleading empty success. **Clear advanced
+filters** resets all optional fields and typed choices to unset without a read.
+Malformed identifiers/times, reversed ranges and undefined choices do not
+default or fall back. Editing any filter clears results, selection and Next,
+cancels an in-flight read and requires a fresh **Search / refresh**; old/late
+results cannot return. Next continues the exact immutable query. These rules
+are exercised by [native typed-filter and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
+and [signed-cursor tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs).
+
 Select a record to inspect parent/link status; **Read selected trace** shows
 its retained correlated records and **Open selected segment** follows an
 available cited span. Session/task IDs and traces are filters, not permission.

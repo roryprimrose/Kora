@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-09T11:12:27.9136427+00:00",
+  "proof": "RT1 unattended synthetic .NET control proof",
+  "qualification": "BLOCKED: exact reviewed source-built SDK profile not reproduced; fixture lock rejected NU1403",
+  "repository": {
+    "requestedBaseline": "e0692f4",
+    "actualRevision": "e0692f438a058de0a20021b3420a981849706dbf",
+    "branch": "proof/unattended-20261009-rt1",
+    "initialSourceState": "clean tracked/untracked checkout before preparation",
+    "postFixSourceState": "dirty experiment-only edits and fresh evidence",
+    "postFixStatus": [
+      " M experiments/r02-dotnet-control-proof/EVIDENCE.md",
+      " M experiments/r02-dotnet-control-proof/PackageArtifacts.ps1",
+      " M experiments/r02-dotnet-control-proof/README.md",
+      " M experiments/r02-dotnet-control-proof/Test-Reproduction.ps1",
+      "?? experiments/r02-dotnet-control-proof/Test-OfflineInvariants.ps1",
+      "?? experiments/r02-dotnet-control-proof/evidence/unattended-20261009/"
+    ],
+    "fixtureInputs": [
+      {
+        "file": "Candidate.cs",
+        "sha256": "7aec7433ce762c14907bd29cb2b0238d582166cc674fb819e599b6451f5fbf80"
+      },
+      {
+        "file": "ConformanceTests.cs",
+        "sha256": "53680512b5d2a8404212b38ec64e95b0ec57e5938de23b3bb741716233a0d917"
+      },
+      {
+        "file": "ControlProof.csproj",
+        "sha256": "d04df1d69c97d0550e51d0813332df1a7d0b1a62f7d26b7736861559a2a98f19"
+      },
+      {
+        "file": "Directory.Build.props",
+        "sha256": "33551ad48c99e510e8ce65a16f7a1fb14f2b434d6b34b12e77c6237e835f7683"
+      },
+      {
+        "file": "Directory.Packages.props",
+        "sha256": "5de0bd6cb9fd0334417a74fbb20cb6341063715789d8c0abdd54afdf6a48745b"
+      },
+      {
+        "file": "Evidence.cs",
+        "sha256": "2303607923ef0e49f1391516559eaad309fbab7dc100c4db5a90804500e3bf71"
+      },
+      {
+        "file": "EVIDENCE.md",
+        "sha256": "93f1ab49c0826b5454dba465dd5eb92afb10fa7c018b6ea8b164e670ccb56bf5"
+      },
+      {
+        "file": "LICENSE-REVIEW.md",
+        "sha256": "078b8abbc57609c32c14d9090f73b3f70a9d6622b68fd6828f548ae539fc4cb9"
+      },
+      {
+        "file": "PackageArtifacts.ps1",
+        "sha256": "5fef14a9d9d58bc4191f8493cbf9520f1a4c3151cdcec38ad78b80accfca04c9"
+      },
+      {
+        "file": "Prepare-Candidate.ps1",
+        "sha256": "2737a415b268ea6015820a44fe1c44b0912b7dc7883d52522dd140c68307acef"
+      },
+      {
+        "file": "README.md",
+        "sha256": "d12619b97426c795f89aed9eb43af54e0f6f79117539aa9f010587fd66545526"
+      },
+      {
+        "file": "RequestBoundary.cs",
+        "sha256": "407a4216c1a843fb8e2ca7a97c2cb3d1f5550e73909e2c23c4d85c40d2f6f47f"
+      },
+      {
+        "file": "Run-Conformance.ps1",
+        "sha256": "d72323e8a85a4a1cd50b74374e9ef73c9738e2ed0f0e56bda181663aa0c82dd8"
+      },
+      {
+        "file": "RuntimeFixture.cs",
+        "sha256": "b3e0002ce17ed9bebb0b35c1b827a5f25c333647021ecc850feec5014cfbb415"
+      },
+      {
+        "file": "SyntheticProvider.cs",
+        "sha256": "88d19cd672345c0ce48c936e088e5b72229505aaef2d76d93dc156ef4d576b14"
+      },
+      {
+        "file": "Test-OfflineInvariants.ps1",
+        "sha256": "e5fb816ecace09ab7de9867ae9e3abdb05498a771740c10de6adc3fc75c35683"
+      },
+      {
+        "file": "Test-Reproduction.ps1",
+        "sha256": "7dffb83d976b49544be8931ccddc02a21f09f2feb23e2e15daa646b3eaea18c5"
+      },
+      {
+        "file": "VolatileSessionFs.cs",
+        "sha256": "44664138977d5e3e147aaa9f4e4a7158fba756f28bf506556c1bb806e737dace"
+      }
+    ]
+  },
+  "toolchain": {
+    "dotnetSdk": "10.0.401",
+    "powershell": "7.6.6",
+    "requiredRuntime": "10.0.12",
+    "requiredRuntimePresent": true,
+    "installedOrElevated": false
+  },
+  "profile": {
+    "sdkRelease": "v1.0.16",
+    "sdkSourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+    "sourceArchiveSha256": "a73f4f2d8cb1eb9fd5353d3867707094e1efb7581599669afb55c2dcf48a53c3",
+    "sdkPackageVersion": "1.0.16-rt1.source.f8ae645.1",
+    "reviewedPackageSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+    "reviewedAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+    "runtime": "1.0.90",
+    "protocol": 3,
+    "pinsAndLocksChanged": false,
+    "releasedNugetByteParity": "NOT ESTABLISHED; source-build and released-package profiles remain distinct"
+  },
+  "phases": [
+    {
+      "command": "Prepare-Candidate.ps1",
+      "sourceState": "clean",
+      "exitCode": 1,
+      "outcome": "SDK locked restore and pack succeeded; fixture locked restore rejected NU1403",
+      "restore": "locked only; worktree-local package cache initially absent"
+    },
+    {
+      "command": "Test-Reproduction.ps1 (baseline script)",
+      "sourceState": "clean before attempt receipt was written",
+      "exitCode": 0,
+      "outcome": "Locally byte-equal repeat; package/assembly nevertheless not the reviewed profile",
+      "receipt": "source-reproduction-before-fix.json"
+    },
+    {
+      "command": "Test-Reproduction.ps1 (corrected script)",
+      "sourceState": "dirty experiment-only edits",
+      "exitCode": 1,
+      "outcome": "Repeat differs from initial build and reviewed package/assembly; both mismatch checks retained",
+      "receipt": "source-reproduction-after-fix.json",
+      "sourceRestore": "locked; new unique clean-source directory lacks assets",
+      "sourcePathMapInput": "fixed reviewed virtual source root; physical path inputs retained only in raw logs"
+    },
+    {
+      "command": "Run-Conformance.ps1",
+      "sourceState": "clean initial attempt; dirty final attempt",
+      "exitCode": 1,
+      "outcome": "Release no-restore build rejected NU1403 before dotnet test"
+    },
+    {
+      "command": "Test-OfflineInvariants.ps1",
+      "sourceState": "dirty experiment-only edits",
+      "exitCode": 0,
+      "outcome": "19/19 offline artifact/script invariants; no restore, network or runtime launch",
+      "receipt": "offline-invariants.json"
+    }
+  ],
+  "conformanceTests": {
+    "requested": 45,
+    "sourceCasesRetained": 45,
+    "executed": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "notExecuted": 45,
+    "trxProduced": false,
+    "freshCapabilityRows": 0,
+    "deniedEffectsMeasured": false,
+    "deniedMarkersMeasured": false,
+    "runtimeCleanupMeasured": false
+  },
+  "offlineChecks": {
+    "total": 19,
+    "passed": 19,
+    "failed": 0,
+    "initialTestDevelopmentFailure": "18/19: raw signed archive SHA-512 incorrectly equated with NuGet lock content identity; fixed without pin changes",
+    "notRuntimeQualification": true
+  },
+  "boundaries": {
+    "runtimeChildrenStarted": 0,
+    "syntheticListenersStarted": 0,
+    "liveProviderCalls": 0,
+    "hostedAccountUse": false,
+    "productionAdapterEnabled": false,
+    "rt2": "NOT RUN",
+    "mg1": "NOT RUN",
+    "pv1": "BLOCKED: no intended-account/paid-usage approval",
+    "gate0": "OPEN",
+    "unapprovedSdkUsedForRuntimeTests": false
+  },
+  "historicalEvidence": [
+    {
+      "file": "dependency-licenses.json",
+      "sha256": "c927120277398a8272bdcf5230562911d761b541f6b5d6e0604f8c3787c9c637",
+      "unchanged": true
+    },
+    {
+      "file": "disposition.json",
+      "sha256": "3cc365437821c890252f39e616c150b9108e61ce0656ab3b2401946a6ee433ce",
+      "unchanged": true
+    },
+    {
+      "file": "repository-validation.json",
+      "sha256": "e0d630fe2a7f1b9a4075d99fda89ca554a4f8d01df8d5cded5bd60f796e0825e",
+      "unchanged": true
+    },
+    {
+      "file": "results.json",
+      "sha256": "a72c2deafd8c27330c340d674ddc07690d2b5ded097a203121ed50d670b1bf79",
+      "unchanged": true
+    },
+    {
+      "file": "sdk-build.lock.json",
+      "sha256": "ad27e81efdb0060b6d4381033fa41bf9f7d7e0514a6d8d0d3d30279c70d0c8aa",
+      "unchanged": true
+    },
+    {
+      "file": "source-build-licenses.json",
+      "sha256": "4272939be25fe25139f861ab91cb5de426a56dfa6e61987d0aed4ef691bf9aeb",
+      "unchanged": true
+    },
+    {
+      "file": "source-reproduction.json",
+      "sha256": "c3b815b4061d4fcafa48835e48f770a70c8f654a06daa9c89979654bde58b1dc",
+      "unchanged": true
+    }
+  ],
+  "cleanup": {
+    "uniqueSourceBuildChildrenRemaining": 0,
+    "runtimeScratchEntriesRemaining": 0,
+    "offlineSyntheticPackageRemoved": true,
+    "temporaryCodeCreated": false,
+    "ignoredAcquisitionAndBuildCachesRetained": true,
+    "observedPackagesAssembliesAndFailureReceiptsPreservedExternally": true,
+    "worktreeRemoved": false
+  },
+  "timing": "Contended with independent proofs; no performance or SLO qualification",
+  "redaction": "Fresh committed receipts contain relative artifact identifiers, fixed statuses and hashes only; physical path inputs and unmodified raw logs retained externally"
+}

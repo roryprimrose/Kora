@@ -59,6 +59,21 @@ Line coverage: 100.0%; Branch coverage: 100.0%
 lines-covered/valid: 16868/16868; branches-covered/valid: 10131/10131
 ```
 
+Queue-main rebase receipt: preserved #127 main `42f1382d91fa5a2d164a7e86e6346940f6c3fcff`, including queue preference/observation consumer serialization, without a sibling/main merge. Tested combined implementation head `041c8d9265e0bce2317909df853b03740a54e5c9`; search adds no schema/version change. Fresh Release build and all five required suites pass. This distinct latest-only receipt does not aggregate older coverage reports.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1229; Application: 3294; Tools: 69; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: total 1234; failed 0; succeeded 1234; skipped 0
+All five suites: failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <queue-main-latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0%; Branch coverage: 100.0%
+lines-covered/valid: 17273/17273; branches-covered/valid: 10349/10349
+```
+
 ### D-014 Reviewed User-Memory Admission Increment - 2026-10-09
 
 The first dependency-safe memory package delivers the

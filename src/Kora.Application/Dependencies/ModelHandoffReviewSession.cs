@@ -34,16 +34,23 @@ public sealed class ModelHandoffReviewSession : IAsyncDisposable
     public bool CanReview { get { lock (gate) { return !closed && !busy && eligible(); } } }
     public bool HasReviewed { get; private set; }
 
-    public Task Refresh(CancellationToken token) => Run((exact, admitted) => workflow.Inspect(exact, admitted), inspecting: true, markReviewed: true, dismissing: false, token);
+    public Task Refresh(CancellationToken token) => Run((exact, admitted) => workflow.Inspect(exact, admitted), inspecting: true, markReviewed: true, dismissing: false, target: null, requireReview: false, token);
 
-    public Task Validate(CancellationToken token) => Run((exact, admitted) => workflow.Inspect(exact, admitted), inspecting: true, markReviewed: false, dismissing: false, token);
+    public Task Validate(CancellationToken token) => Run((exact, admitted) => workflow.Inspect(exact, admitted), inspecting: true, markReviewed: false, dismissing: false, target: null, requireReview: false, token);
 
-    public Task Decide(ModelHandoffDecision decision, RequestOrigin channel, CancellationToken token) =>
-        decision == ModelHandoffDecision.Approve && !HasReviewed ? Task.CompletedTask
-            : Run((exact, admitted) => workflow.ReviewAsync(exact, exact.Policy, exact.Context, decision, channel, admitted), inspecting: false, markReviewed: false, dismissing: false, token);
+    public Task Decide(ModelHandoffOffer target, ModelHandoffDecision decision, RequestOrigin channel, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        return Run((exact, admitted) => workflow.ReviewAsync(exact, exact.Policy, exact.Context, decision, channel, admitted),
+            inspecting: false, markReviewed: false, dismissing: false, target, requireReview: decision == ModelHandoffDecision.Approve, token);
+    }
 
-    public Task Remove(IReadOnlyCollection<HostId<EvidenceIdentity>> ids, CancellationToken token) =>
-        Run((exact, admitted) => workflow.RemoveAsync(exact, ids, admitted), inspecting: false, markReviewed: false, dismissing: false, token);
+    public Task Remove(ModelHandoffOffer target, IReadOnlyCollection<HostId<EvidenceIdentity>> ids, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        return Run((exact, admitted) => workflow.RemoveAsync(exact, ids, admitted), inspecting: false,
+            markReviewed: false, dismissing: false, target, requireReview: false, token);
+    }
 
     public async Task Dismiss(CancellationToken token)
     {
@@ -52,17 +59,25 @@ public sealed class ModelHandoffReviewSession : IAsyncDisposable
             // Display closure may request cancellation, never bypass admission for an affirmative answer.
             await Run((exact, admitted) => workflow.ReviewAsync(exact, exact.Policy, exact.Context,
                 ModelHandoffDecision.Cancel, RequestOrigin.LocalUi, admitted), inspecting: false,
-                markReviewed: false, dismissing: true, token).ConfigureAwait(false);
+                markReviewed: false, dismissing: true, target: null, requireReview: false, token).ConfigureAwait(false);
         }
         finally { Revoke(); }
     }
 
     private Task Run(Func<ModelHandoffOffer, CancellationToken, Task<ModelHandoffResult>> action, bool inspecting,
-        bool markReviewed, bool dismissing, CancellationToken token)
+        bool markReviewed, bool dismissing, ModelHandoffOffer? target, bool requireReview, CancellationToken token)
     {
         lock (gate)
         {
             if (closed || busy) { return Task.CompletedTask; }
+            if (target is not null && !ReferenceEquals(target, offer))
+            {
+                Outcome = ModelHandoffOutcome.Stale;
+                Reason = ModelTurnReason.HandoffReviewStale;
+                HasReviewed = false;
+                return Task.CompletedTask;
+            }
+            if (requireReview && !HasReviewed) { return Task.CompletedTask; }
             if (!dismissing && !eligible())
             {
                 Outcome = ModelHandoffOutcome.Stale;

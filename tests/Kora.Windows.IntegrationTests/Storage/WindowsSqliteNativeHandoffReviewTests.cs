@@ -50,7 +50,7 @@ public sealed class WindowsSqliteNativeHandoffReviewTests
         review.Preview.Should().Contain("exact private original input").And.Contain("private evidence");
         if (remove)
         {
-            await review.Remove([offer.Context.Evidence[0].Id], f.Token);
+            await review.Remove(offer, [offer.Context.Evidence[0].Id], f.Token);
             review.HasReviewed.Should().BeFalse();
             await review.Refresh(f.Token);
             var rows = await f.Store.ReadQuestionsAsync(f.Request.SessionId, f.Token);
@@ -58,7 +58,7 @@ public sealed class WindowsSqliteNativeHandoffReviewTests
             offer = review.Offer!;
             offer.Context.Evidence.Should().BeEmpty();
         }
-        await review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, f.Token);
+        await review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, f.Token);
         review.Outcome.Should().Be(ModelHandoffOutcome.Approved);
         (await f.Store.ReadQuestionsAsync(f.Request.SessionId, f.Token))
             .Single(row => row.Key.QuestionId == offer.Question.Key.QuestionId).Status.Should().Be(QuestionStatus.Answered);
@@ -102,7 +102,7 @@ public sealed class WindowsSqliteNativeHandoffReviewTests
         var auditCount = f.Count("security_audit_events");
         if (beforeCommit) { checkpoint.Commit = static (_, _) => throw new IOException("injected private commit failure"); }
         else { checkpoint.Audit = static (_, _) => throw new IOException("injected private audit failure"); }
-        await Assert.ThrowsAsync<IOException>(() => review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, f.Token));
+        await Assert.ThrowsAsync<IOException>(() => review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, f.Token));
         review.Outcome.Should().NotBe(ModelHandoffOutcome.Approved);
         review.Preview.Should().BeEmpty();
         await Assert.ThrowsAsync<IOException>(() => review.DisposeAsync().AsTask());

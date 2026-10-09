@@ -18,6 +18,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private ModelHandoffWindow? window;
     private ModelHandoffReviewSession? review;
+    private ModelHandoffOffer? displayedOffer;
     private Func<bool> eligible = static () => false;
     private CancellationTokenSource? lifetime;
     private bool busy;
@@ -110,7 +111,8 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
     {
         var opened = window;
         var exact = review!;
-        await exact.Decide(decision, RequestOrigin.LocalUi, lifetime!.Token);
+        await exact.Decide(displayedOffer ?? throw new InvalidOperationException("Read one exact offer before answering."),
+            decision, RequestOrigin.LocalUi, lifetime!.Token);
         if (ReferenceEquals(window, opened) && ReferenceEquals(review, exact)) { Present(); }
     }
 
@@ -120,7 +122,8 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         var exact = review!;
         var ids = evidence.Where(item => item.Control.IsChecked == true).Select(item => item.Id).ToArray();
         if (ids.Length == 0) { SetStatus("Select exact evidence IDs to remove; no context was changed."); return; }
-        await exact.Remove(ids, lifetime!.Token);
+        await exact.Remove(displayedOffer ?? throw new InvalidOperationException("Read one exact offer before removing evidence."),
+            ids, lifetime!.Token);
         if (ReferenceEquals(window, opened) && ReferenceEquals(review, exact)) { Present(); }
     }
 
@@ -132,6 +135,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         SetStatus($"{state.Outcome}; reason: {state.Reason}. " + ModelHandoffPresentation.GateDisclosure
             + (state.Outcome == ModelHandoffOutcome.Removed ? " Old offer/question retired. Read the reduced complete envelope; approval is not inherited." : string.Empty));
         if (state.Offer is not { } offer) { return; }
+        displayedOffer = offer;
         window.FindControl<TextBlock>("Identity")!.Text =
             $"Offer {offer.Id:D} revision {offer.Revision.Value}; question {offer.Question.Key.QuestionId.Value:D} revision {offer.Question.Key.Revision.Value}\n"
             + $"Request {offer.Context.Request.RequestId.Value:D}; original origin {offer.Context.Request.Origin}\n"
@@ -187,6 +191,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
     private void ClearContent()
     {
         evidence.Clear();
+        displayedOffer = null;
         if (window is null) { return; }
         window.FindControl<TextBlock>("Identity")!.Text = string.Empty;
         window.FindControl<TextBlock>("Preview")!.Text = string.Empty;

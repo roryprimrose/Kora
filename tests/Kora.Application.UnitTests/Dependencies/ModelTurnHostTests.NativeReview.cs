@@ -56,7 +56,7 @@ public sealed partial class ModelTurnHostTests
         await using var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!;
         review.Outcome.Should().Be(ModelHandoffOutcome.Unavailable);
         review.HasReviewed.Should().BeFalse();
-        await review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
+        await review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
         f.Questions.Snapshot.Questions.Single().Status.Should().Be(QuestionStatus.Pending);
         await review.Refresh(Token);
         review.HasReviewed.Should().BeTrue();
@@ -68,7 +68,7 @@ public sealed partial class ModelTurnHostTests
         offer.Generation.Should().Be(f.Session.Generation);
         offer.TaskRevision.Should().Be(f.Task!.Task.Revision);
         offer.ControlRevision.Should().Be(f.ControlRevision);
-        await review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
+        await review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
         review.Outcome.Should().Be(ModelHandoffOutcome.Approved);
         review.Reason.Should().Be(ModelTurnReason.None);
         review.Offer.Should().BeNull();
@@ -100,7 +100,7 @@ public sealed partial class ModelTurnHostTests
         var source = new ModelHandoffPresentation(f.Workflow);
         await using var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!;
         await review.Refresh(Token);
-        await review.Remove([first], Token);
+        await review.Remove(offer, [first], Token);
         review.Outcome.Should().Be(ModelHandoffOutcome.Removed);
         var reduced = review.Offer!;
         reduced.Should().NotBeSameAs(offer);
@@ -112,13 +112,20 @@ public sealed partial class ModelTurnHostTests
         review.HasReviewed.Should().BeFalse();
         await review.Validate(Token);
         review.HasReviewed.Should().BeFalse();
-        await review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
+        await review.Decide(reduced, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
         review.Offer.Should().BeSameAs(reduced);
         f.Questions.Snapshot.Questions.Single(item => item.Key.QuestionId == offer.Question.Key.QuestionId).Status.Should().Be(QuestionStatus.Cancelled);
         f.Questions.Snapshot.Questions.Single(item => item.Key.QuestionId == unrelated.Question!.Key.QuestionId).Should().Be(unrelated.Question);
         source.Open(offer, RequestOrigin.LocalUi, static () => true).Should().BeNull();
         await review.Refresh(Token);
-        await review.Decide(ModelHandoffDecision.Decline, RequestOrigin.LocalUi, Token);
+        await review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
+        review.Outcome.Should().Be(ModelHandoffOutcome.Stale);
+        review.Reason.Should().Be(ModelTurnReason.HandoffReviewStale);
+        review.Offer.Should().BeSameAs(reduced);
+        await review.Remove(offer, [kept], Token);
+        review.Offer.Should().BeSameAs(reduced);
+        await review.Refresh(Token);
+        await review.Decide(reduced, ModelHandoffDecision.Decline, RequestOrigin.LocalUi, Token);
         review.Outcome.Should().Be(ModelHandoffOutcome.Declined);
         f.Questions.Snapshot.Grants.Should().BeEmpty();
         f.Adapter.Calls.Should().Be(0);
@@ -176,7 +183,7 @@ public sealed partial class ModelTurnHostTests
         review.Outcome.Should().NotBe(ModelHandoffOutcome.Approved);
         (await source.ReadPending(RequestOrigin.LocalUi, static () => true, Token)).Should().BeEmpty();
         await review.Refresh(Token);
-        await review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
+        await review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token);
         f.Adapter.Calls.Should().Be(0);
     }
 
@@ -197,7 +204,7 @@ public sealed partial class ModelTurnHostTests
         (await source.ReadPending(channel, static () => true, Token)).Should().BeEmpty();
         await using var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!;
         await review.Refresh(Token);
-        await review.Decide(ModelHandoffDecision.Approve, channel, Token);
+        await review.Decide(offer, ModelHandoffDecision.Approve, channel, Token);
         review.Outcome.Should().Be(ModelHandoffOutcome.Denied);
         review.Reason.Should().Be(ModelTurnReason.OriginalUserRequired);
     }
@@ -212,7 +219,7 @@ public sealed partial class ModelTurnHostTests
         var source = new ModelHandoffPresentation(f.Workflow);
         await using (var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!)
         {
-            await review.Decide(ModelHandoffDecision.Cancel, RequestOrigin.LocalUi, Token);
+            await review.Decide(offer, ModelHandoffDecision.Cancel, RequestOrigin.LocalUi, Token);
             review.Outcome.Should().Be(ModelHandoffOutcome.Cancelled);
         }
         f.Questions.Snapshot.Questions.Single().Status.Should().Be(QuestionStatus.Cancelled);
@@ -244,7 +251,7 @@ public sealed partial class ModelTurnHostTests
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         f.BeforeRead = () => { waiting.TrySetResult(); return release.Task; };
         using var cancellation = new CancellationTokenSource();
-        var decision = review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, cancellation.Token);
+        var decision = review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, cancellation.Token);
         await waiting.Task;
         review.CanReview.Should().BeFalse();
         await review.Refresh(Token);
@@ -288,7 +295,7 @@ public sealed partial class ModelTurnHostTests
             case "question-audit": f.Questions.FailAudit = true; break;
             case "read": f.OnRead = () => throw new IOException("private path"); break;
         }
-        await Assert.ThrowsAsync<IOException>(() => review.Decide(ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token));
+        await Assert.ThrowsAsync<IOException>(() => review.Decide(offer, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token));
         review.Offer.Should().BeNull();
         review.Outcome.Should().NotBe(ModelHandoffOutcome.Approved);
         await Assert.ThrowsAsync<IOException>(() => review.DisposeAsync().AsTask());
@@ -454,5 +461,19 @@ public sealed partial class ModelTurnHostTests
         review.Preview.Should().BeEmpty();
         review.Outcome.Should().NotBe(ModelHandoffOutcome.Approved);
         f.Questions.Snapshot.Questions.Single().Status.Should().Be(QuestionStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task NativeDecisionAndRemovalRequireAnExactHostHeldTarget()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var offer = await Offer(f, await Configure(f));
+        var source = new ModelHandoffPresentation(f.Workflow);
+        await using var review = source.Open(offer, RequestOrigin.LocalUi, static () => true)!;
+        await Assert.ThrowsAsync<ArgumentNullException>(() => review.Decide(null!, ModelHandoffDecision.Approve, RequestOrigin.LocalUi, Token));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => review.Remove(null!, [], Token));
+        review.Offer.Should().BeSameAs(offer);
+        f.Questions.Snapshot.Questions.Single().Status.Should().Be(QuestionStatus.Pending);
     }
 }

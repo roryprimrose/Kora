@@ -129,6 +129,17 @@ Windows: 1345; all five suites failed 0; skipped 0
 Line coverage: 18547/18547; Branch coverage: 11152/11152; exact 100%/100%
 ```
 
+Current-head follow-up for [PR #154](https://github.com/roryprimrose/Kora/pull/154): rebased onto `969ef020d807b6adf6639093d3c3354f1e9dd9d0` (#151), retaining the independently owned advanced Evidence section and all source/query/snapshot behavior. Added a deterministic native publication fence for admission changes after the service read completes.
+Validated code head `1c450c8309ff6a6218c4171e251e0d59e9803ed6`; this later receipt-only edit changes no executable code. Default configured test execution was used, with no serialized/isolated acceptance substitution.
+
+```text
+Release solution build: 0 warnings; 0 errors
+Core: 1372; Application: 3691; Tools: 137; Definitions: 6; Windows: 1389
+All five suites: failed 0; skipped 0
+Unchanged portable coverage gate: 18551/18551 lines; 11173/11173 branches; exact 100%/100%
+Exact output/TRX/latest-only coverage: .net-test-artifacts\session-list-search-969ef02
+```
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

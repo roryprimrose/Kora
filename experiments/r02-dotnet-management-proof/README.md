@@ -7,6 +7,12 @@ This experiment uses the actual .NET SDK and native runtime with synthetic
 loopback HTTP/SSE providers. It is not a Node sidecar, fake-only proof,
 production R13 scheduler, ledger, authority or account-capacity claim.
 
+Latest unattended repetition: **2026-10-09 UTC, 45 + 22 + 16 passed**, on
+`e0692f4` with explicitly recorded dirty experiment preparation changes.
+See [the fresh run](UNATTENDED-20261009.md) and its separate
+[receipts](evidence/unattended-20261009/disposition.json). Historical evidence
+below remains unchanged; timings do not qualify reference hardware.
+
 **Current disposition:** migrate applicable byte/deadline, independent identity/
 admission, no-retry and Unknown/quarantine assertions into maintained management/
 runtime integration tests before executable archival. Exact equivalence and
@@ -66,6 +72,10 @@ Both scripts accept `-PackageConfigPath` for a machine-local configuration
 outside the repository. Do not commit machine routing or credentials.
 Preparation restores locked reviewed packages and downloads only pinned
 public source/runtime archives if no verified local input exists.
+The package cache is MG1-owned under `.inputs\packages`; preparation does
+not write a sibling proof's cache. The released RT1 derivative receives
+MG1's reviewed lock (the same direct references and central versions) and
+uses `--locked-mode`, never dependency re-resolution.
 It verifies the released package, embedded assembly, native bytes and Node
 witness before any runtime starts.
 `-NoRestore` reuses preparation's restored assets; omit it only for a required

@@ -1,5 +1,17 @@
 # MG1 measured evidence and disposition
 
+## Fresh unattended repetition — 2026-10-09
+
+[The unattended run](UNATTENDED-20261009.md) repeats all **45 released RT1
+regressions, 22 host components and 16 actual native-runtime tests**, with
+zero failures or skips. Its [separate receipt set](evidence/unattended-20261009/disposition.json)
+records base `e0692f438a058de0a20021b3420a981849706dbf` and the tested
+dirty source identity. Original evidence and the historical account below
+remain unchanged; no new root CI, hosted-provider, source-built equivalence
+or reference-hardware qualification is claimed.
+
+## Historical measured run — 2026-10-06
+
 Final fixture run: **2026-10-06 08:47:31 UTC**, after the compatible dependency
 refresh, rebase onto main `90d8f48` (#37/#38/#36) and monotonic timer-wake fix.
 Main then advanced to `790c4aa` (#39 R04); root gates were rerun on that

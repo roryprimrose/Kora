@@ -342,6 +342,20 @@ tests passed, none skipped. Current portable reports cover all 16,170 lines
 and 9,528 branches (100%/100%). No real provider/native qualification trial,
 installation, account or network-policy change was performed.
 
+### R08/D-014 Bounded Exact Native Handoff Review - 2026-10-10
+
+The [local consumer](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10) wires **Settings > Providers > Review pending exact provider handoff** to actual audited host-issued pending offers. Application owns bounded volatile publication/revocation and one exact presentation lifetime.
+
+Native chrome shows original identity/revision/destination/reason bindings and the immutable complete 32,768-byte/sixteen-evidence envelope, without truncation or active content. No arbitrary-context/model-serialized/sample route is exposed.
+
+Approve/decline/cancel and evidence removal call the same workflow. Old question/offer retirement and fresh reduced-envelope review prevent approval inheritance. Original intent, session/task/generation, question, destination/policy/privacy/control revisions, one-use, deferred Activity links, required audit and late-callback/close/cancel/disposal checks remain fail-closed.
+
+Unrelated questions and work/voice targets are not retargeted. Production shows unavailable/no pending qualified offer; confirmation claims exact context review only, not transmission or execution.
+
+Scope closes the native **review consumer** gap, not D-014/R08 acceptance. Production adapters/qualification/account/final-request-egress remain absent; LocalOnly defaults and per-turn semantics are unchanged. Deterministic wiring/hostile/stale/lifecycle/limit tests, genuine private SQLite question/audit rollback and XAML contracts are not installed native/provider acceptance.
+
+RT1 source-built bytes and RT2 all-path gates stay BLOCKED. MG1's released-runtime repeat is narrower evidence, not production/account acceptance. Unique runtime/native/account/local-floor/offline procedures and all experiment receipts/executables remain **retain**. No maintained-proof owner files, experiments, preferences or schemas change.
+
 ### R08/D-014 Volatile Provider Policy and Exact Handoff Workflow - 2026-10-09
 
 The [bounded policy/workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)

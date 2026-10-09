@@ -413,6 +413,10 @@ Original user intent, active session/generation, unchanged host-held choice and 
 
 The confirmed device preference seeds the first policy-bound turn of a session only; later edits do not overwrite existing session policies or admitted turns. Existing Default/Local/Hosted turn semantics and exact handoff review remain authoritative. No account, adapter qualification, network/egress authority or actual hosted dispatch is added; HostedPreferred still fails closed ([host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs), [fail-closed tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
 
+**Review pending exact provider handoff** is a separate original-user native review action, not a preference, setter or permission. It consumes existing audited host-issued offers and displays the complete bounded envelope, identities/revisions, destination, reason and evidence lineage/classification.
+
+Approve/decline/cancel/removal reuse the same workflow; removal requires fresh review, and close/expiry/privacy/ownership changes never approve. Production reports no pending qualified offer. No schema, saved-mode, per-turn, account or egress changes occur ([review contract](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10)).
+
 ### Delivered bounded device-default response mode (R10)
 
 Schema 1 admits only `responses.default-mode`: the existing `ResponseOutputMode`

@@ -219,11 +219,15 @@ or change the same settings. Model-setting writes are security audited.
 The new provider-neutral host controls are an internal, adapter-unavailable
 foundation. They do not qualify Ollama or Copilot, change these existing
 bootstrap settings/readiness paths, add credentials, or select a cloud
-destination. **Local only**, **Local first**, **Hosted preferred**, reviewed
-handoff, durable memory and grounded model answering remain planned product
-modes. Enabling a model location is not permission to upload clipboard/file
+destination. The separate **Settings > Providers** device-local initial-mode preference and exact native handoff review are delivered without qualifying inference.
+Durable cross-session recall and grounded model answering remain gated.
+Enabling a model location is not permission to upload clipboard/file
 previews, persist memory or bypass action approval. There is no automatic
 provider fallback or confidence-based handoff.
+
+**Review pending exact provider handoff** opens local volatile original-user review of actual audited host-issued offers, never sample/model-supplied envelopes. Production has no qualified offers and reports unavailable. Choose an offer, then **Read complete exact envelope** before explicitly approving context only, declining, cancelling or removing evidence.
+
+Removal requires fresh review; close/expiry/privacy/ownership changes never approve. Complete context, evidence lineage/classification, identities/revisions, reason and destination are inert and bounded. No copy/export, content persistence/logging, speech, grant, provider enablement, network send or execution is added.
 
 ## Approvals
 

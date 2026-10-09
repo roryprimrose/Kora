@@ -255,12 +255,13 @@ public sealed partial class ModelTurnHost
     internal async Task<(ModelTurnReason Reason, HostRevision Generation, HostRevision TaskRevision, long Control)>
         CheckHandoffAsync(ModelHandoffOffer offer, CancellationToken token)
     {
-        if (!ReferenceEquals(offer.Host, this))
+        if (!ReferenceEquals(offer.Host, this) || Volatile.Read(ref offer.Retired) != 0)
         {
             return (ModelTurnReason.HandoffReviewStale, default, default, 0);
         }
         var observed = await ObserveHandoffAsync(offer.Policy, offer.Context, token).ConfigureAwait(false);
-        return observed.Reason == ModelTurnReason.None && (observed.Generation != offer.Generation
+        return observed.Reason == ModelTurnReason.None && (Volatile.Read(ref offer.Retired) != 0
+            || observed.Generation != offer.Generation
             || observed.TaskRevision != offer.TaskRevision || observed.Control != offer.ControlRevision)
             ? (ModelTurnReason.HandoffReviewStale, observed.Generation, observed.TaskRevision, observed.Control) : observed;
     }

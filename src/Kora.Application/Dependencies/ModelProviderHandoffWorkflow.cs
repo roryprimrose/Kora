@@ -11,7 +11,7 @@ namespace Kora.Application.Dependencies;
 /// <summary>Bounded original-user workflow. Confirmation never grants runtime, tool, or egress authority.</summary>
 public sealed partial class ModelProviderHandoffWorkflow(
     ModelTurnHost host, HostQuestionService questions, ISecurityAuditLog audit,
-    ILogger<ModelProviderHandoffWorkflow> logger)
+    ILogger<ModelProviderHandoffWorkflow> logger, HostQuestionReviewService reviews)
 {
     /// <summary>Offers, never dispatches, after an audited host-issued local unavailable outcome.</summary>
     public Task<ModelHandoffResult> OfferAfterLocalAsync(ModelTurn turn, ModelContextEnvelope context, CancellationToken token) =>
@@ -122,11 +122,13 @@ public sealed partial class ModelProviderHandoffWorkflow(
         var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
             "model.handoff", SecurityAuditOutcome.Requested, SecurityAuditInitiator.System,
             current.Request.TaskId.Value.ToString("D"));
+        ModelHandoffOffer? produced = null;
         try
         {
             audit.Write(requested);
             token.ThrowIfCancellationRequested();
             var result = await operation().ConfigureAwait(false);
+            produced = result.Offer;
             token.ThrowIfCancellationRequested();
             // No review capability is returned before its terminal audit succeeds.
             audit.Write(requested.WithOutcome(result.Outcome switch
@@ -145,6 +147,8 @@ public sealed partial class ModelProviderHandoffWorkflow(
                     audit.Write(requested.WithOutcome(SecurityAuditOutcome.Denied));
                 }
             }
+            await Publish(result, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
             Result(logger, result.Outcome, result.Reason);
             activity.Complete(result.Outcome is ModelHandoffOutcome.Offered or ModelHandoffOutcome.Approved or ModelHandoffOutcome.Removed
                 ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
@@ -152,12 +156,14 @@ public sealed partial class ModelProviderHandoffWorkflow(
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
+            if (produced is not null) { Retire(produced); }
             audit.Write(requested.WithOutcome(SecurityAuditOutcome.Cancelled));
             activity.Complete(HostOperationOutcome.Cancelled);
             return new(ModelHandoffOutcome.Cancelled, ModelTurnReason.CallerCancelled);
         }
         catch (Exception exception)
         {
+            if (produced is not null) { Retire(produced); }
             Fault(logger, exception.GetType().Name);
             audit.Write(requested.WithOutcome(SecurityAuditOutcome.Unknown));
             activity.Complete(HostOperationOutcome.Unknown);

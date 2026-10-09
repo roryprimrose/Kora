@@ -650,9 +650,10 @@ egress receipt. Production still composes no adapters or qualification evidence,
 and even qualified test registrations plus approved review return DeniedEgress
 at the [turn host](../src/Kora.Application/Dependencies/ModelTurnHost.cs).
 No account/model acquisition, network send, RT1/RT2/PV1 proof, memory
-storage/retrieval, prompt ranking or native provider-settings/review UI is
-delivered. The generic native question surface cannot itself issue this
-workflow's review capability. Durable session policy awaits dependent
+storage/retrieval or prompt ranking is delivered by that increment. The generic
+native question surface cannot itself issue this workflow's review capability;
+the separate exact native consumer below now closes that review-only gap.
+Durable session policy awaits dependent
 native/persistence integration in that increment; the durable preference delivery
 below closes only the device-local persistence/settings gap. Bootstrap behavior
 is unchanged ([initial-policy consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs)).
@@ -680,6 +681,32 @@ Host-held choices bind owner, preference revision, original channel, admitted ac
 
 At the first policy-bound turn, the [host](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs) seeds revision 1 from confirmed device state after existing session/task admission. Subsequent device edits do not replace an initialized session's volatile policy. Default/Local/Hosted choices, LocalOnly refusal, LocalFirst exact handoff review and revision invalidation retain their existing semantics ([consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
 
-Preference publication adds no adapter, qualification, account, destination, network, grant or egress path. HostedPreferred remains unavailable without an adapter and DeniedEgress even with fully qualified fake registrations. Bootstrap reasoning is unchanged; native handoff review UI and real hosted inference remain undelivered ([fail-closed tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
+Preference publication adds no adapter, qualification, account, destination, network, grant or egress path. HostedPreferred remains unavailable without an adapter and DeniedEgress even with fully qualified fake registrations. Bootstrap reasoning is unchanged; the native review-only consumer below adds no real hosted inference ([fail-closed tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
 
 Deterministic fake/private-storage, shared SQLite lease and native binding tests cover this bounded increment; no experiment evidence is removed or claimed migrated ([storage integration](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteProviderModeConfigurationTests.cs), [native contract](../tests/Kora.Windows.IntegrationTests/ProviderModeConfigurationUiContractTests.cs)).
+
+### Delivered Bounded Exact Native Handoff Review - 2026-10-10
+
+**Settings > Providers > Review pending exact provider handoff** consumes the existing workflow's volatile source of successfully audited, host-issued `ModelHandoffOffer` references. At most sixteen pending offers are retained. Text, paths, serialized offers, model output, cache records and trace headers cannot create an entry.
+
+Production has no qualified adapters and honestly reports **Unavailable: no pending qualified host-issued offer**. No sample offer is manufactured.
+
+The [Application lifetime](../src/Kora.Application/Dependencies/ModelHandoffReviewSession.cs) freshly revalidates original request/session/task, active generation, exact policy/destination/catalogue/control revisions and the pending question through `HostQuestionReviewService`. Deferred operations retain the original request and causal Activity links; selecting another session cannot retarget a card.
+
+The [native surface](../src/Kora/ModelHandoffWindow.axaml) shows offer ID/revision, question ID/revision, original request/origin, session/generation, task revision, policy/control revisions, typed reason, destination/model/catalogue revision and validity.
+
+The complete exact serialized envelope is inert plain text: original request, system policy, every evidence item's identity/revision/request lineage/content/disclosure and the tool catalogue/output bound. Existing complete 32,768-byte and sixteen-evidence limits are reused without truncation. Typed disclosure labels accompany exact evidence-removal controls.
+
+There is no affirmative preselection, copy/export, content logging/persistence, speech, link activation or arbitrary-context preview route.
+
+Explicit approve/decline/cancel call the **same** workflow. Selected evidence removal cancels the old question, retires the old offer and exposes a new reduced exact envelope. **Read complete exact envelope** is required again, with no inherited approval.
+
+Close/disposal cancel when authority is available and always retire volatile content. Expiry, task/session retirement, changed policy/control/privacy/ownership, cancellation and late callbacks fail closed. Native refresh does not answer unrelated pending questions or select a work/voice session.
+
+Instance handoff is held until actual native review reads/decisions/closure finish. Cleanup retains its owned cancellation resources until operations terminate; closure does not turn unfinished I/O into a quiescence claim.
+
+Confirmation means **exact context review only**. The typed outcome displays unavailable runtime/account/final-request-egress gates and **nothing sent or executed**. No runtime/egress adapter, provider/account enablement, grant, send, execution, fallback or retry is implemented. LocalOnly preference/default and per-turn Default/Local/Hosted semantics remain unchanged.
+
+Deterministic qualified fakes exercise actual offer-to-consumer wiring and exact-limit/lineage/lifecycle failures. [Private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteNativeHandoffReviewTests.cs) exercise genuine original-intent/question/required-audit transaction and rollback boundaries. XAML/composition contracts are not installed keyboard/screen-reader/DPI acceptance.
+
+RT1 source-built final bytes, RT2 all-path native lifecycle, MG1 released-runtime envelope/admission, execution-account, local-floor/offline and unique native procedures have different subjects. All experiments and receipts remain **retain**, with no equivalence, retirement or gate-closure claim.

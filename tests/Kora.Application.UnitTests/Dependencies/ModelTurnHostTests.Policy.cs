@@ -402,7 +402,7 @@ public sealed partial class ModelTurnHostTests
         var policy = await Configure(f);
         var production = f.Production();
         (await production.SetPolicyAsync(policy, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
-        var workflow = new ModelProviderHandoffWorkflow(production, new(f.Questions, f.Time), f, NullLogger<ModelProviderHandoffWorkflow>.Instance);
+        var workflow = new ModelProviderHandoffWorkflow(production, new(f.Questions, f.Time), f, NullLogger<ModelProviderHandoffWorkflow>.Instance, new(f.Questions, f.Time));
         (await workflow.OfferAsync(policy, f.Context(), ModelHandoffReason.LocalUnavailable, Token))
             .Outcome.Should().Be(ModelHandoffOutcome.Unavailable);
         var offer = await Offer(f, policy);

@@ -1,0 +1,34 @@
+<Window x:Class="Kora.ModelHandoffWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Exact local provider handoff review" Width="960" Height="760"
+        MinWidth="720" MinHeight="520" WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+    <StackPanel Spacing="8">
+      <TextBlock Text="Original-user exact handoff review — local and volatile" FontSize="20" />
+      <TextBlock x:Name="Status" TextWrapping="Wrap"
+                 AutomationProperties.Name="Typed handoff outcome and closed gate disclosure" />
+    </StackPanel>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,12">
+      <ComboBox x:Name="Offers" Width="410" SelectedIndex="-1"
+                AutomationProperties.Name="Choose an exact host-issued pending offer, not a session target" />
+      <Button x:Name="Inspect" Content="Read complete exact envelope" IsEnabled="False" />
+    </StackPanel>
+    <ScrollViewer Grid.Row="2">
+      <StackPanel Spacing="12">
+        <TextBlock x:Name="Identity" TextWrapping="Wrap"
+                   AutomationProperties.Name="Exact request session task question offer and destination revisions" />
+        <TextBlock x:Name="Preview" TextWrapping="Wrap" FontFamily="Consolas"
+                   AutomationProperties.Name="Complete inert UTF-8 context envelope with evidence lineage and tool catalogue" />
+        <StackPanel x:Name="Evidence" Spacing="6"
+                    AutomationProperties.Name="Select exact evidence identities to remove, requiring fresh review" />
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+      <Button x:Name="Remove" Content="Remove selected evidence" IsEnabled="False" />
+      <Button x:Name="Approve" Content="Approve this exact context only" IsEnabled="False" />
+      <Button x:Name="Decline" Content="Decline" IsEnabled="False" />
+      <Button x:Name="Cancel" Content="Cancel" IsEnabled="False" />
+    </StackPanel>
+  </Grid>
+</Window>

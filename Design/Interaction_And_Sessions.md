@@ -79,6 +79,10 @@ full conversation/composer UI, general concurrent provider/effect scheduler,
 or model-facing session tool API. The bounded history, native work ledger,
 question and passive detail slices do not qualify those broader capabilities.
 
+The [exact native handoff consumer](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10) reads existing successfully audited host-held offers, not generic answers or serialized/model-supplied offers. It binds the immutable original request/session/task/question/offer and all revisions throughout its volatile lifetime.
+
+Approve/decline/cancel and reduced-envelope removal reuse the same workflow and genuine question transaction. Generic submission cannot mint the exact-review capability. Unrelated questions remain unchanged; browsing another session cannot retarget review. Close, expiry, privacy/ownership closure, stale policy/task/control and disposal suppress late replies, never granting runtime or egress authority.
+
 ### R12 Bounded Session Retention Delivered - 2026-10-09
 
 Schema v6 preserves v5 queue authority and adds one durable per-session meaningful-activity timestamp. Default

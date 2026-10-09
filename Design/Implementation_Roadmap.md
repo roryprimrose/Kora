@@ -113,6 +113,22 @@ Experiment equivalence assessment: no executable or historical receipt is wholly
 Consumer assessment: the existing workspace list, exact controls, passive work timer, immutable history detail resolver and memory management share unchanged IDs/revisions/admission seams. Core Tools/Definitions dependency direction and typed/voice `session search` history grammar are unchanged.
 Runtime conformance/historical witness and management/runtime-extraction consumers remain; no experiment or eng/proof tooling is removed or rerun.
 
+Local validation: initial verified base `67be98ad67ce2a154ea22bbf21359c63edb37afa`; rebased only the owned branch onto `dac36b02d6e2570f72d8d58e26b9213c3b384268`, preserving #150 memory proposals, #153 preview refresh, #148 maintained validation and #149 source withdrawal.
+Validated code head `49bb79cc1aa5b46de44146d02339caf58dbab0c5`; this subsequent receipt-only edit changes no executable code.
+
+Missing assets were restored locked from the approved Networking-AAA feed only. All final commands ran synchronously in the verified search worktree, with no provider/hardware/installed-native or unrelated proof trials. Exact output, TRX and latest-only coverage reports remain under ignored `.net-test-artifacts\session-list-search-final-main-20261010`.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1372; Application: 3682; Tools: 137; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: 1345; all five suites failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 18547/18547; Branch coverage: 11152/11152; exact 100%/100%
+```
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

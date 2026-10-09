@@ -1,0 +1,151 @@
+{
+  "Schema": "Kora.R02.UnattendedPartialReceipt.v1",
+  "RecordedUtc": "2026-10-09T11:05:53.1349870+00:00",
+  "BaseRevisionAtRun": "e0692f438a058de0a20021b3420a981849706dbf",
+  "BranchAtRun": "proof/unattended-20261009-inference",
+  "InitialWorkingTreeState": "Clean",
+  "FinalValidationWorkingTreeState": "Dirty; tested local fix, not the unmodified baseline",
+  "FinalValidationWorkingTreeChanges": [
+    " M experiments/r02-local-inference-proof/README.md",
+    " M experiments/r02-local-inference-proof/Record-Machine.ps1",
+    " M experiments/r02-local-inference-proof/Run-PathRegressionTests.ps1"
+  ],
+  "PublicationNote": "This derived receipt and the results documentation were added after validation; they are not represented as clean-at-run source.",
+  "Sdk": "10.0.401",
+  "InitialBuild": {
+    "ExitCode": 1,
+    "Error": "NETSDK1004",
+    "Reason": "Missing project.assets.json",
+    "Mode": "Release --no-restore"
+  },
+  "ConditionalRestore": {
+    "ExitCode": 0,
+    "Config": "experiments\\r02-local-inference-proof\\NuGet.Config",
+    "PackageSourceCount": 0,
+    "NuGetAudit": false,
+    "Trigger": "Initial missing-assets build error"
+  },
+  "EndpointPreflight": {
+    "Method": "GET",
+    "Endpoint": "http://127.0.0.1:11434/api/version",
+    "CurlExitCode": 7,
+    "State": "Connection refused",
+    "Ownership": "Not admitted",
+    "GenerationAttempted": false
+  },
+  "InitialPathRegression": {
+    "State": "Failed",
+    "NestedPassedSelfTests": 55,
+    "Error": "Could not record repository revision.",
+    "Cause": "Record-Machine.ps1 used the external caller location for Git instead of the script source checkout.",
+    "EvidencePreserved": true
+  },
+  "FixedPathRegression": {
+    "RecordedUtc": "2026-10-09T11:04:33.5207143+00:00",
+    "PassedChecks": 7,
+    "NestedPassedSelfTests": 55,
+    "ObservationSkipped": true,
+    "ExternalEvidenceDirectory": true,
+    "SourceRevisionAssertionPassed": true
+  },
+  "FinalValidation": {
+    "Mode": "Run-Validation.ps1 -ExpectUnavailable -NoRestore; no server PID",
+    "BuildExitCode": 0,
+    "BuildWarnings": 0,
+    "BuildErrors": 0,
+    "SelfTestExitCode": 0,
+    "PassedSelfTests": 55,
+    "ObserveExitCode": 2,
+    "ExpectedObserveExitCode": 2,
+    "ObservationSkipped": false,
+    "ProbeState": "Missing",
+    "WorkflowState": "Unavailable",
+    "ProbeCompletionMs": 2133.1817,
+    "WorkflowCompletionMs": 2081.8377,
+    "Calls": [
+      "GET /api/version",
+      "GET /api/tags"
+    ],
+    "GenerationCalls": 0,
+    "FirstTokenMs": null,
+    "ModelResourceObservation": "Not observed; zero counters are not model measurements",
+    "SourceInputHashCount": 57,
+    "CompleteInputHashesRetainedInRawValidation": true
+  },
+  "ChangedExecutableInputHashes": [
+    {
+      "Path": "experiments\\r02-local-inference-proof\\Record-Machine.ps1",
+      "Sha256": "3033286FEED527AFA2168B191D6D55587C92A8956746AFCF9889FA3FA1AC367C"
+    },
+    {
+      "Path": "experiments\\r02-local-inference-proof\\Run-PathRegressionTests.ps1",
+      "Sha256": "51E5CAC39728F5B242ED8829AFD40D227A63A1343B0DC9E16DF6DB284C06AB6E"
+    }
+  ],
+  "RawArtifactReferences": [
+    {
+      "RelativeEvidencePath": "initial-build.log",
+      "Sha256": "5E2BA20695BF6D61EBEAC8C5A45255DC08644DB9FB8B6CF8D3D46116A1B2D1B4"
+    },
+    {
+      "RelativeEvidencePath": "initial-build.json",
+      "Sha256": "04197C28BD789B3951F9EA5D78688A68D3D644A8D7CFF90C286478C79B1962E1"
+    },
+    {
+      "RelativeEvidencePath": "local-restore.log",
+      "Sha256": "20AA7DA0B1CAE8DC58E548C62547D1F690F49FCB4525EAC5987205CC7D153724"
+    },
+    {
+      "RelativeEvidencePath": "endpoint-preflight.json",
+      "Sha256": "97AD7D56DAAB7B78A5FC8FA5A3C0547E46078331FA40A32A09B040ACB6BE75E7"
+    },
+    {
+      "RelativeEvidencePath": "endpoint-preflight.stderr",
+      "Sha256": "49F9F290AA7C2AC7D2D179B319D6595ACF0C0097466141DB14E87F92F1B635E6"
+    },
+    {
+      "RelativeEvidencePath": "path-regression.log",
+      "Sha256": "1EEA4F863175F873C78FEC8C00EED99151F40D617211013FCA59C1CD24991294"
+    },
+    {
+      "RelativeEvidencePath": "path-regression-fixed\\path-regression.json",
+      "Sha256": "79E3E27452DF76CBC373A31A23321720F85E9B30D56611EB8521C12F42AE1048"
+    },
+    {
+      "RelativeEvidencePath": "path-regression-fixed\\qualification\\qualification.json",
+      "Sha256": "BE9AEDB99882827D68E6EC07435964117DBF9E58946EC7D68DC03D525AE76274"
+    },
+    {
+      "RelativeEvidencePath": "path-regression-fixed\\qualification\\validation\\self-test.json",
+      "Sha256": "DE036ECF87ABCDBEF1C484FC054CE0786C94BFAFE9E74896E44FF604A4C633A4"
+    },
+    {
+      "RelativeEvidencePath": "path-regression-fixed\\qualification\\validation\\validation.json",
+      "Sha256": "3D2FF051D67B241058472E4753FE841A81F26A01AE539F0DFBC4131991669633"
+    },
+    {
+      "RelativeEvidencePath": "validation\\self-test.json",
+      "Sha256": "0C198A058A4A5E4A43971A1689088A8D3D43269684F6464CAAB3FB2FBE007E2C"
+    },
+    {
+      "RelativeEvidencePath": "validation\\observed-workflow.json",
+      "Sha256": "1F880976E5C029143A135EBF93DA09FC5626FB92D755038BE54FAAFA1A23B285"
+    },
+    {
+      "RelativeEvidencePath": "validation\\validation.json",
+      "Sha256": "6F0587A7DEBAB3CA96D4085AC29F46879C6CFF21BAED83786DA3BB3E3B192A90"
+    }
+  ],
+  "EvidenceRetention": "Raw artifacts retained unchanged in the assigned session evidence directory outside Git. Relative references above identify files there, not repository files. Absolute checkout/output paths and machine inventory are omitted from this derived receipt.",
+  "HistoricalEvidenceChanged": false,
+  "ProductionSourceLinksChanged": false,
+  "RuntimeOrModelLifecycleActions": false,
+  "ClipboardRead": false,
+  "Scope": "Standalone source-linked partial proof; no live performance, real-model quality, hardware, offline/egress, server-cessation or integrated-host acceptance.",
+  "RemainingGates": [
+    "LI01-LI07",
+    "D-003",
+    "D-007",
+    "A2"
+  ]
+}

@@ -198,8 +198,39 @@ overwrite refusal:
 ```
 
 The regression rebuilds and runs the 55 deterministic checks, inventories
-the machine without contacting Ollama, and writes six regression results.
+the machine without contacting Ollama, and writes seven regression results.
+Machine revision/status are taken from the script's source checkout, even when
+the caller's location is an evidence directory outside any Git repository.
 It acquires no packages and performs no live trial.
+
+### Unattended partial revalidation (2026-10-09)
+
+The [fresh bounded results](RESULTS.md#2026-10-09-unattended-partial-revalidation)
+and [redacted receipt](results/unattended-partial-2026-10-09/receipt.json)
+retain the initial failure and successful reruns without replacing historical
+evidence. An external, non-Git output directory exposed a machine-inventory
+revision lookup regression; the script now anchors Git to its source checkout.
+All production source links and runtime/model pins are unchanged.
+
+For this limited mode, try the Release build with `--no-restore` first. Restore
+only after a missing-assets error, using the experiment's zero-feed
+`NuGet.Config`; a missing SDK/reference pack is still a blocker. Run
+`Run-PathRegressionTests.ps1` into a new evidence directory. Its deterministic
+qualification uses `-SkipObserve -NoRestore` and never generates.
+
+Before choosing a separate validation mode, check only fixed-loopback endpoint
+metadata, with proxies and redirects disabled. When the endpoint is confirmed
+absent, run `Run-Validation.ps1 -ExpectUnavailable -NoRestore` into another new
+directory, **without** a server PID. The live transport rejects generation
+without an admitted PID even if a server appears after the preflight.
+If an endpoint responds but ownership is unknown, use
+`Run-Validation.ps1 -SkipObserve -NoRestore`; do not label it unavailable.
+Ambiguous reachability is also a reason to skip observation, not to infer
+absence. Do not supply `-ExpectUnavailable` with `-SkipObserve`.
+
+Neither this mode nor connection refusal authorises provisioning, generation
+on an unknown server, residency changes, clipboard capture or live performance,
+quality, hardware, offline or server-cessation acceptance.
 
 [Run-Qualification.ps1](Run-Qualification.ps1) builds with `--no-restore`,
 runs deterministic self-tests without observing the endpoint, records source

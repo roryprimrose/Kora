@@ -30,6 +30,11 @@ try {
         throw 'Machine evidence was not written to the caller location.'
     }
     $results.Add('Machine output creates its parent in the PowerShell location.')
+    $machine = Get-Content -LiteralPath '.\machine-child\machine.json' -Raw | ConvertFrom-Json
+    if ($machine.Revision -ne $validation.BaseRevisionAtRun) {
+        throw 'Machine evidence did not identify the source checkout revision.'
+    }
+    $results.Add('Machine revision identifies the source checkout, independently of the output location.')
     $rejected = $false
     try {
         & (Join-Path $PSScriptRoot 'Run-Qualification.ps1') -OutputDirectory '.\qualification' -ValidateOnly

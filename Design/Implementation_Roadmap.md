@@ -84,6 +84,18 @@ lines-covered/valid: 18223/18223; branches-covered/valid: 10975/10975
 Queue-main rebase preserved `444e7cd25bc10640766dd61d50e3c6566d1ae70e` (#145). Compared with the full-suite implementation receipt above, only the roadmap receipt and two upstream publication-evidence files changed; production/test/manifests were identical.
 A fresh Release solution build again had zero warnings/errors, and all 120 focused native/query/SQLite/daily/combined/authority tests passed with zero failures/skips.
 
+Post-memory-main receipt: rebased onto `9d982afa26d0a9eafeb4c4f6bb66f5db2b05b8b7` (#150), preserving memory/Core HostActivity changes and both independent roadmap sections. Tested implementation head `43ba853c0582658ab8bc7554cf12fcf90e1a7f92`; the following receipt-only commit changes no executable code.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+Core: 1322; Application: 3612; Tools: 90; Definitions: 6; Windows: 1346
+All five Release suites: failed 0; skipped 0
+Fresh four-suite portable coverage, unchanged gate:
+Line coverage: 100.0% (18279/18279); Branch coverage: 100.0% (11013/11013)
+Raw line-rate/branch-rate: 1 / 1
+```
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

@@ -1,8 +1,8 @@
 # Model Providers, Memory, and Grounded Knowledge
 
 Status: accepted product direction, bounded provider-neutral host controls and volatile provider-policy/review workflow
-implemented, reviewed user-memory admission policy implemented, and remaining proposed architecture. Provider
-qualification, durable user memory, knowledge ingestion, retrieval, and hosted
+implemented, reviewed user-memory admission and bounded session-only durable storage implemented, and remaining proposed architecture. Provider
+qualification, native memory controls, knowledge ingestion, retrieval ranking, and hosted
 handoff described here are not complete or advertised by the current
 bootstrap.
 
@@ -137,6 +137,8 @@ free-form memory.
 
 ### Delivered Reviewed Memory Admission - 2026-10-09
 
+This first package's volatile/storage gaps are historical. The [durable increment below](#delivered-session-only-durable-memory-storage---2026-10-09) supersedes those gaps only; broader scopes, native controls and provider integration remain unavailable.
+
 The first dependency-safe memory package delivers a provider-independent
 [Core domain and policy](../src/Kora.Core/Memory/MemoryPolicy.cs) and an internal
 [Application admission workflow](../src/Kora.Application/Memory/MemoryAdmissionService.cs).
@@ -229,6 +231,24 @@ embeddings and providers are not implemented here. Local retention and even a
 successful local use receipt never authorize Hosted or an unknown destination.
 There is no persistence adapter and no implicit read/write to preferences,
 session history, provider memory or a model context.
+
+### Delivered Session-Only Durable Memory Storage - 2026-10-09
+
+The [memory storage seam](../src/Kora.Core/Memory/IMemoryStore.cs), [private session resolver](../src/Kora.Application/Memory/SessionMemoryScopeAccess.cs) and [SQLite adapter](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) extend the existing interaction authority, not a parallel database or ownership service. The application admission workflow can use this seam; the desktop registers the shared store but exposes no memory command, tool or UI.
+
+[Schema v7](../src/Kora.Windows/Storage/HostInteractionSchema.cs) adds a private partition identity and bounded reviewed-memory rows. Validated v6 migration preserves existing v3 authority, v4 history, v5 queue and v6 retention. Missing, hostile, downgraded or unknown saved state is refused without replacement. The profile identity binds this private storage partition; it is not global/profile selection authority. DeviceProfile, Project and Source durable scopes stay closed.
+
+Only exact reviewed admission persists a candidate body. Proposals and first reviews remain volatile. A persisted edit immediately replaces the previously admitted body/receipt with a content-free Proposed/Pending revision; its replacement and review stay volatile until readmission. Restart loads that shell without a candidate or receipt: it cannot be reviewed/admitted without a new edit. Disabled admitted values remain retained but ineligible. Forget leaves a durable, non-reusable content-free identity/lineage tombstone.
+
+The [domain limit](../src/Kora.Core/Memory/MemoryPolicy.cs) is 128 durable identities across the private store, including shells and forgotten tombstones. There is no implicit eviction, truncation or identity reuse; capacity denial publishes neither a new row nor an admitted cache record.
+
+Each durable mutation rechecks the exact original row, revision, session generation, scope and lineage under the existing private storage lease. Initial/readmission also binds the exact original reviewed revision, candidate and current boundary. A fresh original-user committed intent, current host/control/privacy fence and required typed authority audit share the data transaction. Audit failure, cancellation or pre-COMMIT revocation rolls back both data and authoritative audit; a later callback cannot overwrite a newer committed cache revision. Stored data and review receipts never supply use, dispatch or egress authority.
+
+[Session retirement](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs), [retention](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Retention.cs) and [exact disposition](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs) atomically invalidate owned memory bodies/receipts and retain tombstones. Disposition hashes include the exact memory inventory. The existing shared-database retention/copy workflow owns cleanup; memory creates no provider cache, export or second database. Uninventoried interaction-store copies hold explicit forget/edit redaction and retention deletion acceptance rather than being discarded or ignored.
+
+[Actual-store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.cs) cover migration, exact reopen, hostile state, atomic audit/commit failure, cancellation/revocation, stale retirement writes, redacted edits, disabling, forgetting, disposition, unrelated-session retention and uninventoried copies. Secure deletion and a truncated owned rollback journal are exercised for memory mutations; subsequent legitimate writes/reopen cannot restore forgotten content or review/use authority. This is not forensic erasure, power-loss qualification, encryption or removal of externally returned/exported/provider copies.
+
+Native original-input CRUD/review/list controls and lifecycle presentation integration, provider ranking/prompt attachment, cross-session/global/project/source recall and hosted disclosure remain separate dependent work. No model, SDK-native memory/session I/O, hardware trial or R04/R12/A0-A4/profile qualification is enabled or inferred.
 
 Experiment disposition: reviewed storage, Node/.NET final-request/runtime
 lifecycle and local-inference evidence remains retained. Deterministic admission

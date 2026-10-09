@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Immutable;
 using AwesomeAssertions;
 using Kora.Application.Memory;
 using Kora.Core.Auditing;
@@ -26,6 +27,176 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
     public void Dispose() => listener.Dispose();
     private static CancellationToken Token => TestContext.Current.CancellationToken;
     private static MemoryCandidate Candidate => new(MemoryContentClass.ResponsePreference, "user-content-not-for-logs");
+
+    [Fact]
+    public async Task Durable_admission_keeps_proposals_off_disk_reloads_exact_records_and_redacts_edits()
+    {
+        using var fixture = new Fixture(durable: true);
+        using var root = fixture.Root();
+        var proposal = await fixture.Propose();
+        fixture.Stored.Should().BeEmpty();
+        var reviewed = (await fixture.Service.ReviewAsync(proposal.Id, proposal.Revision, true, Token)).Record!;
+        fixture.Stored.Should().BeEmpty();
+        var admitted = (await fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token)).Record!;
+        fixture.Stored.Single().Value.Should().Be(admitted);
+        await fixture.Service.UseAsync(admitted.Id, admitted.Revision, MemoryDestination.Local, Token);
+        var disabled = (await fixture.Service.DisableAsync(admitted.Id, admitted.Revision, Token)).Record!;
+        fixture.Stored.Single().Value.Should().Be(disabled);
+        var edited = (await fixture.Service.EditAsync(disabled.Id, disabled.Revision, Candidate, Token)).Record!;
+        fixture.Stored.Single().Value.Candidate.Should().BeNull();
+        fixture.Stored.Single().Value.Receipt.Should().BeNull();
+        using (var pendingRestart = fixture.CreateService(durable: true))
+        {
+            (await pendingRestart.ReviewAsync(edited.Id, edited.Revision, true, Token)).Outcome
+                .Should().Be(MemoryOutcome.InvalidTransition);
+        }
+        var reviewedEdit = (await fixture.Service.ReviewAsync(edited.Id, edited.Revision, true, Token)).Record!;
+        fixture.Stored.Single().Value.Review.Should().Be(MemoryReviewState.Proposed);
+        var readmit = (await fixture.Service.AdmitAsync(reviewedEdit.Id, reviewedEdit.Revision, Token)).Record!;
+        fixture.Service.Dispose();
+        using var restarted = fixture.CreateService(durable: true);
+        var used = await restarted.UseAsync(readmit.Id, readmit.Revision, MemoryDestination.Local, Token);
+        used.Use!.Candidate.Should().Be(Candidate);
+        var forgotten = (await restarted.ForgetAsync(readmit.Id, readmit.Revision, Token)).Record!;
+        fixture.Stored.Single().Value.Should().Be(forgotten);
+        fixture.Stored.Single().Value.Candidate.Should().BeNull();
+        (await restarted.ForgetAsync(forgotten.Id, forgotten.Revision, Token)).Outcome.Should().Be(MemoryOutcome.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task Durable_restart_refuses_stale_revisions_and_unavailable_scopes_without_publishing()
+    {
+        using var fixture = new Fixture(durable: true);
+        using var root = fixture.Root();
+        var admitted = await fixture.Admitted();
+        fixture.Stored[admitted.Id] = admitted with { Revision = new(admitted.Revision.Value + 1), Retention = MemoryRetentionState.Disabled };
+        (await fixture.Service.UseAsync(admitted.Id, admitted.Revision, MemoryDestination.Local, Token)).Outcome
+            .Should().Be(MemoryOutcome.RevisionConflict);
+        fixture.Scope = MemoryScope.DeviceProfile(fixture.Profile);
+        (await fixture.Service.ProposeAsync(Candidate, fixture.Scope, MemoryProposalOrigin.User, Token)).Reason
+            .Should().Be(MemoryReason.ScopeMismatch);
+        fixture.Scope = MemoryScope.Session(fixture.Request.SessionId);
+        (await fixture.Service.ProposeAsync(Candidate, null, MemoryProposalOrigin.User, Token)).Reason
+            .Should().Be(MemoryReason.ScopeMismatch);
+        fixture.OnStoreTransition = () => fixture.Session = fixture.Session with { IsActive = false };
+        (await fixture.Service.UseAsync(admitted.Id, new(admitted.Revision.Value + 1), MemoryDestination.Local, Token))
+            .Reason.Should().Be(MemoryReason.NotEnabled);
+    }
+
+    [Fact]
+    public async Task Expired_durable_session_cannot_reload_content_or_publish_after_store_capacity_denial()
+    {
+        using var fixture = new Fixture(durable: true);
+        using var root = fixture.Root();
+        var proposal = await fixture.Propose();
+        var reviewed = (await fixture.Service.ReviewAsync(proposal.Id, proposal.Revision, true, Token)).Record!;
+        fixture.StoreResult = new(MemoryOutcome.CapacityExceeded, MemoryReason.Capacity);
+        (await fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token)).Outcome
+            .Should().Be(MemoryOutcome.CapacityExceeded);
+        fixture.Audits.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied);
+        fixture.StoreResult = null;
+        (await fixture.Service.UseAsync(reviewed.Id, reviewed.Revision, MemoryDestination.Local, Token)).Reason
+            .Should().Be(MemoryReason.NotReviewed);
+        var admitted = (await fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token)).Record!;
+        fixture.Service.ExpireSession(fixture.Request.SessionId);
+        (await fixture.Service.UseAsync(admitted.Id, admitted.Revision, MemoryDestination.Local, Token)).Reason
+            .Should().Be(MemoryReason.AuthorityClosed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Durable_audit_or_commit_failure_never_publishes_a_successful_mutation(bool auditFailure)
+    {
+        using var fixture = new Fixture(durable: true);
+        using var root = fixture.Root();
+        var proposal = await fixture.Propose();
+        var reviewed = (await fixture.Service.ReviewAsync(proposal.Id, proposal.Revision, true, Token)).Record!;
+        fixture.FailTerminalAudit = auditFailure;
+        fixture.FailStoreCommit = !auditFailure;
+        var action = () => fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token);
+        await action.Should().ThrowAsync<IOException>();
+        fixture.Stored.Should().BeEmpty();
+        fixture.FailTerminalAudit = false;
+        fixture.FailStoreCommit = false;
+        (await fixture.Service.UseAsync(reviewed.Id, reviewed.Revision, MemoryDestination.Local, Token)).Reason
+            .Should().Be(MemoryReason.NotReviewed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Durable_callback_and_commit_fences_refuse_lifecycle_changes(bool atCommit)
+    {
+        using var fixture = new Fixture(durable: true);
+        using var root = fixture.Root();
+        var proposal = await fixture.Propose();
+        var reviewed = (await fixture.Service.ReviewAsync(proposal.Id, proposal.Revision, true, Token)).Record!;
+        if (atCommit) { fixture.OnStoreCommit = () => fixture.Service.Dispose(); }
+        else { fixture.OnTerminalAudit = () => fixture.Service.Dispose(); }
+        var action = () => fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token);
+        await action.Should().ThrowAsync<InvalidOperationException>();
+        fixture.Stored.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Durable_transition_rechecks_authority_after_delayed_store_read()
+    {
+        using var fixture = new Fixture(durable: true);
+        using var root = fixture.Root();
+        fixture.OnStoreTransition = () => fixture.ControlRevision++;
+        var action = () => fixture.Service.ProposeAsync(Candidate, fixture.Scope, MemoryProposalOrigin.User, Token);
+        await action.Should().ThrowAsync<InvalidOperationException>();
+        fixture.Stored.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Late_committed_admission_cannot_overwrite_a_newer_durable_forget_in_the_cache()
+    {
+        using var fixture = new Fixture(durable: true);
+        using var root = fixture.Root();
+        var proposal = await fixture.Propose();
+        var reviewed = (await fixture.Service.ReviewAsync(proposal.Id, proposal.Revision, true, Token)).Record!;
+        MemoryRecord? forgotten = null;
+        fixture.OnAfterStoreCommit = () =>
+        {
+            fixture.OnAfterStoreCommit = null;
+            forgotten = fixture.Service.ForgetAsync(reviewed.Id, new(reviewed.Revision.Value + 1), Token)
+                .GetAwaiter().GetResult().Record!;
+        };
+        var admitted = (await fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token)).Record!;
+        forgotten.Should().NotBeNull();
+        fixture.Stored.Single().Value.Should().Be(forgotten);
+        (await fixture.Service.UseAsync(forgotten!.Id, forgotten.Revision, MemoryDestination.Local, Token)).Reason
+            .Should().Be(MemoryReason.NotEnabled);
+        (await fixture.Service.UseAsync(admitted.Id, admitted.Revision, MemoryDestination.Local, Token)).Outcome
+            .Should().Be(MemoryOutcome.RevisionConflict);
+    }
+
+    [Fact]
+    public async Task Production_session_scope_resolver_fails_closed_on_host_control_session_and_revision_changes()
+    {
+        using var fixture = new Fixture();
+        using var root = fixture.Root();
+        var scope = new SessionMemoryScopeAccess(fixture, fixture, fixture);
+        scope.Observe(fixture.Request).Should().BeNull();
+        (await scope.ResolveAsync(fixture.Request, Token)).Should().Be(fixture.Boundary);
+        scope.Observe(HostRequest.Create(RequestOrigin.LocalUi)).Should().BeNull();
+        fixture.ControlRevision++;
+        scope.Observe(fixture.Request).Should().BeNull();
+        fixture.Boundary = fixture.Boundary! with { Revision = fixture.ControlRevision };
+        (await scope.ResolveAsync(fixture.Request, Token)).Should().NotBeNull();
+        fixture.Current = false;
+        scope.Observe(fixture.Request).Should().BeNull();
+        (await scope.ResolveAsync(fixture.Request, Token)).Should().BeNull();
+        fixture.Current = true;
+        fixture.CanControl = false;
+        scope.Observe(fixture.Request).Should().BeNull();
+        (await scope.ResolveAsync(fixture.Request, Token)).Should().BeNull();
+        fixture.CanControl = true;
+        fixture.OnBoundaryRead = () => fixture.ControlRevision++;
+        (await scope.ResolveAsync(fixture.Request, Token)).Should().BeNull();
+    }
 
     [Fact]
     public async Task Model_proposals_have_host_ids_lineage_and_no_implicit_admission_use_or_persistence()
@@ -476,7 +647,7 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
     }
 
     private sealed class Fixture : ISessionWorkspaceStore, ISessionWorkspaceAccess, ICapabilityHostAccess,
-        IMemoryScopeAccess, ISecurityAuditLog, ILogger<MemoryAdmissionService>, IDisposable
+        IMemoryScopeAccess, IMemoryStore, ISecurityAuditLog, ILogger<MemoryAdmissionService>, IDisposable
     {
         internal HostRequest Request { get; private set; } = HostRequest.Create(RequestOrigin.LocalUi);
         internal HostId<DeviceProfileIdentity> Profile { get; } = new(Guid.NewGuid());
@@ -496,16 +667,44 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
         internal List<SecurityAuditEvent> Audits { get; } = [];
         internal List<string> Messages { get; } = [];
         internal List<HostRequest> LogRequests { get; } = [];
+        internal Dictionary<HostId<MemoryIdentity>, MemoryRecord> Stored { get; } = [];
+        internal bool FailStoreCommit { get; set; }
+        internal MemoryResult? StoreResult { get; set; }
+        internal Action? OnStoreTransition { get; set; }
+        internal Action? OnStoreCommit { get; set; }
+        internal Action? OnAfterStoreCommit { get; set; }
+        internal Action? OnBoundaryRead { get; set; }
         public bool IsCurrentHost => Current;
         public bool CanInspect => CanControl;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; } = 1;
-        internal Fixture()
+        internal Fixture(bool durable = false)
         {
             Session = new(Request.SessionId, new(1), true);
             Boundary = new(Profile, Request.SessionId, new(1), Project, Source, new(1), 1, true, true, true);
             Scope = MemoryScope.Session(Request.SessionId);
-            Service = new(this, this, this, this, this, this, new FixedTime());
+            Service = CreateService(durable);
+        }
+        internal MemoryAdmissionService CreateService(bool durable) =>
+            new(this, this, this, this, this, this, new FixedTime(), durable ? this : null);
+        public ValueTask<MemoryBoundary> ReadMemoryBoundaryAsync(HostRequest request, long controlRevision, CancellationToken token)
+        {
+            OnBoundaryRead?.Invoke();
+            return ValueTask.FromResult(Boundary!);
+        }
+        public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
+            Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
+        {
+            OnStoreTransition?.Invoke();
+            var commit = transition([.. Stored.Values]);
+            OnStoreCommit?.Invoke();
+            token.ThrowIfCancellationRequested();
+            if (!admitted()) { throw new InvalidOperationException("Memory admission closed at commit."); }
+            if (FailStoreCommit) { throw new IOException("Injected atomic commit failure."); }
+            if (StoreResult is { } overrideResult) { return ValueTask.FromResult(overrideResult); }
+            if (commit.Replacement is { } replacement) { Stored[replacement.Id] = replacement; }
+            OnAfterStoreCommit?.Invoke();
+            return ValueTask.FromResult(commit.Result);
         }
         internal HostActivity Root(RequestOrigin origin = RequestOrigin.LocalUi)
         {
@@ -538,6 +737,8 @@ public sealed class MemoryAdmissionServiceTests : IDisposable
             return (await Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token)).Record!;
         }
         public MemoryBoundary? Observe(HostRequest request) => Boundary;
+        public ValueTask<MemoryBoundary?> ResolveAsync(HostRequest request, CancellationToken token) =>
+            ValueTask.FromResult(Observe(request));
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
             OnRead?.Invoke();

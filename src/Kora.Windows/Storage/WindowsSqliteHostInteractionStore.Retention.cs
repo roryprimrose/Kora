@@ -367,8 +367,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             .Select(g => EndGrant(g, "work-session-ended")).ToArray();
         var changes = new List<AuthorityChange> { SessionChange(session, deleting ? 2 : 1) };
         changes.AddRange(grants.Select(GrantChange));
+        var memories = MemoryInvalidations(connection, id);
+        changes.AddRange(memories.Select(MemoryChange));
         var sequence = AppendAudit(connection, transaction, intent, session, audit, changes: changes);
         WriteSession(connection, transaction, session, deleting ? 2 : 1, sequence);
+        foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
         foreach (var grant in grants) { WriteGrant(connection, transaction, grant, sequence); }
         Execute(connection, transaction, "DELETE FROM host_observations WHERE session_id=$id;", ("$id", Id(id)));
         if (deleting)

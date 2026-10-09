@@ -76,6 +76,8 @@ lines-covered/valid: 17273/17273; branches-covered/valid: 10349/10349
 
 ### D-014 Reviewed User-Memory Admission Increment - 2026-10-09
 
+This first-package receipt remains historical; its volatile storage gaps are superseded only by the [bounded durable increment](#r04r12d-014-session-only-durable-memory-storage---2026-10-09) below.
+
 The first dependency-safe memory package delivers the
 [reviewed admission contract](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09):
 portable strong identities and exact typed scopes; request/profile/session/source
@@ -127,6 +129,66 @@ Before publication, rebased the intervening CI-only #3 merge `5451813`.
 Fresh Release root build and all five required suites repeat the same passing
 counts; matching latest-only portable reports repeat exact **16,447/16,447
 lines** and **9,803/9,803 branches**. No R14 UI/storage implementation is changed.
+
+### R04/R12/D-014 Session-Only Durable Memory Storage - 2026-10-09
+
+The [delivered storage boundary](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09) extends the existing private standard-SQLite interaction store to schema v7. It delivers validated source-preserving v6 migration, exact original reviewed candidate/revision/lineage binding, fresh original-user committed intent, atomic required typed audit, restart validation, redacted pending edits, retained disabled state and durable non-reusable tombstones. The Application workflow uses the transaction seam and a real private session resolver; no second authority or preference/body store is introduced.
+
+Authoritative retirement, exact disposition hashing and session-owned retention include memory. Uninventoried interaction-store copies hold forget/edit redaction and retention acceptance. Maintained [actual-store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.cs) cover rollback, reopen, hostile/downgraded state, late writes, cancellation, independent-session preservation and subsequent legitimate writes without forgotten-body/receipt resurrection. [Portable admission tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.cs) maintain callback/lifecycle/cache and scope closure.
+
+Only Session durable scope is available. Private partition identity is not DeviceProfile/global selection authority; Project/Source scopes fail closed. Proposals/first reviews and edited replacement bodies remain volatile until exact admission. Native CRUD/review/list, broader scope authority, ranking/prompt/provider integration and hosted disclosure are not delivered. Desktop registration adds the store seam, not a memory UI/tool route. This remains bounded R04/R12/D-014 work, not end-to-end Rxx/A0-A4 or profile qualification.
+
+**Experiment assessment:** retain every remaining executable and historical receipt. [Storage](../experiments/r02-storage-proof/README.md) generic migration/reopen/atomic audit/retention assertions now have memory-specific actual-store equivalents, but its opaque capacity/performance payloads, encrypted-engine/FTS/DPAPI/rekey/artifact/backup/native comparisons and shared consumers are not exact memory-schema equivalents. Whole-harness archival still requires maintained assertion mapping and resolution of those consumers. [Node](../experiments/r02-runtime-proof/README.md), [RT1](../experiments/r02-dotnet-control-proof/README.md) and [RT2](../experiments/r02-runtime-lifecycle-proof/README.md) native memory/session I/O, final-request/all-status denial, hook-only failure witnesses and all-path observation remain unexercised; archive only after exact maintained enabled-profile equivalents. MG1, containment/W2, inference, speech and distribution dispositions remain as recorded in the [inventory](#experiment-disposition-inventory); no consumer is removed, experiment executed or qualification relabelled.
+
+Consumer checks additionally retain the [synthetic runtime runner](../eng/Invoke-SyntheticRuntimeValidation.ps1), [released lifecycle runner](../eng/Invoke-ReleasedRuntimeLifecycle.ps1), [MG1 linked volatile filesystem](../experiments/r02-dotnet-management-proof/ManagementProof.csproj) and [inference linked native observer](../experiments/r02-local-inference-proof/Proof.csproj). Memory-store assertions are not replacements for these native/profile consumers or the [storage cryptography harness](../experiments/r02-storage-proof/Program.cs).
+
+Local validation on fetched/rebased main `1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`: locked root restore used only the machine-local Azure Artifacts source after this new worktree's missing-assets failure. Release root build and all required suites completed against the final memory sources with no failures/skips. Focused actual-store memory tests pass **24/24**, including subsequent-write/reopen body and receipt non-resurrection. Latest-only matching portable reports passed the unchanged exact gate at **16,542/16,542 lines** and **9,859/9,859 branches**, without exclusions, suppression or threshold changes.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project <project below> --configuration Release --no-build --report-trx
+Kora.Core.UnitTests: 1152 passed; Kora.Application.UnitTests: 3109 passed.
+Kora.Tools.UnitTests: 69 passed; Kora.Definitions.UnitTests: 6 passed.
+Kora.Windows.IntegrationTests: 1248 passed. All five: 0 failed, 0 skipped.
+Latest-only reportgenerator + eng\Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100:
+Line coverage 100%; branch coverage 100% (16542 lines, 9859 branches).
+```
+
+This is source/maintained-test evidence, not installed storage, real provider/native memory I/O, OS power-loss/forensic deletion or release/profile qualification.
+
+Rebase receipt: preserved the intervening volatile provider-policy/handoff sections from main `55dc2816032841a14adde37fc333a711c810e4f1` (#125), resolving only the shared status paragraph. Rebuilt combined sources in Release with zero warnings/errors. Fresh suites pass Core **1,170**, Application **3,187**, Tools **69**, Definitions **6** and Windows **1,248** (**5,680 total**, zero failures/skips in the final runs). Matching latest-only reports pass exact **16,811/16,811 portable lines** and **10,113/10,113 branches**, with unchanged gates.
+
+The first combined Windows run recorded 1 failure/1,247 passes in the existing [50 ms audio-open cleanup fixture](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs): `DisposeAsync` reported `"Native capture work is still closing; quiescence is not confirmed."` Its occurrence cause remains unconfirmed. An initially unqualified selector ran zero tests and was corrected, not counted as validation. The fully-qualified exact rerun passed 1/1; the unchanged full Windows rerun passed 1,248/1,248. No audio source, test, timer, threshold or exclusion was changed.
+
+Queue-integrated rebase receipt: conflict-free rebase onto main `42f1382d91fa5a2d164a7e86e6346940f6c3fcff` ([#127](https://github.com/roryprimrose/Kora/pull/127)), preserving admitted queue settings/consuming serialization and provider/memory authority. Tested source head: `c42be4548bcf6b35104001b3351b9c1cf618ce6d`. No sibling branch or main was merged/cherry-picked.
+
+Fresh combined Release build and all five suites passed on this source head; Windows ran after the portable suites with no changes to test settings or timers. This distinct attempt had zero failures/skips; the earlier failed-attempt receipt above remains historical. Latest-only portable aggregation used one fresh report per assembly, with unchanged exact gates and no exclusions.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project <required project> --configuration Release --no-build --report-trx
+Core: 1183 passed; Application: 3280 passed; Tools: 69 passed; Definitions: 6 passed.
+Windows: 1250 passed. All five: 5788 passed, 0 failed, 0 skipped.
+Portable suites additionally: --coverlet --coverlet-output-format cobertura.
+Latest-only reportgenerator: four matching Cobertura reports, portable assembly filters.
+eng\Assert-CodeCoverage.ps1 -ReportPath <combined Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage 100%: 17216/17216; branch coverage 100%: 10331/10331.
+```
+
+History-integrated rebase receipt: main advanced again before auto-merge to `99d4bafbdaca6d2db2f5c9bd2d9285ab88dc9aee` ([#124](https://github.com/roryprimrose/Kora/pull/124)). Conflict-free rebase preserved passive exact-session lexical search, admitted queue configuration and provider/memory authority. Tested source head: `d1191066006c5d2cb46ee4a742341598d612e0ad`. No merge/cherry-pick or schema-authority change.
+
+Fresh sequential validation used the same root Release/suite commands above and exactly one newly generated portable Cobertura report per assembly. All five suites passed without retries, failures or skips in this attempt. Earlier distinct receipts, including the audio failure and unchanged repeats, remain historical; no test, timeout, coverage threshold or exclusion was weakened.
+
+```text
+Release solution build: 0 warnings, 0 errors.
+Core: 1229 passed; Application: 3304 passed; Tools: 69 passed; Definitions: 6 passed.
+Windows: 1258 passed. All five: 5866 passed, 0 failed, 0 skipped.
+Latest-only portable aggregate: 17346/17346 lines; 10399/10399 branches.
+eng\Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100:
+Line coverage 100%; branch coverage 100%.
+```
 
 ### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
 

@@ -548,13 +548,17 @@ review/use authority; disabled/forgotten state cannot be recalled implicitly.
 Exact local-use ID/provenance receipts are not prompt or hosted disclosure
 authority. Hosted/unknown destinations remain denied.
 
-The workspace is volatile and not composed with a memory store, native UI or
-provider. Session retirement/disposal fences and content-free correlated
-requested/terminal audit are maintained in process; durable deletion/copy
-inventory and atomic storage/native authority integration remain dependent
-gates. Returned snapshots cannot be retroactively erased, but subsequent use
-re-resolves current state. No experiment/native-runtime isolation gate is
-closed by these deterministic admission tests.
+The [session-only durable increment](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09)
+uses the existing private interaction-store lease and typed authority audit
+transaction. Only exact reviewed admitted candidate bodies persist; edits
+redact prior bodies and keep replacements volatile until fresh admission.
+Restart state is validated, not treated as review/use/egress authority.
+Retirement/disposition/retention include memory tombstones; uninventoried
+interaction-store copies hold explicit redaction and deletion acceptance.
+Global/profile/project/source authority, native CRUD and provider routes remain
+closed. Returned snapshots cannot be retroactively erased; subsequent use
+re-resolves current state. Actual-store tests are not forensic/power-loss or
+experiment/native-runtime isolation qualification.
 
 The [bounded RT2 observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
 passes its 20 safe tests but leaves all-path runtime admission **Blocked**.

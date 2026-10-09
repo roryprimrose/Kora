@@ -19,6 +19,14 @@ action/grant-change proposal.
 See [exact commands](commands.md) for phrases you can use now and
 [Settings](settings.md) for controls you can change now.
 
+The provider-neutral host foundation now has typed one-provider turn identity,
+bounded context/evidence, host admission, audited outcomes and cancellation/
+late-response controls. Its production adapters remain unavailable: it adds
+no model-facing tool, hosted destination, provider qualification, memory write
+or enabled Local only/Local first/Hosted preferred mode. Existing bootstrap
+behavior is unchanged. Provider confidence and supplied provenance never
+authorize an action or handoff.
+
 ## Asking Kora to do something
 
 Use your configured assistant name for voice requests, for example

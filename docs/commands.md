@@ -15,6 +15,12 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+Provider-neutral host controls add no new command or qualified model tool loop.
+Existing bootstrap reasoning and unavailable messages remain unchanged;
+hosted inference, Local only/Local first/Hosted preferred modes, reviewed
+handoff and durable memory are not enabled by this host-only foundation.
+Clipboard and file preview/search commands still perform no model submission.
+
 ## Trusted local events
 
 An already-open **Sessions** selected work surface shows bounded trusted

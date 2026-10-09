@@ -1,6 +1,7 @@
 # Model Providers, Memory, and Grounded Knowledge
 
-Status: accepted product direction and proposed architecture. Provider
+Status: accepted product direction, bounded provider-neutral host controls
+implemented, and remaining proposed architecture. Provider
 qualification, durable user memory, knowledge ingestion, retrieval, and hosted
 handoff described here are not complete or advertised by the current
 bootstrap.
@@ -346,3 +347,90 @@ parallel model subsystem:
 Each slice remains unavailable until its own implementation, dependency,
 licence, privacy, resource, real-provider or real-device, failure-path,
 deletion, and acceptance evidence passes.
+
+### Delivered R04-R08 Host Controls - 2026-10-09
+
+The first dependency-safe package is a composed, **adapter-unavailable** host
+boundary, not a second model subsystem or provider qualification.
+[ModelTurnHost](../src/Kora.Application/Dependencies/ModelTurnHost.cs) reuses
+the existing host-resolved Activity/request, authoritative session workspace
+and task observations, current ownership/privacy/control revisions, trusted
+typed security audit, six-ID read-only registry and `LocalModelResponse`
+contract. Core owns its provider/model/turn identities, provenance, typed
+outcomes and immutable context/evidence envelope. Application owns admission,
+single-use dispatch, revalidation and late-completion observation. No new
+Windows mechanism, provider package, credential, UI command or product mode is
+enabled.
+
+Implemented boundaries:
+
+- A host-issued turn binds exactly one provider, opaque catalogue model ID and
+  exact profile revision to one request/session/task. A caller cannot replace
+  the envelope or provider, replay the capability, borrow it across hosts or
+  sessions, or reuse its expired/completed issuing Activity.
+- Admission requires a live host context, current host/privacy/control state,
+  an active matching session generation and exact nonterminal current-source
+  task authority. Dispatch, tool requests and response publication revalidate
+  those boundaries. Missing, foreign, expired, future-dated or revoked context
+  is denied; required audit/storage failures are surfaced, not defaults.
+- Context separates host policy, user request, evidence and the existing
+  admitted read-only descriptors. Evidence has a unique host evidence ID,
+  exact request and revision, immutable text and explicit disclosure class.
+  Unknown disclosure fails closed. At most **16** evidence items and
+  **32,768 complete serialized host-envelope UTF-8 bytes** are admitted;
+  JSON escaping and catalogue overhead count. Nothing is silently truncated.
+  The provisional structured response is bounded to **4,096 serialized UTF-8
+  bytes**, reusing the existing result limit. These are host transport ceilings,
+  not a qualified token window or permission to send a 256 KiB clipboard
+  snapshot. Native-provider protocol overhead/final-request mediation still
+  needs its own exact-profile qualification.
+- A single-use capability dispatches one adapter once. There is no retry,
+  alternate-provider lookup, blending, confidence-based handoff, memory write
+  or destination parameter. Provider-reported identity never establishes
+  provenance. The initial response subset admits bounded answers only;
+  action/grant/question payloads cannot acquire authority through this new
+  boundary. Existing bootstrap proposal handling is unchanged.
+- During an admitted dispatch, tool proposals use the **same** six-ID registry,
+  strict input checks, typed handlers and bounded all-status result mediation.
+  No new tool, lane authority, content-reading descriptor or effect is added.
+  Tool access closes when dispatch completes or cancellation/authority changes.
+- Unavailable, authentication-required, quota-exceeded, timed-out, cancelled,
+  denied-egress, denied and unknown are explicit typed outcomes without a
+  success-shaped response or fallback.
+- The host signals a **15-second** dispatch deadline and promptly closes output
+  and tool authority on timeout/cancellation. An uncooperative adapter keeps
+  the single dispatch slot occupied until actual completion; new dispatch is
+  unavailable and disposal waits for quiescence. Late output is suppressed,
+  faults are observed and completion uses a causal Activity link, not a retired
+  parent. Cancellation is not rollback, provider cessation or remote deletion.
+- Requested/terminal typed audit and source-generated structured diagnostics
+  carry host turn/provider/model/revision identity, not content, paths,
+  provider error text or incoming trace authority. Policy and runtime
+  Activities contain only admitted host identifiers and provider class.
+
+**Exact enablement gates remain open.** Production registers Ollama and Copilot
+with no adapter and no qualification evidence. The internal mechanism seam is
+exercised only by deterministic fakes. Local admission requires the exact
+R02-L1-L5 owner-reviewed candidate selection **and** R06/R07/L6 integrated-host
+proof for that catalogue revision. Hosted admission requires exact .NET
+final-request profile conformance, RT2 all-path lifecycle/egress proof,
+execution PV1 account/destination admission and integrated-host proof. Expired
+or partial evidence is unavailable. Even a fully attested hosted profile is
+denied here because exact destination/content egress approval is not implemented;
+`HostedEligible` evidence is not transmission consent.
+
+This package preserves current bootstrap readiness/unavailable messages,
+buffered local reasoner and exact offline controls. It does not upgrade that
+bootstrap to a qualified neutral adapter. Local only, Local first, Hosted
+preferred, reviewed handoff, durable memory and local/hosted grounded answering
+remain disabled planned product modes.
+
+Experiment disposition: the Node runtime, actual .NET RT1, RT2 lifecycle,
+MG1 management and local-inference proofs were reviewed against this boundary.
+Maintained tests exercise production host-envelope bytes, identity/isolation,
+typed results, audit, registry reuse, revocation, deadlines and late-response
+links. They do not exercise SDK-native final JSON, failed-result/history
+serialization, runtime/session storage, retry transports, provider accounts,
+real answer quality, offline network denial or server cessation. Those unique
+assertions, recorded artifacts and rejected hook-only witness remain retained;
+no experiment assertion is claimed migrated and no experiment is removed.

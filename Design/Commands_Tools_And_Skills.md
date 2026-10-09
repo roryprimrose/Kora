@@ -23,6 +23,18 @@ Record and complete serialized UTF-8 bounds, strict input validation, cancellati
 and explicit unavailable/unobserved results are production-tested. Full R06
 continued reasoning, approved model adapters and runtime qualification remain open.
 
+The [D-014/R04-R08 provider-neutral host increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09)
+now composes typed single-use turn admission, bounded immutable context/evidence,
+host provenance, typed unavailable/failure outcomes, cancellation/late-output
+closure and required audit over those same authority and registry seams.
+Deterministic adapter fakes can propose only the existing six read-only tools
+and return bounded answers; proposals never supply a lane, grant or destination.
+Production has **no qualified adapter** and the current JSON selector receives
+no new tools or context. Hosted dispatch is denied without exact egress admission.
+Local only/Local first/Hosted preferred, handoff, memory and grounded model
+answering remain planned, not enabled by model-location settings. Existing
+bootstrap reasoning and unavailable paths are unchanged.
+
 R07 additionally composes the host-only explicit plain-text clipboard
 snapshot/native-preview/reuse/revoke workflow. The intended model-facing
 `context.capture_clipboard`/`context.inspect` tools remain unavailable:

@@ -364,6 +364,7 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeList>();
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
+        services.AddSingleton<ModelTurnHost>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
         services.AddSingleton<DependencySetupWorkflow>();
         services.AddKeyedSingleton(

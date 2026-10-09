@@ -20,6 +20,38 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
+
+The first D-014 implementation package delivers the
+[bounded host control boundary](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09):
+typed provider/model/turn provenance, exact request/session/task/current-host
+admission, single-use one-provider dispatch, immutable evidence and complete
+UTF-8 envelope bounds, existing six-ID registry/result reuse, typed failures,
+required requested/terminal audit and content-free policy/runtime Activities.
+Timeout/cancellation suppress late output and close tool access; an unobserved
+adapter remains nonquiescent and blocks further dispatch until completion.
+Deferred completion carries a causal link rather than a completed parent.
+
+Production composes no adapter or qualification evidence. Exact local candidate
+selection plus integrated-host proof, or .NET final-request/RT2/PV1 plus
+integrated-host proof, are still required. Hosted exact envelope/destination
+egress approval is absent and fails closed even with otherwise qualified
+mechanism evidence. Existing bootstrap local/unavailable paths are unchanged.
+No modes/handoff, confidence authority, memory, knowledge-model attachment,
+provider account, network call, package installation or runtime qualification
+is delivered. R04-R08 remain partial/open, not accepted end to end.
+
+The deterministic tests supplement, not supersede, retained Node/.NET RT1,
+RT2, MG1 and local-inference native/provider evidence. No executable experiment
+or unique assertion is removed or relabelled as migrated.
+
+Validation receipt: locked root restore through the machine-local Azure
+Artifacts source; Release solution build with zero warnings/errors; Core
+1,128, Application 3,036, Tools 69, Definitions 6 and Windows integration 1,220
+tests passed, none skipped. Current portable reports cover all 16,170 lines
+and 9,528 branches (100%/100%). No real provider/native qualification trial,
+installation, account or network-policy change was performed.
+
 ### R18 trusted local visual broker increment - 2026-10-09
 
 Merged scheduler #116, selected work surface #118 and retention #117 unblock

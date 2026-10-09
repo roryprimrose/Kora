@@ -70,6 +70,15 @@ historical artifacts, rejected hook-only witness and all design/harness
 consumers until that check is complete. No runtime experiment is archived by
 this continuation.
 
+The [D-014/R04-R08 host increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09)
+adds a maintained provider-neutral admission/envelope consumer, but no Copilot
+SDK/runtime or MG1 operating envelope. Its production registrations contain no
+adapter or qualification evidence. Shared numerical UTF-8 limits, fake typed
+results and host cancellation/link tests are not subject/assertion equivalence
+for actual SDK final-request, transport, retry, session-I/O, resource, account
+or all-path lifecycle tests. RT1/RT2/MG1/Node and local-inference experiments
+remain retained with no assertions marked migrated or unique evidence removed.
+
 ### RT1 .NET outcome: selected source-built profile passes
 
 The [RT1 disposition](../experiments/r02-dotnet-control-proof/evidence/disposition.json)

@@ -216,6 +216,15 @@ Use **which models are enabled**, **enable/disable local models**, or
 **enable/disable hosted models** as typed or activated voice commands to read
 or change the same settings. Model-setting writes are security audited.
 
+The new provider-neutral host controls are an internal, adapter-unavailable
+foundation. They do not qualify Ollama or Copilot, change these existing
+bootstrap settings/readiness paths, add credentials, or select a cloud
+destination. **Local only**, **Local first**, **Hosted preferred**, reviewed
+handoff, durable memory and grounded model answering remain planned product
+modes. Enabling a model location is not permission to upload clipboard/file
+previews, persist memory or bypass action approval. There is no automatic
+provider fallback or confidence-based handoff.
+
 ## Approvals
 
 Model-suggested actions that need approval offer **Once**, **This session**,

@@ -85,6 +85,7 @@ internal sealed partial class SessionsViewModel
             ?? throw new InvalidOperationException("No list continuation. Start a fresh Search.") : null;
         var epoch = listSearchEpoch;
         var selection = selectionEpoch;
+        var admission = access.ControlRevision;
         var query = listQuery;
         var kind = listSearchKind;
         var filter = sessionFilter;
@@ -96,7 +97,7 @@ internal sealed partial class SessionsViewModel
             var result = await service.SearchListAsync(kind, filter, query, cursor, 25, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             if (closed || epoch != listSearchEpoch || selection != selectionEpoch
-                || !access.CanInspect)
+                || !access.CanInspect || admission != access.ControlRevision)
             {
                 throw new OperationCanceledException("The metadata query, selected subject or source changed. Start a fresh Search.");
             }

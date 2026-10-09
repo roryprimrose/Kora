@@ -4,6 +4,7 @@ using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
+using Kora.Core.Diagnostics;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
@@ -14,6 +15,35 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsViewModelTests
 {
+    [Fact]
+    public async Task MetadataPublicationRechecksAdmissionAfterTheServiceReadFence()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var held = new HeldStore();
+        var access = new LateListAdmission();
+        var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
+        var sink = new WindowsSqliteEvidenceSink(f.Paths);
+        sink.Initialize();
+        var model = new SessionsViewModel(service,
+            new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
+            access, NullLogger<SessionsViewModel>.Instance);
+        try
+        {
+            model.ListQuery = "needle";
+            var search = model.SearchListAsync();
+            held.Completion.SetResult(new([new(new(f.Request.SessionId, new(1), true),
+                new(f.Request.SessionId, new(1), new("needle")))], null));
+            await search;
+            access.RevisionReads.Should().Be(5, "admission changed after the service's end-of-read check but before native publication");
+            model.Sessions.Should().BeEmpty();
+            model.SelectedSessionRecord.Should().BeNull();
+            model.Status.Should().Contain("Cancelled");
+            held.ControlCalls.Should().Be(0);
+        }
+        finally { model.Close(); }
+    }
+
     [Fact]
     public void NativeMetadataControlsBindExplicitModesBoundedContinuationAndNoTruncationSeparatelyFromHistory()
     {
@@ -84,5 +114,13 @@ public sealed partial class SessionsViewModelTests
         held.Reads.Should().Be(1);
         model.Close();
         model.ListQuery.Should().BeEmpty();
+    }
+
+    private sealed class LateListAdmission : ISessionWorkspaceAccess, IEvidenceQueryAccess
+    {
+        internal int RevisionReads { get; private set; }
+        public bool CanInspect => true;
+        public bool CanControl => false;
+        public long ControlRevision => ++RevisionReads <= 4 ? 1 : 2;
     }
 }

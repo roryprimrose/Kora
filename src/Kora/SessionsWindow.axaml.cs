@@ -24,6 +24,9 @@ internal sealed partial class SessionsWindow : Window
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         ReadHistory.Click += async (_, _) => await model.ReadHistoryAsync();
         NextHistory.Click += async (_, _) => await model.ReadHistoryAsync(next: true);
+        HistoryRecords.SelectionChanged += (_, _) =>
+            model.SelectHistoryRecord(HistoryRecords.SelectedItem as SessionHistoryEvent);
+        OpenHistoryDetail.Click += async (_, _) => await model.OpenHistoryDetailAsync();
         WorkRecords.SelectionChanged += (_, _) =>
             model.SelectWorkRecord(WorkRecords.SelectedItem as SessionWorkRow);
         InspectWork.Click += async (_, _) => await model.InspectWorkAsync();

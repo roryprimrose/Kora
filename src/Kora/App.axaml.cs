@@ -76,6 +76,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<IUserDocumentationProvider>(), viewModel,
                 Services.GetRequiredService<ILogger<DetailWindowController>>(),
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
+            detailWindow.BindHistoryAccess(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().CanInspect);
             documentationWindow = new DocumentationWindowController(
                 Services.GetRequiredService<IUserDocumentationProvider>(),
                 viewModel,
@@ -123,7 +124,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SessionsViewModel>>(),
-                Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>());
+                Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow);
             sessionsWindow.Bind();
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
@@ -131,6 +132,7 @@ public sealed partial class App : Avalonia.Application
             var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
+            sessionRetention.Revoking += detailWindow.RevokeSession;
             sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
             sessionRetention.Failed += viewModel.ReportHostInteractionFailure;
             sessionRetention.Start();

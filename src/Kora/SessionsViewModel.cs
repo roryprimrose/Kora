@@ -10,6 +10,7 @@ using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Presentation;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,9 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel(
     SessionWorkspaceService service, DurableEvidenceQuery evidence, ISessionWorkspaceAccess access,
-    ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null) : ObservableObject
+    ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
+    Func<AdmittedDetailContent, string>? openHistoryDetail = null,
+    Action<HostId<SessionIdentity>>? revokeHistoryDetails = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -31,6 +34,7 @@ internal sealed partial class SessionsViewModel(
     private HostTaskObservation? inspectedTask;
     private SessionDispositionPreview? dispositionPreview;
     private SessionHistoryPage? history;
+    private SessionHistoryEvent? selectedHistory;
     private string historySessionId = string.Empty;
     private string nameDraft = string.Empty;
     private string status = "Refresh to inspect exact sessions and passive history. The deterministic queue admits fixed local-version reads only; no model-assisted routing or general executor.";
@@ -134,23 +138,63 @@ internal sealed partial class SessionsViewModel(
     public string HistorySessionId
     {
         get => historySessionId;
-        set { historySessionId = value; history = null; OnPropertyChanged(); Notify(); }
+        set { historySessionId = value; history = null; selectedHistory = null; selectionEpoch++; OnPropertyChanged(); Notify(); }
     }
+    public IReadOnlyList<SessionHistoryEvent> HistoryRecords => history?.Records ?? [];
+    public SessionHistoryEvent? SelectedHistoryRecord => selectedHistory;
+    public bool CanOpenHistoryDetail => CanRead && openHistoryDetail is not null && selectedHistory is not null
+        && selectedHistory.SessionId == selected?.Authority.SessionId
+        && history?.SessionId == selected.Authority.SessionId;
+
+    public void SelectHistoryRecord(SessionHistoryEvent? record)
+    {
+        if (!CanRead || notifying || record is not null && !HistoryRecords.Contains(record)) { return; }
+        selectedHistory = record;
+        selectionEpoch++;
+        Notify();
+    }
+
+    public Task OpenHistoryDetailAsync() => RunAsync(async () =>
+    {
+        var subject = RequireSelected().Authority.SessionId;
+        var record = selectedHistory ?? throw new InvalidOperationException("Select an exact retained history receipt.");
+        if (record.SessionId != subject || history?.SessionId != subject)
+        {
+            throw new InvalidOperationException("History details require the exact selected session, not another history subject.");
+        }
+        var present = openHistoryDetail ?? throw new InvalidOperationException("The native history detail viewer is unavailable.");
+        var epoch = selectionEpoch;
+        var content = await service.ReadHistoryDetailAsync(subject, record.Id, lifetime.Token);
+        if (closed || !access.CanInspect || selectionEpoch != epoch || selected?.Authority.SessionId != subject
+            || selectedHistory?.Id != record.Id)
+        {
+            throw new OperationCanceledException("The selected history receipt or private presentation changed.");
+        }
+        status = present(content);
+    }, passive: true);
     public bool CanHistory => CanRead && Guid.TryParseExact(historySessionId, "D", out var id) && id != Guid.Empty;
     public bool CanNextHistory => CanHistory && history?.Next is not null;
 
     public Task ReadHistoryAsync(bool next = false) => RunAsync(async () =>
     {
-        if (!Guid.TryParseExact(historySessionId, "D", out var id) || id == Guid.Empty)
+        var subjectText = historySessionId;
+        if (!Guid.TryParseExact(subjectText, "D", out var id) || id == Guid.Empty)
         {
             throw new InvalidOperationException("Enter the exact immutable session ID, not a name.");
         }
-        history = await service.ReadHistoryAsync(new(id),
+        var epoch = selectionEpoch;
+        selectedHistory = null;
+        var page = await service.ReadHistoryAsync(new(id),
             next ? history?.Next ?? throw new InvalidOperationException("No next history page.") : null, 25, lifetime.Token);
+        if (closed || selectionEpoch != epoch || !string.Equals(historySessionId, subjectText, StringComparison.Ordinal))
+        {
+            throw new OperationCanceledException("The history subject or selected session changed.");
+        }
+        history = page;
         detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistoryPage.Scope) { History = history }));
         status = "Passive ordered history for exact ID " + id.ToString("D")
             + (history.Disposed ? ". Disposed: content redacted; immutable citations retained." : ". No session activity, reply, focus or voice target changed.");
-    });
+    }, passive: true);
     public bool CanRead => !busy && !closed && access.CanInspect;
     public bool CanNext => CanRead && sessions?.Next is not null;
     public bool CanNextQuestions => CanRead && questions?.Next is not null;
@@ -187,6 +231,7 @@ internal sealed partial class SessionsViewModel(
     {
         var preview = dispositionPreview ?? throw new InvalidOperationException("Preview the exact session first.");
         dispositionPreview = null;
+        revokeHistoryDetails?.Invoke(preview.Session.Authority.SessionId);
         var receipt = await service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi,
             () => !closed && access.CanControl, lifetime.Token);
         sessions = null;
@@ -354,6 +399,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (busy || closed || passive && refreshingWork) { return; }
         var subject = selected?.Authority.SessionId;
+        var epoch = selectionEpoch;
         var clearedPresentation = false;
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), viewer.SessionId,
             viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
@@ -368,13 +414,15 @@ internal sealed partial class SessionsViewModel(
         }
         catch (OperationCanceledException)
         {
-            if (!passive || closed || !access.CanInspect || !busy && selected?.Authority.SessionId == subject)
+            if (!passive || closed || !access.CanInspect
+                || !busy && selected?.Authority.SessionId == subject && selectionEpoch == epoch)
             {
                 sessions = null;
                 ClearSelection();
                 clearedPresentation = true;
                 status = "Cancelled or privacy closed; no late content or rollback of a possible committed lifecycle is claimed. Refresh durable state before retrying.";
             }
+            else { status = "Passive observation cancelled after selection changed; no late details opened. Retry the exact selected receipt."; }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -401,6 +449,8 @@ internal sealed partial class SessionsViewModel(
                 OnPropertyChanged(nameof(CanInspectTask));
                 OnPropertyChanged(nameof(CanCancelTask));
                 OnPropertyChanged(nameof(Status));
+                OnPropertyChanged(nameof(Detail));
+                NotifyHistory();
             }
             else { busy = false; Notify(); }
             if (closed && !busy && !refreshingWork) { lifetime.Dispose(); }
@@ -424,6 +474,7 @@ internal sealed partial class SessionsViewModel(
         tasks = null;
         evidencePage = null;
         history = null;
+        selectedHistory = null;
         detail = string.Empty;
         nameDraft = string.Empty;
     }
@@ -466,10 +517,24 @@ internal sealed partial class SessionsViewModel(
             OnPropertyChanged(nameof(CanNextEvidence));
             OnPropertyChanged(nameof(CanDone));
             OnPropertyChanged(nameof(CanResume));
+            NotifyHistory();
+        }
+        finally { notifying = false; }
+    }
+
+    private void NotifyHistory()
+    {
+        var previous = notifying;
+        notifying = true;
+        try
+        {
             OnPropertyChanged(nameof(HistorySessionId));
             OnPropertyChanged(nameof(CanHistory));
             OnPropertyChanged(nameof(CanNextHistory));
+            OnPropertyChanged(nameof(HistoryRecords));
+            OnPropertyChanged(nameof(SelectedHistoryRecord));
+            OnPropertyChanged(nameof(CanOpenHistoryDetail));
         }
-        finally { notifying = false; }
+        finally { notifying = previous; }
     }
 }

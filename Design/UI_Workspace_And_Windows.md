@@ -67,6 +67,18 @@ headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
 ### Delivered Passive Details Boundary
 
+The [selected-session receipt increment](Information_Display.md#delivered-immutable-selected-session-receipt-details---2026-10-09)
+now composes this same viewer with the Sessions history page. Select a listed
+receipt and explicitly open its immutable details; the exact history subject
+must match the selected session. Fresh resolution uses authoritative retained
+records only. The list shows sequence/kind/availability/exact event ID; native
+chrome and read-only source expose receipt provenance without replacing work,
+pending questions or their separately bound controls. Private copy retains
+explicit disclosure confirmation. Owned session details retire before native
+logical disposition and inventoried retention deletion. General artifact/
+response/script bodies remain unavailable, not substituted from volatile
+file/skill/lexical sources. No new rendering or persistence pipeline exists.
+
 Documentation now offers **Open details** for the explicitly selected embedded
 page. The separate native window is bound to one host-admitted immutable
 item/revision/digest, with trusted provenance and sensitivity outside its
@@ -84,11 +96,12 @@ presentation; it never delegates to response Dismiss, task cancellation,
 session Done/delete or approval. Reading/search/copy do not call meaningful
 session-activity notification.
 
-The useful production entry is **Documentation > Open details**, not compact
-response History. Its process-local page identity must not be portrayed as a
+Production entries are **Documentation > Open details** and the exact
+selected-session history receipt route above, not compact response History.
+The documentation page's process-local identity must not be portrayed as a
 durable conversation. The typed finalized-response handoff exists, but its
 durable resolver, native response dispatch, shared question/offer targeting and
-Sessions workspace remain separately owned and uncomposed. Rich clipboard,
+general artifact integration remain separately owned and uncomposed. Rich clipboard,
 HTML, diagrams, source/diff language highlighting and export are not delivered.
 Native visual/accessibility/DPI/multimonitor observations remain pending
 separate approval.

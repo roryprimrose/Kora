@@ -10,6 +10,42 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered Immutable Selected-Session Receipt Details - 2026-10-09
+
+**Open immutable receipt details** reuses the bounded native-text-v1 viewer
+for an exact persisted host history event from the selected session's bounded
+history page. There is no authoritative persisted artifact-body source; this
+surface truthfully displays the existing complete typed receipt as inert plain
+text, not reconstructed model output, file/skill content or an artifact body.
+The Application resolver freshly reads the exact session/event under unchanged
+private ownership admission; missing/foreign/corrupt/cancelled/over-budget or
+changed-admission results are explicit failures. Availability, baseline/gap,
+generation, source/provenance/audit metadata are not elevated into authority.
+
+Event ID/sequence supplies the immutable reference. Native chrome includes its
+retained session and source digest. Reopening activates the exact existing
+viewer; conflicting content is never substituted. Private copy requires the
+existing explicit disclosure confirmation and fresh ownership/privacy gate;
+native search/source/close reuse the same passive services. The source remains
+bounded to the existing complete 64 KiB history-result limit.
+
+Reads do not disable focused history controls or change selected work/pending
+questions, activity, priority, lifecycle, approval, execution or voice targets.
+An explicit details open may activate its owned viewer, never a work session.
+Native logical disposition retires owned viewers before its transaction;
+automatic retention revokes them before inventoried deletion. Privacy closure
+clears content/selection/search and stale copy targets. A later exact read
+returns only actually retained redacted receipts after logical disposition.
+Inventoried retention purges old event IDs (explicit unavailable), retaining
+only a content-free redacted gap/tombstone. Restart performs no replay.
+
+The delivered lexical file citation surface, volatile file/clipboard previews,
+skill review, queue/status and diagnostic evidence are reused separately, not
+duplicated or persisted here. Artifact bodies, general finalized-response/
+script/diff routing, conversation composer, history search/model reasoning,
+Ask Evidence, broad export and installed accessibility/DPI acceptance remain
+gated. See [the roadmap/evidence assessment](Implementation_Roadmap.md#r14-immutable-selected-session-receipt-details---2026-10-09).
+
 ## Delivered Bounded Passive Session History - 2026-10-09
 
 The [coordinated work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)

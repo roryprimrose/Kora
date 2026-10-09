@@ -126,6 +126,13 @@ filter/page/citation display, without copying, export, execution or approval
 controls. [Privacy, limits and source distinctions](privacy-safety-and-logs.md#committed-authority-audit-inspection)
 describe its snapshot and recovery behavior.
 
+Expand **Advanced filters (optional)** for exact request/invocation/approval/
+audit-correlation IDs, inclusive ISO times with `Z` or explicit offset,
+diagnostic severity and typed audit outcome. **Clear advanced filters** unsets
+them without reading. Any filter edit retires results/selection/Next and
+requires a fresh search. [Formats, source support and time semantics](privacy-safety-and-logs.md#logs)
+are enforced without broadening authority, copying or export.
+
 Kora keeps a notification-area icon while running.
 Windows may initially place it under **Show hidden icons**. You can drag or pin
 the Kora icon into the always-visible notification area using normal Windows

@@ -15,6 +15,7 @@ internal sealed partial class EvidenceWindow : Window
         DataContext = model;
         Search.Click += async (_, _) => await model.SearchAsync();
         Next.Click += async (_, _) => await model.NextAsync();
+        ClearAdvanced.Click += (_, _) => model.ClearAdvancedFilters();
         Trace.Click += async (_, _) => await model.ReadTraceAsync();
         OpenSegment.Click += async (_, _) =>
         {

@@ -38,6 +38,27 @@ Unsaved/default/reset is **LocalOnly**. Only a session's first policy-bound turn
 
 Original user intent, current owning unlocked host, active control session/generation, unchanged choice/call/preference revisions, required audit, atomic readback and completed control receipt precede confirmation. Protected/Unknown original voice writes refuse. Corrupt or unconfirmed storage never becomes a default; inspect saved state and receipts, explicitly repair, then refresh ([workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs), [storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs)).
 
+## Create and manage reviewed session memories
+
+Native **Sessions > Session memories** and exact typed/current-name activated commands share the [original-user workflow](../src/Kora.Application/Memory/MemoryManagementService.cs). Select an exact active session, choose an allowed classification, enter the exact value, then choose **New session memory from draft**. No existing memory ID is required; Kora issues the identity, lineage and initial revision.
+
+| Exact syntax | Result |
+|---|---|
+| `memory help` / `list memories` | Discover exact syntax; no inventory or body |
+| `memory propose <session-id> <class> "<exact value>"` | Create only a volatile Proposed/Pending user candidate |
+| `memory list <session-id>` | Content-free identity/revision/scope/review/retention/creation metadata |
+| `memory inspect/get <session-id> <memory-id> <revision>` | Explicit exact body, classification and lineage inspection |
+| `memory review <session-id> <memory-id> <revision> accept|reject` | Review the same inspected revision; accept does not admit |
+| `memory admit <session-id> <memory-id> <revision>` | Separately admit only the exact Reviewed/Pending revision |
+| `memory edit/set <session-id> <memory-id> <revision> <class> "<exact value>"` | Replace, clear review and redact earlier durable body; new inspect/review/admit required |
+| `memory disable/forget <session-id> <memory-id> <revision>` | Disable use, or forget content while retaining a non-reusable tombstone |
+
+Use canonical nonempty D GUIDs and displayed positive revisions. Classes are `ExplicitFact`, `ResponsePreference`, `WorkflowPreference`, or `Decision`; classification is not secrecy detection. Values are bounded to 512 UTF-16 code units, 1,024 strict UTF-8 bytes and 2,048 serialized candidate bytes. Double a quote inside the final quoted value. No normalization, truncation or eviction occurs.
+
+After creation, list/select the metadata row, **Inspect exact memory**, explicitly accept/reject its exact content/classification, then separately **Admit reviewed revision**. Proposals and reviewed unadmitted bodies remain volatile; no body reaches disk before admission. The 128-identity bound includes durable shells/tombstones and current volatile proposals. Drafts and unadmitted bodies clear on native closure, session/ownership/privacy changes or restart.
+
+These controls are visual-only; values are not speech, transcript/history, preferences, diagnostics or provider context. There is no model-origin/conversational **Remember this** trigger, automatic review/admit/use/recall, context attachment, hosted transmission or broader memory scope. Stale/foreign/missing original intent and changed admission refuse; inspect durable state after a receipt failure rather than assuming rollback or retrying automatically.
+
 ## Trusted local events
 
 An already-open **Sessions** selected work surface shows bounded trusted

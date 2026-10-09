@@ -181,7 +181,7 @@ public sealed partial class MemoryAdmissionServiceTests
     private static Task<MemoryCommandResult> Run(MemoryManagementService service, Fixture fixture,
         MemoryCommandOperation operation, MemorySummary? row = null, MemoryCandidate? candidate = null) =>
         service.ExecuteAsync(new(operation, fixture.Session.SessionId.Value, row?.Id, row?.Revision ?? 0,
-            Accept: true, Candidate: candidate), RequestOrigin.LocalUi, () => true, Token);
+            Accept: operation == MemoryCommandOperation.Review, Candidate: candidate), RequestOrigin.LocalUi, () => true, Token);
 
     private sealed partial class Fixture : IHostTaskStore
     {

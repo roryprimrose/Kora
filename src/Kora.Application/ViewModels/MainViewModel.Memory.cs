@@ -14,12 +14,22 @@ public sealed partial class MainViewModel
     internal void BindMemoryCommands(MemoryManagementService service)
     {
         memoryCommands = service;
-        PrivacyClosureRequested += (_, _) => service.ClearInspection();
+        PrivacyClosureRequested += (_, _) =>
+        {
+            service.ClearVolatile();
+            ClearMemoryCommandDraft();
+        };
+    }
+
+    private void ClearMemoryCommandDraft()
+    {
+        if (MemoryCommand.Parse(CommandText, AssistantName) is not null) { CommandText = string.Empty; }
     }
 
     internal async Task ExecuteMemoryCommandAsync(MemoryCommand command, SecurityAuditInitiator initiator)
     {
         if (disposed) { return; }
+        ClearMemoryCommandDraft();
         if (command.Operation == MemoryCommandOperation.Invalid)
         {
             ShowInformation("Memory command not accepted.", command.Error!);

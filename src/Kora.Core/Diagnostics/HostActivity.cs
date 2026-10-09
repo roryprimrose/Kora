@@ -117,6 +117,9 @@ public sealed class HostActivity : IDisposable
         Ambient.Value is { disposed: false, Activity: not null } current
         && ReferenceEquals(System.Diagnostics.Activity.Current, current.Activity) ? current : null;
 
+    /// <summary>Indicates an undisposed host scope, even if its activity stopped or was replaced; not authority.</summary>
+    public static bool HasScope => Ambient.Value is { disposed: false };
+
     public void Complete(HostOperationOutcome outcome)
     {
         ObjectDisposedException.ThrowIf(disposed, this);

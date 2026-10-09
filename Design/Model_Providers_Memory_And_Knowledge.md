@@ -156,7 +156,21 @@ The [command-level transition matrix and mutation-boundary tests](../tests/Kora.
 [SQLite surface tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Management.cs) exercise the authoritative round-trip, redaction/tombstones and corrupt saved state without cached fallback.
 
 Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing **Remember this**/proposal triggers remain separate, undelivered workstreams.
-This surface deliberately has no create/propose route: it manages records produced by the already-delivered admission workflow, without converting arbitrary conversation or a model response into a memory.
+The original 2026-10-09 surface had no create/propose route. The bounded original-user extension below supersedes that gap only; arbitrary conversation and model responses still cannot trigger creation.
+
+### Delivered Original-User Session Memory Proposals - 2026-10-10
+
+Native **Sessions > Session memories > New session memory from draft** and exact `memory propose <session-id> <class> "<exact value>"` typed/activated input reuse the [same management workflow](../src/Kora.Application/Memory/MemoryManagementService.cs) and authoritative admission policy. No existing memory ID is supplied. The host issues identity, initial revision and exact request/session/source lineage.
+
+Creation returns only content-free metadata for a volatile Proposed/Pending candidate. No automatic inspection, review, admission, use, recall, context attachment or provider transmission follows. The existing list → exact inspect → explicit accept/reject → separate admit sequence remains required. Only Session scope and the four allowed classes are exposed; an original-user class label is not secrecy detection.
+
+The unchanged [domain bounds](../src/Kora.Core/Memory/MemoryPolicy.cs) reject invalid/control/ill-formed/oversized text: 512 UTF-16 code units, 1,024 strict UTF-8 value bytes and 2,048 serialized candidate bytes, without normalization/truncation. Capacity counts all durable identities, including shells/tombstones in other sessions, plus current unpersisted identities; 128 is a denial, never implicit eviction.
+
+Original intent, live host context, exact active session/generation, private owner/control revision, storage and required typed audit remain authority. Stopped/replaced/completed/model callbacks cannot mint fresh user authority. Late proposal callbacks re-resolve the boundary before volatile publication. Native closure/selection changes, privacy/control changes, lifecycle and restart discard unadmitted bodies; durable edits/disable/forget and managed-copy semantics are unchanged.
+
+[Application proposal tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.Proposals.cs), [typed/activated visual-only routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MemoryProposals.cs), [private SQLite native/exact usability and discard tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Proposals.cs) and [native binding contract](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.cs) are maintained evidence for this slice only.
+
+No live database/device/model proof or installed trial is claimed. Full R12/D-014/release acceptance, cross-session/global/profile/project/source memories and all provider-memory consumers remain open.
 
 ### Delivered Reviewed Memory Admission - 2026-10-09
 

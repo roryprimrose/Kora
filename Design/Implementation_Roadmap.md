@@ -20,6 +20,18 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R12/D-014 Bounded Original-User Session Memory Proposals - 2026-10-10
+
+The [original-user proposal increment](Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10) adds native **New session memory from draft** and exact typed/activated `memory propose` input to the same admission workflow used by delivered management. Host-issued identity/lineage/revision needs no existing memory. Creation is only volatile Proposed/Pending metadata.
+
+Exact inspect → explicit review → separate admission remains required. Domain text limits, 128 durable/volatile identity capacity including shells/tombstones, fresh exact original intent, private session/generation/owner/control admission, cancellation, audit/storage failure and late callback fences remain authoritative. Closure/privacy/session changes and restart discard drafts/unadmitted bodies. No speech/history/log/provider content is added.
+
+Maintained evidence: [Core grammar/domain boundaries](../tests/Kora.Core.UnitTests/Commands/MemoryCommandTests.cs), [Application hostile/revoked/failure/capacity tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.Proposals.cs), [private SQLite native/exact create-to-inspect/review/admit and discard tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Proposals.cs), and [static native binding contract](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.cs).
+
+Experiment assessment: no experiment assertion is exactly superseded by this model-free volatile proposal/UI addition. Retain all [storage proof](../experiments/r02-storage-proof/README.md#proof-code-lifecycle) crypto/copy/native/recovery assertions and receipts, plus [runtime](../experiments/r02-runtime-proof/README.md) and [local-inference](../experiments/r02-local-inference-proof/README.md) mediation/provider/quality/resource evidence. No executable or consumer is removed or rerun.
+
+Existing RT1 witness, management input-validation and synthetic runtime-extraction consumers remain unchanged. No eng proof-tool changes, hardware/provider trials, full R12/D-014 qualification or release acceptance are claimed. Validation and merge receipts are recorded below after final execution.
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

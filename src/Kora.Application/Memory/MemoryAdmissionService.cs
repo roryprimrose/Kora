@@ -15,6 +15,7 @@ internal sealed partial class MemoryAdmissionService(
     TimeProvider time, IMemoryStore? storage = null) : IDisposable
 {
     private readonly Dictionary<HostId<MemoryIdentity>, MemoryRecord> records = [];
+    private readonly HashSet<HostId<MemoryIdentity>> volatileIdentities = [];
     private readonly HashSet<HostId<SessionIdentity>> expiredSessions = [];
     private readonly Lock stateGate = new();
     private long lifecycleRevision;
@@ -213,17 +214,33 @@ internal sealed partial class MemoryAdmissionService(
                 var replacement = updated is not null && (persisted is not null || updated.Review == MemoryReviewState.Admitted)
                     ? DurableProjection(updated) : null;
                 proposedResult = value;
-                return new(value, persisted, replacement, operation == MemoryOperation.Admit ? original : null);
+                return new(value, persisted, replacement, operation == MemoryOperation.Admit ? original : null)
+                { VolatileIdentityCount = volatileIdentities.Count };
             }
         }, Admitted, token).ConfigureAwait(false);
         if (result != proposedResult) { CompleteAudit(requested, result, continuation); }
+        if (operation == MemoryOperation.Propose && result.Outcome == MemoryOutcome.Succeeded)
+        {
+            // A volatile proposal has no durable body to recover after a late lifecycle change.
+            await scopes.ResolveAsync(issuer.Request, token).ConfigureAwait(false);
+        }
         lock (stateGate)
         {
+            if (operation == MemoryOperation.Propose && result.Outcome == MemoryOutcome.Succeeded
+                && (token.IsCancellationRequested || !Admitted()))
+            {
+                result = token.IsCancellationRequested
+                    ? new(MemoryOutcome.Cancelled, MemoryReason.CallerCancelled)
+                    : new(MemoryOutcome.Denied, MemoryReason.AuthorityClosed);
+                CompleteAudit(requested, result, continuation);
+            }
             if (result.Outcome == MemoryOutcome.Succeeded && updated is not null
                 && lifecycle == lifecycleRevision && !disposed
                 && (id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), original)))
             {
                 records[updated.Id] = updated;
+                if (operation == MemoryOperation.Propose) { volatileIdentities.Add(updated.Id); }
+                if (operation == MemoryOperation.Admit) { volatileIdentities.Remove(updated.Id); }
             }
         }
         activity.Complete(ToActivityOutcome(result.Outcome));
@@ -346,6 +363,7 @@ internal sealed partial class MemoryAdmissionService(
             disposed = true;
             lifecycleRevision++;
             records.Clear();
+            volatileIdentities.Clear();
         }
         GC.SuppressFinalize(this);
     }

@@ -163,7 +163,7 @@
         <TabItem Header="Session memories">
           <ScrollViewer>
             <StackPanel Spacing="8">
-              <TextBlock Text="Active selected session only. List contains metadata, not values. Inspect exact content and classification before review; admission is a separate action. No Remember trigger, model tool, recall or hosted disclosure."
+              <TextBlock Text="Active selected session only. New user proposals stay volatile until separate admission. Classification is not secrecy detection. List contains metadata, not values. Inspect exact content and classification before review. No conversational Remember trigger, model tool, recall or hosted disclosure."
                          TextWrapping="Wrap" />
               <Button x:Name="ListMemories" Content="_List selected session memories" IsEnabled="{Binding CanReadMemories}"
                       AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
@@ -198,9 +198,11 @@
               <controls:NamedTextBlock Text="{Binding MemoryDetail}" TextWrapping="Wrap"
                                        AutomationProperties.Name="Explicitly inspected exact memory content, classification, lineage and review receipt or content-free mutation outcome" />
               <ComboBox ItemsSource="{Binding MemoryClasses}" SelectedItem="{Binding MemoryClass, Mode=TwoWay}"
-                        IsEnabled="{Binding CanEditMemory}" AutomationProperties.Name="Replacement memory content classification; not sensitivity proof" />
-              <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanEditMemory}"
-                       AutomationProperties.Name="Exact replacement value; no truncation or normalization; 512 UTF-16 code units, 1024 UTF-8 value bytes, 2048 serialized candidate bytes" />
+                        IsEnabled="{Binding CanProposeMemory}" AutomationProperties.Name="User proposal or replacement classification; not sensitivity proof" />
+              <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanProposeMemory}"
+                       AutomationProperties.Name="Exact user proposal or replacement value; no truncation or normalization; 512 UTF-16 code units, 1024 UTF-8 value bytes, 2048 serialized candidate bytes" />
+              <Button x:Name="ProposeMemory" Content="_New session memory from draft" IsEnabled="{Binding CanProposeMemory}"
+                      AutomationProperties.Name="Create only a volatile Proposed Pending user candidate in the exact active selected session; no review, admission, recall or transmission" />
               <Button x:Name="EditMemory" Content="Replace exact revision; return to Proposed/Pending" IsEnabled="{Binding CanEditMemory}"
                       AutomationProperties.Name="Edit clears earlier review and use; replacement stays volatile until new inspect, review and admission" />
             </StackPanel>

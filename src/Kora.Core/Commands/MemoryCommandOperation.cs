@@ -1,6 +1,6 @@
 namespace Kora.Core.Commands;
 
-/// <summary>Exact original-user memory management operations; no proposal or model-use route.</summary>
+/// <summary>Exact original-user session memory operations; no model-use route.</summary>
 public enum MemoryCommandOperation
 {
     /// <summary>Reserved memory grammar that failed validation.</summary>
@@ -9,6 +9,8 @@ public enum MemoryCommandOperation
     Help,
     /// <summary>Lists content-free metadata for one exact active session.</summary>
     List,
+    /// <summary>Creates a volatile user proposal without an existing memory identity or review.</summary>
+    Propose,
     /// <summary>Inspects the exact current value, classification and lineage.</summary>
     Inspect,
     /// <summary>Accepts or rejects a previously inspected proposed revision.</summary>

@@ -148,13 +148,15 @@ public sealed partial class SessionWorkspaceService(
         // A callback cannot relabel its existing host/model context as a new local user action.
         if (HostActivity.Current is { } current) { origin = current.Request.Origin; }
         return ControlAsync(session, origin, operation, token, admission, existingSubject: true,
+            resolveTerminalReceipt: true,
             terminalState: result => result.Outcome is "observed" or "Succeeded" ? HostTaskState.Succeeded : HostTaskState.Denied);
     }
 
     private async Task<T> ControlAsync<T>(HostId<SessionIdentity> session, RequestOrigin origin,
         Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token,
         Func<bool>? additionalAdmission = null, bool inspection = false, bool existingSubject = false,
-        bool terminalCommitted = false, Func<T, HostTaskState>? terminalState = null)
+        bool terminalCommitted = false, Func<T, HostTaskState>? terminalState = null,
+        bool resolveTerminalReceipt = false)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
@@ -183,6 +185,25 @@ public sealed partial class SessionWorkspaceService(
                 throw new InvalidOperationException("Session control denied by privacy, call or ownership admission.");
             }
             var intent = await store.RecordControlIntentAsync(request, token).ConfigureAwait(false);
+            async Task RecordTerminalAsync(HostTaskState state)
+            {
+                if (resolveTerminalReceipt)
+                {
+                    var observed = await store.ReadTaskAsync(request.SessionId, request.TaskId, CancellationToken.None).ConfigureAwait(false);
+                    var current = observed?.Task
+                        ?? throw new InvalidDataException("The memory control intent could not be resolved.");
+                    if (current != intent)
+                    {
+                        if (current.Request != request || !current.IsTerminal || current != intent.Next(current.State))
+                        {
+                            throw new InvalidDataException("The authoritative memory control receipt conflicts with its exact intent.");
+                        }
+                        // Memory and its successful terminal receipt share one durable transaction.
+                        return;
+                    }
+                }
+                await tasks.RecordOutcomeAsync(intent, state, CancellationToken.None).ConfigureAwait(false);
+            }
             T result;
             try
             {
@@ -190,14 +211,14 @@ public sealed partial class SessionWorkspaceService(
             }
             catch (InvalidOperationException)
             {
-                await tasks.RecordOutcomeAsync(intent, HostTaskState.Denied, CancellationToken.None).ConfigureAwait(false);
+                await RecordTerminalAsync(HostTaskState.Denied).ConfigureAwait(false);
                 throw;
             }
             // The authoritative lifecycle/audit transaction already committed. A receipt failure
             // must remain visible; it cannot be described as a rollback or replayed automatically.
             if (!terminalCommitted)
             {
-                await tasks.RecordOutcomeAsync(intent, terminalState?.Invoke(result) ?? HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
+                await RecordTerminalAsync(terminalState?.Invoke(result) ?? HostTaskState.Succeeded).ConfigureAwait(false);
             }
             activity.Complete(HostOperationOutcome.Completed);
             return result;

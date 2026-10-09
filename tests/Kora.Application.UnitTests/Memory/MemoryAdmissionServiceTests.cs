@@ -79,8 +79,8 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         (await fixture.Service.ProposeAsync(Candidate, null, MemoryProposalOrigin.User, Token)).Reason
             .Should().Be(MemoryReason.ScopeMismatch);
         fixture.OnStoreTransition = () => fixture.Session = fixture.Session with { IsActive = false };
-        (await fixture.Service.UseAsync(admitted.Id, new(admitted.Revision.Value + 1), MemoryDestination.Local, Token))
-            .Reason.Should().Be(MemoryReason.NotEnabled);
+        var use = () => fixture.Service.UseAsync(admitted.Id, new(admitted.Revision.Value + 1), MemoryDestination.Local, Token);
+        await use.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -700,9 +700,21 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
             OnStoreCommit?.Invoke();
             token.ThrowIfCancellationRequested();
             if (!admitted()) { throw new InvalidOperationException("Memory admission closed at commit."); }
+            if (Session.SessionId != request.SessionId || !Session.IsActive || Session.Generation != boundary.Generation
+                || Boundary != boundary)
+            {
+                throw new InvalidOperationException("The authoritative session memory boundary changed.");
+            }
             if (FailStoreCommit) { throw new IOException("Injected atomic commit failure."); }
             if (StoreResult is { } overrideResult) { return ValueTask.FromResult(overrideResult); }
-            if (commit.Replacement is { } replacement) { Stored[replacement.Id] = replacement; }
+            if (commit.Replacement is { } replacement)
+            {
+                Stored[replacement.Id] = replacement;
+                if (MemoryControlEnabled)
+                {
+                    ControlOutcomes.Add(ControlIntents.Single(row => row.Request == request).Next(HostTaskState.Succeeded));
+                }
+            }
             OnAfterStoreCommit?.Invoke();
             return ValueTask.FromResult(commit.Result);
         }
@@ -773,7 +785,14 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token)
+        {
+            if (!MemoryControlEnabled) { throw new NotSupportedException(); }
+            var record = ControlOutcomes.LastOrDefault(row => row.Request.TaskId == task)
+                ?? ControlIntents.LastOrDefault(row => row.Request.TaskId == task);
+            return ValueTask.FromResult(record is null ? null
+                : new HostTaskObservation(record, Session.Generation, "memory-management-test", true, null));
+        }
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target, Func<bool> eligible, CancellationToken token) => Write<HostTaskObservation>();
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> eligible, CancellationToken token) => Write<SessionWorkspaceEntry>();
         public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision generation, long revision, SessionName name, Func<bool> eligible, CancellationToken token) => Write<SessionWorkspaceEntry>();

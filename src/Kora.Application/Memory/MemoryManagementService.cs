@@ -47,12 +47,12 @@ internal sealed class MemoryManagementService : IAsyncDisposable
             foreach (var id in inspections.Where(pair => pair.Value.Record.Scope.Identity == session.Value)
                 .Select(pair => pair.Key).ToArray()) { inspections.Remove(id); }
         }
+    }
 
-        private void ClearSession(HostId<SessionIdentity> session)
-        {
-            Admission.ClearSessionCache(session);
-            ClearInspection();
-        }
+    private void ClearSession(HostId<SessionIdentity> session)
+    {
+        Admission.ClearSessionCache(session);
+        ClearInspection();
     }
 
     internal async Task<MemoryCommandResult> ExecuteAsync(MemoryCommand command, RequestOrigin origin,
@@ -60,7 +60,14 @@ internal sealed class MemoryManagementService : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(admission);
-        if (Kora.Core.Diagnostics.HostActivity.Current is { } current) { origin = current.Request.Origin; }
+        if (Kora.Core.Diagnostics.HostActivity.Current is { } current)
+        {
+            if (current.Activity!.IsStopped || current.Outcome != Kora.Core.Diagnostics.HostOperationOutcome.Unknown)
+            {
+                throw new InvalidOperationException("Memory management requires live original local user input.");
+            }
+            origin = current.Request.Origin;
+        }
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
             throw new InvalidOperationException("Memory management requires fresh original local user input.");
@@ -138,7 +145,7 @@ internal sealed class MemoryManagementService : IAsyncDisposable
                 }
                 token.ThrowIfCancellationRequested();
                 if (!eligible()) { throw new InvalidOperationException("Memory management admission changed before presentation. Inspect durable state before retrying; no rollback is claimed."); }
-                _ = MemoryCommandResult.Serialize(result);
+                MemoryCommandResult.Serialize(result);
                 return result;
             }, token).ConfigureAwait(false);
         }

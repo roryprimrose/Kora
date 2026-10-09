@@ -98,6 +98,11 @@ public sealed partial class MainViewModel
     private async Task RefreshPreviewAsync(HostRequest original, ActivityContext cause,
         Func<Func<bool>, Task<LocalFileOutcome>> refresh)
     {
+        if (HostActivity.HasScope && HostActivity.Current is null)
+        {
+            PresentFileOutcome(LocalFileOutcome.Stale);
+            return;
+        }
         var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
         var callRevision = CallPolicyRevision;
         var voiceRevision = Volatile.Read(ref voiceRecoveryRevision);

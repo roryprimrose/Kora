@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AwesomeAssertions;
 using Kora.Core.Context;
 using Kora.Core.Diagnostics;
@@ -182,5 +183,41 @@ public sealed partial class MainViewModelTests
         public Task<ILocalFolderSelection> InspectFolderAsync(string selectedPath, CancellationToken cancellationToken) =>
             ++inspections == 1 ? original.InspectFolderAsync(selectedPath, cancellationToken)
                 : Task.FromException<ILocalFolderSelection>(new IOException("Synthetic source missing."));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ExpiredOrReplacedHostActivityNeverBecomesFabricatedNativeRefreshAuthority(bool folder, bool replace)
+    {
+        var fixture = new Fixture();
+        var files = new FakeFileInspector();
+        var folders = new FolderInspector();
+        using var preview = new LocalFilePreview(folder ? folders : files, fixture.Audit, TimeProvider.System,
+            NullLogger<LocalFilePreview>.Instance);
+        fixture.ViewModel.BindFilePreview(preview, new FakeFilePicker(), folders: new NativeFolderPicker(), refresh: new(preview));
+        if (folder) { await fixture.ViewModel.PreviewFolderAsync(); }
+        else { await fixture.ViewModel.PreviewFileAsync(); }
+        await fixture.ViewModel.ConfirmFilePreviewAsync(fixture.ViewModel.FileReview?.ReviewId ?? fixture.ViewModel.FolderReview!.ReviewId);
+        var file = fixture.ViewModel.FileRevision;
+        var source = fixture.ViewModel.FolderRevision;
+        using (var scope = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request))
+        {
+            using var incoming = replace ? new Activity("untrusted-incoming").Start() : null;
+            if (!replace) { scope.Activity!.Stop(); }
+            HostActivity.Current.Should().BeNull();
+            if (folder) { await fixture.ViewModel.RefreshFolderPreviewAsync(source!.Reference); }
+            else { await fixture.ViewModel.RefreshFilePreviewAsync(file!.Reference); }
+            fixture.ViewModel.ResponseTitle.Should().Contain("Stale");
+        }
+        files.Reads.Should().Be(folder ? 0 : 1);
+        folders.Reads.Should().Be(folder ? 2 : 0);
+        fixture.ViewModel.FileRevision.Should().BeSameAs(file);
+        fixture.ViewModel.FolderRevision.Should().BeSameAs(source);
+        fixture.ViewModel.FileReview.Should().BeNull();
+        fixture.ViewModel.FolderReview.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
     }
 }

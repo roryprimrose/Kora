@@ -120,6 +120,14 @@ record post-rebase validation, not runtime guarantees.
 See the [measured summary](MEASUREMENTS.md).
 Re-run after changing the native package or platform.
 
+The [2026-10-09 unattended rerun](MEASUREMENTS.md#unattended-rerun---2026-10-09)
+adds separate [assertion/measurement](evidence/unattended-20261009-run.json)
+and [native-publication](evidence/unattended-20261009-native-assets.json)
+receipts from clean baseline `e0692f4`. It passed the existing automated scope
+without executable or dependency changes. Historical receipts remain untouched;
+the rerun does not reopen the superseded encrypted-production selection or
+qualify reference hardware.
+
 The runner is deliberately a small console assertion harness, not a new
 production test-runner dependency. Any unexpected exception fails visibly.
 It logs reason categories and exception type/stack, not record payloads,

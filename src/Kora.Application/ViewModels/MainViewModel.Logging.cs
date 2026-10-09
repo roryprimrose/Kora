@@ -9,4 +9,7 @@ public sealed partial class MainViewModel
 
     [LoggerMessage(116, LogLevel.Warning, "Exact local event command unavailable; exception type {ExceptionType}.")]
     private static partial void LocalEventCommandFailed(ILogger logger, string exceptionType);
+
+    [LoggerMessage(117, LogLevel.Warning, "Original-user memory command unavailable; exception type {ExceptionType}.")]
+    private static partial void MemoryCommandFailed(ILogger logger, string exceptionType);
 }

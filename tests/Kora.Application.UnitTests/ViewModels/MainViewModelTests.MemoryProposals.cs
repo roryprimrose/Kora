@@ -1,11 +1,31 @@
 using AwesomeAssertions;
-using Kora.Core.Memory;
 using Kora.Core.Platform;
+using Kora.Application.ViewModels;
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task StorageExceptionsCannotLeakUserProposalValuesIntoDiagnosticMessagesOrExceptionPayloads()
+    {
+        var log = new MemoryPrivacyLogger();
+        var fixture = new Fixture(logger: log);
+        await fixture.ViewModel.InitializeAsync();
+        var (store, service) = BindMemories(fixture);
+        await using var owned = service;
+        const string value = "private candidate included by a failing storage boundary";
+        store.BeforeMemoryRead = () => throw new IOException(value);
+        await fixture.RunAsync("memory propose " + store.Session.Authority.SessionId.Value.ToString("D")
+            + " Decision \"" + value + "\"");
+        fixture.ViewModel.ResponseTitle.Should().Be("Memory command not confirmed.");
+        log.Messages.Should().NotContain(message => message.Contains(value, StringComparison.Ordinal));
+        log.Events.Should().Contain("MemoryCommandFailed");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.ViewModel.CommandText.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task ExactTypedAndActivatedUserProposalsAreVisualMetadataOnlyAndPrivacyClosureDiscardsThem()
     {
@@ -35,5 +55,19 @@ public sealed partial class MainViewModelTests
             store.Session.Authority.SessionId.Value), Kora.Core.Hosting.RequestOrigin.LocalUi, () => true, CancellationToken.None);
         listed.Memories.Should().BeEmpty();
         listed.Inspected.Should().BeNull();
+    }
+
+    private sealed class MemoryPrivacyLogger : ILogger<MainViewModel>
+    {
+        internal List<string> Messages { get; } = [];
+        internal List<string?> Events { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception) + exception?.ToString());
+            Events.Add(eventId.Name);
+        }
     }
 }

@@ -20,6 +20,55 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### D-014 Reviewed User-Memory Admission Increment - 2026-10-09
+
+The first dependency-safe memory package delivers the
+[reviewed admission contract](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09):
+portable strong identities and exact typed scopes; request/profile/session/source
+lineage; bounded value/serialized-candidate policy; explicit prohibited classes;
+host-owned propose/review/admit/edit/disable/forget and eligibility-before-use.
+Review receipts bind the exact revision and current boundary. Edits clear review
+and use; disable cannot silently re-enable; forgetting clears candidate/receipt
+and leaves a non-reusable volatile tombstone. Unknown scope, ownership, privacy,
+lineage, session and hosted/unknown disclosure remain closed.
+
+Application reuses host-resolved Activity, current-host/control/privacy access,
+authoritative session metadata and trusted typed audit. Its narrow internal
+profile/source observation seam has no production/native implementation yet.
+Concurrent revision conflicts, cancellation, lifecycle/audit callbacks and late
+authoritative reads cannot publish stale state. Session retirement conceptually
+clears session content; disposal clears the bounded workspace. Exact local-use
+IDs/provenance are receipts, never persistence, prompt or hosted authority.
+
+This package does **not** compose memory into the desktop/model host or overlap
+R14 immutable artifact/detail UI work. No Windows API, schema/storage adapter,
+dependency, native CRUD surface, provider, ranking, prompt, handoff, ingestion
+or embedding is added. R10/R12/R14 durable memory remains dependent/open:
+authoritative storage/audit transaction and native authority fences,
+restart/migration/lifecycle inventory/copy deletion, fresh original-user control
+intent, list/review/edit/disable/forget visibility, and request-use provenance.
+Retrieval eligibility is delivered; retrieval selection/ranking is not.
+
+Retain all experiments. Maintained deterministic tests cover this domain and
+application admission contract, not actual SQLite atomicity/recovery/disposal,
+SDK-native memory/session I/O, RT1 final-request serialization, RT2 all-path
+egress/quiescence or local model quality/offline/reference-floor evidence.
+None of their unique executable assertions or historical receipts is wholly
+superseded, and no experimental production code is modified.
+
+Local validation against merged main `02ecc68` (#121): locked root restore
+through the machine-local Networking-AAA Azure Artifacts source; Release root
+build with zero warnings/errors; Core **1,151**, Application **3,087**, Tools
+**69**, Definitions **6** and Windows integration **1,220** pass, with no
+failures/skips (**5,533 total**). Latest-only reports from matching current
+binaries cover **16,447/16,447 portable lines** and **9,803/9,803 branches**,
+exactly **100%/100%**, without new exclusions, threshold changes or analyzer
+suppressions. Focused tests cover hostile proposals, prohibited classes, exact
+limits, revision conflicts, scope/owner/privacy closure, review/edit/disable/
+forget, session retirement, cancellation/late/reentrant audit callbacks,
+correlation and no implicit persistence/use/hosted disclosure.
+This is not native CRUD, durable deletion or provider qualification evidence.
+
 ### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
 
 The first D-014 implementation package delivers the

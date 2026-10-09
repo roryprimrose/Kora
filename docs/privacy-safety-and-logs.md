@@ -1,5 +1,31 @@
 # Privacy, safety, and logs
 
+## Reviewed memory foundation (not enabled in the desktop)
+
+Kora has a provider-independent reviewed memory domain and internal host
+workflow, not a working durable-memory feature. There is currently no memory
+store, native review/list/edit UI, cross-session recall, provider-memory write
+or automatic attachment to model requests. Ordinary conversation is not
+silently saved as memory.
+
+The foundation separates untrusted proposals, explicit user review and host
+admission; edits remove prior review/use authority, disabled memories are
+ineligible, and forgetting clears volatile candidate/review content. Exact
+session/profile/project/source identity and current ownership/privacy/source
+lineage are checked before use, with explicit failures for unknown state,
+forbidden content classes, size limits and revision conflicts. Credentials,
+secrets, health information, inferred traits, transient tasks and model claims
+are prohibited classes, not retention preferences. A model's class label is
+not evidence that its text is safe or a user approval.
+
+Any future local-use surface must expose exact memory IDs/revisions and source
+provenance. Local retention never grants hosted disclosure. Session lifecycle,
+durable audit/storage, copy disposal and native CRUD/retrieval visibility still
+require the dependent implementation. The current workflow's process-local
+forgetting is not forensic erasure or removal of previously returned snapshots.
+Logs and Activities carry host IDs and typed outcomes, not memory content.
+See the [authoritative delivery boundary](../Design/Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09).
+
 ## Trusted local event privacy
 
 The [bounded visual broker](commands.md#trusted-local-events) reads only

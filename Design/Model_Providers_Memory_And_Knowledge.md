@@ -1,7 +1,7 @@
 # Model Providers, Memory, and Grounded Knowledge
 
 Status: accepted product direction, bounded provider-neutral host controls
-implemented, and remaining proposed architecture. Provider
+implemented, reviewed user-memory admission policy implemented, and remaining proposed architecture. Provider
 qualification, durable user memory, knowledge ingestion, retrieval, and hosted
 handoff described here are not complete or advertised by the current
 bootstrap.
@@ -134,6 +134,108 @@ the durable storage/lifecycle boundary, not provider storage or preference
 JSON intended for simple settings. Security-sensitive configuration continues
 to use its authoritative domain policy and audit path rather than becoming a
 free-form memory.
+
+### Delivered Reviewed Memory Admission - 2026-10-09
+
+The first dependency-safe memory package delivers a provider-independent
+[Core domain and policy](../src/Kora.Core/Memory/MemoryPolicy.cs) and an internal
+[Application admission workflow](../src/Kora.Application/Memory/MemoryAdmissionService.cs).
+It is a bounded production-code foundation exercised by deterministic doubles,
+**not composed durable memory or a newly exposed command/tool/UI feature**.
+It does not modify the active R14 immutable artifact/detail implementation,
+desktop presentation, SQLite schemas, storage paths, providers or model turns.
+
+The domain has strong Kora-issued memory/profile/project/source identities,
+explicit Session/DeviceProfile/Project/Source scopes, request and session-generation
+lineage, exact optional source revision, proposal origin, creation time, memory
+revision, review receipt and Pending/Enabled/Disabled/Forgotten retention.
+Core is the single authority for candidate validation, scope/lineage eligibility
+and exact review-receipt applicability. These records are data, not executable
+capabilities or persistence/egress approvals.
+
+The host workflow implements these exact transitions:
+
+| Operation | Required state and result |
+|---|---|
+| Propose | Host resolves scope/lineage and issues identity/revision 1; User or Model candidate remains Proposed/Pending, without review, use or persistence |
+| Review | Original local user input reviews the exact current Proposed revision; accept creates a Reviewed receipt bound to that revision and complete current boundary; reject records Rejected |
+| Admit | Exact current Reviewed/Pending revision, receipt and unchanged review boundary become Admitted/Enabled |
+| Edit | Exact non-forgotten revision replaces the value and request lineage; clears the receipt and returns to Proposed/Pending, immediately closing prior use |
+| Disable | Exact Enabled revision becomes Disabled; neither read nor Admit implicitly re-enables it; explicit edit/review/admit is required |
+| Forget | Exact non-forgotten revision removes candidate and review receipt; a content-free identity/lineage tombstone is retained only in this volatile workspace; it cannot be edited/reused |
+| Use | Re-resolves exact identity/revision and checks eligibility before any relevance operation; returns exact IDs, revision, scope, candidate, source/request lineage, review receipt and consuming host request for Local only |
+
+Model candidates cannot supply memory identity, scope, lineage, a review receipt,
+retention, destination or authority. They carry only an untrusted typed content
+class and value. HostSystem/model callbacks cannot review, admit, edit, disable
+or forget. The dependent native/control routes must capture fresh explicit
+original user input through the existing host control-intent boundary; they
+must never convert a model response, apparent approval or candidate class into
+a user review. There is no model-facing mutation descriptor in this package.
+
+Only explicitly reviewed facts, response preferences, workflow preferences and
+decisions are eligible content classes. Unknown/undefined classes, Credential,
+Secret, Health, InferredTrait, TransientTask and ModelClaim have explicit denial
+outcomes. Candidate labels are not sensitivity proof: the user must review the
+exact content and classification against known lineage. No heuristic scanner
+or model self-classification is claimed to establish that text is safe.
+
+Values are never truncated or normalized. The ceilings are **512 UTF-16 code
+units**, **1,024 strict UTF-8 value bytes** and **2,048 bytes for the complete
+serialized candidate including class, field names and JSON escaping**.
+Null/blank/control-bearing/ill-formed Unicode values fail closed. The volatile
+workspace has **128 total identities**, including forgotten tombstones, with
+no implicit eviction or identity reuse. Capacity is an explicit outcome,
+not a durable-retention policy.
+
+All operations require live host-resolved Activity/request identity, current
+host ownership and control/privacy revision, exact authoritative active session
+and generation, and a host-resolved profile/source observation. Unknown owner,
+privacy, scope, session, lineage or destination is denied. An async authoritative
+read is followed by cancellation/lifecycle/control/source revalidation and a
+serialized in-process publication fence. Concurrent late callbacks re-resolve
+the current revision at that fence. Pending proposals/reviews cannot move to
+another session/generation; admitted profile memories can be considered in
+later sessions only within the same exact profile and still-current source
+lineage. Project/source memories require their exact active scope/revision.
+
+The lifecycle callback clears session-scoped candidate/receipt content and
+invalidates in-flight publication; device/project/source entries remain
+independent. The dependent package must bind this callback to authoritative
+session retirement/deletion and resolve scope observations under the existing
+native ownership/privacy/session fences. Inactive/changed-generation sessions
+already fail admission. Disposal clears the workspace and suppresses late
+publication. These are conceptual/process-local lifecycle semantics, not
+durable deletion, forensic erasure or removal of snapshots already returned.
+Every later use still revalidates the current record; old snapshots confer no
+authority.
+
+Required typed requested/terminal audit precedes state/use publication.
+Authority/cancellation changes during an audit callback suppress publication
+and append a truthful denial/cancellation terminal observation. Audit/read
+failures are explicit exceptions, not defaults or successful admissions.
+Source-generated diagnostics include only operation/outcome/reason/host memory
+ID and fixed failure type. Existing versioned policy Activities preserve host
+request/session/task correlation; retirement-related audit/diagnostics use causal
+links, not a fabricated live parent. No memory content enters logs, tags or
+Baggage.
+
+**Dependent delivery remains open:** durable store/schema/migration/restart,
+atomic storage/audit and native authority leases, supplied application-data
+paths, lifecycle inventory and copy disposal, original-input CRUD/review/list
+UI/tools, current-use/provenance visibility and retention controls. Retrieval
+ranking, prompts/context attachment, hosted handoff, knowledge ingestion,
+embeddings and providers are not implemented here. Local retention and even a
+successful local use receipt never authorize Hosted or an unknown destination.
+There is no persistence adapter and no implicit read/write to preferences,
+session history, provider memory or a model context.
+
+Experiment disposition: reviewed storage, Node/.NET final-request/runtime
+lifecycle and local-inference evidence remains retained. Deterministic admission
+tests do not supersede unique actual SQLite atomicity/recovery/capacity/copy
+disposal, SDK/native memory/session I/O, failed-result serialization, egress,
+quiescence, account or offline/quality measurements. No experiment or historical
+receipt is removed, relabelled or claimed wholly migrated.
 
 ## Folder-Backed Grounded Knowledge
 

@@ -25,6 +25,11 @@ an existing pre-dispatch admitted question wait. The fixed synchronous version
 read admits no in-task wait, effect/resource lease or runtime callback; general
 wait/deadline cancellation and effect/provider qualification remain unavailable.
 
+The [bounded queue settings](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) expose pending capacity 1-10/default-reset 10 and fixed read-only slots 1-2/default-reset 1 for future admission only.
+Lowering capacity does not evict/reclassify pending work; lowering slots does not cancel/reinterpret active work.
+The thirty-minute pending lifetime and five-minute active budget remain fixed/uneditable, with existing deadlines unchanged ([durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+The broader proposed limit table below does not enable deadline editing or general two-slot execution.
+
 Assistant startup and release/debug takeover obey [Instance Coordination](Instance_Coordination.md): one exclusive active owner, explicit quiescent transfer, and no task/grant/listening replay on return.
 
 The revised MVP permits bounded concurrent Kora sessions, one executing task per session, plus per-session pending work and an independently responsive management lane.

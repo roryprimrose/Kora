@@ -5,6 +5,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
+using Kora.Application.Configuration;
 
 using Microsoft.Extensions.Logging;
 
@@ -19,6 +20,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
     private readonly ISessionWorkspaceAccess access;
     private readonly IDeterministicVersionQueueAction action;
     private readonly SessionQueueLimits limits;
+    private readonly SessionQueueConfigurationService? configuration;
     private readonly ILogger<SessionQueueService> logger;
     private readonly TimeProvider time;
     private readonly SemaphoreSlim dispatchGate = new(1);
@@ -26,11 +28,11 @@ public sealed partial class SessionQueueService : IAsyncDisposable
     private readonly Dictionary<HostId<TaskIdentity>, (HostId<SessionIdentity> Session, ActivityContext Context)> causes = [];
     private readonly Lock causeGate = new();
     private volatile bool disposed;
-    internal SessionQueueLimits Limits => limits;
 
     internal SessionQueueService(ISessionQueueStore store, ISessionWorkspaceStore workspace,
         HostTaskCoordinator tasks, ISessionWorkspaceAccess access, IDeterministicVersionQueueAction action,
-        SessionQueueLimits limits, ILogger<SessionQueueService> logger, TimeProvider? timeProvider = null)
+        SessionQueueLimits limits, ILogger<SessionQueueService> logger, TimeProvider? timeProvider = null,
+        SessionQueueConfigurationService? configuration = null)
     {
         this.store = store;
         this.workspace = workspace;
@@ -38,9 +40,18 @@ public sealed partial class SessionQueueService : IAsyncDisposable
         this.access = access;
         this.action = action;
         this.limits = limits;
+        this.configuration = configuration;
         this.logger = logger;
         time = timeProvider ?? TimeProvider.System;
     }
+
+    private Task<T> WithLimitsAsync<T>(Func<SessionQueueLimits, Task<T>> operation, CancellationToken token) =>
+        configuration is null ? operation(limits) : configuration.WithLimitsAsync(operation, token);
+
+    internal Task<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long admissionRevision,
+        CancellationToken token) => WithLimitsAsync(current =>
+            (store as ISessionWorkStore ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
+                .ReadWorkAsync(session, admissionRevision, current, token).AsTask(), token);
 
     public async Task<SessionCommandResult> ExecuteCommandAsync(SessionCommand command, RequestOrigin origin,
         Func<bool> admission, CancellationToken token)
@@ -70,8 +81,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             if (inspect)
             {
                 var work = command.Operation == SessionCommandOperation.QueueList
-                    ? await (store as ISessionWorkStore ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
-                        .ReadWorkAsync(session, revision, limits, token).ConfigureAwait(false) : null;
+                    ? await ReadWorkAsync(session, revision, token).ConfigureAwait(false) : null;
                 work?.RequireSubject(session);
                 var result = command.Operation == SessionCommandOperation.QueueList
                     ? new SessionCommandResult("observed", QueueDisclosure)
@@ -91,11 +101,11 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 var generation = new HostRevision(command.Generation);
                 snapshot = command.Operation switch
                 {
-                    SessionCommandOperation.QueueEnqueue => await store.EnqueueAsync(request,
+                    SessionCommandOperation.QueueEnqueue => await WithLimitsAsync(current => store.EnqueueAsync(request,
                         new(new(command.WorkRequestId ?? throw new InvalidOperationException("An exact request ID is required.")),
                             session, RequireTask(command), origin),
                         generation, command.QueueRevision, revision, command.DependencyTaskId is { } dependency ? new(dependency) : null,
-                        limits, Eligible, token).ConfigureAwait(false),
+                        current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token).AsTask(), token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove =>
                         await store.RemovePendingAsync(request, generation, command.QueueRevision, RequireTask(command),
                             new(command.TaskRevision), command.Operation == SessionCommandOperation.QueueCancel
@@ -182,19 +192,28 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 while (admittedCount < 32 || running.Count != 0)
                 {
                     RequireEligible(eligible);
-                    while (running.Count < limits.ExecutionSlots && admittedCount < 32)
+                    while (admittedCount < 32)
                     {
                         linked.Token.ThrowIfCancellationRequested();
-                        var ready = await store.FindReadyAsync(admissionRevision, limits, linked.Token).ConfigureAwait(false);
-                        if (ready is null) { break; }
-                        ActivityLink[] links;
-                        lock (causeGate) { links = causes.TryGetValue(ready.Request.TaskId, out var cause) ? [new(cause.Context)] : []; }
-                        using var dispatch = HostActivity.BeginRoot(ready.Request, HostActivityLayer.Application, HostOperation.Runtime, links);
-                        var started = time.GetTimestamp();
-                        var admitted = await store.AdmitAsync(ready, admissionRevision, limits, eligible, linked.Token).ConfigureAwait(false);
-                        dispatch.Complete(HostOperationOutcome.Completed);
-                        var continuation = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Tool);
-                        running.Add(Task.Run(() => ObserveAndCommitAsync(admitted, continuation, eligible, started), CancellationToken.None));
+                        var work = await WithLimitsAsync<(SessionQueueEntry Entry, Func<HostActivity> Continuation, long Started)?>(async current =>
+                        {
+                            if (running.Count >= current.ExecutionSlots) { return null; }
+                            var ready = await store.FindReadyAsync(admissionRevision, current, linked.Token).ConfigureAwait(false);
+                            if (ready is null) { return null; }
+                            ActivityLink[] links;
+                            lock (causeGate) { links = causes.TryGetValue(ready.Request.TaskId, out var cause) ? [new(cause.Context)] : []; }
+                            using var dispatch = HostActivity.BeginRoot(ready.Request, HostActivityLayer.Application, HostOperation.Runtime, links);
+                            var started = time.GetTimestamp();
+                            var admitted = await store.AdmitAsync(ready, admissionRevision, current,
+                                () => eligible() && (configuration is null || configuration.IsCurrent(current)), linked.Token).ConfigureAwait(false);
+                            dispatch.Complete(HostOperationOutcome.Completed);
+                            var continuation = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Tool);
+                            return (admitted, continuation, started);
+                        }, linked.Token).ConfigureAwait(false);
+                        if (work is null) { break; }
+                        var observation = work.Value;
+                        running.Add(Task.Run(() => ObserveAndCommitAsync(observation.Entry, observation.Continuation,
+                            eligible, observation.Started), CancellationToken.None));
                         admittedCount++;
                     }
                     if (running.Count == 0) { break; }

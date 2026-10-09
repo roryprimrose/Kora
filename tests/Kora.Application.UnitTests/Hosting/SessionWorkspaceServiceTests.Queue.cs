@@ -3,6 +3,9 @@ using System.Diagnostics;
 using AwesomeAssertions;
 
 using Kora.Application.Hosting;
+using Kora.Application.Configuration;
+using Kora.Application.UnitTests.Configuration;
+using Kora.Core.Configuration;
 using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -16,6 +19,96 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task Configured_pending_capacity_feeds_admission_and_native_exact_observation_without_eviction_or_deadline_change()
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        settings.Service.Observe();
+        await using var queue = f.QueueService(configuration: settings.Service);
+        var first = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = 1 }, RequestOrigin.LocalUi, () => true, f.Token);
+        var original = f.QueueRows.ToArray();
+        await settings.Refresh();
+        await settings.Set("1");
+        var full = () => queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = 2 }, RequestOrigin.LocalUi, () => true, f.Token);
+        await full.Should().ThrowAsync<InvalidOperationException>();
+        f.QueueRows.Should().Equal(original);
+        var workspace = new SessionWorkspaceService(f, new(f), f, f.Logger, queue);
+        using var activity = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var native = await workspace.ReadWorkAsync(f.Request.SessionId, f.Token);
+        native.PendingCapacity.Should().Be(1);
+        native.Queue.Entries.Should().HaveCount(2);
+        var typed = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueList), RequestOrigin.LocalUi, () => true, f.Token);
+        typed.Work!.PendingCapacity.Should().Be(1);
+        typed.Queue!.Entries[0].ExpiresAt.Should().Be(first.Queue!.Entries[0].ExpiresAt);
+        var result = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 2 }, RequestOrigin.LocalUi, () => true, f.Token);
+        result.QueueDispatch.Should().HaveCount(2);
+        f.QueueRows.Should().OnlyContain(entry => entry.State == SessionQueueState.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Configuration_retirement_or_external_change_at_commit_cannot_stale_admit_dispatch(bool external)
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        settings.Service.Observe();
+        await using var queue = f.QueueService(configuration: settings.Service);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        f.BeforeAdmit = () =>
+        {
+            if (external) { settings.PreferencesStore.Value = new(1); }
+            else { settings.Service.HoldUnavailable(); }
+        };
+        var dispatch = () => queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await dispatch.Should().ThrowAsync<InvalidOperationException>();
+        f.QueueActions.Should().Be(0);
+        f.QueueRows.Single().State.Should().Be(SessionQueueState.Pending);
+    }
+
+    [Fact]
+    public async Task Lowering_slots_while_two_fixed_reads_are_active_preserves_admissions_and_future_fair_dispatch()
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        await settings.Refresh();
+        await settings.Set("2", SessionQueueOption.ExecutionSlots);
+        await using var queue = f.QueueService(configuration: settings.Service);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        var other = f.QueueRows.Single() with { Request = HostRequest.Create(RequestOrigin.LocalUi), Position = 2 };
+        f.QueueRows.Add(other);
+        f.QueueRows.Add(other with { Request = HostRequest.Create(RequestOrigin.LocalUi), Position = 3 });
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var observed = 0;
+        f.OnObserve = () =>
+        {
+            if (Interlocked.Increment(ref observed) <= 2)
+            {
+                if (Volatile.Read(ref observed) == 2) { entered.Set(); }
+                release.Wait(f.Token);
+            }
+        };
+        var dispatch = queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await Task.Run(() => entered.Wait(f.Token), f.Token);
+        var active = f.QueueRows.Where(entry => entry.IsCurrent).ToArray();
+        active.Should().HaveCount(2);
+        await settings.Refresh();
+        await settings.Set("1", SessionQueueOption.ExecutionSlots);
+        f.QueueRows.Where(entry => entry.IsCurrent).Should().Equal(active);
+        settings.Service.Get().Effective!.ExecutionSlots.Should().Be(1);
+        release.Set();
+        var completed = await dispatch;
+        completed.QueueDispatch.Should().HaveCount(3);
+        f.QueueRows.Should().OnlyContain(entry => entry.State == SessionQueueState.Succeeded);
+        f.LastAdmittedLimits!.ExecutionSlots.Should().Be(1);
+        f.QueueRows.Select(entry => entry.ExpiresAt).Should().OnlyContain(expiry => expiry == active[0].ExpiresAt);
+    }
+
     [Fact]
     public async Task Queue_commands_and_native_calls_share_exact_service_without_inference_or_content_logging()
     {
@@ -267,8 +360,9 @@ public sealed partial class SessionWorkspaceServiceTests
         private readonly Guid queueRun = Guid.NewGuid();
         internal Guid QueueRun => queueRun;
         internal QueueClock QueueTime { get; } = new();
-        internal SessionQueueService QueueService(int slots = 1, TimeProvider? clock = null) =>
-            new(this, this, new(this), this, this, new(executionSlots: slots), new QueueLogger(this), clock ?? QueueTime);
+        internal SessionQueueLimits? LastAdmittedLimits { get; private set; }
+        internal SessionQueueService QueueService(int slots = 1, TimeProvider? clock = null, SessionQueueConfigurationService? configuration = null) =>
+            new(this, this, new(this), this, this, new(executionSlots: slots), new QueueLogger(this), clock ?? QueueTime, configuration);
         internal SessionCommand QueueCommand(SessionCommandOperation operation) => new(operation, Request.SessionId.Value, 1)
         {
             WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(), TaskRevision = 1,
@@ -294,6 +388,8 @@ public sealed partial class SessionWorkspaceServiceTests
         {
             QueueCheck("enqueue");
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
+            if (QueueRows.Count(entry => entry.IsPending && entry.Request.SessionId == work.SessionId) >= limits.PendingPerSession)
+            { throw new InvalidOperationException("The pending queue is full."); }
             var now = QueueTime.GetUtcNow();
             QueueRows.Add(new(work, generation, new(1), ++QueueRevision, SessionQueueState.Pending, queueRun,
                 admissionRevision, now, now.AddMinutes(30), dependency));
@@ -322,6 +418,7 @@ public sealed partial class SessionWorkspaceServiceTests
             QueueCheck("admit");
             BeforeAdmit?.Invoke();
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
+            LastAdmittedLimits = limits;
             var next = expected with { State = SessionQueueState.Running, Revision = new(2), DispatchOrder = ++QueueRevision };
             QueueRows[QueueRows.IndexOf(expected)] = next;
             return ValueTask.FromResult(next);

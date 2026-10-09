@@ -92,10 +92,37 @@ All/Active/Done filtering affects only the current bounded session page.
 Five-second passive work refresh never dispatches, reprioritizes, extends
 meaningful activity, moves focus or retargets voice/questions/approvals.
 Dispatch is manual, FIFO within a session and fair across ready sessions;
-the invoking session gains no priority. Capacity is ten pending entries
+the invoking session gains no priority. Default capacity is ten pending entries
 per session and one admitted task per session. The shipped host uses one
 global slot; only the fixed local-read implementation permits a host
 limit of one or two.
+
+## Fixed queue settings
+
+Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated commands use the same [admitted configuration workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
+
+| Exact syntax | Result |
+|---|---|
+| `list queue settings` | Both supported option IDs, ranges/defaults, saved/effective values, revisions and unavailable scope |
+| `get queue.pending-per-session` / `status queue.pending-per-session` | Inspect capacity; integer 1-10, default/reset 10 |
+| `get queue.execution-slots` / `status queue.execution-slots` | Inspect fixed synchronous read-only slots; integer 1-2, default/reset 1 |
+| `set queue.pending-per-session to <integer 1-10>` | Audited future pending-admission capacity; existing entries are never evicted |
+| `set queue.execution-slots to <integer 1-2>` | Audited future fixed-read admission limit; existing active reads are not cancelled |
+| `reset queue.pending-per-session` | Reset only pending capacity; preserve slot override |
+| `reset queue.execution-slots` | Reset only slots; preserve capacity override |
+
+Integers are canonical: no signs, leading zeroes, fractions, extra words or apply-now.
+Native **Refresh** captures a current admitted draft; each **Save**/**Reset** requires that unchanged revision and visible lifetime, then another Refresh.
+Concurrent native/typed edits and hide/reopen retire the old draft; they cannot overwrite a newer preference ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs), [native tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs)).
+
+Confirmed limits actually feed enqueue, fair dispatch and native/exact/event observation.
+Reducing capacity never evicts pending work or changes existing entry deadlines; reducing slots never cancels active work or changes its admission budget.
+Pending lifetime stays **30 minutes** and active budget **5 minutes**, unavailable to edit.
+Automatic dispatch, general execution, workers/resource leases, model tools and real two-slot provider/hardware qualification remain unavailable ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [deadline tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+
+Protected Active/Suspected/Unknown original-voice writes deny without downgrade or deferred application.
+Malformed/unconfirmed/inaccessible preferences or failed required audit/readback/control receipts hold new admissions, not fabricated defaults or rollback.
+Inspect saved state and receipts, explicitly repair, then Refresh; ordinary refresh never clears the unconfirmed marker ([recovery contract](../Design/User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13)).
 
 Pending eligibility expires after 30 minutes; an expired head remains visible
 until explicitly removed/cleared, and blocks later work at that position.

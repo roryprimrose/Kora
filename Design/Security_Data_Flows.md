@@ -28,6 +28,16 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
+The [bounded queue preferences](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) preserve original-input admission through the existing independent configuration-control session.
+Host-held option/configuration/call revisions and native visible-lifetime identity bind proposals.
+Protected original-voice writes deny without channel relabelling or deferred application.
+Required typed audit, atomic save/readback and durable completed intent precede activation; unknown/corrupt/unconfirmed storage holds new admissions without defaulting ([service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs)).
+
+Only pending capacity 1-10 and synchronous read-only slots 1-2 are configurable.
+Short consuming transactions serialize with edits and revalidate confirmed storage at reads/commits, but active callbacks do not hold that configuration gate.
+Lowering limits never removes pending records or revokes existing admissions; fixed pending/active deadlines remain unchanged.
+No grant, execution token, schema migration, automatic dispatch, model configuration tool or general effect/provider authority is created ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [durable invariants](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+
 The native selected-session work surface is a passive consumer of one bounded
 validated authority snapshot. It adds no store/schema, egress, authority grant
 or model-facing tool. IDs/revisions/selection epoch bind admitted controls to

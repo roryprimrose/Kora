@@ -519,6 +519,24 @@ SDK memory/transcripts cannot become a second unreviewed store alongside
 Kora's host-owned permitted history. The measured loopback marker filter is
 a test oracle, not a sufficient production classifier or OS sandbox.
 
+The [reviewed memory admission foundation](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09)
+accepts only untrusted candidate class/value from a model; Kora resolves identity,
+scope and lineage. Explicit local-user review and unchanged exact revision/
+boundary precede host admission. Forbidden/unknown classes and unknown
+ownership/privacy/session/source state have typed denials. An allowed model
+class label is not sensitivity proof or an approval. Editing removes prior
+review/use authority; disabled/forgotten state cannot be recalled implicitly.
+Exact local-use ID/provenance receipts are not prompt or hosted disclosure
+authority. Hosted/unknown destinations remain denied.
+
+The workspace is volatile and not composed with a memory store, native UI or
+provider. Session retirement/disposal fences and content-free correlated
+requested/terminal audit are maintained in process; durable deletion/copy
+inventory and atomic storage/native authority integration remain dependent
+gates. Returned snapshots cannot be retroactively erased, but subsequent use
+re-resolves current state. No experiment/native-runtime isolation gate is
+closed by these deterministic admission tests.
+
 The [bounded RT2 observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
 passes its 20 safe tests but leaves all-path runtime admission **Blocked**.
 Native initialization launches PowerShell/console-host descendants and creates

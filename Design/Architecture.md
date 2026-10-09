@@ -21,6 +21,15 @@ The canonical local/hosted provider selection, reviewed handoff, durable user
 memory, and provider-independent knowledge contract is
 [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
+The [reviewed memory admission foundation](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09)
+places strong identity/scope/lineage, payload limits and eligibility policy in
+Core and the host-owned reviewed state workflow in Application. It reuses
+existing host Activity, ownership/privacy, session metadata and typed audit;
+it creates no parallel provider loop. Its volatile workspace and internal
+profile/source observation seam are not composed into the desktop. Durable
+storage, native original-input CRUD/review and retrieval/use visibility remain
+dependent work; no schema, model context or hosted authority is added.
+
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.
 

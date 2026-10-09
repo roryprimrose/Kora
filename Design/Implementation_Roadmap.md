@@ -69,6 +69,11 @@ forget, session retirement, cancellation/late/reentrant audit callbacks,
 correlation and no implicit persistence/use/hosted disclosure.
 This is not native CRUD, durable deletion or provider qualification evidence.
 
+Before publication, rebased the intervening CI-only #3 merge `5451813`.
+Fresh Release root build and all five required suites repeat the same passing
+counts; matching latest-only portable reports repeat exact **16,447/16,447
+lines** and **9,803/9,803 branches**. No R14 UI/storage implementation is changed.
+
 ### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
 
 The first D-014 implementation package delivers the

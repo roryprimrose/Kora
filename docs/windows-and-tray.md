@@ -53,7 +53,11 @@ same host workflow. Exact **search file** / **inspect file** focus native
 lexical search of that admitted revision. Queries are entered only in this
 native control; bounded exact excerpts carry revision/digest/line citations,
 observation time and truthful truncation/failure states. Results stay inert,
-volatile and host-only. Folder/knowledge/persistent-index/reasoning remain unavailable.
+volatile and host-only. **Tray > Preview folder** reviews all 1–32 immediate text/Markdown files (1 MiB combined, 256 KiB per file); any subdirectory or inadmissible item rejects the whole selection.
+
+Use native **Refresh this file preview** / **Refresh this folder preview**, or exact typed/current-name ACTIVATED `refresh file` / `refresh folder`, for a fresh complete metadata review of that exact admitted canonical physical source. **Confirm again** before new content reads; an old confirmation cannot be reused. Folder additions/removals/metadata changes are visible in review. Starting refresh retires the old immutable preview/citations. Failure/cancel leaves no admitted preview; missing/replaced/aliased roots require a new native picker selection. Original files are never changed.
+
+There is no automatic refresh, watcher, recursion, registry, durable attachment, knowledge/persistent-index/reasoning authority. Same privacy/ownership/call/control/lifetime and native release fences apply; unverified release blocks clean handoff/exit until recovery.
 See [commands and limits](commands.md#explicit-local-file-preview).
 
 ## Kora's presence

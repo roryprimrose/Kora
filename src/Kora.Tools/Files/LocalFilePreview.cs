@@ -31,9 +31,9 @@ public sealed partial class LocalFilePreview(
     public event EventHandler? Changed;
     public bool IsBusy { get { lock (sync) { return pending is not null; } } }
     public bool IsQuiescent { get { lock (sync) { return pending is null && selection is null && folderSelection is null && !releaseFailed; } } }
-    public LocalFileReview? Review { get { Revalidate(); lock (sync) { return review; } } }
+    public LocalFileReview? Review { get { Revalidate(); lock (sync) { return pending is null ? review : null; } } }
     public LocalFileRevision? Current { get { Revalidate(); lock (sync) { return pending is null || retrieving ? revision : null; } } }
-    public LocalFolderReview? FolderReview { get { Revalidate(); lock (sync) { return folderReview; } } }
+    public LocalFolderReview? FolderReview { get { Revalidate(); lock (sync) { return pending is null ? folderReview : null; } } }
     public LocalFolderRevision? CurrentFolder { get { Revalidate(); lock (sync) { return pending is null || retrieving ? folderRevision : null; } } }
 
     internal Task<LocalFileSearchResult> SearchAsync(LocalFileReference exactSource, Func<bool> gate,
@@ -132,6 +132,12 @@ public sealed partial class LocalFilePreview(
             {
                 if (!IsCurrent(admittedGeneration, canPresent, cancellation)) { return LocalFileOutcome.Cancelled; }
             }
+            return await ReviewFileAsync(path, request, admittedGeneration, canPresent, null, cancellation).ConfigureAwait(false);
+        }, preserveReview: false, token);
+
+    private async Task<LocalFileOutcome> ReviewFileAsync(string path, HostRequest request, long admittedGeneration,
+        Func<bool> canPresent, LocalFileReview? previous, CancellationToken cancellation)
+    {
             LocalFilePolicy.ValidatePath(path);
             var candidate = await inspector.InspectAsync(path, cancellation).ConfigureAwait(false);
             try
@@ -139,7 +145,8 @@ public sealed partial class LocalFilePreview(
                 var metadata = candidate.Metadata;
                 LocalFilePolicy.ValidatePath(metadata.CanonicalPath);
                 if (!string.Equals(path, metadata.CanonicalPath, StringComparison.OrdinalIgnoreCase)
-                    || string.IsNullOrWhiteSpace(metadata.FileIdentity) || metadata.ByteLength < 0)
+                    || string.IsNullOrWhiteSpace(metadata.FileIdentity) || metadata.ByteLength < 0
+                    || (previous is not null && !string.Equals(metadata.FileIdentity, previous.Metadata.FileIdentity, StringComparison.Ordinal)))
                 {
                     throw new InvalidDataException("The selected canonical source identity could not be verified.");
                 }
@@ -148,14 +155,15 @@ public sealed partial class LocalFilePreview(
                 {
                     if (!IsCurrent(admittedGeneration, canPresent, cancellation)) { return LocalFileOutcome.Cancelled; }
                     selection = candidate;
-                    review = new(Guid.NewGuid(), Guid.NewGuid(), request, metadata, HostActivity.RequireCurrent().Activity!.Context);
+                    review = new(Guid.NewGuid(), previous?.SourceId ?? Guid.NewGuid(), previous?.Request ?? request,
+                        metadata, HostActivity.RequireCurrent().Activity!.Context) { PreviousMetadata = previous?.Metadata };
                     reviewDeadline = time.GetUtcNow().AddMinutes(2);
                     candidate = null;
                     return LocalFileOutcome.Reviewed;
                 }
             }
             finally { ReleaseOwned(candidate); }
-        }, preserveReview: false, token);
+    }
 
     public Task<LocalFileOutcome> SelectFolderAsync(IUserFolderPicker picker, Func<bool> canPresent, CancellationToken token) =>
         RunAsync("folder.preview.select", canPresent, async (request, admittedGeneration, cancellation) =>
@@ -167,13 +175,20 @@ public sealed partial class LocalFilePreview(
             {
                 if (!IsCurrent(admittedGeneration, canPresent, cancellation)) { return LocalFileOutcome.Cancelled; }
             }
+            return await ReviewFolderAsync(path, request, admittedGeneration, canPresent, null, cancellation).ConfigureAwait(false);
+        }, preserveReview: false, token);
+
+    private async Task<LocalFileOutcome> ReviewFolderAsync(string path, HostRequest request, long admittedGeneration,
+        Func<bool> canPresent, LocalFolderReview? previous, CancellationToken cancellation)
+    {
             LocalFilePolicy.ValidateFolderPath(path);
             var candidate = await inspector.InspectFolderAsync(path, cancellation).ConfigureAwait(false);
             try
             {
                 var metadata = candidate.Metadata;
                 _ = LocalFolderPolicy.Validate(metadata.CanonicalPath, metadata.DirectoryIdentity, metadata.Files);
-                if (!string.Equals(path, metadata.CanonicalPath, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(path, metadata.CanonicalPath, StringComparison.OrdinalIgnoreCase)
+                    || (previous is not null && !string.Equals(metadata.DirectoryIdentity, previous.Metadata.DirectoryIdentity, StringComparison.Ordinal)))
                 {
                     throw new InvalidDataException("The exact canonical folder identity could not be verified.");
                 }
@@ -181,14 +196,50 @@ public sealed partial class LocalFilePreview(
                 {
                     if (!IsCurrent(admittedGeneration, canPresent, cancellation)) { return LocalFileOutcome.Cancelled; }
                     folderSelection = candidate;
-                    folderReview = new(Guid.NewGuid(), Guid.NewGuid(), request, metadata, HostActivity.RequireCurrent().Activity!.Context);
+                    folderReview = new(Guid.NewGuid(), previous?.SourceId ?? Guid.NewGuid(), previous?.Request ?? request,
+                        metadata, HostActivity.RequireCurrent().Activity!.Context) { PreviousMetadata = previous?.Metadata };
                     reviewDeadline = time.GetUtcNow().AddMinutes(2);
                     candidate = null;
                     return LocalFileOutcome.Reviewed;
                 }
             }
             finally { ReleaseOwned(candidate); }
-        }, preserveReview: false, token);
+    }
+
+    internal Task<LocalFileOutcome> RefreshAsync(LocalFileReference exactSource, Func<bool> gate, CancellationToken token)
+    {
+        Revalidate();
+        LocalFileRevision? original;
+        Func<bool>? originalGate;
+        lock (sync) { original = revision; originalGate = eligible; }
+        bool CanPresent() => gate() && originalGate!();
+        return RunAsync("file.preview.refresh", gate, (request, admittedGeneration, cancellation) =>
+            ReviewFileAsync(original!.Review.Metadata.CanonicalPath, request, admittedGeneration, CanPresent,
+                original.Review, cancellation), preserveReview: false, token,
+            () => original is not null && ReferenceEquals(revision, original) && original.Reference == exactSource
+                && IsRefreshContext(original.Review.Request), CanPresent);
+    }
+
+    internal Task<LocalFileOutcome> RefreshAsync(LocalFolderReference exactSource, Func<bool> gate, CancellationToken token)
+    {
+        Revalidate();
+        LocalFolderRevision? original;
+        Func<bool>? originalGate;
+        lock (sync) { original = folderRevision; originalGate = eligible; }
+        bool CanPresent() => gate() && originalGate!();
+        return RunAsync("folder.preview.refresh", gate, (request, admittedGeneration, cancellation) =>
+            ReviewFolderAsync(original!.Review.Metadata.CanonicalPath, request, admittedGeneration, CanPresent,
+                original.Review, cancellation), preserveReview: false, token,
+            () => original is not null && ReferenceEquals(folderRevision, original) && original.Reference == exactSource
+                && IsRefreshContext(original.Review.Request), CanPresent);
+    }
+
+    private bool IsRefreshContext(HostRequest original)
+    {
+        var request = HostActivity.RequireCurrent().Request;
+        // Called under the revocation lock only after resolving the still-admitted exact revision.
+        return eligible!() && request.SessionId == original.SessionId && request.TaskId == original.TaskId;
+    }
 
     public Task<LocalFileOutcome> ConfirmFolderAsync(Guid exactReviewId, Func<bool> canPresent, CancellationToken token)
     {
@@ -307,7 +358,8 @@ public sealed partial class LocalFilePreview(
         !disposed && generation == admittedGeneration && !token.IsCancellationRequested && gate();
 
     private async Task<LocalFileOutcome> RunAsync(string action, Func<bool> gate,
-        Func<HostRequest, long, CancellationToken, Task<LocalFileOutcome>> operation, bool preserveReview, CancellationToken token)
+        Func<HostRequest, long, CancellationToken, Task<LocalFileOutcome>> operation, bool preserveReview, CancellationToken token,
+        Func<bool>? exactSource = null, Func<bool>? retainedGate = null)
     {
         var request = HostActivity.RequireCurrent().Request;
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Tool);
@@ -326,6 +378,11 @@ public sealed partial class LocalFilePreview(
                 activity.Complete(HostOperationOutcome.Failed);
                 return LocalFileOutcome.Busy;
             }
+            if (exactSource is not null && !exactSource())
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                return LocalFileOutcome.Stale;
+            }
             if (!preserveReview)
             {
                 ReleaseSelection();
@@ -337,7 +394,7 @@ public sealed partial class LocalFilePreview(
                     return LocalFileOutcome.Unavailable;
                 }
                 DiscardContent();
-                eligible = gate;
+                eligible = retainedGate ?? gate;
                 ++generation;
             }
             admittedGeneration = generation;
@@ -350,13 +407,27 @@ public sealed partial class LocalFilePreview(
         var outcome = LocalFileOutcome.Unavailable;
         try
         {
+            Changed?.Invoke(this, EventArgs.Empty);
             audit.Write(auditEvent);
             cancellation.Token.ThrowIfCancellationRequested();
-            outcome = await operation(request, admittedGeneration, cancellation.Token).ConfigureAwait(false);
-            lock (sync) { if (releaseFailed) { outcome = LocalFileOutcome.Unavailable; } }
-            audit.Write(auditEvent.WithOutcome(outcome is LocalFileOutcome.Admitted or LocalFileOutcome.Reviewed
-                ? SecurityAuditOutcome.Succeeded : outcome == LocalFileOutcome.Cancelled
-                    ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed, outcome.ToString().ToLowerInvariant()));
+            var candidateOutcome = await operation(request, admittedGeneration, cancellation.Token).ConfigureAwait(false);
+            lock (sync)
+            {
+                if (releaseFailed) { candidateOutcome = LocalFileOutcome.Unavailable; }
+                else if (!IsCurrent(admittedGeneration, gate, cancellation.Token) || eligible is null || !eligible())
+                {
+                    candidateOutcome = LocalFileOutcome.Cancelled;
+                }
+                audit.Write(auditEvent.WithOutcome(candidateOutcome is LocalFileOutcome.Admitted or LocalFileOutcome.Reviewed
+                    ? SecurityAuditOutcome.Succeeded : candidateOutcome == LocalFileOutcome.Cancelled
+                        ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed, candidateOutcome.ToString().ToLowerInvariant()));
+                outcome = IsCurrent(admittedGeneration, gate, cancellation.Token) && eligible is not null && eligible()
+                    ? candidateOutcome : LocalFileOutcome.Cancelled;
+                if (outcome == LocalFileOutcome.Cancelled && candidateOutcome is LocalFileOutcome.Reviewed or LocalFileOutcome.Admitted)
+                {
+                    audit.Write(auditEvent.WithOutcome(SecurityAuditOutcome.Cancelled, "revoked-before-publication"));
+                }
+            }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {

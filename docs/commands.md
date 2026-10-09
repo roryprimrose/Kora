@@ -222,6 +222,10 @@ See [Settings recovery](settings.md#in-call-feedback-override).
 | `preview file` | Open the trusted native picker for one local UTF-8 `.txt`, `.md` or `.markdown` file, then metadata-only review |
 | `clear file preview` | Discard this volatile review/revision; never delete the original |
 | `search file` / `inspect file` | Focus the admitted revision's native lexical search/inspection control; no arguments, path or implicit source selection |
+| `preview folder` | Native picker and complete metadata review of 1–32 immediate UTF-8 text/Markdown files; no subdirectories |
+| `search folder` / `inspect folder` | Focus native lexical search across only the exact complete admitted folder revision |
+| `clear folder preview` | Discard the volatile folder review/revision; never delete originals |
+| `refresh file` / `refresh folder` | Fresh metadata review of only the exact already-admitted physical file/folder; separate new native confirmation required |
 
 The tray's **Preview file (local inspection only)** uses the same host service.
 Current-name activated input can open selection; spoken/typed paths and IDs
@@ -230,6 +234,12 @@ in the native review, before its two-minute expiry. The review discloses the
 canonical path, original host session/origin, identity, exact bytes and bounds.
 The immutable plain-text result shows source/revision/item IDs and SHA-256 of
 original bytes (including BOM). There is no automatic refresh.
+
+Native **Refresh this file preview** / **Refresh this folder preview** and exact `refresh file` / `refresh folder` use the same bounded action. No path, ID, extra words or document instruction can authorize refresh or confirmation. The exact original canonical path and physical file/directory identity must still be valid; missing, replaced, aliased or unsafe roots require a fresh native picker selection, never silent rebinding.
+
+Refresh starts by retiring the old immutable preview and citations. It reads **metadata only** into a new review, with a fresh two-minute deadline; confirm that new review separately before content reads. Source identity is preserved but successful revision/item IDs and digests are new, and old exact references become stale. Folder review shows the complete new inventory and added/removed/metadata-changed members; unchanged metadata does not prove unchanged bytes. Failure/cancel leaves no admitted preview: fix the refusal and use the native picker again. Kora never modifies the original files.
+
+Folders have at most 32 immediate files and 1 MiB combined original bytes, with the same 256 KiB per-file limit and supported formats. Empty folders, subdirectories, unsupported/unsafe items and any capture or strict-decoding failure reject the whole candidate; no recursive or partial admission. Separate confirmation covers every reviewed item.
 
 Maximum: one fixed-drive file, 256 KiB source bytes, 240 path characters,
 32 components; strict UTF-8 only. Unsupported, inaccessible, unstable,
@@ -260,7 +270,7 @@ path or refresh the revision. Closing/revoking/replacing/discarding the source,
 Cancel task and privacy/ownership changes invalidate late results. This is a
 volatile local inspection, not a durable workspace session attachment.
 
-**Unavailable:** folder preview, UNC/removable drives, durable attachments,
+**Unavailable:** recursive folders, automatic refresh/watchers, managed source registry, UNC/removable drives, durable attachments,
 knowledge sources, persistent/vector indexing, local/hosted reasoning or file-model
 tools. Preview neither submits content nor authorizes egress. It never reads
 or changes the clipboard, executes content, logs content/paths or saves the

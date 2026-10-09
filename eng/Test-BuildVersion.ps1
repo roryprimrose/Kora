@@ -7,6 +7,12 @@ $gitExecutable = (Get-Command git -CommandType Application | Select-Object -Firs
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "KoraVersionTests-$([guid]::NewGuid().ToString('N'))"
 $saved = @{}
+$assertions = 0
+$resolutions = 0
+$rejections = 0
+$binaryChecks = 0
+$buildAttempts = 0
+$restores = 0
 foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_REPOSITORY', 'GITHUB_SHA')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name)
     [Environment]::SetEnvironmentVariable($name, $null)
@@ -17,26 +23,54 @@ function Invoke-FixtureGit {
     & $gitExecutable -C $fixture @Arguments | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Fixture git failed: $($Arguments -join ' ')" }
 }
-function Resolve { & (Join-Path $PSScriptRoot 'Get-BuildVersion.ps1') -RepositoryPath $fixture }
+function Resolve {
+    $script:resolutions++
+    & (Join-Path $PSScriptRoot 'Get-BuildVersion.ps1') -RepositoryPath $fixture
+}
 function Assert {
     param([bool] $Condition, [string] $Message)
+    $script:assertions++
     if (-not $Condition) { throw $Message }
 }
 function Reject {
-    param([scriptblock] $Operation)
-    $rejected = $false
+    param([scriptblock] $Operation, [string] $Diagnostic)
+    $failure = $null
     try { & $Operation | Out-Null }
-    catch { $rejected = $true }
-    Assert $rejected 'Expected versioning to fail closed.'
+    catch { $failure = $_ }
+    Assert ($null -ne $failure) 'Expected versioning to fail closed.'
+    Assert ($failure.ToString().Contains($Diagnostic, [StringComparison]::Ordinal)) "Lost diagnostic: $failure"
+    $script:rejections++
 }
 function Assert-BinaryVersion {
     param([string] $Expected)
-    & dotnet build (Join-Path $fixture 'VersionFixture.csproj') --configuration Release --nologo `
-        --property:KoraResolveBuildVersion=true "--property:KoraVersionRepositoryPath=$fixture$([IO.Path]::DirectorySeparatorChar)"
-    if ($LASTEXITCODE -ne 0) { throw 'Version fixture build failed.' }
+    $project = Join-Path $fixture 'VersionFixture.csproj'
+    $arguments = @('build', $project, '--configuration', 'Release', '--nologo', '--no-restore',
+        '--property:KoraResolveBuildVersion=true',
+        "--property:KoraVersionRepositoryPath=$fixture$([IO.Path]::DirectorySeparatorChar)")
+    $script:buildAttempts++
+    $output = & dotnet @arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    Write-Host ($output -join "`n")
+    if ($exitCode -ne 0 -and ($output -join "`n") -match 'NETSDK1004' -and
+        -not (Test-Path -LiteralPath (Join-Path $fixture 'obj\project.assets.json'))) {
+        & dotnet restore $project --locked-mode --nologo
+        if ($LASTEXITCODE -ne 0) { throw 'Version fixture locked restore failed.' }
+        $script:restores++
+        $script:buildAttempts++
+        & dotnet @arguments
+        $exitCode = $LASTEXITCODE
+    }
+    if ($exitCode -ne 0) { throw 'Version fixture build failed.' }
     $binary = Join-Path $fixture 'bin\Release\net10.0\VersionFixture.dll'
-    Assert ([Diagnostics.FileVersionInfo]::GetVersionInfo($binary).ProductVersion -ceq $Expected) `
+    $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo($binary)
+    Assert ($metadata.ProductVersion -ceq $Expected) `
         "Compiled binary metadata did not match $Expected."
+    $numericVersion = "$(($Expected -split '-')[0]).0"
+    Assert ($metadata.FileVersion -ceq $numericVersion) "Compiled file version did not match $numericVersion."
+    Assert ([Reflection.AssemblyName]::GetAssemblyName($binary).Version.ToString() -ceq $numericVersion) `
+        "Compiled assembly version did not match $numericVersion."
+    $script:binaryChecks++
+    Write-Host "Binary metadata passed: product=$Expected file=$numericVersion assembly=$numericVersion."
 }
 
 try {
@@ -95,8 +129,18 @@ try {
     $env:GITHUB_SHA = & git -C $fixture rev-parse HEAD
     $tagged = Resolve
     Assert ($tagged.Version -eq '0.1.0' -and $tagged.Publish) 'Main tag CI did not publish stable.'
+    $env:GITHUB_REF = 'refs/tags/v8.0.0'
+    Reject { Resolve } 'The workflow release tag does not identify the checkout revision.'
+    Invoke-FixtureGit -Arguments @('tag', 'v0.1.1', 'refs/remotes/origin/main')
+    $env:GITHUB_REF = 'refs/tags/v0.1.1'
+    Reject { Resolve } 'The workflow release tag does not identify the checkout revision.'
+    $env:GITHUB_REF = 'refs/tags/v0.1.0'
+    Invoke-FixtureGit -Arguments @('tag', 'v0.2.0')
+    Reject { Resolve } 'Multiple different stable versions tag the same revision.'
+    Invoke-FixtureGit -Arguments @('tag', '-d', 'v0.2.0')
     $env:GITHUB_REPOSITORY = 'fork/Kora'
     Assert (-not (Resolve).Publish) 'Fork acquired publication authority.'
+    $env:GITHUB_REPOSITORY = 'roryprimrose/Kora'
     Invoke-FixtureGit -Arguments @('checkout', '-b', 'feature/versioning')
     $env:GITHUB_REF = 'refs/heads/feature/versioning'
     Assert ((Resolve).Version -eq '0.1.0' -and -not (Resolve).Publish) 'Feature CI is not the proof version.'
@@ -112,13 +156,14 @@ try {
     $env:GITHUB_ACTIONS = 'true'
     $env:GITHUB_EVENT_NAME = 'push'
     $env:GITHUB_REF = 'refs/tags/v9.0.0'
-    Reject { Resolve }
+    Reject { Resolve } 'A release tag must point to a revision on origin/main.'
     $env:GITHUB_REF = 'refs/tags/v0.1.0-beta1'
-    Reject { Resolve }
+    Reject { Resolve } 'Release tag builds require v<major>.<minor>.<patch>'
     $env:GITHUB_REF = 'refs/heads/feature/versioning'
     $env:GITHUB_SHA = '0' * 40
-    Reject { Resolve }
-    Write-Host 'Version tests passed: main beta increments/reruns, stable tags, local features, PRs, forks and off-main rejection.'
+    Reject { Resolve } 'Checkout revision differs from the workflow source revision.'
+    Write-Host "Version tests passed: $assertions assertions, $resolutions resolutions, $rejections expected rejections, $binaryChecks compiled binary metadata checks, $buildAttempts build attempts, $restores locked restores."
+    Write-Host 'Covered main beta increments/reruns, stable tag/source binding, local features, PRs, forks and off-main rejection.'
 }
 finally {
     foreach ($name in $saved.Keys) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }

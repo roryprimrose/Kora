@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test:host": "npm run build && node --test --test-concurrency=1 dist/candidate.test.js dist/envelope.test.js dist/provider.test.js",
     "test": "npm run build && node --test --test-concurrency=1 dist/*.test.js",
     "proof": "npm run build && node dist/proof.js"
   },

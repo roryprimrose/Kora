@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "proof": "maintained-build-version",
+  "result": "passed",
+  "localDate": "2026-10-10",
+  "baselineRevision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "branch": "agents/isolated-build-version-proof-setup",
+  "isolation": {
+    "distinctTaskWorktreeVerified": true,
+    "rootCheckoutEditedOrBuilt": false,
+    "testedSourceState": "baseline plus the two scoped script modifications",
+    "testedScriptSha256": {
+      "eng/Get-BuildVersion.ps1": "e8b87b769c83ae0a54a48ad6d41f6f1f7d8a70e332b0e7f140c04bcf4e8e1cc9",
+      "eng/Test-BuildVersion.ps1": "f9a3babea780b992c865072c06d25f0b8ea0176fd8d0ee95e61656e6acf514d0"
+    }
+  },
+  "tools": {
+    "dotnetSdk": "10.0.401",
+    "installedDotnetRuntime": "10.0.12",
+    "powerShell": "7.6.6",
+    "git": "2.55.0.windows.5",
+    "gitVersion": "6.8.2"
+  },
+  "baseline": {
+    "exitCode": 0,
+    "startedUtc": "2026-10-09T20:42:50.9050286Z",
+    "finishedUtc": "2026-10-09T20:43:46.3735373Z",
+    "compiledProductVersionChecks": 3,
+    "successfulBuildWarnings": 0,
+    "successfulBuildErrors": 0,
+    "rawFile": "baseline-proof.log",
+    "rawSha256": "651c453e31fb83857fe952e3c5f1c9a2abd4324027f2a9349d6ccee914d24cf2"
+  },
+  "regressionBeforeFix": {
+    "exitCode": 1,
+    "startedUtc": "2026-10-09T20:45:53.7382949Z",
+    "finishedUtc": "2026-10-09T20:47:36.5453385Z",
+    "failure": "Expected versioning to fail closed.",
+    "cause": "An absent workflow release tag was accepted at a different stable-tagged checkout.",
+    "rawFile": "tag-binding-regression.log",
+    "rawSha256": "8e663748f18ad49e1352cfad1242c7046f3cf61767edd280c22d7210b0d15860"
+  },
+  "maintainedSuite": {
+    "exitCode": 0,
+    "startedUtc": "2026-10-09T20:48:19.8459456Z",
+    "finishedUtc": "2026-10-09T20:50:01.7573437Z",
+    "durationSeconds": 101.9113981,
+    "noninteractive": true,
+    "noProfile": true,
+    "assertions": 34,
+    "resolverCalls": 20,
+    "diagnosticMatchedExpectedRejections": 6,
+    "compiledBinaries": 3,
+    "compiledMetadataAssertions": 9,
+    "buildAttempts": 4,
+    "successfulBuilds": 3,
+    "expectedMissingAssetsBuildFailures": 1,
+    "lockedRestoresAfterMissingAssetsFailure": 1,
+    "successfulBuildWarnings": 0,
+    "successfulBuildErrors": 0,
+    "environmentRestorationChecks": 5,
+    "binaryMetadata": [
+      {
+        "case": "local-main-beta",
+        "productVersion": "0.1.0-beta1",
+        "fileVersion": "0.1.0.0",
+        "assemblyVersion": "0.1.0.0"
+      },
+      {
+        "case": "stable-main",
+        "productVersion": "0.1.0",
+        "fileVersion": "0.1.0.0",
+        "assemblyVersion": "0.1.0.0"
+      },
+      {
+        "case": "local-feature",
+        "productVersion": "0.1.0",
+        "fileVersion": "0.1.0.0",
+        "assemblyVersion": "0.1.0.0"
+      }
+    ],
+    "rawFile": "maintained-proof.log",
+    "rawSha256": "982828d1d01bda0974bdd6db638f041b287f9065ecf90c4bf4485495db0a0ea6"
+  },
+  "provenance": {
+    "baselineGitIdentityUnchanged": true,
+    "globalGitConfigEdited": false,
+    "unchangedBaselineGitBlobs": {
+      "global.json": "050e62af2e8c52a16c73105e1d3d0941f36e5f9e",
+      "dotnet-tools.json": "f1d67a89c9757ddf971f6e24b5077639653d8f0a",
+      "GitVersion.yml": "228c44b924cbfed24511ce47d4e8fcc782b6303c",
+      "Directory.Build.targets": "8a62b2230361dc41e82649800e8715803627bd78",
+      "Directory.Packages.props": "b2fbc34b7f5f81c8ae094d1e1ad6152244efa309"
+    },
+    "rawFile": "provenance.log",
+    "rawSha256": "90f2845024289cbeed8ead584c29ffb6ca89b7fe6942e33dbad100eb180e6e1f"
+  },
+  "cleanup": {
+    "ownedFixtureRepositoriesRemoved": 3,
+    "ownedFixtureRemovalVerified": true,
+    "temporaryProjectsAndCompiledOutputsRemoved": true,
+    "temporaryRunnerSourceFilesCreated": false,
+    "taskWorktreeRetainedForParent": true,
+    "rawOutputOutsideGit": true
+  },
+  "boundaries": {
+    "realTagsOrReleasesCreated": false,
+    "publicationPerformed": false,
+    "machineToolingInstalled": false,
+    "elevationOrNewConsentRequested": false,
+    "nativeInstallerOrDeviceEffects": false,
+    "requiredCiChecksClaimedPassed": false
+  },
+  "requiredChecks": [
+    "Portable build, tests, coverage, and package",
+    "Windows integration tests",
+    "Build WiX MSI and custom Burn setup"
+  ]
+}

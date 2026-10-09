@@ -23,13 +23,17 @@ $isPullRequest = $actions -and $env:GITHUB_EVENT_NAME -eq 'pull_request'
 $isTag = $actions -and $env:GITHUB_REF -like 'refs/tags/*'
 $main = -not $isPullRequest -and (($actions -and $env:GITHUB_REF -eq 'refs/heads/main') -or
     (-not $actions -and $branch -eq 'main'))
-$stableTags = @(Invoke-Git -Arguments @('tag', '--points-at', 'HEAD') |
+$checkoutTags = @(Invoke-Git -Arguments @('tag', '--points-at', 'HEAD'))
+$stableTags = @($checkoutTags |
     Where-Object { $_ -cmatch '^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' } |
     ForEach-Object { $_ -creplace '^v', '' } | Sort-Object -Unique)
 
 if ($isTag) {
     if ($env:GITHUB_REF -cnotmatch '^refs/tags/v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
         throw 'Release tag builds require v<major>.<minor>.<patch>; beta releases are produced by main builds.'
+    }
+    if ($checkoutTags -cnotcontains $env:GITHUB_REF.Substring('refs/tags/'.Length)) {
+        throw 'The workflow release tag does not identify the checkout revision.'
     }
     & git -C $RepositoryPath merge-base --is-ancestor $revision refs/remotes/origin/main
     if ($LASTEXITCODE -ne 0) { throw 'A release tag must point to a revision on origin/main.' }

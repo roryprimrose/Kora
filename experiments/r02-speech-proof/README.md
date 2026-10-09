@@ -3,6 +3,13 @@
 Status: **partial offline proof; acoustic/packaged-host acceptance blocked**.
 D-002 and D-007 remain open. This experiment does not change the decision
 register, production recognition/TTS, shared manifests, solution or CI.
+
+The [2026-10-09 unattended file-only rerun](evidence/unattended-20261009.md)
+adds fresh, separately identified measurements and scoped harness fixes:
+27 deterministic tests, 42 synthetic fixtures, and the 0.1/0.25/0.5 sweep.
+It preserves all historical receipts and qualifies no acoustic or hardware
+acceptance gate.
+
 On 2026-10-05 the user approved publishing and squash auto-completion of this
 PR **as partial research evidence**, with outstanding testing retained.
 This is not approval of production speech or closure of D-002/D-007.
@@ -86,15 +93,19 @@ integrated acceptance own the eventual wake front-end and playback policy.
 Run from the repository root in PowerShell:
 
 ```powershell
-python -m venv experiments\r02-speech-proof\.venv
+py -3.12 -m venv experiments\r02-speech-proof\.venv
 & experiments\r02-speech-proof\.venv\Scripts\python.exe -m pip install --only-binary=:all: --require-hashes -r experiments\r02-speech-proof\requirements.txt
-Set-Location experiments\r02-speech-proof
-& .venv\Scripts\python.exe prepare.py
-.\Render-Fixtures.ps1
-& .venv\Scripts\python.exe fixtures.py
-.\Validate.ps1
-& .venv\Scripts\python.exe benchmark.py --output evidence\recorded-results.json --thresholds 0.1 0.25 0.5 --warmups 5 --repetitions 30 --paced-seconds 60
+& experiments\r02-speech-proof\.venv\Scripts\python.exe experiments\r02-speech-proof\prepare.py
+& experiments\r02-speech-proof\Render-Fixtures.ps1
+& experiments\r02-speech-proof\.venv\Scripts\python.exe experiments\r02-speech-proof\fixtures.py
+& experiments\r02-speech-proof\Validate.ps1 -TestOutput experiments\r02-speech-proof\scratch\later-run\unit-tests.txt
+& experiments\r02-speech-proof\.venv\Scripts\python.exe experiments\r02-speech-proof\benchmark.py --output experiments\r02-speech-proof\scratch\later-run\recorded-results.json --thresholds 0.1 0.25 0.5 --warmups 5 --repetitions 30 --paced-seconds 60
 ```
+
+Use a new scratch run directory each time; the example does not overwrite
+historical committed receipts. The explicit launcher avoids the Windows
+Store `python` alias. If Python 3.12 is not already available, stop rather than
+installing a shared runtime as part of an unattended proof.
 
 Only dependency installation and `prepare.py` can download anything.
 Inference reads local assets/files. There is **no microphone or audible
@@ -119,7 +130,11 @@ Windows/SAPI versions or voices may change synthesized waveforms: regenerate
 and retain the new provenance rather than asserting cross-machine bit identity.
 
 `Validate.ps1` checks dependency closure, compiles the Python sources, and
-runs the deterministic tests. It writes [unit-tests.txt](evidence/unit-tests.txt).
+runs the deterministic tests. Its backward-compatible default writes
+[unit-tests.txt](evidence/unit-tests.txt); use `-TestOutput` as above to preserve
+that historical snapshot. Relative output paths resolve from the caller's
+working directory. Test-only temporary files are created and cleaned under
+the ignored experiment `scratch` directory, never the shared system temp area.
 The benchmark writes [recorded-results.json](evidence/recorded-results.json)
 and a generated [summary](evidence/recorded-summary.md).
 Use another output directory for exploratory runs; retain the committed

@@ -6,7 +6,7 @@ import numpy as np
 
 from benchmark import capture_result, p95, summarize, write_summary
 from capture_probe import CaptureProbe
-from fixtures import RATE, read_pcm, write_pcm
+from fixtures import RATE, ROOT, read_pcm, write_pcm
 
 
 FRAME = RATE // 100
@@ -126,6 +126,10 @@ class CaptureContractTests(unittest.TestCase):
 
 
 class MeasurementTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        (ROOT / "scratch").mkdir(exist_ok=True)
+
     def test_p95_uses_nearest_rank_and_reports_absence(self):
         self.assertIsNone(p95([]))
         self.assertEqual(p95(list(range(1, 31))), 29)
@@ -143,7 +147,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertNotIn("recall", summary["self_tts_replay"])
 
     def test_pcm_round_trip(self):
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory(dir=ROOT / "scratch") as temporary:
             path = Path(temporary) / "fixture.wav"
             pcm = np.array([-32768, 0, 32767], dtype=np.int16)
             write_pcm(path, pcm)
@@ -167,7 +171,7 @@ class MeasurementTests(unittest.TestCase):
             "paced": {"wall_seconds": 60, "cpu_percent_total_capacity": 1,
                       "incremental_peak_rss_bytes": 1024, "frame_processing_p95_ms": 2},
         }
-        with tempfile.TemporaryDirectory() as temporary:
+        with tempfile.TemporaryDirectory(dir=ROOT / "scratch") as temporary:
             output = Path(temporary) / "summary.md"
             write_summary(result, output, "alternative.json")
             report = output.read_text("utf-8")

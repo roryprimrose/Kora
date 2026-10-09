@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([string] $EvidencePath = (Join-Path $PSScriptRoot '.candidate\source-reproduction-attempt.json'))
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'PackageArtifacts.ps1')
@@ -36,6 +36,12 @@ try
     $original = (Get-FileHash -LiteralPath (Join-Path $cache "feed\GitHub.Copilot.SDK.$version.nupkg")).Hash
     $repeat = (Get-FileHash -LiteralPath $package).Hash
     $assembly = (Get-FileHash -LiteralPath (Join-Path $source 'dotnet\src\bin\Release\net10.0\GitHub.Copilot.SDK.dll')).Hash
+    $comparison = Get-ReviewedSourceBuildComparison $repeat.ToLowerInvariant() $assembly.ToLowerInvariant()
+    # Retain the observed bytes even on rejection; the clean source-only child is removed below.
+    $artifacts = Join-Path $cache 'source-reproduction-artifacts'
+    New-Item -ItemType Directory -Force $artifacts | Out-Null
+    Copy-Item -LiteralPath $package -Destination (Join-Path $artifacts 'GitHub.Copilot.SDK.nupkg')
+    Copy-Item -LiteralPath (Join-Path $source 'dotnet\src\bin\Release\net10.0\GitHub.Copilot.SDK.dll') -Destination $artifacts
     [ordered] @{
         observedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
         separateCleanSourceDirectory = $true
@@ -44,10 +50,19 @@ try
         reproducedPackageSha256 = $repeat.ToLowerInvariant()
         reproducedAssemblySha256 = $assembly.ToLowerInvariant()
         packageBytesEqual = ($original -eq $repeat)
+        reviewedIdentity = $comparison
+        qualification = if ($original -eq $repeat -and $comparison.profileMatchesReviewed)
+        {
+            'PASS: exact reviewed RT1 source-built package and assembly'
+        } else { 'BLOCKED: repeatability alone does not qualify the reviewed exact-byte profile' }
         packaging = 'Unmodified SDK entry contents; ZIP timestamps normalized to 1980-01-01 UTC'
-    } | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $PSScriptRoot 'evidence\source-reproduction.json')
+    } | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 $EvidencePath
     if ($original -ne $repeat) { throw 'Source package is not byte-reproducible.' }
-    Write-Host 'Exact-tag SDK package reproduced byte-identically from a separate clean source directory.'
+    if (-not $comparison.profileMatchesReviewed)
+    {
+        throw 'Source build repeats locally but differs from reviewed RT1 package/assembly bytes.'
+    }
+    Write-Host 'Reviewed exact-byte SDK profile reproduced from a separate clean source directory.'
 }
 finally
 {

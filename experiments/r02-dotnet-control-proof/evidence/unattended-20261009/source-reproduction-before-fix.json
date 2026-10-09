@@ -1,0 +1,10 @@
+{
+  "observedAtUtc": "2026-10-09T11:04:28.6158075+00:00",
+  "separateCleanSourceDirectory": true,
+  "sourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+  "sdkPackageSha256": "3aff6e89b2335043d75d1a90986de947689cba0bcb2fdc25d210fdfd4583e74d",
+  "reproducedPackageSha256": "3aff6e89b2335043d75d1a90986de947689cba0bcb2fdc25d210fdfd4583e74d",
+  "reproducedAssemblySha256": "b64272d2a30345c76a597b82b0d1dacde836e467d413f561d60090b71e726330",
+  "packageBytesEqual": true,
+  "packaging": "Unmodified SDK entry contents; ZIP timestamps normalized to 1980-01-01 UTC"
+}

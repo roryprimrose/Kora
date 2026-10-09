@@ -1,6 +1,44 @@
 # RT1 .NET observations and disposition
 
-The final run is recorded in [results](evidence/results.json) and
+## 2026-10-09 unattended attempt
+
+[Fresh run](evidence/unattended-20261009/run.json) is **BLOCKED**:
+NU1403 rejects the SDK package against the unchanged fixture lock; the
+no-restore conformance build also stops before testing. Requested **45**,
+executed **0**, runtime capability rows **0**. Denied effects/markers and runtime
+cleanup were not measured anew. No runtime child or synthetic provider was
+started. No released-package parity, account, RT2, MG1, PV1 or Gate 0 claim follows.
+
+The initial clean-checkout package and a clean-source repeat both hash
+`3aff6e89b2335043d75d1a90986de947689cba0bcb2fdc25d210fdfd4583e74d`;
+the assembly hashes `b64272d2a30345c76a597b82b0d1dacde836e467d413f561d60090b71e726330`.
+Both differ from the reviewed historical identities. The prior reproduction
+script accepted their local equality without comparing the reviewed profile.
+It now requires both checks and preserves the original receipt.
+The [post-fix attempt](evidence/unattended-20261009/source-reproduction-after-fix.json)
+with dirty experiment sources produced a different repeat package/assembly;
+it rejects local inequality and reviewed-identity mismatch. Cause is not
+established; no hash, package label or lock was changed to admit these bytes.
+
+[Offline checks](evidence/unattended-20261009/offline-invariants.json) pass
+**19/19**. They are separate artifact/script checks, not replacements for
+the 45 xUnit runtime cases. The source archive, extracted SDK source, native
+archive/payload and historical Node witness remain exact. All seven build
+packages' raw archive SHA-512 values agree with their downloaded hash files,
+and their NuGet content metadata agrees with the reviewed lock. The initial
+offline test incorrectly equated those distinct hash schemes (18/19); the
+corrected test verifies each scheme separately. Raw failure receipts are
+retained outside committed documentation.
+
+The baseline was `e0692f4`; exact revision and clean/dirty states are recorded
+in the fresh receipt. Committed evidence omits machine paths and raw diagnostic
+text. Raw logs, observed SDK bytes and original receipts were preserved for the
+coordinator before worktree cleanup. Unique reproduction/offline scratch was
+removed; ignored acquisition/build caches remain. Timings were contended.
+
+## Historical 2026-10-05 conformance
+
+The historical final run is recorded in [results](evidence/results.json) and
 [disposition](evidence/disposition.json), with exact tested hashes and UTC
 timestamps. **45/45 tests pass; 44 selected-profile capability rows PASS,
 one rejected hook-only row FAIL.** RT1 PASS is scoped to the explicitly

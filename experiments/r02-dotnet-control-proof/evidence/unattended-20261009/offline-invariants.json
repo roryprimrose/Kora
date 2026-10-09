@@ -1,0 +1,85 @@
+{
+  "observedAtUtc": "2026-10-09T11:12:26.9426274+00:00",
+  "scope": "Offline artifact and script invariants only; no SDK conformance or runtime launch",
+  "total": 19,
+  "passed": 19,
+  "failed": 0,
+  "checks": [
+    {
+      "id": "reviewed-receipt-agrees-with-runtime-gate",
+      "status": "PASS"
+    },
+    {
+      "id": "reviewed-source-archive",
+      "status": "PASS"
+    },
+    {
+      "id": "reviewed-runtime-archive",
+      "status": "PASS"
+    },
+    {
+      "id": "reviewed-native-launcher",
+      "status": "PASS"
+    },
+    {
+      "id": "reviewed-native-payload",
+      "status": "PASS"
+    },
+    {
+      "id": "minimal-runtime-assets-only",
+      "status": "PASS"
+    },
+    {
+      "id": "extracted-sdk-source-exact-archive-bytes",
+      "status": "PASS"
+    },
+    {
+      "id": "seven-source-build-locked-restore-content-identities",
+      "status": "PASS"
+    },
+    {
+      "id": "reviewed-identities-accepted-by-comparison",
+      "status": "PASS"
+    },
+    {
+      "id": "changed-package-rejected-by-comparison",
+      "status": "PASS"
+    },
+    {
+      "id": "changed-assembly-rejected-by-comparison",
+      "status": "PASS"
+    },
+    {
+      "id": "malformed-identity-fails-closed",
+      "status": "PASS"
+    },
+    {
+      "id": "current-build-comparison-requires-both-reviewed-identities",
+      "status": "PASS"
+    },
+    {
+      "id": "historical-node-witness-unchanged",
+      "status": "PASS"
+    },
+    {
+      "id": "all-45-source-cases-retained-not-executed",
+      "status": "PASS"
+    },
+    {
+      "id": "powershell-entry-points-parse",
+      "status": "PASS"
+    },
+    {
+      "id": "timestamp-normalization-preserves-entry-bytes",
+      "status": "PASS"
+    },
+    {
+      "id": "timestamp-normalization-byte-idempotence",
+      "status": "PASS"
+    },
+    {
+      "id": "owned-offline-fixture-cleaned",
+      "status": "PASS"
+    }
+  ]
+}

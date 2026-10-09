@@ -11,3 +11,21 @@ function Set-DeterministicPackageTimestamp([string] $Path)
     }
     finally { $archive.Dispose() }
 }
+
+function Get-ReviewedSourceBuildComparison([string] $PackageHash, [string] $AssemblyHash)
+{
+    $reviewed = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'evidence\disposition.json') -Raw |
+        ConvertFrom-Json
+    foreach ($hash in @($PackageHash, $AssemblyHash, $reviewed.sdkPackageSha256, $reviewed.sdkAssemblySha256))
+    {
+        if ($hash -cnotmatch '^[a-f0-9]{64}$') { throw 'Missing or malformed source-build identity.' }
+    }
+    [ordered] @{
+        reviewedPackageSha256 = $reviewed.sdkPackageSha256
+        reviewedAssemblySha256 = $reviewed.sdkAssemblySha256
+        packageMatchesReviewed = $PackageHash -ceq $reviewed.sdkPackageSha256
+        assemblyMatchesReviewed = $AssemblyHash -ceq $reviewed.sdkAssemblySha256
+        profileMatchesReviewed = ($PackageHash -ceq $reviewed.sdkPackageSha256) -and
+            ($AssemblyHash -ceq $reviewed.sdkAssemblySha256)
+    }
+}

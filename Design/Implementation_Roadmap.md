@@ -177,6 +177,19 @@ eng\Assert-CodeCoverage.ps1 -ReportPath <combined Cobertura.xml> -MinimumLine 10
 Line coverage 100%: 17216/17216; branch coverage 100%: 10331/10331.
 ```
 
+History-integrated rebase receipt: main advanced again before auto-merge to `99d4bafbdaca6d2db2f5c9bd2d9285ab88dc9aee` ([#124](https://github.com/roryprimrose/Kora/pull/124)). Conflict-free rebase preserved passive exact-session lexical search, admitted queue configuration and provider/memory authority. Tested source head: `d1191066006c5d2cb46ee4a742341598d612e0ad`. No merge/cherry-pick or schema-authority change.
+
+Fresh sequential validation used the same root Release/suite commands above and exactly one newly generated portable Cobertura report per assembly. All five suites passed without retries, failures or skips in this attempt. Earlier distinct receipts, including the audio failure and unchanged repeats, remain historical; no test, timeout, coverage threshold or exclusion was weakened.
+
+```text
+Release solution build: 0 warnings, 0 errors.
+Core: 1229 passed; Application: 3304 passed; Tools: 69 passed; Definitions: 6 passed.
+Windows: 1258 passed. All five: 5866 passed, 0 failed, 0 skipped.
+Latest-only portable aggregate: 17346/17346 lines; 10399/10399 branches.
+eng\Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100:
+Line coverage 100%; branch coverage 100%.
+```
+
 ### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
 
 The first D-014 implementation package delivers the

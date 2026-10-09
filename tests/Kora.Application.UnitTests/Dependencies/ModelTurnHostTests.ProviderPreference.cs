@@ -213,7 +213,8 @@ public sealed partial class ModelTurnHostTests
         };
         var result = await f.PolicyHost.InitializePolicyAsync(cancelled.Token);
         result.Policy.Should().BeNull();
-        result.Result.Reason.Should().Be(ModelTurnReason.PolicyChanged);
+        result.Result.Reason.Should().Be(stage is "cancel" ? ModelTurnReason.CallerCancelled : ModelTurnReason.PolicyChanged);
+        result.Result.Outcome.Should().Be(stage is "cancel" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied);
         if (replacement is not null) { (await replacement).Outcome.Should().Be(ModelTurnOutcome.Succeeded); }
     }
 

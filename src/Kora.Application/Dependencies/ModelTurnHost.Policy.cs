@@ -48,9 +48,11 @@ public sealed partial class ModelTurnHost
                     CompleteAudit(requested, result);
                     if (token.IsCancellationRequested || !Live() || !IsCurrentPolicy(previous))
                     {
-                        result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged);
+                        result = token.IsCancellationRequested
+                            ? Finish(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)
+                            : Finish(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged);
                         CompleteAudit(requested, result);
-                        activity.Complete(HostOperationOutcome.Failed);
+                        activity.Complete(ToActivityOutcome(result.Outcome));
                         return (result, null);
                     }
                     activity.Complete(HostOperationOutcome.Completed);

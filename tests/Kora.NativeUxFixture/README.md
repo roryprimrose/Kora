@@ -109,6 +109,8 @@ Fill the integer display fields and set `operatorConfirmed` to `true` only after
 reviewing all five factual notes. `secondDisplayScalePercent` may remain `null`
 when DPI02 is Blocked. The enlarged text value must exceed the original for a
 TXT01 Pass; mixed-DPI Pass needs at least two monitors with different scales.
+If text enlargement was not performed, leave `enlargedTextScalePercent` as `null`
+and record TXT01 as Blocked; do not invent an unobserved display setting.
 
 ```powershell
 .\eng\Invoke-NativeUxValidation.ps1 -Stage SignOff -OutputDirectory $proof

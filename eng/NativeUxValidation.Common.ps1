@@ -140,6 +140,10 @@ function Get-NativeUxSignOffStatus {
     }
     foreach ($field in 'textScalePercent', 'enlargedTextScalePercent', 'primaryDisplayScalePercent', 'monitorCount') {
         $value = $Observations.display[$field]
+        if ($field -ceq 'enlargedTextScalePercent' -and $null -eq $value -and
+            ($rows | Where-Object id -CEQ 'TXT01').outcome -cne 'Pass') {
+            continue
+        }
         if ($value -isnot [long] -and $value -isnot [int]) { throw "Record an integer display value: $field" }
         if ($value -le 0) { throw "Record a positive display value: $field" }
     }

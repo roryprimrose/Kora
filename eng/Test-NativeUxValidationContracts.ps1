@@ -42,6 +42,9 @@ $value.observations[4].outcome = 'Blocked'
 $value.display.monitorCount = 1
 $value.display.secondDisplayScalePercent = $null
 Check ((Get-NativeUxSignOffStatus $value) -ceq 'Partial') 'An unavailable mixed-DPI rig stays Partial'
+$value.observations[2].outcome = 'Blocked'
+$value.display.enlargedTextScalePercent = $null
+Check ((Get-NativeUxSignOffStatus $value) -ceq 'Partial') 'Unperformed text enlargement stays unknown rather than requiring an invented percentage'
 $value.observations[0].outcome = 'Fail'
 Check ((Get-NativeUxSignOffStatus $value) -ceq 'Failed') 'A failure takes precedence over blocked observations'
 foreach ($field in 'operatorConfirmed', 'settingsRestored', 'narratorStoppedOrRestored') {
@@ -76,6 +79,11 @@ Reject 'Text-scale pass needs an actually larger setting' {
     $value.display.enlargedTextScalePercent = 100
     Get-NativeUxSignOffStatus $value
 } 'actually larger'
+Reject 'Text-scale pass needs a recorded enlarged percentage' {
+    $value = New-CompletedObservations
+    $value.display.enlargedTextScalePercent = $null
+    Get-NativeUxSignOffStatus $value
+} 'integer display'
 Reject 'Mixed-DPI pass cannot be claimed on one monitor' {
     $value = New-CompletedObservations
     $value.display.monitorCount = 1

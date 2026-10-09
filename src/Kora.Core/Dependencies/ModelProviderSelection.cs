@@ -6,6 +6,9 @@ namespace Kora.Core.Dependencies;
 public sealed record ModelProviderSelection(
     ModelProviderIdentity Provider, HostId<ModelIdentity> Model, HostRevision Revision)
 {
+    public bool IsValid => Provider is ModelProviderIdentity.Ollama or ModelProviderIdentity.Copilot
+        && Model.Value != Guid.Empty && Revision.Value > 0;
+
     public static ModelProviderSelection OllamaCandidate { get; } = new(
         ModelProviderIdentity.Ollama, new(new Guid("9e0b0865-82fc-49ad-97ae-adfdd596b74f")), new(1));
 

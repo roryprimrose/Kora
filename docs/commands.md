@@ -513,6 +513,7 @@ assistant-name prefix supported. Use **session help** for the full syntax:
 | `session resume <exact-id> <generation>` | Explicit Active transition; never reruns work or revives approvals |
 | `session history <exact-id> [after <generation>:<snapshot>:<sequence>] [limit <1-50>]` | Passive ordered host interaction history with stable exact citations; no control intent or activity extension |
 | `session get <exact-id> <event-id>` | One exact history event belonging to that session, or explicit unknown; never name lookup or replay |
+| `session search <exact-id> [after <generation>:<snapshot>:<sequence>:<query-digest>] [limit <1-50>] "<query>"` | Passive lexical search of committed retained fields, exact receipt citations and explicit bounded-scan gaps/omissions |
 
 IDs must be nonempty canonical hyphenated GUIDs. Revisions are unsigned decimal
 integers (generation positive, metadata revision zero for absent legacy metadata).
@@ -531,7 +532,7 @@ Lifecycle changes require a fresh history read. Lifecycle results omit
 unobserved metadata; request status to observe it.
 
 Each accepted command has fresh original-user lineage. Except for passive
-`history/get`, legacy controls retain a durable host control
+`history/get/search`, legacy controls retain a durable host control
 intent/terminal receipt; reads do not change lifecycle, metadata, question or
 grant authority. Existing partitions must be present. Errors are explicit:
 refresh after conflict, resolve live/Unknown work or pending questions, or recover
@@ -547,10 +548,16 @@ over-budget unavailable content and disposition-redacted events are explicit.
 Bootstrap user/model messages and response bodies are unavailable, not recovered
 from logs. A task success is not proof of an external effect. Done histories
 are readable; an exact Removed ID returns redacted citations only. There is no
-composer, search, model history reasoning, Ask Evidence, broad export, attachment,
+composer, model history reasoning, Ask Evidence, broad export, attachment,
 queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
+
+Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
+
+The [bounded scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reads only actual retained question/option labels, final answer/choices and typed kind/task-state/decision/question-status fields. Results stay in ascending session-local sequence, not relevance order. Each call scans at most 200 receipts and returns the requested 1-50 complete receipts within 64 KiB, including JSON overhead. A query-bound SHA-256 continuation preserves the original session/generation/ceiling; equivalent normalized term sets may continue, changed terms require a fresh search.
+
+`scanned`, `gaps`, `omittedMatches` and `next` are explicit [result fields](../src/Kora.Core/Storage/SessionHistorySearchPage.cs). Baseline/gap/redacted/unavailable receipts count as gaps; oversized matching receipts are omitted explicitly, not truncated. An empty page with `next` is an incomplete scan, not proof of no matches. Continue until `next` is absent. A fresh search includes later appends. Removed content never matches; Done reads never resume. Query text is volatile and is not stored, logged or sent to a provider. No indexes, schema changes or persistent query cache are added.
 
 The native history page can open immutable **receipt details** for an exact
 event belonging to the selected session. This freshly resolves the same

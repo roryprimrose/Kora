@@ -190,10 +190,20 @@ attachments or model input. Their paths/text/provenance are never imported.
 History never reconstructs captions or authorizes replay: only fresh separately
 admitted actual playback can create a caption. History content never enters logs,
 activity tags/baggage or model context, and retrieval has no network/model
-dependency. Full composer, search, model history reasoning, Ask Evidence, broad
+dependency. Full composer, model history reasoning, Ask Evidence, broad
 export, queues and scheduler remain unavailable. Unique storage/interruption/
 capacity/copy evidence in the storage experiment is retained, not deleted or
 claimed replaced by this increment.
+
+### Delivered Passive Exact-Session Lexical History Search - 2026-10-09
+
+The [Application scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) consumes the delivered private ordered history reader, without a new schema, index, content capture or authority write. The [Core matcher](../src/Kora.Core/Storage/SessionHistorySearch.cs) reuses the selected-file lexical query/token rules: NFC invariant-case whole-word OR, 256 characters/512 UTF-8 bytes, 32 distinct terms/64 characters per term. Only committed question/option labels, final answer/choices and typed kind/task/decision/question-status metadata are searchable; bootstrap bodies, reasoning, full conversations/artifacts and volatile previews remain unavailable.
+
+The [result contract](../src/Kora.Core/Storage/SessionHistorySearchPage.cs) returns complete immutable receipts ordered by host sequence, at most 50 results/200 scanned receipts/64 KiB including command JSON overhead. Input reads remain bounded by the existing 64 KiB history page and 200 consumed receipts; no unbounded materialization occurs. Query-bound continuations retain exact session, generation and original sequence ceiling. Empty bounded pages may still have a continuation. Baseline/gap/redacted/unavailable counts and oversized matching omissions are explicit; missing/corrupt storage is not an empty success.
+
+Original typed/current-name activated `session search` and [native controls](../src/Kora/SessionsViewModel.Search.cs) share private admission and content-free Activity instrumentation. Fresh end-of-scan snapshot validation, cancellation and unchanged host control/privacy revision precede publication. Done is readable without renewal; Removed content does not match. Query/subject edits and privacy/source retirement suppress late presentation. Selection opens the existing freshly re-resolved immutable receipt viewer, not a duplicate resolver. No resume/replay, question/voice retarget, model call, grant consumption or persisted/logged query is admitted.
+
+Maintained [scratch SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteHistorySearchTests.cs), [portable workflow tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Search.cs) and [native recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs) cover delivered behavior only. Broader R12/R14, model history reasoning, Ask Evidence, general artifact search and installed accessibility qualification remain open.
 
 ### Delivered Minimal Sessions Workspace - 2026-10-07
 

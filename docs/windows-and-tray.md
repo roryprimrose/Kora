@@ -326,15 +326,19 @@ Only host-committed questions/final answers, decision metadata and task-state
 receipts are available. Migration baselines and gaps are labelled, not an
 invented timeline; a task receipt is not proof of an external effect.
 Bootstrap user/model messages, response bodies and full conversation composition
-are unavailable. There is no search, model history reasoning, Ask Evidence,
+are unavailable. There is no model history reasoning, Ask Evidence,
 export, replay or playback. File previews, shared-profile skill text and captions
 are not imported. Private ownership loss clears pending content.
-Exact typed/activated [history/get commands](commands.md#bounded-exact-id-session-commands)
+Exact typed/activated [history/get/search commands](commands.md#bounded-exact-id-session-commands)
 use the same service and do not record control intents or mutate sessions.
 
 Done sessions remain readable. Removed sessions do not reappear in the live
 list, but their exact known ID can inspect redacted history citations. This
 does not restore text, names, authority, approvals or work.
+
+**Search exact history** uses the same exact-ID field. Enter lexical words in the volatile query field and press Enter or the Search button. Results use the existing receipt list; select a match and use **Open immutable receipt details** for fresh resolution. **Next search snapshot page** continues even after an empty page; status reports scanned receipts, gaps and oversized matching omissions. Search defaults to 25 results, scans at most 200 receipts/call and bounds complete output to 64 KiB ([workflow](../src/Kora/SessionsViewModel.Search.cs)).
+
+Escape in the query field clears query/results without closing the window. **Clear query and results** returns focus to that field; **Cancel search** suppresses pending results. Editing query/subject, closing, privacy/ownership loss or retention retirement invalidates late content. Search does not disable the focused field, replace pending-question targets or renew activity ([native controls](../src/Kora/SessionsWindow.axaml.cs), [deterministic recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs), [late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs)). These headless checks are not physical keyboard, installed screen-reader or DPI qualification.
 
 ### Logical session disposition
 

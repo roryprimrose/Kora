@@ -24,6 +24,7 @@ public sealed partial record SessionCommand(
         + "session done <exact-id> <generation> | session resume <exact-id> <generation>. "
         + "session history <exact-id> [after <generation>:<snapshot>:<sequence>] [limit <1-50>] | "
         + "session get <exact-id> <event-id>. History is passive; no composer, model context or replay. "
+        + "session search <exact-id> [after <generation>:<snapshot>:<sequence>:<query-digest>] [limit <1-50>] \"<lexical query>\". "
         + "IDs use canonical D GUIDs; revisions use decimal integers. Names use NFC single-line Unicode, "
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
         + "No name, selected-window, delete, general executor or approval targeting.";
@@ -32,6 +33,8 @@ public sealed partial record SessionCommand(
     public Guid? TaskId { get; init; }
     public Guid? HistoryEventId { get; init; }
     public SessionHistoryCursor? HistoryCursor { get; init; }
+    public string? HistoryQuery { get; init; }
+    public SessionHistorySearchCursor? HistorySearchCursor { get; init; }
     public Guid? QuestionId { get; init; }
     public long TaskRevision { get; init; }
     public long QuestionRevision { get; init; }
@@ -96,6 +99,7 @@ public sealed partial record SessionCommand(
         }
         var quote = text.IndexOf('"', StringComparison.Ordinal);
         SessionName? name = null;
+        string? query = null;
         if (quote >= 0)
         {
             var quoted = text[quote..];
@@ -108,14 +112,24 @@ public sealed partial record SessionCommand(
                 closed = i == quoted.Length - 1;
                 break;
             }
-            if (!closed || text[quote - 1] != ' ') { return Invalid("Use one final quoted name."); }
-            try { name = new(value.ToString()); }
+            if (!closed || text[quote - 1] != ' ') { return Invalid("Use one final quoted name or search query."); }
+            try
+            {
+                if (text.StartsWith("session search ", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = value.ToString();
+                    _ = new SessionHistorySearch(query);
+                }
+                else { name = new(value.ToString()); }
+            }
             catch (InvalidDataException exception) { return Invalid(exception.Message); }
+            catch (ArgumentException exception) { return Invalid(exception.Message); }
             text = text[..quote].TrimEnd();
         }
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length < 2) { return Invalid("Specify a session operation."); }
         var operation = words[1].ToLowerInvariant();
+        if (string.Equals(operation, "search", StringComparison.Ordinal)) { return ParseHistorySearch(words, query); }
         if (operation is "help" && words.Length == 2 && name is null) { return new(SessionCommandOperation.Help); }
         if (operation is "create" && words.Length == 2 && name is not null) { return new(SessionCommandOperation.Create, Name: name); }
         if (operation is "list" && name is null) { return Page(new(SessionCommandOperation.List), words, 2); }

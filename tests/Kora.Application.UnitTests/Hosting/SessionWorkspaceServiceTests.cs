@@ -211,11 +211,13 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Action? AfterHistoryRead { get; set; }
         internal Exception? HistoryFailure { get; set; }
         internal SessionHistoryEvent? HistoryEvent { get; set; }
+        internal Func<HostId<SessionIdentity>, SessionHistoryCursor?, int, SessionHistoryPage>? HistoryReader { get; set; }
         public ValueTask<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session,
             SessionHistoryCursor? cursor, int limit, CancellationToken cancellationToken)
         {
             if (HistoryFailure is { } failure) { throw failure; }
             AfterHistoryRead?.Invoke();
+            if (HistoryReader is { } reader) { return ValueTask.FromResult(reader(session, cursor, limit)); }
             return ValueTask.FromResult(new SessionHistoryPage(session, new(1), false, 0, [], null));
         }
         public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,

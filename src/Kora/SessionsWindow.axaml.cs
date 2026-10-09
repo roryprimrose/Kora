@@ -24,6 +24,23 @@ internal sealed partial class SessionsWindow : Window
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         ReadHistory.Click += async (_, _) => await model.ReadHistoryAsync();
         NextHistory.Click += async (_, _) => await model.ReadHistoryAsync(next: true);
+        SearchHistory.Click += async (_, _) => await model.SearchHistoryAsync();
+        NextHistorySearch.Click += async (_, _) => await model.SearchHistoryAsync(next: true);
+        CancelHistorySearch.Click += (_, _) => model.CancelHistorySearch();
+        ClearHistorySearch.Click += (_, _) => { model.HistoryQuery = string.Empty; HistoryQuery.Focus(); };
+        HistoryQuery.KeyDown += async (_, args) =>
+        {
+            if (args.Key == Key.Enter && model.CanSearchHistory)
+            {
+                args.Handled = true;
+                await model.SearchHistoryAsync();
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.HistoryQuery = string.Empty;
+            }
+        };
         HistoryRecords.SelectionChanged += (_, _) =>
             model.SelectHistoryRecord(HistoryRecords.SelectedItem as SessionHistoryEvent);
         OpenHistoryDetail.Click += async (_, _) => await model.OpenHistoryDetailAsync();

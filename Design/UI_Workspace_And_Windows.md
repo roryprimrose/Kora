@@ -67,6 +67,8 @@ headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
 ### Delivered Passive Details Boundary
 
+The [passive lexical increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) adds exact-session query, Search/Next/Cancel/Clear controls beside the existing history ID. Enter searches; Escape clears within the focused field. Search results reuse the immutable receipt list and fresh detail viewer without changing selected work or pending-question identities. Complete 64 KiB results and explicit scanned/gap/omitted counts distinguish an empty bounded page from an exhausted snapshot ([controls](../src/Kora/SessionsWindow.axaml), [headless recovery](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs)).
+
 The [selected-session receipt increment](Information_Display.md#delivered-immutable-selected-session-receipt-details---2026-10-09)
 now composes this same viewer with the Sessions history page. Select a listed
 receipt and explicitly open its immutable details; the exact history subject

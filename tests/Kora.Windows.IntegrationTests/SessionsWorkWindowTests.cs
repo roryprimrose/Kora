@@ -20,6 +20,36 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SessionsWorkWindowTests
 {
     [WindowsFact]
+    public async Task Retention_invalidation_preserves_unrelated_work_and_closure_clears_matching_live_work()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteTaskControlTests.WaitAsync(fixture);
+        var access = new WindowsSqliteSessionWorkspaceTests.Access();
+        var viewer = CreateViewer(fixture, access);
+        await viewer.RefreshAsync();
+        await viewer.SelectAsync(viewer.Sessions.Single());
+        viewer.SelectWorkRecord(viewer.WorkRecords.Single());
+        var session = fixture.Request.SessionId;
+        var other = new HostId<SessionIdentity>(Guid.NewGuid());
+        viewer.ReferencesSession(session).Should().BeTrue();
+        viewer.ReferencesSession(other).Should().BeFalse();
+        var records = viewer.WorkRecords;
+        viewer.RevokeSessionList();
+        viewer.Sessions.Should().BeEmpty();
+        viewer.WorkRecords.Should().BeSameAs(records);
+        viewer.SelectedSessionRecord!.Authority.SessionId.Should().Be(session);
+        viewer.ReferencesSession(session).Should().BeTrue();
+        viewer.Close();
+        viewer.WorkRecords.Should().BeEmpty();
+        viewer.PendingQuestions.Should().BeEmpty();
+        viewer.CanCancelWork.Should().BeFalse();
+        viewer.CanEnqueueVersion.Should().BeFalse();
+        viewer.CanRefreshWork.Should().BeFalse();
+        viewer.ReferencesSession(session).Should().BeFalse();
+    }
+
+    [WindowsFact]
     public async Task Refresh_preserves_keyboard_focus_exact_selection_and_pending_question_coexistence_without_activity()
     {
         await HeadlessSession.RunAsync(async () =>

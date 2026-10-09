@@ -46,10 +46,10 @@ Schema v6 retains the separately delivered fixed local-version queue and its
 no-replay recovery. Full R12 still needs blocked R11 for general execution
 integration; this preference slice adds no execution or broader scheduling.
 
-Validation after integration onto `33b90f21`: zero-warning/error root Release
+Validation after rebase onto `5755aa7d` (#118): zero-warning/error root Release
 build with existing locked dependency assets (no restore/feed change needed);
-Core 1,026, Application 2,854, Tools 69, Definitions 6,
-Windows 1,205 passed with zero
+Core 1,028, Application 2,860, Tools 69, Definitions 6,
+Windows 1,215 passed with zero
 failures/skips; portable line/branch coverage 100%/100%. See the
 [dated evidence receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09).
 

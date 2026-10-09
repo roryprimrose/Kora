@@ -111,14 +111,16 @@ Full R12 remains partial; blocked R11 is required only for the remaining
 general execution/queue integration, not the delivered fixed local-version queue
 or this non-executing maintenance increment.
 
-Validation after integration onto `33b90f21`: Release 0 warnings/errors using
+Validation after rebase onto `5755aa7d` (#118): Release 0 warnings/errors using
 existing locked dependency assets; no restore/feed change needed.
-Core 1,026, Application 2,854, Tools 69, Definitions 6, Windows 1,205 passed,
+Core 1,028, Application 2,860, Tools 69, Definitions 6, Windows 1,215 passed,
 zero failures/skips;
 portable coverage 100% lines/branches. Tests check actual plaintext absence
 from database/journal, owned file removal, preservation, holds, cancellation,
 invalid persistence/migration, interrupted acceptance, bounded fairness,
-queue holds/inventoried deletion and restart no-replay.
+queue holds/inventoried deletion, restart no-replay and retained-source
+invalidation of #118's selected-session work surface without losing unrelated
+work or its passive-refresh/question coexistence contracts.
 See the [dated roadmap receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09);
 installed/native/RC and full R12/A3 qualification remain open.
 

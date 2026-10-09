@@ -58,8 +58,8 @@ internal sealed partial class SessionsViewModel(
             || record.Authority.IsActive == (sessionFilter == SessionListFilter.Active))];
     public SessionWorkspaceEntry? SelectedSessionRecord => selected;
     internal bool ReferencesSession(HostId<SessionIdentity> session) =>
-        selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
-        || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal);
+        !closed && (selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
+        || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal));
 
     internal void RevokeSessionList()
     {

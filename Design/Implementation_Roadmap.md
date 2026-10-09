@@ -167,10 +167,11 @@ uncertain key publication fail closed. No delivered managed-backup publisher
 exists; this does not guess ownership or claim removal of arbitrary backups.
 No forensic/media erase, provider copy, user export or full A3 claim is made.
 
-Validation after integration onto `33b90f21` (#116): locked solution restore and
-root Release build, **0 warnings / 0 errors**; no dependency or repository feed
-configuration change was necessary. Core **1,026**, Application **2,854**,
-Tools **69**, Definitions **6**, Windows **1,205** tests passed, all **0 failed /
+Validation after rebase onto `5755aa7d` (#118), preserving #114/#116: root Release
+build with the previously restored locked assets, **0 warnings / 0 errors**; no
+additional restore, dependency or repository feed configuration change was
+necessary. Core **1,028**, Application **2,860**, Tools **69**, Definitions **6**,
+Windows **1,215** tests passed, all **0 failed /
 0 skipped**. The unchanged portable
 coverage gate passes **100% lines / 100% branches**. Focused tests prove actual
 plaintext sentinel absence from SQLite/journal and actual owned artifact/staging
@@ -200,6 +201,12 @@ older statements that the bounded fixed local-version queue was absent; broader
 effects, workers, full conversation, managed backups and RC acceptance remain open.
 Confirmed retention preferences are loaded before storage clock migration;
 invalid/unconfirmed saved state cannot seed clocks with fallback defaults.
+The #118 authoritative selected-session work surface, filtered session list,
+exact controls, passive focus/selection-preserving refresh and question
+coexistence are preserved. Work reads use the same retention admission and
+cancellation boundary; matching retained sources close/clear the live surface,
+while unrelated selected work survives session-list invalidation. The affected
+native/session/history/queue/retention suite passes **194** tests.
 
 ### R12/R14 bounded ordered interaction history - 2026-10-09
 

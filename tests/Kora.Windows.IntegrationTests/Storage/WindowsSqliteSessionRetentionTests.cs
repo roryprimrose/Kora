@@ -66,6 +66,8 @@ public sealed class WindowsSqliteSessionRetentionTests
         (await fixture.Store.ReadRetentionAsync(session, fixture.Token)).Should().Be(clock);
         (await RetainAsync(fixture)).Deleted.Should().Be(1);
         fixture.Count("session_queue").Should().Be(0);
+        var removed = () => fixture.Store.ReadWorkAsync(session, 1, new(), fixture.Token).AsTask();
+        await removed.Should().ThrowAsync<InvalidOperationException>();
         fixture.Reopen();
         await fixture.Store.InitializeAsync(fixture.Token);
         (await fixture.Store.ReadRetentionAsync(session, fixture.Token)).Purged.Should().BeTrue();
@@ -90,11 +92,15 @@ public sealed class WindowsSqliteSessionRetentionTests
         var other = (await WindowsSqliteSessionWorkspaceTests.Service(fixture, new())
             .CreateAsync(new("Independent queue"), RequestOrigin.LocalUi, fixture.Token)).Authority.SessionId;
         var independent = await EnqueueAsync(fixture, other);
+        var independentWork = await fixture.Store.ReadWorkAsync(other, 1, new(), fixture.Token);
         fixture.Time.Now = clock.DeleteDue;
         (await RetainAsync(fixture)).Deleted.Should().Be(1);
         fixture.Count("session_queue").Should().Be(1);
         (await fixture.Store.ReadQueueEntryAsync(other, independent.Request.TaskId, fixture.Token))!.Request.Should().Be(independent.Request);
         (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().Contain(perpetual);
+        var retainedWork = await fixture.Store.ReadWorkAsync(other, 1, new(), fixture.Token);
+        retainedWork.PendingCount.Should().Be(independentWork.PendingCount);
+        retainedWork.QueueRecords.Single().Entry.Request.Should().Be(independent.Request);
         (await fixture.Store.ReadHistoryAsync(session, null, 50, fixture.Token)).Records
             .Should().OnlyContain(value => value.Availability == SessionHistoryAvailability.Redacted);
         var late = () => CompleteAsync(fixture, running);

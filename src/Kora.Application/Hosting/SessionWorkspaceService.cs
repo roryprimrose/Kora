@@ -26,7 +26,7 @@ public sealed partial class SessionWorkspaceService(
                 .ReadWorkAsync(session, access.ControlRevision, queue?.Limits ?? new SessionQueueLimits(), token).ConfigureAwait(false);
             snapshot.RequireSubject(session);
             return snapshot;
-        });
+        }, token);
     public Task<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) =>
         ReadAsync(() => store.ReadSessionsAsync(after, limit, token), token);
 

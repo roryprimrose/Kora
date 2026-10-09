@@ -5,6 +5,7 @@ using System.Text;
 
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
+using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -17,9 +18,10 @@ namespace Kora.Windows.Storage;
 
 /// <summary>
 /// Host-only durable authority. This stores decisions, not executable tokens or effect receipts.
-/// The task lease is always acquired before the interaction lease; neither store writes the other database.
+/// Tasks, questions and required authority audit share one lease and transaction.
+/// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ISessionRetentionStore, ICommittedAuthorityAuditReader
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -27,32 +29,67 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
     private readonly Guid runId = Guid.NewGuid();
     private readonly TimeProvider time;
     private readonly EvidenceRetentionPolicy retentionPolicy;
+    private readonly AuditRetentionPolicy? auditPolicy;
+    private readonly SessionRetentionPolicy sessionRetentionPolicy;
+    private readonly IApplicationDataPaths paths;
+    private readonly HashSet<HostId<SessionIdentity>> liveControlSessions = [];
     private readonly IHostInteractionTransactionCheckpoint? checkpoint;
+    private string? inspectionIdentity;
 
     public WindowsSqliteHostInteractionStore(IApplicationDataPaths paths, WindowsSqliteHostTaskStore tasks,
-        TimeProvider? timeProvider = null, EvidenceRetentionPolicy? retentionPolicy = null)
-        : this(paths, tasks, timeProvider, checkpoint: null, retentionPolicy)
+        TimeProvider? timeProvider = null, EvidenceRetentionPolicy? retentionPolicy = null,
+        AuditRetentionPolicy? auditPolicy = null, SessionRetentionPolicy? sessionRetentionPolicy = null)
+        : this(paths, tasks, timeProvider, checkpoint: null, retentionPolicy, auditPolicy, sessionRetentionPolicy)
     {
     }
 
     internal WindowsSqliteHostInteractionStore(IApplicationDataPaths paths, WindowsSqliteHostTaskStore tasks,
         TimeProvider? timeProvider, IHostInteractionTransactionCheckpoint? checkpoint,
-        EvidenceRetentionPolicy? retentionPolicy = null)
+        EvidenceRetentionPolicy? retentionPolicy = null, AuditRetentionPolicy? auditPolicy = null,
+        SessionRetentionPolicy? sessionRetentionPolicy = null)
     {
         this.tasks = tasks;
+        this.paths = paths;
         time = timeProvider ?? TimeProvider.System;
         this.retentionPolicy = retentionPolicy ?? new EvidenceRetentionPolicy();
+        this.auditPolicy = auditPolicy;
+        this.sessionRetentionPolicy = sessionRetentionPolicy ?? new();
         this.checkpoint = checkpoint;
         database = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
-            HostInteractionSchema.ApplicationId, HostInteractionSchema.Tables);
+            HostInteractionSchema.ApplicationId, HostInteractionSchema.CurrentTables,
+            new(1, 2, HostInteractionSchema.Tables, MigrateMetadata),
+            new(2, 3, HostInteractionSchema.MetadataTables, ConsolidateTasks),
+            new(3, 4, HostInteractionSchema.AuthorityTables, MigrateHistory),
+            new(4, 5, HostInteractionSchema.HistoryTables, MigrateQueue),
+            new(5, HostInteractionSchema.Version, HostInteractionSchema.QueueTables, MigrateRetention));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
         new(Task.Run(() =>
         {
+            if (!database.HasExistingPartition()) { tasks.RequireFreshAuthority(cancellationToken); }
             using var lease = database.AcquireLease(out var created, cancellationToken);
             using var connection = Open(created, cancellationToken);
+            tasks.BindAuthority(database, ValidateAuthority, runId, ObserveTaskActivity);
+            var identity = database.ReadIdentity();
+            if (inspectionIdentity is not null && !Same(inspectionIdentity, identity))
+            {
+                throw new InvalidDataException("The initialized authority store was replaced.");
+            }
+            inspectionIdentity = identity;
         }, cancellationToken));
+
+    private void ConsolidateTasks(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
+    {
+        ValidateAudit(connection);
+        ValidateRows(connection);
+        ValidateMetadata(connection);
+        Execute(connection, transaction, string.Join(';', WindowsSqliteHostTaskStore.Schema) + ";"
+            + HostInteractionSchema.RunTable + ";" + HostInteractionSchema.WaitTable);
+        tasks.ImportAuthority(connection, transaction, token);
+        ValidateConsolidatedAuthority(connection);
+        checkpoint?.BeforeCommit(connection, transaction);
+    }
 
     public ValueTask<WorkSessionAuthorization?> ReadSessionAsync(HostId<SessionIdentity> sessionId,
         CancellationToken cancellationToken)
@@ -60,8 +97,8 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         sessionId.Validate();
         return new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             var session = ReadSession(connection, sessionId);
             return session?.Authority;
         }, cancellationToken));
@@ -74,8 +111,8 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         sessionId.Validate();
         return new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             return ReadQuestions(connection).Where(q => q.Key.Request.SessionId == sessionId).ToImmutableArray();
         }, cancellationToken));
     }
@@ -83,8 +120,8 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
     public ValueTask<ImmutableArray<OperationGrant>> ReadGrantsAsync(CancellationToken cancellationToken) =>
         new(Task.Run(() =>
         {
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
             return ReadGrants(connection);
         }, cancellationToken));
 
@@ -132,6 +169,11 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
     public async ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
     {
         RequireLive(request);
+        await Task.Run(() =>
+        {
+            using var lease = database.AcquireReadLease(cancellationToken);
+            using var connection = Open(created: false, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
         var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
         await tasks.CommitControlIntentAsync(intent, cancellationToken).ConfigureAwait(false);
         return intent;
@@ -161,8 +203,14 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
 
     /// <summary>Done/resume invalidates questions and scoped grants. Removed identities are tombstoned, never reused.</summary>
     public ValueTask<WorkSessionAuthorization> SetSessionLifecycleAsync(HostRequest request,
-        HostRevision expectedGeneration, bool active, bool remove, CancellationToken cancellationToken) =>
-        SetLifecycleAsync(request, expectedGeneration, active, remove, canControl: null, cancellationToken);
+        HostRevision expectedGeneration, bool active, bool remove, CancellationToken cancellationToken)
+    {
+        if (remove)
+        {
+            throw new InvalidOperationException("Removal requires the guarded explicit disposition preview and confirmation path.");
+        }
+        return SetLifecycleAsync(request, expectedGeneration, active, remove: false, canControl: null, cancellationToken);
+    }
 
     private ValueTask<WorkSessionAuthorization> SetLifecycleAsync(HostRequest request,
         HostRevision expectedGeneration, bool active, bool remove, Func<bool>? canControl, CancellationToken cancellationToken) =>
@@ -289,13 +337,16 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
     {
         ArgumentNullException.ThrowIfNull(transition);
         RequireLive(request);
-        return new(Task.Run(() => tasks.WithCommittedIntent(request, intent =>
+        return new(Task.Run(() => tasks.WithCommittedIntent(request, (connection, intent) =>
         {
             using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = Open(created, cancellationToken);
+            ValidateAuthority(connection);
             using var transaction = connection.BeginTransaction();
             var session = RequireSession(connection, request.SessionId).Authority;
+            if (ReadSession(connection, request.SessionId)!.State == 2)
+            {
+                throw new InvalidOperationException("A disposed session cannot append interaction records.");
+            }
             var observation = ReadObservation(connection, request.RequestId);
             var admitted = observation is not null && observation.RunId == runId
                 && observation.Request == request && observation.Generation == session.Generation;
@@ -328,7 +379,7 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
 
     private ValueTask<T> RunHostMutationAsync<T>(HostRequest request, string action,
         Func<SqliteConnection, SqliteTransaction, HostTaskRecord, SecurityAuditEvent, T> mutation,
-        CancellationToken cancellationToken, Func<bool>? canControl = null)
+        CancellationToken cancellationToken, Func<bool>? canControl = null, bool requireIdle = true)
     {
         RequireLive(request);
         return new(Task.Run(() =>
@@ -343,20 +394,17 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
             using var activity = HostActivity.BeginAudit(request, audit);
             try
             {
-                T Mutate(HostTaskRecord intent)
+                T Mutate(SqliteConnection connection, HostTaskRecord intent)
                 {
                     using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
-                    var created = false;
-                    using var lease = canControl is null ? database.AcquireLease(out created, cancellationToken)
-                        : database.AcquireReadLease(cancellationToken);
-                    using var connection = Open(created, cancellationToken);
+                    ValidateAuthority(connection);
                     using var transaction = connection.BeginTransaction();
                     var value = mutation(connection, transaction, intent, audit);
                     Commit(transaction, request, cancellationToken, canControl);
                     storage.Complete(HostOperationOutcome.Completed);
                     return value;
                 }
-                var result = canControl is null
+                var result = canControl is null || !requireIdle
                     ? tasks.WithCommittedIntent(request, Mutate, cancellationToken)
                     : tasks.WithCommittedIdleIntent(request, Mutate, cancellationToken);
                 activity.Complete(HostOperationOutcome.Completed);
@@ -404,17 +452,41 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         {
             if (created)
             {
-                Execute(connection, null, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                tasks.RequireFreshAuthority(cancellationToken);
+                using var transaction = connection.BeginTransaction();
+                tasks.ImportAuthority(connection, transaction, cancellationToken);
+                Execute(connection, transaction, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                transaction.Commit();
             }
-            ValidateAudit(connection);
-            ValidateRows(connection);
+            tasks.RequireRetiredAuthority(cancellationToken);
+            ValidateAuthority(connection);
+            tasks.BindAuthority(database, ValidateAuthority, runId, ObserveTaskActivity);
             return connection;
         }
+
         catch
         {
             connection.Dispose();
             throw;
         }
+    }
+
+    private static void ValidateAuthority(SqliteConnection connection)
+    {
+        ValidateConsolidatedAuthority(connection);
+        SessionHistoryPersistence.Validate(connection);
+        ValidateQueue(connection);
+        ValidateRetention(connection);
+    }
+
+    private static void ValidateConsolidatedAuthority(SqliteConnection connection)
+    {
+        ValidateAudit(connection);
+        ValidateRows(connection);
+        ValidateMetadata(connection);
+        WindowsSqliteHostTaskStore.ValidateTasks(connection);
+        ValidateQuestionTasks(connection);
+        ValidateWaits(connection);
     }
 
     private static void RequireLive(HostRequest request)
@@ -475,6 +547,12 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         {
             throw new InvalidDataException("Only the live typed host security path may append authority audit.");
         }
+        if (audit.ActionId.StartsWith("session.create.", StringComparison.Ordinal)
+            && !Same(audit.ActionId, "session.create.named"))
+        {
+            // Host preference/control collaborators retain exact authority for this run. Never expire it underneath them.
+            liveControlSessions.Add(session.SessionId);
+        }
         using var head = connection.CreateCommand();
         head.Transaction = transaction;
         head.CommandText = "SELECT sequence,hash FROM authority_head WHERE singleton=1;";
@@ -492,7 +570,8 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         var trace = live.Activity!;
         var committedAt = time.GetUtcNow();
         var envelope = new AuthorityAudit(live.Request, intent.Revision, session.Generation, audit,
-            trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt, retentionPolicy.AuditDue(committedAt), decision?.Outcome,
+            trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt,
+            auditPolicy is null ? retentionPolicy.AuditDue(committedAt) : auditPolicy.Due(committedAt), decision?.Outcome,
             decision?.Question?.Key.QuestionId, decision?.Question?.Key.Revision,
             decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? []);
         var json = HostInteractionCodec.Encode(envelope);
@@ -503,6 +582,16 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
             UPDATE authority_head SET sequence=$sequence,hash=$hash WHERE singleton=1;
             """, ("$sequence", sequence), ("$correlation", audit.CorrelationId.ToString("D")),
             ("$previous", previousHash), ("$hash", hash), ("$envelope", json));
+        if (decision is not null)
+        {
+            SessionHistoryPersistence.Decision(connection, transaction, live.Request, session.Generation, decision.Outcome, sequence);
+            if (decision.Question?.Status == QuestionStatus.Answered
+                || decision.Outcome == HostInteractionOutcome.Cancelled
+                    && live.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            {
+                TouchActivity(connection, transaction, session.SessionId);
+            }
+        }
         return sequence;
     }
 
@@ -517,25 +606,16 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
             while (reader.Read())
             {
                 var json = reader.GetString(4);
-                var audit = HostInteractionCodec.Decode<AuthorityAudit>(json);
-                if (audit.Audit is null || audit.Request is null || audit.TraceId is null || audit.SpanId is null
-                    || audit.Changes is null || audit.Changes.Any(change => change is null))
-                {
-                    throw new InvalidDataException("The typed interaction audit has missing required fields.");
-                }
                 var next = checked(sequence + 1);
                 var calculated = Hash(next, hash, json);
-                if (reader.GetInt64(0) != next || !Same(reader.GetString(1), audit.Audit.CorrelationId.ToString("D"))
-                    || !Same(reader.GetString(2), hash) || !Same(reader.GetString(3), calculated)
-                    || audit.IntentRevision.Value <= 0 || audit.SessionGeneration.Value <= 0
-                    || audit.DueAt <= audit.CommittedAt
-                    || !IsHex(audit.TraceId, 32) || !IsHex(audit.SpanId, 16)
-                    || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
-                    || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
-                    || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0))
+                _ = DecodeAuthorityAudit(reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
+                    reader.GetString(3), json);
+                if (reader.GetInt64(0) != next
+                    || !Same(reader.GetString(2), hash) || !Same(reader.GetString(3), calculated))
                 {
                     throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
                 }
+
                 sequence = next;
                 hash = calculated;
             }
@@ -546,6 +626,38 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         {
             throw new InvalidDataException("The interaction audit head disagrees with its ordered chain.");
         }
+    }
+
+    private static AuthorityAudit DecodeAuthorityAudit(long sequence, string correlation, string previous,
+        string hash, string json)
+    {
+        var audit = HostInteractionCodec.Decode<AuthorityAudit>(json);
+        if (audit.Audit is null || audit.Request is null || audit.TraceId is null || audit.SpanId is null
+            || audit.Changes is null || audit.Changes.Any(change => change is null))
+        {
+            throw new InvalidDataException("The typed interaction audit has missing required fields.");
+        }
+        if (sequence <= 0 || !Same(correlation, audit.Audit.CorrelationId.ToString("D"))
+            || !Same(hash, Hash(sequence, previous, json))
+            || audit.IntentRevision.Value <= 0 || audit.SessionGeneration.Value <= 0
+            || audit.Outcome is { } outcome && !Enum.IsDefined(outcome)
+            || (audit.QuestionId is null) != (audit.QuestionRevision is null)
+            || (audit.ApprovalId is null) != (audit.GrantRevision is null)
+            || audit.QuestionRevision is { Value: <= 0 } || audit.GrantRevision is { Value: <= 0 }
+            || audit.QuestionId?.Value == Guid.Empty || audit.ApprovalId?.Value == Guid.Empty
+            || audit.Audit.ApprovalId == Guid.Empty
+            || !AuditRetentionDays.IsValidDeadline(audit.CommittedAt, audit.DueAt)
+            || !IsHex(audit.TraceId, 32) || !IsHex(audit.SpanId, 16)
+            || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
+            || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
+            || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention")
+                || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
+                || !Same(change.Id, id.ToString("D"))))
+        {
+            throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
+        }
+        return audit;
     }
 
     private static void ValidateRows(SqliteConnection connection)
@@ -561,6 +673,18 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
                 var row = DecodeSession(reader);
                 ValidateRowAuthority(connection, reader.GetInt64(3), SessionChange(row.Authority, (int)row.State));
             }
+        }
+        command.CommandText = """
+            SELECT 1 FROM (
+                SELECT json_extract(c.value,'$.Id') AS id, MAX(a.sequence) AS sequence
+                FROM security_audit_events a, json_each(a.envelope,'$.Changes') c
+                WHERE json_extract(c.value,'$.Kind')='session' GROUP BY json_extract(c.value,'$.Id')
+            ) latest LEFT JOIN work_sessions s ON s.session_id=latest.id
+            WHERE s.audit_sequence IS NULL OR s.audit_sequence<>latest.sequence LIMIT 1;
+            """;
+        if (command.ExecuteScalar() is not null)
+        {
+            throw new InvalidDataException("Committed session authority or tombstone is missing or stale; replacement is forbidden.");
         }
         command.CommandText = "SELECT request_id,session_id,run_id,revision,generation,payload,audit_sequence FROM host_observations;";
         using (var reader = command.ExecuteReader())
@@ -673,12 +797,17 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         return grants.ToImmutable();
     }
 
-    private static void WriteSession(SqliteConnection connection, SqliteTransaction transaction,
-        WorkSessionAuthorization session, int state, long sequence) =>
+    private void WriteSession(SqliteConnection connection, SqliteTransaction transaction,
+        WorkSessionAuthorization session, int state, long sequence)
+    {
         Execute(connection, transaction, """
             INSERT INTO work_sessions VALUES($id,$generation,$state,$audit)
             ON CONFLICT(session_id) DO UPDATE SET generation=excluded.generation,state=excluded.state,audit_sequence=excluded.audit_sequence;
             """, ("$id", Id(session.SessionId)), ("$generation", session.Generation.Value), ("$state", state), ("$audit", sequence));
+        SessionHistoryPersistence.Seed(connection, transaction, session.SessionId, session.Generation, baseline: false);
+        SeedActivity(connection, transaction, session.SessionId);
+        if (state == 0) { TouchActivity(connection, transaction, session.SessionId); }
+    }
 
     private static void WriteQuestion(SqliteConnection connection, SqliteTransaction transaction,
         HostQuestionRecord question, long sequence)
@@ -695,6 +824,7 @@ public sealed class WindowsSqliteHostInteractionStore : IHostInteractionStore, I
         {
             throw new InvalidDataException("The durable question identity or revision conflicts with another record.");
         }
+        SessionHistoryPersistence.Question(connection, transaction, question, sequence);
     }
 
     private static void WriteGrant(SqliteConnection connection, SqliteTransaction transaction, OperationGrant grant, long sequence)

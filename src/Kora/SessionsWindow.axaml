@@ -1,42 +1,144 @@
 <Window x:Class="Kora.SessionsWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Sessions - minimal durable authority" Icon="/Assets/Kora.ico"
-    Width="1050" Height="760" MinWidth="800" MinHeight="560"
+    xmlns:controls="using:Kora.Controls"
+    Title="Sessions - authoritative work and durable history" Icon="/Assets/Kora.ico"
+    Width="1180" Height="900" MinWidth="900" MinHeight="700"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <StackPanel Orientation="Horizontal" Spacing="10">
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
+      <ComboBox ItemsSource="{Binding SessionFilters}" SelectedItem="{Binding SessionFilter, Mode=TwoWay}"
+                IsEnabled="{Binding CanRead}" AutomationProperties.Name="Filter this bounded session page by All, Active or Done; no activity or routing" />
     </StackPanel>
-    <TextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
-    <Grid Grid.Row="2" ColumnDefinitions="320,*" ColumnSpacing="14">
-      <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" IsEnabled="{Binding CanRead}"
-               AutomationProperties.Name="Existing durable session IDs and lifecycle">
+    <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+      <TextBox Text="{Binding NameDraft, Mode=TwoWay}" MaxLength="240" IsEnabled="{Binding CanRead}"
+               PlaceholderText="Name: NFC Unicode, up to 120 scalars / 480 UTF-8 bytes"
+               AutomationProperties.Name="Session name draft; names never resolve authority" />
+      <Button Grid.Column="1" x:Name="CreateSession" Content="_Create empty Active session" IsEnabled="{Binding CanCreate}" />
+      <Button Grid.Column="2" x:Name="RenameSession" Content="Re_name selected ID" IsEnabled="{Binding CanRename}"
+              AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
+    </Grid>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10">
+      <TextBox Text="{Binding HistorySessionId, Mode=TwoWay}" Width="320" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Exact immutable session ID for passive history; names do not select sessions" />
+      <Button x:Name="ReadHistory" Content="_Read exact history" IsEnabled="{Binding CanHistory}"
+              AutomationProperties.Name="Read bounded ordered session history without resuming, replying, replaying or changing voice target" />
+      <Button x:Name="NextHistory" Content="Next history snapshot page" IsEnabled="{Binding CanNextHistory}" />
+    </StackPanel>
+    <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
+      <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
+               AutomationProperties.Name="Durable session names, exact IDs, lifecycle and optimistic revisions">
         <ListBox.ItemTemplate>
           <DataTemplate>
             <StackPanel>
-              <TextBlock Text="{Binding SessionId.Value}" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding IsActive, StringFormat='Active: {0} (false means Done)'}" />
-              <TextBlock Text="{Binding Generation.Value, StringFormat='Generation: {0}'}" />
+              <TextBlock Text="{Binding Metadata.Name.Value, TargetNullValue='Unnamed session', FallbackValue='Unnamed session'}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Authority.SessionId.Value}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Authority.IsActive, StringFormat='Active: {0} (false means Done)'}" />
+              <TextBlock Text="{Binding Authority.Generation.Value, StringFormat='Generation: {0}'}" />
+              <TextBlock Text="{Binding Metadata.Revision.Value, TargetNullValue='Metadata not yet set', FallbackValue='Metadata not yet set', StringFormat='Metadata revision: {0}'}" />
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>
-      <ScrollViewer Grid.Column="1">
-        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
-                   AutomationProperties.Name="Passive typed question, task and evidence details; no replies or approval controls" />
-      </ScrollViewer>
+      <Grid Grid.Column="1" RowDefinitions="Auto,2*,Auto,Auto,*" RowSpacing="10">
+        <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Selected exact session work snapshot, revisions, observation time, capacity and gaps" />
+        <ListBox Grid.Row="1" x:Name="WorkRecords" ItemsSource="{Binding WorkRecords}"
+                 SelectedItem="{Binding SelectedWorkRecord, Mode=OneWay}"
+                 AutomationProperties.Name="Authoritative queued, current, waiting, blocked, cancelled and unknown work; selection is passive">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Spacing="3" Margin="4">
+                <TextBlock Text="{Binding State}" />
+                <TextBlock Text="{Binding Identity}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Revisions}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Deadline}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <WrapPanel Grid.Row="2">
+          <Button x:Name="ReadQueue" Content="Refresh selected _work" IsEnabled="{Binding CanRefreshWork}"
+                  AutomationProperties.Name="Passively refresh selected exact session work; no meaningful activity or dispatch" />
+          <Button x:Name="InspectWork" Content="_Inspect selected work ID" IsEnabled="{Binding CanInspectWork}"
+                  AutomationProperties.Name="Inspect exact selected task or queue ID without execution authority" />
+          <Button x:Name="CancelQueueEntry" Content="_Cancel selected eligible work" IsEnabled="{Binding CanCancelWork}"
+                  AutomationProperties.Name="Cancel only the exact displayed pending queue entry or admitted pre-dispatch question wait at its revisions" />
+          <Button x:Name="RemoveQueueEntry" Content="_Remove pending ID" IsEnabled="{Binding CanRemoveQueueEntry}"
+                  AutomationProperties.Name="Remove only the exact selected pending queue ID and revision; history retained" />
+          <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}" />
+          <Button x:Name="DispatchQueue" Content="Dispatch ready local versions fairly" IsEnabled="{Binding CanControlQueue}"
+                  AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
+          <Button x:Name="ClearQueue" Content="Confirm clear displayed pending queue" IsEnabled="{Binding CanClearQueue}"
+                  AutomationProperties.Name="Explicitly confirm removal of the displayed pending queue at its exact revision; active work and history remain" />
+        </WrapPanel>
+        <StackPanel Grid.Row="3" Spacing="4">
+          <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <ListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"
+                   SelectedItem="{Binding SelectedLocalEvent, Mode=OneWay}"
+                   AutomationProperties.Name="Content-free exact host event IDs and revisions; pending questions remain independent">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding DisplaySummary}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Event.Id, StringFormat='Exact event {0}'}" />
+                  <TextBlock Text="{Binding Event.Revision, StringFormat='Revision {0}'}" />
+                  <TextBlock Text="{Binding Reason, StringFormat='Delivery state {0}'}" />
+                  <TextBlock Text="{Binding Event.ExpiresAt, StringFormat='Original expiry {0:O}'}" />
+                  <TextBlock Text="{Binding DeferredUntil, StringFormat='Deferred until {0:O}'}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <WrapPanel>
+            <Button x:Name="ReviewLocalEvent" Content="Review exact event" IsEnabled="{Binding CanControlLocalEvent}"
+                    AutomationProperties.Name="Review only the selected exact event ID and revision; does not answer or retarget any question" />
+            <Button x:Name="DismissLocalEvent" Content="Dismiss exact event" IsEnabled="{Binding CanControlLocalEvent}"
+                    AutomationProperties.Name="Dismiss only the selected exact event revision; no task cancellation or maintenance action" />
+            <Button x:Name="DeferLocalEvent" Content="Defer exact event 15 minutes" IsEnabled="{Binding CanControlLocalEvent}"
+                    AutomationProperties.Name="Defer only this event for fifteen minutes, capped at its original expiry; no work deadline extension" />
+          </WrapPanel>
+          <TextBlock Text="Pending questions — exact original targets; answer only in the separate Questions window" TextWrapping="Wrap" FontWeight="SemiBold" />
+          <ScrollViewer MaxHeight="160">
+          <ItemsControl ItemsSource="{Binding PendingQuestions}" AutomationProperties.Name="Pending questions remain visible beside work and history; never retargeted by selection">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding Key.QuestionId.Value, StringFormat='Question {0}'}" />
+                  <TextBlock Text="{Binding Key.Request.TaskId.Value, StringFormat='Exact task {0}'}" />
+                  <TextBlock Text="{Binding Key.Revision.Value, StringFormat='Question revision {0}'}" />
+                  <TextBlock Text="{Binding Generation.Value, StringFormat='Session generation {0}'}" />
+                  <TextBlock Text="{Binding Kind, StringFormat='Question kind {0}'}" />
+                  <TextBlock Text="{Binding ExpiresAt, StringFormat='User-wait expiry {0:O}; no scheduler slot or active-task clock'}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+        <ScrollViewer Grid.Row="4">
+          <controls:NamedTextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
+                     AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
+        </ScrollViewer>
+      </Grid>
     </Grid>
-    <WrapPanel Grid.Row="3">
+    <WrapPanel Grid.Row="5">
       <Button x:Name="NextQuestions" Content="Next questions" IsEnabled="{Binding CanNextQuestions}" />
       <Button x:Name="NextTasks" Content="Next tasks" IsEnabled="{Binding CanNextTasks}" />
       <Button x:Name="Evidence" Content="Read selected evidence" IsEnabled="{Binding CanEvidence}" />
       <Button x:Name="NextEvidence" Content="Next evidence" IsEnabled="{Binding CanNextEvidence}" />
       <Button x:Name="Done" Content="Mark selected ID _Done" IsEnabled="{Binding CanDone}" AutomationProperties.Name="Explicitly mark the displayed selected session ID Done using its expected generation" />
       <Button x:Name="Resume" Content="Explicitly res_ume selected ID" IsEnabled="{Binding CanResume}" AutomationProperties.Name="Explicitly resume the displayed selected session ID without task or approval replay" />
+      <Button x:Name="PreviewDisposition" Content="Preview logical disposition" IsEnabled="{Binding CanPreviewDisposition}"
+              AutomationProperties.Name="Preview exact selected session ID, revisions, live rows to remove and retained copies; does not delete" />
+      <Button x:Name="ConfirmDisposition" Content="Confirm logical disposition" IsEnabled="{Binding CanConfirmDisposition}"
+              AutomationProperties.Name="Explicitly confirm the previewed exact session logical disposition; not forensic deletion" />
       <Button x:Name="CloseView" Content="_Close" />
     </WrapPanel>
   </Grid>

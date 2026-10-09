@@ -2,6 +2,18 @@
 
 Status: **partial measured evidence and canonical design outcome; not production admission or a closed D-009 decision**.
 
+**Current disposition:** migrate applicable recovery, migration/source
+preservation, capacity, retention/deletion and artifact/backup-copy integrity
+assertions to maintained production/integration tests on approved standard
+SQLite before executable archival. Existing equivalence maps are partial;
+shared crypto/native/candidate consumers prohibit whole-harness deletion.
+Superseded encryption/rekey comparisons are historical unless R30 is pursued,
+not revived R04 prerequisites. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+own scope and archive triggers; this harness is not a default-CI or unrelated
+merge gate. No code or original evidence is retired here.
+
 ## Maintained minimal Sessions equivalence assessment - 2026-10-07
 
 The generic lifecycle-adjacent intent/no-receipt and kill/reopen atomicity
@@ -21,6 +33,16 @@ rekey, capacity/migration, leakage, DPAPI and native-provider evidence are not
 equivalent to this minimal standard-SQLite lifecycle slice. Historical receipts
 and provenance remain unchanged. General retention/deletion and complete
 artifact/backup disposal acceptance remain open.
+
+The subsequent bounded metadata slice adds maintained production
+[name/revision/migration preservation tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionMetadataTests.cs)
+and extends the owned-process interruption harness to Create, Rename and
+v1-to-v2 migration. Generic schema-version refusal, transaction atomicity and
+reopen expectations are now maintained against exact production semantics.
+This does not supersede the proof's opaque capacity/migration payloads,
+encrypted engines, artifacts, managed backups/rekey, DPAPI, leakage or
+native-provider cases. No executable or historical evidence is removed;
+retaining the intertwined harness preserves those unique measurements.
 
 The approved R01 merge (`7d5e6a3`, PR #19) was verified before starting.
 An actual second-user Windows trial was initially left blocked with the
@@ -184,13 +206,13 @@ evidence needed to verify or revisit them.
 
 ## Proof code lifecycle
 
-Retain this harness through maintained native selection and R04/R12
-integration because it owns the repeatable encryption, interruption,
-migration, recovery and deletion comparison. Move applicable cases into
-production native-load, storage-recovery and lifecycle tests. Candidate-specific
-prototype paths may be removed only after those equivalent production tests
-pass; preserve the reviewed historical receipts. See the shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+Migrate applicable R04/R12 assertions into maintained production native-load,
+storage-recovery and lifecycle tests. Retain the executable while applicable
+equivalence is incomplete or shared candidate consumers remain. Archival/removal
+requires exact maintained equivalence, explicit disposition of superseded
+comparisons and passed consumer/reference checks; preserve reviewed historical
+receipts. The current roadmap inventory above owns this lifecycle, not the
+superseded encrypted-native selection or blanket retention until R30 exists.
 
 ## Licensing, native assets and Windows-only scope
 
@@ -239,6 +261,27 @@ until encryption becomes mandatory again. Retire a candidate path only after
 all of its applicable behaviors have maintained equivalents and no consumer
 remains. Checked-in receipts are unchanged, not relabelled as current
 production results. No experiment was rerun as part of these production tests.
+
+## Bounded Ordinary Retention Equivalence Assessment - 2026-10-07
+
+[Maintained ordinary retention tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteDiagnosticRetentionTests.cs)
+exercise actual production standard SQLite: effective due boundaries, bounded
+log/span/link removal, atomic rollback/cancellation, concurrent writer/reader
+admission, restart/backlog, citation gaps and unchanged task/interaction/audit/
+Perpetual authority. The existing
+[owned-process interruption tests](../../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteEvidenceInterruptionTests.cs)
+also exercise before/after retention COMMIT and hot-journal reopening.
+
+No experiment executable is retired. `Program.cs` deletion routes in
+`StorageTests` still compare encrypted/enveloped samples, SQLCipher FTS,
+`secure_delete`/checkpoint/VACUUM and a backup that deliberately recovers
+deleted content. They are consumed by both candidate runs and share the
+cryptography, rekey, artifact, native-provider and backup runner paths.
+Ordinary production log/span pruning supplies no maintained equivalence for
+those key/content/copy/engine behaviors. `Crypto.cs`, `ScratchStore.cs`, runner/
+project/locked dependencies and original encryption/rekey/native/backup/deletion
+receipts remain unchanged. None were rerun, relabelled or promoted to current
+production evidence; physical power-loss and forensic erasure are not claimed.
 
 ## Optional Real Cross-User Handoff Protocol
 

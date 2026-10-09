@@ -21,6 +21,7 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
         var preferences = CreatePreferences();
 
         preferences.LoadThemeMode().Should().BeNull();
+        preferences.LoadPresenceDisplayEnabled().Should().BeNull();
         preferences.LoadPresenceTimeoutSeconds().Should().BeNull();
         preferences.LoadResponseTimeoutSeconds().Should().BeNull();
         preferences.LoadPresenceSizePixels().Should().BeNull();
@@ -31,6 +32,33 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
         preferences.LoadPresenceSpeechScaleAmountPercent().Should().BeNull();
         preferences.LoadPresencePosition().Should().BeNull();
         preferences.LoadResponseWindowSettings().Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Presence_display_preference_round_trips(bool value)
+    {
+        var preferences = CreatePreferences();
+
+        preferences.SavePresenceDisplayEnabled(value);
+
+        preferences.LoadPresenceDisplayEnabled().Should().Be(value);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("invalid")]
+    [InlineData("1")]
+    public void LoadPresenceDisplayEnabled_rejects_invalid_content(string content)
+    {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "presence-display-enabled.txt"), content);
+
+        var action = CreatePreferences().LoadPresenceDisplayEnabled;
+
+        action.Should().Throw<InvalidDataException>();
     }
 
     [Fact]

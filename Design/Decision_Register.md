@@ -29,6 +29,7 @@ An Accepted direction status records the agreed behavior, not completed contract
 | D-011 | Shared interaction, session routing/history and evidence tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; protocol/integration proof open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact interaction/list-plus-conversation workspace/separate detail surfaces, minimal Active-session routing context, per-session Logs/Audit/All Evidence across traces, trace-tree/link navigation, bounded cited search/reasoning and gap status, provenance/egress, foreground voice versus addressed UI races |
 | D-012 | Windows-session trust model and accepted voice boundary | Product and security leads | Design acceptance; enforcement before associated capability release | Accepted direction; implementation evidence outstanding | Enabled verbal input trusts the active unlocked profile, not speaker identity; no compulsory biometrics/PTT/UI for ordinary voice; scoped grants, call origin/reuse gates, intent/content separation, containment and truthful recovery tests |
 | D-013 | Windows worker and protected-deployment containment | Security and Windows engineering leads | R11 execution admission; R17 protected-deployment acceptance | Best-effort transitive tracking/review direction accepted 2026-10-06; technical admission open, release-blocking; strict ACL/no-child profiles rejected | Exact manifest-listed script review/grants, honest transitive gaps/user responsibility, attributable OS network denial, effective app/worker identities and protected-root/runtime ACLs, aliases/TOCTOU, fixed-control feasibility, truthful receipts and descendant/crash shutdown |
+| D-014 | Local/hosted provider modes, user memory, and grounded knowledge | Product, runtime, storage, and security leads | Provider selection UX before R08 exposure; durable memory before cross-session recall; knowledge policy before R26 reasoning | Accepted direction; bounded R04-R08 host controls delivered; adapters, modes, memory and provider/index/media proof open | Implement [the provider, memory, and knowledge contract](Model_Providers_Memory_And_Knowledge.md): explicit Local only/Local first/Hosted preferred modes, one provider per turn, reviewed handoff not based solely on model confidence, Kora-owned inspectable/deletable memory, provider-independent local retrieval, exact hosted excerpt egress, validated citations, hostile-content isolation, index lifecycle/deletion, and qualified Ollama/Copilot/embedding/OCR/vision dependencies. The [first host-only increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09) enables no adapter or product mode. |
 
 The [Internal Model Tool Catalogue](Internal_Model_Tools.md) is the exposure inventory for D-001/D-008/D-011.
 Registry/schema/lane coverage, unavailable-tool exclusion, and host-only boundaries are release evidence, not implied by an SDK's native tool support.
@@ -121,7 +122,7 @@ Product approval in the R01 session resolved the initial-release policy choices:
 | Contract | Accepted decision and canonical owner | Implementation / evidence still required |
 |---|---|---|
 | Management power authority | M/E may submit typed proposal-only shutdown/restart requests. The deterministic host lifecycle controller owns all-session review, approval, countdown and dispatch through the admitted execution gateway/worker; neither model lane approves or executes. [Security contract](Security_Data_Flows.md#management-power-proposal-authority) | R05/R06/R13/R16 lane, grant, quiescence, cancellation and real worker/OS proofs |
-| Microphone consent and enablement | Explicit first-launch ongoing consent; saved consent permits ordinary safe automatic launch/restart. Unlock/resume/manual disablement/permission or device loss require explicit recovery within the run. Run-scoped holds do not survive ordinary restart; consent withdrawal does. [Canonical matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix) | R03/R09/R17 actual Windows/audio ownership, event and stale-generation trials; bootstrap auto-listening is not this complete policy |
+| Microphone consent and enablement | Explicit first-launch ongoing consent; saved consent permits ordinary safe automatic launch/restart. Normal authoritative unlock restores only the previously enabled mode after confirmed closure and fresh gates, never interrupted capture; production wake remains separately gated. Resume/manual disablement/permission or device loss require explicit recovery. Run-scoped holds do not survive ordinary restart; withdrawal does. [Canonical matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix) | Operator approved the revised normal-unlock direction on 2026-10-08. R03/R09/R17 actual Windows/audio ownership, event and stale-generation acceptance remains open; PTT regression evidence does not qualify ambient wake |
 | Optional private speech | Owner-confidence fallback applies only while owner-aware protection is enabled; its failure never silently disables it. Baseline voice trusts the active unlocked profile and normal output/privacy/call policy without compulsory verification. Learning is not enrollment or authority. [Output privacy](Security_Data_Flows.md#explicit-verification-and-output-privacy) | R09/R15 normal output gates; R24 verifier/learning claims only if separately delivered |
 | Standalone lock Session binding | The deterministic host creates a new durable Active control work session for an unaddressed standalone lock. Commit and present its identity/lineage before approval/dispatch; offer Session only after binding. Explicitly addressed Active sessions remain valid targets; window selection is never authority. [Binding rule](Built_In_Skills.md#standalone-lock-work-session-binding) | R04/R05/R11 persistence failures, targeting, priority-path grant/receipt and lifetime evidence |
 | Acceptance placement | Ollama/offline answering remains required A2 evidence; fixed bundled containment and concurrent independent tasks remain required A3 evidence. [Additional capability evidence](Acceptance_Criteria.md#additional-capability-evidence) is already correctly classified | Actual provider, hardware, containment and concurrency evidence remains open |
@@ -336,7 +337,7 @@ journal/backup coverage. No provider is selected or newly admitted now.
 The current bounded [SQLite task store](../src/Kora.Windows/Storage/WindowsSqliteHostTaskStore.cs)
 implements private-folder/file checks, a distinct version-1 host schema,
 FULL-synchronous transactions and revision-checked event/state commits.
-It has no database key or automatic schema/data replacement. The next bounded
+It has no database key or automatic schema/data replacement. The delivered bounded
 R04 milestone composes exact typed/activated-voice version queries with the
 private task store and independent typed SQLite diagnostic/audit/span/link
 projections. Required evidence admission failures prevent dispatch or terminal
@@ -348,7 +349,7 @@ backups/artifact publication, content/session lifecycle and deletion, audit
 checkpoints/pruning, broader migrations and installed/power-loss evidence
 remain open under the R04 inventory and deferred register.
 
-The next [R04/R05 interaction slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
+The delivered [R04/R05 interaction slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 uses this same baseline, not a new provider decision. Its private version-1
 interaction schema atomically persists typed question/grant/session authority
 and its own typed audit. Matching committed task intent is validated while
@@ -361,6 +362,29 @@ row removal is not recoverable-copy deletion; full R12 retention/deletion,
 audit anchors/pruning/whole-store rollback and installed/power-loss acceptance
 remain open.
 
+**Owner-approved tightly coupled continuation:** safe pre-dispatch cancellation
+requires one transactional authority, not two pseudo-atomic database commits.
+Schema v3 therefore owns ordered task/event records, admitted current-run
+waits, questions/sessions/grants and required typed audit in the existing
+interaction store. A complete validated, quiescent frozen-ledger handoff
+preserves identities/events and existing authority without replay; interrupted
+storage migration is retried only after validation, and lost/corrupt authority
+cannot be silently initialized. The retired source remains an inert required
+handoff receipt. Independent diagnostic/evidence projections and retention
+are unchanged. Exact/native controls only observe addressed tasks and cancel
+the admitted current-run local-version question before dispatch; dispatched/
+Unknown work remains uncertain. This settles that prerequisite, not D-009
+backups/deletion/whole-store rollback or full R12/R13/A acceptance.
+
+The subsequent merged [minimal Sessions workspace and metadata slice](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07)
+adds passive pages, guarded idle Done/resume, durable names and explicit native
+empty Create/exact-ID revisioned Rename. Only the private interaction partition
+has validated v1-to-v2 metadata migration; task/evidence schemas are unchanged.
+This adds no conversations, queue/scheduler, model routing, automatic archive/
+retention/delete/export or restoration of consumed authority. The
+[current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+is separate from the historical encrypted-route and local validation receipts.
+
 The [2026-10-07 production-store interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
 adds maintained proof for actual task/evidence/interaction adapter writes and
 hot-journal reopening under PERSIST/FULL. No schema migration or provider
@@ -371,6 +395,16 @@ typed audit and no executor; interruption during recovery does not authorize
 a replay. Missing or permissive journals are neither recreated nor repaired.
 The proof does not certify physical power-loss, installed loading, full
 retention/deletion, D-008 audit anchors or complete D-009/R04 closure.
+
+The [bounded ordinary diagnostic retention continuation](Architecture.md#bounded-ordinary-diagnostic-retention)
+uses existing standard-SQLite due dates and writer/reader admission leases;
+there is no new encryption/native/key prerequisite. One owner-startup batch
+removes at most 128 ordinary logs and 32 spans with their bounded owned links.
+It preserves every audit row/sequence and every task/interaction/session/grant
+partition, including Perpetual records. Existing due timestamps are not
+recomputed; passive reads do not extend retention. Backlog, missing references
+and invalidated snapshots remain explicit. Audit pruning/anchors, copy disposal,
+session deletion and complete D-009/R04 acceptance remain open.
 
 ### R02 Windows Storage Outcome - 2026-10-05
 

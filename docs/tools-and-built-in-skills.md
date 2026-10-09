@@ -9,12 +9,23 @@ Each section explains what exists now and what is planned.
 - **Partial** means a narrower version exists; read the stated limitation.
 - **Planned** means the described behavior is not available in this release.
 
-**No script-backed built-in skills ship in the current release.** The model
-also does not yet have the full tool/result conversation described below.
-Today, exact commands run C# handlers; other requests can receive a local
-answer, a clarification question, or a named action/grant-change proposal.
+**No script-backed built-in skill executor ships in the current release.**
+Bundled skill instructions can now be selected with typed slash commands or
+activated voice and applied to a local-model request; their embedded scripts
+remain inspection-only. The model also does not yet have the full tool/result
+conversation described below. Today, exact commands run C# handlers; other
+requests can receive a local answer, a clarification question, or a named
+action/grant-change proposal.
 See [exact commands](commands.md) for phrases you can use now and
 [Settings](settings.md) for controls you can change now.
+
+The provider-neutral host foundation now has typed one-provider turn identity,
+bounded context/evidence, host admission, audited outcomes and cancellation/
+late-response controls. Its production adapters remain unavailable: it adds
+no model-facing tool, hosted destination, provider qualification, memory write
+or enabled Local only/Local first/Hosted preferred mode. Existing bootstrap
+behavior is unchanged. Provider confidence and supplied provenance never
+authorize an action or handoff.
 
 ## Asking Kora to do something
 
@@ -24,6 +35,18 @@ typed command box instead. If you renamed Kora, use the new name; the old
 name is not kept as a hidden alias.
 
 You do not need to know a tool ID, skill manifest, or PowerShell filename.
+For explicit selection, use `/lock`, `/restart`, `/shutdown`, the
+kind-qualified form `/skill <name>`, or activated voice such as
+**"Kora, run lock."** See [artifact commands](commands.md#run-skills-and-future-artifacts).
+Typing `/` opens a filtered dropdown composed from the same source-qualified
+catalogue used by routing. It includes bundled artifacts plus compatible
+`SKILL.md`, `.prompt.md`, and `.instructions.md` files from Kora-owned roaming
+folders and the existing VS Code prompt/instruction locations. Shared profile
+skills are **not** startup artifacts or model context: register/list/inspect
+them only through **Skill packages > Shared profile sources (read only)**.
+See [the read-only native workflow](commands.md#inspect-shared-profile-skills-locally).
+Disk definitions
+remain untrusted instruction content and do not inherit bundled execution trust.
 In the planned interaction:
 
 1. Kora receives your typed request or transcribes your activated voice request.
@@ -197,8 +220,12 @@ included in "use context".
 
 ## 6. Settings and preferences
 
-Many settings are **Current through the UI**; the general verbal/model settings
-registry and discovery/get/set/reset/undo operations are **Planned**.
+Bounded native/exact configuration is **Current** for appearance, installed
+provider/voice, spoken-summary caps, assistant display/PTT prefix, exact
+microphone/output preferences, per-Kora volume and device-default response mode.
+See [exact discovery/get/set/reset commands](commands.md) and [Settings](settings.md).
+The general verbal/model registry, broader scopes, category/whole-profile reset
+and undo remain **Planned**.
 Do not assume an example sentence below is an exact current command.
 
 | Planned request | What it means |
@@ -214,23 +241,28 @@ The design covers all these preference categories:
 
 | Category | Options and examples | Current availability |
 |---|---|---|
-| Voice input | Microphone, listening, assistant name, PTT shortcut, cues, speech-start wait, silence/utterance limits, language/model, owner-aware private speech | Microphone/listening/name UI; remaining production controls planned |
-| Responses and appearance | Mode/scope, output, provider/voice, speed/volume, summary length, detail/captions, theme/timeout, presence size/dots/speed/placement, reduced motion | Mode/scope/device/provider/voice, theme/timeout/presence and response-window controls; other options planned |
+| Voice input | Microphone, listening, assistant name, PTT shortcut, cues, speech-start wait, silence/utterance limits, language/model, owner-aware private speech | Exact microphone preference and assistant-prefix native/typed/activated controls; separate listening/PTT UI; production wake and remaining controls planned |
+| Responses and appearance | Mode/scope, output, provider/voice, speed/volume, summary length, detail/captions, theme/timeout, presence size/dots/speed/placement, reduced motion | Native/exact device-default mode, output preference, installed provider/voice, Windows-native -10..10/default0 rate (Kokoro unsupported), 0-100 Kora volume, lowerable summary caps and nine appearance options; broader scoped registry and remaining options planned |
 | Calls and proactive speech | Visual/activation override, Unknown policy, detectors/accounts, Busy/DND, manual/temporary override, consent, quiet hours/mode, notification categories/reminders | Call visual/activation UI; fuller controls/detectors planned |
 | Work and context | Per-session queue capacity/dispatch/lifetime, admitted concurrent-session limit, task deadline, archive/deletion durations, clipboard and tool-result limits | Planned |
 | Providers and connections | Processing mode, default provider/model, validated endpoint, supported identity and connector enablement | Local model setup current; general choice/sign-in/connector flows planned |
-| Skills and local data | Sources, enabled revisions/default source, refresh, audit retention and diagnostic verbosity | Planned registry; content-minimising daily logs exist |
-| Startup and maintenance | Logon registration, initial presentation, notify-only checks/interval/channel and release reminders | Planned |
-| Rich viewing | Captions/placement/dismissal, text scale, automatic details, browser choice, Markdown source/rendering and diagrams | General typed viewing planned; embedded guide/basic text current |
+| Skills and local data | Sources, enabled revisions/default source, refresh, SQLite diagnostic retention, audit retention and diagnostic verbosity | Delivered native/exact independent future-only ordinary SQLite 1–365/default-reset30 and audit 30–365/default-reset90. Only NEW committed authority audit and qualified projections use audit policy; existing deadlines/all grants stay unchanged. Apply-now/audit pruning unavailable; files30/30 and cleanup scheduling unchanged; other registry options planned |
+| Startup and maintenance | Logon registration, initial presentation, notify-only checks/interval/channel and release reminders | Native startup/notify-only maintenance plus exact cached status/review/eligible current-run snooze; general controls planned, no command-triggered check or browser opening |
+| Rich viewing | Captions/placement/dismissal, text scale, automatic details, browser choice, Markdown source/rendering and diagrams | Exact local caption mode/corner/0-30-second delay and run-only pin delivered; sentence alignment, general typed viewing and rich renderers planned; embedded guide/basic text current |
 
-Task output overrides queue/session, which overrides device default; the
-separate in-call feedback override takes precedence without waiving lock/privacy.
+The existing process-local presentation resolver orders task, queue and device
+default; the delivered mode registry admits only the device default, not durable
+session/task/queue overrides. Separate in-call policy remains unchanged and
+never waives lock/privacy.
 Changes that increase remote exposure or weaken privacy require exact trusted
 voice/UI confirmation; they do not approve each later outgoing payload.
 While a call is protected, voice-originated voice/in-call setting changes,
 including reset/undo, are rejected and need a new UI request. A later click
 cannot convert the rejected voice request into a UI-originated request.
 Kora changes only its own volume, not global Windows or call volume.
+Default/reset **100** preserves original unity; **0** prevents synthesis/autoplay
+with complete visual recovery. Raising/resetting never replays retired output.
+Warnings, exact security readback, questions and approval previews remain visual.
 Secure credentials and biometric enrollment cannot be dictated into a setting.
 For all current UI values and ranges, use [Settings](settings.md).
 
@@ -275,7 +307,12 @@ See [execution design](skill-and-task-execution-design.md) and
 
 ## 8. Discovering, selecting, and managing skills
 
-All skill-registry operations below are **Planned**.
+The full skill-registry operations below are **Planned**. Current
+[artifact invocation](commands.md#run-skills-and-future-artifacts) provides
+bounded source-qualified bundled/profile instruction selection and a slash
+dropdown. The tray's **Skill packages (inspection only)** exposes immutable
+declared bundled files. Neither is general source registration, enablement,
+authoring or a script executor.
 
 | Ask | Intended behavior |
 |---|---|
@@ -323,8 +360,9 @@ current basic response/embedded-guide features.
 | Ask or choose | Intended behavior and current limitation |
 |---|---|
 | "Show the full answer" | Show the identified existing result; basic response text is current, general rich details planned |
-| "Show the words you're saying" / "Hide speech text" | Planned captions tied to actual playback, not suppressed or queued speech |
-| "Pin that text" / "Unpin that text" | Planned item/caption pinning; current response-window **Always show** retains the response |
+| `list speech text settings`; `get/status/set/reset display.speech-text` | Delivered Off/CurrentUtterance native/exact typed/activated control; only matching actual playback reveals text; natural aliases remain planned |
+| `get/status/set/reset display.speech-text-placement` / `display.speech-text-dismissal-delay` | Delivered primary-screen corner and canonical 0-30-second delay, default BottomRight/5; same admitted atomic/audited control, no speech or caption enablement |
+| Native **Pin / Unpin**; `get/status/set/reset display.speech-text-pin` | Delivered run-only pin of already-observed caption, false/true; previous-speech label after normal completion; source/privacy/stop retirement always wins; natural "that text" and general item pinning remain planned |
 | "Show the source" | Show inert source and provenance, not execute it |
 | "Show the diagram" | Render a supported validated diagram or explain why only source is available |
 | "Preview that HTML" | Static isolated preview; no executable scripts, forms or automatic remote assets |
@@ -369,6 +407,7 @@ These are host-owned flows, not installer or approval tools given to the model.
 | Choose a microphone or recover listening by mouse | **Current** explicit UI flow; stronger production wake requirements remain planned |
 | Sign in to a supported provider or enroll/delete a speaker verifier | **Planned** separate secure native flow; the model never receives secrets/biometrics |
 | "Enable start at logon" / "Disable start at logon" | **Planned:** change only Kora's own startup registration after scoped consent |
+| `maintenance status` / `maintenance review` / `maintenance snooze` | **Current bounded cached parity:** truthful cached observation, exact existing native review, or eligible reviewed notice snooze for this run; no check/consent/browser/download/install/model authority. [Exact bounds and exclusions](commands.md#exact-cached-release-maintenance) |
 | "Check for updates" / "Is an update available?" / "What is the update doing?" | **Planned:** bounded metadata check and observed status; failure is Unknown, not "up to date" |
 | "What's new in that update?" | **Planned:** show release notes as untrusted information |
 | "Show that release" | **Planned:** review the exact canonical release URL before opening it |
@@ -493,8 +532,19 @@ read every resource or send the results remotely without permission.
 
 ## 14. Persistent sessions, history, and shared questions
 
-All capabilities in this section are **Planned**, not the current response window.
-The compact view shows the selected session's latest interaction. A Sessions
+**Current bounded subset:** [Sessions](windows-and-tray.md#minimal-durable-sessions)
+opens passive durable ID/name/generation pages, actual typed question/current
+task records and selected-session evidence. Native empty Create, revisioned
+exact-ID Rename and guarded idle Done/resume use existing host authority;
+the same operations are also available through
+[exact-ID typed/activated-voice commands](commands.md#bounded-exact-id-session-commands),
+not name-based routing or model tools. Selection never
+redirects global input, questions or approvals, and reading/rename never resumes.
+The separate native local-version question/review route supports actual durable
+drafts/answers and exact-record review, not general conversation execution.
+
+The full workflows below remain **Planned**. In that design, the compact view
+shows the selected session's latest interaction. A Sessions
 workspace places the Active/Done list beside full conversation/history, with
 separate read-only detail/script viewers and an All work view.
 

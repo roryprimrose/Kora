@@ -2,13 +2,24 @@
 
 Status: proposed. Contracts below describe required semantics, not an existing SDK API.
 
-Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
+Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), and [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
 ## Runtime Ownership Decision
+
+The bounded native inspector has a consumer-focused
+[`ICommittedAuthorityAuditReader`](../src/Kora.Core/Storage/ICommittedAuthorityAuditReader.cs)
+seam on the existing interaction store. Its **AuthorityAudit** source is
+explicitly separate from diagnostic evidence and mirrors; it admits only
+passive committed typed audit observation through host/private-profile access.
+It owns no writer or execution policy. See the
+[source, snapshot and limitation contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
 
 Kora owns persistent work sessions, task lifecycle, context selection, permission evaluation, approvals, and presentation.
 A runtime adapter may own model/tool iteration, but must not bypass those responsibilities.
 The canonical channel, routing, lifecycle, and history contract is [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md).
+The canonical local/hosted provider selection, reviewed handoff, durable user
+memory, and provider-independent knowledge contract is
+[Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.
@@ -137,7 +148,8 @@ Detailed task interpretation and model/tool iteration remain in the task runtime
 | Voice controller | Wake-listening consent, local configured-name detection ("Kora" by default), bounded audio buffer, endpointing, transcript, playback-aware interruption | Ambient transcription or authorising actions based on wake detection/speaker verification |
 | Task controller | Task IDs, state transitions, deadlines, cancellation | Provider-specific model iteration |
 | Work manager/scheduler | Contextual session/request routing, per-session versioned ledger/queue, bounded fair dispatch and resource leases | Running task tools in management inference or bypassing task approvals |
-| Context broker | Snapshots, provenance, classification, context selection | Implicit background collection |
+| Context broker | Immutable clipboard/file/source snapshots, provenance, classification, bounded retrieval and context selection | Implicit background collection, arbitrary path access, or treating an index as authority |
+| Knowledge source service | Reviewed file/folder source registration, immutable revisions, refresh, format admission, citations, revocation and inventoried derived-data deletion | Original-file mutation, ambient filesystem monitoring, model-selected roots, or destination/egress approval |
 | Policy/approval service | Resource-scoped grants, outbound decisions, approval tokens | Trusting model-produced permission claims |
 | Runtime adapter | Provider session and event translation | Unreviewed tools, undisclosed egress, global policy |
 | Tool gateway | Validate, authorise, invoke, bound, and audit tools | Giving an adapter unrestricted OS access |
@@ -237,7 +249,8 @@ log/audit/span/link records retain call-time host/W3C context and independent
 due dates. The daily-file provider remains independent. Required capture,
 file or database delivery failures report gaps and propagate rather than
 allowing dispatch or a success receipt with missing terminal audit evidence.
-There is still no session registry, history UI or general durable executor.
+The interaction store now supplies bounded session authority/metadata and exact
+task controls; full conversation/history UI and a general durable executor remain open.
 Ordinary diagnostics that lack host context are retained only with an explicit
 capture-owned `MissingHostContext` gap and `kora.bootstrap=false`; their trusted
 host/W3C/business columns remain null. This preserves existing content-free
@@ -255,8 +268,10 @@ log/audit/span/link tables. The native current-user inspector requires a live
 local-UI request, proven desktop ownership and private-presentation admission.
 Session/task/trace fields are correlation filters, not a way to select host
 authority. Signed continuations bind the original query, viewer session,
-15-minute expiry and per-table snapshot ceilings; later query diagnostics and
-completed spans cannot expand an in-progress snapshot.
+15-minute expiry and per-table snapshot ceilings bound to their original ordinary
+evidence identities; later query diagnostics and completed spans cannot expand
+an in-progress snapshot. Removal/reuse of a ceiling invalidates its cursor
+explicitly and requires a fresh query.
 The [Windows reader](../src/Kora.Windows/Storage/WindowsSqliteEvidenceReader.cs)
 reuses the sink's exact envelope/projection validation and private database
 schema/ACL/reparse/journal admission, then opens SQLite read-only. It creates
@@ -265,10 +280,74 @@ Up to 50 records and 64 KiB of the actual serialized page include citations,
 cursor, source availability and disclosure. Selective text/property searches
 scan at most 4,096 candidates per page, with explicit continuation/scan-limit
 status and the existing five-second SQLite progress deadline.
-Expired-but-present and missing-or-removed segments are distinct; no physical
-pruning or complete retained graph/history is claimed. Session/conversation
+Expired-but-present backlog and missing-or-removed segments are distinct.
+Bounded ordinary diagnostic pruning is implemented below; a complete retained
+graph/history is not claimed. Session/conversation
 sources and interaction-audit receipts are not supplied by this projection.
 Model tool exposure, Ask Evidence, export and remote transmission remain gated.
+
+Explicit **AuthorityAudit** instead reads actual committed typed schema-v3
+interaction-store audit rows through the shared connection lease and immutable
+sequence ceiling. That consolidated store owns task/question/required-audit
+transactions; its validated frozen legacy ledger is not queried as live authority.
+These passive reads neither mutate authority nor reconstruct historical payloads,
+a causal graph or forensic tamper resistance. **All** remains SQLite diagnostic
+evidence-only and **CombinedLog** remains ordinary diagnostics-only. See
+[the exact committed source contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
+
+The independent **DailyLog** source now reads existing daily JSON diagnostic
+envelopes beneath `IApplicationDataPaths.LocalRoot/Logs`, with the writer's
+shared exact daily-name policy and version-1 diagnostic serializer/validator.
+`All` still means the existing SQLite projection; it does not merge file copies
+into database counts or claim an atomic cross-source ledger. Explicit opt-in
+**CombinedLog** selects only SQLite ordinary logs plus DailyLog ordinary
+records, preserving each original source-qualified citation, envelope ID and
+provenance. It pairs the existing immutable SQLite ceiling with the independently
+captured host-held daily prefix, never an atomic cross-sink snapshot. Ordering
+is source-major: SQLite commit time/evidence ID, then exact daily name/byte
+offset. Observation time is not reinterpreted as database commit time; no
+deduplication, causal ranking or file-derived span/link graph is introduced.
+List/search/cited reads share the existing filters, original expiry and complete
+50-record/64-KiB serialized budget. Time filters retain source semantics
+(SQLite commit time versus daily observation time). Both original sources are
+admitted and verified on each page, even when only one contributes that page;
+an unavailable, corrupt, changed, removed or expired included source yields
+no fallback content. Its source status is explicit; permission/identity and
+malformed/foreign/tampered cursor failures remain fail-closed and require an
+explicit fresh search after recovery. Independent retention still applies.
+**All**, individual sources, audit citations and old continuations are unchanged.
+File names are discovered by the trusted
+store, never accepted as query paths. Read-only file handles reuse current-user
+owner/ACL and reparse admission, validate their final path, and retain volume/
+file identity. There are no directory/file/lease writes or permission repairs.
+
+Each daily snapshot admits at most 32 files, an 8-MiB earliest byte prefix
+ordered by exact daily name and byte offset, 4,096 physical lines, and 256-KiB
+lines excluding LF. A five-second cancellation/deadline bounds each read.
+Prefix capture and final verification each read at most 8 MiB (16 MiB total
+source I/O); no unbounded tail or full-file read is implied. A byte ceiling
+stops at the last complete LF, reports `ScanLimitReached`, and does not page
+beyond that ceiling. Too many files report the same limit without a subset
+success. Eight host-held manifests expire after 15 minutes or earlier bounded
+cache eviction; signed continuations retain the original query/viewer binding.
+Every page reopens the original names and verifies file identities and prefix
+SHA-256 digests before returning any content. Appends/new days cannot expand
+that snapshot; changed/replaced, pruned/rotated, expired, corrupt, truncated,
+unavailable and timed-out sources are explicit, with no partial-success
+fallback. Snapshots are not an OS-atomic filesystem ledger.
+
+Daily citations are source-specific hashes of file identity, byte offset and
+exact line digest, not aliases for SQLite citations. Provenance also retains
+the envelope evidence ID. Typed fields and admitted envelope correlation are
+validated, not reconstructed from outer rendered Serilog properties.
+Observation time, event name, exception type and redacted typed scopes are
+preserved; database commit/due times are absent and
+retention is `RetentionUnknown`. File audit mirrors are unsupported and counted
+separately, never returned as authoritative audit rows. Legacy/unstructured/
+activity copies and ingestion-gap markers have explicit counts and `Partial`
+status; file trace navigation keeps DailyLog selected and reports the activity
+graph unavailable. User-modifiable file correlation never establishes identity,
+intent, permission, an audit commit, execution outcome or a complete history.
 
 ## Independent Management and Concurrent Sessions
 
@@ -500,7 +579,10 @@ Existing Linux-hosted CI building Windows artifacts remains unchanged and does n
 
 R04 adds host contracts and a bounded standard-SQLite task-store implementation
 with actual private-folder/file checks and transactional versioned host records.
-Its distinct `HostStorageV1` partition has no Keys directory or DPAPI dependency.
+Its original `HostStorageV1` partition has no Keys directory or DPAPI dependency.
+The bounded task-control continuation migrates and freezes that ledger into
+the existing interaction authority store; it is then an inert required handoff
+receipt, not a second authority or worker execution source.
 New managed files receive explicit current-user ownership and a protected,
 user-only DACL at atomic creation, before any content is written; token-default
 ownership is not trusted, including on elevated Windows runners. Existing
@@ -508,9 +590,11 @@ files are verified, never silently repaired. The database and rollback journal
 are privately pre-created; each connection uses `PERSIST` journaling with
 `synchronous=FULL` so normal commits/reopens retain the owned journal rather
 than recreating it with a different default owner. A missing managed journal
-requires explicit recovery, not automatic replacement. This is not hot-journal/
-process-kill acceptance, and earlier uncomposed prototype databases without
-this journal are not silently migrated.
+requires explicit recovery, not automatic replacement. Maintained
+[production interruption/reopening tests](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
+now exercise actual PERSIST/FULL hot-journal and owned-process interruption
+semantics, not physical power-loss or installed acceptance. Earlier uncomposed
+prototype databases without this journal are not silently migrated.
 The store is composed for the bounded exact local version-query milestone,
 not for arbitrary model/skill/OS effects. Earlier
 internal key/artifact primitives remain uncomposed and are not database prerequisites.
@@ -532,9 +616,71 @@ uses fresh traces joined by durable host IDs and never invokes an executor.
 Startup processes at most 100 incomplete records; remaining work fails startup
 explicitly rather than silently ignoring the excess.
 First-use greeting, settings and version response disclose the readable-copy,
-same-user/admin and independent 30/90-day due dates, explicitly disclosing that
-database pruning/deletion is not yet implemented. The new
+same-user/admin and independent 30/90-day due dates, bounded ordinary startup
+pruning and remaining audit/task/session deletion limitations. The new
 version-query records contain no transcript or answer body.
+
+#### Bounded Ordinary Diagnostic Retention
+
+[WindowsSqliteDiagnosticRetention](../src/Kora.Windows/Storage/WindowsSqliteDiagnosticRetention.cs)
+runs one batch per admitted owner startup, after exact storage admission and
+durable task recovery, before the UI lifetime opens. It requires a live
+host-system activity and opens only the existing `EvidenceStorageV1` partition.
+There is no timer, passive-query refresh, automatic backlog drain, storage
+replacement, permission repair, schema change or retention-setting rewrite.
+No new prerequisite is needed: existing policy-assigned effective `due_utc`
+values, due indexes, bounded span/link envelopes and the actual shared
+writer/reader lease supply admission and serialization.
+
+At a fixed UTC cutoff, `due_utc <= cutoff` selects at most 128 ordinary
+`application_log_events` and 32 `activity_spans`, ordered by due date/rowid.
+Their at-most-1,024 validated owned `activity_links` are removed before their
+spans in the same PERSIST/FULL transaction. An unexpired span's links are never
+independently removed. The existing five-second lease/SQLite progress bounds,
+cancellation before COMMIT, private ACL/reparse/schema/integrity/envelope checks
+and deterministic resource disposal remain enforced. Existing full-store
+validation also runs under that deadline; large or invalid stores can fail
+admission rather than bypass validation. A verified COMMIT returns exact
+removed counts and a due-backlog flag; subsequent startups can continue.
+Failures propagate to the independent startup/file error path. The generated
+structured completion event is emitted after releasing the storage lease
+under a typed Windows `retention.run` child activity, never an audit.
+
+This is logical ordinary-row pruning, not forensic erasure or a strict
+at-all-times 30-day cap. Retained references distinguish expired-but-present
+backlog from missing-or-removed targets without inventing deletion provenance.
+Audit due dates and sequences remain unchanged, including expired audit rows;
+`security_audit_events`, interaction audit/hash chains, tasks, questions,
+sessions and all grants/Perpetual records are outside this operation.
+Audit continuation anchors/pruning, session retention/deletion, configurable
+apply-now, artifact/backup disposal and full R04/D-009 acceptance remain open.
+The later [future-only diagnostic setting](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04)
+admits integer 1–365/default-reset30 after required audit/atomic readback/receipt.
+It supplies one coherent deadline per new ordinary SQLite transaction only.
+Semantic schema v2 migrates validated legacy 30-day rows without rewriting
+rows/deadlines; writer/private-reader validation agree. The writer remains
+insert-only, so old span IDs cannot upsert fresh retention. Audit90/domain,
+files30/30, all authority and pruning triggers are unchanged; unavailable
+ordinary policy reports explicit independent gaps rather than becoming default
+or blocking required trusted audit on activity disposal.
+
+The independently delivered [future-only audit setting](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
+adds a domain-owned 30–365/default-reset90 snapshot to both real
+`WindowsSqliteHostInteractionStore.AppendAudit` commits and
+`WindowsSqliteEvidenceSink` diagnostic audit projections. Composition shares
+one confirmed current-run audit snapshot; no authority is inferred from the
+projection. Separate audit-control admission reuses the original-input/durable-
+intent mechanism and existing committed-intent connection, never nested leases.
+Requested/terminal preference receipts retain the prior policy; atomic
+save/readback and durable intent outcome precede marker confirmation/activation.
+Invalid/unconfirmed audit configuration holds required new commits and refuses
+startup authority recovery/writes, not an implicit 90-day fallback.
+Schema-3 authority and independently qualified evidence readers validate
+original integral audit-domain deadlines, preserving serialized payloads,
+ordered hashes/head, revisions and citations across reopen/legacy migration.
+No deadline rewrite, audit pruning, session/history/grant/task/question/approval
+deletion, ordinary/file-policy change or janitor scheduling is introduced.
+This does not complete R04/R10 or forensic/encryption/disposal qualification.
 
 The subsequent bounded [interaction/session-authority slice](Implementation_Roadmap.md#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 adds `InteractionStorageV1/interaction.db` using the same private owner/ACL/
@@ -545,29 +691,52 @@ registration binds the existing R05 services to
 [WindowsSqliteHostInteractionStore](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs).
 No native input route, generic dispatcher or OS effect is activated.
 
-Task intent is a committed prerequisite, not an eventual diagnostic: the
-interaction transaction holds the existing task admission lease while
-reading matching nonterminal intent and until its own COMMIT completes.
-All task mutations use that lease. Interaction state and its authoritative
+Task intent is a committed prerequisite, not an eventual diagnostic.
+The bounded task-control continuation consolidates task/event, question,
+session/grant and authoritative audit authority into schema v3 of
+`InteractionStorageV1/interaction.db`. Task and interaction adapters share
+one existing private lease and connection through COMMIT. Interaction state and its authoritative
 typed security audit commit in one database, with ordered hashes/head and
 record-digest bindings. There is no attached multi-database write, fallback
 receipt or authority inferred from the independent evidence/file projections.
-Lock order is task then interaction; passive reads never acquire the task
-lease. Fresh host snapshots are admitted under both leases, with optimistic
+There is no nested task/interaction lease acquisition. Fresh host snapshots
+are admitted under the shared lease, with optimistic
 revision checks and transactional content revocation. Previous adapter-run
 observations confer no restart authority.
+
+Validated v1 metadata maintenance precedes v2-to-v3 consolidation. The legacy
+`HostStorageV1/host.db` ledger is validated and durably frozen before copying
+its complete identities/events into one destination schema transaction.
+It is retained as an inert migration receipt, never an alternate execution
+source. Interrupted consolidation leaves the old destination schema intact;
+reopening revalidates the frozen source and completes only storage migration.
+Missing/corrupt destination authority cannot be rebuilt from that retired
+snapshot. Evidence projections and retention remain independent. See
+[the bounded control contract](Interaction_And_Sessions.md#bounded-authoritative-task-observation-and-pre-dispatch-cancellation).
 
 Session generation persists across Active restart and advances on Done,
 resume and authority removal. Perpetual records are a separate table without
 a session foreign key or grant due/retention field. Removed session identities
 remain tombstoned; this is not full recoverable-copy content deletion.
+The [bounded logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
+uses host-held native preview/confirmation and the authoritative shared
+transaction, never view-model-only removal. Exact idle-state/revision checks,
+live-row removal, generation/tombstone, terminal control receipt and trusted
+audit share one COMMIT. The task writer and interaction admission reject
+late appends; no recovery receipt is needed after a committed disposition.
+Latest-session audit validation rejects missing/stale session rows, including
+lost tombstones. Metadata validation permits absent previously committed names
+only behind validated Removed authority. Task/events, independent Perpetual/audit/evidence
+and inert legacy storage survive. No artifact/backup inventory, journal/free-page
+rewrite, full conversation deletion or forensic erasure is delivered.
 Audit due times use the existing independent audit policy; pruning/anchors,
 whole-store rollback detection, installed/power-loss acceptance and broader
 R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit
 or private permissions fail explicitly without replacement or repair.
 
 The bounded [production interruption continuation](Implementation_Roadmap.md#r04-production-store-interruption-and-reopening---2026-10-07)
-uses those same adapters and exact version-1 schemas. Maintained disposable
+originally used those adapters and exact version-1 schemas; current maintained
+tests also qualify consolidated schema v3. Maintained disposable
 Windows tests terminate only their owned helper processes before or after
 task intent/dispatch/terminal/recovery, evidence envelope/span-link, and
 interaction approval/Once-consume/Done commits. Precommit checkpoints force

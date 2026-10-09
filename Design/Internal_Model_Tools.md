@@ -37,6 +37,14 @@ deployment mode. Runtime health is not permission or R02 qualification;
 ToolLoopQualified remains false. No settings/evidence/session/side-effect entries
 are added, and existing exact lock/power behavior is unchanged.
 
+R26 selected-source lexical search is **host/native-only**. The six-ID schema
+has no unavailable model-only content-operation descriptor or admitted
+source/citation result shape. It is not extended to pretend retrieval is
+available. Exact `search file` / `inspect file` focus native query entry over
+the current explicitly admitted immutable preview; no source/query/excerpt
+is serialized to models. Model retrieval, tool/result iteration and all
+source-context egress remain unavailable.
+
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 maps the current bootstrap and every catalogue family to dependency-ordered
 implementation and acceptance work. Roadmap inventory IDs are not tool IDs.
@@ -240,12 +248,19 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 The R04/R14 native evidence slice delivers the deterministic host-service
 semantics behind list/get/search/read_trace for actual SQLite log/audit/span/link
-sources only. It does **not** register model-facing evidence tools or add them
+sources, independent DailyLog ordinary diagnostics and explicit opt-in
+CombinedLog ordinary list/search/source-qualified cited reads. **All** remains
+SQLite-only. CombinedLog pairs independent bounded SQLite/daily snapshots in
+source-major order (SQLite commit time/ID, then daily name/offset), without
+deduplication, causal rank, audit mirrors or invented graph records. Each
+source retains its original time/retention/citation semantics; failure of either
+source cannot become a SQLite-only or empty success.
+It does **not** register model-facing evidence tools or add them
 to the existing action selector. One typed query service supports exact cited
 record reads, bounded filters and trace navigation under live local-UI
 ownership/privacy admission. Session/conversation and interaction-receipt
-sources are unavailable. The proposed model lanes/catalogue below, daily-file
-adapter, Ask Evidence and export still require separate delivery/admission.
+sources are unavailable. The proposed model lanes/catalogue below,
+Ask Evidence and export still require separate delivery/admission.
 Safe text searches only admitted templates and redacted structured values;
 properties use exact typed equality, not rendered-message parsing or SQL.
 Output uses the service's authoritative serialized page, including metadata
@@ -283,7 +298,11 @@ retry or authorize an evidenced operation.
 | `context.capture_clipboard` | Explicit user-request lineage and text format; bounded immutable snapshot/provenance | E | Host-only explicit local snapshot/native preview delivered in R07; model tool unavailable pending qualified tool-loop/clipboard-answering/secret-egress gates; not in JSON selector; no polling |
 | `context.list`, `context.inspect`, `context.select` | Task/source IDs and approved range; permitted descriptors/selection and freshness | E | Proposed A; selection is not egress consent; no scan of every session/source |
 | `context.propose_transmission` | Exact source/derivation IDs and destination; reviewed outbound envelope/proposal | E | Proposed A; host adapter waits; model cannot approve transmission itself |
-| `context.select_file`, `context.read_file` | User-selected canonical scope, immutable revision and range; permitted snapshot | E | Proposed C for skill revisions; Deferred for general files; no arbitrary filesystem root |
+| `context.select_file`, `context.read_file` | User-selected canonical scope, immutable revision and range; permitted snapshot | E | Proposed C for skill revisions; general user files are replaced by the narrower R26 source/revision/search/excerpt contract; no arbitrary filesystem root |
+| `context.sources_list`, `context.source_inspect` | Exact permitted source/revision ID; content-free state, scope, freshness, formats, exclusions and recovery | E; M content-free readiness only | Deferred R26; no filesystem enumeration, raw path disclosure to models or content in management inference |
+| `context.propose_source`, `context.refresh_source` | Deliberate user lineage plus reviewed file/folder proposal, or exact registered source/revision; proposal/progress/result | E | Deferred R26; host picker/review confirms path and scope, model cannot confirm or expand the root |
+| `context.disable_source`, `context.remove_source` | Exact source/revision and reviewed disable/deletion scope; state/cleanup receipt | E | Deferred R26; removal deletes Kora-owned derivatives, never original files; failures remain visible |
+| `context.search`, `context.read_excerpt` | Exact admitted source/revision set, bounded query/budget or citation ID; ranked citations and exact bounded excerpts | E | Deferred R26; host-owned retrieval, prompt-injection separation, access/retention/egress revalidation and citation enforcement |
 | `artifacts.export` | Exact retained artifact/digest and user-selected destination; preview/write receipt | E | Proposed A4; show source/classification; no automatic opening/execution |
 | `context.capture_screen` | Explicit selected window/region and user intent; bounded snapshot/provenance | E | Deferred; no ambient screenshots or microphone/audio content |
 

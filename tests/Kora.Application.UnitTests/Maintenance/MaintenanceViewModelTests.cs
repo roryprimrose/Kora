@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using AwesomeAssertions;
 using Kora.Application.Maintenance;
+using Kora.Application.Hosting;
+using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -10,7 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Maintenance;
 
 [Collection("Host tracing")]
-public sealed class MaintenanceViewModelTests
+public sealed partial class MaintenanceViewModelTests
 {
     [Fact]
     public async Task Native_check_review_open_and_snooze_are_composed_without_model_or_effect_authority()
@@ -333,6 +335,8 @@ public sealed class MaintenanceViewModelTests
         internal readonly Opener Opener = new();
         internal readonly Audit Audit = new();
         internal readonly MaintenanceViewModel State;
+        internal readonly AudioControlTestStore Store = new();
+        internal readonly MaintenanceCommands Commands;
         internal bool Admitted = true;
         internal int Jitter = 15;
         internal Fixture()
@@ -341,8 +345,15 @@ public sealed class MaintenanceViewModelTests
             State = new(Client, new AssemblyApplicationInfo(() => "1.0.0"), ReleaseArchitecture.X64,
                 Opener, Time, new Dispatcher(), Audit, NullLogger<MaintenanceViewModel>.Instance, () => Jitter);
             State.BindGate(() => Admitted);
+            Commands = new MaintenanceCommands(State, Store, Store, new HostTaskCoordinator(Store));
+            State.BindCachedCommands(Commands);
         }
-        public void Dispose() { State.Dispose(); tracing.Dispose(); }
+        public void Dispose()
+        {
+            Commands.DisposeAsync().AsTask().IsCompletedSuccessfully.Should().BeTrue();
+            State.Dispose();
+            tracing.Dispose();
+        }
     }
     private sealed class Dispatcher : IUiDispatcher
     {
@@ -384,6 +395,11 @@ public sealed class MaintenanceViewModelTests
     private sealed class Audit : ISecurityAuditLog
     {
         internal readonly List<SecurityAuditEvent> Events = [];
-        public void Write(SecurityAuditEvent auditEvent) => Events.Add(auditEvent);
+        internal Action<SecurityAuditEvent>? BeforeWrite;
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            BeforeWrite?.Invoke(auditEvent);
+            Events.Add(auditEvent);
+        }
     }
 }

@@ -7,6 +7,15 @@ delivery plan may merge without certifying a production profile. Outstanding
 capability validation is recorded in [the testing checklist](#outstanding-testing-checklist)
 and [shared deferred-validation register](../../Design/Deferred_Validation.md).
 
+**Current disposition:** retain as an opt-in, environment-qualified capability/
+RC harness outside default CI. Actual attributable network, token/ACL/child
+and lifetime observations reduce risks that deterministic host mocks cannot.
+They gate only the affected profile, not unrelated feature merges. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+preserve fail-closed controls, critical fixtures and separate lab approval.
+No executable or original receipt is removed.
+
 ## Scope and contracts
 
 R01 commit `7d5e6a3` / PR #19 was present after the initial rebase. Its approved
@@ -51,9 +60,15 @@ No dependency installation/download is performed.
 From this worktree, in PowerShell 7:
 
 ```powershell
+# Safe preparation first; no trial, credential, AppContainer or network effects.
+.\experiments\r02-containment-proof\Invoke-Proof.ps1 -PrepareOnly `
+    -EvidenceDirectory "$PWD\experiments\r02-containment-proof\artifacts\preparation-01"
+
+# Live OS trial only after separately scoped approval of the effects below.
 .\experiments\r02-containment-proof\Invoke-Proof.ps1 `
     -EvidenceDirectory "$PWD\experiments\r02-containment-proof\artifacts\trial-01" `
-    -PowerShellPath (Get-Command pwsh).Source
+    -PowerShellPath (Get-Command pwsh).Source `
+    -ConsentOwnedScratch
 $LASTEXITCODE
 ```
 
@@ -61,6 +76,9 @@ Use a **new** evidence directory on each run. Generated `bin`, `obj` and
 `artifacts` remain ignored by the existing repository ignore rules.
 The experiment-local build props deliberately avoid production analyzer/package
 references; there are no NuGet package dependencies and no solution/CI changes.
+The runner builds with `--no-restore`; if a fresh worktree lacks build assets,
+restore the focused project with `dotnet restore <project> --locked-mode` first.
+Do not install a toolchain or runtime to satisfy this prerequisite.
 
 Equivalent focused commands:
 
@@ -68,7 +86,9 @@ Equivalent focused commands:
 dotnet build .\experiments\r02-containment-proof\ContainmentProof.csproj -c Release
 $proof = '.\experiments\r02-containment-proof\bin\Release\net10.0-windows\ContainmentProof.exe'
 & $proof self-test
-& $proof run "$PWD\experiments\r02-containment-proof\artifacts\trial-02" (Get-Command pwsh).Source
+# Only after the separately approved live effects:
+& $proof run "$PWD\experiments\r02-containment-proof\artifacts\trial-02" `
+    (Get-Command pwsh).Source consent-owned-scratch-local-network-synthetic-credential
 ```
 
 Exit codes: `0` = measured assertions passed (not production certification);
@@ -78,9 +98,262 @@ test receipt correlation and error classification; they are not denial evidence.
 The real trials enforce expected access errors, token identity, protected bytes,
 descendant shutdown, interpreter receipts and truthful lifecycle states.
 
+### W1 filtered buffered-event preparation (2026-10-07)
+
+This opt-in path coordinates the original IPv4/TCP trials with a separate
+administrator observer. It does not start a trace, enable auditing, change WFP
+options or firewall rules, install anything, or grant elevation to the host/
+worker. The operator reported `NETEVENTS = on` on the current machine; that
+readiness observation is not proof that a required block event is available.
+
+Preparation was initially limited to focused builds and deterministic tests.
+One subsequent filtered observation was separately approved as recorded below;
+that approval is not reusable. Before each execution, obtain separate
+approval for filtered reads of existing buffered events and the original
+owned-scratch/local-network/synthetic-credential effects. Review/pin the actual
+compiled EXE and DLL bytes before launching the administrator observer; source
+revision alone does not identify dirty-source or compiled bytes. Keep this
+observer in a separate terminal under the same user's elevated token, never
+start the host from that terminal.
+
+Once separately approved, select a new shared evidence directory. Start the
+fixed observer there before starting the non-elevated runner:
+
+```powershell
+# Separate administrator terminal; no worker launch in this process.
+$proof = '.\experiments\r02-containment-proof\bin\Release\net10.0-windows\ContainmentProof.exe'
+& $proof collect-network '<approved new absolute evidence directory>' consent-filtered-buffered-events
+
+# Separate NON-ELEVATED PowerShell 7 terminal.
+.\experiments\r02-containment-proof\Invoke-Proof.ps1 `
+    -EvidenceDirectory '<same approved new absolute evidence directory>' `
+    -PowerShellPath (Get-Command pwsh | Select-Object -First 1).Source `
+    -NetworkHandoff -ConsentOwnedScratch
+```
+
+The host writes an atomic request after each of the Job-only complete,
+AppContainer complete and AppContainer cancelled trials, after the tracked tree
+stops but before its images are removed. Each request binds an ID/digest,
+observed user/container identity, two exact copied image paths/hashes, UTC
+start/end observations and the owned IPv4 endpoint/port. The host waits at most
+90 seconds for a matching inspection-only receipt. Missing/malformed/mismatched
+or failed collection throws and follows the existing exact cleanup; partial
+trial receipts remain available and effects are never replayed.
+
+The observer permits only the fixed trial paths, checks image hashes and rejects
+reparse ancestors. It issues four `netsh wfp show netevents` queries per row,
+each filtered by application, user, TCP protocol, loopback/owned-interface
+destination, destination port and a lookback of at most 120 seconds. There are
+no unfiltered fallback queries, broad state dumps, Security-event reads,
+`capture`, `set` or audit-enablement commands. Each native query has a ten-second
+deadline and each resulting XML is limited to 1 MiB. The CLI's lookback covers
+through collection time, not just the exact trial interval: preserve the request
+start/end times and distinguish these when later qualifying the event schema.
+
+Raw well-formed XML is **collected for inspection**, not parsed into an OS-denial
+claim. The actual XML schema, event completeness, worker/process/token and
+blocking-filter/layer attribution remain unqualified until an approved real
+run. Empty output, lost buffered events, access failures or unrelated firewall
+blocks cannot pass W1. An inspection receipt releases scratch for cleanup;
+it has no execution, effect, grant or acceptance authority. The observer returns
+`2` even when all queries complete, and the original eight network assertions
+and strict host exit semantics are unchanged.
+
+The normal runner defaults to no handoff. IPv6, UDP/DNS and descendant network
+probes are still absent; this is observation preparation for the original matrix,
+not the full W1 coverage gate. Coordination tests are linked into the existing
+W2 test project without adding a dependency. No production profile is enabled.
+
+Focused deterministic validation builds this project and the existing W2 test
+project with `--no-restore`, runs this executable's `self-test`, then runs the
+built xUnit test application with its documented native runner options:
+
+```powershell
+& .\experiments\r02-w2-dependency-proof\tests\bin\Release\net10.0-windows\W2Tests.exe `
+    -noColor -result-trx '<new absolute result file path>'
+```
+
+This preserves a durable TRX without requiring MTP mode in the built executable.
+The direct `dotnet test` preparation invocation was rejected by the SDK before
+test execution; invoking the native runner with MTP `--report-trx` also failed.
+Those attempts are not counted as tests or evidence of OS behavior.
+
+**First separately approved current-machine observation, 2026-10-07:** the three
+handoffs and twelve filtered queries completed, but every output was the empty
+`<netEvents/>` document. Both .NET and PowerShell loopback/owned-interface
+positive controls worked. The host retained 63/71 assertions, the same eight
+unproven network assertions and exit `2`; all five tracked trees stopped and
+synthetic credential/profile/scratch cleanup completed. Request digests, source/
+compiled-byte pins, raw XML, query arguments and assessment are retained in the
+session evidence, not added to or substituted for the historical snapshots.
+No auditing, WFP option, firewall-policy or trace-session change was made.
+
+This measures real coordination and successful filtered query execution, not
+an attributable network denial. No matching block event was returned, and the
+cause (generation, buffer retention, filter matching or another diagnostic gap)
+is undetermined. Do not broaden filters, start tracing or replay effects without
+a fresh scoped approval. Populated-event parsing/filter attribution and the
+remaining network matrix stay unqualified.
+
+### W1 user-filter comparison preparation (2026-10-07)
+
+**Preparation only; not authorized to run.** The next bounded candidate compares
+the existing strict query with a query omitting only `userid`. The default
+`collect-network` mode is unchanged and cannot accept the comparison consent.
+This candidate requires a new, explicit collection-scope approval and a new
+live-trial approval; the first observation's approval has been consumed.
+Review and pin the newly built EXE/DLL and source inputs, allocate a new evidence
+directory, and start the separately elevated same-user observer only after those
+approvals:
+
+```powershell
+# NOT authorization to execute. Separate administrator terminal after approval.
+& $proof collect-network-user-comparison '<approved new absolute evidence directory>' `
+    consent-application-endpoint-events-without-user-filter
+# The separately approved non-elevated host still uses -NetworkHandoff.
+```
+
+The comparison makes eight queries per row (24 across the same three handoffs):
+.NET/PowerShell times loopback/owned-interface times strict/application-only.
+Every diagnostic query retains the exact copied executable path, TCP protocol,
+destination address, ephemeral destination port and at-most-120-second lookback.
+Only the user condition is omitted; no application-only-without-endpoint,
+endpoint-only, unfiltered, or error-triggered fallback is implemented. Host
+ownership, observed user/container identity, image hashes, reparse rejection,
+request/digest binding, XML/output limits and cleanup still apply.
+
+**Additional data scope:** diagnostic XML may contain metadata for another user
+running those exact disposable images against those exact endpoints during the
+lookback. This is a real collection broadening, not merely a parsing change.
+Do not share raw XML or reinterpret collection consent as identity/authority.
+Store it in the approved local evidence directory. Retain query scope, arguments,
+start/end times and outcomes; do not replace the twelve historical empty outputs.
+Stop after the fixed batch. Failed queries or an exhausted budget stop collection
+with an explicit failed receipt; no retries, extra reads or effect replay.
+Native queries share a 60-second per-row elapsed budget in comparison mode,
+each capped at ten seconds and shortened by the remaining budget. File validation,
+XML inspection and completion I/O are not covered by that native-query deadline;
+the host still has its independent 90-second acknowledgment/cleanup boundary.
+Timeout/failure cleanup paths are not yet induced in a live comparison run.
+
+The rationale is limited: Microsoft's [netsh WFP reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-wfp)
+supports both DOS/NT application paths and SID/user-name filters. The
+[enumeration template](https://learn.microsoft.com/en-us/windows/win32/api/fwpmtypes/ns-fwpmtypes-fwpm_net_event_enum_template0)
+ANDs conditions, while [event-header flags](https://learn.microsoft.com/en-us/windows/win32/api/fwpmtypes/ns-fwpmtypes-fwpm_net_event_header0)
+identify which fields are present. These facts justify investigating whether a
+user condition excludes available records; they do not establish the cause of
+this machine's empty output. Successful connections are positive controls for
+the traffic probes, not proof that permitted connections generate buffered
+events.
+
+Queries run sequentially and inspect a changing buffer, not a common snapshot.
+Their rounded lookbacks cover through their respective collection times. Compare
+record timestamps against the request's actual interval; strict-empty/
+diagnostic-populated output alone cannot prove the user condition caused the
+difference. Missing identity, unrelated traffic or absent blocking-filter/layer
+attribution remain unqualified. The [classify-drop record](https://learn.microsoft.com/en-us/windows/win32/api/fwpmtypes/ns-fwpmtypes-fwpm_net_event_classify_drop2)
+identifies a filter/layer, but resolving that evidence into attributable
+containment denial is separate work, not a broad filter/state dump in this mode.
+All completion receipts retain `Unproven`, the observer returns `2`, and the
+original eight assertions and W1-W4/R11/R16/R17 gates remain unchanged.
+
+Preparation validation: both focused Release builds completed with zero warnings
+and errors, without restore. The combined native xUnit suite passed 85/85 cases
+(22 additional consent/scope/budget cases); the original five deterministic
+self-tests passed. CLI checks rejected missing consent and the previous strict
+consent before creating output or entering the observer. No buffered events,
+privileged query, comparison trial, policy change or installation was performed.
+Source and newly built binary hashes are recorded separately from the earlier
+live observation's pins; the earlier approval/descriptor cannot admit these bytes.
+
+### W1 safe preparation and consent boundary (2026-10-08)
+
+`-PrepareOnly` runs the five deterministic classification assertions and writes
+a path-free preparation receipt with source/EXE/DLL hashes, the SDK selection,
+PowerShell executable hash and observed OS version. It never enters `Host.Run`
+or the administrator observer. Builds write only project `bin`/`obj` output;
+the receipt stays in the selected new evidence directory. Source revision and
+dirty-input status are distinct from exact file hashes. These pins are not
+protected-runtime-closure or supported-reference-OS qualification.
+
+The runner now rejects an unspecified mode and mixed preparation/live flags
+before build or file creation. Live invocation requires `-ConsentOwnedScratch`;
+the executable independently requires the exact owned-trial consent marker.
+Neither marker obtains or substitutes for human approval. Buffered-event
+observer consent cannot authorize the non-elevated trial. The current host's
+Windows x64 build `26300` is a developer observation, not a selected supported
+reference OS under D-007.
+
+Live scratch is now one GUID-named child of the newly selected evidence
+directory, **not the OS temporary directory**. Observer requests must refer to
+that exact evidence directory's child; another trial's scratch is rejected.
+This changed layout needs fresh approved live positive controls. It does not
+retroactively alter the historical 63/71 results or admit relocated worker
+bytes as a known-good OS candidate.
+
+The next candidate remains `collect-network-user-comparison`: 24 bounded
+metadata queries across three handoffs, dropping only `userid` in the
+diagnostic arm. Its complete proposed effect/rollback boundary is:
+
+- Separately elevated same-user observer reads existing buffered WFP metadata
+  for the exact copied .NET/PowerShell images, destination port, loopback and
+  selected owned-interface IPv4/TCP endpoints. The broadened arm can include
+  other users' matching metadata; keep raw XML local and share only sanitized
+  assessments. No capture, audit enablement, firewall/WFP policy change or
+  unfiltered fallback is authorized.
+- Separately non-elevated host copies the existing reviewed runtimes into owned
+  evidence-local scratch, sets ACLs only there, creates/deletes one temporary
+  AppContainer profile and one public synthetic credential, binds one ephemeral
+  IPv4 TCP listener on local interfaces, and launches five supervised synthetic
+  trees. The Job-only baseline deliberately changes synthetic protected files.
+  It never contacts an external endpoint or changes installed/source roots.
+- Existing uncontained .NET and PowerShell successful connections are traffic
+  positive controls, **not** positive controls for WFP block-event generation.
+  Validate new-layout baseline success before interpreting contained results.
+  No descendant network attempt is currently issued: descendants' observed
+  AppContainer identity and shutdown cannot substitute for network attribution.
+- Each native query is capped at ten seconds, comparison queries share a
+  60-second row budget, and handoff acknowledgment is bounded at 90 seconds.
+  Failure stops collection; timeout/unknown stays unproven. No effect replay.
+  The host closes owned kill-on-close jobs and verifies tracked-tree shutdown,
+  deletes its exact synthetic credential/profile/scratch, and retains cleanup
+  receipts. Failed cleanup requires exact-resource remediation, never a broad
+  process, profile or directory deletion. Receipt-only child PIDs are untrusted:
+  unmatched reports mark shutdown unproven and never trigger PID-based killing.
+  An unexpected native breakaway is created suspended and terminated through
+  its owned native handle by the fixed worker, not by a later receipt PID lookup.
+
+**Blocking intervention:** select the supported Windows 11 x64 reference
+machine/build and authorize this bounded diagnostic batch there, or explicitly
+choose diagnostic-only triage on the current developer host, or stop. The
+recommended option is an isolated supported reference lab. There is no OS,
+account, compiler or security-policy provisioning in the prepared candidate;
+any such prerequisite requires a separate consent decision.
+
+Even a populated comparison cannot close W1: blocking filter/layer and actual
+process/token/time/endpoint attribution are not yet qualified, and IPv6,
+UDP/DNS plus descendant network coverage remain absent. Preserve unique
+privileged proof paths. Current maintained Windows tests have no equivalent
+AppContainer/WFP boundary, so moving these synthetic assertions into those
+tests would not establish OS equivalence or justify deleting either fixture.
+Only affected worker/script/protected-control admission and release manifests
+including them remain containment-gated; unrelated package/UI/session/read-only
+work may proceed.
+
+Safe validation passed both focused Release builds with no warnings/errors,
+97/97 deterministic xUnit cases, five self-tests and four no-effect rejection
+smokes. No live trial, elevated read, runtime installation, security-policy
+change or disruptive Windows control was performed. Source/test/candidate pins
+and these outcomes are retained in the sanitized
+[preparation receipt](evidence/preparation-2026-10-08.json) and
+[validation summary](evidence/preparation-validation-2026-10-08.json),
+separately from historical measured OS proof. The preparation receipt identifies
+the pre-commit dirty-source state truthfully; its file hashes identify the tested
+bytes and do not imply equivalence to a future rebuilt or relocated candidate.
+
 ## What the trials actually do
 
-1. Create a GUID-named owned scratch tree under the resolved temporary directory
+1. Create a GUID-named owned scratch tree under the new evidence directory
    and a temporary current-user AppContainer profile.
 2. Copy the built worker and the already-installed PowerShell runtime into
    scratch. Grant the container SID RX to runtime files, Modify only to each
@@ -275,13 +548,13 @@ No outstanding row is waived by merging this proof.
 
 ### Proof code lifecycle
 
-Retain this harness through W1-W4 and protected deployment integration. Move
+Retain this opt-in harness for affected W1-W4 capability/RC qualification. Move
 its filesystem, credential, process-tree and receipt-classification assertions
 into Windows integration tests as the production worker boundary is built.
 Remove the standalone harness only after equivalent production tests pass and
-the remaining real-boundary evidence is recorded; preserve historical
-receipts. See the shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+the remaining real-boundary evidence is recorded and consumer/reference checks
+pass; preserve historical receipts and unique lab procedures. The current
+roadmap disposition inventory above owns this lifecycle.
 
 ### Merge Versus Acceptance
 

@@ -31,6 +31,32 @@ public sealed class HostContractTests
     }
 
     [Theory]
+    [InlineData("exact", true)]
+    [InlineData("root", true)]
+    [InlineData("invocation", false)]
+    [InlineData("omitted", false)]
+    [InlineData("request", false)]
+    [InlineData("session", false)]
+    [InlineData("task", false)]
+    [InlineData("origin", false)]
+    public void Intent_binding_preserves_root_scope_and_rejects_every_foreign_identity(string scenario, bool expected)
+    {
+        var root = HostRequest.Create(RequestOrigin.LocalUi);
+        var invocation = new HostId<InvocationIdentity>(Guid.NewGuid());
+        var intent = new HostRequest(root.RequestId, root.SessionId, root.TaskId, root.Origin,
+            scenario is "root" ? null : invocation);
+        var request = new HostRequest(
+            scenario is "request" ? new(Guid.NewGuid()) : root.RequestId,
+            scenario is "session" ? new(Guid.NewGuid()) : root.SessionId,
+            scenario is "task" ? new(Guid.NewGuid()) : root.TaskId,
+            scenario is "origin" ? RequestOrigin.HostSystem : root.Origin,
+            scenario is "omitted" ? null : scenario is "invocation" ? new(Guid.NewGuid()) : invocation);
+        request.IsWithinIntent(intent).Should().Be(expected);
+        var missing = () => request.IsWithinIntent(null!);
+        missing.Should().Throw<ArgumentNullException>();
+    }
+
+    [Theory]
     [InlineData(HostTaskState.IntentRecorded, HostTaskState.Interrupted)]
     [InlineData(HostTaskState.DispatchRecorded, HostTaskState.Unknown)]
     public void Recovery_never_infers_success_or_dispatches(HostTaskState before, HostTaskState after)

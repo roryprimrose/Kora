@@ -34,7 +34,7 @@ internal sealed partial class EvidenceViewModel(
     public IReadOnlyList<EvidenceSegment> Segments => selected?.RelatedSegments ?? [];
     public bool CanQuery => !busy && !closed && canInspect();
     public bool CanNext => CanQuery && page?.Cursor is not null;
-    public bool CanReadTrace => CanQuery && selected?.Trace is not null;
+    public bool CanReadTrace => CanQuery && (selected?.Trace is not null || selected?.AuthorityProvenance is not null);
 
     public Task SearchAsync() => RunAsync(() => new()
     {
@@ -49,13 +49,17 @@ internal sealed partial class EvidenceViewModel(
 
     public Task ReadTraceAsync() => RunAsync(() => new()
     {
-        TraceId = selected?.Trace?.TraceId
+        Source = currentQuery?.Source == EvidenceSource.CombinedLog ? EvidenceSource.CombinedLog
+            : selected?.Reference.Source == EvidenceSource.AuthorityAudit ? EvidenceSource.AuthorityAudit
+            : selected?.Reference.Source == EvidenceSource.DailyLog ? EvidenceSource.DailyLog : EvidenceSource.All,
+        TraceId = selected?.Trace?.TraceId ?? selected?.AuthorityProvenance?.TraceId
             ?? throw new InvalidOperationException("Select a record with trace correlation."),
         SessionId = currentQuery?.SessionId,
     }, next: false);
 
     public Task NavigateAsync(EvidenceSegment segment) => RunAsync(() => new()
     {
+        Source = segment.Record?.Source == EvidenceSource.AuthorityAudit ? EvidenceSource.AuthorityAudit : EvidenceSource.All,
         Record = segment.Record ?? throw new InvalidOperationException("This segment is missing or removed; no retained record can be opened."),
         SessionId = currentQuery?.SessionId,
     }, next: false);
@@ -89,10 +93,14 @@ internal sealed partial class EvidenceViewModel(
             page = result;
             selected = null;
             resultText = Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(result));
+            var sourceFailed = target.Source is EvidenceSource.CombinedLog or EvidenceSource.AuthorityAudit
+                && result.UnavailableSources.Count > 0;
             status = $"{result.Status}: {result.Records.Count} records. "
-                + (result.Cursor is not null ? "More bounded pages available. " : "End of this filtered snapshot. ")
-                + EvidencePage.StorageDisclosure;
-            activity.Complete(HostOperationOutcome.Completed);
+                + (sourceFailed
+                    ? "An included source could not be read; no complete or empty-success result is claimed. Verify access and start a fresh search. "
+                    : result.Cursor is not null ? "More bounded pages available. " : "End of this filtered snapshot. ")
+                + result.Disclosure;
+            activity.Complete(sourceFailed ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
         }
         catch (OperationCanceledException)
         {
@@ -147,7 +155,4 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(CanNext));
         OnPropertyChanged(nameof(CanReadTrace));
     }
-
-    [LoggerMessage(312, LogLevel.Error, "Native evidence inspection failed; exception type {ExceptionType}.")]
-    private static partial void Failure(ILogger logger, string exceptionType);
 }

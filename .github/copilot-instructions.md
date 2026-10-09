@@ -24,6 +24,9 @@
 
 ## Instrumentation and activity correlation
 
+- Always define `ILogger<T>` diagnostic messages with source-generated `[LoggerMessage]` partial methods; do not use `LogDebug`, `LogInformation`, other `Log*` extension methods, or `LoggerMessage.Define` delegates.
+- Put all `[LoggerMessage]` declarations in a `{ClassName}.Logging.cs` file beside the class's other source files, using the same namespace and a matching partial class declaration. Logging-only helper classes also use this filename convention; reuse the existing layer helpers for shared events.
+- When moving logging declarations, preserve event IDs, levels, templates, structured property names, exception parameters, and callers.
 - Use structured `ILogger<T>` templates and typed named properties; do not use string interpolation or rendered-message parsing for query, correlation, outcome, or authorization data. Keep events compatible with both the daily JSON and SQLite providers.
 - Emit security audit events through the trusted typed audit path. `SecurityAudit=true` routes to the dedicated authoritative audit table as well as the file sink; an arbitrary property or lookalike message must never acquire audit authority. Preserve correlated request and terminal outcomes around consequential operations.
 - Use the layer's versioned `System.Diagnostics.ActivitySource` and W3C IDs at meaningful request, policy, runtime, tool, storage, presentation, evidence, retention, and recovery boundaries. Use stable low-cardinality activity names, end activities with truthful status, and do not instrument every method.

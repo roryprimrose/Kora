@@ -53,7 +53,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             host.Outcome, activity.Links.Select(link =>
                 new ActivityLinkEnvelope(link.Context.TraceId.ToHexString(), link.Context.SpanId.ToHexString())).ToArray(),
             host.CorrelationId, host.ApprovalId);
-        FanOut(completed.EvidenceId, sink => sink.WriteActivity(completed));
+        FanOut(completed.EvidenceId, sink => sink.WriteActivity(completed), ordinary: true);
     }
 
     private void Capture<TState>(string category, LogLevel level, EventId eventId,
@@ -106,7 +106,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             {
                 sink.WriteDiagnostic(envelope);
             }
-        });
+        }, ordinary: state is not TrustedAuditState);
         if (contextGap is not null)
         {
             gaps.Report(contextGap);
@@ -126,7 +126,7 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
         return new ReadOnlyDictionary<string, EvidenceValue>(properties);
     }
 
-    private void FanOut(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write)
+    private void FanOut(HostId<EvidenceIdentity> identity, Action<IEvidenceSink> write, bool ordinary)
     {
         var failures = new List<EvidenceGap>();
         var errors = new List<Exception>();
@@ -138,7 +138,9 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                errors.Add(exception);
+                // An explicitly unavailable ordinary policy reports a gap and still attempts the file
+                // sink. It must not break unrelated required audit/session authority on activity disposal.
+                if (!ordinary || exception is not DiagnosticRetentionUnavailableException) { errors.Add(exception); }
                 failures.Add(new EvidenceGap(clock.GetUtcNow(), sink.Name,
                     exception is Kora.Core.Storage.StorageAdmissionException
                         ? EvidenceGapReason.StorageNotAdmitted : EvidenceGapReason.SinkFailure,

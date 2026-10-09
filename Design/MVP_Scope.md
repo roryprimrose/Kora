@@ -11,6 +11,14 @@ The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 records what the current source actually delivers and the dependency/value-ordered
 work remaining. A documented capability, local readiness proof or native window
 does not establish acceptance of an entire checkpoint.
+The [current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+also includes minimal durable session authority/workspace/names/native empty
+creation and exact-ID typed/activated-voice session commands, explicit local
+clipboard preview, read-only discovery, bounded
+appearance/installed speech settings, artifact instruction invocation,
+ordinary diagnostic pruning, independent daily evidence and native tray/passive
+microphone-card recovery. These foundations do not complete conversations/queues, a model
+tool loop, clipboard answering, ambient wake or full A0-A4 acceptance.
 
 ## Product Outcome
 
@@ -172,7 +180,11 @@ Kora cannot update its own code, binaries, executable extensions, or security/up
 - Wake-word-free conversational follow-ups and unlimited/unvalidated activation names. Custom names with explicit custom-only/both choice follow [Custom Activation Names](Activation_Name.md).
 - Clipboard monitoring, clipboard images/HTML/file lists, or automatic URL fetching.
 - Screen capture, OCR, arbitrary desktop automation, or browser automation.
-- Full knowledge indexing, embeddings, PDF/Office ingestion, or enterprise content caches.
+- General file/folder ingestion, knowledge indexing, embeddings, PDF/Office
+  ingestion, or enterprise content caches. These remain staged R26 work under
+  [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md);
+  the initial release does not advertise even the narrower text/Markdown
+  snapshot foundation.
 - Work IQ as a mandatory dependency.
 - A skill marketplace, automatic extension updates, or shared repository synchronisation.
 - Arbitrary C# scripts, in-process third-party plugins, or unrestricted process execution.

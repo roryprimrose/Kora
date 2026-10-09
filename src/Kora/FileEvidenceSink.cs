@@ -40,7 +40,8 @@ internal sealed class FileEvidenceSink(Serilog.Core.Logger logger, FileEvidenceH
             new LogEventProperty(pair.Key, Scalar(pair.Value))).ToList();
         properties.Add(new LogEventProperty("SourceContext", new ScalarValue(envelope.Category)));
         properties.Add(new LogEventProperty("EvidenceAuthority", new ScalarValue(audit is null ? "Diagnostic" : "TypedAuditCopy")));
-        properties.Add(new LogEventProperty("EvidenceEnvelope", new ScalarValue(JsonSerializer.Serialize(envelope))));
+        properties.Add(new LogEventProperty("EvidenceEnvelope",
+            new ScalarValue(Kora.Windows.Storage.WindowsSqliteEvidenceSink.EncodeDailyDiagnostic(envelope))));
         properties.Add(new LogEventProperty("EvidenceId", new ScalarValue(envelope.EvidenceId.Value)));
         if (envelope.Trace is { } trace)
         {

@@ -1,4 +1,8 @@
 using AwesomeAssertions;
+using System.Diagnostics;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Microsoft.Extensions.Logging;
 
 using Kora.Core.Platform;
 using Kora.Core.Voice;
@@ -14,6 +18,44 @@ public sealed class ActivatedVoiceRecognitionTests(
     ITestOutputHelper output) : LoggingTestsBase<WindowsVoiceRecognitionService>(output)
 {
     private static readonly MicrophoneDevice Microphone = new("mic", "Synthetic microphone");
+
+    [Fact]
+    public async Task Prefix_retirement_discards_queued_native_audio_and_transcript_before_new_explicit_grammar()
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var oldCapture = new FakeCapture();
+        factory.OpenResult.SetResult(oldCapture);
+        await using var service = Create(privacy, factory);
+        var transcripts = new List<VoiceTranscriptEventArgs>();
+        service.TranscriptRecognized += (_, args) => transcripts.Add(args);
+        await service.BeginPushToTalkAsync(Microphone,
+            ["Kora session help", "Kora get assistant name"], "Kora",
+            TestContext.Current.CancellationToken);
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+        var oldGeneration = service.Generation;
+        var oldTranscript = oldCapture.QueueTranscript("Kora session help");
+        var oldAudio = oldCapture.QueueAudio([1, 2, 3]);
+        service.InvalidateCapture();
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        oldTranscript();
+        oldAudio();
+        service.AcceptCaptureGeneration(oldGeneration).Should().BeFalse();
+        transcripts.Should().BeEmpty();
+        service.IsCaptureQuiescent.Should().BeTrue();
+        factory.OpenCount.Should().Be(1);
+        var newCapture = new FakeCapture();
+        factory.OpenResult = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        factory.OpenResult.SetResult(newCapture);
+        await service.BeginPushToTalkAsync(Microphone,
+            ["Nova session help", "Nova get assistant name"], "Nova",
+            TestContext.Current.CancellationToken);
+        factory.Phrases.Should().Contain("Nova session help").And.NotContain("Kora session help");
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+        oldTranscript();
+        newCapture.Transcript("Nova session help");
+        transcripts.Should().ContainSingle().Which.Transcript.Should().Be("Nova session help");
+    }
 
     [Theory]
     [InlineData(WindowsSessionState.Unknown, MicrophoneAccessState.Allowed)]
@@ -49,9 +91,12 @@ public sealed class ActivatedVoiceRecognitionTests(
         await BeginCaptureAsync(service);
         var generation = service.CaptureGeneration;
         var queuedResult = capture.QueueTranscript("stale");
+        var failures = new List<VoiceRecognitionFailureEventArgs>();
+        service.RecognitionFailed += (_, args) => failures.Add(args);
 
         privacy.Set(Ready with { SessionState = WindowsSessionState.Locked });
 
+        failures.Should().ContainSingle().Which.Reason.Should().Be(VoiceRecognitionFailureReason.PrivacyTransition);
         service.IsListening.Should().BeFalse();
         service.CaptureGeneration.Should().BeGreaterThan(generation);
         capture.ReleaseCount.Should().BeGreaterThan(0);
@@ -856,6 +901,191 @@ public sealed class ActivatedVoiceRecognitionTests(
         service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Privacy_receipt_waits_for_recorder_release_but_not_recognizer_disposal()
+    {
+        using var privacy = new FakePrivacy();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disposal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var capture = new FakeCapture { ReleaseResult = release.Task, DisposeGate = disposal };
+        var factory = new FakeFactory();
+        factory.OpenResult.SetResult(capture);
+        await using var service = Create(privacy, factory);
+        var measured = new TaskCompletionSource<CapturePrivacyReceiptEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CapturePrivacyMeasured += (_, receipt) => measured.TrySetResult(receipt);
+        await BeginCaptureAsync(service);
+        var generation = service.Generation;
+        capture.Audio([1, 2, 3]);
+        try
+        {
+            privacy.Set(Ready with { SessionState = WindowsSessionState.Locked });
+            measured.Task.IsCompleted.Should().BeFalse();
+            service.IsListening.Should().BeFalse();
+            factory.Stream!.BufferedBytes.Should().Be(0);
+            release.SetResult();
+            var receipt = await measured.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+            receipt.Generation.Should().Be(generation);
+            receipt.WasRecording.Should().BeTrue();
+            receipt.ReleaseConfirmed.Should().BeTrue();
+            receipt.RecorderReleasedTimestamp.Should().Be(capture.RecorderReleasedTimestamp);
+            receipt.BufferedBytesAfterClear.Should().Be(0);
+            receipt.BuffersClearedTimestamp.Should().BeLessThanOrEqualTo(receipt.RecorderReleasedTimestamp!.Value);
+            receipt.ObservedToReleaseMilliseconds.Should().BeGreaterThanOrEqualTo(0);
+            receipt.Observation.OsEventToNotificationDelayMilliseconds.Should().BeNull();
+            disposal.Task.IsCompleted.Should().BeFalse();
+        }
+        finally
+        {
+            release.TrySetResult();
+            disposal.TrySetResult();
+        }
+    }
+
+    [Fact]
+    public async Task Failed_native_release_is_explicit_and_cannot_produce_a_timing_pass()
+    {
+        using var privacy = new FakePrivacy();
+        var capture = new FakeCapture { ReleaseResult = Task.FromException(new IOException("Synthetic native release failure")) };
+        var factory = new FakeFactory();
+        factory.OpenResult.SetResult(capture);
+        var service = Create(privacy, factory);
+        var measured = new TaskCompletionSource<CapturePrivacyReceiptEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CapturePrivacyMeasured += (_, receipt) => measured.TrySetResult(receipt);
+        await BeginCaptureAsync(service);
+
+        privacy.Set(Ready with { SessionState = WindowsSessionState.Locked });
+        var receipt = await measured.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+        receipt.ReleaseConfirmed.Should().BeFalse();
+        receipt.RecorderReleasedTimestamp.Should().BeNull();
+        receipt.LockReleaseWithinTarget.Should().BeNull();
+        service.IsCaptureQuiescent.Should().BeFalse();
+        var dispose = () => service.DisposeAsync().AsTask();
+        await dispose.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task Lock_during_existing_cleanup_still_measures_native_recorder_release()
+    {
+        using var privacy = new FakePrivacy();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var capture = new FakeCapture { ReleaseResult = release.Task };
+        var factory = new FakeFactory();
+        factory.OpenResult.SetResult(capture);
+        await using var service = Create(privacy, factory);
+        var measured = new TaskCompletionSource<CapturePrivacyReceiptEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.CapturePrivacyMeasured += (_, receipt) => measured.TrySetResult(receipt);
+        await BeginCaptureAsync(service);
+        var stopping = service.StopAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await capture.Released.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            service.IsListening.Should().BeFalse();
+
+            privacy.Set(Ready with { SessionState = WindowsSessionState.Locked });
+            measured.Task.IsCompleted.Should().BeFalse();
+            release.SetResult();
+            var receipt = await measured.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+
+            receipt.WasRecording.Should().BeFalse();
+            receipt.HadRecorder.Should().BeTrue();
+            receipt.ReleaseConfirmed.Should().BeTrue();
+            receipt.RecorderReleasedTimestamp.Should().Be(capture.RecorderReleasedTimestamp);
+            receipt.LockReleaseWithinTarget.Should().NotBeNull();
+        }
+        finally
+        {
+            release.TrySetResult();
+            await stopping.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        }
+    }
+
+    [Fact]
+    public async Task Queued_stale_audio_receipt_keeps_its_capture_cause_not_a_later_session()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var privacy = new FakePrivacy();
+        var capture = new FakeCapture();
+        var factory = new FakeFactory();
+        factory.OpenResult.SetResult(capture);
+        var logger = new StaleCallbackLogger();
+        await using var service = new WindowsVoiceRecognitionService(logger, privacy, factory, VoiceCaptureLimits.Default);
+        var original = HostRequest.Create(RequestOrigin.LocalUi);
+        Action queued;
+        using (var activation = HostActivity.BeginRoot(original, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await BeginCaptureAsync(service);
+            queued = capture.QueueAudio([1, 2, 3]);
+            await service.StopAsync(TestContext.Current.CancellationToken);
+            activation.Complete(HostOperationOutcome.Completed);
+        }
+        using var later = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+
+        queued();
+
+        logger.Requests.Should().ContainSingle().Which.Should().Be(original);
+        HostActivity.RequireCurrent().Should().BeSameAs(later);
+        later.Complete(HostOperationOutcome.Completed);
+    }
+
+    private sealed class StaleCallbackLogger : ILogger<WindowsVoiceRecognitionService>
+    {
+        public List<HostRequest> Requests { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (eventId.Id == 211)
+            {
+                Requests.Add(HostActivity.RequireCurrent().Request);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Native_audio_failure_keeps_its_capture_cause_not_a_later_session()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var privacy = new FakePrivacy();
+        var capture = new FakeCapture();
+        var factory = new FakeFactory();
+        factory.OpenResult.SetResult(capture);
+        await using var service = Create(privacy, factory);
+        HostRequest? reported = null;
+        service.RecognitionFailed += (_, _) => reported = HostActivity.RequireCurrent().Request;
+        var original = HostRequest.Create(RequestOrigin.LocalUi);
+        Action queued;
+        using (var activation = HostActivity.BeginRoot(original, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await BeginCaptureAsync(service);
+            queued = capture.QueueAudio([1]);
+            factory.Stream!.ClearAndComplete();
+            activation.Complete(HostOperationOutcome.Completed);
+        }
+        using var later = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+
+        queued();
+
+        reported.Should().Be(original);
+        service.IsListening.Should().BeFalse();
+        HostActivity.RequireCurrent().Should().BeSameAs(later);
+        later.Complete(HostOperationOutcome.Completed);
+    }
+
     private static async Task WaitForCaptureQuiescenceAsync(WindowsVoiceRecognitionService service)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -927,6 +1157,7 @@ public sealed class ActivatedVoiceRecognitionTests(
         public int OpenCount { get; private set; }
         public BlockingAudioStream? Stream { get; private set; }
         public MicrophoneDevice? SelectedMicrophone { get; private set; }
+        public IReadOnlyList<string> Phrases { get; private set; } = [];
 
         public Task<IActivatedCapture> OpenAsync(
             MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen)
@@ -938,6 +1169,7 @@ public sealed class ActivatedVoiceRecognitionTests(
 
             OpenCount++;
             SelectedMicrophone = microphone;
+            Phrases = phrases;
             Stream = stream;
             Entered.TrySetResult();
             return OpenResult.Task;
@@ -960,6 +1192,9 @@ public sealed class ActivatedVoiceRecognitionTests(
         public int ReleaseCount { get; private set; }
         public Action? BeforeStart { get; set; }
         public Task Completion => Completed.Task;
+        public long? RecorderReleasedTimestamp { get; private set; }
+        public Task ReleaseResult { get; set; } = Task.CompletedTask;
+        private Task? recorderRelease;
 
         public void Start()
         {
@@ -971,7 +1206,13 @@ public sealed class ActivatedVoiceRecognitionTests(
         {
             ReleaseCount++;
             Released.TrySetResult();
-            return Task.CompletedTask;
+            return recorderRelease ??= CompleteReleaseAsync();
+        }
+
+        private async Task CompleteReleaseAsync()
+        {
+            await ReleaseResult.ConfigureAwait(false);
+            RecorderReleasedTimestamp = Stopwatch.GetTimestamp();
         }
 
         public void FinishRecognition(bool cancel)

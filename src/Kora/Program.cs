@@ -12,6 +12,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Maintenance;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -22,8 +23,13 @@ using Kora.Core.Hosting;
 using Kora.Core.Maintenance;
 using Kora.Core.Storage;
 using Kora.Core.Platform;
+using Kora.Core.Skills;
+using Kora.Application.Skills;
+using Kora.Windows.Skills;
 using Kora.Core.Voice;
+using Kora.Definitions.Artifacts;
 using Kora.Windows.Audio;
+using Kora.Windows.Artifacts;
 using Kora.Windows.Communication;
 using Kora.Windows.Coordination;
 using Kora.Windows.Dependencies;
@@ -92,9 +98,29 @@ internal static class Program
                             provider = services.BuildServiceProvider();
                             App.Services = provider;
                             var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
+                            var auditConfiguration = provider.GetRequiredService<AuditRetentionConfigurationService>();
+                            try { auditConfiguration.Observe(); }
+                            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+                            {
+                                auditConfiguration.HoldUnavailable();
+                                throw new AuditRetentionUnavailableException(exception);
+                            }
+                            var diagnosticConfiguration = provider.GetRequiredService<DiagnosticRetentionConfigurationService>();
+                            try { diagnosticConfiguration.Observe(); }
+                            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+                            {
+                                diagnosticConfiguration.HoldUnavailable();
+                                DesktopLog.Error(startupLogger, exception, "Reading SQLite diagnostic retention before startup evidence");
+                            }
                             DesktopLog.Information(startupLogger, "Starting Kora desktop host");
                             Task.Run(() => provider.GetRequiredService<DurableHostRecovery>()
                                 .RecoverAsync(CancellationToken.None)).GetAwaiter().GetResult();
+                            provider.GetRequiredService<SessionRetentionConfigurationService>().Observe();
+                            Task.Run(() => provider.GetRequiredService<WindowsSqliteHostInteractionStore>()
+                                .ApplyRetentionAsync(() => provider.GetRequiredService<SessionRetentionConfigurationService>().Available,
+                                    static (_, _) => ValueTask.CompletedTask, CancellationToken.None).AsTask()).GetAwaiter().GetResult();
+                            Task.Run(() => provider.GetRequiredService<WindowsSqliteDiagnosticRetention>()
+                                .RunAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             startup.Complete(HostOperationOutcome.Completed);
                         }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -106,7 +132,9 @@ internal static class Program
                         Log.Fatal("Kora terminated unexpectedly. BootstrapDiagnostic: {BootstrapDiagnostic}; ExceptionType: {ExceptionType}.",
                             true, exception.GetType().FullName);
                         WindowsInstanceCoordinator.ReportStartupFailure(
-                            "Kora could not complete durable host startup or execution. No automatic task replay is permitted.");
+                            exception is AuditRetentionUnavailableException
+                                ? "Audit retention is unconfirmed; required new audit and authority writes are held. Inspect device-local audit preference and required audit/intent receipts before explicit repair and restart; no fallback policy or automatic replay."
+                                : "Kora could not complete durable host startup or execution. No automatic task replay is permitted.");
                     }
                     finally
                     {
@@ -115,7 +143,7 @@ internal static class Program
                             if (provider is not null)
                             {
                                 // Avalonia leaves its synchronization context installed after the UI loop exits.
-                                Task.Run(() => provider.DisposeAsync().AsTask()).GetAwaiter().GetResult();
+                                Task.Run(() => DisposeServicesAsync(provider)).GetAwaiter().GetResult();
                             }
                         }
                         catch (Exception exception)
@@ -170,6 +198,21 @@ internal static class Program
             .WithInterFont()
             .LogToTrace();
 
+    private static async Task DisposeServicesAsync(ServiceProvider provider)
+    {
+        using var shutdown = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Recovery);
+        try
+        {
+            await provider.DisposeAsync();
+            shutdown.Complete(HostOperationOutcome.Completed);
+        }
+        catch
+        {
+            shutdown.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
+
     private static void ConfigureServices(
         IServiceCollection services,
         ApplicationDataPaths paths,
@@ -178,11 +221,15 @@ internal static class Program
         DesktopInstanceOwnershipBridge ownershipBridge,
         WindowsInstanceCoordinator coordinator)
     {
-        var evidence = new WindowsSqliteEvidenceSink(paths);
+        var diagnosticPolicy = new DiagnosticRetentionPolicy();
+        var auditPolicy = new AuditRetentionPolicy();
+        var sessionPolicy = new SessionRetentionPolicy();
+        sessionPolicy.Activate(new LocalSessionRetentionPreferences(paths).Load() ?? SessionRetentionSettings.Default);
+        var evidence = new WindowsSqliteEvidenceSink(paths, diagnosticPolicy: diagnosticPolicy, auditPolicy: auditPolicy);
         evidence.Initialize();
         var tasks = new WindowsSqliteHostTaskStore(paths);
         Task.Run(() => tasks.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
-        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks);
+        var interactions = new WindowsSqliteHostInteractionStore(paths, tasks, auditPolicy: auditPolicy, sessionRetentionPolicy: sessionPolicy);
         Task.Run(() => interactions.InitializeAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
         services.AddLogging(builder =>
         {
@@ -197,13 +244,61 @@ internal static class Program
         services.AddSingleton<IInstanceLifecycleController>(coordinator);
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
+        services.AddSingleton(_ =>
+        {
+            var embedded = EmbeddedArtifactCatalogue.Load();
+            var disk = new WindowsDiskArtifactDiscovery(paths).Load();
+            return new ArtifactCatalogue([.. embedded.Artifacts, .. disk]);
+        });
+        services.AddSingleton<ArtifactCommandRouter>();
         services.AddSingleton<IApplicationDataPaths>(paths);
+        services.AddSingleton(evidence);
+        services.AddSingleton(diagnosticPolicy);
+        services.AddSingleton(auditPolicy);
+        services.AddSingleton(sessionPolicy);
+        services.AddSingleton<WindowsSqliteDiagnosticRetention>();
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
+        services.AddSingleton<ISessionRetentionStore>(interactions);
+        services.AddSingleton<SessionRetentionService>();
+        services.AddSingleton<ISharedSkillSessionStore>(interactions);
+        services.AddSingleton<ISharedSkillSourceReader, WindowsProfileSkillReader>();
+        services.AddSingleton<LocalSharedSkillPreferences>();
+        services.AddSingleton<SharedSkillAdmission>();
+        services.AddSingleton<SharedSkillDiscoveryService>();
+        services.AddSingleton<IAudioControlSessionStore>(interactions);
+        services.AddSingleton<IDiagnosticRetentionSessionStore>(interactions);
+        services.AddSingleton<DiagnosticRetentionAdmission>();
+        services.AddSingleton<IAuditRetentionSessionStore>(interactions);
+        services.AddSingleton<AuditRetentionAdmission>();
+        services.AddSingleton<IManualCallControlStore>(interactions);
+        services.AddSingleton<Kora.Application.Communication.ManualCallControl>();
+        services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
+        services.AddSingleton<MaintenanceCommands>();
+        services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
+        services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
+        services.AddSingleton<OutputDeviceConfigurationService>();
+        services.AddSingleton<ResponseModeConfigurationService>();
+        services.AddSingleton<InCallFeedbackConfigurationService>();
+        services.AddSingleton<IInCallFeedbackPreferences>(provider =>
+            new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<SpeechTextConfigurationService>();
         services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
         services.AddSingleton<SessionWorkspaceService>();
+        services.AddSingleton<ISessionQueueStore>(interactions);
+        services.AddSingleton<ISessionWorkStore>(interactions);
+        services.AddSingleton<Kora.Application.Interaction.ILocalEventSource, Kora.Application.Interaction.AuthorityLocalEventSource>();
+        services.AddSingleton<Kora.Application.Interaction.ILocalEventStateStore, Kora.Application.Interaction.LocalEventStateStore>();
+        services.AddSingleton<Kora.Application.Interaction.LocalEventBroker>();
+        services.AddSingleton(new SessionQueueLimits());
+        services.AddSingleton<IDeterministicVersionQueueAction, DeterministicVersionQueueAction>();
+        services.AddSingleton(provider => new SessionQueueService(
+            provider.GetRequiredService<ISessionQueueStore>(), provider.GetRequiredService<ISessionWorkspaceStore>(),
+            provider.GetRequiredService<HostTaskCoordinator>(), provider.GetRequiredService<ISessionWorkspaceAccess>(),
+            provider.GetRequiredService<IDeterministicVersionQueueAction>(), provider.GetRequiredService<SessionQueueLimits>(),
+            provider.GetRequiredService<ILogger<SessionQueueService>>()));
         services.AddSingleton(TimeProvider.System);
         services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
         {
@@ -232,7 +327,8 @@ internal static class Program
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
         services.AddSingleton<HostTaskCoordinator>();
         services.AddSingleton<DurableVersionQuery>();
-        services.AddSingleton<IEvidenceReader>(new WindowsSqliteEvidenceReader(evidence));
+        services.AddSingleton<IEvidenceReader>(new WindowsEvidenceReader(
+            new WindowsSqliteEvidenceReader(evidence), new WindowsDailyEvidenceReader(paths), interactions));
         services.AddSingleton<IEvidenceQueryAccess, DesktopEvidenceAccess>();
         services.AddSingleton<DurableEvidenceQuery>();
         services.AddSingleton<DurableHostRecovery>();
@@ -268,6 +364,7 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeList>();
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
+        services.AddSingleton<ModelTurnHost>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
         services.AddSingleton<DependencySetupWorkflow>();
         services.AddKeyedSingleton(
@@ -285,6 +382,21 @@ internal static class Program
                 provider.GetRequiredKeyedService<HttpClient>("ollama-reasoner"),
                 provider.GetRequiredService<BuiltInCommandCatalog>()));
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
+        services.AddSingleton<IPlaybackVolumePreferences>(provider =>
+            new LocalPlaybackVolumePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<PlaybackVolumeConfigurationService>();
+        services.AddSingleton<IWindowsSpeechRatePreferences>(provider =>
+            new LocalWindowsSpeechRatePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<WindowsSpeechRateConfigurationService>();
+        services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
+            new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<DiagnosticRetentionConfigurationService>();
+        services.AddSingleton<ISessionRetentionPreferences>(provider =>
+            new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<SessionRetentionConfigurationService>();
+        services.AddSingleton<IAuditRetentionPreferences>(provider =>
+            new LocalAuditRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<AuditRetentionConfigurationService>();
         services.AddSingleton<IModelApprovalPreferences>(provider =>
             new LocalModelApprovalPreferences(
                 provider.GetRequiredService<IPreferenceStore>()));
@@ -300,6 +412,11 @@ internal static class Program
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalAppearancePreferences>>()));
         services.AddSingleton<AppearanceConfigurationService>();
+        services.AddSingleton<ISpeechCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<IAudioOutputDeviceCatalog>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<ISpeechPlaybackService>(provider => provider.GetRequiredService<ITextToSpeechService>());
+        services.AddSingleton<SpeechConfigurationService>();
+        services.AddSingleton<AssistantNameConfigurationService>();
         services.AddSingleton<ITextToSpeechPreferences>(provider =>
             new LocalTextToSpeechPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
@@ -315,6 +432,8 @@ internal static class Program
             new LocalResponseOutputPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalResponseOutputPreferences>>()));
+        services.AddSingleton<ISpeechTextPreferences>(provider =>
+            new LocalSpeechTextPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ICallAwarePreferences>(provider =>
             new LocalCallAwarePreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
@@ -347,12 +466,16 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRead>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardReuse>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
+        services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
+        services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
         services.AddSingleton<MainViewModel>();
     }
 
     private static Serilog.Core.Logger CreateFileLogger(ApplicationDataPaths paths, FileEvidenceHealth health)
     {
-        var logDirectory = Path.Combine(paths.LocalRoot, "Logs");
+        var logDirectory = Path.Combine(paths.LocalRoot, DailyLogFilePolicy.DirectoryName);
         Directory.CreateDirectory(logDirectory);
 
         // Serilog normally self-reports file errors instead of throwing. A sticky admission
@@ -364,7 +487,7 @@ internal static class Program
             .Enrich.FromLogContext()
             .WriteTo.File(
                 new JsonFormatter(renderMessage: true),
-                Path.Combine(logDirectory, "kora-.log"),
+                Path.Combine(logDirectory, DailyLogFilePolicy.RollingName),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30,
                 retainedFileTimeLimit: TimeSpan.FromDays(30),

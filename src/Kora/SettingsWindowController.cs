@@ -1,4 +1,9 @@
+using Avalonia;
+
 using Kora.Application.ViewModels;
+using Kora.Application.Hosting;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.Logging;
 
@@ -8,15 +13,20 @@ public sealed class SettingsWindowController : IDisposable
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<SettingsWindowController> logger;
+    private readonly Action? chooseMicrophone;
     private SettingsWindow? window;
     private bool disposed;
+    private int nativeVisible;
+    private long nativeVisibilityRevision;
 
     public SettingsWindowController(
         MainViewModel viewModel,
-        ILogger<SettingsWindowController> logger)
+        ILogger<SettingsWindowController> logger,
+        Action? chooseMicrophone = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
+        this.chooseMicrophone = chooseMicrophone;
         viewModel.SettingsRequested += OnSettingsRequested;
         viewModel.ReadinessRequested += OnReadinessRequested;
         viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
@@ -30,12 +40,14 @@ public sealed class SettingsWindowController : IDisposable
         }
 
         disposed = true;
+        BindNativeLifetime(false);
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
         viewModel.ReadinessRequested -= OnReadinessRequested;
         viewModel.VoiceRecoveryRequested -= OnVoiceRecoveryRequested;
         if (window is not null)
         {
+            window.PropertyChanged -= OnWindowPropertyChanged;
             window.Closed -= OnWindowClosed;
             window.Close();
             window = null;
@@ -53,8 +65,8 @@ public sealed class SettingsWindowController : IDisposable
         if (!window.IsVisible)
         {
             window.Show();
+            BindNativeLifetime(window.IsVisible);
         }
-
         window.Activate();
     }
 
@@ -72,17 +84,50 @@ public sealed class SettingsWindowController : IDisposable
 
     private SettingsWindow CreateWindow()
     {
-        var settingsWindow = new SettingsWindow(viewModel);
+        var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone);
+        settingsWindow.PropertyChanged += OnWindowPropertyChanged;
         settingsWindow.Closed += OnWindowClosed;
         return settingsWindow;
     }
 
+    private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs eventArgs)
+    {
+        if (ReferenceEquals(window, sender) && eventArgs.Property == Visual.IsVisibleProperty)
+        {
+            BindNativeLifetime(window!.IsVisible);
+        }
+    }
+
+    private void BindNativeLifetime(bool visible)
+    {
+        // Storage-thread admission must never read Avalonia properties, and older bindings must not revive on reopen.
+        var revision = Interlocked.Increment(ref nativeVisibilityRevision);
+        Volatile.Write(ref nativeVisible, visible && !disposed ? 1 : 0);
+        viewModel.BindDiagnosticRetentionNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindAuditRetentionNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindSessionRetentionNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindWindowsSpeechRateNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindInCallFeedbackNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindManualCallNativeLifetime(visible && !disposed);
+    }
+
     private void OnWindowClosed(object? sender, EventArgs eventArgs)
     {
-        if (ReferenceEquals(window, sender))
+        HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
         {
-            DesktopLog.Debug(logger, "Settings window closed");
-            window = null;
-        }
+            if (ReferenceEquals(window, sender))
+            {
+                DesktopLog.Debug(logger, "Settings window closed");
+                window!.PropertyChanged -= OnWindowPropertyChanged;
+                window.Closed -= OnWindowClosed;
+                window = null;
+                BindNativeLifetime(false);
+            }
+        }, HostActivityLayer.Desktop, HostOperation.Presentation);
     }
 }

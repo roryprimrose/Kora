@@ -1,8 +1,11 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Speech.Synthesis;
 
+using Kora.Core.Configuration;
 using Kora.Core.Voice;
+using Kora.Core.Diagnostics;
 using Kora.Windows.Diagnostics;
 
 using NAudio.CoreAudioApi;
@@ -12,12 +15,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Windows.Audio;
 
-public sealed class WindowsTextToSpeechService : ITextToSpeechService
+public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl
 {
     private readonly Lock stateLock = new();
     private readonly SemaphoreSlim lifecycleLock = new(1, 1);
     private readonly SemaphoreSlim speechLock = new(1, 1);
     private readonly SpeechSynthesizer synthesizer = new();
+    private readonly Action<int> setOwnedWindowsGain;
+    private readonly Action<int> setOwnedWindowsRate;
+    private readonly Action cancelOwnedSynthesis;
     private TaskCompletionSource? synthesisCompletion;
     private TaskCompletionSource? playbackCompletion;
     private Prompt? activePrompt;
@@ -32,6 +38,11 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     private bool stopRequested;
     private bool disposed;
     private long outputGeneration;
+    private PlaybackVolume? playbackVolume = PlaybackVolume.Default;
+    private WindowsSpeechRate? windowsSpeechRate = WindowsSpeechRate.Default;
+    private long playbackGeneration;
+    private Guid? currentPlaybackId;
+    private Func<HostActivity>? beginStopReceipt;
     private readonly KokoroTextToSpeechProvider? kokoroProvider;
     private readonly ILogger<WindowsTextToSpeechService> logger;
 
@@ -43,10 +54,53 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     public WindowsTextToSpeechService(
         KokoroTextToSpeechProvider? kokoroProvider,
         ILogger<WindowsTextToSpeechService> logger)
+        : this(kokoroProvider, logger, setOwnedWindowsGain: null)
+    {
+    }
+
+    internal WindowsTextToSpeechService(
+        KokoroTextToSpeechProvider? kokoroProvider,
+        ILogger<WindowsTextToSpeechService> logger,
+        Action<int>? setOwnedWindowsGain,
+        Action? cancelOwnedSynthesis = null,
+        Action<int>? setOwnedWindowsRate = null)
     {
         this.kokoroProvider = kokoroProvider;
         this.logger = logger;
+        this.setOwnedWindowsGain = setOwnedWindowsGain ?? (percent => synthesizer.Volume = percent);
+        this.setOwnedWindowsRate = setOwnedWindowsRate ?? (rate => synthesizer.Rate = rate);
+        this.cancelOwnedSynthesis = cancelOwnedSynthesis ?? synthesizer.SpeakAsyncCancelAll;
         synthesizer.SpeakCompleted += OnSpeakCompleted;
+    }
+
+    internal void ApplyOwnedWindowsGain(PlaybackVolume volume) => setOwnedWindowsGain(volume.Percent);
+
+    internal void ApplyOwnedWindowsRate(string providerId)
+    {
+        if (string.Equals(providerId, SpeechProviderIds.Kokoro, StringComparison.Ordinal)) { return; }
+        if (!string.Equals(providerId, SpeechProviderIds.Windows, StringComparison.Ordinal))
+        {
+            throw new WindowsSpeechRateUnavailableException("The provider has no qualified Windows-native rate capability.");
+        }
+        setOwnedWindowsRate((windowsSpeechRate
+            ?? throw new WindowsSpeechRateUnavailableException("Windows speech rate is unconfirmed; full visual output is required.")).Value);
+    }
+
+    internal void StartOwnedWindowsSynthesis(PlaybackVolume volume, Action synthesize)
+    {
+        lock (stateLock)
+        {
+            ApplyOwnedWindowsGain(volume);
+            try { ApplyOwnedWindowsRate(SpeechProviderIds.Windows); }
+            catch (Exception exception)
+            {
+                WindowsLog.Error(logger, exception, "Applying Kora-owned Windows synthesis rate");
+                throw new WindowsSpeechRateUnavailableException(
+                    "The Kora-owned Windows rate could not be applied. Full visual output is retained; explicitly refresh the rate preference.",
+                    exception);
+            }
+            synthesize();
+        }
     }
 
     public bool IsSpeaking
@@ -82,7 +136,8 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                     // Device position, not reader position, keeps the envelope behind buffered audio.
                     var position = TimeSpan.FromSeconds(
                         playback.GetPosition() / (double)playback.OutputWaveFormat.AverageBytesPerSecond);
-                    return new SpeechPlaybackFrame(true, outputEnvelope.GetLevel(position));
+                    return new SpeechPlaybackFrame(true, outputEnvelope.GetLevel(position),
+                        currentPlaybackId, playbackGeneration);
                 }
                 catch (COMException exception)
                 {
@@ -108,7 +163,10 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 IsInstalled: true,
                 IsBuiltIn: true,
                 DownloadSizeBytes: null,
-                DefaultVoiceId: windowsDefaultVoiceId),
+                DefaultVoiceId: windowsDefaultVoiceId)
+            {
+                RateSupport = SpeechRateSupport.WindowsNative,
+            },
         };
         if (kokoroProvider is not null)
         {
@@ -140,7 +198,11 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     }
 
     public SpeechVoice? GetDefaultVoice() =>
-        SpeechVoiceSelector.SelectDefault(GetVoices(), CultureInfo.CurrentUICulture);
+        SelectDefaultWindowsVoice(GetVoices(), CultureInfo.CurrentUICulture);
+
+    internal static SpeechVoice? SelectDefaultWindowsVoice(IEnumerable<SpeechVoice> voices, CultureInfo culture) =>
+        SpeechVoiceSelector.SelectDefault(voices.Where(voice =>
+            string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal)), culture);
 
     public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
     {
@@ -153,11 +215,13 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             var devices = new List<AudioOutputDevice>(endpoints.Count);
             foreach (var endpoint in endpoints)
             {
-                devices.Add(new AudioOutputDevice(
-                    endpoint.ID,
-                    endpoint.FriendlyName,
-                    IsEndpointMuted(endpoint)));
-                endpoint.Dispose();
+                using (endpoint)
+                {
+                    devices.Add(new AudioOutputDevice(
+                        endpoint.ID,
+                        endpoint.FriendlyName,
+                        IsEndpointMuted(endpoint)));
+                }
             }
 
             var result = devices
@@ -197,32 +261,19 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         }
     }
 
-    public async Task SpeakAsync(
+    public Task SpeakAsync(
         string text,
         SpeechVoice voice,
         AudioOutputDevice outputDevice,
         CancellationToken cancellationToken = default)
+        => RunCurrentOutputAsync((generation, token) => SpeakCoreAsync(text, voice, outputDevice, generation, null, token), cancellationToken);
+
+    public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
+        Guid playbackId, CancellationToken cancellationToken = default)
     {
-        var generation = Interlocked.Read(ref outputGeneration);
-        await speechLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (generation != Interlocked.Read(ref outputGeneration))
-            {
-                throw new OperationCanceledException("Speech output was invalidated by a privacy event.");
-            }
-            await SpeakCoreAsync(
-                text,
-                voice,
-                outputDevice,
-                generation,
-                cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            speechLock.Release();
-        }
+        if (playbackId == Guid.Empty) { throw new ArgumentException("Playback identity must be host-owned and nonempty.", nameof(playbackId)); }
+        return RunCurrentOutputAsync((generation, token) =>
+            SpeakCoreAsync(text, voice, outputDevice, generation, playbackId, token), cancellationToken);
     }
 
     private async Task SpeakCoreAsync(
@@ -230,6 +281,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         SpeechVoice voice,
         AudioOutputDevice outputDevice,
         long generation,
+        Guid? playbackId,
         CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -237,6 +289,17 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         ArgumentNullException.ThrowIfNull(voice);
         ArgumentNullException.ThrowIfNull(outputDevice);
 
+        PlaybackVolume volume;
+        lock (stateLock)
+        {
+            volume = playbackVolume is { AllowsSpeech: true } current ? current
+                : throw new PlaybackVolumeUnavailableException(
+                    "Kora playback volume is zero or unavailable. Full visual output is required; no synthesis started.");
+            if (string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal) && windowsSpeechRate is null)
+            {
+                throw new WindowsSpeechRateUnavailableException("Windows speech rate is unconfirmed; no synthesis or device access started.");
+            }
+        }
         await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task synthesisTask;
         try
@@ -253,6 +316,8 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                     throw new OperationCanceledException("Speech output was invalidated by a privacy event.");
                 }
                 stopRequested = false;
+                playbackGeneration = generation;
+                currentPlaybackId = playbackId;
             }
 
             followsSystemDefaultOutput = outputDevice.IsSystemDefault;
@@ -300,22 +365,27 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 synthesisTask = SynthesizeKokoroAsync(
                     text,
                     voice,
+                    volume,
                     completion,
                     cancellationToken);
             }
             else
             {
+                if (!string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal))
+                {
+                    throw new PlaybackVolumeUnavailableException("This provider has no qualified Kora-only volume capability.");
+                }
                 synthesizer.SelectVoice(voice.Id);
                 audioStream = new MemoryStream();
                 synthesizer.SetOutputToWaveStream(audioStream);
                 var prompt = new Prompt(text);
                 lock (stateLock)
                 {
+                    RequireCurrentOutput(generation);
                     synthesisCompletion = completion;
                     activePrompt = prompt;
+                    StartOwnedWindowsSynthesis(volume, () => synthesizer.SpeakAsync(prompt));
                 }
-
-                synthesizer.SpeakAsync(prompt);
                 synthesisTask = completion.Task;
             }
 
@@ -339,6 +409,10 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             if (!IsStopRequested() && generation == Interlocked.Read(ref outputGeneration))
             {
                 await StartPlaybackAsync(generation, cancellationToken).ConfigureAwait(false);
+            }
+            if (generation != Interlocked.Read(ref outputGeneration))
+            {
+                throw new OperationCanceledException("Speech output route was invalidated.");
             }
         }
         catch (OperationCanceledException)
@@ -369,18 +443,25 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
+        var requested = Stopwatch.GetTimestamp();
         WindowsLog.Debug(logger, "Stopping speech output");
         await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task? completionTask;
+        long stoppedGeneration;
+        bool hadOutput;
         try
         {
             lock (stateLock)
             {
                 stopRequested = true;
+                stoppedGeneration = playbackGeneration;
+                hadOutput = activePrompt is not null || isKokoroSynthesis || playback is not null;
                 completionTask = synthesisCompletion?.Task ?? playbackCompletion?.Task;
+                beginStopReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
             }
 
-            synthesizer.SpeakAsyncCancelAll();
+            cancelOwnedSynthesis();
             playback?.Stop();
         }
         finally
@@ -392,19 +473,63 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         {
             await completionTask.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
+        WindowsLog.OutputStopCompleted(logger, stoppedGeneration, hadOutput, requested,
+            Stopwatch.GetTimestamp(), Stopwatch.Frequency);
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     public void InvalidateOutput()
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
         WasapiPlayer? player;
         lock (stateLock)
         {
-            Interlocked.Increment(ref outputGeneration);
-            stopRequested = true;
-            player = playback;
+            player = RetireOutputLocked();
+            beginStopReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
         }
+        StopRetiredOutput(player);
+        activity.Complete(HostOperationOutcome.Completed);
+    }
+
+    public void SetPlaybackVolume(PlaybackVolume? volume)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        WasapiPlayer? player;
+        lock (stateLock)
+        {
+            if (playbackVolume == volume) { return; }
+            playbackVolume = volume;
+            player = RetireOutputLocked();
+        }
+        StopRetiredOutput(player);
+    }
+
+    public void SetWindowsSpeechRate(WindowsSpeechRate? rate)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        WasapiPlayer? player;
+        lock (stateLock)
+        {
+            if (windowsSpeechRate == rate) { return; }
+            windowsSpeechRate = rate;
+            player = RetireOutputLocked();
+        }
+        StopRetiredOutput(player);
+    }
+
+    private WasapiPlayer? RetireOutputLocked()
+    {
+        Interlocked.Increment(ref outputGeneration);
+        currentPlaybackId = null;
+        stopRequested = true;
+        return playback;
+    }
+
+    private void StopRetiredOutput(WasapiPlayer? player)
+    {
+        // Native stop can synchronously wait for callbacks that need stateLock.
         player?.Stop();
-        synthesizer.SpeakAsyncCancelAll();
+        cancelOwnedSynthesis();
     }
 
     public async Task InstallProviderAsync(
@@ -550,6 +675,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
             audioReader = rawAudioFormat is null
                 ? new WaveFileReader(stream)
                 : new RawSourceWaveStream(stream, rawAudioFormat);
+            ValidatePlaybackSamples(audioReader);
             var envelope = SpeechOutputEnvelope.Create(audioReader, cancellationToken);
             lock (stateLock)
             {
@@ -578,6 +704,8 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 lock (stateLock)
                 {
                     playback = player;
+                    playbackGeneration = generation;
+                    beginStopReceipt = HostActivity.CaptureContinuation(HostActivityLayer.Windows, HostOperation.Runtime);
                     playback.PlaybackStopped += OnPlaybackStopped;
                     playbackCompletion = completion;
                     if (stopRequested || generation != Interlocked.Read(ref outputGeneration))
@@ -636,16 +764,25 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         }
     }
 
-    private void OnPlaybackStopped(object? sender, StoppedEventArgs eventArgs)
+    internal void OnPlaybackStopped(object? sender, StoppedEventArgs eventArgs)
     {
+        var stopped = Stopwatch.GetTimestamp();
         TaskCompletionSource? completion;
+        long retiredGeneration;
+        Func<HostActivity>? beginReceipt;
         lock (stateLock)
         {
+            if (sender is null || !ReferenceEquals(sender, playback)) { return; }
             completion = playbackCompletion;
+            retiredGeneration = playbackGeneration;
+            beginReceipt = beginStopReceipt;
             playbackCompletion = null;
+            currentPlaybackId = null;
             outputEnvelope?.Clear();
             outputEnvelope = null;
         }
+        using var activity = beginReceipt is not null ? beginReceipt()
+            : HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
 
         if (eventArgs.Exception is not null)
         {
@@ -659,6 +796,8 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         {
             completion?.TrySetResult();
         }
+        WindowsLog.NativePlaybackStopped(logger, retiredGeneration, stopped);
+        activity.Complete(eventArgs.Exception is null ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
     }
 
     private void ResetSynthesisState()
@@ -674,6 +813,7 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     private async Task SynthesizeKokoroAsync(
         string text,
         SpeechVoice voice,
+        PlaybackVolume volume,
         TaskCompletionSource completion,
         CancellationToken cancellationToken)
     {
@@ -687,6 +827,12 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
                 voice.Id,
                 cancellationToken).ConfigureAwait(false);
             audioStream = CreateOutputAudioStream(audio.Samples);
+            if (audio.BitsPerSample != 16 || audio.Channels != 1 || audio.SampleRate <= 0)
+            {
+                Array.Clear(audio.Samples);
+                throw new InvalidDataException("Kokoro produced an unsupported PCM format. Full visual output is required.");
+            }
+            Pcm16PlaybackGain.Attenuate(audio.Samples, volume);
             rawAudioFormat = new WaveFormat(
                 audio.SampleRate,
                 audio.BitsPerSample,
@@ -719,15 +865,27 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
     internal static MemoryStream CreateOutputAudioStream(byte[] samples) =>
         new(samples, 0, samples.Length, writable: false, publiclyVisible: true);
 
+    internal static void ValidatePlaybackSamples(WaveStream reader)
+    {
+        if (reader.Length == 0 || reader.Length % reader.WaveFormat.BlockAlign != 0)
+        {
+            throw new InvalidDataException("Speech audio must contain complete nonempty PCM frames; no silent-success playback is claimed.");
+        }
+    }
+
     internal static void ClearOutputAudio(MemoryStream stream) =>
         stream.GetBuffer().AsSpan().Clear();
 
     private void DisposePlaybackResources()
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
+        var audioBytes = audioStream?.Capacity ?? 0;
+        var hadResources = playback is not null || audioStream is not null;
         WasapiPlayer? player;
         lock (stateLock)
         {
             player = playback;
+            currentPlaybackId = null;
             if (player is not null)
             {
                 player.PlaybackStopped -= OnPlaybackStopped;
@@ -751,5 +909,10 @@ public sealed class WindowsTextToSpeechService : ITextToSpeechService
         activeOutputDevice?.Dispose();
         activeOutputDevice = null;
         followsSystemDefaultOutput = false;
+        if (hadResources)
+        {
+            WindowsLog.OutputResourcesReleased(logger, playbackGeneration, Stopwatch.GetTimestamp(), audioBytes);
+        }
+        activity.Complete(HostOperationOutcome.Completed);
     }
 }

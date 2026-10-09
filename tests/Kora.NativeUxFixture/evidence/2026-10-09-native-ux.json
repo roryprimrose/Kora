@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "recordedDateLocal": "2026-10-09",
+  "disposition": "Scoped native observations and light-text approval recorded; full qualification remains open",
+  "authority": "Research receipt, not an execution grant, security audit, publisher identity or release certification",
+  "scope": "Actual Kora native windows/styles with synthetic ownership/privacy and uniquely owned scratch stores; PID-scoped Windows UI Automation and foreground-PID-guarded keyboard input",
+  "sourceBase": "e5b89bae261b4dfc86383da85923887c008a1def",
+  "sourceWasUncommitted": true,
+  "environment": {
+    "osVersion": "Microsoft Windows NT 10.0.26300.0",
+    "architecture": "X64",
+    "sdk": "10.0.401",
+    "powerShell": "7.6.6",
+    "profile": "Non-elevated interactive Windows profile",
+    "referenceMachineQualification": "Not established",
+    "displayScale": "Not recorded"
+  },
+  "manifestDigestDefinition": "SHA-256 of UTF-8 without BOM: ordinal-sorted relative-path<TAB>lowercase-SHA256 lines joined with LF, no final LF; path separators normalized to /",
+  "mechanicalTrial": {
+    "localAttemptIds": ["native-ux-proof-04", "native-ux-proof-05"],
+    "sourceFingerprint": "cdf16d1fd6bb3d65cdf639c7c06950800d5bde59003e653f79e725d77cbedf3d",
+    "sourceFingerprintScope": "Historical preparation worktree fingerprint, including then-present scaffolding; not a committed source revision",
+    "sameSourceAndPayloadBetweenTheseAttempts": true,
+    "payload": {
+      "fileCount": 160,
+      "manifestSha256": "f58f9e1900990a4d6c83d1238347c58bd13438e8ba8626b41f6ee11a5f6399e5",
+      "selectedFiles": {
+        "Kora.NativeUxFixture.exe": "5f003469374da4a1853e426035d8f7bf403ff30a1d9608164173802424e04e47",
+        "Kora.NativeUxFixture.dll": "85dfc13e429ff3352cb29e0a1ed06f321b078627f008b49be4c8f58dcd327c83",
+        "Kora.dll": "d931a71d2bf12bbbd45b05f69abe86ebfebac6a0d0c1714f2abd2d7d2a1cf225",
+        "Kora.Application.dll": "459d0676dff3f5404d02eedf87603bfe16c6cf461ec199513e79c4088cf54957",
+        "Kora.Windows.dll": "1058c44f18f577d5f362ce949cb93f04ca95b64953842590cc96779f74794db1",
+        "Kora.Core.dll": "3116da8737fd36a7946aa68f7912e394ec1e80943e22d60f8f7469e9e71afb5c",
+        "Kora.Definitions.dll": "3f41e36093a86c1714f7c6121055ba2e9138fa795b5ad22030de0f1911b9d975"
+      }
+    },
+    "releaseBuild": {
+      "projects": ["Kora.Windows.IntegrationTests", "Kora.NativeUxFixture"],
+      "warnings": 0,
+      "errors": 0
+    },
+    "focusedTests": {
+      "total": 76,
+      "passed": 76,
+      "failed": 0,
+      "skipped": 0,
+      "classes": {
+        "NativeUxFixtureContractTests": 18,
+        "AccessibilityRuntimeContractTests": 20,
+        "BoundedSurfaceAccessibilityTests": 8,
+        "NativeQuestionWindowContractTests": 8,
+        "SessionsViewModelTests": 6,
+        "DetailWindowContractTests": 16
+      }
+    },
+    "launchWithoutOptInExitCode": 2,
+    "observations": [
+      {
+        "id": "UX01",
+        "outcome": "ObservedPass",
+        "observation": "Maintenance network-consent checkbox disabled; complete forward/reverse native keyboard cycles observed; no network check admitted."
+      },
+      {
+        "id": "UX02",
+        "outcome": "MechanicalPass",
+        "observation": "All 15 expected Appearance tab-cycle entries reached in both directions, repeated twice with stable order.",
+        "limitation": "Theme-selection/capture attempts in this profile did not complete. No rendered contrast, text scale or screenshot pass inferred."
+      },
+      {
+        "id": "UX03",
+        "outcome": "ObservedPass",
+        "observation": "Keyboard choice/review/draft/revised-review/submit preserved exact identities; review/draft focus restored; successful local-version terminal receipt/disclosure retained after activation and timer refresh, answer actions disabled and Close focused."
+      },
+      {
+        "id": "UX04",
+        "outcome": "ObservedPassWithInconclusiveReruns",
+        "observation": "One complete two-direction stale-generation trial visibly refused Done/resume and independently refreshed newer generations for the same immutable session ID.",
+        "limitation": "Later transport/selection/status probes were inconclusive; no every-trial repeatability qualification."
+      },
+      {
+        "id": "UX05",
+        "outcome": "ObservedPass",
+        "observation": "Old question revision visibly refused; immutable original review preserved; review/draft/submit/cancel disabled and Close focused. Passive Sessions inspection independently showed replacement Pending revision 2 without the stale answer."
+      },
+      {
+        "id": "UX06",
+        "outcome": "ObservedPass",
+        "observation": "Three native detail Escape closures retained the guide, including intervening Settings windows. Closed-generation deferred render visibly refused; no clipboard operation."
+      },
+      {
+        "id": "UX07",
+        "outcome": "ObservedPass",
+        "observation": "Native Create/Rename preserved exact session ID and generation 1 while advancing metadata revision to 2. Exact-ID passive history outputs independently verified for bounded, contiguous ordering and cross-session isolation.",
+        "freshNamedHistory": {
+          "records": 4,
+          "kinds": ["Gap", "Task", "Task", "Task"],
+          "questionOrAnswerContent": false,
+          "meaning": "Metadata-only history, not literally zero records"
+        },
+        "retainedVersionHistory": {
+          "records": 11,
+          "questions": 1,
+          "answers": 1,
+          "answerChannel": "LocalUi",
+          "answerChoices": ["show"]
+        }
+      },
+      {
+        "id": "UX08",
+        "outcome": "ObservedPass",
+        "observation": "Synthetic gate closure removed all private child windows and disabled private actions; reopening replayed no old windows and a new explicit Sessions request succeeded.",
+        "limitation": "Synthetic presentation gate only, not actual Windows ownership/lock or audio-resource acceptance."
+      },
+      {
+        "id": "UX09",
+        "outcome": "ObservedPass",
+        "observation": "Every native attempt exited 0 and its exact owned scratch child was absent. No fixture process remained after completion."
+      }
+    ]
+  },
+  "paletteContinuation": {
+    "preparedAtUtc": "2026-10-09T00:32:41.1106588+00:00",
+    "approvalRecordedAtUtc": "2026-10-09T00:34:03.8632663+00:00",
+    "payload": {
+      "fileCount": 160,
+      "manifestSha256": "e36502b0c59b64f258a3530378571f14c2c5a374336c41b2b9e102d861b760e2",
+      "selectedFiles": {
+        "Kora.NativeUxFixture.exe": "5f003469374da4a1853e426035d8f7bf403ff30a1d9608164173802424e04e47",
+        "Kora.NativeUxFixture.dll": "85dfc13e429ff3352cb29e0a1ed06f321b078627f008b49be4c8f58dcd327c83",
+        "Kora.dll": "0467a104f9ef571456e16b15586c7d5b9bc41eec1e48578ac943a0dd2bcb467c",
+        "Kora.Application.dll": "835ff0d643ba51f71f846c8291ed4dd6b598a6c0a8ea1747d7df55c0e6ba67ed",
+        "Kora.Windows.dll": "1058c44f18f577d5f362ce949cb93f04ca95b64953842590cc96779f74794db1",
+        "Kora.Core.dll": "3116da8737fd36a7946aa68f7912e394ec1e80943e22d60f8f7469e9e71afb5c",
+        "Kora.Definitions.dll": "3f41e36093a86c1714f7c6121055ba2e9138fa795b5ad22030de0f1911b9d975"
+      }
+    },
+    "notByteEquivalentToMechanicalTrial": true,
+    "earlierNativeObservationsNotRelabeledAsPaletteTrial": true,
+    "lightMutedForegroundBefore": "#5E6470",
+    "lightMutedForegroundAfter": "#4C525D",
+    "inactiveLightTabsUseSameSecondaryBrush": true,
+    "darkMode": "Unchanged; runtime navigation regression passed",
+    "focusedTests": {
+      "classes": ["ThemeContrastContractTests", "BoundedSurfaceAccessibilityTests", "InstallerThemeTests", "AppearanceUiContractTests"],
+      "total": 29,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0
+    },
+    "releaseBuildWarnings": 0,
+    "releaseBuildErrors": 0,
+    "nativeLightSelectionAndResponsiveAppearanceObserved": true,
+    "operatorDecision": "Approve this shade and close the fixture",
+    "approvedScope": "Light-mode secondary text and inactive navigation readability at the operator's current display settings",
+    "fullAccessibilityCertification": false,
+    "fixtureExitCode": 0,
+    "exactScratchRemoved": true
+  },
+  "nativeAttemptCleanup": [
+    {
+      "attempt": "native-ux-proof-03",
+      "startedAtUtc": "2026-10-08T22:47:41.1797192+00:00",
+      "completedAtUtc": "2026-10-08T22:51:58.7835273+00:00",
+      "exitCode": 0,
+      "exactScratchRemoved": true,
+      "qualification": "Initial question path blocked; not the corrected mechanical profile"
+    },
+    {
+      "attempt": "native-ux-proof-04",
+      "startedAtUtc": "2026-10-08T22:53:33.4016821+00:00",
+      "completedAtUtc": "2026-10-08T23:02:12.4615731+00:00",
+      "exitCode": 0,
+      "exactScratchRemoved": true
+    },
+    {
+      "attempt": "native-ux-proof-05",
+      "startedAtUtc": "2026-10-08T23:04:42.9200659+00:00",
+      "completedAtUtc": "2026-10-08T23:05:08.6460651+00:00",
+      "exitCode": 0,
+      "exactScratchRemoved": true
+    }
+  ],
+  "failureAndEvidenceLimitations": [
+    "Initial local-version question did not open because the fixture lacked NativeQuestionHost workspace binding. The one-line fixture binding was corrected without bypassing policy.",
+    "UIA owned-window discovery, virtualized-row navigation, asynchronous status assumptions, a PowerShell alias collision and COM E_FAIL caused failed/inconclusive probes. They are not successful product observations.",
+    "Earlier nested aggregate-row metadata exceeded its JSON depth and is explicitly EvidenceIncomplete. Separate snapshots, preparation and cleanup receipts were retained.",
+    "This sanitized summary does not reconstruct missing raw metadata, certify repeatability of inconclusive probes, or substitute for future affected-profile qualification."
+  ],
+  "sourceFilesObservedAtReceiptRecording": {
+    "src/Kora/Assets/ThemeResources.axaml": "4d4e0c0e1b2994a66863b563e477ce93d8766227a679b7a9b5e4c41d189a8af1",
+    "tests/Kora.NativeUxFixture/NativeUx/NativeUxFixtureWindow.cs": "417580765ba74fac2726e6bd3420ca898fa48036e4bd843ddfd26df20d6d9dd5",
+    "tests/Kora.Windows.IntegrationTests/ThemeContrastContractTests.cs": "b2e578de64f395d651a714211c7fedfaa41420cc92cdd084b5a50f947b056c46",
+    "tests/Kora.Windows.IntegrationTests/BoundedSurfaceAccessibilityTests.cs": "3b226c3de29651f77184ddbfc522d8bef854f12ecb98d73f16a1367a648a3459"
+  },
+  "evidenceRetention": {
+    "rawScriptsSnapshotsManifestsAndFailedReceipts": "Retained locally outside the repository",
+    "repositoryReceiptIncludes": "Sanitized summary, selected payload hashes and complete-inventory digest only",
+    "omitted": ["Absolute profile/scratch paths", "Operator account identity", "Synthetic session/question/task/trace IDs", "Screenshots", "Bulk logs", "Fixture binaries"]
+  },
+  "harnessDisposition": {
+    "temporaryRepositoryOrchestrationScaffolding": "Removed; actual trial-source snapshot retained locally",
+    "nativeFixtureAndMaintainedRegressions": "Retained; fixture is in the solution and its sources are linked into integration tests",
+    "otherExperiments": "Unchanged; no unique harness or historical evidence retired"
+  },
+  "qualification": {
+    "normalUnrelatedFeatureDevelopment": "Already independent under the three-tier policy; no new repository-wide gate",
+    "fullR05R12R14OrA4": "Open",
+    "D001D005D008D009D013": "Unchanged",
+    "stillUnperformedOrExcluded": [
+      "Complete all-surface native accessibility and repeated lifecycle/race qualification",
+      "Screen-reader spoken announcements and mixed speech targeting",
+      "Rendered WCAG contrast certification, text scaling and physical DPI/multimonitor transitions",
+      "Actual Windows privacy/ownership/handoff/audio resource release",
+      "Real clipboard, maintenance egress, model/provider/account or worker effects",
+      "Installed protection, supported-reference hardware/OS matrix and final release qualification",
+      "Immutable effect/source/resource review and missing containment/deployment authority"
+    ]
+  }
+}

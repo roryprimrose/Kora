@@ -1,7 +1,10 @@
 using Kora.Application.Diagnostics;
 using Kora.Core;
+using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
+using Kora.Core.Hosting;
+using Kora.Application.Voice;
 
 namespace Kora.Application.ViewModels;
 
@@ -13,6 +16,41 @@ public sealed partial class MainViewModel
     private Task privacyClosureTask = Task.CompletedTask;
     private long observedTopologyRevision = -1;
     private bool disposed;
+    private readonly BoundedMicrophoneCatalog microphoneCatalog;
+    private CancellationTokenSource? microphoneRefreshCancellation;
+    private long catalogPrivacyRevision;
+    private bool microphoneCatalogCurrent = true;
+    private bool isRefreshingMicrophones;
+    private Task microphoneRefreshTask = Task.CompletedTask;
+    internal Task MicrophoneRefreshTask => microphoneRefreshTask;
+
+    public bool IsRefreshingMicrophones => isRefreshingMicrophones;
+    public bool IsMicrophoneCatalogCurrent => microphoneCatalogCurrent;
+    public bool IsSystemMicrophoneAvailable => systemDefaultMicrophone is not null;
+    public MicrophoneDevice? SystemMicrophone => systemDefaultMicrophone;
+    public bool CanUseTrayMicrophoneRecovery => IsCallMutationHostEligible;
+
+    public string TrayInputStatus => !IsCallMutationHostEligible
+        ? "Input unavailable - ownership or Windows privacy recovery required"
+        : !microphoneCatalogCurrent
+            ? "Input unavailable - refresh microphones"
+        : !HasVoiceConsent
+            ? "Microphone closed - voice consent not granted"
+        : MicrophoneAccessStatus.State != MicrophoneAccessState.Allowed
+            ? "Microphone closed - Windows access denied or unknown"
+        : EffectiveMicrophone is null
+            ? "Microphone closed - selected microphone unavailable"
+        : IsListening && voiceRecognition.IsListening
+            ? "Push-to-talk capture active"
+        : IsVoiceEnabled
+            ? "Push-to-talk ready - microphone closed - wake unavailable"
+            : "Microphone closed - listening disabled";
+    private readonly Lock voiceReadinessGate = new();
+    private long automaticUnlockRecoveryRevision = -1;
+    private Task voiceUnlockRecoveryTask = Task.CompletedTask;
+    private Func<bool> voiceOwnershipEligible = static () => false;
+
+    public void BindVoiceOwnershipGate(Func<bool> gate) => voiceOwnershipEligible = gate;
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
 
@@ -24,10 +62,21 @@ public sealed partial class MainViewModel
 
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
+        if (disposed) { return; }
         var snapshot = eventArgs.Current;
+        var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
+            | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
+            | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
+            || (eventArgs.Reason & WindowsPrivacyChangeReason.DeviceTopology) != WindowsPrivacyChangeReason.Unknown
+                && (eventArgs.Reason & WindowsPrivacyChangeReason.OutputTopology) == WindowsPrivacyChangeReason.Unknown;
         if (snapshot.SessionState != WindowsSessionState.Unlocked)
         {
-            CloseForObservedPrivacyEvent("Windows session is " + snapshot.SessionState, hidePresentation: true);
+            var restoreOnUnlock = snapshot.SessionState == WindowsSessionState.Locked
+                && eventArgs.Reason != WindowsPrivacyChangeReason.Unknown && !voicePrivacyChanged
+                && snapshot.MicrophoneAccess == MicrophoneAccessState.Allowed
+                && (IsVoiceEnabled || Interlocked.Read(ref automaticUnlockRecoveryRevision) >= 0);
+            CloseForObservedPrivacyEvent("Windows session is " + snapshot.SessionState,
+                hidePresentation: true, sessionState: snapshot.SessionState, restoreOnUnlock: restoreOnUnlock);
         }
         else if (snapshot.MicrophoneAccess != MicrophoneAccessState.Allowed
             || SelectedMicrophone is { } microphone && IsVoiceEnabled && !snapshot.CanCaptureFrom(microphone))
@@ -46,8 +95,38 @@ public sealed partial class MainViewModel
                 {
                     return;
                 }
-                _ = RefreshMicrophonesAsync();
                 RefreshOutputEndpoints();
+                if (snapshot.SessionState == WindowsSessionState.Locked && !voicePrivacyChanged
+                    && (eventArgs.Reason & WindowsPrivacyChangeReason.OutputTopology) != WindowsPrivacyChangeReason.Unknown
+                    && Interlocked.Read(ref automaticUnlockRecoveryRevision) >= 0
+                    && microphoneCatalogCurrent && catalogPrivacyRevision == eventArgs.Previous.TopologyRevision
+                    && privacyObservation.Current == snapshot
+                    && snapshot.MicrophoneAccess == eventArgs.Previous.MicrophoneAccess
+                    && string.Equals(snapshot.DefaultMicrophoneId, eventArgs.Previous.DefaultMicrophoneId, StringComparison.Ordinal)
+                    && snapshot.ActiveMicrophoneIds.SequenceEqual(eventArgs.Previous.ActiveMicrophoneIds, StringComparer.Ordinal))
+                {
+                    // Output-only revisions retain validated input metadata, not input admission or capture.
+                    catalogPrivacyRevision = snapshot.TopologyRevision;
+                    return;
+                }
+                _ = RefreshMicrophonesAsync();
+            });
+        }
+        if (snapshot.SessionState == WindowsSessionState.Unlocked)
+        {
+            var revision = Interlocked.Read(ref automaticUnlockRecoveryRevision);
+            var closure = privacyClosureTask;
+            var beginRecovery = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Policy);
+            uiDispatcher.Post(() =>
+            {
+                if (!disposed && listeningPauseSessionState is not null)
+                {
+                    SetListeningPauseReason(listeningPauseReason, snapshot.SessionState);
+                }
+                if (!disposed && revision >= 0 && eventArgs.Previous.SessionState == WindowsSessionState.Locked)
+                {
+                    voiceUnlockRecoveryTask = RestoreVoiceAfterUnlockAsync(revision, closure, beginRecovery);
+                }
             });
         }
     }
@@ -81,6 +160,7 @@ public sealed partial class MainViewModel
             var previousOutput = selectedOutputDevice;
             var devices = textToSpeech.GetOutputDevices();
             systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
+            outputConfiguration?.Observe(new(devices, systemDefaultOutputDevice));
             var previous = SelectedOutputDevice;
             suppressAudioDevicePreferenceSave = true;
             try
@@ -93,8 +173,8 @@ public sealed partial class MainViewModel
                 }
                 if (previousOutput is not null)
                 {
-                    SelectedOutputDevice = OutputDevices.FirstOrDefault(device =>
-                        string.Equals(device.Id, previousOutput.Id, StringComparison.Ordinal)) ?? previousOutput;
+                    SetOutputDeviceSnapshot(OutputDevices.FirstOrDefault(device =>
+                        string.Equals(device.Id, previousOutput.Id, StringComparison.Ordinal)) ?? previousOutput);
                 }
             }
             finally
@@ -128,10 +208,14 @@ public sealed partial class MainViewModel
             return;
         }
         disposed = true;
+        RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
+        // Refresh cancellation can release an awaiting caller before Dispose returns.
+        HoldVoiceInput("Microphone closed · host disposed");
+        microphoneRefreshCancellation?.Cancel();
         clipboardPreview.Changed -= OnClipboardPreviewChanged;
         clipboardPreview.Dispose();
-        HoldVoiceInput("Microphone closed · host disposed");
+        DisposeFilePreview();
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
         voiceRecognition.TranscriptRecognized -= OnTranscriptRecognized;
         voiceRecognition.RecognitionFailed -= OnRecognitionFailed;
@@ -141,6 +225,16 @@ public sealed partial class MainViewModel
         communicationPolicy.Dispose();
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
+        speechConfiguration.Changed -= OnSpeechConfigurationChanged;
+        if (outputConfiguration is not null) { outputConfiguration.Changed -= OnOutputConfigurationChanged; }
+        if (playbackVolumeConfiguration is not null) { playbackVolumeConfiguration.Changed -= OnPlaybackVolumeChanged; }
+        if (windowsSpeechRateConfiguration is not null) { windowsSpeechRateConfiguration.Changed -= OnWindowsSpeechRateChanged; }
+        if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
+        if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
+        if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
+        if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
+        if (speechTextConfiguration is not null) { speechTextConfiguration.Changed -= OnSpeechTextConfigurationChanged; }
+        assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
     }
 
     public event EventHandler? PrivacyClosureRequested;
@@ -195,14 +289,20 @@ public sealed partial class MainViewModel
 
     internal Task PrivacyClosureTask => privacyClosureTask;
 
-    internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation)
+    internal Task VoiceUnlockRecoveryTask => voiceUnlockRecoveryTask;
+
+    internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
+        WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        speechCaption.Retire();
+        uiDispatcher.Post(RetireSpeechCaption);
         if (hidePresentation)
         {
             Interlocked.Exchange(ref privacyPresentationHeld, 1);
             ClearClipboardPreview();
+            ClearFilePreview();
         }
-        HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening");
+        HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
         privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation);
     }
@@ -233,7 +333,8 @@ public sealed partial class MainViewModel
                     }
                     Transcript = "No command heard yet.";
                     ResponseTitle = "Windows privacy recovery";
-                    ResponseBody = "Return to an unlocked interactive session and use native controls. Listening remains disabled for this run.";
+                    ResponseBody = "Return to an unlocked interactive session. Normal unlock can restore previously enabled "
+                        + "readiness after fresh checks; other privacy failures require Enable listening.";
                     PrivacyClosureRequested?.Invoke(this, EventArgs.Empty);
                 }
                 else
@@ -249,6 +350,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
             ApplicationLog.Error(logger, exception, "Closing capture and output after a Windows privacy event");
             uiDispatcher.Post(() => ShowFailure("Audio privacy closure needs attention.", exception.Message));
         }
@@ -267,27 +369,116 @@ public sealed partial class MainViewModel
 
     private void NotifyVoiceEnablementChanged()
     {
+        OnPropertyChanged(nameof(TrayInputStatus));
         OnPropertyChanged(nameof(IsVoiceEnabled));
         OnPropertyChanged(nameof(ListeningButtonText));
         OnPropertyChanged(nameof(ListeningStatus));
+        OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
+        OnPropertyChanged(nameof(CanChangePlaybackVolume));
         ToggleListeningCommand.NotifyCanExecuteChanged();
         BeginPushToTalkCommand.NotifyCanExecuteChanged();
     }
 
-    private void HoldVoiceInput(string reason)
+    private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
-        Interlocked.Increment(ref voiceRecoveryRevision);
-        Interlocked.Exchange(ref voiceEnabled, 0);
-        Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
-        Interlocked.Exchange(ref pushToTalkHeld, 0);
+        long revision;
+        lock (voiceReadinessGate)
+        {
+            revision = Interlocked.Increment(ref voiceRecoveryRevision);
+            Interlocked.Increment(ref microphoneTopologyRevision);
+            Interlocked.Exchange(ref automaticUnlockRecoveryRevision, restoreOnUnlock ? revision : -1);
+            Interlocked.Exchange(ref voiceEnabled, 0);
+            Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
+            Interlocked.Exchange(ref pushToTalkHeld, 0);
+        }
         voiceRecognition.InvalidateCapture();
         captureOpenCancellation?.Cancel();
         uiDispatcher.Post(() =>
         {
+            if (revision != Interlocked.Read(ref voiceRecoveryRevision))
+            {
+                return;
+            }
             IsListening = false;
-            SetListeningPauseReason(reason);
+            SetListeningPauseReason(reason, sessionState);
             NotifyVoiceEnablementChanged();
+            OnPropertyChanged(nameof(MicrophoneTopologyRevision));
         });
+    }
+
+    private bool RefreshVoiceReadiness()
+    {
+        var privacy = privacyObservation.Refresh();
+        MicrophoneAccessStatus = microphoneAccessService.GetStatus();
+        return IsVoiceReadinessEligible(privacy) && sessionController.IsCurrentSessionUnlocked();
+    }
+
+    private bool IsVoiceReadinessEligible(WindowsPrivacySnapshot privacy) =>
+        HasVoiceConsent && EffectiveMicrophone is not null
+            && MicrophoneAccessStatus.State == MicrophoneAccessState.Allowed
+            && IsVoiceActivationAvailable && !disposed && !lifecycleAdmissionClosed
+            && SelectedMicrophone is { } microphone && privacy.CanCaptureFrom(microphone);
+
+    private bool TryEnableVoiceReadiness(long revision, bool requireUnlockRecovery = false)
+    {
+        lock (voiceReadinessGate)
+        {
+            if (requireUnlockRecovery && !voiceOwnershipEligible())
+            {
+                return false;
+            }
+            if (revision != Interlocked.Read(ref voiceRecoveryRevision) || disposed || lifecycleAdmissionClosed
+                || !IsVoiceReadinessEligible(privacyObservation.Current)
+                || requireUnlockRecovery && revision != Interlocked.Read(ref automaticUnlockRecoveryRevision))
+            {
+                return false;
+            }
+            Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
+            Interlocked.Exchange(ref voiceEnabled, 1);
+            Interlocked.Exchange(ref privacyPresentationHeld, 0);
+            return true;
+        }
+    }
+
+    private async Task RestoreVoiceAfterUnlockAsync(long revision, Task closure, Func<HostActivity> beginRecovery)
+    {
+        using var activity = beginRecovery();
+        try
+        {
+#pragma warning disable VSTHRD003 // Await the owned native privacy transition asynchronously after returning to the dispatcher.
+            await closure;
+#pragma warning restore VSTHRD003
+            if (revision != Interlocked.Read(ref automaticUnlockRecoveryRevision)
+                || revision != Interlocked.Read(ref voiceRecoveryRevision) || disposed || lifecycleAdmissionClosed)
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+                return;
+            }
+            if (!RefreshVoiceReadiness() || !voiceOwnershipEligible() || !voiceRecognition.IsCaptureQuiescent || IsBusy)
+            {
+                HoldVoiceInput("Microphone closed · unlock readiness checks failed; use Enable listening");
+                ApplicationLog.Information(logger, "Automatic voice recovery after Windows unlock was blocked by readiness checks");
+                activity.Complete(HostOperationOutcome.Failed);
+                return;
+            }
+            if (!TryEnableVoiceReadiness(revision, requireUnlockRecovery: true))
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+                return;
+            }
+            SetListeningPauseReason(null);
+            OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+            NotifyVoiceEnablementChanged();
+            ApplicationLog.Information(logger, "Previously enabled voice readiness was restored after Windows unlock");
+            activity.Complete(HostOperationOutcome.Completed);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            HoldVoiceInput("Microphone closed · unlock recovery failed; use Enable listening");
+            ApplicationLog.Error(logger, exception, "Restoring voice readiness after Windows unlock");
+            ShowFailure("Voice recovery needs attention.", exception.Message);
+            activity.Complete(HostOperationOutcome.Failed);
+        }
     }
 
     public async Task SetVoiceConsentAsync(bool consent)
@@ -483,34 +674,137 @@ public sealed partial class MainViewModel
         }
     }
 
-    public Task SelectMicrophoneAsync(MicrophoneDevice microphone, long topologyRevision)
-    {
-        if (topologyRevision != MicrophoneTopologyRevision || !Microphones.Contains(microphone)
-            || !sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
-        {
-            ApplicationLog.Information(logger, "Rejected stale or ineligible native microphone selection");
-            ShowFailure("The microphone selection is no longer current.", "Refresh devices and choose an endpoint again.");
-            return Task.CompletedTask;
-        }
+    public Task<bool> SelectMicrophoneAsync(MicrophoneDevice microphone, long topologyRevision) =>
+        SelectMicrophoneFromRecoveryAsync(microphone, topologyRevision, CancellationToken.None);
 
-        SelectedMicrophone = microphone;
-        return Task.CompletedTask;
-    }
+    public Task<bool> SelectMicrophoneFromRecoveryAsync(MicrophoneDevice microphone, long topologyRevision,
+        CancellationToken cancellationToken) =>
+        SelectMicrophonePreferenceAsync(microphone, topologyRevision,
+            Kora.Core.Auditing.SecurityAuditInitiator.LocalUser, cancellationToken);
 
-    public Task RefreshMicrophonesAsync()
+    private async Task<bool> TryValidateMicrophoneRecoveryAsync(long revision, MicrophoneDevice? candidate,
+        CancellationToken cancellationToken)
     {
         try
         {
+            var snapshot = await microphoneCatalog.RefreshAsync(cancellationToken);
+            var privacy = snapshot.Privacy;
+            return !disposed && IsCallMutationHostEligible && !IsBusy && !IsRefreshingMicrophones
+                && microphoneCatalogCurrent && revision == MicrophoneTopologyRevision
+                && privacy.TopologyRevision == catalogPrivacyRevision
+                && privacy.TopologyRevision == privacyObservation.Current.TopologyRevision
+                && snapshot.DefaultMicrophone == systemDefaultMicrophone
+                && privacy.MicrophoneAccess == MicrophoneAccessState.Allowed
+                && snapshot.Access.State == MicrophoneAccessState.Allowed
+                && (candidate?.IsSystemDefault == true
+                    || candidate is { } microphone && snapshot.Devices.Contains(microphone)
+                    && privacy.CanCaptureFrom(microphone)
+                    && privacyObservation.Current.CanCaptureFrom(microphone));
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            if (disposed) { return false; }
+            microphoneCatalogCurrent = false;
+            HoldVoiceInput("Microphone closed · privacy observation failed");
+            ApplicationLog.Error(logger, exception, "Validating native microphone recovery");
+            ShowFailure("Microphone recovery needs attention.", "Refresh devices after checking Windows privacy.");
+            return false;
+        }
+    }
+
+    public Task EnableListeningFromTrayAsync(long revision) =>
+        EnableListeningFromRecoveryAsync(revision, SelectedMicrophone, CancellationToken.None);
+
+    public async Task EnableListeningFromRecoveryAsync(long revision, MicrophoneDevice? displayedMicrophone,
+        CancellationToken cancellationToken)
+    {
+        if (disposed) { return; }
+        var origin = OriginalOrigin();
+        var callRevision = CallPolicyRevision;
+        var microphone = displayedMicrophone;
+        var valid = await TryValidateMicrophoneRecoveryAsync(revision, microphone, cancellationToken);
+        if (disposed) { return; }
+        if (!valid || cancellationToken.IsCancellationRequested || microphone != SelectedMicrophone
+            || communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible) is not null)
+        {
+            ShowFailure("Listening cannot be enabled.", "The menu or privacy state changed. Refresh devices and review voice consent in Settings.");
+            return;
+        }
+        if (!IsVoiceEnabled)
+        {
+            await ToggleListeningAsync();
+        }
+    }
+
+    public Task DisableListeningFromTrayAsync()
+    {
+        if (disposed) { return Task.CompletedTask; }
+        // A stale Disable must never become Enable. Stop remains available during busy work.
+        return DisableListeningAsync();
+    }
+
+    private async Task DisableListeningAsync()
+    {
+        HoldVoiceInput("Microphone closed · listening was disabled manually");
+        if (!await TryStopFailedCaptureAsync("Disabling voice activation"))
+        {
+            return;
+        }
+        ApplicationLog.Information(logger, "Voice activation was disabled by the user");
+        ShowInformation("Listening disabled.", "The microphone capture device has been released.");
+    }
+
+    public Task StopSpeakingFromTrayAsync() => disposed ? Task.CompletedTask : StopSpeakingAsync();
+
+    public Task RefreshMicrophonesAsync() => RefreshInputMetadataAsync(CancellationToken.None);
+
+    private Task RefreshInputMetadataAsync(CancellationToken cancellationToken)
+    {
+        if (disposed) { return Task.CompletedTask; }
+        if (IsRefreshingMicrophones) { return microphoneRefreshTask.WaitAsync(cancellationToken); }
+        return microphoneRefreshTask = RefreshMicrophonesCoreAsync(cancellationToken);
+    }
+
+    private async Task RefreshMicrophonesCoreAsync(CancellationToken cancellationToken)
+    {
+        using var activity = HostActivity.Current is not null
+            ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Recovery)
+            : HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+                HostActivityLayer.Application, HostOperation.Recovery);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        microphoneRefreshCancellation = cancellation;
+        var recoveryRevision = Interlocked.Read(ref voiceRecoveryRevision);
+        isRefreshingMicrophones = true;
+        microphoneCatalogCurrent = false;
+        Interlocked.Increment(ref microphoneTopologyRevision);
+        OnPropertyChanged(nameof(IsRefreshingMicrophones));
+        OnPropertyChanged(nameof(MicrophoneTopologyRevision));
+        NotifyVoiceEnablementChanged();
+        try
+        {
             var previousMicrophone = selectedMicrophone;
-            var devices = voiceRecognition.GetMicrophones();
-            Interlocked.Increment(ref microphoneTopologyRevision);
-            systemDefaultMicrophone = voiceRecognition.GetDefaultMicrophone();
+            var snapshot = await microphoneCatalog.RefreshAsync(cancellation.Token);
+            if (disposed || recoveryRevision != Interlocked.Read(ref voiceRecoveryRevision))
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                return;
+            }
+            var privacy = snapshot.Privacy;
+            if (!IsCallMutationHostEligible || privacy.SessionState != WindowsSessionState.Unlocked)
+            {
+                HoldVoiceInput("Microphone closed · native recovery is ineligible");
+                ShowFailure("Microphone recovery is unavailable.", "Return to the owning unlocked host and refresh devices.");
+                activity.Complete(HostOperationOutcome.Failed);
+                return;
+            }
+            catalogPrivacyRevision = privacy.TopologyRevision;
+            systemDefaultMicrophone = snapshot.DefaultMicrophone;
             suppressAudioDevicePreferenceSave = true;
             try
             {
                 Microphones.Clear();
                 Microphones.Add(SystemAudioDevices.Microphone);
-                foreach (var device in devices)
+                foreach (var device in snapshot.Devices)
                 {
                     Microphones.Add(device);
                 }
@@ -524,23 +818,54 @@ public sealed partial class MainViewModel
             {
                 suppressAudioDevicePreferenceSave = false;
             }
-            MicrophoneAccessStatus = microphoneAccessService.GetStatus();
+            MicrophoneAccessStatus = snapshot.Access;
+            microphoneCatalogCurrent = true;
             UpdateMicrophoneAvailability(selectedMicrophoneUnavailable: EffectiveMicrophone is null);
+            if (IsVoiceEnabled && (EffectiveMicrophone is null || !privacy.CanCaptureFrom(SelectedMicrophone!)))
+            {
+                HoldVoiceInput("Microphone closed · endpoint or permission unavailable");
+                await TryStopFailedCaptureAsync("Releasing unavailable input after metadata refresh");
+            }
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
             NotifyVoiceEnablementChanged();
+            activity.Complete(HostOperationOutcome.Completed);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            if (!disposed)
+            {
+                HoldVoiceInput("Microphone closed · metadata refresh was canceled");
+                await TryStopFailedCaptureAsync("Releasing input after canceled metadata refresh");
+            }
+            activity.Complete(HostOperationOutcome.Failed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            if (disposed) { activity.Complete(HostOperationOutcome.Failed); return; }
             HoldVoiceInput("Microphone closed · device enumeration failed");
             ApplicationLog.Error(logger, exception, "Refreshing native microphone recovery");
-            ShowFailure("Microphone recovery needs attention.", exception.Message);
+            await TryStopFailedCaptureAsync("Releasing input after metadata refresh failure");
+            ShowFailure("Microphone recovery needs attention.",
+                "Refresh devices to retry, or review voice consent and Windows privacy in Settings. Failure type: " + exception.GetType().Name);
+            activity.Complete(HostOperationOutcome.Failed);
         }
-        return Task.CompletedTask;
+        finally
+        {
+            microphoneRefreshCancellation = null;
+            isRefreshingMicrophones = false;
+            if (!disposed)
+            {
+                OnPropertyChanged(nameof(IsMicrophoneCatalogCurrent));
+                OnPropertyChanged(nameof(IsRefreshingMicrophones));
+                NotifyVoiceEnablementChanged();
+            }
+        }
     }
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (lifecycleAdmissionClosed || IsBusy || !clipboardPreview.IsQuiescent || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
+        if (lifecycleAdmissionClosed || IsBusy || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false
+            || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())
         {
@@ -551,6 +876,7 @@ public sealed partial class MainViewModel
         Interlocked.Exchange(ref handoffPreparationActive, 1);
         lifecycleAdmissionClosed = true;
         ClearClipboardPreview();
+        ClearFilePreview();
         HoldVoiceInput("Microphone closed · host handoff");
         textToSpeech.InvalidateOutput();
         try

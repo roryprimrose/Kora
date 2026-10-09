@@ -1,12 +1,29 @@
 # Task Lifecycle and Recovery
 
-Status: proposed full task lifecycle. The current bootstrap implements setup task progress
-and registered command/model routing, not this complete execution queue or
-script-backed skill lifecycle.
+Status: proposed full task lifecycle. Setup task progress and registered command/model
+routing coexist with durable exact task observation and atomic cancellation of
+the admitted current-run local-version pre-dispatch question wait. Consolidated
+schema-v5 authority now also contains the fixed local-version deterministic
+queue. It is not the complete effect queue, worker termination or
+script-backed skill lifecycle below.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## State Model
+
+The delivered fixed read-only queue records Pending, Running (admitted
+dispatch, not independent proof of an effect), Succeeded/Failed, exact
+pre-admission Cancelled/Removed and restart Interrupted/Unknown projections.
+Expiry is a visible non-dispatchable pending projection, not a silent deletion.
+Queued identities and revisioned task transitions share the atomic required
+authority audit. A lost or rejected receipt remains unverified, never an
+inferred success, cancellation or automatic retry.
+
+See [the bounded queue contract](Work_Management.md#delivered-deterministic-local-version-queue).
+The active budget begins only on admitted dispatch, not during queue time or
+an existing pre-dispatch admitted question wait. The fixed synchronous version
+read admits no in-task wait, effect/resource lease or runtime callback; general
+wait/deadline cancellation and effect/provider qualification remain unavailable.
 
 Assistant startup and release/debug takeover obey [Instance Coordination](Instance_Coordination.md): one exclusive active owner, explicit quiescent transfer, and no task/grant/listening replay on return.
 
@@ -65,8 +82,8 @@ storage/audit abstraction. They have no dispatch callback and do not advance
 an actual task to Running. A foundation approval/use receipt is neither an
 execution token nor evidence of an observed effect.
 The [R04/R05 durable adapter](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)
-now serializes task cancellation using the existing task lease, held from
-committed-intent validation through interaction COMMIT. Questions/grants,
+now consolidates task/question/audit authority under one existing private
+lease, held from committed-intent validation through the single COMMIT. Questions/grants,
 typed audit, lifecycle generations and current host observations commit in a
 single interaction database. Done/resume/authority removal invalidate old
 scoped authority; Active restart preserves generation, but previous-run
@@ -78,6 +95,19 @@ admitted receipt; OperationCanceledException means rolled back, while lost
 commit certainty throws a storage error and prohibits blind retry.
 Real effect cancellation, interrupted-run reconciliation, native review and
 immediate pre-effect revalidation remain production integration gates.
+
+The delivered bounded local-version exception places its native question
+before `DispatchRecorded`. A host-owned current-run wait binds the exact
+task/question and session generation; labels are not admission authority.
+The exact answered-key gateway alone commits dispatch. Native selected-task
+and exact typed/activated-voice cancellation share the workspace workflow and
+atomically commit terminal `Cancelled`, the revised cancelled question,
+target observation revocation and required typed audit. Generic task writes
+cannot bypass that gateway. Previously dispatched and Unknown work remain
+unavailable for cancellation; ordinary callbacks/SDK acknowledgements never
+certify termination. Restart recovers incomplete work without replay or
+reactivating previous-run waits. No general queue, worker termination,
+task deletion or runtime management follows from this exception.
 
 ## Wake Listening and Command Capture
 
@@ -112,7 +142,11 @@ Endpoint loss invalidates capture/transcript generations and offers recovery wit
 - If playback rejection cannot be established, suspend TTS and explain why; wake activation remains available with visual output.
 - After capture/transcription, return to Wake Listening if consent is still active, independently of task execution or approval waits.
 - A mute control closes microphone capture and clears buffered audio. Voice cannot unmute a closed microphone; use the explicit UI/control.
-- Lock, sign-out, or suspend closes the microphone and clears audio buffers. Unlock/resume requires explicit re-enabling, not silent listening.
+- Lock, sign-out, or suspend closes the microphone and clears audio buffers.
+  Normal authoritative unlock restores only the previously enabled mode after
+  confirmed closure and fresh microphone-matrix gates: PTT readiness or a
+  separately qualified fresh wake-only generation, never interrupted capture.
+  Sign-out, suspend/resume and other recovery failures require explicit re-enabling.
 - Windows Locked/Disconnected/Unknown state overrides all activation requests; locked-session microphone policy is independent of the skill that requested a lock.
 
 Wake detection is not identity verification or permission to execute an action.

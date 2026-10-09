@@ -46,9 +46,10 @@ public sealed class AppearanceConfigurationServiceTests
             foreach (var other in AppearanceOptionRegistry.Options)
                 fixture.Service.Get(other.Option).Value.Should().Be(other.Default);
         }
-        notifications.Should().Be(18);
-        fixture.Audit.Events.Should().HaveCount(36);
+        notifications.Should().Be(20);
+        fixture.Audit.Events.Should().HaveCount(40);
         fixture.Store.Text["appearance-theme.txt"].Should().Be("System");
+        fixture.Store.Text["presence-display-enabled.txt"].Should().Be("True");
         fixture.Store.Text["presence-speech-scaling-enabled.txt"].Should().Be("True");
         fixture.Store.Text.Should().NotContainKey("response-window.txt").And.NotContainKey("presence-position.txt");
     }

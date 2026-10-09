@@ -1,10 +1,91 @@
 # Work Management and Request Queue
 
-Status: proposed full Slice A capability. The current implementation tracks bootstrap setup
-tasks/progress and answers deterministic status commands; this is not proof
-that the contextual work-management lane and executor below are shipped.
+Status: proposed full Slice A capability. Bootstrap setup progress and deterministic
+status coexist with delivered exact session/task controls, bounded authoritative
+observation and atomic current-run local-version pre-dispatch wait cancellation
+in consolidated schema v5, retaining schema-v4 ordered history. A fixed
+local-version deterministic queue is delivered as described below. This is not
+proof that contextual model routing, concurrent effect workers or the broader
+management/execution lanes below are shipped.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+## Delivered deterministic local-version queue
+
+`SessionQueueService` and the consolidated store own a complete bounded
+read-only slice: exact existing session IDs, original-user request/task IDs,
+session generation, entry revision and queue revision; ten pending entries
+per session; one admitted current task per session; host default one global
+slot (fixed read-only limits 1–2); FIFO heads and deterministic
+least-recent-admission session fairness. A continuously ready session gets a
+turn within one admission per other continuously ready session; blocked heads
+never gain priority or bypass an earlier pending entry.
+
+The fixed work profile is only `application.get_version` through the existing
+read-only registry with a freshly admitted Native caller. There are no
+user-provided arguments, content snapshots, model calls, execution tokens,
+arbitrary resources or effect descriptors. IDs/revisions/dependencies are
+metadata, not executable proposals or grants.
+
+Enqueue is not dispatch. The shipped user-selected policy is manual:
+`queue dispatch <session-id> <generation> <queue-revision>` processes at most
+32 already enqueued current-run ready local reads fairly across eligible
+sessions, never targets work by name or gives the invoking session priority.
+Newly observed failure stops this dispatch batch; later work needs another
+explicit decision. Exact pre-admission cancel/remove and confirmed pending
+clear leave task receipts/history intact, cannot terminate admitted work and
+never clear another session. Duplicate IDs, stale revisions, full capacity,
+unknown subjects/profiles and authority failures refuse without eviction.
+
+The pending lifetime is 30 minutes. Expired heads remain visible and
+non-dispatchable until explicit removal/clear. The five-minute active budget
+starts at admission; a read returning after that budget cannot commit a
+successful receipt. No general asynchronous worker deadline/termination is
+claimed. This profile has no runtime approval/clarification step. Existing
+admitted question waits are pre-dispatch, occupy no scheduler slot and have no
+active-task clock to extend; their separate host gateway/expiry is preserved.
+Broader in-task wait continuation remains unavailable, never inferred from
+arbitrary question records.
+
+Exact durable Succeeded dependencies are required. Unknown outcomes and
+unclassified nonterminal work quarantine their session; dependent heads
+elsewhere block while unrelated sessions remain eligible. No effect lease
+can be invented to bypass uncertainty. Session/call/privacy/owner admission
+is revalidated at the commit and immediate read/receipt boundaries.
+Lock/unlock or ownership changes retire queued eligibility even if the desktop
+later becomes private again; remove/requeue explicitly. No passive extension.
+
+Restart never runs queues: previous-run pending work projects Interrupted,
+previous dispatch projects Unknown, and existing startup recovery commits
+task outcomes without replay. Exact status still identifies those retained
+receipts. History ordering/citations, disposition redaction, independent
+Perpetual grants and volatile inspection/caption isolation remain unchanged.
+
+See [exact syntax](../docs/commands.md#deterministic-local-version-queue).
+The rest of this document describes the broader proposed lanes; this bounded
+core is not MG1 production inference or two-slot effect/provider qualification.
+
+## Delivered native authority observation
+
+The [bounded R18 visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+consumes these same fixed-profile queue/task/question facts, not model progress
+or response text. Broker status/review/dismiss/defer touches only bounded
+suppression metadata; it cannot alter FIFO, dependencies, deadlines, receipts,
+question targets, meaningful activity, grants or manual dispatch. Category
+limits and unavailable broker storage never establish work eligibility or
+disable the independent authoritative work snapshot.
+
+The [R14 selected-session work surface](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+adds a bounded atomic `SessionWorkSnapshot` over delivered queue/task/question
+authority. Native and `queue list` use the same host/store snapshot and configured
+limits; dispatch eligibility calls the same domain policy as fair scheduling.
+All live queue entries plus 25 recent receipts, up to 50 nonqueue task records
+and 50 pending question identities carry explicit omitted counts and a complete
+64 KiB ceiling. Current admission deadlines derive from their exact audit
+receipt, not presentation time. Passive refresh never extends activity or
+dispatches; selection never answers or retargets a question. Unknown, blocked
+heads, retired admission and no-replay recovery remain distinct observations.
+The remaining lanes below are proposed, not enabled by this native increment.
 
 ## Two Independent Lanes
 
@@ -78,6 +159,28 @@ Local-only mode does not call a remote management model.
 ## Management Operating Envelope and Degraded Mode
 
 The management lane is optional inference around a mandatory deterministic host core.
+The delivered bounded session core now accepts exact typed/activated-voice
+`session list/status/inspect/create/rename/done/resume`, with `session help`,
+through the existing guarded durable workspace service. IDs and explicit
+revisions, never titles or selected windows, address controls. Reads describe
+only existing authority and task/question records; they do not infer progress,
+queue work, generally cancel effects or restore approvals. Fresh user lineage/control
+intents, live privacy/ownership/origin/revision checks and lifecycle blockers
+remain required. Protected-call voice mutations are explicitly unavailable.
+See [the bounded syntax](../docs/commands.md#bounded-exact-id-session-commands).
+This closes no scheduler, inference, concurrency or full work-routing gate.
+
+The delivered exact task extension adds factual `task status/inspect` by
+session/task ID and explicit revision/generation/question-bound cancellation
+of only the already admitted current-run local-version pre-dispatch wait.
+Native selection-bound inspect/cancel uses the same workspace workflow, not
+a model or separate executor. Task/question/audit authority is consolidated
+into one transactional store; answer/cancel/admission races cannot produce
+a dispatch after committed cancellation. Previously dispatched, terminal,
+Unknown, expired, foreign and previous-run work is not silently cancelled.
+No remaining-step inference, scheduling, workers, task tools or replay is
+added. See [the exact controls](../docs/commands.md#bounded-exact-id-session-commands).
+
 Exact session list/select/new/Done/delete and cancel/stop/pause/clear commands, direct session/task-ID operations, queue listing, and factual ledger status never require management inference.
 When inference is unavailable or budget-limited, an ambiguous request receives native choices such as Queue, Replace current, or Cancel; it is never guessed, dropped, or treated as task approval.
 

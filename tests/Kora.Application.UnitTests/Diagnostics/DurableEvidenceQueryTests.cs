@@ -18,6 +18,106 @@ namespace Kora.Application.UnitTests.Diagnostics;
 public sealed class DurableEvidenceQueryTests
 {
     [Fact]
+    public async Task Authority_source_preserves_typed_commit_metadata_and_explicit_separate_disclosure()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        var record = Record() with
+        {
+            Reference = new(EvidenceSource.AuthorityAudit, new(Guid.NewGuid())),
+            AuthorityProvenance = new(3, "security_audit_events", 1, new string('a', 64),
+                new string('b', 32), new string('c', 16), new(1), new(1),
+                Kora.Core.Interaction.HostInteractionOutcome.Answered,
+                new(Guid.NewGuid()), new(2), new(Guid.NewGuid()), new(1),
+                [new("question", Guid.NewGuid().ToString("D"), 2, new string('d', 64))]),
+        };
+        fixture.Reader.Batch = Batch(1) with
+        {
+            Candidates = [new(new(1, EvidenceSource.AuthorityAudit, record.Reference.Id.Value.ToString("D"), -1), record)],
+            Snapshot = new(0, 0, 0, 0, AuthorityCeiling: 1, AuthorityCeilingDigest: "digest", AuthorityStoreIdentity: "store"),
+        };
+        using var host = Root();
+        var page = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.AuthorityAudit, Record = record.Reference },
+            null, TestContext.Current.CancellationToken);
+        page.Records.Single().AuthorityProvenance.Should().Be(record.AuthorityProvenance);
+        page.Records.Single().Reference.Citation.Should().StartWith("kora-evidence:authorityaudit:");
+        page.Disclosure.Should().Be(EvidencePage.AuthorityDisclosure);
+        DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+        var bytes = DurableEvidenceQuery.Serialize(page);
+        Encoding.UTF8.GetString(bytes).Should().Contain("IntentRevision").And.Contain("AuthorityProvenance");
+        record.AuthorityProvenance!.Changes.Single().Kind.Should().Be("question");
+        fixture.Reader.Error = new FileNotFoundException();
+        var missing = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.AuthorityAudit }, null,
+            TestContext.Current.CancellationToken);
+        missing.Status.Should().Be(EvidencePageStatus.Unavailable);
+        missing.UnavailableSources.Should().Equal(EvidenceSource.AuthorityAudit);
+        missing.Disclosure.Should().Contain(EvidencePage.AuthorityDisclosure);
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.All, EvidenceSource.AuthorityAudit)]
+    [InlineData(EvidenceSource.AuthorityAudit, EvidenceSource.Log)]
+    public void Authority_citation_cannot_widen_other_sources(EvidenceSource source, EvidenceSource cited)
+    {
+        var action = () => DurableEvidenceQuery.Validate(new()
+        {
+            Source = source, Record = new(cited, new(Guid.NewGuid())),
+        });
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task Oversized_authority_change_payload_is_explicitly_omitted_with_commit_metadata_retained()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        var reference = new EvidenceReference(EvidenceSource.AuthorityAudit, new(Guid.NewGuid()));
+        var provenance = new AuthorityAuditProvenance(3, "security_audit_events", 1, new string('a', 64),
+            new string('b', 32), new string('c', 16), new(1), new(1), null, null, null, null, null,
+            Enumerable.Range(0, 1000).Select(_ => new AuthorityAuditChange("grant", Guid.NewGuid().ToString("D"),
+                1, new string('d', 64))).ToArray());
+        fixture.Reader.Batch = Batch(1) with
+        {
+            Candidates = [new(new(1, EvidenceSource.AuthorityAudit, reference.Id.Value.ToString("D"), -1, provenance.CommitDigest),
+                Record() with { Reference = reference, AuthorityProvenance = provenance })],
+        };
+        using var host = Root();
+        var result = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.AuthorityAudit }, null,
+            TestContext.Current.CancellationToken);
+        result.Records.Single().ContentOmitted.Should().BeTrue();
+        result.Records.Single().AuthorityProvenance.Should().Be(provenance with { Changes = [] });
+        DurableEvidenceQuery.Serialize(result).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+    }
+
+    [Fact]
+    public async Task Daily_source_citations_status_and_report_survive_bounded_serialization()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        var daily = Record() with
+        {
+            Reference = new(EvidenceSource.DailyLog, new(Guid.NewGuid())),
+            CommittedUtc = null, DueUtc = null, Retention = EvidenceSegmentStatus.RetentionUnknown,
+            ObservedUtc = DateTimeOffset.UtcNow,
+            DailyProvenance = new("kora-20261007.log", "trusted-handle-identity", 0, "digest", new(Guid.NewGuid())),
+        };
+        fixture.Reader.Batch = Batch(1) with
+        {
+            Candidates = [new(new(0, EvidenceSource.DailyLog, "kora-20261007.log", 0), daily)],
+            Status = EvidencePageStatus.Partial,
+            DailyReport = new("snapshot", 1, 123, 2, 0, 1, 0),
+        };
+        using var host = Root();
+        var page = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.DailyLog, Record = daily.Reference },
+            null, TestContext.Current.CancellationToken);
+        page.Status.Should().Be(EvidencePageStatus.Partial);
+        page.DailyReport.Should().Be(fixture.Reader.Batch.DailyReport);
+        page.Records.Single().Reference.Citation.Should().StartWith("kora-evidence:dailylog:");
+        page.Records.Single().CommittedUtc.Should().BeNull();
+        DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
+    }
+
+    [Fact]
     public async Task Pages_count_actual_serialized_UTF8_including_citations_cursor_and_disclosure()
     {
         using var listener = Listen();
@@ -37,14 +137,17 @@ public sealed class DurableEvidenceQueryTests
         page.Disclosure.Should().Contain("not an atomic interaction audit");
     }
 
-    [Fact]
-    public async Task Fifty_record_limit_is_independent_of_byte_budget()
+    [Theory]
+    [InlineData(EvidenceSource.All)]
+    [InlineData(EvidenceSource.CombinedLog)]
+    [InlineData(EvidenceSource.AuthorityAudit)]
+    public async Task Fifty_record_limit_is_independent_of_byte_budget(EvidenceSource source)
     {
         using var listener = Listen();
         var fixture = new Fixture();
         fixture.Reader.Batch = Batch(51);
         using var host = Root();
-        var page = await fixture.Service.QueryAsync(new(), null, TestContext.Current.CancellationToken);
+        var page = await fixture.Service.QueryAsync(new() { Source = source }, null, TestContext.Current.CancellationToken);
         page.Records.Should().HaveCount(50);
         DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
     }
@@ -54,12 +157,26 @@ public sealed class DurableEvidenceQueryTests
     {
         using var listener = Listen();
         var fixture = new Fixture();
-        fixture.Reader.Batch = Batch(1, new string('\u754c', 15000));
+        var oversized = Batch(1, new string('\u754c', 15000));
+        fixture.Reader.Batch = oversized with
+        {
+            Candidates = [oversized.Candidates[0] with
+            {
+                Record = oversized.Candidates[0].Record with
+                {
+                    Scopes = [new Dictionary<string, EvidenceValue>(StringComparer.Ordinal)
+                    {
+                        ["ScopeContent"] = new(EvidenceValueKind.Text, new string('x', 1024)),
+                    }],
+                },
+            }],
+        };
         using var host = Root();
         var page = await fixture.Service.QueryAsync(new(), null, TestContext.Current.CancellationToken);
         page.Records.Single().ContentOmitted.Should().BeTrue();
         page.Records.Single().Text.Should().BeNull();
         page.Records.Single().Properties.Should().BeEmpty();
+        page.Records.Single().Scopes.Should().BeNull();
         DurableEvidenceQuery.Serialize(page).Length.Should().BeLessThanOrEqualTo(65536);
         fixture.Reader.Batch = Batch(1) with
         {
@@ -112,6 +229,7 @@ public sealed class DurableEvidenceQueryTests
     [Theory]
     [InlineData(EvidenceSource.All)]
     [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.CombinedLog)]
     public async Task Missing_store_is_explicitly_unavailable_and_never_created(EvidenceSource source)
     {
         using var listener = Listen();
@@ -122,6 +240,82 @@ public sealed class DurableEvidenceQueryTests
         page.Status.Should().Be(EvidencePageStatus.Unavailable);
         page.UnavailableSources.Should().Contain(EvidenceSource.Log);
         page.Disclosure.Should().Contain("no replacement");
+    }
+
+    [Theory]
+    [InlineData(EvidenceSource.Log)]
+    [InlineData(EvidenceSource.DailyLog)]
+    [InlineData(EvidenceSource.Audit)]
+    [InlineData(EvidenceSource.Span)]
+    public async Task Combined_cited_reads_admit_only_original_ordinary_sources(EvidenceSource source)
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        using var host = Root();
+        var query = new EvidenceQuery { Source = EvidenceSource.CombinedLog, Record = new(source, new(Guid.NewGuid())) };
+        if (source is EvidenceSource.Log or EvidenceSource.DailyLog)
+        {
+            var page = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+            page.Status.Should().Be(EvidencePageStatus.MissingOrRemoved);
+        }
+        else
+        {
+            var rejected = async () => await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+            await rejected.Should().ThrowAsync<ArgumentException>();
+            fixture.Reader.Calls.Should().Be(0);
+        }
+    }
+
+    [Fact]
+    public async Task Included_source_failure_is_explicit_not_a_partial_empty_success()
+    {
+        using var listener = Listen();
+        var stopped = new List<Activity>();
+        listener.ActivityStopped = stopped.Add;
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(0) with
+        {
+            Status = EvidencePageStatus.Corrupt, UnavailableSources = [EvidenceSource.DailyLog],
+        };
+        using var host = Root();
+        var page = await fixture.Service.QueryAsync(new() { Source = EvidenceSource.CombinedLog }, null,
+            TestContext.Current.CancellationToken);
+        page.Status.Should().Be(EvidencePageStatus.Corrupt);
+        page.UnavailableSources.Should().Equal(EvidenceSource.DailyLog);
+        page.Records.Should().BeEmpty();
+        page.Cursor.Should().BeNull();
+        stopped.Single(activity => string.Equals(activity.Source.Name, "Kora.Application", StringComparison.Ordinal))
+            .Status.Should().Be(ActivityStatusCode.Error);
+        fixture.Reader.Batch = fixture.Reader.Batch with { Status = null, UnavailableSources = [] };
+        (await fixture.Service.QueryAsync(new() { Source = EvidenceSource.CombinedLog }, null,
+            TestContext.Current.CancellationToken)).Status.Should().Be(EvidencePageStatus.Available);
+    }
+
+    [Fact]
+    public async Task Combined_complete_serialized_shape_admits_exact_byte_ceiling_and_omits_one_byte_over()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(1, string.Empty);
+        using var host = Root();
+        var query = new EvidenceQuery { Source = EvidenceSource.CombinedLog };
+        var baseline = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+        var capacity = EvidencePage.MaximumBytes - DurableEvidenceQuery.Serialize(baseline).Length;
+        var candidate = fixture.Reader.Batch.Candidates[0];
+        fixture.Reader.Batch = fixture.Reader.Batch with
+        {
+            Candidates = [candidate with { Record = candidate.Record with { Text = new string('x', capacity) } }],
+        };
+        var atLimit = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+        DurableEvidenceQuery.Serialize(atLimit).Length.Should().Be(EvidencePage.MaximumBytes);
+        atLimit.Records.Single().ContentOmitted.Should().BeFalse();
+        fixture.Reader.Batch = fixture.Reader.Batch with
+        {
+            Candidates = [candidate with { Record = candidate.Record with { Text = new string('x', capacity + 1) } }],
+        };
+        var over = await fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken);
+        over.Records.Single().ContentOmitted.Should().BeTrue();
+        DurableEvidenceQuery.Serialize(over).Length.Should().BeLessThanOrEqualTo(EvidencePage.MaximumBytes);
     }
 
     [Fact]

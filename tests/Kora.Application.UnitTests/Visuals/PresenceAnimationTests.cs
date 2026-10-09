@@ -59,9 +59,47 @@ public sealed class PresenceAnimationTests
     }
 
     [Fact]
+    public void Advance_fades_when_visibility_changes_without_changing_state()
+    {
+        var animation = new PresenceAnimation(AssistantState.Information);
+
+        animation.Advance(
+            AssistantState.Information,
+            isSpeaking: false,
+            speechOutputLevel: 0,
+            PresenceAnimation.VisibilityTransitionDuration / 2,
+            isVisible: false).Should().BeTrue();
+        animation.Current.Opacity.Should().Be(0.5);
+
+        animation.Advance(
+            AssistantState.Information,
+            isSpeaking: false,
+            speechOutputLevel: 0,
+            PresenceAnimation.VisibilityTransitionDuration / 2,
+            isVisible: false).Should().BeTrue();
+        animation.Current.Opacity.Should().Be(0);
+
+        animation.Advance(
+            AssistantState.Information,
+            isSpeaking: false,
+            speechOutputLevel: 0,
+            PresenceAnimation.VisibilityTransitionDuration / 2).Should().BeTrue();
+        animation.Current.Opacity.Should().Be(0.5);
+    }
+
+    [Fact]
     public void Advance_blends_to_the_new_state_color()
     {
         var animation = new PresenceAnimation(AssistantState.Failure);
+
+        animation.Advance(
+            AssistantState.Success,
+            isSpeaking: false,
+            speechOutputLevel: 0,
+            PresenceAnimation.FrameInterval).Should().BeTrue();
+
+        animation.Current.Color.Should().NotBe(new PresenceColor(0xF4, 0x9C, 0x9C));
+        animation.Current.Color.Should().NotBe(new PresenceColor(0x9B, 0xDF, 0xAC));
 
         animation.Advance(
             AssistantState.Success,

@@ -10,30 +10,66 @@ Kora supports three response modes:
 
 Safety and recovery information remains visible even in VoiceOnly mode.
 
-**Settings > Responses > Muted speaker fallback** controls whether audible-only
-responses fall back to text when the selected Windows output is muted or at zero
-volume. It is **enabled by default** and saved on this device. The original
-response is displayed, not replaced by a mute warning. Kora checks output
-availability before each response, so unmuting restores the configured response
-mode on the next response without a manual refresh. This applies to both
-**System** output and a selected speaker.
+Ordinary speech is additionally admitted only when its complete title/body
+fits the device-local spoken summary caps (default **3 sentences / 80 words**).
+Either cap can be lowered in Speech & audio. Over-cap results retain their full
+visual text, with an explicit **Speech withheld** status even in Audible only
+mode; there is no truncation, extra model call or replay.
+Required questions/options and exact security-sensitive readback keep their
+existing mandatory bounds and privacy gates, not ordinary-summary truncation.
+See [the exact counting contract](settings.md#spoken-summary-limits).
 
-Turning the option off leaves ordinary audible-only responses hidden while the
-speaker is muted. Failures, pending questions, approvals, and other safety or
-recovery information still remain visible.
+The independently stored legacy **Muted speaker fallback** preference remains
+outside the delivered mode registry. Its default and storage are unchanged;
+it cannot suppress mandatory complete visual recovery for missing, muted,
+zero-volume, unavailable or failed output. The original response remains available,
+not just a warning. A later eligible response uses the freshly resolved output;
+unmuting or changing configuration never replays retired speech. This applies
+to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
 
 ## Output precedence
 
-Three scopes can control the effective mode:
+Response selection has this precedence, before all mandatory policy gates:
 
-1. **Current task** - highest precedence and temporary.
-2. **Current queue** - temporary and used when no task override exists.
-3. **Device default** - persisted locally.
+1. **In-call feedback** - independent device-local UI default, applied only to
+   effective Active/Suspected (including manual Active), unless Inherit.
+2. **Current task** - temporary.
+3. **Current queue** - temporary and used when no task override exists.
+4. **Session** - shared resolver seam; no new session control is delivered.
+5. **Device default** - persisted locally.
 
 Choose **Inherit** for the task or queue choice to return to the next broader
-scope. Task and queue overrides are not retained after their scope ends.
+scope. These presentation controls are outside the admitted device-default
+registry, not delivered durable session/task/queue configuration or execution.
+The device default and independent in-call preference have shared admitted
+native/exact workflows; neither changes call policy or the legacy fallback.
+
+In-call **Voice / UI / Both** map to audible/visual/both preference, never
+speech permission. **Inherit** restores ordinary selection. Unknown/invalid call
+evidence does not activate feedback but always withholds speech and requires
+full visual recovery; Clear/Unavailable uses ordinary output. A Voice/Both choice
+cannot bypass independent call suppression, privacy/lock/capture, mute/zero,
+native output lifetime or mandatory safety/question/approval/recovery previews.
+See [Settings and explicit recovery](settings.md#in-call-feedback-override) and
+[exact commands](commands.md#in-call-feedback-override).
 
 ## Visual response window
+
+Optional [local speech text](settings.md#local-speech-text) is separate from the
+answer panel. It defaults to Off and shows only exact host-admitted current
+utterance playback, never queued/failed/suppressed text. It clears immediately
+when playback is stopped/cancelled or its response/privacy/call/ownership
+generation is retired, even when pinned. Normal completion can retain only
+already-observed text, labelled **PREVIOUS SPEECH**, for a bounded default
+5-second delay (configurable 0-30), or until unpinned. Unpin preserves the
+original deadline. Primary working-area corner placement is device-local.
+Visual-only and call-gated responses use the existing full answer panel, not a
+fictitious playback caption. Captions cannot answer questions, grant approval,
+replay speech or authorize any action; required native recovery is independent.
+No caption content is saved, logged or sent to a model.
+If the native caption surface fails, captions stop until restart; the complete
+answer and required recovery remain visual. Diagnostics record only the failure
+type, never caption content.
 
 Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected
@@ -70,14 +106,14 @@ Kora always displays text when:
 
 - no compatible speech voice is available;
 - no usable audio output is available;
-- the output is muted or at zero volume and **Muted speaker fallback** is enabled;
+- the output is muted, at zero volume or otherwise unavailable;
 - synthesis or playback fails;
 - microphone capture is active;
 - a response reports failure or safety information; or
 - detected-call policy requires visual output.
 
-These fallbacks override VoiceOnly. Only the muted-output fallback can be
-disabled with **Muted speaker fallback**.
+These mandatory recovery paths override VoiceOnly; the separately stored legacy
+preference cannot disable complete visual recovery or exact pending previews.
 
 ## Interrupting spoken responses
 
@@ -96,9 +132,17 @@ is active. It does not detect Teams or any other communication provider.
 Clearing manual mode does not clear an enabled automatic Active, Suspected or
 Unknown observation, nor fabricate detector Clear.
 
+**Reset manual off** has the same narrow clearing effect. **Cached call status**
+shows the current run flag, independent automatic observation/availability and
+immutable policy/source revision, without probing or starting work. The same
+[exact manual commands](commands.md#exact-current-run-manual-call-control) use
+the current prefix and genuine original-user admission. Results do not speak
+or replace an existing question, approval or security preview; mutation is
+refused while those interactions are pending.
+
 When manual mode or an enabled Active, Suspected or Unknown observation applies:
 
-- **Visual responses during calls** defaults to on. Kora suppresses automatic
+- **Call speech suppression** defaults to on. Kora suppresses automatic
   response speech and shows text.
 - **Voice activation during calls** defaults to on. Turn it off to close active
   capture and prevent listening until the call clears.
@@ -108,10 +152,20 @@ responses, or disable listening during calls. Existing saved output/activation
 choices are retained. New protection downgrades are disabled pending complete
 exact trusted review; temporary and speak-once call exceptions are unavailable.
 Enabling visual protection or disabling call-time activation remains supported.
+The new **In-call feedback override** is independent of both. UI is its default;
+even a legacy suppression-Off preference does not disable that UI selection.
+Unknown/invalid detector evidence always suppresses speech. Feedback changes
+never enable input, clear calls, grant consent/permission or edit reusable grants.
 
 Protected-call entry invalidates pending synthesis/playback before slower UI
 work. Results and questions stay visual; clearing protection does not replay
 old speech, answer prompts, or automatically reopen the microphone.
+Every changed manual layer also retires already admitted input/callback and
+output generations, including old requests finishing after off/reset. Complete
+late results remain visual; enable listening explicitly before a fresh PTT.
+Required audit/receipt failure leaves the cached manual flag truthful and
+holds conservative evidence-unavailable protection instead of claiming
+rollback or authorizing speech/activation/reuse from unknown state.
 
 Voice-originated voice/in-call setting changes, including manual clear/reset,
 are rejected while protected. A later mouse confirmation does not change their

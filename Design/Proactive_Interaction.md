@@ -1,6 +1,7 @@
 # Proactive Voice Interaction
 
-Status: proposed core MVP capability.
+Status: bounded trusted local visual broker delivered; broader proactive
+conversation, reminder and speech capability remains proposed.
 
 R17/R18's delivered release foundation is a **passive native notify-only
 status**, not this general proactive broker or voice capability. Settings/
@@ -11,10 +12,86 @@ version-specific 24-hour per-run snooze. It never opens a window, takes focus
 or speaks unsolicited. Privacy/ownership/protected-call closure invalidates
 checks and navigation; no unlock/call-end replay exists. Remote notes are
 not rendered, and models/tools cannot supply a feed, availability or URL.
-Full broker event routing, voice deferral/replies and durable reminder
-preferences remain proposed. See the [delivered limits](Distribution_And_Updates.md#delivered-bounded-r17r18-native-foundation).
+The additional local broker below does not enable voice deferral/replies or
+general reminder preferences. See the [maintenance limits](Distribution_And_Updates.md#delivered-bounded-r17r18-native-foundation).
 
 Related: [Task Lifecycle](Task_Lifecycle.md), [Work Management](Work_Management.md), [Distribution and Updates](Distribution_And_Updates.md), [Security and Data Flows](Security_Data_Flows.md).
+
+## Delivered R18 trusted local visual broker - 2026-10-09
+
+`AuthorityLocalEventSource` reads the existing bounded atomic selected-session
+work snapshot, never model text. Its fixed admitted sources are local-version
+queue ready/current/success/failure/blocked/Unknown states, the exact genuine
+current-run local-version pending question, and already-verified cached
+maintenance availability. Done/removed subjects, expired/retired admissions,
+earlier FIFO entries, interrupted work, unclassified questions and stale or
+snoozed maintenance cannot manufacture an event. Snapshot omissions remain
+explicit; absence is not an inferred success or detector observation.
+
+The host event has stable content-free ID, source/type/category, exact session,
+optional task and source subject IDs, session generation, source/related
+revisions, original source origin, UTC observation/expiry and fixed priority.
+Broker revisions advance on coalesced source changes and dismiss/defer commits.
+Summaries are bounded fixed host statements: no task titles, question text,
+remote notes, user content or model phrasing. Queue deadlines remain their
+original 30-minute lifetime; questions keep their original expiry; maintenance
+expires six hours after its actual verified observation. Observation is not
+execution, approval, a renewed deadline or reusable authority.
+
+`LocalEventBroker` serializes observation and exact actions, re-reading the
+authority under its owning storage lease and holding the maintenance cache
+lock across the suppression commit. Source/profile/origin/generation/revision,
+original channel, selected native lifetime and call/privacy/lock/owner epochs
+are rechecked, including immediately before returning presentation. Incoming
+trace/provider fields never select a session. Source changes return stale/
+unavailable, not a retargeted event; clock rollback holds until the durable UTC
+high watermark is reached. UTC deadlines do not depend on local DST.
+
+Only the already-open native **Sessions** work surface observes and displays
+these events during its existing passive refresh. It never opens/activates a
+window, steals focus, replaces or answers a question, changes voice targeting,
+resumes/dispatches work, consumes grants or extends meaningful activity.
+There are at most eight visible delivery/status rows with explicit omissions.
+New eligible notices are considered separately from suppressed status rows,
+so old high-priority receipts do not starve another category.
+Fixed fatigue budgets are Work 3, Failure 2, Attention 2 and Maintenance 1 per
+UTC hour, with a one-minute per-category spacing. Presented, dismissed,
+deferred, expired and category-limited rows are truthful **status**, not new
+notifications. No speech is requested, including under VoiceOnly output.
+
+Native review/dismiss/defer and [exact original typed/current-name activated
+commands](../docs/commands.md#trusted-local-events) share this broker. They
+require a host-held exact event ID/revision and fresh admission. Review/status
+is passive metadata, not question review or maintenance navigation. Dismiss
+rejects that exact event revision. Defer is fifteen minutes capped at the
+original source expiry, never a work or approval deadline extension. Cached
+maintenance's existing Check/Open/release-specific snooze remain separate.
+Reserved event commands preserve any pending foreground question/approval.
+
+Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use
+`IApplicationDataPaths` and the shared atomic preference store. At most 64
+content-free suppression receipts and four fatigue budgets fit the complete
+64-KiB bound; no source content or effect payload is persisted. Expired receipts
+retain revision watermarks until their session is retired; capacity exhaustion
+holds the broker without evicting suppression or disabling independent work
+inspection. Requested/terminal trusted audit, exact readback and marker
+confirmation precede delivery. Lost receipts, corrupt/obsolete formats,
+unconfirmed storage and future clock state fail closed; no rollback, default
+or automatic repair is claimed. The bounded commit marker remains `0` after
+confirmation and becomes `1` before a write; a missing member of this persisted
+pair is unknown, not a fresh-run default. Retention serializes broker-before-authority
+lock order and removes owned receipts before deletion; logical disposition
+also retires its presentation. Global fatigue budgets remain independent.
+
+Restart loads suppression only, never current events. Fresh authority is
+required; presented/dismissed/expired effects are not replayed. An unexpired
+explicit deferral may become eligible only after a new admitted native
+observation, under the same original expiry and category limits.
+There is no ambient observer, wake/listening change, unsolicited inference,
+network check/consent, browser/download/install or automatic execution route.
+Broader multi-session proactive conversation, detector-driven speech,
+configurable reminders/quiet hours and installed accessibility/release
+acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
 ## Product Behaviour
 

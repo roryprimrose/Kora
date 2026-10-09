@@ -1,4 +1,6 @@
+using System.Reflection;
 using AwesomeAssertions;
+using Kora.Application.ViewModels;
 
 using Kora.Core;
 using Kora.Core.Commands;
@@ -6,18 +8,201 @@ using Kora.Core.Communication;
 using Kora.Core.Dependencies;
 using Kora.Core.Voice;
 using Kora.Core.Platform;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    private static Fixture CreateVoicePrivacyFixture(bool? consent = true)
+    private static Fixture CreateVoicePrivacyFixture(bool? consent = true,
+        Kora.Application.Voice.BoundedMicrophoneCatalog? microphoneCatalog = null)
     {
-        var fixture = new Fixture();
+        var fixture = new Fixture(microphoneCatalog: microphoneCatalog);
         fixture.VoiceConsent.Consent = consent;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Headset")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         return fixture;
+    }
+
+    private static void PublishVoiceSession(Fixture fixture, WindowsSessionState state)
+    {
+        var previous = fixture.PrivacyObservation.Current;
+        var current = previous with { SessionState = state };
+        fixture.Session.IsUnlocked = state == WindowsSessionState.Unlocked;
+        fixture.PrivacyObservation.Current = current;
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            previous, current, WindowsPrivacyChangeReason.Session));
+    }
+
+    private static async Task<Fixture> CreateDeviceBindingFixtureAsync(bool microphone)
+    {
+        var fixture = new Fixture(enableOutputConfiguration: !microphone);
+        fixture.VoiceConsent.Consent = true;
+        fixture.Voice.Microphones = [new MicrophoneDevice("trial-mic", "Trial headset")];
+        fixture.Voice.DefaultMicrophoneId = "trial-mic";
+        fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("trial-output", "Trial headphones")];
+        fixture.TextToSpeech.DefaultOutputDeviceId = "trial-output";
+        await fixture.ViewModel.InitializeAsync();
+        return fixture;
+    }
+
+    [Fact]
+    public async Task Consent_button_establishes_live_UI_context_without_opening_capture()
+    {
+        var fixture = CreateVoicePrivacyFixture(null);
+        await fixture.ViewModel.InitializeAsync();
+        HostRequest? observed = null;
+        fixture.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(MainViewModel.HasVoiceConsent), StringComparison.Ordinal))
+            {
+                observed = HostActivity.RequireCurrent().Request;
+            }
+        };
+
+        await fixture.ViewModel.EnableVoiceConsentCommand.ExecuteAsync();
+
+        observed.Should().NotBeNull();
+        observed!.Origin.Should().Be(RequestOrigin.LocalUi);
+        fixture.VoiceConsent.Consent.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        HostActivity.Current.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Command_wrapper_cannot_relabel_voice_as_a_local_UI_approval()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.EnableManualCallCommand.ExecuteAsync();
+        using var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+            HostActivityLayer.Application, HostOperation.Request);
+
+        await fixture.ViewModel.ClearManualCallCommand.ExecuteAsync();
+
+        fixture.ViewModel.IsManualCallActive.Should().BeTrue();
+        HostActivity.RequireCurrent().Should().BeSameAs(voice);
+        voice.Complete(HostOperationOutcome.Completed);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Device_binding_save_and_clear_have_live_admitted_context(bool microphone)
+    {
+        var fixture = await CreateDeviceBindingFixtureAsync(microphone);
+        await using var admission = fixture.OutputAdmission;
+        var observed = new List<HostActivity>();
+        fixture.AudioPreferences.BeforeMutation = () => observed.Add(HostActivity.RequireCurrent());
+
+        if (microphone)
+        {
+            var endpoint = fixture.ViewModel.Microphones.Single(device => !device.IsSystemDefault);
+            fixture.ViewModel.SelectedMicrophone = endpoint;
+            fixture.ViewModel.SelectedMicrophone = fixture.ViewModel.Microphones.Single(device => device.IsSystemDefault);
+        }
+        else
+        {
+            await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+            fixture.ViewModel.SelectedOutputChoice = fixture.ViewModel.OutputDeviceChoices.Single(choice => !choice.Device.IsSystemDefault);
+            await fixture.ViewModel.SaveOutputDeviceCommand.ExecuteAsync();
+            await fixture.ViewModel.ResetOutputDeviceCommand.ExecuteAsync();
+        }
+
+        observed.Should().HaveCount(2);
+        observed.Should().OnlyContain(activity => activity.Request.Origin == RequestOrigin.LocalUi
+            && activity.Outcome == HostOperationOutcome.Completed
+            && activity.Activity!.OperationName == (microphone ? "storage.commit" : "session.request"));
+        HostActivity.Current.Should().BeNull();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PTT_command_routes_scope_native_begin_and_end_as_local_UI()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        var observed = new List<HostActivity>();
+        fixture.Voice.AfterStart = () => observed.Add(HostActivity.RequireCurrent());
+        fixture.Voice.BeforeEnd = () => observed.Add(HostActivity.RequireCurrent());
+
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+
+        observed.Should().HaveCount(2);
+        observed.Should().OnlyContain(activity => activity.Request.Origin == RequestOrigin.LocalUi
+            && activity.Outcome == HostOperationOutcome.Completed);
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.Voice.IsListening.Should().BeFalse();
+        HostActivity.Current.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PTT_end_command_cancels_a_pending_begin_without_waiting_for_admission()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.StartGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        HostRequest? cleanupRequest = null;
+        fixture.Voice.BeforeStopFailure = () => cleanupRequest = HostActivity.RequireCurrent().Request;
+
+        var beginning = fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        await beginning;
+
+        fixture.Voice.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        cleanupRequest.Should().NotBeNull();
+        cleanupRequest!.Origin.Should().Be(RequestOrigin.LocalUi);
+        HostActivity.Current.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Device_binding_storage_keeps_the_original_voice_request()
+    {
+        var fixture = await CreateDeviceBindingFixtureAsync(microphone: true);
+        await using var admission = fixture.OutputAdmission;
+        var endpoint = fixture.ViewModel.Microphones.Single(device => !device.IsSystemDefault);
+        HostRequest? observed = null;
+        fixture.AudioPreferences.BeforeMutation = () => observed = HostActivity.RequireCurrent().Request;
+        using var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+            HostActivityLayer.Application, HostOperation.Request);
+
+        fixture.ViewModel.SelectedMicrophone = endpoint;
+
+        observed.Should().BeSameAs(voice.Request);
+        HostActivity.RequireCurrent().Should().BeSameAs(voice);
+        voice.Complete(HostOperationOutcome.Completed);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Device_binding_persistence_failure_ends_admitted_activity_as_failed(bool microphone)
+    {
+        var fixture = await CreateDeviceBindingFixtureAsync(microphone);
+        await using var admission = fixture.OutputAdmission;
+        HostActivity? observed = null;
+        fixture.AudioPreferences.BeforeMutation = () => observed = HostActivity.RequireCurrent();
+        if (microphone)
+        {
+            var endpoint = fixture.ViewModel.Microphones.Single(device => !device.IsSystemDefault);
+            fixture.AudioPreferences.MicrophoneSaveException = new IOException("Synthetic preference failure");
+            fixture.ViewModel.SelectedMicrophone = endpoint;
+        }
+        else
+        {
+            await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+            fixture.AudioPreferences.OutputDeviceSaveException = new IOException("Synthetic preference failure");
+            fixture.ViewModel.SelectedOutputChoice = fixture.ViewModel.OutputDeviceChoices.Single(choice => !choice.Device.IsSystemDefault);
+            await fixture.ViewModel.SaveOutputDeviceCommand.ExecuteAsync();
+        }
+
+        observed.Should().NotBeNull();
+        observed!.Outcome.Should().Be(HostOperationOutcome.Failed);
+        HostActivity.Current.Should().BeNull();
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
     }
 
     [Theory]
@@ -438,6 +623,606 @@ public sealed partial class MainViewModelTests
         fixture.Voice.IsListening.Should().BeFalse();
         await fixture.ViewModel.PrivacyClosureTask;
         fixture.ViewModel.Transcript.Should().Be("No command heard yet.");
+    }
+
+    [Theory]
+    [InlineData(MicrophoneAccessState.Denied)]
+    [InlineData(MicrophoneAccessState.Unknown)]
+    public async Task Unlock_status_preserves_a_current_microphone_permission_blocker(
+        MicrophoneAccessState permission)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        var initial = fixture.PrivacyObservation.Current;
+        var locked = new WindowsPrivacySnapshot(WindowsSessionState.Locked, MicrophoneAccessState.Allowed,
+            initial.TopologyRevision, ["mic"], "mic", "0");
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            initial, locked, WindowsPrivacyChangeReason.Session));
+        await fixture.ViewModel.PrivacyClosureTask;
+        var restored = new WindowsPrivacySnapshot(WindowsSessionState.Unlocked, permission,
+            initial.TopologyRevision, ["mic"], "mic", "0");
+        fixture.PrivacyObservation.Current = restored;
+
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            locked, restored, WindowsPrivacyChangeReason.Session));
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        fixture.ViewModel.ListeningStatus.Should().Be(
+            "Microphone closed · Microphone permission or selected endpoint is unavailable; use Enable listening");
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(WindowsSessionState.Locked)]
+    [InlineData(WindowsSessionState.Disconnected)]
+    [InlineData(WindowsSessionState.SignedOut)]
+    [InlineData(WindowsSessionState.Suspended)]
+    [InlineData(WindowsSessionState.Unknown)]
+    public async Task Unlock_updates_session_status_without_overriding_manual_disablement(
+        WindowsSessionState sessionState)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        var initial = fixture.PrivacyObservation.Current;
+        var blocked = new WindowsPrivacySnapshot(sessionState, MicrophoneAccessState.Allowed,
+            initial.TopologyRevision, ["mic"], "mic", "0");
+        fixture.PrivacyObservation.Current = blocked;
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            initial, blocked, WindowsPrivacyChangeReason.Session));
+        await fixture.ViewModel.PrivacyClosureTask;
+        fixture.ViewModel.ListeningStatus.Should().Be(
+            $"Microphone closed · Windows session is {sessionState}; use Enable listening");
+        var statusNotifications = 0;
+        fixture.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(MainViewModel.ListeningStatus), StringComparison.Ordinal))
+            {
+                statusNotifications++;
+            }
+        };
+        fixture.PrivacyObservation.Current = initial;
+
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            blocked, initial, WindowsPrivacyChangeReason.Session));
+
+        statusNotifications.Should().Be(1);
+        fixture.ViewModel.ListeningStatus.Should().Be(
+            "Microphone closed · Windows session is Unlocked; use Enable listening");
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.ViewModel.CanRevealPrivatePresentation.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.IsListening.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Unlock_status_does_not_replace_a_later_capture_recovery_failure()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        var initial = fixture.PrivacyObservation.Current;
+        var locked = new WindowsPrivacySnapshot(WindowsSessionState.Locked, MicrophoneAccessState.Allowed,
+            initial.TopologyRevision, ["mic"], "mic", "0");
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            initial, locked, WindowsPrivacyChangeReason.Session));
+        await fixture.ViewModel.PrivacyClosureTask;
+        fixture.Voice.GetMicrophonesException = new IOException("enumeration failed");
+        await fixture.ViewModel.RefreshMicrophonesAsync();
+
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            locked, initial, WindowsPrivacyChangeReason.Session));
+
+        fixture.ViewModel.ListeningStatus.Should().Be("Microphone closed · device enumeration failed");
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Explicit_recovery_clears_session_status_without_opening_capture()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        var initial = fixture.PrivacyObservation.Current;
+        var locked = new WindowsPrivacySnapshot(WindowsSessionState.Locked, MicrophoneAccessState.Allowed,
+            initial.TopologyRevision, ["mic"], "mic", "0");
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            initial, locked, WindowsPrivacyChangeReason.Session));
+        await fixture.ViewModel.PrivacyClosureTask;
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            locked, initial, WindowsPrivacyChangeReason.Session));
+
+        fixture.ViewModel.RequestVoiceRecovery();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.ListeningStatus.Should().StartWith("Push-to-talk ready");
+        fixture.Voice.StartCalls.Should().Be(0);
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            initial, initial, WindowsPrivacyChangeReason.Session));
+        fixture.ViewModel.ListeningStatus.Should().Be("Microphone closed · listening was disabled manually");
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Repeated_session_transitions_report_the_latest_state_without_rearming()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        var previous = fixture.PrivacyObservation.Current;
+        foreach (var state in new[] { WindowsSessionState.Locked, WindowsSessionState.Unlocked,
+            WindowsSessionState.Disconnected, WindowsSessionState.Unlocked })
+        {
+            var current = new WindowsPrivacySnapshot(state, MicrophoneAccessState.Allowed,
+                previous.TopologyRevision, ["mic"], "mic", "0");
+            fixture.PrivacyObservation.Current = current;
+            fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+                previous, current, WindowsPrivacyChangeReason.Session));
+            await fixture.ViewModel.PrivacyClosureTask;
+            fixture.ViewModel.ListeningStatus.Should().Be(
+                $"Microphone closed · Windows session is {state}; use Enable listening");
+            fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+            fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+            previous = current;
+        }
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Normal_unlock_restores_prior_readiness_without_capture_replay_or_window_reveal()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        var retired = fixture.Voice.Generation;
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.WindowActions.Clear();
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeFalse();
+        fixture.ViewModel.ListeningStatus.Should().StartWith("Push-to-talk ready");
+        fixture.ViewModel.IsListening.Should().BeFalse();
+        fixture.Voice.IsListening.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.Voice.IsAmbientListeningAvailable.Should().BeFalse();
+        fixture.WindowActions.Should().BeEmpty();
+        fixture.Voice.RaiseTranscriptForGeneration(retired);
+        fixture.Session.LockCalls.Should().Be(0);
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        fixture.Voice.StartCalls.Should().Be(2);
+        await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+    }
+
+    [Theory]
+    [InlineData(WindowsSessionState.Disconnected)]
+    [InlineData(WindowsSessionState.Unknown)]
+    [InlineData(WindowsSessionState.SignedOut)]
+    [InlineData(WindowsSessionState.Suspended)]
+    public async Task Other_negative_sessions_do_not_restore_voice_automatically(WindowsSessionState state)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, state);
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Unlock_after_locked_startup_does_not_invent_prior_enabled_intent()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        fixture.Session.IsUnlocked = false;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Unlock_waits_for_successful_closure_before_restoring_idle_readiness()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.StopGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        fixture.ViewModel.VoiceUnlockRecoveryTask.IsCompleted.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StopGate.SetResult();
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.IsListening.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Unlock_cannot_restore_readiness_when_the_selected_endpoint_disappeared()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with
+        {
+            ActiveMicrophoneIds = [],
+            DefaultMicrophoneId = null,
+        };
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Unlock_recovery_uses_a_linked_host_request_and_terminates_its_activity()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        using var parent = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        HostActivity? recovery = null;
+        fixture.PrivacyObservation.BeforeRefresh = () => recovery = HostActivity.RequireCurrent();
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        recovery.Should().NotBeNull();
+        recovery!.Request.Should().BeSameAs(parent.Request);
+        recovery.Outcome.Should().Be(HostOperationOutcome.Completed);
+        recovery.Activity!.IsStopped.Should().BeTrue();
+        recovery.Activity.ParentId.Should().BeNull();
+        recovery.Activity.Links.Should().ContainSingle().Which.Context.Should().Be(parent.Activity!.Context);
+        HostActivity.RequireCurrent().Should().BeSameAs(parent);
+        parent.Complete(HostOperationOutcome.Completed);
+    }
+
+    [Theory]
+    [InlineData(WindowsPrivacyChangeReason.MicrophonePermission)]
+    [InlineData(WindowsPrivacyChangeReason.InputTopology)]
+    [InlineData(WindowsPrivacyChangeReason.DefaultMicrophone)]
+    [InlineData(WindowsPrivacyChangeReason.DeviceTopology)]
+    [InlineData(WindowsPrivacyChangeReason.Power)]
+    [InlineData(WindowsPrivacyChangeReason.Unknown)]
+    public async Task Intervening_voice_privacy_changes_cancel_automatic_unlock_recovery(
+        WindowsPrivacyChangeReason reason)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        var locked = fixture.PrivacyObservation.Current;
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(locked, locked, reason));
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Output_only_change_while_locked_does_not_cancel_voice_restoration(bool revisionChanged)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        var locked = fixture.PrivacyObservation.Current;
+        var changed = locked with { TopologyRevision = locked.TopologyRevision + (revisionChanged ? 1 : 0) };
+        fixture.PrivacyObservation.Current = changed;
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(locked, changed,
+            WindowsPrivacyChangeReason.OutputTopology | WindowsPrivacyChangeReason.DeviceTopology));
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
+        fixture.ViewModel.IsMicrophoneCatalogCurrent.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("permission")]
+    [InlineData("default")]
+    [InlineData("endpoints")]
+    public async Task Output_topology_signal_cannot_preserve_unlock_intent_when_input_also_changed(string change)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        var locked = fixture.PrivacyObservation.Current;
+        var changed = locked with { TopologyRevision = locked.TopologyRevision + 1 };
+        changed = change switch
+        {
+            "permission" => changed with { MicrophoneAccess = MicrophoneAccessState.Unknown },
+            "default" => changed with { DefaultMicrophoneId = null },
+            _ => changed with { ActiveMicrophoneIds = [] },
+        };
+        fixture.PrivacyObservation.Current = changed;
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(locked, changed,
+            WindowsPrivacyChangeReason.OutputTopology | WindowsPrivacyChangeReason.DeviceTopology));
+        await fixture.ViewModel.MicrophoneRefreshTask;
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(MicrophoneAccessState.Denied)]
+    [InlineData(MicrophoneAccessState.Unknown)]
+    public async Task Unlock_rechecks_the_native_microphone_permission(MicrophoneAccessState state)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        fixture.MicrophoneAccess.Status = new MicrophoneAccessStatus(state, "native permission blocker");
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Unlock_requires_confirmed_owner_and_capture_quiescence(bool ownershipLost)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        if (ownershipLost)
+        {
+            fixture.ViewModel.BindVoiceOwnershipGate(static () => false);
+        }
+        else
+        {
+            fixture.Voice.PreventQuiescence = true;
+        }
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.ListeningStatus.Should().Contain("unlock readiness checks failed");
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Unlock_waits_for_resource_closure_and_withdrawal_cancels_restoration()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.Voice.StopGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        fixture.ViewModel.VoiceUnlockRecoveryTask.IsCompleted.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.RequestVoiceRecovery();
+        var withdrawal = fixture.ViewModel.SetVoiceConsentAsync(false);
+        fixture.Voice.StopGate.SetResult();
+
+        await withdrawal;
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.HasVoiceConsent.Should().BeFalse();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Failed_privacy_closure_or_unlock_query_requires_explicit_recovery(bool queryFailure)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        if (!queryFailure)
+        {
+            fixture.Voice.StopException = new IOException("release failed");
+        }
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        if (queryFailure)
+        {
+            fixture.PrivacyObservation.RefreshException = new IOException("query failed");
+        }
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be(queryFailure
+            ? "Voice recovery needs attention." : "Audio privacy closure needs attention.");
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(VoiceRecognitionFailureReason.PrivacyTransition)]
+    [InlineData(VoiceRecognitionFailureReason.CaptureFailure)]
+    public async Task Native_failure_before_the_session_callback_preserves_only_normal_lock_intent(
+        VoiceRecognitionFailureReason reason)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        var previous = fixture.PrivacyObservation.Current;
+        var locked = previous with { SessionState = WindowsSessionState.Locked };
+        fixture.PrivacyObservation.Current = locked;
+        fixture.Session.IsUnlocked = false;
+        fixture.Voice.RaiseFailure("synthetic failure", reason);
+        fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(
+            previous, locked, WindowsPrivacyChangeReason.Session));
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().Be(reason == VoiceRecognitionFailureReason.PrivacyTransition);
+        fixture.Voice.StartCalls.Should().Be(1);
+        fixture.Voice.IsListening.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_new_negative_observation_during_unlock_validation_cannot_enable_voice()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        fixture.PrivacyObservation.BeforeRefresh = () => PublishVoiceSession(fixture, WindowsSessionState.Unknown);
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("ownership")]
+    [InlineData("revision")]
+    [InlineData("permission")]
+    public async Task Unlock_rechecks_changes_between_readiness_validation_and_atomic_enablement(string change)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        PublishVoiceSession(fixture, WindowsSessionState.Locked);
+        await fixture.ViewModel.PrivacyClosureTask;
+        var checks = 0;
+        HostActivity? recovery = null;
+        fixture.ViewModel.BindVoiceOwnershipGate(() =>
+        {
+            recovery = HostActivity.RequireCurrent();
+            if (++checks != 2) { return true; }
+            if (change is "ownership") { return false; }
+            if (change is "revision") { PublishVoiceSession(fixture, WindowsSessionState.Locked); }
+            else
+            {
+                fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with
+                {
+                    MicrophoneAccess = MicrophoneAccessState.Denied,
+                };
+            }
+            return true;
+        });
+        fixture.WindowActions.Clear();
+
+        PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+        await fixture.ViewModel.PrivacyClosureTask;
+
+        checks.Should().Be(2);
+        recovery.Should().NotBeNull();
+        recovery!.Outcome.Should().Be(HostOperationOutcome.Cancelled);
+        recovery.Activity!.IsStopped.Should().BeTrue();
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.WindowActions.Should().NotContain(WindowAction.Show);
+    }
+
+    [Theory]
+    [InlineData("revision")]
+    [InlineData("disposed")]
+    [InlineData("handoff")]
+    [InlineData("permission")]
+    [InlineData("no-unlock-intent")]
+    public async Task Atomic_readiness_commit_independently_rejects_each_retired_or_ineligible_state(string blocker)
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        if (blocker is "disposed") { fixture.ViewModel.Dispose(); }
+        if (blocker is "handoff") { (await fixture.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue(); }
+        if (blocker is "permission")
+        {
+            fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with
+            {
+                MicrophoneAccess = MicrophoneAccessState.Denied,
+            };
+        }
+
+        // Exercise the final atomic boundary independently of earlier route guards, without modifying production state.
+        var revisionField = typeof(MainViewModel).GetField("voiceRecoveryRevision", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var revision = (long)revisionField.GetValue(fixture.ViewModel)!;
+        var commit = typeof(MainViewModel).GetMethod("TryEnableVoiceReadiness", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .CreateDelegate<Func<long, bool, bool>>(fixture.ViewModel);
+        var held = fixture.ViewModel.IsPrivacyPresentationHeld;
+
+        commit(blocker is "revision" ? revision - 1 : revision, blocker is "no-unlock-intent").Should().BeFalse();
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().Be(held);
+        fixture.Voice.IsListening.Should().BeFalse();
+        fixture.Voice.StartCalls.Should().Be(0);
+        ((long)revisionField.GetValue(fixture.ViewModel)!).Should().Be(revision);
+    }
+
+    [Fact]
+    public async Task Explicit_enable_rechecks_privacy_after_call_admission_before_committing_readiness()
+    {
+        var fixture = CreateVoicePrivacyFixture();
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        fixture.PrivacyObservation.BeforeRefresh = () => fixture.ViewModel.BindCallOwnershipGate(() =>
+        {
+            fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with
+            {
+                MicrophoneAccess = MicrophoneAccessState.Denied,
+            };
+            return true;
+        });
+
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.ResponseTitle.Should().Be("Readiness changed.");
+        fixture.Voice.StartCalls.Should().Be(0);
+        fixture.Voice.IsListening.Should().BeFalse();
     }
 
     [Theory]
@@ -1014,7 +1799,7 @@ public sealed partial class MainViewModelTests
         fixture.Dispatcher.BeforePost = fixture.ViewModel.Dispose;
         fixture.Voice.GetMicrophonesException = new IOException("Disposed capture service");
 
-        PublishTopology(fixture, 1);
+        await PublishTopologyAsync(fixture, 1);
 
         fixture.ViewModel.ResponseTitle.Should().Be(title);
     }
@@ -1044,8 +1829,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         if (pinned)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
-                string.Equals(device.Id, "0", StringComparison.Ordinal));
+            await LoadSavedOutputAsync(fixture, "0");
         }
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
@@ -1060,7 +1844,7 @@ public sealed partial class MainViewModelTests
         }
         fixture.TextToSpeech.DefaultOutputDeviceId = null;
 
-        PublishTopology(fixture, 1, WindowsPrivacyChangeReason.DefaultSpeaker | WindowsPrivacyChangeReason.OutputTopology);
+        await PublishTopologyAsync(fixture, 1, WindowsPrivacyChangeReason.DefaultSpeaker | WindowsPrivacyChangeReason.OutputTopology);
         await fixture.ViewModel.PrivacyClosureTask;
         closedBeforeDispatch.Should().Be(!pinned);
         fixture.TextToSpeech.IsSpeaking.Should().Be(pinned);
@@ -1200,10 +1984,9 @@ public sealed partial class MainViewModelTests
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.SelectedMicrophone = null;
-        fixture.ViewModel.SelectedOutputDevice = pinned
-            ? fixture.ViewModel.OutputDevices.Single(device => string.Equals(device.Id, "0", StringComparison.Ordinal)) : null;
+        await LoadSavedOutputAsync(fixture, pinned ? "0" : "unavailable");
         fixture.TextToSpeech.OutputDevices = [];
-        PublishTopology(fixture, 1);
+        await PublishTopologyAsync(fixture, 1);
         fixture.ViewModel.SelectedOutputDevice?.Id.Should().Be(pinned ? "0" : null);
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
     }
@@ -1216,11 +1999,10 @@ public sealed partial class MainViewModelTests
     {
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
-            string.Equals(device.Id, "0", StringComparison.Ordinal));
+        await LoadSavedOutputAsync(fixture, "0");
         var microphoneId = fixture.ViewModel.SelectedMicrophone!.Id;
         var microphoneName = fixture.ViewModel.SelectedMicrophone.Name;
-        var outputId = fixture.ViewModel.SelectedOutputDevice.Id;
+        var outputId = fixture.ViewModel.SelectedOutputDevice!.Id;
         if (captureActive)
         {
             await fixture.ViewModel.BeginPushToTalkAsync();
@@ -1243,7 +2025,7 @@ public sealed partial class MainViewModelTests
             }
         };
 
-        PublishTopology(fixture, 1);
+        await PublishTopologyAsync(fixture, 1);
 
         fixture.ViewModel.SelectedMicrophone!.Id.Should().Be(microphoneId);
         fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be(outputId);
@@ -1257,7 +2039,7 @@ public sealed partial class MainViewModelTests
         var fixture = CreateVoicePrivacyFixture();
         await fixture.ViewModel.InitializeAsync();
         fixture.TextToSpeech.OutputEnumerationException = new IOException("render endpoints unavailable");
-        PublishTopology(fixture, 1);
+        await PublishTopologyAsync(fixture, 1);
         fixture.ViewModel.ResponseTitle.Should().Be("Audio output is unavailable.");
     }
 
@@ -1272,8 +2054,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         if (pinned)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
-                string.Equals(device.Id, "0", StringComparison.Ordinal));
+            await LoadSavedOutputAsync(fixture, "0");
         }
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
@@ -1285,7 +2066,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.OutputDevices = pinned
             ? [new AudioOutputDevice("new-default", "Other available output")] : [];
         fixture.TextToSpeech.DefaultOutputDeviceId = "new-default";
-        PublishTopology(fixture, 1);
+        await PublishTopologyAsync(fixture, 1);
         await fixture.ViewModel.PrivacyClosureTask;
         fixture.TextToSpeech.SpeakGate.TrySetResult();
         await preview;
@@ -1311,8 +2092,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         if (pinned)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
-                string.Equals(device.Id, "0", StringComparison.Ordinal));
+            await LoadSavedOutputAsync(fixture, "0");
         }
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
@@ -1329,7 +2109,7 @@ public sealed partial class MainViewModelTests
             fixture.TextToSpeech.DefaultOutputDeviceId = "new-default";
         }
 
-        PublishTopology(fixture, 1, inputChange
+        await PublishTopologyAsync(fixture, 1, inputChange
             ? WindowsPrivacyChangeReason.InputTopology : WindowsPrivacyChangeReason.DefaultSpeaker);
 
         fixture.TextToSpeech.IsSpeaking.Should().BeTrue();
@@ -1351,15 +2131,14 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         if (pinned)
         {
-            fixture.ViewModel.SelectedOutputDevice = fixture.ViewModel.OutputDevices.Single(device =>
-                string.Equals(device.Id, "0", StringComparison.Ordinal));
+            await LoadSavedOutputAsync(fixture, "0");
         }
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
         await fixture.TextToSpeech.SpeakStarted.Task;
         fixture.TextToSpeech.OutputDevices = [new AudioOutputDevice("0", "Default output", IsMuted: true)];
 
-        PublishTopology(fixture, 1);
+        await PublishTopologyAsync(fixture, 1);
         await fixture.ViewModel.PrivacyClosureTask;
         await preview;
 
@@ -1378,7 +2157,7 @@ public sealed partial class MainViewModelTests
         await fixture.TextToSpeech.SpeakStarted.Task;
         fixture.TextToSpeech.OutputEnumerationException = new IOException("render endpoints unavailable");
 
-        PublishTopology(fixture, 1);
+        await PublishTopologyAsync(fixture, 1);
         await fixture.ViewModel.PrivacyClosureTask;
         await preview;
 
@@ -1421,7 +2200,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.EndPushToTalkAsync();
     }
 
-    private static void PublishTopology(
+    private static Task PublishTopologyAsync(
         Fixture fixture, long revision,
         WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.OutputTopology)
     {
@@ -1431,6 +2210,7 @@ public sealed partial class MainViewModelTests
         fixture.PrivacyObservation.Current = current;
         fixture.PrivacyObservation.Publish(new WindowsPrivacyChangedEventArgs(previous, current,
             reason));
+        return fixture.ViewModel.MicrophoneRefreshTask;
     }
 
     [Fact]
@@ -1572,10 +2352,11 @@ public sealed partial class MainViewModelTests
             {
                 fixture.ViewModel.ListeningStatus.Should().Contain("use Enable listening");
                 fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
-                PublishTopology(fixture, 2);
+                _ = PublishTopologyAsync(fixture, 2);
             }
         };
         fixture.ViewModel.SelectedMicrophone = null;
+        await fixture.ViewModel.MicrophoneRefreshTask;
         fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
         fixture.Voice.StartCalls.Should().Be(0);
     }

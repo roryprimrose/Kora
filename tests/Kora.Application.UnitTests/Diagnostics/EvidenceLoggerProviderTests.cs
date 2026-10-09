@@ -15,6 +15,39 @@ namespace Kora.Application.UnitTests.Diagnostics;
 [Collection("Host tracing")]
 public sealed class EvidenceLoggerProviderTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Explicit_unavailable_ordinary_policy_reports_gap_but_never_downgrades_required_audit(bool failAudit)
+    {
+        var healthy = new RecordingSink();
+        using var provider = new EvidenceLoggerProvider([new UnavailablePolicySink(failAudit), healthy], healthy);
+        using var factory = LoggerFactory.Create(builder => builder.AddProvider(provider));
+        Log(provider.CreateLogger("fixture"), State());
+        healthy.Diagnostics.Should().ContainSingle();
+        using (var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Policy))
+        {
+            var bridge = new LoggerSecurityAuditLog(factory.CreateLogger<LoggerSecurityAuditLog>());
+            var write = () => bridge.Write(CreateAudit());
+            if (failAudit) { write.Should().Throw<IOException>(); }
+            else { write.Should().NotThrow(); }
+        }
+        healthy.Audits.Should().ContainSingle();
+        healthy.Gaps.Should().Contain(gap => gap.ExceptionType == typeof(DiagnosticRetentionUnavailableException).FullName);
+    }
+
+    private sealed class UnavailablePolicySink(bool failAudit) : IEvidenceSink
+    {
+        public string Name => "unavailable-ordinary-policy";
+        public void WriteDiagnostic(DiagnosticEnvelope envelope) => throw new DiagnosticRetentionUnavailableException();
+        public void WriteActivity(CompletedActivityEnvelope envelope) => throw new DiagnosticRetentionUnavailableException();
+        public void WriteAudit(AuditEnvelope envelope)
+        {
+            if (failAudit) { throw new DiagnosticRetentionUnavailableException(); }
+        }
+    }
+
     [Fact]
     public void Missing_context_is_an_explicit_diagnostic_gap_not_bootstrap_or_caller_claimed_authority()
     {

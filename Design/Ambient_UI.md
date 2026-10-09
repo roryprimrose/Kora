@@ -113,8 +113,11 @@ work, speech, pending approvals/questions, response actions, grant editing, and
 unacknowledged failures suspend auto-hide; clearing them starts a fresh period.
 Hiding is presentation-only and never cancels work, closes capture, dismisses a
 prompt, or asks the user for confirmation.
-Presence timeout (default 10 seconds) and response timeout (default 5 seconds)
-are separate device-local settings, each adjustable from 1 to 60 seconds.
+Displaying the presence is an optional device-local interactive feature and
+is enabled by default. Disabling it keeps the presence hidden without disabling
+response, settings, approval, or other interactive surfaces. Presence timeout
+(default 10 seconds) and response timeout (default 5 seconds) are separate
+device-local settings, each adjustable from 1 to 60 seconds.
 Showing or interacting with a surface restarts its deadline; repeated status
 notifications alone do not extend an existing presence deadline. Response
 **Always show** does not pin presence. Legacy shared timeout values are

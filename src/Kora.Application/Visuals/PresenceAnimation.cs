@@ -34,7 +34,8 @@ public sealed class PresenceAnimation
         double speechOutputLevel,
         TimeSpan elapsed,
         bool isSpeechScalingEnabled = PresenceSettings.DefaultSpeechScalingEnabled,
-        int speechScaleAmountPercent = PresenceSettings.DefaultSpeechScaleAmountPercent)
+        int speechScaleAmountPercent = PresenceSettings.DefaultSpeechScaleAmountPercent,
+        bool isVisible = true)
     {
         PresenceSettings.ValidateSpeechScaleAmountPercent(speechScaleAmountPercent);
         if (elapsed < TimeSpan.Zero)
@@ -51,7 +52,7 @@ public sealed class PresenceAnimation
         }
 
         var targetColor = state == AssistantState.Hidden ? Current.Color : GetStateColor(state);
-        var targetOpacity = state == AssistantState.Hidden ? 0 : 1;
+        var targetOpacity = isVisible && state != AssistantState.Hidden ? 1 : 0;
         var amount = speechScaleAmountPercent / 100d;
         var targetScale = isSpeaking && isSpeechScalingEnabled
             ? 1 + ((MinimumSpeechScale - 1 + (Math.Clamp(speechOutputLevel, 0, 1) * SpeechScaleRange)) * amount)

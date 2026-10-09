@@ -15,11 +15,14 @@ public sealed class DurableVersionQuery(
     public const string StorageDisclosure =
         "Kora stores task and content-free diagnostic/audit records in private local Windows-profile SQLite files. "
         + "These files are not encrypted: copies outside the private location are readable, and same-user/admin access is not prevented. "
-        + "Database records receive 30-day diagnostic and 90-day audit due dates; database pruning/deletion is not yet implemented. "
+        + "Database records receive 30-day diagnostic and 90-day audit due dates. "
+        + "Each admitted startup prunes at most 128 due diagnostics and 32 due spans with their links; due backlog can remain. "
+        + "Audit, task and session deletion is not implemented. Reading evidence does not extend retention. "
         + "Daily files retain at most 30 days/30 files. Credentials remain Windows-protected.";
 
     public async Task<HostTaskRecord> RunAsync(
-        RequestOrigin origin, Func<Task> query, CancellationToken cancellationToken)
+        RequestOrigin origin, Func<Task> query, CancellationToken cancellationToken,
+        Func<HostTaskRecord, Task<HostTaskRecord>>? beforeDispatch = null)
     {
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
@@ -34,7 +37,35 @@ public sealed class DurableVersionQuery(
         audit.Write(requested);
         ApplicationLog.Information(logger, "Admitted durable local version query");
         cancellationToken.ThrowIfCancellationRequested();
-        var dispatched = await coordinator.RecordDispatchAsync(intent, cancellationToken);
+        HostTaskRecord dispatched;
+        if (beforeDispatch is not null)
+        {
+            try
+            {
+                dispatched = await beforeDispatch(intent);
+                if (dispatched.Request != request || dispatched.Revision.Value != 2
+                    || dispatched.State is not (HostTaskState.DispatchRecorded or HostTaskState.Cancelled))
+                {
+                    throw new InvalidDataException("The admitted wait returned a foreign or invalid task receipt.");
+                }
+                if (dispatched.State == HostTaskState.Cancelled)
+                {
+                    activity.Complete(HostOperationOutcome.Cancelled);
+                    return dispatched;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+                throw;
+            }
+            catch
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                throw;
+            }
+        }
+        else { dispatched = await coordinator.RecordDispatchAsync(intent, cancellationToken); }
         try
         {
             await query().WaitAsync(cancellationToken);

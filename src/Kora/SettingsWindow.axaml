@@ -3,6 +3,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:configuration="clr-namespace:Kora.Core.Configuration;assembly=Kora.Core"
+    xmlns:controls="using:Kora.Controls"
     Title="{Binding SettingsWindowTitle}"
     Icon="/Assets/Kora.ico"
     Width="1040"
@@ -12,6 +13,20 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
+  <Window.Styles>
+    <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
+      <Setter Property="AutomationProperties.Name"
+              Value="{Binding (AutomationProperties.Name), RelativeSource={RelativeSource TemplatedParent}}" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ :is(Button)#PART_IncreaseButton">
+      <Setter Property="AutomationProperties.Name"
+              Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat='Increase {0}'}" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ :is(Button)#PART_DecreaseButton">
+      <Setter Property="AutomationProperties.Name"
+              Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat='Decrease {0}'}" />
+    </Style>
+  </Window.Styles>
   <Grid RowDefinitions="72,Auto,*">
     <Border BorderBrush="{DynamicResource KoraHeaderBorderBrush}" BorderThickness="0,0,0,1" Padding="30,0">
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
@@ -43,7 +58,7 @@
         FontSize="11"
         TextWrapping="Wrap" />
 
-    <TabControl
+    <controls:NavigableTabControl
         x:Name="SettingsTabs"
         Grid.Row="2"
         TabStripPlacement="Left"
@@ -63,15 +78,35 @@
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="12">
-              <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340">
+              <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340"
+                        AutomationProperties.Name="Select an appearance option to inspect or change">
                 <ComboBox.ItemTemplate>
                   <DataTemplate>
                     <TextBlock Text="{Binding Description}" />
                   </DataTemplate>
                 </ComboBox.ItemTemplate>
               </ComboBox>
-              <Button Content="Reset selected option" Command="{Binding ResetAppearanceOptionCommand}" />
+              <Button Content="Reset selected option" Command="{Binding ResetAppearanceOptionCommand}"
+                      AutomationProperties.Name="Reset the selected appearance option to its default" />
             </StackPanel>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Show presence" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceDisplayDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Show presence"
+                    IsChecked="{Binding IsPresenceDisplayEnabled}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Show animated presence" />
+              </Grid>
+            </Border>
 
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
@@ -86,7 +121,8 @@
                     Grid.Column="1"
                     ItemsSource="{Binding ThemeModes}"
                     SelectedItem="{Binding ThemeMode}"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Application theme" />
               </Grid>
             </Border>
 
@@ -144,6 +180,7 @@
                 </StackPanel>
                 <NumericUpDown
                     Grid.Column="1"
+                    AutomationProperties.Name="Response timeout in seconds"
                     Value="{Binding ResponseTimeoutSeconds}"
                     Minimum="{Binding Source={x:Static configuration:ResponseWindowSettings.MinimumTimeoutSeconds}}"
                     Maximum="{Binding Source={x:Static configuration:ResponseWindowSettings.MaximumTimeoutSeconds}}"
@@ -173,6 +210,7 @@
                 </StackPanel>
                 <NumericUpDown
                     Grid.Column="1"
+                    AutomationProperties.Name="Presence timeout in seconds"
                     Value="{Binding PresenceTimeoutSeconds}"
                     Minimum="{Binding Source={x:Static configuration:PresenceSettings.MinimumTimeoutSeconds}}"
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumTimeoutSeconds}}"
@@ -198,7 +236,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumSizePixels}}"
                     TickFrequency="20"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Presence size in pixels" />
               </Grid>
             </Border>
 
@@ -218,7 +257,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumDotSizePercent}}"
                     TickFrequency="10"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Dot size percent" />
               </Grid>
             </Border>
 
@@ -238,7 +278,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumDotDensityPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Dot density percent" />
               </Grid>
             </Border>
 
@@ -258,7 +299,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumMovementSpeedPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Movement speed percent" />
               </Grid>
             </Border>
 
@@ -275,7 +317,8 @@
                     Grid.Column="1"
                     Content="Scale with speech"
                     IsChecked="{Binding IsPresenceSpeechScalingEnabled}"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Scale presence with speech playback" />
               </Grid>
             </Border>
 
@@ -296,7 +339,8 @@
                     Maximum="{Binding Source={x:Static configuration:PresenceSettings.MaximumSpeechScaleAmountPercent}}"
                     TickFrequency="5"
                     IsSnapToTickEnabled="True"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Speech scale amount percent" />
               </Grid>
             </Border>
           </StackPanel>
@@ -317,21 +361,28 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Assistant name" Classes="settings-title" />
+                  <TextBlock Text="Display / PTT command-prefix name" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding AssistantNameSettingStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <TextBlock
+                      Text="{Binding AssistantNameConfigurationDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
                   <TextBox
                       Text="{Binding AssistantNameInput, Mode=TwoWay}"
-                      MaxLength="32"
                       PlaceholderText="Assistant name" />
                   <Button
                       Classes="primary"
                       Content="Apply name"
                       Command="{Binding ApplyAssistantNameCommand}"
+                      HorizontalAlignment="Stretch" />
+                  <Button
+                      Content="Reset name to Kora"
+                      Command="{Binding ResetAssistantNameCommand}"
                       HorizontalAlignment="Stretch" />
                 </StackPanel>
               </Grid>
@@ -352,11 +403,9 @@
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                  <ComboBox
-                      ItemsSource="{Binding Microphones}"
-                      SelectedItem="{Binding SelectedMicrophone}"
-                      DisplayMemberBinding="{Binding Name}"
-                      PlaceholderText="No microphone detected" />
+                  <Button x:Name="ChooseMicrophone"
+                      Content="Choose microphone (native recovery)"
+                      HorizontalAlignment="Stretch" />
                   <Button
                       Content="Open Windows microphone settings"
                       Command="{Binding OpenMicrophonePrivacySettingsCommand}"
@@ -391,7 +440,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Speech provider" Classes="settings-title" />
+                  <TextBlock Text="Speech provider assets (review only)" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding SpeechProviderAvailabilityMessage}"
                       Classes="settings-description"
@@ -431,7 +480,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Speech voice" Classes="settings-title" />
+                  <TextBlock Text="Installed speech provider and voice" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding VoiceAvailabilityMessage}"
                       Classes="settings-description"
@@ -439,13 +488,22 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
                   <ComboBox
-                      ItemsSource="{Binding Voices}"
+                      ItemsSource="{Binding InstalledSpeechProviders}"
+                      SelectedItem="{Binding SelectedInstalledSpeechProvider}"
+                      DisplayMemberBinding="{Binding Name}"
+                      PlaceholderText="Choose a ready installed provider" />
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                  <Button Content="Reset speech provider" Command="{Binding ResetSpeechProviderCommand}" />
+                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
+                  <ComboBox
+                      ItemsSource="{Binding InstalledSpeechVoices}"
                       SelectedItem="{Binding SelectedVoice}"
                       PlaceholderText="No voice selected">
                     <ComboBox.ItemTemplate>
                       <DataTemplate>
                         <StackPanel>
                           <TextBlock Text="{Binding Name}" />
+                          <TextBlock Text="{Binding ConfigurationId}" Classes="muted" FontSize="10" />
                           <TextBlock Text="{Binding Culture}" Classes="muted" FontSize="10" />
                         </StackPanel>
                       </DataTemplate>
@@ -462,19 +520,77 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
+                  <TextBlock Text="Spoken summary limits" Classes="settings-title" />
+                  <TextBlock Text="Ordinary results must fit both caps, including the spoken title. Over-cap results remain fully visual; no truncation or extra model call. Exact approval/question readback keeps its existing bounds."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <TextBlock Text="Maximum sentences (1-3)" Classes="settings-description" />
+                  <ComboBox ItemsSource="{Binding SummarySentenceChoices}" SelectedItem="{Binding SelectedSummarySentences}" PlaceholderText="Invalid saved limits; repair and refresh" />
+                  <Button Content="Reset sentence cap" Command="{Binding ResetSummarySentencesCommand}" />
+                  <TextBlock Text="Maximum words (1-80)" Classes="settings-description" />
+                  <ComboBox ItemsSource="{Binding SummaryWordChoices}" SelectedItem="{Binding SelectedSummaryWords}" PlaceholderText="Invalid saved limits; repair and refresh" />
+                  <Button Content="Reset word cap" Command="{Binding ResetSummaryWordsCommand}" />
+                  <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
                   <TextBlock Text="Audio output" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding AudioOutputConfigurationStatus}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
                   <TextBlock
                       Text="{Binding OutputDeviceAvailabilityMessage}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
-                <ComboBox
-                    Grid.Column="1"
-                    ItemsSource="{Binding OutputDevices}"
-                    SelectedItem="{Binding SelectedOutputDevice}"
-                    DisplayMemberBinding="{Binding Name}"
-                    PlaceholderText="No audio output selected"
-                    VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding OutputDeviceChoices}" SelectedItem="{Binding SelectedOutputChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeAudioOutputDevice}"
+                      PlaceholderText="Refresh and choose exact output" />
+                  <Button Content="Refresh output metadata only" Command="{Binding RefreshOutputDevicesCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                  <Button Content="Save output preference only" Command="{Binding SaveOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                  <Button Content="Reset output to System" Command="{Binding ResetOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Kora playback volume (0-100%)" Classes="settings-title" />
+                  <TextBlock Text="Kora-owned speech only. 100 is the original unscaled level. Zero prevents synthesis and keeps the full response visual. Saving stops old output; raising/resetting never replays it. Windows, call volume, microphone and consent are unchanged."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                  <TextBlock Text="{Binding PlaybackVolumeStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding PlaybackVolumeChoices}" SelectedItem="{Binding SelectedPlaybackVolume}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                  <Button Content="Refresh volume preference only" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                  <Button Content="Save Kora volume only" Command="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                  <Button Content="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Windows-native speech rate (-10 through 10)" Classes="settings-title" />
+                  <TextBlock Text="Windows provider only; 0 is engine-normal/default/reset. Native units are not percent or words per minute. Kokoro is unsupported and unchanged. Saving retires active/queued speech; only future eligible Windows synthesis uses the rate. No replay, preview, microphone or global Windows setting change."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                  <TextBlock Text="{Binding WindowsSpeechRateStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding WindowsSpeechRateChoices}" SelectedItem="{Binding SelectedWindowsSpeechRate}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
+                  <Button Content="Refresh Windows rate preference only" Command="{Binding RefreshWindowsSpeechRateCommand}" IsEnabled="{Binding CanInspectWindowsSpeechRateNative}" />
+                  <Button Content="Save Windows-native rate only" Command="{Binding SaveWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
+                  <Button Content="Reset Windows rate to normal (0)" Command="{Binding ResetWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
+                </StackPanel>
               </Grid>
             </Border>
 
@@ -506,12 +622,42 @@
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
-                <ComboBox
-                    Grid.Column="1"
-                    ItemsSource="{Binding ResponseModeOptions}"
-                    SelectedItem="{Binding DefaultResponseModeOption}"
-                    DisplayMemberBinding="{Binding Label}"
-                    VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding ResponseModeChoices}" SelectedItem="{Binding SelectedResponseModeChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeResponseMode}"
+                      PlaceholderText="Inspect and choose exact mode" />
+                  <Button Content="Inspect response mode" Command="{Binding RefreshResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                  <Button Content="Save device-default mode" Command="{Binding SaveResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                  <Button Content="Reset device default to Hybrid" Command="{Binding ResetResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                  <TextBlock Text="{Binding ResponseModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Local speech text (off by default)" Classes="settings-title" />
+                  <TextBlock Text="Optional exact utterance after playback starts. Normal completion retains observed text for 0-30 seconds (default 5), or until unpinned. Stop, replacement and privacy retirement still clear immediately. Placement selects a primary-screen corner. No speech, replay, capture, model request or response/call policy changes. Sentence alignment is unavailable."
+                      Classes="settings-description" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding SpeechTextConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8">
+                  <ComboBox ItemsSource="{Binding SpeechTextChoices}" SelectedItem="{Binding SelectedSpeechTextChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeSpeechText}"
+                      PlaceholderText="Inspect and choose exact speech text mode"
+                      AutomationProperties.Name="Local speech text mode" />
+                  <Button Content="Inspect speech text" Command="{Binding RefreshSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <Button Content="Save speech text only" Command="{Binding SaveSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <Button Content="Reset speech text to Off" Command="{Binding ResetSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <ComboBox ItemsSource="{Binding SpeechCaptionOptionsList}" SelectedItem="{Binding SelectedSpeechCaptionOption}"
+                      IsEnabled="{Binding CanChangeSpeechText}" AutomationProperties.Name="Speech caption option" />
+                  <ComboBox ItemsSource="{Binding SpeechCaptionOptionChoices}" SelectedItem="{Binding SelectedSpeechCaptionChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeSpeechText}"
+                      PlaceholderText="Inspect and choose exact caption option" AutomationProperties.Name="Speech caption option value" />
+                  <Button Content="Save caption option only" Command="{Binding SaveSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <Button Content="Reset selected caption option" Command="{Binding ResetSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                </StackPanel>
               </Grid>
             </Border>
 
@@ -556,13 +702,13 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Muted speaker fallback" Classes="settings-title" />
                   <TextBlock
-                      Text="Show audible-only responses as text when the selected speaker is muted or its volume is zero."
+                      Text="Retained legacy preference. Unavailable, muted, zero-volume or failed output always keeps the complete visual response."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <CheckBox
                     Grid.Column="1"
-                    Content="Fall back to visual"
+                    Content="Stored legacy preference"
                     IsChecked="{Binding FallbackToVisualWhenOutputMuted}"
                     VerticalAlignment="Center" />
               </Grid>
@@ -575,6 +721,62 @@
                     Text="{Binding ResponseOutputStatus}"
                     Classes="settings-description"
                     TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Sessions">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <TextBlock Text="Session inactivity retention" FontSize="28" FontWeight="SemiBold" />
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Archive and delete on the same meaningful-activity clock" Classes="settings-title" />
+                <TextBlock Text="Default: archive after 24 hours; delete after 30 idle days. Choose whole days from 1 to 365, with deletion later than archive. Changes apply only to new sessions or subsequent meaningful activity; existing due dates stay unchanged. No apply-now or execution integration. Perpetual sessions and live or uncertain work are held."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SessionRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Archive after idle days" />
+                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding SelectedSessionArchiveDays}"
+                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Session archive inactivity days" />
+                <TextBlock Text="Delete after idle days" />
+                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding SelectedSessionDeleteDays}"
+                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Session deletion inactivity days" />
+                <Button Content="Refresh session retention" Command="{Binding RefreshSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <Button Content="Save future session retention" Command="{Binding SaveSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <Button Content="Reset future session retention to 1 / 30 days" Command="{Binding ResetSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Logging">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <TextBlock Text="Future-only retention" FontSize="28" FontWeight="SemiBold" />
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Ordinary SQLite diagnostic days (integer 1–365; default/reset 30)" Classes="settings-title" />
+                <TextBlock Text="Future newly committed ordinary SQLite logs and spans only. Existing deadlines never change. Apply-now and immediate deletion are unavailable. Independently configured audit retention, daily files 30 days/30 files, session/history, all grants/approvals and cleanup triggers are unchanged."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding DiagnosticRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding DiagnosticRetentionChoices}" SelectedItem="{Binding SelectedDiagnosticRetentionDays}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+                <Button Content="Refresh SQLite retention only" Command="{Binding RefreshDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+                <Button Content="Save future SQLite retention only" Command="{Binding SaveDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+                <Button Content="Reset future SQLite retention to 30 days" Command="{Binding ResetDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+              </StackPanel>
+            </Border>
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Audit metadata days (integer 30–365; default/reset 90)" Classes="settings-title" />
+                <TextBlock Text="Only NEW committed required authority audit and independently qualified diagnostic audit projections. Existing deadlines and payloads never change. Requested/terminal preference receipts use the prior policy; confirmed activation affects later commits only. Apply-now, immediate deletion and audit pruning are unavailable. No grant expiry/retention/eviction, session/history, ordinary SQLite, file or cleanup-schedule changes."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding AuditRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding AuditRetentionChoices}" SelectedItem="{Binding SelectedAuditRetentionDays}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <Button Content="Refresh audit retention only" Command="{Binding RefreshAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <Button Content="Save future audit retention only" Command="{Binding SaveAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <Button Content="Reset future audit retention to 90 days" Command="{Binding ResetAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
               </StackPanel>
             </Border>
           </StackPanel>
@@ -596,7 +798,7 @@
             <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
               <StackPanel Spacing="4">
                 <TextBlock Text="Call detection" Classes="settings-title" />
-                <TextBlock
+                <controls:NamedTextBlock
                     Text="{Binding CallStateStatus}"
                     AutomationProperties.Name="Current call status"
                     AutomationProperties.LiveSetting="Polite"
@@ -608,10 +810,13 @@
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Text="Manual call mode" Classes="settings-title" />
-                <TextBlock Text="{Binding CallManualStatus}" AutomationProperties.Name="Manual call status" AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
+                <controls:NamedTextBlock Text="{Binding CallManualStatus}" AutomationProperties.Name="Manual call status" AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
+                <controls:NamedTextBlock Text="{Binding ManualCallConfigurationStatus}" AutomationProperties.Name="Cached manual and automatic call policy status" Classes="settings-description" TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button Content="I'm in a call" AutomationProperties.Name="Enable manual call mode for this run" TabIndex="0" Command="{Binding EnableManualCallCommand}" />
                   <Button Content="Clear manual call mode" AutomationProperties.Name="Clear only manual call mode" TabIndex="1" Command="{Binding ClearManualCallCommand}" />
+                  <Button Content="Reset manual off" AutomationProperties.Name="Reset manual call layer off for this run" TabIndex="2" Command="{Binding ResetManualCallCommand}" />
+                  <Button Content="Cached call status" AutomationProperties.Name="Inspect cached call status without effects" TabIndex="3" Command="{Binding GetManualCallStatusCommand}" />
                 </StackPanel>
                 <TextBlock Text="{Binding CallProtectionLimitations}" Classes="settings-description" TextWrapping="Wrap" />
               </StackPanel>
@@ -620,7 +825,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Visual responses during calls" Classes="settings-title" />
+                  <TextBlock Text="Call speech suppression (independent of feedback)" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding CallVisualOverrideStatus}"
                       Classes="settings-description"
@@ -633,6 +838,27 @@
                     IsEnabled="{Binding CanEnableCallVisualProtection}"
                     VerticalAlignment="Center" />
               </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="In-call feedback override" Classes="settings-title" />
+                <TextBlock Text="UI by default. Active/Suspected calls select this before ordinary response modes; Inherit restores ordinary precedence. Voice/Both never permit suppressed speech. Unknown or unconfirmed state retains full visual recovery. Input, consent and grants are unchanged."
+                    Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding InCallFeedbackChoices}" SelectedItem="{Binding SelectedInCallFeedbackChoice}"
+                    DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeInCallFeedbackNative}"
+                    AutomationProperties.Name="In-call feedback draft: Voice UI Both or Inherit" />
+                <WrapPanel Orientation="Horizontal">
+                  <Button Content="Refresh call feedback" Command="{Binding RefreshInCallFeedbackCommand}"
+                      IsEnabled="{Binding CanInspectInCallFeedbackNative}" AutomationProperties.Name="Inspect in-call feedback preference only" />
+                  <Button Content="Save call feedback only" Command="{Binding SaveInCallFeedbackCommand}"
+                      IsEnabled="{Binding CanChangeInCallFeedbackNative}" AutomationProperties.Name="Save selected in-call feedback only" />
+                  <Button Content="Reset call feedback to UI" Command="{Binding ResetInCallFeedbackCommand}"
+                      IsEnabled="{Binding CanChangeInCallFeedbackNative}" AutomationProperties.Name="Remove saved in-call feedback override only" />
+                </WrapPanel>
+                <controls:NamedTextBlock Text="{Binding InCallFeedbackStatus}" AutomationProperties.Name="In-call feedback saved effective policy and recovery status"
+                    AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
+              </StackPanel>
             </Border>
 
             <Border Classes="settings-card">
@@ -847,6 +1073,6 @@
           <Button Content="Review / check / open canonical release" Click="OnMaintenanceClicked" HorizontalAlignment="Left" />
         </StackPanel>
       </TabItem>
-    </TabControl>
+    </controls:NavigableTabControl>
   </Grid>
 </Window>

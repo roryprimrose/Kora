@@ -166,7 +166,7 @@ public sealed partial class MainViewModelTests
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var response = fixture.RunAsync("unsupported");
+        var response = fixture.RunAsync("what power action is pending");
         await fixture.TextToSpeech.SpeakStarted.Task;
         fixture.Dispatcher.BeforeInvoke = () =>
         {
@@ -271,6 +271,7 @@ public sealed partial class MainViewModelTests
         fixture.CallPreferences.SavedSettings.Should().BeNull();
         fixture.ViewModel.AllowVoiceActivationDuringCalls.Should().BeTrue();
         fixture.CallState.SetState(CallState.Clear);
+        fixture.ManualCallStore.BeforeOperation = () => fixture.CallState.SetState(CallState.Unknown);
         await fixture.ViewModel.EnableManualCallCommand.ExecuteAsync();
         fixture.ViewModel.IsManualCallActive.Should().BeFalse();
         fixture.ViewModel.ResponseBody.Should().Contain("Call policy changed");

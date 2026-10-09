@@ -13,6 +13,9 @@ using Kora.Application.ViewModels;
 using Kora.Application.Visuals;
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Kora.Application.Hosting;
 using Kora.Windows.Presentation;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +33,7 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherTimer presenceInputTimer;
     private WindowsPresenceWindowInput? presenceInput;
     private bool presenceInputFailed;
+    private bool windowActionFailed;
     private bool isOptionalSpeechOfferVisible;
     private CancellationTokenSource? pendingHide;
     private bool initialized;
@@ -68,6 +72,10 @@ public sealed partial class MainWindow : Window
         positionSaveTimer.Tick += OnPositionSaveTimer;
         viewModel.WindowActionRequested += OnWindowActionRequested;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        AddHandler(PointerMovedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnPointerPressed;
         PositionChanged += OnPositionChanged;
         Loaded += OnLoaded;
@@ -136,6 +144,24 @@ public sealed partial class MainWindow : Window
 
     private async void OnLoaded(object? sender, RoutedEventArgs eventArgs)
     {
+        try
+        {
+            await HostRequestRunner.RunAsync(RequestOrigin.HostSystem, InitializeWindowAsync,
+                HostActivityLayer.Desktop, HostOperation.Startup);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            HostRequestRunner.Run(RequestOrigin.HostSystem, () =>
+            {
+                DesktopLog.Error(logger, exception, "Initializing the main window");
+                viewModel.ReportHostInteractionFailure("Desktop initialization failed. " + exception.Message);
+                Hide();
+            }, HostActivityLayer.Desktop, HostOperation.Presentation);
+        }
+    }
+
+    private async Task InitializeWindowAsync()
+    {
         if (initialized)
         {
             return;
@@ -169,6 +195,11 @@ public sealed partial class MainWindow : Window
         {
             DesktopLog.Debug(logger, "Hiding the main window after successful background startup");
             viewModel.HidePresentation();
+            Hide();
+        }
+        else if (!viewModel.IsPresenceDisplayEnabled)
+        {
+            DesktopLog.Debug(logger, "Keeping the disabled presence hidden after startup");
             Hide();
         }
         else
@@ -230,8 +261,50 @@ public sealed partial class MainWindow : Window
 
     private async void OnWindowActionRequested(object? sender, WindowAction action)
     {
+        _ = await RunWindowActionAsync(() => ApplyWindowActionAsync(action), ReportWindowActionFailure);
+    }
+
+    private void ReportWindowActionFailure(Exception exception)
+    {
+        windowActionFailed = true;
+        DesktopLog.Error(logger, exception, "Applying a desktop window action");
+        viewModel.ReportHostInteractionFailure(
+            "Desktop presentation failed. Use the native tray controls to exit and restart Kora. " + exception.Message);
+    }
+
+    internal static async Task<HostOperationOutcome> RunWindowActionAsync(
+        Func<Task> route, Action<Exception> reportFailure)
+    {
+        ArgumentNullException.ThrowIfNull(route);
+        ArgumentNullException.ThrowIfNull(reportFailure);
+        using var activity = HostActivity.BeginOperation(
+            HostActivityLayer.Desktop, HostOperation.Presentation, RequestOrigin.HostSystem);
+        try
+        {
+            await route();
+            activity.Complete(HostOperationOutcome.Completed);
+            return HostOperationOutcome.Completed;
+        }
+        catch (OperationCanceledException)
+        {
+            activity.Complete(HostOperationOutcome.Cancelled);
+            return HostOperationOutcome.Cancelled;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            reportFailure(exception);
+            return HostOperationOutcome.Failed;
+        }
+    }
+
+    private async Task ApplyWindowActionAsync(WindowAction action)
+    {
         if (action is WindowAction.Show or WindowAction.ShowPresence
-            && (presenceInputFailed || !viewModel.CanRevealPrivatePresentation))
+            && (presenceInputFailed
+                || windowActionFailed
+                || !viewModel.CanRevealPrivatePresentation
+                || !viewModel.IsPresenceDisplayEnabled))
         {
             return;
         }
@@ -243,34 +316,14 @@ public sealed partial class MainWindow : Window
                 CancelPendingHide();
                 EnsurePositionOnConnectedScreen();
                 Show();
+                Presence.IsPresenceVisible = true;
                 SchedulePresenceTimeout();
                 break;
             case WindowAction.Hide:
                 DesktopLog.Debug(logger, "Hiding the main window after its transition");
-                CancelPendingHide();
                 presenceTimeoutTimer.Stop();
                 presenceInactivity.Stop();
-                var hideRequest = new CancellationTokenSource();
-                pendingHide = hideRequest;
-                try
-                {
-                    await Task.Delay(
-                        PresenceAnimation.VisibilityTransitionDuration + PresenceAnimation.FrameInterval,
-                        hideRequest.Token);
-                    Hide();
-                }
-                catch (OperationCanceledException) when (hideRequest.IsCancellationRequested)
-                {
-                }
-                finally
-                {
-                    if (ReferenceEquals(pendingHide, hideRequest))
-                    {
-                        pendingHide = null;
-                    }
-
-                    hideRequest.Dispose();
-                }
+                await HidePresenceAfterTransitionAsync();
                 break;
             case WindowAction.Close:
                 DesktopLog.Information(logger, "Shutting down the desktop application");
@@ -299,8 +352,37 @@ public sealed partial class MainWindow : Window
         pendingHide = null;
     }
 
+    private async Task HidePresenceAfterTransitionAsync()
+    {
+        CancelPendingHide();
+        Presence.IsPresenceVisible = false;
+        var hideRequest = new CancellationTokenSource();
+        pendingHide = hideRequest;
+        try
+        {
+            await Task.Delay(
+                PresenceAnimation.VisibilityTransitionDuration + PresenceAnimation.FrameInterval,
+                hideRequest.Token);
+            Hide();
+        }
+        catch (OperationCanceledException) when (hideRequest.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(pendingHide, hideRequest))
+            {
+                pendingHide = null;
+            }
+
+            hideRequest.Dispose();
+        }
+    }
+
     private void OnClosing(object? sender, WindowClosingEventArgs eventArgs)
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Presentation,
+            RequestOrigin.LocalUi);
         positionSaveTimer.Stop();
         if (positionInitialized)
         {
@@ -312,6 +394,7 @@ public sealed partial class MainWindow : Window
             || eventArgs.CloseReason is WindowCloseReason.ApplicationShutdown
                 or WindowCloseReason.OSShutdown)
         {
+            activity.Complete(HostOperationOutcome.Completed);
             return;
         }
 
@@ -319,6 +402,7 @@ public sealed partial class MainWindow : Window
         eventArgs.Cancel = true;
         CancelPendingHide();
         viewModel.HideApplication();
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
@@ -326,6 +410,23 @@ public sealed partial class MainWindow : Window
         if (eventArgs.PropertyName is nameof(MainViewModel.PresenceTimeoutSeconds))
         {
             SchedulePresenceTimeout();
+        }
+        else if (eventArgs.PropertyName is nameof(MainViewModel.IsPresenceDisplayEnabled))
+        {
+            if (viewModel.IsPresenceDisplayEnabled)
+            {
+                _ = RunWindowActionAsync(
+                    () => ApplyWindowActionAsync(WindowAction.ShowPresence),
+                    ReportWindowActionFailure);
+            }
+            else
+            {
+                presenceTimeoutTimer.Stop();
+                presenceInactivity.Stop();
+                CancelPendingHide();
+                Presence.IsPresenceVisible = false;
+                Hide();
+            }
         }
         else if (eventArgs.PropertyName is nameof(MainViewModel.IsListening)
             or nameof(MainViewModel.State)
@@ -359,6 +460,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnMouseActivity(object? sender, PointerEventArgs eventArgs)
+    {
+        if (eventArgs.Pointer.Type == PointerType.Mouse)
+        {
+            SchedulePresenceTimeout();
+        }
+    }
+
     private void OnPositionChanged(object? sender, PixelPointEventArgs eventArgs)
     {
         if (!positionInitialized)
@@ -376,9 +485,12 @@ public sealed partial class MainWindow : Window
 
     private void OnPositionSaveTimer(object? sender, EventArgs eventArgs)
     {
-        positionSaveTimer.Stop();
-        _ = viewModel.SetPresencePosition(
-            new PresencePosition(Position.X, Position.Y));
+        HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
+        {
+            positionSaveTimer.Stop();
+            _ = viewModel.SetPresencePosition(
+                new PresencePosition(Position.X, Position.Y));
+        }, HostActivityLayer.Desktop, HostOperation.Policy);
     }
 
     private void OnPresenceTimeout(object? sender, EventArgs eventArgs)
@@ -397,8 +509,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        DesktopLog.Debug(logger, "Hiding the presence after its inactivity timeout");
-        Hide();
+        _ = RunWindowActionAsync(async () =>
+        {
+            DesktopLog.Debug(logger, "Fading the presence after its inactivity timeout");
+            await HidePresenceAfterTransitionAsync();
+        }, ReportWindowActionFailure);
     }
 
     private bool CanSchedulePresenceTimeout =>

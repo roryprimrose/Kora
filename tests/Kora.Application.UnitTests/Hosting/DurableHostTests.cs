@@ -16,6 +16,56 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed class DurableHostTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Admitted_wait_precedes_dispatch_and_safe_cancellation_has_no_query_callback(bool cancel)
+    {
+        using var f = new Fixture();
+        var invoked = false;
+        var result = await f.Query.RunAsync(RequestOrigin.LocalUi, () =>
+        {
+            invoked = true;
+            return Task.CompletedTask;
+        }, CancellationToken.None, async intent =>
+        {
+            f.Store.Records.Last().Should().Be(intent);
+            intent.State.Should().Be(HostTaskState.IntentRecorded);
+            var coordinator = new HostTaskCoordinator(f.Store);
+            return cancel ? await coordinator.RecordOutcomeAsync(intent, HostTaskState.Cancelled, CancellationToken.None)
+                : await coordinator.RecordDispatchAsync(intent, CancellationToken.None);
+        });
+        result.State.Should().Be(cancel ? HostTaskState.Cancelled : HostTaskState.Succeeded);
+        invoked.Should().Be(!cancel);
+    }
+
+    [Theory]
+    [InlineData("foreign")]
+    [InlineData("revision")]
+    [InlineData("state")]
+    [InlineData("cancelled")]
+    [InlineData("failed")]
+    public async Task Missing_or_hostile_wait_receipt_never_dispatches_or_claims_success(string failure)
+    {
+        using var f = new Fixture();
+        var invoked = false;
+        var run = () => f.Query.RunAsync(RequestOrigin.LocalUi, () =>
+        {
+            invoked = true;
+            return Task.CompletedTask;
+        }, CancellationToken.None, intent => failure switch
+        {
+            "foreign" => Task.FromResult(new HostTaskRecord(HostRequest.Create(RequestOrigin.LocalUi), new(2), HostTaskState.DispatchRecorded)),
+            "revision" => Task.FromResult(new HostTaskRecord(intent.Request, new(3), HostTaskState.DispatchRecorded)),
+            "state" => Task.FromResult(new HostTaskRecord(intent.Request, new(2), HostTaskState.Succeeded)),
+            "cancelled" => Task.FromException<HostTaskRecord>(new OperationCanceledException()),
+            _ => Task.FromException<HostTaskRecord>(new IOException("host wait failed")),
+        });
+        await run.Should().ThrowAsync<Exception>();
+        invoked.Should().BeFalse();
+        f.Store.Records.Should().ContainSingle().Which.State.Should().Be(HostTaskState.IntentRecorded);
+        HostActivity.Current.Should().BeNull();
+    }
+    [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
     public async Task Version_query_commits_identified_ordered_receipt_after_required_evidence(RequestOrigin origin)

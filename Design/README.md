@@ -1,10 +1,37 @@
 # Kora Design
 
-Status: proposed design, not an implemented capability statement.
+Status: design index; proposed contracts and source-backed bounded deliveries
+are labelled separately. The vision and complete release scope are not an
+implemented capability statement.
 
 [Vision Statement](Vision_Statement.md) describes the long-term product direction.
 The documents below turn that direction into an initial delivery scope and architectural decisions.
 Where the vision is broader or less specific, these documents define the proposed implementation constraints.
+
+## Authoritative Qualification Policy
+
+[Acceptance Criteria: Three-Tier Qualification Policy](Acceptance_Criteria.md#three-tier-qualification-policy)
+owns the boundary: normal feature development merges with its directly
+applicable unit/integration/security/compatibility/regression checks, independent
+of unrelated experiments; capability/profile proofs gate only enabling,
+advertising, packaging as available or materially changing that path; final RC
+qualification evaluates an explicit enabled-capability manifest. Exclusions are
+recorded as exclusions, never passed capabilities or a claim of full A0-A4/B/C.
+Hard fail-closed authority/privacy/data-integrity gates and all affected mandatory
+critical fixtures remain unchanged.
+
+The roadmap's [I/E/Q Needs interpretation](Implementation_Roadmap.md#reading-needs)
+distinguishes implementation dependencies from enablement and RC evidence,
+explicitly permitting unrelated bounded feature work in parallel. Its
+[experiment disposition inventory](Implementation_Roadmap.md#experiment-disposition-inventory)
+retains inference, containment and speech as opt-in environment-qualified
+harnesses outside default CI; migrates applicable runtime/lifecycle/storage/
+.NET control/management assertions to maintained tests before executable
+archival; and treats distribution/W2 as historical receipts unless mechanisms
+change. No experiment code is deleted by this policy change. The
+[cost/risk rationale](Implementation_Roadmap.md#cost-versus-unique-risk-reduction)
+explains why unique native/hardware proof is retained without imposing duplicate
+prototype suites on unrelated delivery.
 
 ## Implementation Status and Next Work
 
@@ -14,6 +41,9 @@ behavior from partial/outstanding features and missing release proof, and orders
 remaining work by safety, user value and explicit dependencies.
 It is the current delivery baseline; the numbered A0-A4/B/C checkpoints remain
 acceptance milestones, not a claim that the bootstrap has completed any slice.
+Its [current merged snapshot](Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
+identifies the exact reviewed main SHA, merged PRs, maintained source and
+experiment disposition separately from original/rebase validation receipts.
 R01's initial-release policy reconciliation is
 [approved and recorded](Decision_Register.md#r01-accepted-policy-reconciliation):
 R02 feasibility and R03 ownership/privacy work can start. Runtime acceptance
@@ -23,9 +53,13 @@ R02's storage/key investigation now informs the
 [D-009 status and remaining gates](Decision_Register.md#d-009-session-persistence-and-retention),
 and [concrete R02/R04/R12 follow-on work](Implementation_Roadmap.md#r02-storagekey-outcome-and-follow-on-work).
 The runnable experiment is supporting evidence, not production admission:
-maintained native selection and installed Windows loading remain open;
-CurrentUser/profile-path/permission integration, the final schema and
-integrated lifecycle/deletion are not delivered. Windows supplies ordinary
+the approved baseline is now bundled standard SQLite with verified private
+profile permissions, not an unresolved encrypted-native/key selection.
+Bounded task/evidence/interaction persistence, no-replay recovery, ordinary
+diagnostic pruning and minimal session authority/workspace/metadata are
+composed. Full conversation/artifact/backup lifecycle and deletion, audit
+anchors/pruning and installed Windows loading/protection remain open.
+Windows supplies ordinary
 cross-profile isolation; routine second-account OS-denial trials are not
 required for this profile-local application or for merging its research outcome.
 
@@ -47,8 +81,9 @@ starts with test-owner/environment/budget approval, then consented provisioning,
 actual trials, candidate disposition and integration. The proof remains
 supporting evidence, not the only place this work is tracked.
 The [LI01-LI07 checklist](../experiments/r02-local-inference-proof/README.md#outstanding-testing-checklist)
-provides the later interactive-session procedures; merging partial research
-does not close the outstanding inference or independent proof gates.
+provides the later interactive-session procedures; merging partial research or
+unrelated features does not close inference qualification, nor do independent
+proof gates block those unrelated merges.
 
 R02's [runtime/provider outcomes and technical path](Runtime_Provider_Feasibility.md)
 now record actual Node candidate evidence, reject hook-only failed-result
@@ -59,6 +94,61 @@ and approved-account trials. D-001/D-004 remain open; deterministic local
 work is not held behind unapproved hosted-model tests.
 
 ## Current Bootstrap Boundary
+
+The merged bootstrap also delivers a bounded
+[Sessions workspace and native metadata controls](Interaction_And_Sessions.md#delivered-bounded-session-metadata-and-explicit-creation---2026-10-07),
+[explicit local clipboard preview](../docs/commands.md#explicit-local-clipboard-preview),
+six-ID [read-only host discovery](../docs/commands.md#read-only-host-discovery),
+and nine-option [typed appearance controls](../docs/settings.md#appearance).
+The [bounded exact-ID session command path](../docs/commands.md#bounded-exact-id-session-commands)
+now shares native host lifecycle/metadata authority for typed and activated
+voice help/list/status/inspect/create/rename/done/resume. It adds no model
+session tools, name-based routing or independent scheduler. Sessions
+names/empty creation are not conversations or queues; clipboard
+preview/reuse never submits content to a model. The read-only catalogue does
+not qualify model execution.
+
+[Kora.Tools](../src/Kora.Tools/README.md) owns portable per-action C# effects
+behind Core contracts and the Application gateway;
+[Kora.Definitions](../src/Kora.Definitions/README.md) owns immutable bundled
+resources. [Slash/activated-voice artifact invocation](../docs/commands.md#run-skills-and-future-artifacts)
+selects bundled or bounded compatible profile instructions for the existing
+local-model selector; it is not a script executor or agent runtime.
+Source-generated companion logging preserves typed audit authority.
+Native [evidence inspection](../docs/privacy-safety-and-logs.md#logs) supports
+SQLite and independent DailyLog; All remains SQLite-only, and file mirrors
+never become audit authority. Ordinary startup pruning is not audit/session
+deletion, and combined-source/model/export workflows remain unavailable.
+
+R10 also delivers a bounded [installed speech-provider/voice configuration
+slice](User_Configuration.md#delivered-bounded-installed-speech-choices-r10):
+shared typed discovery/current/default/recovery and exact UI/typed/activated-voice
+set/reset, coherent atomic selection persistence, revisions and existing
+protected-call original-channel gates. Asset provisioning, other speech options,
+model settings tools and acoustic acceptance are not established by this slice.
+
+R10/R04 now additionally registers
+[future-only SQLite diagnostic days](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04):
+native/exact typed/ACTIVATED discovery/get/status/set/reset, canonical integer
+1–365/default-reset30, independent original-user/session admission and required
+audit/atomic readback/receipt activation. Existing deadlines never change;
+apply-now is unavailable. Audit90/domain, daily files30/30, history, every grant/
+approval and pruning schedule remain unchanged; full R04/R10 remains open.
+
+The [bounded R03/R09 native tray recovery](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
+provides truthful generic input state, five-second single-flight metadata
+refresh, revision-bound microphone preference selection (including System
+and retained unavailable pins), explicit PTT enable/disable and existing
+playback Stop speaking. It adds no capture, wake, microphone test, automatic
+selection or generic question workflow. Full native/audio acceptance remains
+open; existing tray/navigation/maintenance/exit behavior is preserved.
+The subsequent [passive native microphone recovery card](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+shares Tray/Settings exact displayed choices, local draft highlight, revision-bound
+Save preference only and separate fresh endpoint-bound Enable. It does not
+create durable R05 question/session/task authority, combine consent with
+selection/enable, test/capture audio or change Windows permission. Enable still
+only arms existing PTT; first-run/full matrix and native/hardware acceptance
+remain open.
 
 The current Windows bootstrap independently checks/initialises Kora storage and SQLite,
 checks PowerShell 7 readiness, and offers consented PowerShell setup without requiring
@@ -110,6 +200,8 @@ adapter admission or release acceptance.
 22. [Internal Model Tool Catalogue](Internal_Model_Tools.md): complete current action/proposal inventory, proposed internal tools, caller lanes, capability gates, and host-only exclusions.
 23. [Session Workspace and Coordinated Windows](UI_Workspace_And_Windows.md): compact interaction, session list plus full conversation workspace, detail/script review, native cards, concurrent work UX, and supporting windows.
 24. [Local Inference Qualification and Technical Plan](Local_Inference.md): R02 outcomes, candidate/compatibility/context/resource consequences and the path to D-003/D-007 qualification and A2 integration.
+25. [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md): deliberate path selection, immutable source revisions, retrieval/citations, local and hosted model boundaries, voice/settings behavior, and the staged R26 delivery plan.
+26. [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md): explicit Ollama/Copilot session modes and handoff, user-governed durable memory, provider-independent local retrieval, image treatment, provenance, and delivery sequencing.
 
 ## Human Interaction and Sessions
 
@@ -151,6 +243,9 @@ is an offline design mockup, not an implemented application or a change to relea
 - Kora advertises relevant tool definitions and enabled skill summaries; the model proposes, the host validates/authorises/executes, and approved structured results return for model continuation. Exact local controls use the same services and applicable gates without inference.
 - A replaceable agent-runtime adapter may own its model/tool loop only when Kora can enforce the required controls.
 - Copilot SDK support requires an integration proof; SDK capabilities are not assumed.
+- Kora supports qualified Ollama and Copilot adapters through explicit Local only, Local first, and Hosted preferred session modes. One provider handles one model turn; local-to-hosted handoff is reviewed and never triggered solely by model-reported confidence.
+- Models do not learn user facts from ordinary inference. Cross-session memory is Kora-owned, deliberate, scoped, inspectable, editable, and deletable; models may propose memories but cannot persist them directly.
+- Large knowledge sources are indexed and retrieved locally. Both providers receive only bounded cited evidence; hosted use additionally requires the exact destination and outbound envelope to pass current egress policy.
 - Local wake activation is primary from Slice A, defaulting to "Kora"; renaming asks custom-only or default-plus-custom, with custom-only recommended for shared offices. Push-to-talk is optional.
 - Independent persistent sessions execute concurrently within verified limits; the model proposes routing/queue intent, while the host enforces isolation, resource coordination, scheduling, and approvals.
 - Clipboard capture is built in. Interpretation and downstream workflows are extensible.
@@ -176,7 +271,8 @@ is an offline design mockup, not an implemented application or a change to relea
   controller owns approval/countdown and gated fixed-action dispatch.
 - Ongoing microphone consent is explicit on first launch and persists separately
   from run-scoped disablement/recovery holds; ordinary safe restart can use it,
-  but unlock/resume and loss recovery require explicit enablement within the run.
+  normal unlock restores only previously enabled readiness after fresh gates,
+  while resume and other loss recovery require explicit enablement within the run.
 - An unaddressed standalone lock creates a durable Active control work session;
   Session approval is offered only after its binding is committed and presented,
   never from the selected window.

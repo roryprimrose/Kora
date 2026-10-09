@@ -394,6 +394,4 @@ public sealed partial class GitHubReleaseMetadataClient(
     private static partial Regex SourcePattern();
     [GeneratedRegex(@"^https://github\.com/roryprimrose/Kora/actions/runs/[1-9][0-9]*\z", RegexOptions.CultureInvariant, 100)]
     private static partial Regex WorkflowPattern();
-    [LoggerMessage(320, LogLevel.Information, "Canonical metadata check on {Channel} ended {Availability}.")]
-    private static partial void CheckOutcome(ILogger logger, ReleaseChannel channel, ReleaseAvailability availability);
 }

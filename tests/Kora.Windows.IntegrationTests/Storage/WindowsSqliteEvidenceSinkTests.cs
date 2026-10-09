@@ -19,6 +19,142 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteEvidenceSinkTests
 {
     [WindowsFact]
+    public void Repeated_history_validation_decodes_each_unchanged_envelope_once_and_accepts_interleaved_links()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var audit = Audit();
+        using var host = HostActivity.BeginAudit(Request(), audit);
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+        var clock = new FixedClock();
+        var link = new ActivityLinkEnvelope("0123456789abcdef0123456789abcdef", "0123456789abcdef");
+        for (var index = 0; index < 64; index++)
+        {
+            sink.WriteDiagnostic(Diagnostic(host));
+            var completed = new CompletedActivityEnvelope(new(Guid.NewGuid()), TraceSnapshot.Capture(host.Activity)!,
+                host.Request, clock.GetUtcNow(), clock.GetUtcNow(), HostOperationOutcome.Completed,
+                (index % 3) switch
+                {
+                    0 => [],
+                    1 => [link],
+                    _ => [link, link],
+                }, audit.CorrelationId, audit.ApprovalId);
+            sink.WriteActivity(completed);
+        }
+        sink.WriteAudit(new AuditEnvelope(Diagnostic(host), audit));
+        sink.WriteAudit(new AuditEnvelope(Diagnostic(host), audit.WithOutcome(SecurityAuditOutcome.Succeeded)));
+        sink.Initialize();
+        sink.PersistedEnvelopeDecodeCount.Should().Be(130);
+
+        sink.Initialize();
+        sink.PersistedEnvelopeDecodeCount.Should().Be(130);
+        sink.WriteDiagnostic(Diagnostic(host));
+        sink.PersistedEnvelopeDecodeCount.Should().Be(130);
+        sink.Initialize();
+        sink.PersistedEnvelopeDecodeCount.Should().Be(131);
+
+        using var connection = Open(fixture);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) FROM application_log_events;";
+        command.ExecuteScalar().Should().Be(65L);
+        command.CommandText = "SELECT count(*) FROM activity_links;";
+        command.ExecuteScalar().Should().Be(63L);
+        command.CommandText = "SELECT count(*) FROM security_audit_events;";
+        command.ExecuteScalar().Should().Be(2L);
+    }
+
+    [Theory]
+    [InlineData("UPDATE application_log_events SET envelope=json_set(envelope,'$.SchemaVersion',2);")]
+    [InlineData("UPDATE application_log_events SET envelope=json_set(envelope,'$.Properties.Count.CanonicalValue','invalid');")]
+    [InlineData("UPDATE application_log_events SET event_name='Rewritten';")]
+    [InlineData("UPDATE application_log_events SET due_utc=committed_utc+366*864000000000;")]
+    [InlineData("UPDATE application_log_events SET session_id='11111111-1111-1111-1111-111111111111';")]
+    public void Warm_envelope_cache_never_accepts_changed_payload_columns_or_retention(string mutation)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        using var host = HostActivity.BeginRoot(Request(), HostActivityLayer.Application, HostOperation.Request);
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+        sink.WriteDiagnostic(Diagnostic(host));
+        sink.Initialize();
+        sink.PersistedEnvelopeDecodeCount.Should().Be(1);
+        Mutate(fixture, mutation);
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+
+        var write = () => sink.WriteDiagnostic(Diagnostic(host));
+
+        write.Should().Throw<IOException>();
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+    }
+
+    [Theory]
+    [InlineData("DELETE FROM activity_links WHERE ordinal=1;")]
+    [InlineData("UPDATE activity_links SET span_id='1111111111111111';")]
+    [InlineData("UPDATE activity_links SET due_utc=due_utc+1;")]
+    [InlineData("UPDATE activity_links SET envelope=json_set(envelope,'$.SpanId','1111111111111111');")]
+    public void Warm_activity_cache_never_accepts_missing_rewritten_or_retimed_links(string mutation)
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        using var host = HostActivity.BeginRoot(Request(), HostActivityLayer.Application, HostOperation.Request);
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+        var clock = new FixedClock();
+        var completed = new CompletedActivityEnvelope(new(Guid.NewGuid()), TraceSnapshot.Capture(host.Activity)!,
+            host.Request, clock.GetUtcNow(), clock.GetUtcNow(), HostOperationOutcome.Completed,
+            [new("0123456789abcdef0123456789abcdef", "0123456789abcdef"),
+                new("fedcba9876543210fedcba9876543210", "fedcba9876543210")]);
+        sink.WriteActivity(completed);
+        sink.Initialize();
+        sink.PersistedEnvelopeDecodeCount.Should().Be(1);
+        Mutate(fixture, mutation);
+        var before = File.ReadAllBytes(DatabasePath(fixture));
+
+        var write = () => sink.WriteDiagnostic(Diagnostic(host));
+
+        write.Should().Throw<IOException>();
+        File.ReadAllBytes(DatabasePath(fixture)).Should().Equal(before);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Validation_cache_saturation_revalidates_uncached_history_without_exceeding_its_bounds(bool largePayload)
+    {
+        using var fixture = new OwnedStorageFixture();
+        var sink = new WindowsSqliteEvidenceSink(fixture);
+        var seed = Bootstrap();
+        if (largePayload)
+        {
+            var properties = new Dictionary<string, EvidenceValue>(seed.Properties, StringComparer.Ordinal);
+            for (var index = 0; index < 32; index++)
+            {
+                properties.Add($"field{index}", new(EvidenceValueKind.Text, new string('x', 1024)));
+            }
+            seed = seed with { Properties = properties };
+        }
+        sink.WriteDiagnostic(seed);
+        var count = largePayload ? 1024 : WindowsSqliteEvidenceSink.MaximumCachedEnvelopeEntries + 1;
+        SeedDiagnosticHistory(fixture, seed, count);
+
+        sink.Initialize();
+
+        sink.PersistedEnvelopeDecodeCount.Should().Be(count);
+        sink.PersistedEnvelopeCacheEntryCount.Should().BeLessThan(count);
+        sink.PersistedEnvelopeCacheEntryCount.Should().BeLessThanOrEqualTo(
+            WindowsSqliteEvidenceSink.MaximumCachedEnvelopeEntries);
+        sink.PersistedEnvelopeCacheEncodedBytes.Should().BeLessThanOrEqualTo(
+            WindowsSqliteEvidenceSink.MaximumCachedEncodedPayloadBytes);
+        if (!largePayload)
+        {
+            sink.PersistedEnvelopeCacheEntryCount.Should().Be(WindowsSqliteEvidenceSink.MaximumCachedEnvelopeEntries);
+        }
+        var cached = sink.PersistedEnvelopeCacheEntryCount;
+        sink.Initialize();
+        sink.PersistedEnvelopeDecodeCount.Should().Be(count + (count - cached));
+        sink.PersistedEnvelopeCacheEntryCount.Should().Be(cached);
+    }
+
+    [WindowsFact]
     public async Task Typed_tables_preserve_host_W3C_business_links_and_independent_due_dates_without_keys()
     {
         using var fixture = new OwnedStorageFixture();
@@ -316,7 +452,7 @@ public sealed class WindowsSqliteEvidenceSinkTests
     }
 
     [Theory]
-    [InlineData("PRAGMA user_version=2;")]
+    [InlineData("PRAGMA user_version=3;")]
     [InlineData("PRAGMA application_id=0;")]
     [InlineData("DROP INDEX ix_application_log_events_trace_id;")]
     [InlineData("CREATE TRIGGER hidden_rewrite AFTER INSERT ON application_log_events BEGIN DELETE FROM application_log_events; END;")]
@@ -559,6 +695,38 @@ public sealed class WindowsSqliteEvidenceSinkTests
         using var command = connection.CreateCommand();
         command.CommandText = sql;
         command.ExecuteNonQuery();
+    }
+
+    private static void SeedDiagnosticHistory(OwnedStorageFixture fixture, DiagnosticEnvelope seed, int count)
+    {
+        using var connection = Open(fixture);
+        using var columns = connection.CreateCommand();
+        columns.CommandText = "SELECT * FROM application_log_events LIMIT 0;";
+        string[] names;
+        using (var reader = columns.ExecuteReader())
+        {
+            names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+        }
+        using var transaction = connection.BeginTransaction();
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        var projection = names.Select(name => name switch
+        {
+            "evidence_id" => "$id",
+            "envelope" => "json_set(envelope,'$.EvidenceId.Value',$id)",
+            _ => name,
+        });
+        command.CommandText = $"INSERT INTO application_log_events SELECT {string.Join(',', projection)} "
+            + "FROM application_log_events WHERE evidence_id=$seed;";
+        command.Parameters.AddWithValue("$seed", seed.EvidenceId.Value.ToString("D"));
+        var id = command.Parameters.Add("$id", SqliteType.Text);
+        command.Prepare();
+        for (var index = 1; index < count; index++)
+        {
+            id.Value = Guid.NewGuid().ToString("D");
+            command.ExecuteNonQuery().Should().Be(1);
+        }
+        transaction.Commit();
     }
 
     private static async Task RunOwnedJunctionCommand(ProcessStartInfo start, CancellationToken cancellationToken)

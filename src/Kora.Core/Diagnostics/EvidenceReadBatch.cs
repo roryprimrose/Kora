@@ -1,4 +1,6 @@
 namespace Kora.Core.Diagnostics;
 
 public sealed record EvidenceReadBatch(EvidenceSnapshot Snapshot, IReadOnlyList<EvidenceCandidate> Candidates,
-    EvidencePosition? ScannedThrough, bool HasMore, bool ScanLimitReached);
+    EvidencePosition? ScannedThrough, bool HasMore, bool ScanLimitReached,
+    EvidencePageStatus? Status = null, DailyEvidenceReport? DailyReport = null,
+    IReadOnlyList<EvidenceSource>? UnavailableSources = null);

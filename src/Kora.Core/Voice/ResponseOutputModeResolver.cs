@@ -5,13 +5,15 @@ public static class ResponseOutputModeResolver
     public static ResponseOutputMode Resolve(
         ResponseOutputMode defaultMode,
         ResponseOutputMode? queueOverride,
-        ResponseOutputMode? taskOverride)
+        ResponseOutputMode? taskOverride,
+        ResponseOutputMode? sessionOverride = null)
     {
         Validate(defaultMode, nameof(defaultMode));
         Validate(queueOverride, nameof(queueOverride));
         Validate(taskOverride, nameof(taskOverride));
+        Validate(sessionOverride, nameof(sessionOverride));
 
-        return taskOverride ?? queueOverride ?? defaultMode;
+        return taskOverride ?? queueOverride ?? sessionOverride ?? defaultMode;
     }
 
     private static void Validate(ResponseOutputMode? mode, string parameterName)

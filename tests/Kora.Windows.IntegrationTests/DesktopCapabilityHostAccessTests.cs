@@ -36,17 +36,23 @@ public sealed class DesktopCapabilityHostAccessTests
             entered.SetResult();
             return release.Task;
         }, _ => Task.CompletedTask);
+        var admittedEpoch = bridge.AdmissionRevision;
+        bridge.AdmissionRevision.Should().Be(admittedEpoch, "passive inspection does not renew admission");
         access.IsCurrentHost.Should().BeTrue();
         session.Unlocked = false;
         access.IsCurrentHost.Should().BeFalse();
         session.Unlocked = true;
         var handoff = bridge.QuiesceForHandoffAsync(TestContext.Current.CancellationToken);
         await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        bridge.AdmissionRevision.Should().BeGreaterThan(admittedEpoch);
+        var handoffEpoch = bridge.AdmissionRevision;
         access.IsCurrentHost.Should().BeFalse();
         release.SetResult(false);
         (await handoff).Should().BeFalse();
+        bridge.AdmissionRevision.Should().BeGreaterThan(handoffEpoch);
         access.IsCurrentHost.Should().BeTrue();
         bridge.UnbindCallbacks();
+        bridge.AdmissionRevision.Should().BeGreaterThan(handoffEpoch);
         access.IsCurrentHost.Should().BeFalse();
     }
 

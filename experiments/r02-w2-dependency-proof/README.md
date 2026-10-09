@@ -7,6 +7,17 @@ is unchanged: Job-only restricted execution is rejected; AppContainer is
 partial; ordinary children are allowed; eight network timeouts do not prove
 attributable denial. Installer implementation does not prove this boundary.
 
+**Current disposition:** historical decision/failure receipts unless dependency/
+fixed-action/helper/protected-runtime or worker mechanisms materially change.
+Retain remaining code without making its old candidate suite a recurring
+default-CI requirement. Maintain applicable production manifest/review/hash/
+invalidation/receipt regressions as implemented; W1/W3/W4 and real control-API
+qualification remain separate. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+own scope and archive/consumer checks. No code is removed and no rejected strict
+candidate or unperformed trial is reclassified as passed.
+
 **Disposition:** scratch ACL projection and a no-child mitigation are rejected
 as exact executable/module dependency mechanisms. Fixed embedded multi-script
 input and a harmless typed effect are feasible in this fixture. Full worker/
@@ -83,11 +94,26 @@ admission, even when all diagnostic checks pass. There is no production-pass
 exit for this partial profile. Do not translate 2 into enforcement success.
 Build/receipt/cleanup failures are explicit; every attempt gets a fresh directory.
 
-The runner uses existing locked test packages already reviewed in the root
+The original measured runner used locked test packages reviewed in that root
 closure: xUnit v3 4.0.1, AwesomeAssertions 9.6.0 and TRX 2.4.1. All 19 resolved
-test package/version/content hashes match the reviewed root test locks; no new
-runtime NuGet dependency enters the worker. Existing PowerShell is copied into
-scratch only, not redistributed or production-admitted by this trial.
+test package/version/content hashes matched those historical root test locks.
+Current reruns use the reconciled test lock described below; no new runtime
+NuGet dependency enters the worker. Existing PowerShell is copied into scratch
+only, not redistributed or production-admitted by this trial.
+
+### Current-checkout test dependency reconciliation (2026-10-07)
+
+Preparation at `d0a8e82ef34b82c4d888803083050c2e9dff43cd` exposed
+`NU1004`: the historical test lock still requested TRX 2.4.1, while the current
+central declarations require TRX 2.5.0 and centrally pinned Telemetry 2.5.0.
+The operator approved regenerating only this fixture's test lock against the
+existing central versions. Production package declarations and worker behavior
+are unchanged. Subsequent restore/build validation retains locked mode.
+
+The historical measured evidence is unchanged. New attempts must record the
+actual base revision, dirty-source distinction and exact source/lock hashes
+separately; this dependency reconciliation is not a containment result or
+W1-W4/D-013 admission.
 
 ### Optional native fixture prerequisites (not run here)
 

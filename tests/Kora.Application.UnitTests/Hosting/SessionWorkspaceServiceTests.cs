@@ -13,8 +13,34 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Hosting;
 
-public sealed class SessionWorkspaceServiceTests
+public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task Metadata_controls_use_fresh_exact_subjects_and_passive_descriptors_never_write_intent()
+    {
+        using var fixture = new Fixture();
+        using (var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            (await fixture.Service.ReadMetadataAsync(null, 25, fixture.Token)).Records.Should().ContainSingle()
+                .Which.Authority.Should().Be(fixture.Session);
+            fixture.TaskWrites.Should().BeEmpty();
+        }
+        var name = new SessionName("User content");
+        var created = await fixture.Service.CreateAsync(name, RequestOrigin.LocalUi, fixture.Token);
+        created.Authority.SessionId.Should().NotBe(fixture.Request.SessionId);
+        created.Authority.IsActive.Should().BeTrue();
+        created.Metadata!.Name.Should().Be(name);
+        fixture.TaskWrites[0].Request.SessionId.Should().Be(created.Authority.SessionId);
+        fixture.TaskWrites[1].State.Should().Be(HostTaskState.Succeeded);
+        var renamed = await fixture.Service.RenameAsync(fixture.Request.SessionId, new(1), 0, name,
+            RequestOrigin.ActivatedVoice, fixture.Token);
+        renamed.Authority.Should().Be(fixture.Session);
+        renamed.Metadata!.Revision.Value.Should().Be(1);
+        fixture.TaskWrites[2].Request.SessionId.Should().Be(fixture.Request.SessionId);
+        fixture.TaskWrites[2].Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        fixture.TaskWrites[3].State.Should().Be(HostTaskState.Succeeded);
+    }
+
     [Fact]
     public async Task Passive_pages_preserve_exact_typed_records_without_committing_intent()
     {
@@ -125,8 +151,33 @@ public sealed class SessionWorkspaceServiceTests
         fixture.Logger.Messages.Should().ContainSingle().Which.Should().Be("Sessions workspace failed; exception type IOException.");
     }
 
-    private sealed class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, IHostTaskStore, IDisposable
+    private sealed partial class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, IDisposable
     {
+        internal Action? AfterPreview { get; set; }
+        internal bool RevokeDuringDispositionResolution { get; init; }
+        internal void AdvanceRevision() => ControlRevision++;
+        public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
+            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken)
+        {
+            AfterPreview?.Invoke();
+            return ValueTask.FromResult(new SessionDispositionPreview(Guid.NewGuid(), new(Session, null), "revision", 1, 1, 1, 1));
+        }
+        public async ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+            Func<bool> canControl, CancellationToken cancellationToken)
+        {
+            var authority = await ChangeIdleLifecycleAsync(request, preview.Session.Authority.Generation, false, canControl, cancellationToken);
+            await CommitAsync(new(request, new(2), HostTaskState.Succeeded), 1, cancellationToken);
+            return new(request.SessionId, authority.Generation, preview);
+        }
+        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<HostTaskObservation?>(UnknownTask ? null : new(Task, Session.Generation, "unclassified", false, Question));
+        public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target,
+            Func<bool> canControl, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new HostTaskObservation(new(Request, new(2), HostTaskState.Cancelled),
+                Session.Generation, "host.local-version.v1", true, Question with { Key = Question.Key.Next(), Status = QuestionStatus.Cancelled }));
+        internal bool UnknownTask { get; init; }
+        internal bool ForeignTaskSession { get; init; }
+        internal bool RevokeDuringTaskResolution { get; init; }
         private readonly ActivityListener listener = new()
         {
             ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
@@ -156,6 +207,24 @@ public sealed class SessionWorkspaceServiceTests
         internal bool RevokeDuringControl { get; init; }
         internal bool ReviseDuringControl { get; init; }
         internal string? Failure { get; init; }
+        internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; init; }
+        internal Action? AfterHistoryRead { get; set; }
+        internal Exception? HistoryFailure { get; set; }
+        internal SessionHistoryEvent? HistoryEvent { get; set; }
+        public ValueTask<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session,
+            SessionHistoryCursor? cursor, int limit, CancellationToken cancellationToken)
+        {
+            if (HistoryFailure is { } failure) { throw failure; }
+            AfterHistoryRead?.Invoke();
+            return ValueTask.FromResult(new SessionHistoryPage(session, new(1), false, 0, [], null));
+        }
+        public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,
+            Guid eventId, CancellationToken cancellationToken)
+        {
+            if (HistoryFailure is { } failure) { throw failure; }
+            AfterHistoryRead?.Invoke();
+            return ValueTask.FromResult(HistoryEvent);
+        }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;
@@ -174,6 +243,25 @@ public sealed class SessionWorkspaceServiceTests
             return ValueTask.FromResult(after is null
                 ? new SessionPage<WorkSessionAuthorization>([Session], Session.SessionId.Value) : new([], null));
         }
+
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(MetadataPage ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null));
+
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
+        {
+            if (RevokeDuringDispositionResolution) { AdvanceRevision(); }
+            if (RevokeDuringTaskResolution) { CanInspect = false; }
+            return ValueTask.FromResult(new SessionWorkspaceEntry(
+                ForeignTaskSession ? new(new(Guid.NewGuid()), new(1), true) : Session, null));
+        }
+
+        public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
+            Func<bool> canControl, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new SessionWorkspaceEntry(new(request.SessionId, new(1), true), new(request.SessionId, new(1), name)));
+
+        public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision expectedGeneration,
+            long expectedMetadataRevision, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new SessionWorkspaceEntry(Session, new(request.SessionId, new(expectedMetadataRevision + 1), name)));
 
         public ValueTask<SessionPage<HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken cancellationToken) =>
             ValueTask.FromResult(new SessionPage<HostQuestionRecord>([Question], null));

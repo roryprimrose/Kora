@@ -1,5 +1,3 @@
-using System.Globalization;
-
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -11,7 +9,7 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
 {
     private static readonly string[] Tables =
         ["application_log_events", "security_audit_events", "activity_spans", "activity_links"];
-    private const int MaximumScannedRows = 4096;
+    internal const int MaximumScannedRows = 4096;
 
     public ValueTask<EvidenceReadBatch> ReadAsync(EvidenceQuery query, EvidenceReadCheckpoint? checkpoint,
         HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
@@ -38,6 +36,7 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
         using var lease = sink.AcquireReadLease(cancellationToken);
         using var connection = sink.OpenReadOnly(cancellationToken);
         var snapshot = checkpoint?.Snapshot ?? Snapshot(connection);
+        if (checkpoint is not null) { ValidateSnapshot(connection, snapshot); }
         var ceilings = new[] { snapshot.Log, snapshot.Audit, snapshot.Span, snapshot.Link };
         using var command = connection.CreateCommand();
         var selects = new List<string>();
@@ -136,13 +135,42 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
     private static EvidenceSnapshot Snapshot(SqliteConnection connection)
     {
         var values = new long[Tables.Length];
+        var identities = new string?[Tables.Length];
         using var command = connection.CreateCommand();
         for (var index = 0; index < Tables.Length; index++)
         {
-            command.CommandText = $"SELECT coalesce(max(rowid),0) FROM {Tables[index]};";
-            values[index] = Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+            var identity = index == 3 ? "evidence_id || ':' || ordinal" : "evidence_id";
+            command.CommandText = $"SELECT rowid,{identity} FROM {Tables[index]} ORDER BY rowid DESC LIMIT 1;";
+            using var row = command.ExecuteReader();
+            if (row.Read())
+            {
+                values[index] = row.GetInt64(0);
+                identities[index] = row.GetString(1);
+            }
         }
-        return new(values[0], values[1], values[2], values[3]);
+        return new(values[0], values[1], values[2], values[3], identities[0], identities[2], identities[3]);
+    }
+
+    private static void ValidateSnapshot(SqliteConnection connection, EvidenceSnapshot snapshot)
+    {
+        // Ordinary rowids can be reused after pruning. Never admit a replacement into an old cursor.
+        var ceilings = new[] { snapshot.Log, snapshot.Span, snapshot.Link };
+        var identities = new[] { snapshot.LogCeilingId, snapshot.SpanCeilingId, snapshot.LinkCeilingId };
+        var tables = new[] { Tables[0], Tables[2], Tables[3] };
+        using var command = connection.CreateCommand();
+        command.Parameters.Add("$ceiling", SqliteType.Integer);
+        for (var index = 0; index < tables.Length; index++)
+        {
+            if (ceilings[index] == 0) { continue; }
+            var identity = index == 2 ? "evidence_id || ':' || ordinal" : "evidence_id";
+            command.CommandText = $"SELECT {identity} FROM {tables[index]} WHERE rowid=$ceiling;";
+            command.Parameters["$ceiling"].Value = ceilings[index];
+            if (identities[index] is null
+                || !string.Equals(command.ExecuteScalar() as string, identities[index], StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The evidence snapshot changed during retention; start a new query.");
+            }
+        }
     }
 
     private static void Add(List<string> where, SqliteCommand command, string column, string? value)
@@ -230,7 +258,7 @@ public sealed class WindowsSqliteEvidenceReader(WindowsSqliteEvidenceSink sink) 
             : new(trace, span, EvidenceSegmentStatus.MissingOrRemoved, null);
     }
 
-    private static bool Matches(EvidenceRecord record, EvidenceQuery query)
+    internal static bool Matches(EvidenceRecord record, EvidenceQuery query)
     {
         if (query.Severity is { } severity && !string.Equals(record.Level, severity.ToString(), StringComparison.Ordinal)
             || query.EventId is { } eventId && record.EventId != eventId

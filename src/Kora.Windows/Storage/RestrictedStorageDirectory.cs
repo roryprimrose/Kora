@@ -277,7 +277,7 @@ internal sealed partial class RestrictedStorageDirectory
         }
     }
 
-    private static void RejectReparseAncestors(string path)
+    internal static void RejectReparseAncestors(string path)
     {
         string? current = path;
         while (current is not null)

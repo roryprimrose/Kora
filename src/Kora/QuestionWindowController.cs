@@ -49,8 +49,12 @@ internal sealed partial class QuestionWindowController : IDisposable
         try
         {
             var version = string.Empty;
-            var receipt = await query.RunAsync(Kora.Core.Hosting.RequestOrigin.LocalUi, async () =>
+            var receipt = await query.RunAsync(RequestOrigin.LocalUi, () =>
             {
+                if (!main.CanRevealPrivatePresentation) { throw new InvalidOperationException("Privacy closed before the local query."); }
+                version = info.Version;
+                return Task.CompletedTask;
+            }, CancellationToken.None, async _ =>
                 await host.AskVersionAsync(async model =>
                 {
                     state = model;
@@ -69,13 +73,12 @@ internal sealed partial class QuestionWindowController : IDisposable
                     window.Show(owner);
                     window.Activate();
                     await model.Completion;
-                }, CancellationToken.None);
-                if (!main.CanRevealPrivatePresentation) { throw new InvalidOperationException("Privacy closed before the local query."); }
-                version = info.Version;
-            }, CancellationToken.None);
+                }, CancellationToken.None));
             if (!disposed && main.CanRevealPrivatePresentation)
             {
-                window?.ReportOutcome($"Local version: {version}\n{DurableVersionQuery.StorageDisclosure}"
+                window?.ReportOutcome(receipt.State == HostTaskState.Cancelled
+                    ? "Exact local-version task and question cancelled before dispatch. Durable terminal/audit committed; no effect ran."
+                    : $"Local version: {version}\n{DurableVersionQuery.StorageDisclosure}"
                     + $"\nVerified durable receipt: {receipt.State}. No microphone, model, grant or effect was used.");
             }
         }
@@ -109,7 +112,4 @@ internal sealed partial class QuestionWindowController : IDisposable
         host.BindGate(static () => false);
         OnPrivacyClosure(this, EventArgs.Empty);
     }
-
-    [LoggerMessage(311, LogLevel.Error, "Native version review failed; exception type {ExceptionType}.")]
-    private static partial void QueryFailure(ILogger logger, string? exceptionType);
 }

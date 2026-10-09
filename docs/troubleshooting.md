@@ -22,7 +22,7 @@ does not block local reasoning or the C# built-in commands.
 
 ## Private durable storage cannot reopen after interruption
 
-The separate private task, interaction and evidence databases retain their
+The consolidated private task/question/authority-audit database and independent evidence database retain their
 rollback journals. A valid interrupted transaction is rolled back when the
 production store reopens; committed records remain committed. Startup recovery
 marks intent-only work **Interrupted** and dispatched work without a verified
@@ -36,6 +36,32 @@ files and review the reported storage failure with support. Do not copy a
 journal from another database. Daily JSON diagnostics remain an independent
 source when SQLite is unavailable. These recovery checks are not a guarantee
 against physical power loss or a complete backup/restore workflow.
+
+The validated upgrade freezes and retains the legacy task ledger before
+consolidating complete IDs/events with existing questions, generations,
+metadata, grants and audit. An interrupted migration can revalidate and
+complete storage maintenance, never replay work. A missing consolidated store
+cannot be rebuilt from that retired snapshot; retain both partitions for
+explicit support recovery, rather than deleting files to force initialization.
+
+For **task cancellation unavailable**, use `task inspect <session-id> <task-id>`
+or native **Inspect exact selected task**, then copy every current conflict
+token. Only admitted current-run local-version work still waiting for its
+native question before dispatch is cancellable. Already answered/dispatched,
+terminal, Unknown, expired or prior-run work is not reported stopped. Resolve
+privacy/ownership/channel failures and initiate a fresh action; uncertain
+commit/receipt failure is inspected, never automatically retried.
+
+For **logical disposition denied**, refresh Sessions, select the exact ID and
+preview again only after resolving its live/Unknown work and unanswered
+questions. Expired questions still block; unsupported effect reconciliation
+is not automatic. A rename, completed intervening task or changed host
+privacy/call/ownership revision invalidates the preview. Missing/corrupt
+authority requires explicit storage recovery, never deletion of database files.
+An uncertain error may follow a commit: refresh first, and do not replay an
+old confirmation. A Removed ID cannot be resumed. This workflow removes live
+authority rows only; [retained data](windows-and-tray.md#logical-session-disposition)
+includes task/audit provenance, journals/free pages and copied/inert databases.
 
 ## PowerShell 7 is missing or failed its check
 
@@ -56,14 +82,23 @@ Kora does not run user-created scripts during this check.
 3. Confirm the microphone card says Windows desktop-app microphone access is
    allowed. If blocked, select **Open Windows microphone settings** in Kora,
    then enable microphone and desktop-app access.
-4. Confirm **System** has an active Windows default microphone, or select a
-   specific active microphone.
+4. Open **Choose microphone (native recovery)** from the tray or speech Settings.
+   Refresh devices, confirm **System** has an active Windows default microphone,
+   or highlight a specific active endpoint and choose **Save preference only**.
+   Duplicate names are distinguished by exact endpoint IDs; unavailable pins
+   are retained, never automatically replaced. This does not test or record.
 5. Read the Voice activation status. It identifies a locked-session safety
    pause, call-policy pause, or manual disablement.
 6. Select **Refresh microphones** (no model/network/speech dependency).
 7. Review saved voice consent. After manual disablement, lock, disconnect,
    suspend or device/permission loss, select **Enable listening** explicitly.
 8. Hold **Push to talk**, use an exact phrase, then release.
+
+The recovery card cannot grant Windows permission or combine new consent with
+selection/enable. Missing/unknown permission, ownership or session state fails
+closed. Review the explanation and existing Settings consent separately. A stale
+choice or refresh timeout requires a fresh refresh/input; late results cannot
+restore closed card authority. Closing/Escape grants nothing and cancels no task.
 
 Production wake is unavailable in this build. Safe startup with saved consent
 arms push-to-talk; it never opens an ambient command recognizer.
@@ -83,11 +118,23 @@ Check:
 - a compatible Windows voice is selected;
 - System has an active Windows default output, or a specific output is selected;
 - Windows output is not muted and volume is above zero; and
+- **Kora playback volume** is available and above zero; and
 - detected-call policy is not forcing visual responses.
 
 Use **Preview voice** to test the selected voice and output. Kora cannot always
 detect powered-off speakers, disconnected analog cables, or unreported hardware
 mute.
+
+`status speech.playback-volume` reports the separate Kora-only percent and
+saved/default/unavailable source. Default/reset is original unscaled 100;
+zero intentionally prevents synthesis and keeps the full result visual.
+Use Settings > Speech & audio > **Refresh volume preference only** after
+repairing invalid/unreadable saved state or failed audit/readback evidence.
+A file may already be committed when terminal evidence fails; do not infer
+rollback or automatically retry. Save/reset never tests playback, replays
+stopped speech, opens input or changes Windows/call volume. If a playback
+adapter lacks qualified owned-gain support, continue visually. These software
+checks do not establish physical audibility or complete acoustic acceptance.
 
 ## The Windows default speaker changed
 
@@ -97,10 +144,21 @@ pinned.
 
 ## A saved device disappeared
 
-Kora does not replace a pinned device silently. Open Settings and choose:
+Kora does not replace a pinned device silently. Microphone recovery can choose:
 
 - **System** to return to Windows default routing; or
 - another explicit endpoint.
+
+For audio **output**, reconnect the exact saved endpoint and refresh, or explicitly
+choose a fresh presented endpoint and **Save output preference only**. **Reset output
+to System** removes Kora's override; it does not change the Windows default.
+No alternative is silently substituted. `list output settings` and
+`status speech.output-device` show saved/effective/unavailable state and exact IDs.
+Stale choices, changed owner/privacy/call/input revisions, detection/persistence/
+audit failures require explicit refresh/recovery. A file may be committed before
+terminal evidence fails: inspect before a fresh request, not automatic retry.
+Continue visually if output cannot be confirmed; recovery never starts a trial,
+replays speech or opens a microphone.
 
 ## No speech voice is available
 
@@ -145,3 +203,10 @@ Open:
 `%LOCALAPPDATA%\Kora\Logs`
 
 Logs are structured JSON, roll daily, and are retained for up to 30 days.
+The tray's **Evidence (read-only)** source **DailyLog** can inspect an independent
+bounded prefix of existing daily diagnostic envelopes even when SQLite is
+unavailable. **All** remains SQLite-only. A scan limit is not a complete-file
+search; missing/changed/expired snapshots require a fresh search, while corrupt
+or truncated data is reported without an empty-success fallback. Audit mirrors
+and activity/legacy copies are unsupported and counted explicitly. See
+[privacy and evidence limits](privacy-safety-and-logs.md) for exact bounds.

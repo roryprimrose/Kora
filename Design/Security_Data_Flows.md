@@ -1,5 +1,103 @@
 # Security and Data Flows
 
+## Trusted local event broker boundary
+
+The [R18 visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+has no model/tool publication or execution API. Only current authoritative
+fixed local-version work/question snapshots and verified maintenance cache
+can establish source identities. Exact user commands act on host-held IDs/
+revisions and original provenance; names, model text, incoming trace headers,
+focus or event metadata cannot supply authority. Source lease/cache lock,
+session/profile/generation/deadline and native/input/call/privacy/lock/owner
+revalidation fail closed.
+
+Fixed summaries and bounded suppression preferences contain no user content,
+question text, remote notes, paths or model output. Structured logs contain
+counts and fixed exception types only; host identity/audit correlation uses
+admitted Activity tags and causal links, never content or Baggage. Required
+typed requested/terminal audit, atomic save, exact readback and confirmation
+precede visual delivery; uncertain storage cannot fabricate rollback/replay.
+Clock rollback holds. Retirement clears owned suppression before deletion
+without reversing broker/authority lock order.
+
+Only an already-open native work surface can passively deliver. No focus,
+question replacement, voice target, activity renewal, grant consumption,
+work effect, ambient wake, model, network, browser or installer results.
+Speech is off even under VoiceOnly. Pending foreground questions/approvals
+remain intact; cached maintenance Check/Open stays separately native.
+
+## Deterministic fixed local-version queue boundary
+
+The native selected-session work surface is a passive consumer of one bounded
+validated authority snapshot. It adds no store/schema, egress, authority grant
+or model-facing tool. IDs/revisions/selection epoch bind admitted controls to
+the same exact command services and commit checks. Background observations
+neither extend meaningful activity nor dispatch/renew/retarget questions.
+No session name, question text, history/evidence content, path, preview/skill
+body or caption enters queue payloads, diagnostics or activity tags/baggage.
+Close/privacy loss cancels and clears live presentation; disposed subjects
+fail closed while exact redacted history remains independently readable.
+
+The schema-v5 queue is host-only metadata over the existing qualified local
+version action. Original native/typed/current-name activated user routes share
+one service; no model or provider receives queue bodies, IDs or observations.
+Only exact session/request/task identities and explicit expected revisions
+admit mutation. Name, focus, incoming trace, model text, grant or selected
+window cannot create dispatch authority.
+
+Private ownership, call/privacy epoch, existing Active session generation,
+capacity/dependencies and fair slots are checked before and under the
+transactional commit lease. Lock/unlock and handoff epochs retire eligibility;
+no ambient resume occurs. Queue admission/terminal task state and required
+typed audit are one COMMIT. Generic task writes cannot bypass the queue
+gateway; only truthful no-replay Interrupted/Unknown recovery is permitted.
+Audit/storage failures expose uncertainty and stop dispatch without retry.
+
+Only the fixed read-only registry action is callable, with fresh host-bound
+Native authority. No arbitrary resource/effect descriptors, scripts, power,
+write connectors, hosted/local-model reasoning or audio are admitted.
+Unknown/unclassified effects quarantine the addressed session and dependent
+work, while unrelated fixed local reads remain eligible. No SDK callback or
+cancel acknowledgement certifies an effect's termination.
+
+Queue rows retain content-free identity/revision/timing/state metadata.
+They contain no label, utterance, path, skill body, file/clipboard preview,
+caption or model output. Deferred work uses fresh activities and causal links,
+not a retired parent or Baggage; logs contain only fixed structured failure
+type. Ordered history still derives from committed task receipts, never from
+logs or queue contents. Logical disposition retains these minimal audited
+identities while redacting existing history content; it is not forensic erasure.
+Perpetual grants remain independent. Restart restores observation only,
+projects interrupted/unknown tasks and never dispatches a saved queue.
+
+## Passive Committed Authority Audit Inspection
+
+The native inspector's separate **AuthorityAudit** source reads real typed
+schema-v3 interaction-store commits through the initialized store's shared
+lease, strict current-user ownership and read-only connection. Source authority
+comes from that trusted commit path/table and validated serialization, never
+a diagnostic `SecurityAudit` property, model output, incoming trace or file
+mirror. **Audit**, **All** and **CombinedLog** retain their existing independent
+projection/diagnostic meanings. No second writer or audit copying is introduced.
+
+Live local-UI ownership/privacy is checked before and after queries and before
+native presentation; closure cancels/clears and suppresses late output.
+Queries use source-qualified citations and signed query/viewer-session-bound
+expiring cursors with immutable sequence/digest ceilings and current
+native-file/host-lifetime identity. Corrupt/missing commits, schema drift,
+replacement and access failures refuse rather than synthesize trusted outcomes.
+Recorded correlation is observation only, not executable identity or approval.
+Inspection neither extends meaningful session activity nor changes lifecycle,
+tasks, questions, grants, retention or audit outcomes.
+
+The 50-record/64-KiB output and 4,096-row scan bounds remain explicit.
+No arbitrary SQL, filesystem selection, export or model evidence tool is
+provided. Local consistency checks do not provide externally anchored forensic
+tamper resistance; private-profile files remain unencrypted/user-modifiable.
+Installed/native acceptance is not established. The
+[evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection)
+documents metadata actually committed and unavailable graph/history fields.
+
 Status: proposed full security contract. The current bootstrap implements host-validated
 model proposals and once/session/always model-action approvals, not the
 complete grant taxonomy or script/executable execution gate below. Controls
@@ -45,6 +143,51 @@ The design concerns are resolved under the chosen trust model by the following h
 
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
+
+The [bounded playback-volume workflow](User_Configuration.md#delivered-bounded-per-kora-playback-volume-r10)
+also consumes the existing persisted audio-control session/generation admission.
+Host-held validated 0-100 scalar proposals bind original input, live owner,
+unlocked privacy/call/input eligibility and revisions. Requested/terminal audit,
+atomic readback and task receipts must confirm before owned gain activates.
+Zero and unconfirmed evidence prevent synthesis with full original visual
+recovery; raising/resetting never replays output. Only owned Windows speech
+instance gain and Kokoro PCM attenuation are changed, never global/system/call
+volume, microphone/consent, grants, previews or retention. Invalid saved bytes
+are errors, not default authority. This does not qualify acoustic audibility.
+
+The [bounded in-call feedback workflow](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15)
+is device-local response selection, never speech/activation/approval authority.
+Active/Suspected alone select Voice/UI/Both ahead of ordinary output; Inherit
+restores it. Unknown/invalid call or corrupt/unconfirmed preference state fails
+closed with complete visual recovery. Common original-input/audio-session
+admission and host-held choices bind session/generation, configuration/call/name/
+input revisions and native visible lifetime. Protected original voice set/reset
+cannot become UI authority. Required typed audits, atomic save/readback and
+committed-intent receipt precede marker confirmation/activation; late failure
+retains truthful unavailable recovery across restart, not rollback or retry.
+Every privacy, owner, call suppression, mute/zero, capture and native-output
+lifetime gate remains independent. No microphone/consent/grant/source/detector
+change, synthesis, implicit replay, model settings tool or pending approval/
+question answer is admitted. Native/acoustic qualification remains open.
+
+The [bounded output preference workflow](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+uses persisted host-resolved audio-control session/generation admission, not
+desktop correlation IDs as authority. Exact host-held choices bind original
+channel, current host/privacy/call/input eligibility and topology/preference
+revisions. Native, typed and activated routes share audited atomic persistence;
+unknown/stale/foreign inputs fail closed. This device-local control grants no
+approval, question, microphone, provisioning or OS authority. Evidence failure
+can follow a committed file: output remains unavailable until explicit recovery,
+never an invented rollback, substituted endpoint or automatic retry.
+
+The [device-default response-mode slice](User_Configuration.md#delivered-bounded-device-default-response-mode-r10)
+uses that same genuine audio admission and single shared session lease, with
+host-held enum choices, original channel, call/preference revisions and audited
+atomic readback. VoiceOnly changes presentation policy only: mandatory full
+visual warnings/security/questions/approval recovery cannot be hidden, silence
+is never approval, and setting input cannot answer an existing exact question.
+It grants no capture, consent, effect, provider, OS mixer or model-tool authority.
+Failure after a committed preference retains truthful unavailable recovery.
 
 ## Data Modes
 
@@ -99,8 +242,19 @@ First launch must explain local wake processing, activated transcription, and
 the default bounded prefix-free capture after Kora asks a question,
 then obtain consent before ongoing capture. Declining or withdrawing that
 consent keeps capture closed across restart until renewed explicitly.
-The bootstrap currently auto-starts its grammar recognizer without this full
-consent/lifecycle contract; this matrix is the required design, not shipped proof.
+The bootstrap now saves explicit ongoing consent and arms PTT only after
+eligible startup gates; it does not run a grammar recognizer on ambient audio.
+The [bounded native tray recovery](Interaction_Fallback.md#delivered-bounded-r03r09-tray-recovery)
+enumerates/selects without capture and uses explicit revision-bound enablement.
+The [passive native recovery card](Interaction_Fallback.md#delivered-bounded-native-microphone-recovery-card---2026-10-07)
+shares those host commands from tray and speech Settings. Its local highlight
+is not saved consent, an R05 answer or enablement authority. Save and Enable are
+distinct exact native inputs; missing permission/ownership fails closed. No
+combined consent/selection/enable or microphone test is admitted.
+The full matrix, production wake and native lifecycle acceptance remain
+required design/proof gates, not established by deterministic tray tests.
+This matrix is the mode-independent release contract; deterministic
+regressions and bounded native trials are not complete native acceptance.
 
 Every ongoing capture open requires exclusive assistant ownership, authoritative unlocked and
 connected Windows state, ongoing consent, a usable selected endpoint, OS
@@ -112,7 +266,9 @@ Revalidate these gates and the audio generation immediately before acquisition.
 | First launch; no ongoing consent | Enumerate/select System without recording; remain closed and show native consent/continue-without-voice choices | Explicit Enable voice consent can also enable capture after all gates pass; selection or a test is not ongoing consent |
 | Ordinary launch, logon, or application restart with saved consent | Fresh gates may automatically enable listening; no task, approval, audio, or dispatch-token replay | If a gate fails, show its blocker and use explicit recovery; startup is not a permission override |
 | Manual Disable listening / mute | Close capture, invalidate callbacks/transcripts and clear buffers; retain consent but hold enablement for this run | Explicit native Enable listening after fresh gates; selecting devices, PTT, or settings reset cannot unmute |
-| Lock, disconnect, or unknown Windows state; later unlock/reconnect | Close/deny capture and clear audio; retain consent but hold enablement for this run | Unlock/reconnect alone cannot reopen; explicit native Enable listening in an eligible session is required |
+| Exact `speech.input-device` selection / per-option reset | Shares native audited preference persistence; reset removes only the microphone override and selects System. Changed selection invalidates/releases stale input; missing pins and manual/run holds are retained. Metadata inspection opens no capture | No auto-arm, consent/permission change, question answer or OS write; separate fresh native Enable after current gates. Protected/unknown calls deny original voice mutations; stale or foreign context, audit/storage/detection failure needs explicit recovery |
+| Normal lock; later authoritative unlock | Close capture, invalidate the activation and clear audio; retain consent and the previously enabled mode, not interrupted capture | After confirmed closure and fresh ownership/session/consent/permission/endpoint/assets/call gates, automatically restore only the previously enabled mode. PTT restores readiness, never recording; qualified always-on detection may start a fresh wake-only generation. No task, reply, audio, transcript, approval or dispatch replay |
+| Disconnect, sign-out, or unknown Windows state; later reconnect/unlock | Close/deny capture and clear audio; retain consent but hold enablement for this run | Explicit native Enable listening in an eligible session is required |
 | Suspend; later resume | Close capture and clear audio; retain consent but hold enablement for this run | Resume alone cannot reopen; explicit native Enable listening after fresh gates |
 | Permission loss, endpoint loss, capture failure, or unavailable voice assets | Close capture, clear audio and invalidate its generation; retain the requested endpoint and consent, not recording authority | Restored permission, hot-plug, repaired assets or replacement selection alone cannot reopen; explicit native Enable listening is required |
 | Live Windows default change while System capture is already enabled | Revalidate the live route; permit supported default routing without choosing a Kora endpoint override | This is not recovery or new consent; if routing fails, use the loss row; a pinned endpoint never switches silently |
@@ -130,6 +286,13 @@ Manual disablement and recovery holds are run-scoped: a later ordinary restart
 uses saved consent and fresh gates, even after lock/resume/loss in the previous
 run. Persistent consent withdrawal is different. Restart while still locked,
 disconnected, unknown, denied, or otherwise blocked never acquires capture.
+Normal unlock is not a new enable request: it restores prior enabled intent only.
+Intervening voice privacy/device changes, closure or capture failures, withdrawal,
+manual disablement, ownership loss, unavailable assets/call policy or uncertain
+session state cancel automatic restoration. A failed gate requires explicit
+recovery, not delayed automatic retries. Output-only topology changes do not
+unmute or change the selected input. Production always-on detection remains
+unavailable until its separate runtime/wake/acoustic qualification passes.
 An explicitly consented bounded microphone test does not enable ongoing voice
 and still obeys ownership/session/permission/device gates.
 Cross-build takeover/return uses the incoming host's own consent and readiness;
@@ -226,7 +389,9 @@ While Locked, Disconnected, or Unknown, Kora must not open or retain microphone 
 Use authoritative Windows session state at startup and session-change notifications at runtime; a model/UI assertion is not sufficient.
 On lock, immediately block new capture, invalidate in-flight audio callbacks/transcripts, clear buffers, and release microphone devices/workers.
 No PTT key, user skill, bundled script, runtime, or approval can override the denial.
-Unlock requires explicit re-enabling; late pre-lock results cannot reopen listening or initiate actions.
+Normal authoritative unlock may restore previously enabled readiness or a
+qualified wake-only mode under the microphone matrix. Late pre-lock results
+cannot restore listening or initiate actions; interrupted capture never resumes.
 Restart and recovery use the [microphone matrix](#microphone-consent-and-enablement-matrix); unlock is not an ordinary startup.
 See [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md#mandatory-locked-session-microphone-policy).
 
@@ -495,6 +660,17 @@ The default-On [in-call grant-ignore setting](Call_Aware_Speech.md#ignoring-reus
 The host revalidates it immediately before dispatch, including background work; feedback/speak-once preferences cannot bypass it.
 During protected calls, the [settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated voice/in-call configuration changes, including disabling grant-ignore/detection and clearing manual call state.
 Trusted initiating-channel lineage and request/apply revalidation prevent model/tool or later UI-confirmation laundering; a new UI request is required.
+The delivered [manual-call command subset](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08)
+captures original input before asynchronous work and uses dedicated original-user
+control intent/session-generation admission. Requested and truthful outcome
+audits commit on the existing consolidated SQLite lease, without nested lease
+acquisition or fabricated audio/maintenance/approval authority. The process-memory
+manual flag is never a persisted setting or transactionally rolled-back fiction.
+Lost required evidence/unconfirmed retirement keeps a separate conservative
+run hold, original automatic observations and all saved flags. Clear/reset
+cannot release Unknown protection or replay old speech/input. Passive status
+creates no effect/approval/activity; pending questions and security previews
+remain complete and cannot be answered, rebound or replaced by these commands.
 Consumed single-use and ended session grants may remain as historical evidence under the applicable history/audit policy; that evidence is not continuing authority.
 See [Internal Model Tools](Internal_Model_Tools.md#grant-and-feedback-rules) for the model-facing boundary.
 An exact reusable grant requires explicit
@@ -626,6 +802,20 @@ The built-in environment controller is a separate trusted host path for exact ca
 It may initialise Kora data and offer approved external prerequisites, but cannot alter Kora code or use arbitrary supplied installer paths.
 See [Environment Setup](Environment_Setup.md).
 During the unsigned phase, application maintenance is notify-only with no model-callable or host-install-capable entry point.
+The delivered exact typed/activated `maintenance status`, `maintenance review`
+and `maintenance snooze` commands are original-user cached controls, not model
+tools. Native review/snooze share their dedicated maintenance-session durable
+intent and current-generation gateway; unrelated audio authority, incoming
+traces, release titles, source/model text and supplied URIs cannot select the
+cache record. Review binds the existing immutable canonical metadata only;
+snooze targets a fresh reviewed Available notice for this run, never an
+approval/security-required prompt. Pending exact questions/approvals are not
+answered, replaced or hidden. Ownership, original input/privacy/topology,
+protected call state, exact cache revision/identity and durable evidence are
+revalidated; failure/cancellation/late completion cannot become cached success.
+These commands cannot grant/renew network consent, check/refresh, navigate,
+download, install, elevate, activate source or start a runtime/provider.
+Full bounded visual output is preserved without audio/device probes.
 Any future updater requires an independently authenticated metadata trust root, native secure per-release approval, and separate acceptance evidence.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.
 The implemented external [source build-only interface](Distribution_And_Updates.md#source-bootstrap)
@@ -936,6 +1126,34 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.
+The delivered [bounded ordinary retention slice](Architecture.md#bounded-ordinary-diagnostic-retention)
+consumes existing effective due timestamps only. One admitted owner-startup
+transaction removes at most 128 due diagnostic logs and 32 due spans with all
+their at-most-1,024 owned links. Due backlog can remain; queries do not refresh
+it. No audit row/sequence/hash chain, session/task/interaction/grant or Perpetual
+record is pruned. Its startup triggers and bounds stay unchanged by the later
+[future-only retention preference](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04):
+canonical integer 1–365/default-reset30, original-input independent host
+admission and required audit/atomic save/readback/intent receipt. Only new
+ordinary SQLite rows use the policy; existing deadlines never change and
+apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
+their independent rules. Unavailable ordinary policy reports explicit
+independent delivery gaps without waiving mandatory trusted audit. This is logical
+row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
+and its continuation/checkpoint requirements remain independently unimplemented.
+The subsequent [future-only audit option](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
+admits canonical 30–365/default-reset90 through independent original-user audit
+session/generation/source/policy revision checks and protected-call/native
+lifetime gates. Prior-policy requested/terminal receipts, atomic readback and
+durable intent outcome precede activation. Only NEW required authority audit
+and separately qualified diagnostic audit projections receive new deadlines;
+no property/message/trace/model/caller ID acquires audit or approval authority.
+Existing bytes/hashes/relationships/citations/deadlines and every grant record/
+validity/scope remain. Lost evidence or corrupt/unconfirmed preference holds
+new required audit/authority commits and refuses startup writes, never defaults
+to 90. Explicit saved-state/receipt inspection and repair precede refresh.
+No apply-now, audit pruning, session/history/approval/task/question deletion,
+ordinary/file policy or cleanup-schedule change is authorized by this option.
 Store history, artifacts and indexes under verified private LocalApplicationData permissions; deletion covers caches, indexes, blobs, journals/recoverable copies and outstanding dispatch authority, not independently stored perpetual grants.
 The [approved storage baseline](Architecture.md#windows-durable-storage-direction) uses pinned standard SQLite, not mandatory page encryption or database DPAPI keys. Copies outside the private location are readable; same-user/admin access is not prevented. Credentials remain in Windows-protected credential storage.
 R04's partial [host evidence foundation](Implementation_Roadmap.md#r04-foundation-delivery)
@@ -953,6 +1171,19 @@ without a verified receipt is Unknown. No new consequential capability
 is enabled, no request is automatically replayed, and no transcript/response
 body is newly persisted. First-use greeting, settings and the version response
 include readable-copy and same-user/admin-access disclosure.
+Evidence delivery remains synchronous and required. The write-path parser
+cache retains only validated typed projections/activity metadata, keyed by
+table and SHA-256 of the exact serialized payload, not raw diagnostic
+properties or scopes. It is bounded to 16,384 entries and 32 MiB cumulative
+encoded-payload accounting; saturation revalidates uncached history rather
+than accepting it unchecked. Every open still checks schema, private
+files/journal and database integrity. Every persisted row still compares its
+current typed columns and effective retention against the validated envelope;
+activity links are checked in an ordered scan, and audit sequence/foreign-key
+checks remain mandatory. Changed payloads must pass full parsing again.
+Cache hits never establish live request, trace, approval or audit authority;
+new writes still require the matching current host context and a durable
+transaction. Read-only validation does not rely on the write-path cache.
 The bounded [durable interaction authority](Interaction_And_Sessions.md#durable-authority-and-typed-presenter-handoff)
 also persists host-admitted typed questions/options/drafts/answers and exact
 proposal/grant metadata in a distinct private SQLite partition. It adds no
@@ -984,6 +1215,18 @@ Per-user storage does not replace the separately required same-user worker/Kora-
 Do not persist content-bearing temporary stores or plaintext FTS, emit decrypted database tracing, or make unkeyed backups.
 Maintain an explicit inventory of managed recoverable copies and key-wrapper/backup generations: deleting a wrapper, rekeying the live database or unlinking an artifact does not revoke historical copies.
 The deletion contract must remove or rewrite owned recoverable content without destroying unrelated sessions or independently retained grants.
+The delivered [native exact-ID logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
+is narrower than that deletion contract. It requires a host-held single-use
+preview and fresh LocalUi confirmation, unchanged admission, exact generation/
+metadata/live-record revision and no live/Unknown work or pending questions.
+Only addressed live name/question/observation/wait/scoped-grant rows are
+removed. A durable generation-advanced tombstone, control terminal success and
+trusted typed audit commit together. Late task/interaction appends are denied.
+Independent Perpetual grants and task/audit provenance survive; audit carries
+opaque identities/revisions/digests, not names, answers or request text.
+Journals/free pages, copied or inert legacy databases, independent diagnostics,
+user exports and provider copies are disclosed as retained. Managed
+artifact/backup/history removal and forensic erasure remain unavailable.
 Do not describe shared-key deletion as per-session cryptographic erasure or content authentication as detection of whole-record removal/valid-backup rollback.
 Source revocation may remove restricted content before normal session expiry. Mark omissions/redactions explicitly.
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.
@@ -1024,11 +1267,28 @@ labels, incoming trace headers and selected-window state cannot assign or change
 it. After session deletion, independently retained audit rows may keep the
 opaque session ID and a deleted-session marker, but no title, request text or
 other deleted session content.
-The same service may read the complete daily application files only through an
-adapter that validates Kora daily-log names, rejects arbitrary paths, and bounds
-each tail read to 1,000,000 characters. File audit copies remain operational
+The same service now independently inspects the application's existing daily
+diagnostic JSON envelopes through the native **DailyLog** source, not a merged
+cross-source search. It shares exact daily-name and versioned envelope rules
+with the actual writer, rejects arbitrary paths/reparse or unowned/permissive
+sources, validates opened-handle final paths and file identities, and performs
+no writes or permission repair. It captures/revalidates at most 8 MiB of prefix
+each (16 MiB total I/O), 32 files, 4,096 lines and 256 KiB per line excluding LF,
+within a five-second deadline. Signed query/viewer-bound continuations refer to
+one of eight bounded 15-minute manifests. Prefix hashes/identities reject
+replacement and mutation, while appends/new days cannot expand a cursor.
+Failures and scan ceilings are explicit; no atomic filesystem or complete
+history claim is made. The older raw-tail adapter's separate 1,000,000-character
+limit is unchanged and is not used as the structured inspection contract.
+Daily record observation time is not a database commit or due date; correlation
+cannot grant identity or permission. Unsupported activity/legacy copies,
+ingestion-gap markers and audit mirrors are counted, not silently omitted.
+File audit copies remain operational
 evidence only and cannot satisfy the required `security_audit_events` commit,
-approval or receipt requirement.
+approval or receipt requirement; the inspector does not return them as audit
+rows or parse their copied audit payload. `SecurityAudit` lookalikes in ordinary
+properties remain ordinary properties. Exact All/Log/Audit/Span/Link SQLite
+behavior and counts, audit chain and independent retention are unchanged.
 Content-bearing diagnostic export requires explicit preview/consent; OS or third-party crash dumps remain a deployment concern.
 In-memory disposal is best-effort, not a guarantee of forensic erasure from OS paging.
 
@@ -1074,6 +1334,16 @@ enter `application_log_events`. This dual-write behavior is planned, not a
 claim about the current bootstrap.
 
 ## Future Knowledge Indexing
+
+The canonical user workflow, source identity, local-file boundary, retrieval
+contract, settings/voice behavior and phased implementation are defined in
+[File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md).
+Persistent/vector/enterprise indexing remains unavailable until its R26
+prerequisites and acceptance gates pass. The separately delivered
+[selected immutable revision lexical slice](File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval)
+uses bounded volatile memory only, exact admission/revocation/session gates,
+inert native citations and no model/egress surface. It does not qualify the
+broader cache or grounded-context contracts below.
 
 Before indexing enterprise or local sources:
 

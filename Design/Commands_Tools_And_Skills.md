@@ -2,6 +2,16 @@
 
 Status: proposed interaction contract, not a shipped tool loop or skill runner.
 
+R21 now provides a native host-only explicit shared-profile registration/list/
+inspect/recheck route. Its strict versioned instruction reader retains exact
+source-qualified immutable snapshots and truthful incompatible/unavailable
+reasons. It is **not** a `skills.*` tool, slash artifact route, model catalogue,
+enablement or runner. Ambient personal skill folders no longer feed the startup
+artifact-to-model catalogue. Registration grants only the selected bounded
+local read; no model exposure, source edits, dependency installation, execution,
+egress, approval or bundled trust. See
+[Skill Storage](Skill_Storage.md#delivered-bounded-r21-native-inspection).
+
 The bounded R06 host foundation now composes six direct read-only handlers over
 the [authoritative descriptor catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs):
 `capabilities.list/get`, `application.get_version`, `readiness.get`,
@@ -13,6 +23,18 @@ Record and complete serialized UTF-8 bounds, strict input validation, cancellati
 and explicit unavailable/unobserved results are production-tested. Full R06
 continued reasoning, approved model adapters and runtime qualification remain open.
 
+The [D-014/R04-R08 provider-neutral host increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09)
+now composes typed single-use turn admission, bounded immutable context/evidence,
+host provenance, typed unavailable/failure outcomes, cancellation/late-output
+closure and required audit over those same authority and registry seams.
+Deterministic adapter fakes can propose only the existing six read-only tools
+and return bounded answers; proposals never supply a lane, grant or destination.
+Production has **no qualified adapter** and the current JSON selector receives
+no new tools or context. Hosted dispatch is denied without exact egress admission.
+Local only/Local first/Hosted preferred, handoff, memory and grounded model
+answering remain planned, not enabled by model-location settings. Existing
+bootstrap reasoning and unavailable paths are unchanged.
+
 R07 additionally composes the host-only explicit plain-text clipboard
 snapshot/native-preview/reuse/revoke workflow. The intended model-facing
 `context.capture_clipboard`/`context.inspect` tools remain unavailable:
@@ -22,18 +44,212 @@ share the same broker, not separate model/provider clipboard implementations.
 Preview is not model-context selection or transmission consent. See
 [the bounded context boundary](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
 
-Delivered exception to the proposed full catalogue: R10 has a host-only,
-appearance-only typed registry shared by the existing native controls and
+R26.1a adds the host-only **preview file** / **clear file preview** and native
+picker/review/confirmation workflow through `Kora.Tools.Files.LocalFilePreview`.
+It admits one volatile immutable fixed-drive strict-UTF-8 text/Markdown preview,
+not a file-model tool, durable attachment, registry, folder, persistent/vector index,
+reasoning or egress capability. Paths supplied by users/models/documents never
+authorize reads. See [exact delivered limits and Windows identity controls](File_And_Folder_Ingestion.md#delivered-bounded-local-file-preview).
+
+R26.1b adds **search file** / **inspect file**, which only focus the selected
+revision's native lexical control. Native bounded query text uses
+`Kora.Tools.Files.LocalFileSearch`, the same preview broker's exact
+source/session/task/privacy/revocation boundary, and Core's versioned
+deterministic lexical policy. No query is routed through conversation,
+inference, speech or history. The six-ID R06 registry cannot safely describe
+an unavailable content-bearing operation with its current input/result schema:
+no descriptor, model action or result loop is added. This is an explicit
+model-route exception, not a separate weaker path.
+
+Delivered exceptions to the proposed full catalogue: R10 has host-only typed
+configuration for appearance, installed provider/voice, spoken-summary caps,
+assistant display/PTT prefix, exact input/output preferences, per-Kora volume,
+Windows-provider-native rate,
+device-default response mode and independent future-only SQLite diagnostic/audit retention. These share native and exact local workflows;
+none exposes a model-facing `settings.*` tool or arbitrary preference patch.
+The single `logging.sqlite-diagnostic-retention-days` option shares native and
+exact `list logging settings` / get/status/set/reset. Canonical integer 1–365,
+default/reset 30, is activated only after original-user independent diagnostic
+session/generation/revision admission, required typed audit and atomic durable
+save/readback/intent receipt. It changes only future ordinary SQLite commits;
+old deadlines, audit90/domain, files30/30, all session/history/grant/approval
+records and cleanup triggers stay unchanged. Apply-now is unavailable. See
+[the bounded contract](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04).
+The independent `logging.audit-retention-days` option admits exact integer
+30–365/default-reset90 through the same native/exact current-name discovery.
+Its separate audit-control session uses the merged common original-input
+admission, host-held proposal/source/policy revisions and prior-policy requested/
+terminal receipts, atomic readback and committed intent before activation.
+Only NEW required authority audit and separately qualified diagnostic audit
+projections change. Existing deadlines, all grants/authority records, ordinary
+SQLite/file policy and cleanup schedule are untouched. Held/corrupt audit
+configuration fails closed before new audit/authority writes, including restart.
+No model mutation, apply-now, audit pruning or complete R04/R10 qualification.
+See [the audit contract](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04).
+For appearance, the nine-option subset shares the existing native controls and
 exact local `list appearance settings`, `get <appearance.id>`,
 `set <appearance.id> to <value>` and `reset <appearance.id>` commands.
 These nine options use domain validation, revision-checked one-file atomic
 save, audit and live notifications; malformed/ambiguous inputs are rejected
 locally, not handed to inference. The current assistant-name prefix is retained.
-No model-facing tool descriptor/dispatcher, call/voice option, whole-profile
-reset or undo is added. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
+The appearance subset grants no call/voice authority. Whole-profile reset and
+undo remain open. See [User Configuration](User_Configuration.md#delivered-bounded-appearance-subset-r10)
 and the [exact user reference](../docs/commands.md#inspect-or-change-an-admitted-appearance-option).
 
+The bounded R10 `speech.playback-volume` preference shares native Settings and
+exact `list volume settings` / get/status/set/reset commands. Its
+[owned scalar workflow](User_Configuration.md#delivered-bounded-per-kora-playback-volume-r10)
+uses genuine audio-control session/generation admission, original-channel
+host/privacy/call/input revalidation, host-held revisioned proposals and
+audited atomic readback. It accepts canonical integer 0-100 only, default 100;
+zero blocks synthesis/autoplay with full visual recovery, and raising/resetting
+never replays retired speech. No natural-language alias,
+model tool, test playback, microphone effect or global volume mutation is added.
+
+The independent bounded R10 **`speech.windows-rate`** option shares native
+Settings and exact `list rate settings` / get/status/set/reset. Canonical
+integer **-10..10**, engine-normal/default/reset **0**, is consumed by the
+owned Windows synthesizer's native `Rate` setter only for future eligible
+Windows synthesis. It is not percent, a multiplier or words per minute.
+Provider discovery advertises WindowsNative support; Kokoro/unknown adapters
+are explicitly unsupported and no Kokoro settings/synthesis are changed.
+The [cohesive rate workflow](User_Configuration.md#delivered-bounded-windows-provider-native-speech-rate-r10)
+uses genuine common audio admission, original channel/name/input generation,
+provider/source/policy/native-lifetime revisions, trusted requested/terminal
+audit, atomic readback and committed intent before confirmation. Unconfirmed
+storage stays held across restart. Active/queued output is retired with no
+replay; the control starts no synthesis/capture/preview, asset operation,
+provider switch or global OS change and grants no model tool or effect authority.
+
+The bounded R10 `speech.output-device` preference is shared by native Settings
+and exact `list output settings` / get/status/set/reset commands. Its
+[persisted audio admission](User_Configuration.md#delivered-bounded-exact-output-device-preference-r10)
+binds real session/generation, original channel, live host/privacy/call/input
+eligibility, exact presented choice and topology/preference revisions.
+Endpoint names, indices, trace IDs and supplied records cannot authorize a change.
+This is metadata/preference-only, not a model tool, audio trial or global setting.
+Pending questions/approvals keep their exact preview; configuration cannot answer them.
+
+The independent `speech.input-device` workflow shares exact native/typed/
+activated preference selection with passive microphone recovery. Metadata
+refresh, preference Save and separate Enable retain distinct admission: selecting
+a microphone does not open capture, grant consent or change Windows permissions.
+Installed speech choices and independently lowerable summary caps likewise
+remain host-only; complete ordinary output must fit both caps or remain visual,
+never truncate required previews. See the
+[delivered configuration subsets](User_Configuration.md#configuration-contract).
+
+The device-default `responses.default-mode` addition admits only the existing
+Hybrid/VoiceOnly/VisualOnly enum through shared native Inspect/Save/Reset and
+exact typed/activated discovery/get/status/set/reset. It reuses genuine audio
+session/generation admission, original-channel call/privacy gates, revisioned
+host-held choices, atomic save/readback and typed audit outcomes. No session/
+queue/task/call override, model descriptor/tool or new grant is added. See
+[canonical configuration](User_Configuration.md#delivered-bounded-device-default-response-mode-r10).
+
 Related: [Architecture](Architecture.md), [Bundled Skills](Built_In_Skills.md), [OOTB Phrases](OOTB_Phrases.md), [Work Management](Work_Management.md), [Security and Data Flows](Security_Data_Flows.md), [Execution Grants](../docs/skill-and-task-execution-design.md), [Acceptance Criteria](Acceptance_Criteria.md).
+
+Bounded R15 [manual-call parity](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08)
+admits only `call.manual-active` for the current process run. Native on/off/
+reset-off and exact typed/activated discovery/get/status/set/reset share genuine
+original-user intent/session generation and required audited admission, never
+audio/maintenance action authority. Inspection is passive cached state; reserved
+grammar precedes questions and cannot answer/rebind/replace pending approvals.
+Changed state retires old speech/input/callback generations without clearance
+replay or capture reopening. This is not a generic saved call registry, model
+tool, automatic detector, protection relaxation or completed R15.
+
+The bounded R10 assistant-name addition registers only the existing
+`assistant.name` display/PTT command-prefix option. Native Apply/reset and exact
+typed/activated voice `list assistant settings`, `get/set/reset assistant.name`
+share typed discovery/default/bounds/revision/provenance and an audited atomic
+host workflow. Invalid commands are handled locally before inference and do not
+replace pending exact questions/approvals. Original channel/call/host revisions
+and confirmed capture retirement gate writes. All current session and artifact
+routes use the committed prefix; old prefixes are not aliases. No identity,
+grant or stored-session-name reset, model settings tools, arbitrary aliases,
+production wake profile or acoustic/full R10 acceptance is added. See
+[the bounded configuration contract](User_Configuration.md#delivered-bounded-assistant-displayptt-prefix-r10).
+
+Delivered bounded R12/R13 deterministic entry points: typed and activated voice
+`session help/list/status/inspect/create/rename/done/resume` use the single
+[typed exact-ID grammar/result contract](../src/Kora.Core/Commands/SessionCommand.cs)
+and [shared host workspace service](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs).
+They precede inference and legacy approval/question routing. Names are content
+only; exact IDs/generations/metadata revisions remain authority/conflict tokens.
+Each admitted command owns fresh original-user lineage and durable control intent;
+read results are bounded observations, not an atomic runtime ledger. Native
+mutations retain parity at the shared service/store. Protected-call voice
+mutations remain unavailable; originating voice enablement/privacy/call/recovery
+observations are rechecked, never relabelled by later UI input.
+See the [exact syntax and recovery reference](../docs/commands.md#bounded-exact-id-session-commands).
+The same grammar/workspace now exposes exact `task status/inspect` and explicit
+`task cancel` with session/task/question IDs and all observed revisions and
+generation. Native task selection remains passive until a fresh inspect or
+separate deliberate cancellation. Only admitted current-run local-version
+work waiting before dispatch is cancellable, with task/question/typed audit
+committed atomically in the consolidated authority store. Dispatched/Unknown
+work is never relabelled stopped. No model descriptor/tool exposure, transcript
+persistence, inferred management, queue/executor, general effect cancellation,
+deletion or retention is delivered.
+
+Exact `maintenance status/review/snooze` uses the shared cached native maintenance
+workflow and a dedicated original-user control session, not audio-session or
+trace authority. Immutable cached identity/revision/channel/age and existing
+current-run snooze eligibility are rechecked. These visual-only commands add no
+check, HTTP, browser, download/install or consent grant/renewal. Existing native
+Check/Open and separate network opt-in remain distinct. See
+[notify-only maintenance](Distribution_And_Updates.md#delivered-bounded-r17r18-native-foundation).
+
+## Delivered Artifact Invocation
+
+Kora has one source-qualified artifact invocation route for the currently
+bundled skills and future instruction and prompt definitions. The route is
+available from the typed composer and activated voice:
+
+- direct slash command: `/lock`, `/restart`, or `/shutdown`;
+- kind-qualified slash command: `/skill lock`;
+- activated voice: `Kora, run lock`, `Kora, use the restart skill`, or
+  `Kora, use <artifact> to <request>`.
+
+`ArtifactDefinition` is the portable Core contract for the artifact identity,
+kind (`Skill`, `Instruction`, or `Prompt`), display metadata, slash command,
+spoken names, source, version, definition digest, and bounded instructions.
+`Kora.Definitions` owns the fixed mapping from embedded resources to those
+definitions. Command and spoken-name conflicts fail catalogue construction.
+The same `ArtifactCommandRouter` parses typed and voice input, so adding future
+instruction or prompt registrations does not create another presentation-only
+dispatcher.
+
+Selection produces a `LocalModelArtifact` that is passed separately from user
+text to the qualified local-model adapter. The adapter puts source-qualified
+artifact instructions in the system context and keeps the user's request in
+the request prompt. Clarification turns retain the exact selected artifact.
+Unknown or incomplete slash commands fail closed and are not reinterpreted as
+free-form model requests.
+
+The response composer binds its `/` dropdown to that same catalogue. A bare
+slash lists all available artifacts; command text and optional
+`/skill `, `/prompt `, or `/instruction ` qualification filter it. Pointer
+selection and Up/Down/Enter insert the canonical direct command; Escape closes
+the list. Each entry shows command, name, description, and source.
+
+At composition, the embedded catalogue is combined with bounded compatible
+disk definitions. Kora-owned roaming `Skills`, `Instructions`, and `Prompts`
+folders and recognized personal `.copilot`, `.agents`, `.claude`, VS Code, and
+VS Code Insiders customization locations are read without whole-profile
+scanning or reparse traversal. Strict UTF-8, byte/file/depth bounds,
+frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
+uniqueness are validated. Invalid or conflicting discovery fails closed.
+Discovery occurs at startup; restart is required after disk changes.
+
+Running an artifact means applying its declarative instructions to the current
+model request. It does not execute a packaged script, approve an operation,
+create a grant, or prove an outcome. A selected artifact may lead the model to
+propose an existing registered host action, but that proposal still converges
+on the normal host-owned validation, approval, audit, privacy, and execution
+path. The embedded session-control scripts remain inspection-only until their
+separate runtime and containment work is admitted.
 
 ## Responsibility and Terminology
 

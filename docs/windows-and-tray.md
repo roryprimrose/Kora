@@ -1,5 +1,61 @@
 # Windows, tray, and appearance
 
+## Authoritative Sessions work
+
+The already-open selected work surface also has a **trusted local events**
+status list. Only fixed authoritative local-version work/question facts and
+fresh cached maintenance can create a row. Fixed summaries have no titles or
+question/remote text. Delivery is visual, focus-preserving and rate-limited;
+PresentedNoReplay/dismissed/deferred/expired/category-limited rows are passive
+status, not repeated notifications. Exact native review/dismiss/fifteen-minute
+defer uses the [same broker as commands](commands.md#trusted-local-events).
+No question target, voice output, task/approval deadline, grant or dispatch
+changes. Maintenance Check/Open remains in its native window.
+
+Open **Tray > Sessions**, **open sessions**, or the existing compact keyboard
+shortcut. The bounded All/Active/Done list sits beside selected exact-session
+work: queued/current/waiting/blocked/cancelled/removed/Unknown receipts, stable
+task/request IDs, revisions/generation/FIFO order, observed deadlines, pending
+capacity and dispatch eligibility/reasons. Ready is an observation, not
+permission; failures/recovery and omitted records remain explicit. There are
+up to 25 recent queue receipts and 50 nonqueue task/pending-question records
+each; use exact history/status for omitted retained records.
+
+Selection and five-second idle refresh are passive and preserve focus.
+Use **Inspect selected work ID**, eligible **Cancel**, **Remove pending ID**
+or **Confirm clear displayed pending queue** for the exact displayed revisions.
+Stale/session/selection changes refuse. **Enqueue local version** adds only
+the fixed harmless read; **Dispatch ready local versions fairly** is a separate
+manual decision, never automatic or preferential to the selected session.
+
+Pending question metadata stays visible beside history/evidence; answer only
+in the original separate Questions window. A question wait has its own expiry,
+no scheduler slot and no active-task clock to extend. Browse/filter/close never
+resumes work, changes voice/approval targets, consumes grants or extends activity.
+Done/disposition/redacted history and restart Interrupted/Unknown quarantine
+retain existing gates. Details/files/skills/captions remain separate immutable
+or volatile inspections, not queue payloads.
+
+This is not a conversation composer, general effect cancellation, provider/
+worker qualification, Ask Evidence, export or rich browser. Real installed
+screen-reader/DPI acceptance remains open.
+
+## Native local file inspection
+
+**Tray > Preview file (local inspection only)** opens the trusted Windows
+single-file picker. A separate metadata-only review shows the canonical path,
+identity, scope, original host session/origin, byte count and limits. Confirm
+that exact review locally before content is read; it expires after two minutes.
+The result is inert, immutable plain text with exact-byte digest and provenance,
+not a Markdown renderer, attachment or model submission. Close revokes it.
+Exact typed/current-name ACTIVATED `preview file` / `clear file preview` use the
+same host workflow. Exact **search file** / **inspect file** focus native
+lexical search of that admitted revision. Queries are entered only in this
+native control; bounded exact excerpts carry revision/digest/line citations,
+observation time and truthful truncation/failure states. Results stay inert,
+volatile and host-only. Folder/knowledge/persistent-index/reasoning remain unavailable.
+See [commands and limits](commands.md#explicit-local-file-preview).
+
 ## Kora's presence
 
 Kora's presence is the animated group of dots that communicates the assistant's
@@ -59,6 +115,13 @@ the response window visible; idle presence still uses its own timeout.
 
 ## Tray icon
 
+**Evidence (read-only)** offers an explicit **AuthorityAudit** source for
+committed typed interaction-store audits, separately from diagnostic **Audit**,
+**All**, **DailyLog** and **CombinedLog**. It shares the existing bounded native
+filter/page/citation display, without copying, export, execution or approval
+controls. [Privacy, limits and source distinctions](privacy-safety-and-logs.md#committed-authority-audit-inspection)
+describe its snapshot and recovery behavior.
+
 Kora keeps a notification-area icon while running.
 Windows may initially place it under **Show hidden icons**. You can drag or pin
 the Kora icon into the always-visible notification area using normal Windows
@@ -74,25 +137,88 @@ The right-click menu contains:
 - **Show Kora**
 - **Kora Settings**
 - **Documentation**
+- **Skill packages (inspection only)**
 - **Sessions**
 - **Preview clipboard (local plain text)**
 - **Release maintenance (notify-only)**
 - **Evidence (read-only)**
 - **Review local version (native question)**
-- **Enable listening / Disable listening**
+- Read-only generic **input status** (no endpoint ID/name or transcript in the tooltip)
+- **Listening controls > Enable listening / Disable listening**
 - **Voice consent / push-to-talk**
-- **Microphones** (enumerated endpoint IDs, selected and unavailable state)
-- **Refresh microphones** (no model/network dependency)
+- **Microphones** (friendly endpoint labels, native selected-preference marks and availability)
+- **Choose microphone (native recovery)** (the same passive card as speech Settings)
+- **Refresh microphones** (metadata only; five-second deadline; no model/network dependency)
 - **Stop speaking**
 - **Exit Kora**
 
 Tray labels use the configured assistant name except for the fixed
 Documentation label.
 
+For manual call protection use **Kora Settings > Calls** from the tray. The
+native **I'm in a call**, **Clear manual call mode**, **Reset manual off** and
+passive **Cached call status** share the [exact current-run commands](commands.md#exact-current-run-manual-call-control).
+This adds no ambient detector or separate tray mutation authority. Manual
+state is not restored across restart; clearing never clears automatic Unknown/
+Active evidence, changes saved flags, speaks, replays output or opens capture.
+
+**Release maintenance (notify-only)** shares the existing native cached
+review/snooze workflow with exact typed/activated **maintenance status**,
+**maintenance review** and **maintenance snooze**. Commands never check,
+refresh, grant/renew network consent or silently open a browser. Review
+reveals only the exact fresh native record; snooze affects only its eligible
+notice in this run, not pending questions/approvals or security prompts.
+Unknown/stale/error state stays explicit. [Command bounds and exclusions](commands.md#exact-cached-release-maintenance)
+apply; this is not a general notification broker or installed acceptance.
+
 Selection does not release a privacy/manual-disable recovery hold. Tray clicks
 never implicitly activate capture. Windows privacy events hide sensitive
 Kora surfaces; unlocking alone does not reveal them or reopen input. Use the
 launcher/tray to return to native status and recovery.
+
+### Microphone and listening recovery
+
+The native selections share the same audited preference seam as the bounded
+[`speech.input-device` commands](commands.md#exact-input-device-preference).
+Commands do not combine selection with Enable or renew consent/permission;
+reset explicitly selects System without releasing manual/run holds.
+
+**Choose microphone (native recovery)** opens a non-topmost card with real current
+endpoint names/IDs, System/default availability and the retained unavailable pin.
+**Refresh devices** is metadata only. Highlight a current endpoint, then choose
+**Save preference only**; highlighting/closing is not consent or enablement.
+Use a separate fresh **Enable listening (PTT readiness only)** for the displayed
+saved endpoint after all current host gates pass. No model, network, working
+microphone, test capture or durable question bridge is required or claimed.
+Close/Escape does not cancel a task or mark a session Done. Speech Settings
+opens the same card and retains its separate consent and held PTT controls.
+
+Open the right-click menu to refresh microphone metadata without recording.
+Refresh is single-flight and has a five-second caller deadline. If Windows
+enumeration is still finishing after a timeout, retry later; repeated clicks
+do not start more workers. Failure reports **Microphone recovery needs
+attention** with Refresh/Settings recovery, and capture stays closed.
+
+The tooltip distinguishes PTT-ready (**microphone closed; wake unavailable**)
+from actual PTT capture, disabled input, unavailable selection and denied/
+unknown Windows privacy. It contains no device identity or private content.
+The microphone submenu shows **System** and active named endpoints. A native
+selection mark means saved preference, not recording. A missing saved pin
+remains marked **unavailable; preference retained**, not replaced. System can
+explicitly clear an unavailable pin even when Windows has no usable default.
+
+Choosing an endpoint saves only that current revision's preference. Changed
+selection closes input and requires explicit **Enable listening** afterwards;
+it does not test the device, record audio or grant consent. A stale menu click,
+changed Windows topology, lost ownership, locked/disconnected/unknown privacy
+or a failed save reports refusal/recovery. Refresh and choose again.
+
+**Enable listening** requires saved consent and fresh existing host gates; it
+only arms PTT. **Disable listening** is always an explicit close, never a toggle
+that can accidentally enable from an old menu. **Stop speaking** stops only
+playback. **Voice consent / push-to-talk** opens existing Settings for consent,
+readiness and held PTT. These actions do not cancel tasks or approve work.
+No microphone test or ambient wake is provided by this recovery slice.
 
 ## Passive document details
 
@@ -100,9 +226,21 @@ launcher/tray to return to native status and recovery.
 
 Choose **Sessions**, use exact **open sessions**, or press **Ctrl+Shift+S**
 in the compact response. **Refresh** lists existing Active/Done durable IDs
-and generations, 25 per page. Selection reads actual typed question history
-and current task records, never a conversation title or fabricated progress.
+and generations with bounded user names and metadata revisions, 25 per page
+(50 maximum at the store). Preserved legacy sessions are explicitly unnamed.
+Selection reads actual typed question history and current task records, never
+a fabricated conversation or progress.
 Next session/question/task/evidence controls are independently bounded.
+Select an exact task from the current page and choose **Inspect exact selected
+task** for its current durable source/state/question and conflict tokens.
+Selection alone does nothing. **Cancel inspected pre-dispatch wait** is a
+separate deliberate action available only for an admitted current-run
+local-version question still waiting before dispatch. It shares the exact
+typed/activated-voice task workflow and commits task/question/audit atomically.
+Stale, expired, foreign, prior-run, answered, dispatched and Unknown work
+refuses; no worker termination or replay is claimed. The native question's
+Cancel button uses that same host workflow, and committed exact-text
+cancellation closes its outstanding native wait without a late answer.
 **Read selected evidence** uses the separate diagnostic/audit projection;
 missing conversation/session sources remain unavailable.
 
@@ -115,12 +253,113 @@ privacy, call policy/revision, committed control intent and atomic authoritative
 audit are checked by the writer, not inferred from the display. A conflict or
 failure reports refusal/recovery; refresh before retrying.
 
+Enter a name and choose **Create empty Active session** to deliberately create
+a new immutable session ID, Active generation 1 and metadata revision 1.
+This creates no execution task, executor, model context, question, approval or
+permission; Kora retains an administrative control intent/receipt for audit.
+**Rename selected ID** applies only to the displayed exact ID and its observed
+generation/metadata revision. Duplicate names are permitted, never ambiguous
+authority. A stale edit is refused: refresh and select the exact ID again.
+Rename is allowed on Done or unresolved-work sessions without resuming,
+abandoning or resolving work, changing grants or extending meaningful activity.
+
+Names must be nonblank NFC Unicode with no surrounding whitespace, at most
+**120 Unicode scalars / 480 UTF-8 bytes**, with no control/format characters
+or line/paragraph separators. Invalid names are refused, never silently
+normalized/truncated. Names are intentional private content, stored only in
+the existing private interaction partition, not raw audit/log/activity content.
+The validated transactional v1-to-v2 metadata upgrade and v3 task consolidation preserve existing
+authority/history and does not invent names. Missing/corrupt/unsupported data
+is unavailable, never replaced with empty authority. Create/Rename require
+the same fresh original-user ownership/privacy/call admission and required
+atomic audit as lifecycle controls; protected/unknown call state denies them.
+
 Done/resume each advance generation and invalidate old scoped authority.
 Perpetual records remain independent. Resume does not rerun tasks, revive
 approvals or restore/transmit old context. Privacy closure clears this window.
-Full conversations, work queues, rename/create metadata, automatic archive,
-delete/retention, export and scheduling are not delivered. No live visual,
+Full conversations, general effect work queues, name-based voice targeting, automatic archive,
+full recoverable-copy deletion/retention, export and scheduling are not delivered. No live visual,
 screen-reader or OS-session acceptance is claimed by fixture tests.
+
+### Bounded passive interaction history
+
+The same **Sessions** window now also has a bounded
+[fixed local-version queue](commands.md#deterministic-local-version-queue).
+Select an exact existing session, choose **Read exact queue**, then explicitly
+enqueue, manually dispatch ready reads fairly, cancel a displayed pending ID,
+or **Confirm clear displayed pending queue**. Generation/entry/queue revisions
+are bound to the displayed snapshot; concurrent changes require refresh.
+Selection or reading alone never dispatches, changes voice focus, extends
+activity or resumes work. The queue requires no model/network/audio and
+cannot schedule scripts, arbitrary resources, power or provider effects.
+
+Select an existing session to populate its immutable ID, or enter a known exact
+session GUID in the history field. Choose **Read exact history**. **Next history
+snapshot page** continues only that session's original generation/sequence
+ceiling; later appends require a new read. A stale lifecycle requires refresh,
+not automatic resume. Pages default to 25, max 50/64 KiB; oversized individual
+content is explicitly unavailable with its citation retained. Fields/buttons
+have accessible names and keyboard access; history never changes the current
+question, approval, focus/voice target or meaningful activity.
+
+Only host-committed questions/final answers, decision metadata and task-state
+receipts are available. Migration baselines and gaps are labelled, not an
+invented timeline; a task receipt is not proof of an external effect.
+Bootstrap user/model messages, response bodies and full conversation composition
+are unavailable. There is no search, model history reasoning, Ask Evidence,
+export, replay or playback. File previews, shared-profile skill text and captions
+are not imported. Private ownership loss clears pending content.
+Exact typed/activated [history/get commands](commands.md#bounded-exact-id-session-commands)
+use the same service and do not record control intents or mutate sessions.
+
+Done sessions remain readable. Removed sessions do not reappear in the live
+list, but their exact known ID can inspect redacted history citations. This
+does not restore text, names, authority, approvals or work.
+
+### Logical session disposition
+
+For explicit removal from the live workspace, select the exact existing ID and
+choose **Preview logical disposition**. Review the displayed ID, name (only a
+label), generation, metadata revision, row counts and retained-data warning.
+Nothing changes during preview. **Confirm logical disposition** is a separate
+deliberate native action using that single-use host-held preview. There is no
+voice, typed `session delete`, model, name-based or automatic deletion route.
+
+Confirmation removes only this session's live name/metadata, questions
+(including drafts/answers), host observations, admitted wait bindings and
+scoped grants, and atomically redacts durable history source/content. Exact
+event IDs, sequence, source revisions and provenance digests remain readable.
+It advances generation and retains a Removed identity tombstone
+that cannot be reused or resumed. Other sessions and independent Perpetual
+grants are preserved. Live or Unknown work and unresolved questions block
+disposition, including expired questions. Kora does not abandon work to permit
+removal. An intervening record/task change, stale generation/name revision,
+privacy/ownership/call change or unavailable/corrupt store requires a fresh
+preview after resolving the blocker.
+
+**This is not full or forensic deletion.** Task/event and content-minimising
+authority audit provenance, independent diagnostics, Perpetual provenance,
+inert legacy migration storage, SQLite journals/free pages and copied databases
+remain. Full conversations, managed session artifacts, source
+snapshots/indexes/caches and managed-backup deletion are not delivered. Local
+disposition cannot erase user exports or provider copies. No inactivity timer,
+automatic purge or session retention setting is added.
+
+The receipt says **Committed logical disposition** only after the writer's
+single transaction commits removal, tombstone, terminal control success and
+required audit. Errors never imply success, abandoned work or rollback of a
+possible commit. Refresh to inspect durable state; do not automatically replay
+confirmation after an uncertain error. A successful Removed ID disappears from
+the list. Closing or switching selection discards the displayed confirmation;
+it never performs disposition.
+
+The compact command box and activated voice also expose bounded
+[exact-ID session commands](commands.md#bounded-exact-id-session-commands).
+They share this host service/store, never inherit the selected row/window,
+and require explicit generation/metadata revisions for mutations. Structured
+results are observations rather than runtime progress or conversation history.
+Protected-call voice mutations remain unavailable; pending bootstrap questions
+and approvals are preserved and must be resolved explicitly.
 
 ### Local clipboard preview
 

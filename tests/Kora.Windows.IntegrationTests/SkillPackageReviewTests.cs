@@ -26,7 +26,7 @@ public sealed class SkillPackageReviewTests
                 tabs[i].Header.Should().Be(file.Name + (catalogue.Dependents(file.ResourceId).Count > 1 ? " (shared)" : string.Empty));
                 var panel = tabs[i].Content.Should().BeOfType<DockPanel>().Subject;
                 panel.Children.Should().HaveCount(2);
-                var chrome = panel.Children[0].Should().BeOfType<TextBlock>().Subject;
+                var chrome = panel.Children[0].Should().BeOfType<Kora.Controls.NamedTextBlock>().Subject;
                 chrome.Text.Should().Contain(file.ResourceId).And.Contain(file.Digest);
                 var reader = panel.Children[1].Should().BeOfType<TextBox>().Subject;
                 reader.Text.Should().Be(file.Text);

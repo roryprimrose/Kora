@@ -42,11 +42,19 @@ public sealed class CallCommunicationPolicy : IDisposable
     }
 
     public CallMutationOutcome SetManual(bool active, RequestOrigin origin, long revision, Func<bool> hostEligible)
+        => CommitManual(active, origin, revision, hostEligible, static () => { }, hostEligible);
+
+    internal CallMutationOutcome CommitManual(bool active, RequestOrigin origin, long revision,
+        Func<bool> hostEligible, Action retire, Func<bool> retiredHostEligible)
     {
         lock (sync)
         {
             var denied = CheckMutation(origin, revision, hostEligible);
             if (denied is { } result) { return result; }
+            if (current.ManualActive == active) { return CallMutationOutcome.Unchanged; }
+            retire();
+            var retiredDenial = CheckMutation(origin, revision, retiredHostEligible);
+            if (retiredDenial is { } retirementDenied) { return retirementDenied; }
             return Publish(current with { ManualActive = active });
         }
     }
@@ -73,12 +81,33 @@ public sealed class CallCommunicationPolicy : IDisposable
     {
         lock (sync)
         {
-            if (disposed || !hostEligible()) { return CallMutationOutcome.HostUnavailable; }
+            if (disposed || current.ManualControlEvidenceUnavailable || !hostEligible()) { return CallMutationOutcome.HostUnavailable; }
             if (revision != current.Revision) { return CallMutationOutcome.StaleObservation; }
             if (!current.Authorization(true, true).AllowsVoiceOrCallSettings(origin))
             {
                 return CallMutationOutcome.OriginDenied;
             }
+
+            return null;
+        }
+    }
+
+    internal void HoldManualControlEvidenceUnavailable()
+    {
+        lock (sync)
+        {
+            if (!disposed) { Publish(current with { ManualControlEvidenceUnavailable = true }); }
+        }
+    }
+
+    internal CallMutationOutcome? CommitVoiceSetting(RequestOrigin origin, long revision,
+        Func<bool> hostEligible, Action commit)
+    {
+        lock (sync)
+        {
+            var denied = CheckMutation(origin, revision, hostEligible);
+            if (denied is not null) { return denied; }
+            commit();
             return null;
         }
     }

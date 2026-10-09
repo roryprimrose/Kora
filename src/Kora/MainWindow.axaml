@@ -17,6 +17,7 @@
     TransparencyLevelHint="Transparent"
     WindowStartupLocation="Manual">
   <controls:PresenceControl
+      x:Name="Presence"
       State="{Binding State}"
       IsSpeaking="{Binding IsSpeechPlaybackActive}"
       SpeechOutputLevel="{Binding SpeechOutputLevel}"

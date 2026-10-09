@@ -13,6 +13,25 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void Embedded_sessions_guide_distinguishes_bounded_native_metadata_from_unadmitted_routing_and_history()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var windows = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        windows.Should().Contain("Create empty Active session").And.Contain("Rename selected ID")
+            .And.Contain("120 Unicode scalars / 480 UTF-8 bytes").And.Contain("Duplicate names")
+            .And.Contain("metadata revision").And.Contain("no execution task")
+            .And.Contain("v1-to-v2").And.Contain("v3 task consolidation").And.Contain("meaningful activity")
+            .And.Contain("Inspect exact selected").And.Contain("Cancel inspected pre-dispatch wait");
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("Bounded exact-ID session commands").And.Contain("selected window never redirects")
+            .And.Contain("session rename").And.Contain("During protected calls").And.Contain("1,024 UTF-8 bytes")
+            .And.Contain("task inspect").And.Contain("task cancel").And.Contain("no effect")
+            .And.Contain("previous").And.Contain("before dispatch");
+        var privacy = pages.Single(page => string.Equals(page.Id, "privacy-safety-and-logs", StringComparison.Ordinal)).Markdown;
+        privacy.Should().Contain("Names never").And.Contain("content digest").And.Contain("never invents titles");
+    }
+
+    [Fact]
     public void Embedded_guide_contains_every_documentation_page_in_navigation_order()
     {
         var provider = new EmbeddedUserDocumentationProvider();
@@ -46,7 +65,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal));
 
         page.Title.Should().Be("Tools and built-in skills: current and planned");
-        page.Markdown.Should().Contain("No script-backed built-in skills ship in the current release.");
+        page.Markdown.Should().Contain("No script-backed built-in skill executor ships in the current release.");
         page.Markdown.Should().Contain("### Lock the machine");
         page.Markdown.Should().Contain("### Shut down the computer");
         page.Markdown.Should().Contain("### Restart the computer");
@@ -72,7 +91,10 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 2);
+        sections.Should().HaveCount(commands.Count + 10);
+        var sharedSkills = sections.Single(section => section.StartsWith("Inspect shared profile skills locally", StringComparison.Ordinal));
+        sharedSkills.Should().Contain("immutable").And.Contain("model exposure")
+            .And.Contain("unavailable").And.Contain("removed/replaced/busy sources fail closed");
         var sessions = sections.Single(section => section.StartsWith(
             "Inspect existing minimal durable sessions", StringComparison.Ordinal));
         var sessionPhrases = Regex.Matches(sessions, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -87,11 +109,76 @@ public sealed class EmbeddedUserDocumentationProviderTests
         appearancePhrases.Should().Equal("list appearance settings", "get appearance.theme",
             "set appearance.theme to dark", "reset appearance.theme");
         appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
+        var output = sections.Single(section => section.StartsWith(
+            "Inspect or change an exact output choice", StringComparison.Ordinal));
+        var outputPhrases = Regex.Matches(output, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        outputPhrases.Should().Equal("list output settings", "get speech.output-device", "status speech.output-device",
+            "set speech.output-device to &lt;exact presented endpoint ID&gt;", "reset speech.output-device");
+        outputPhrases.Should().OnlyContain(phrase => OutputDeviceCommand.Parse(phrase, "Kora") != null);
+        var volume = sections.Single(section => section.StartsWith(
+            "Inspect or change Kora playback volume", StringComparison.Ordinal));
+        var volumePhrases = Regex.Matches(volume, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        volumePhrases.Should().Equal("list volume settings", "get speech.playback-volume", "status speech.playback-volume",
+            "set speech.playback-volume to 30", "reset speech.playback-volume");
+        volumePhrases.Should().OnlyContain(phrase => PlaybackVolumeCommand.Parse(phrase, "Kora") != null);
+        var rate = sections.Single(section => section.StartsWith(
+            "Inspect or change Windows-native speech rate", StringComparison.Ordinal));
+        var ratePhrases = Regex.Matches(rate, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        ratePhrases.Should().Equal("list rate settings", "get speech.windows-rate", "status speech.windows-rate",
+            "set speech.windows-rate to -10", "set speech.windows-rate to 0", "set speech.windows-rate to 10", "reset speech.windows-rate");
+        ratePhrases.Should().OnlyContain(phrase => WindowsSpeechRateCommand.Parse(phrase, "Kora") != null);
+        rate.Should().Contain("Kokoro is unsupported and unchanged").And.Contain("default/reset **0**");
+        var responseMode = sections.Single(section => section.StartsWith(
+            "Inspect or change the device-default response mode", StringComparison.Ordinal));
+        var responseModePhrases = Regex.Matches(responseMode, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        responseModePhrases.Should().Equal("list response settings", "get responses.default-mode", "status responses.default-mode",
+            "set responses.default-mode to Hybrid", "set responses.default-mode to VoiceOnly",
+            "set responses.default-mode to VisualOnly", "reset responses.default-mode");
+        responseModePhrases.Should().OnlyContain(phrase => ResponseModeCommand.Parse(phrase, "Kora") != null);
+        var speech = sections.Single(section => section.StartsWith(
+            "Inspect or change an installed speech choice", StringComparison.Ordinal));
+        var speechPhrases = Regex.Matches(speech, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        speechPhrases.Should().Equal("list speech settings", "get speech.provider", "get speech.voice",
+            "set speech.provider to windows-sapi", "set speech.voice to kokoro / af_heart",
+            "reset speech.provider", "reset speech.voice");
+        speechPhrases.Should().OnlyContain(phrase => SpeechCommand.Parse(phrase, "Kora") != null);
+        var summaries = sections.Single(section => section.StartsWith(
+            "Inspect or lower spoken summary caps", StringComparison.Ordinal));
+        var summaryPhrases = Regex.Matches(summaries, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        summaryPhrases.Should().Equal("list speech settings", "get speech.summary-sentences", "get speech.summary-words",
+            "set speech.summary-sentences to 2", "set speech.summary-words to 40",
+            "reset speech.summary-sentences", "reset speech.summary-words");
+        summaryPhrases.Should().OnlyContain(phrase => SpeechCommand.Parse(phrase, "Kora") != null);
         var settings = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(item => string.Equals(item.Id, "settings", StringComparison.Ordinal));
         foreach (var descriptor in AppearanceOptionRegistry.Options)
             settings.Markdown.Should().Contain(descriptor.Id);
-        sections = sections.Where(section => !ReferenceEquals(section, appearance) && !ReferenceEquals(section, sessions)).ToArray();
+        foreach (var descriptor in SpeechOptionRegistry.Options)
+            settings.Markdown.Should().Contain(descriptor.Id);
+        var sessionCommands = sections.Single(section => section.StartsWith("Bounded exact-ID session commands", StringComparison.Ordinal));
+        sessionCommands.Should().Contain("session help").And.Contain("session list").And.Contain("session status")
+            .And.Contain("session inspect").And.Contain("session create").And.Contain("session rename")
+            .And.Contain("session done").And.Contain("session resume");
+        sections = sections.Where(section => !ReferenceEquals(section, appearance)
+            && !ReferenceEquals(section, output)
+            && !ReferenceEquals(section, volume)
+            && !ReferenceEquals(section, rate)
+            && !ReferenceEquals(section, responseMode)
+            && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
+            && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
+        sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

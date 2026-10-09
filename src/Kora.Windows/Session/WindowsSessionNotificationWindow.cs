@@ -13,7 +13,7 @@ internal sealed class WindowsSessionNotificationWindow : IDisposable
     private const uint SessionChange = 0x02B1;
     private const uint Close = 0x0010;
     private const uint Destroy = 0x0002;
-    private readonly Action<WindowsSessionState> changed;
+    private readonly Action<WindowsPrivacySignalEventArgs> changed;
     private readonly ILogger logger;
     private readonly Thread thread;
     private readonly ManualResetEventSlim ready = new();
@@ -23,7 +23,7 @@ internal sealed class WindowsSessionNotificationWindow : IDisposable
     private volatile bool registered;
     private volatile bool disposed;
 
-    public WindowsSessionNotificationWindow(Action<WindowsSessionState> changed, ILogger logger)
+    public WindowsSessionNotificationWindow(Action<WindowsPrivacySignalEventArgs> changed, ILogger logger)
     {
         this.changed = changed;
         this.logger = logger;
@@ -145,7 +145,8 @@ internal sealed class WindowsSessionNotificationWindow : IDisposable
             _ = UnregisterClass(className, module);
             if (!disposed)
             {
-                changed(WindowsSessionState.Unknown);
+                changed(new WindowsPrivacySignalEventArgs(WindowsSessionState.Unknown,
+                    reason: WindowsPrivacyChangeReason.Session));
             }
         }
     }
@@ -154,6 +155,7 @@ internal sealed class WindowsSessionNotificationWindow : IDisposable
     {
         if (message == SessionChange && (int)lParam == sessionId)
         {
+            var observation = PrivacyObservation.Create();
             var state = (int)wParam switch
             {
                 2 or 4 => WindowsSessionState.Disconnected,
@@ -162,7 +164,8 @@ internal sealed class WindowsSessionNotificationWindow : IDisposable
                 1 or 3 or 5 or 8 => WindowsSessionState.Unlocked,
                 _ => WindowsSessionState.Unknown,
             };
-            changed(state);
+            changed(new WindowsPrivacySignalEventArgs(state, reason: WindowsPrivacyChangeReason.Session,
+                observation: observation));
         }
         else if (message == Close)
         {

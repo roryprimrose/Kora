@@ -4,6 +4,7 @@ using Kora.Application.Infrastructure;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Maintenance;
 using Microsoft.Extensions.Logging;
 
@@ -19,6 +20,8 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     private readonly TimeProvider time;
     private readonly ISecurityAuditLog audit;
     private readonly ILogger<MaintenanceViewModel> logger;
+    private readonly IUiDispatcher dispatcher;
+    private readonly Lock cachedGate = new();
     private readonly Func<int> jitterMinutes;
     private readonly ITimer timer;
     private Func<bool> admitted = static () => false;
@@ -36,7 +39,163 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     private bool networkEnabled;
     private bool busy;
     private bool disposed;
+    private bool cachedMutationPending;
     private string message = "Unknown: not checked. Maintenance network access is off for this run.";
+    private IMaintenanceCommands? cachedCommands;
+    private Func<bool> nativeCachedAdmission = static () => true;
+
+    internal sealed record CachedTarget(MaintenanceViewModel Owner, long Revision,
+        ReleaseChannel Channel, ReleaseCheck? Result, ReleaseCheck? Reviewed, bool Stale);
+
+    internal CachedTarget CaptureCachedTarget()
+    {
+        lock (cachedGate) { return new(this, revision, channel, result, reviewed, IsStale); }
+    }
+
+    internal LocalEvent? ReadLocalEvent(HostId<SessionIdentity> session)
+    {
+        lock (cachedGate) { return ReadLocalEventCore(session); }
+    }
+
+    internal T WithLocalEvent<T>(HostId<SessionIdentity> session, Func<LocalEvent?, T> observation)
+    {
+        lock (cachedGate) { return observation(ReadLocalEventCore(session)); }
+    }
+
+    private LocalEvent? ReadLocalEventCore(HostId<SessionIdentity> session)
+    {
+        var now = time.GetUtcNow();
+        if (!CanReview || result!.Status != ReleaseAvailability.Available) { return null; }
+        var verified = result.VerifiedAt!.Value;
+        var release = result.Release!;
+        if (verified > now || now >= verified.Add(Freshness)
+            || release.Version == snoozedVersion && snoozedUntil!.Value > now)
+        { return null; }
+        var subject = Guid.ParseExact(release.Id.ToString("x32", CultureInfo.InvariantCulture), "N");
+        return new(LocalEvent.Identity(LocalEventSource.CachedMaintenance, session.Value, subject),
+            1, LocalEventSource.CachedMaintenance, LocalEventType.MaintenanceAvailable,
+            session, null, subject, checked(revision + 1), verified.UtcTicks,
+            0, RequestOrigin.HostSystem, null, now, verified.Add(Freshness));
+    }
+
+    internal bool IsCachedTargetCurrent(CachedTarget target, MaintenanceCommand command)
+    {
+        lock (cachedGate)
+        {
+            return !disposed && !busy && admitted() && ReferenceEquals(target.Owner, this)
+                && target.Revision == revision && target.Channel == channel && ReferenceEquals(target.Result, result)
+                && target.Stale == IsStale
+                && ReferenceEquals(command == MaintenanceCommand.Review ? target.Result : target.Reviewed, reviewed);
+        }
+    }
+
+    public void BindCachedCommands(IMaintenanceCommands commands, Func<bool>? eligible = null)
+    {
+        cachedCommands = commands;
+        if (eligible is not null) { nativeCachedAdmission = eligible; }
+    }
+
+    internal string ApplyCached(MaintenanceCommand command, CachedTarget target, HostRequest request,
+        Func<bool> eligible, CancellationToken token)
+    {
+        lock (cachedGate) { return ApplyCachedCore(command, target, request, eligible, token); }
+    }
+
+    private string ApplyCachedCore(MaintenanceCommand command, CachedTarget target, HostRequest request,
+        Func<bool> eligible, CancellationToken token)
+    {
+        bool Current() => !disposed && !busy && admitted() && eligible()
+            && ReferenceEquals(target.Owner, this) && target.Revision == revision && target.Channel == channel
+            && ReferenceEquals(target.Result, result) && ReferenceEquals(target.Reviewed, reviewed)
+            && target.Stale == IsStale
+            && ReferenceEquals(HostActivity.RequireCurrent().Request, request);
+        token.ThrowIfCancellationRequested();
+        if (!Current()) { throw new InvalidOperationException("Cached maintenance target or admission changed. Initiate a fresh command."); }
+        if (command == MaintenanceCommand.Status)
+        {
+            return MaintenanceCommandParser.BoundOutput("Cached maintenance: " + channel + "; cached observation " + Availability + "; " + Status + "\n" + VerificationStatus
+                + "\nReview ready: " + CanReview + "; snooze ready: " + CanSnooze + ".\n" + Disclosure);
+        }
+        if (command is not (MaintenanceCommand.Review or MaintenanceCommand.Snooze))
+        {
+            throw new InvalidOperationException("Only exact cached maintenance operations are admitted.");
+        }
+        var record = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
+            command == MaintenanceCommand.Review ? "maintenance.review" : "maintenance.snooze",
+            SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
+                ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser, "maintenance.current-run");
+        using var activity = HostActivity.BeginAudit(request, record);
+        var requested = false;
+        var terminal = false;
+        try
+        {
+            audit.Write(record);
+            requested = true;
+            if (!CanReview || command == MaintenanceCommand.Snooze && !CanSnooze)
+            {
+                audit.Write(record.WithOutcome(SecurityAuditOutcome.Denied, "stale-or-not-reviewed-notice"));
+                terminal = true;
+                throw new InvalidOperationException("Fresh exact available metadata and its native review are required to snooze; no other prompt was changed.");
+            }
+            var output = MaintenanceCommandParser.BoundOutput(channel + "; " + VerificationStatus
+                + "\nCanonical cached record: " + result!.Release!.Id.ToString(CultureInfo.InvariantCulture)
+                + "; attempted " + result.AttemptedAt.ToString("u", CultureInfo.InvariantCulture) + ".\n" + ReleaseDetails
+                + "\n" + ReleasePage + "\n" + Disclosure);
+            var proposedMessage = command == MaintenanceCommand.Review
+                ? "Native review bound to this exact verified snapshot. Any refresh, expiry or admission change invalidates navigation and snooze."
+                : "Reminder snoozed for this exact release for 24 hours in this run. No approval or security prompt changed.";
+            var response = MaintenanceCommandParser.BoundOutput(proposedMessage + "\n" + output);
+            token.ThrowIfCancellationRequested();
+            if (!Current()) { throw new InvalidOperationException("Maintenance target changed before commit."); }
+            var priorMessage = message;
+            var priorVersion = snoozedVersion;
+            var priorUntil = snoozedUntil;
+            var committed = false;
+            try
+            {
+                cachedMutationPending = true;
+                if (command == MaintenanceCommand.Review) { reviewed = result; }
+                else
+                {
+                    snoozedVersion = result.Release.Version;
+                    snoozedUntil = time.GetUtcNow().AddHours(24);
+                }
+                message = proposedMessage;
+                audit.Write(record.WithOutcome(SecurityAuditOutcome.Succeeded));
+                terminal = true;
+                committed = true;
+            }
+            finally
+            {
+                if (!committed)
+                {
+                    snoozedVersion = priorVersion;
+                    snoozedUntil = priorUntil;
+                    if (revision == target.Revision)
+                    {
+                        reviewed = target.Reviewed;
+                        message = priorMessage;
+                    }
+                }
+                cachedMutationPending = false;
+            }
+            activity.Complete(HostOperationOutcome.Completed);
+            dispatcher.Post(() => { if (!disposed) { Notify(); } });
+            return response;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or InvalidDataException or IOException
+            or UnauthorizedAccessException or OperationCanceledException)
+        {
+            var cancelled = exception is OperationCanceledException;
+            activity.Complete(cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+            if (requested && !terminal)
+            {
+                audit.Write(record.WithOutcome(cancelled ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed,
+                    cancelled ? "cached-operation-cancelled" : "cached-operation-failed"));
+            }
+            throw;
+        }
+    }
 
     public MaintenanceViewModel(IReleaseMetadataClient client, IApplicationInfo info, ReleaseArchitecture architecture,
         ICanonicalReleasePageOpener opener, TimeProvider time, IUiDispatcher dispatcher, ISecurityAuditLog audit,
@@ -49,6 +208,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         this.time = time;
         this.audit = audit;
         this.logger = logger;
+        this.dispatcher = dispatcher;
         this.jitterMinutes = jitterMinutes ?? (() => Random.Shared.Next(0, 31));
         timer = time.CreateTimer(_ => dispatcher.Post(OnTimer), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         CheckCommand = new(CheckAsync, ReportFailure);
@@ -64,7 +224,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     public AsyncCommand SnoozeCommand { get; }
     public string CurrentVersion => info.Version;
     public string Disclosure => CanonicalRelease.Limits + " " + CanonicalRelease.Runtime;
-    public string Status => message;
+    public string Status => cachedMutationPending ? "Unknown: cached maintenance audit commit is pending; no success is confirmed." : message;
     public ReleaseAvailability Availability => result?.Status ?? ReleaseAvailability.Unknown;
     public ReleaseCheck? LastVerified => lastVerified;
     public DateTimeOffset? NextCheck => nextCheck;
@@ -79,8 +239,9 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             + release.ArchitectureDisclosure + "\nExpected SHA-256: "
             + release.Assets.Single(asset => string.Equals(asset.Name, release.ArtifactName, StringComparison.Ordinal)).Sha256
         : "No currently verified release is available for review.";
-    public bool CanReview => !disposed && !busy && admitted() && result?.Release is not null && !IsStale;
+    public bool CanReview => !disposed && !busy && !cachedMutationPending && admitted() && result?.Release is not null && !IsStale;
     public bool CanOpen => CanReview && ReferenceEquals(result, reviewed);
+    public bool CanSnooze => CanOpen && result!.Status == ReleaseAvailability.Available;
 
     public ReleaseChannel Channel
     {
@@ -124,6 +285,11 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
 
     public void PrivacyClosed()
     {
+        lock (cachedGate) { PrivacyClosedCore(); }
+    }
+
+    private void PrivacyClosedCore()
+    {
         if (disposed) { return; }
         Invalidate();
         result = null;
@@ -164,34 +330,39 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         try
         {
             var checkedRelease = await client.CheckAsync(channel, info.Version, architecture, token);
-            if (disposed || admittedRevision != revision || !admitted() || token.IsCancellationRequested)
+            lock (cachedGate)
             {
-                activity.Complete(HostOperationOutcome.Cancelled);
-                return;
+                if (disposed || admittedRevision != revision || !admitted() || token.IsCancellationRequested)
+                {
+                    activity.Complete(HostOperationOutcome.Cancelled);
+                    return;
+                }
+                result = checkedRelease.Release is { } metadata
+                    ? checkedRelease with { Release = metadata with { Assets = Array.AsReadOnly(metadata.Assets.ToArray()) } }
+                    : checkedRelease;
+                reviewed = null;
+                if (result.VerifiedAt is not null)
+                {
+                    lastVerified = result;
+                    failures = 0;
+                    var jitter = jitterMinutes();
+                    if (jitter is < 0 or > 30) { throw new InvalidDataException("Maintenance jitter exceeds its 0-30 minute bound."); }
+                    nextCheck = time.GetUtcNow() + Freshness + TimeSpan.FromMinutes(jitter);
+                }
+                else
+                {
+                    failures = Math.Min(failures + 1, 8);
+                    nextCheck = time.GetUtcNow() + TimeSpan.FromMinutes(Math.Min(360, 5 * (1 << (failures - 1))));
+                    if (result.RetryAt is { } retry && retry > nextCheck!.Value) { nextCheck = retry; }
+                }
+                message = result.Status + ": " + result.Reason;
+                if (result.Release?.Version == snoozedVersion && snoozedUntil > time.GetUtcNow())
+                {
+                    message += " Reminder snoozed for this version in this run.";
+                }
+                activity.Complete(result.VerifiedAt is not null ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+                Schedule();
             }
-            result = checkedRelease;
-            reviewed = null;
-            if (result.VerifiedAt is not null)
-            {
-                lastVerified = result;
-                failures = 0;
-                var jitter = jitterMinutes();
-                if (jitter is < 0 or > 30) { throw new InvalidDataException("Maintenance jitter exceeds its 0-30 minute bound."); }
-                nextCheck = time.GetUtcNow() + Freshness + TimeSpan.FromMinutes(jitter);
-            }
-            else
-            {
-                failures = Math.Min(failures + 1, 8);
-                nextCheck = time.GetUtcNow() + TimeSpan.FromMinutes(Math.Min(360, 5 * (1 << (failures - 1))));
-                if (result.RetryAt is { } retry && retry > nextCheck!.Value) { nextCheck = retry; }
-            }
-            message = result.Status + ": " + result.Reason;
-            if (result.Release?.Version == snoozedVersion && snoozedUntil > time.GetUtcNow())
-            {
-                message += " Reminder snoozed for this version until " + snoozedUntil.Value.ToString("u", CultureInfo.InvariantCulture) + ".";
-            }
-            activity.Complete(result.VerifiedAt is not null ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-            Schedule();
         }
         catch (OperationCanceledException)
         {
@@ -277,32 +448,32 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         }
     }
 
-    public Task ReviewAsync()
-    {
-        Mutate("maintenance.review", () =>
-        {
-            if (!CanReview) { throw new InvalidOperationException("Fresh admitted metadata is required for native review."); }
-            reviewed = result;
-            message = "Native review bound to this exact verified snapshot. Any refresh, expiry or admission change invalidates navigation and snooze.";
-        });
-        return Task.CompletedTask;
-    }
+    public Task ReviewAsync() => ExecuteCachedNativeAsync(MaintenanceCommand.Review);
+    public Task SnoozeAsync() => ExecuteCachedNativeAsync(MaintenanceCommand.Snooze);
 
-    public Task SnoozeAsync()
+    private async Task ExecuteCachedNativeAsync(MaintenanceCommand command)
     {
-        Mutate("maintenance.snooze", () =>
+        try
         {
-            if (!CanOpen) { throw new InvalidOperationException("A fresh admitted release is required to snooze."); }
-            snoozedVersion = result!.Release!.Version;
-            snoozedUntil = time.GetUtcNow().AddHours(24);
-            message = "Reminder snoozed for this release for 24 hours in this run. No prompt/audio backlog exists.";
-        });
-        return Task.CompletedTask;
+            if (cachedCommands is null) { throw new InvalidOperationException("Durable cached maintenance admission is unavailable."); }
+            await cachedCommands.ExecuteAsync(command, OriginalOrigin,
+                () => admitted() && nativeCachedAdmission(), CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or InvalidDataException or IOException
+            or UnauthorizedAccessException or OperationCanceledException)
+        {
+            ReportFailure(exception);
+        }
     }
 
     private static RequestOrigin OriginalOrigin => HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
 
     private void Mutate(string action, Action change)
+    {
+        lock (cachedGate) { MutateCore(action, change); }
+    }
+
+    private void MutateCore(string action, Action change)
     {
         var origin = OriginalOrigin;
         using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Policy);
@@ -378,6 +549,11 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        lock (cachedGate) { DisposeCore(); }
+    }
+
+    private void DisposeCore()
+    {
         if (disposed) { return; }
         Invalidate();
         disposed = true;
@@ -409,9 +585,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ReleasePage));
         OnPropertyChanged(nameof(ReleaseDetails));
         OnPropertyChanged(nameof(CanOpen));
+        OnPropertyChanged(nameof(CanSnooze));
         OnPropertyChanged(nameof(CanReview));
     }
-
-    [LoggerMessage(321, LogLevel.Error, "Native maintenance operation failed; exception type {ExceptionType}.")]
-    private static partial void Failure(ILogger logger, string exceptionType);
 }

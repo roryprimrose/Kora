@@ -7,6 +7,17 @@ This experiment uses the actual .NET SDK and native runtime with synthetic
 loopback HTTP/SSE providers. It is not a Node sidecar, fake-only proof,
 production R13 scheduler, ledger, authority or account-capacity claim.
 
+**Current disposition:** migrate applicable byte/deadline, independent identity/
+admission, no-retry and Unknown/quarantine assertions into maintained management/
+runtime integration tests before executable archival. Exact equivalence and
+consumer/reference checks are required; envelope receipts do not qualify native
+lifecycle, durable authority or hosted-account eligibility. The
+[three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+scope these gates to affected profile exposure/RC inclusion, not unrelated
+merges or deterministic local management. No code or evidence is removed and
+this experiment remains outside default CI.
+
 ## Profile and historical separation
 
 The initial instruction selected RT1's source-built

@@ -2,6 +2,12 @@
 
 Status: proposed required MVP capability, delivered in Slice C.
 
+The delivered R21 shared-profile slice is **local read-only discovery and exact
+inspection only**, not this authoring workflow. Registering or inspecting a root
+does not save a Kora-specific fork, enable/invoke a revision, expose instructions
+to a model or authorize edits/execution. See
+[the bounded source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection).
+
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 ## Outcome

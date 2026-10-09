@@ -44,6 +44,10 @@ public sealed partial class ResponseWindow : Window
         Closed += OnClosed;
         PositionChanged += OnPositionChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        AddHandler(PointerMovedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnInteraction;
         KeyDown += OnInteraction;
     }
@@ -82,8 +86,50 @@ public sealed partial class ResponseWindow : Window
     private async void OnCancelQuestionClicked(object? sender, RoutedEventArgs eventArgs) =>
         await viewModel.CancelModelQuestionAsync();
 
+    private void OnArtifactCommandClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is Button { Tag: ArtifactCommandOption option })
+        {
+            viewModel.ApplyArtifactCommandOption(option);
+            this.FindControl<TextBox>("CommandInput")?.Focus();
+        }
+    }
+
     private void OnCommandTextKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        var list = this.FindControl<ListBox>("ArtifactCommandList");
+        if (viewModel.IsArtifactCommandDropdownVisible && eventArgs.Key is Key.Down or Key.Up)
+        {
+            var count = viewModel.ArtifactCommandOptions.Count;
+            var current = list?.SelectedIndex ?? -1;
+            var next = eventArgs.Key == Key.Down
+                ? Math.Min(current + 1, count - 1)
+                : Math.Max(current - 1, 0);
+            if (list is not null)
+            {
+                list.SelectedIndex = next;
+                if (list.SelectedItem is { } item)
+                {
+                    list.ScrollIntoView(item);
+                }
+            }
+            eventArgs.Handled = true;
+            return;
+        }
+        if (eventArgs.Key == Key.Escape && viewModel.IsArtifactCommandDropdownVisible)
+        {
+            viewModel.DismissArtifactCommandOptions();
+            eventArgs.Handled = true;
+            return;
+        }
+        if (eventArgs.Key == Key.Enter
+            && list?.SelectedItem is ArtifactCommandOption selected)
+        {
+            viewModel.ApplyArtifactCommandOption(selected);
+            list.SelectedIndex = -1;
+            eventArgs.Handled = true;
+            return;
+        }
         if (eventArgs.Key != Key.Enter || !viewModel.RunTypedCommand.CanExecute(null))
         {
             return;
@@ -116,6 +162,14 @@ public sealed partial class ResponseWindow : Window
     {
         viewModel.NotifyPresenceInteraction();
         RestartResponseTimeout();
+    }
+
+    private void OnMouseActivity(object? sender, PointerEventArgs eventArgs)
+    {
+        if (eventArgs.Pointer.Type == PointerType.Mouse)
+        {
+            RestartResponseTimeout();
+        }
     }
 
     private void OnInteraction(object? sender, KeyEventArgs eventArgs)

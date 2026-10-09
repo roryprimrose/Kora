@@ -1,18 +1,481 @@
 # User Configuration and Verbal Settings
 
-Status: partial. The bounded appearance subset below is delivered through a
-shared typed UI/exact local command path; the complete verbal preference and
-model-facing contract remains proposed, subject to protected-call origin gates
+Status: partial. Bounded appearance, installed speech choices, assistant display/PTT
+prefix, spoken-summary caps, exact input/output preferences, per-Kora playback
+volume, Windows-provider-native rate, device-default response mode, independent in-call feedback and future-only SQLite diagnostic/audit retention are delivered through shared native/
+exact typed and activated-voice workflows below. Broader scopes, setup and the
+complete verbal preference/model-facing contract remain proposed; native future-only
+session archive/deletion preferences are also delivered, subject to protected-call origin gates
 and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 ## Configuration Contract
 
+### R18 bounded local event suppression
+
+The [local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+adds no speech/network consent or preference editor. Fixed category budgets
+and fifteen-minute exact defer are host policy, not a reminder scheduler.
+Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use the shared
+atomic device-local preference store. They retain only 64 bounded content-free
+suppression receipts, four fatigue budgets and a UTC high watermark; exact
+source expiry is never extended. Unknown/obsolete/corrupt/unconfirmed/future
+state holds without defaults or replay. Restoring ownership or clearing a call
+does not automatically show/speak notices; only fresh already-open native
+observation may admit an unexpired deferral. Session retirement clears owned
+receipts, not unrelated preferences or global fatigue budgets. General
+reminders, quiet hours, proactive speech configuration and apply-now remain
+undelivered.
+
+### R12 Bounded Session Retention Delivered - 2026-10-09
+
+Native **Settings > Sessions** exposes archive-after and delete-after whole-day
+choices with explicit Refresh/Save/Reset. Unsaved/default/reset means **1 day
+(24 hours) archive / 30 days deletion**, both from the same last-meaningful-
+activity timestamp. Archive must be positive, deletion strictly greater than
+archive and at most 365 days. Domain validation rejects invalid combinations;
+saved malformed/noncanonical/schema/UTF-8 values throw `InvalidDataException`,
+never an implicit default. No typed, voice, model or apply-now route is added.
+
+Schema-1 **`session-retention.txt`** and
+**`session-retention-unconfirmed.txt`** use `IApplicationDataPaths` and the shared
+atomic store. Original local-user intent, owning unlocked native lifetime and
+unchanged host/call revision admission, REQUESTED/terminal trusted audit,
+readback and durable completed control receipt precede confirmation/activation.
+Unknown/unconfirmed/inaccessible state holds policy and new clock writes.
+Inspect saved state and receipts, explicitly repair, then refresh; ordinary
+refresh cannot clear an unconfirmed marker or claim rollback.
+
+Changes affect only new sessions or subsequent meaningful activity. Existing
+sessions retain their snapshotted archive/deletion intervals and due dates;
+shortening or resetting never silently applies an immediate purge on a later
+tick. Status discloses future-only behavior and unavailable apply-now. Ordinary
+diagnostic/audit retention, independent Perpetual grants and other preference
+files are unchanged. Host-only audited Perpetual session marking is a separate
+exemption, with no new marking UI.
+
+Live/dispatched/Unknown work, unresolved questions, current-run control
+authorities and uncertain copy inventories hold maintenance. See the
+[storage/removal contract](Interaction_And_Sessions.md#r12-bounded-session-retention-delivered---2026-10-09).
+Schema v6 retains the separately delivered fixed local-version queue and its
+no-replay recovery. Full R12 still needs blocked R11 for general execution
+integration; this preference slice adds no execution or broader scheduling.
+
+Validation after rebase onto `5755aa7d` (#118): zero-warning/error root Release
+build with existing locked dependency assets (no restore/feed change needed);
+Core 1,028, Application 2,860, Tools 69, Definitions 6,
+Windows 1,215 passed with zero
+failures/skips; portable line/branch coverage 100%/100%. See the
+[dated evidence receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09).
+
+### Delivered bounded device-local in-call feedback (R10/R15)
+
+Schema 1 admits **`calls.feedback-mode`**, with **Voice / UI / Both / Inherit**
+and unsaved/default **UI**. Native **Settings > Calls** provides an exact
+host-held draft and explicit Refresh/Save/Reset. Exact typed/current-name
+ACTIVATED `list call feedback settings`, get/status/set/reset use the same
+[configuration service](../src/Kora.Application/Configuration/InCallFeedbackConfigurationService.cs),
+common original-input audio-control session/generation and committed-intent
+admission. Input/result bounds remain 1,024 UTF-8 bytes/64 KiB. This is not a
+general model settings tool or natural-language mutation.
+
+Only manual Active or enabled Active/Suspected evidence applies the feedback
+choice ahead of task > queue > session > device output. Voice maps to VoiceOnly,
+UI to VisualOnly and Both to Hybrid; Inherit restores ordinary precedence.
+The existing presentation exposes task/queue/device, not new durable narrower
+scope controls; the shared resolver retains the session precedence seam.
+Unknown/invalid evidence never applies a feedback override or grants speech:
+mandatory speech suppression and complete visual recovery remain even with a
+legacy relaxed call-suppression preference. Clear/Unavailable use ordinary
+output, with truthful unavailable automatic detection. No detector is added.
+
+Feedback is **selection, not permission**. Voice/Both/Inherit cannot bypass
+independent call speech suppression, ownership/unlocked privacy, mute/zero,
+capture exclusion, native synthesis/playback lifetime, summary bounds or
+mandatory complete visual safety/question/approval/interruption recovery.
+Changing feedback never opens capture, changes input eligibility/consent,
+acquires permission, edits/reuses grants, clears a call, synthesizes or replays.
+Protected Active/Suspected/Unknown original-voice set/reset is denied without
+UI relabelling, downgrade proposal or deferred application; inspection is allowed.
+
+Host-held choices bind exact configuration/call revision, original input,
+current name/input generation, host-resolved session/generation and owning
+unlocked privacy/topology. Native visible-lifetime identity expires on
+hide/reopen/dispose; old choices cannot revive. REQUESTED and terminal trusted
+audit, atomic save/reset, exact readback and committed-intent outcome precede
+confirmation/activation. Changes retire active/queued output generations.
+
+The independent version-1 **`in-call-feedback.txt`** and
+**`in-call-feedback-unconfirmed.txt`** use `IApplicationDataPaths` and the shared
+atomic store. Missing confirmed storage means unsaved UI; Reset deletes only
+this override. Invalid UTF-8, schema/enum, inaccessible state or an unconfirmed
+marker refuses instead of defaulting, including across restart. A file can be
+committed before later evidence fails: status remains unavailable, not a
+fabricated rollback or success. Inspect saved state and required audit/intent
+receipts, explicitly repair, then refresh under fresh admission. Ordinary
+refresh cannot clear the marker. Unavailable state withholds speech and keeps
+full visual recovery without changing microphone/consent state.
+
+This deterministic source/native-seam slice does not close full R10/R15,
+automatic detector/source freshness qualification, native accessibility,
+real-call/acoustic leakage/stop timing, speak-once/downgrade review, proactive
+configuration, general tools or A0-A4 acceptance. See the
+[experiment disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
+
+### Delivered bounded local speech text (R25)
+
+Schema-1 **`display.speech-text`** supports exact `Off` and `CurrentUtterance`;
+unsaved/default/reset is **Off**. Native **Inspect speech text**, explicit
+host-held choice/save and reset share the same service as
+`list speech text settings`, `get/status display.speech-text`,
+`set display.speech-text to Off|CurrentUtterance`, and
+`reset display.speech-text`. The current assistant-name prefix is accepted only
+on the exact activated route; no fuzzy/model interpretation is advertised.
+
+Discovery choices bind owner, original channel, durable admitted configuration
+session/generation, preference revision and live ownership/privacy/call gates.
+Requested and terminal typed audit outcomes, atomic preference write, exact
+readback, durable unconfirmed marker and completed control receipt precede
+activation. Corrupt or pending/restart values hold captions off and require
+explicit repair, not a default or replay. Captions themselves remain ephemeral:
+only actual matching response playback may reveal approved text.
+Configuration never speaks, persists content, logs text, opens capture, changes
+output mode/call policy or substitutes for required native recovery.
+See [bounded delivery and separate proposals](Information_Display.md#delivered-bounded-local-utterance-slice-r25).
+
+### Delivered bounded caption UX options (R25) - 2026-10-09
+
+The same schema-1 native/exact typed/current-name ACTIVATED workflow now exposes:
+
+| ID | Type, choices and units | Unsaved/default/reset | Timing and reset |
+|---|---|---|---|
+| `display.speech-text-placement` | Primary working-area corner: `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` | `BottomRight` | Next eligible playback; retires old caption immediately; reset changes only this option |
+| `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 inclusive | 5 seconds | Delay after normal completion only; reset preserves placement and mode |
+| `display.speech-text-pin` | Boolean `true` / `false`, run-only current-caption state | `false` | Retains already-observed text until unpinned or source retirement; reset unpins, never persists |
+
+`list speech text settings` includes placement/delay IDs, typed choices, bounds,
+defaults, saved/effective values, source, revision, scope, timing, reset and
+recovery. `get/status <id>`, `set <id> to <exact value>` and `reset <id>` work
+for each option. Placement/delay use the existing host-held choice identity,
+original channel, admitted session/generation, revision, call/ownership/privacy
+gates, requested/terminal typed audit, atomic save/readback, completed intent
+receipt and durable unconfirmed marker. Native **Inspect speech text**, option/
+value selectors, **Save caption option only** and **Reset selected caption option**
+use the same service. Neither option enables speech text or changes its mode.
+
+The independent version-1 **`speech-caption-options.txt`** stores only the exact
+placement/delay tuple through `IApplicationDataPaths` and the shared atomic store.
+Existing **`speech-text-mode.txt`** bytes and Off default are unchanged; the
+existing **`speech-text-mode-unconfirmed.txt`** marker covers all caption writes.
+Unknown schema/corner, noncanonical or out-of-range delay, malformed UTF-8,
+unreadable storage or pending evidence throws/refuses, holds captions unavailable
+and requires explicit repair. No corrupt companion is guessed by reset.
+
+The caption's native **Pin / Unpin** control and exact pin commands affect only
+one already-observed response/playback identity. Pin state is passive ephemeral
+presentation, not a saved preference or effect authority; no new durable intent,
+audit or model tool is advertised for it. Pin get/status is visual-only;
+mutation retains original-channel protected-call and current host/private-source
+checks. No command speaks, replays, opens capture or replaces required panels.
+Normal successful completion labels retained text **PREVIOUS SPEECH**. Unpin
+uses the original completion deadline, so overdue text clears immediately.
+Stop/cancel/failure, response replacement, preference revision, call, lock,
+ownership/privacy/input recovery and disposal still retire immediately,
+even when pinned. Unobserved/queued text cannot be pinned or retained.
+
+Placement uses the primary screen's current working area and 24-DIP margin;
+there is no persisted native handle, arbitrary coordinate or display identity.
+Missing working area or unconfirmed placement fails presentation explicitly.
+Sentence alignment remains unavailable: the composed provider reports only
+utterance segment 0, not admitted sentence boundaries. No heuristic splitting,
+timing claim or new audio pipeline is introduced. Broader natural caption/viewer
+commands and native/accessibility/acoustic qualification remain open.
+Existing 3-sentence/80-word speech caps remain unchanged; brief spoken offers for
+over-limit detailed results are separate work, not delivered by captions.
+
+### Delivered bounded Windows-provider-native speech rate (R10)
+
+The independent schema-1 option **`speech.windows-rate`** admits one canonical
+integer **-10 through 10 inclusive**, engine-normal/unsaved default/reset **0**.
+These are the Windows `System.Speech.Synthesis.SpeechSynthesizer.Rate` API's
+[documented native units](https://learn.microsoft.com/en-us/dotnet/api/system.speech.synthesis.speechsynthesizer.rate?view=net-10.0-pp),
+not a percentage, multiplier or universal words-per-minute scale. The
+[single domain value](../src/Kora.Core/Configuration/WindowsSpeechRate.cs)
+rejects padding, leading zeros, plus signs, negative zero, fractions and suffixes.
+There is no common speed mapping or Kokoro speed implementation.
+
+Native **Settings > Speech & audio** exposes an unsaved bounded draft and
+explicit Refresh/Save/Reset. Exact typed/current-name **ACTIVATED**
+`list rate settings`, `get/status speech.windows-rate`,
+`set speech.windows-rate to <canonical integer>` and `reset speech.windows-rate`
+use the same [rate workflow](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs).
+Input/control bounds remain 1,024 UTF-8 bytes and complete results 64 KiB.
+Discovery/status explicitly includes provider, advertised support, desired/
+effective native rate, saved/default/unavailable source, bounds/default,
+configuration/provider/call revisions, application timing, reset and recovery.
+Only an available installed Windows provider advertising **WindowsNative**
+and a qualified owned adapter can mutate. Kokoro is explicitly unsupported:
+its synthesis and settings remain unchanged, and a saved Windows rate is not
+reported as a Kokoro effect. Unknown provider/capability state fails closed.
+
+The shared atomic preference store and `IApplicationDataPaths` own the
+version-1 `speech-windows-rate.txt` file and independent
+`speech-windows-rate-unconfirmed.txt` marker. Missing confirmed storage means
+normal 0; invalid UTF-8/format/rate, unreadable or unconfirmed evidence does not
+activate a default. Source-generated diagnostics and native visual recovery
+surface failures. Inspect saved state and required audit/intent receipts before
+explicit repair and fresh refresh; ordinary refresh never clears a pending marker.
+Reset removes only this Windows rate override.
+
+Genuine common audio-control admission resolves original user input and the
+host-owned active session/generation, using the existing consolidated interaction
+lease exactly once. Host-held proposals bind source and provider revisions;
+the current saved selection and live installed catalogue are revalidated without
+accepting caller records as authority. Current name/input generation, protected/
+Unknown call policy, ownership/unlocked privacy/topology and the native surface's
+expiring visible-lifetime identity remain gates. Hide/reopen/dispose cannot revive
+a prior native callback; a voice request cannot become UI-originated authority.
+REQUESTED and terminal trusted audits, exact atomic readback and committed-intent
+receipt precede confirmation/activation. Late failure retains the durable marker,
+so an unconfirmed mutation cannot activate on restart.
+
+Changed rate retires active and queued output generations through the existing
+owned cancellation/retirement path. The serialized synthesis lifetime prevents a
+new synthesis from overtaking unfinished retirement; stale completions cannot
+start playback or claim success. Only future eligible Windows synthesis sets
+`Rate` on Kora's own synthesizer before starting synthesis. Set/reset/refresh
+does not claim acoustic speed or audibility. Native setter failure explicitly
+holds rate output with full visual recovery, without clearing an independent
+voice/output preference. Set/reset/refresh
+never synthesizes, autoplays, replays, acquires capture, grants consent, changes
+provider/voice/output selection, installs/downloads assets or changes global
+SAPI/mixer/default-device settings. Existing call/output/zero-volume gates and
+complete mandatory visual previews, interrupted responses and recovery remain.
+
+All session/task/question/approval/grant/retention metadata and policies are
+unchanged: ordinary SQLite 1–365/default30, audit 30–365/default90 (including
+prior-policy configuration receipts), daily files 30/30 and cleanup scheduling.
+This is deterministic source/native-seam qualification only, not acoustic,
+installed/native accessibility, full R10/A0–A4 or runtime/release acceptance.
+The unique R02 speech experiment remains maintained historical evidence; this
+rate implementation does not replace wake/model/license/acoustic receipts.
+
+### Delivered bounded future-only audit retention (R10/R04)
+
+The independent schema-1 option `logging.audit-retention-days` accepts one
+canonical integer **30–365**, unsaved default/reset **90**. Native
+**Settings > Logging** Refresh/Save/Reset and exact typed/current-name ACTIVATED
+get/status/set/reset delegate to the same
+[audit configuration service](../src/Kora.Application/Configuration/AuditRetentionConfigurationService.cs).
+`list logging settings` returns both admitted retention descriptors, including
+saved/default/effective/unavailable provenance, bounds, revision, original-input
+confirmation, application timing, exclusions and explicit recovery. Complete
+input/output bounds remain 1,024 UTF-8 bytes/64 KiB. Apply-now, immediate
+deletion, natural-language aliases and model settings tools are unavailable.
+
+The [single audit-days domain](../src/Kora.Core/Configuration/AuditRetentionDays.cs)
+owns exact parsing, 30–365 validation and deadline metadata validation.
+`IApplicationDataPaths` and the shared atomic preference store own
+`audit-retention.txt` (version 1 plus canonical days) and the independent
+`audit-retention-unconfirmed.txt` marker. Missing confirmed storage is default
+90; malformed UTF-8, invalid days, unknown formats and pending confirmation are
+`InvalidDataException`, not default activation.
+
+Original local input uses a separate audit-control session/generation and the
+merged common durable-intent admission, never diagnostic/audio/manual-call
+authority. Host-held proposals, exact saved-source and effective-policy state,
+configuration/call/name/input revisions, ownership/unlocked privacy/topology
+and native visible-lifetime identity are revalidated. Protected-call original
+voice mutation is denied without UI relabelling. Pending questions, approvals
+and complete responses are not answered, retargeted, replaced or replayed.
+
+The REQUESTED preference receipt is committed under the **prior** audit policy.
+Atomic save/reset, exact readback, required terminal audit and committed-intent
+outcome precede marker confirmation and activation. The terminal preference
+receipt also uses the prior policy: it confirms the save, not a fabricated
+already-active policy effect. Only later commits use the new days. Lost terminal
+evidence, late cancellation/eligibility or confirmation failure holds the policy
+and durable marker; restart cannot activate the unconfirmed weaker value.
+Explicit recovery requires saved-state and required-receipt inspection before
+manual repair and fresh admission. Startup refuses unconfirmed audit policy
+before recovery/authority writes, rather than silently using 90. An in-run
+failure is shown in native Settings; new required audit/authority commits are
+held while passive admitted inspection of preserved rows remains independent.
+
+One confirmed current-run snapshot reaches both genuine NEW
+`InteractionStorageV1` required authority audit envelopes and independently
+qualified `EvidenceStorageV1` diagnostic audit projections. These are distinct
+sources: projections, daily files, arbitrary `SecurityAudit=true` properties,
+messages, trace/model/caller identifiers never become permission authority.
+Existing serialized audit bytes, IDs, hashes, revisions, relationships,
+references/citations and deadlines are untouched. Cold readers, schema-1/2
+legacy validation/migration and schema-3 authority readers validate each row's
+original integral audit-domain deadline, not the current setting.
+
+**No audit pruning or cleanup acceptance is delivered.** Set/reset triggers no
+cleanup, rewrites no old deadline and changes no janitor schedule. Ordinary
+SQLite days remain independently configurable **1–365/default-reset 30**;
+daily files stay **30 days/30 files**. No session/chat/history
+retention/delete/archive, task/question/approval pruning or grant changes are
+implemented. Every grant record and its existing validity/scopes survives;
+independent Perpetual records have no expiry/retention/eviction. Full
+R04/R10/A0–A4, installed/native, acoustic, encryption, forensic/tamperproof,
+artifact/backup disposal, runtime and release qualification remain open.
+
+### Delivered bounded future-only SQLite diagnostic retention (R10/R04)
+
+The diagnostic schema-1 option is `logging.sqlite-diagnostic-retention-days`: canonical
+integer **1–365**, unsaved default/reset **30**. Native **Settings > Logging**
+Refresh/Save/Reset and exact typed/current-name ACTIVATED
+`list logging settings` / get/status/set/reset share one
+[configuration service](../src/Kora.Application/Configuration/DiagnosticRetentionConfigurationService.cs).
+Discovery reports desired/effective days, saved/default/unavailable provenance,
+bounds, reset/timing, configuration/call revisions, independent session admission,
+explicit recovery and `applyNowAvailable=false`. No natural-language aliases,
+model settings tools or arbitrary patch capability are added.
+
+Original local input, current owner/unlocked privacy/topology/input/call state,
+independent diagnostic-control session/generation and the exact host-held
+revisioned proposal are revalidated. Native callbacks additionally require the
+same live visible Settings surface. Pending exact questions/approvals stay
+unchanged; protected-call voice requests cannot relabel themselves through UI,
+headers, model text or trace identifiers.
+
+The domain owns canonical bounds/schema/defaults; supplied application paths
+and the shared atomic preference store own `sqlite-diagnostic-retention.txt`
+and its separate `sqlite-diagnostic-retention-unconfirmed.txt` marker.
+Requested/terminal trusted audit, durable atomic save, exact readback and the
+committed-intent terminal receipt precede confirmation/activation. Failed or
+unconfirmed writes remain unavailable across cold restart; malformed UTF-8,
+unknown schemas and invalid saved days throw `InvalidDataException`. Recovery
+requires explicit saved-state/evidence inspection and refresh, never a silent
+default or automatic marker clearing.
+
+The effective policy reaches genuine newly committed SQLite ordinary log/span/
+owned-link transactions, with one coherent deadline for each span and all links.
+Semantic evidence schema v2 validates integral 1–365-day committed deadlines.
+Only exact valid legacy schema-v1 30-day rows migrate, preserving every row ID,
+payload, correlation, reference and deadline. All admitted readers use the same
+validation. Already committed records never adopt the new days, including
+attempts to replace an old span ID: the current writer is insert-only and
+rejects duplicate IDs rather than upserting retention metadata.
+
+**Apply-now/immediate deletion is unavailable.** Set/reset never runs pruning
+or changes its startup schedule/triggers. Audit remains independently configured
+(30–365/default-reset 90, as described above), daily files 30 days/30 files, and every session,
+history, approval and grant remains unchanged. Independent Perpetual grants
+have no time expiry/retention/eviction; other grants keep existing validity/scope
+rules. Suggested future session/history defaults do not implement those options.
+Unavailable ordinary policy explicitly reports source-qualified delivery gaps
+through the independent file/recovery path; mandatory trusted audit and
+authority stores remain admitted under their own rules, never ordinary fallback.
+Full R04/R10/D-009, installed/native, acoustic and forensic acceptance remain open.
+
+### Delivered bounded device-default response mode (R10)
+
+Schema 1 admits only `responses.default-mode`: the existing `ResponseOutputMode`
+enum values `Hybrid`, `VoiceOnly` and `VisualOnly`, default `Hybrid`. Native
+Inspect/Save/Reset and [exact typed/activated commands](../docs/commands.md#inspect-or-change-the-device-default-response-mode)
+share the [response-mode workflow](../src/Kora.Application/Configuration/ResponseModeConfigurationService.cs).
+Discovery reports enum/default/device scope, reset/application timing, revision,
+saved/default/unavailable provenance, desired and configured effective mode
+(task > queue > device), with current host speech/mandatory-visual policy.
+No session, task, queue or in-call option is registered by this slice.
+
+The original `response-output-mode.txt` file, legacy case-insensitive defined-enum
+parsing and shared atomic preference paths/replacement remain authoritative.
+Missing storage is an unsaved Hybrid default; reset explicitly saves Hybrid,
+matching normal set-to-default semantics rather than claiming file deletion.
+The muted-output fallback file is untouched. Invalid/unreadable saved state,
+unknown authority or failed audit/readback cannot become defaults or success.
+A separate atomic `response-output-mode-unconfirmed.txt` marker precedes mode
+replacement and is removed only after successful audit, terminal receipt and
+exact readback. Interrupted/unconfirmed writes remain unavailable across restart;
+inspection cannot silently clear the marker. Explicit saved-state/evidence repair
+and fresh inspection are required before a new mutation.
+
+The genuine audio-control admission records original-user intent and resolves
+the persisted active session/generation. Host-held choices bind owner, revision,
+original channel and live ownership/privacy/call/input admission; supplied enum
+values, reconstructed choices, traces or foreign sessions are not authority.
+The existing consolidated #83 connection/lease is consumed once; the callback
+does not reacquire task/session authority. The call-policy lock rechecks original
+channel and observed revision adjacent to audited atomic write and exact readback.
+Publication waits for the durable terminal receipt and rechecks live eligibility.
+Committed storage followed by audit/receipt failure remains explicitly unavailable
+until inspection/recovery; no fake rollback or blind retry is reported.
+
+Mutation invalidates stale queued/in-flight output before replacement and never
+autoplays, replays, opens capture or changes consent/permission. The complete
+interrupted visual response and mandatory warning/security/question/approval
+preview remain available even in VoiceOnly. Pending exact interactions remain
+untouched; configuration input is not an answer or approval. Protected/Unknown
+calls deny original activated-voice changes, including later UI dispatch.
+In-call/privacy and unavailable/muted/failed output suppression remain independent.
+
+This is bounded R10 preference delivery, not full R10, native/acoustic acceptance,
+new tools/grants/providers/gain/global mixer, or broader lifecycle authority.
+Maintained deterministic grammar/workflow/UI/SQLite tests are not replacements
+for unique speech/hardware/runtime/worker/storage experiments or historical receipts.
+
+### Delivered bounded assistant display/PTT prefix (R10)
+
+Schema 1 admits only `assistant.name` (spoken: **assistant name**), the already
+delivered device-local presentation and explicitly activated PTT command-prefix
+name. [The descriptor](../src/Kora.Core/Configuration/AssistantNameOption.cs)
+references the existing `AssistantNameRules` defaults and exact bounds:
+1-3 words, at most 32 UTF-16 characters after whitespace trimming/collapse,
+letters/digits/spaces/apostrophes/hyphens and at least one letter/digit.
+Legacy Unicode semantics are preserved, not changed to session-name NFC rules.
+The existing command catalogue also rejects routing collisions.
+
+[One host workflow](../src/Kora.Application/Configuration/AssistantNameConfigurationService.cs)
+owns typed get/propose/apply/reset, process-local owned configuration revisions,
+original host/request/channel and observed call revisions, serialization,
+capture retirement, atomic domain persistence, audit and live notification.
+Native Apply/reset and [exact typed/activated voice list/get/set/reset](../docs/commands.md#assistant-display--ptt-command-prefix-setting)
+use it. The descriptor/current state reports schema, type/default/bounds,
+device-local scope, presentation/routing effect, after-save timing, per-option
+reset, revision, saved/default provenance and explicit recovery.
+No Tools/model settings exposure or arbitrary option/path/patch is added.
+
+The unchanged legacy `assistant-name.txt` format is read without rewriting.
+The existing preference domain and shared atomic preference store retain
+normalization and path/temporary-file/replacement ownership. Missing values are
+unsaved domain defaults; malformed/conflicting/unknown or unreadable saved
+state disables prefix routing and capture visibly, never silently substitutes
+Kora. Native and exact unprefixed recovery remains available.
+
+Before a changed value can commit, input/grammar/transcript/completion
+generations are retired and capture quiescence confirmed. After the awaited
+release, configuration revision and live ownership/privacy/original-channel/
+call revision are rechecked; the shared call-policy lock encloses the atomic
+write. Concurrent/stale proposals, invalid input, cancelled requests, failed
+shutdown/storage and denied host/call state have truthful terminal outcomes.
+Cancellation is admitted before synchronous replacement, not reported as
+unsaved after commit. Audit failure after replacement leaves routing unavailable
+and reports unconfirmed completion until explicit inspection/recovery.
+
+Publication updates all current name surfaces/help/catalogue/session/artifact
+prefixes. It never changes stored session names or durable host/session/task/
+grant/approval/instance identities, data paths, namespaces or authority.
+Exact pending questions/approvals retain their targets; rename is not a reply
+or approval. Old prefixes/captured callbacks are not recovery aliases. Listening
+remains held until explicit enablement and a new PTT; nothing replays or opens
+capture implicitly. Failure starting the new grammar reports capture unavailable
+without restoring an old prefix. Stop/cancel/native recovery remain available.
+Protected/unknown calls reject original voice set/reset, including a later UI
+dispatch; a new eligible UI/typed request remains separately gated.
+
+This slice does not qualify a production wake-name capability, custom profile,
+acoustic quality, assets/learning/enrollment, provider download, OS/global
+settings, consent/privacy downgrade, general registry or full R10/R09 acceptance.
+
 ### Delivered bounded appearance subset (R10)
 
-Nine existing independently persisted options are admitted:
-`appearance.theme`, `appearance.presence-timeout`,
+Ten independently persisted options are admitted:
+`appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
@@ -42,9 +505,268 @@ and produces visible failure; stale proposals require a new operation.
 Reset restores one admitted default; no multi-file transaction, whole-profile
 reset or undo is implemented. Shared response-window pin/topmost/position
 and presence placement remain direct UX outside the registry.
-Voice/audio/call/manual state, grants, models, retention, dependencies and
+Other voice/audio/call/manual state, grants, models, retention, dependencies and
 startup are not registered. No model tools or broader execution authority
-are exposed by this slice. The following complete contract remains future work.
+are exposed by the appearance slice.
+
+### Delivered bounded installed speech choices (R10)
+
+Schema version 1 admits `speech.provider` (spoken name: speech provider) and
+`speech.voice` (speech voice), using the delivered Windows SAPI (`windows-sapi`)
+and Kokoro adapters only. Descriptors classify both as device-local,
+installed-choice, voice-output settings, applied after atomic save to the next
+speech operation. Discovery lists only installed catalogue voices and providers
+with ready choices; it exposes current desired/effective values, defaults,
+saved/default provenance, recovery and a process-local revision.
+
+The default is Windows and its advertised culture-compatible default voice.
+An unset voice means that provider's advertised default, not an arbitrary
+replacement. Provider set/reset also resets the voice to that provider's
+advertised default; provider reset restores Windows. Voice reset affects the
+selected provider's voice only. An explicit qualified voice choice
+`provider / voice ID` selects that exact pair atomically, including a voice
+from another installed provider or one with no compatible default.
+An unqualified ID is accepted only when unambiguous. Voice IDs are bounded to
+256 characters and reject padding, empty values and controls.
+
+The [typed registry](../src/Kora.Core/Configuration/SpeechOptionRegistry.cs),
+[host workflow](../src/Kora.Application/Configuration/SpeechConfigurationService.cs),
+[preference domain](../src/Kora.Application/Configuration/LocalTextToSpeechPreferences.cs)
+and [exact grammar](../src/Kora.Application/Configuration/SpeechCommand.cs)
+share the existing Settings selection/reset controls and typed/activated-voice
+list/get/set/reset routes. A versioned single atomic selection file prevents
+partial provider/voice writes. Existing separate preferences are read without
+rewriting and are shadowed only after a successful explicit coherent save.
+Malformed/unknown saved formats and providers remain explicit errors/recovery;
+missing selected assets retain the desired choice and disable speech, never
+silently download, substitute or repin. Explicit selection/reset or repair
+and refresh provides recovery. Native synthesis failure creates a visible
+run-only hold without changing the saved selection.
+
+Owned proposals bind configuration revision, observed call revision and original
+channel. The existing call-policy lock encloses live ownership/privacy/call
+revalidation and the synchronous atomic write; stale/foreign proposals fail,
+and reentrant notifications cannot mutate the registry. Cancellation is
+admitted before commit, never reported as an unsaved change after commit.
+Typed request/terminal audit outcomes precede live notification; failed
+storage keeps the prior selection/revision. Audit evidence failure propagates,
+does not claim success or activate the unaudited choice, and may require
+inspection of the committed file if terminal evidence failed after replacement.
+
+Protected calls reject original voice-channel set/reset even if later dispatched
+from UI. A new eligible local UI/typed request remains subject to the existing
+host gate; this slice changes no protection downgrade, exact consent or call
+override policy. System/pinned output routing, speech privacy and mandatory
+visual fallback are unchanged. Asset review/download/removal remains separate
+from ready selection; finishing a download does not silently switch output.
+No rate, microphone/tray recovery, model tools, provisioning
+authority, general registry rewrite or full R10/acoustic acceptance is delivered.
+Summary caps are delivered by the separate bounded slice below.
+Playback volume is delivered by its separate admitted audio-control slice below.
+Windows-native rate is delivered by its separate admitted provider-qualified
+slice above; the original provider/voice slice supplies no rate authority.
+
+### Delivered bounded spoken summary limits (R10)
+
+Registry schema version 2 adds `speech.summary-sentences` (positive integer
+1-3, default 3) and `speech.summary-words` (1-80, default 80), with exact spoken
+names speech summary sentences / speech summary words. One
+[validated domain contract](../src/Kora.Core/Configuration/SpokenSummaryLimits.cs)
+owns maxima, defaults and independent reset. Both use the existing speech
+configuration service, audited/revisioned proposal lifecycle, original-channel
+call lock, live host gate and notifications; no parallel registry or policy is
+introduced. Native choices and exact typed/ACTIVATED discovery/get/set/reset
+have parity. These settings remain usable without installed speech assets and
+do not repair, substitute or change an unavailable provider/voice.
+
+A separate versioned atomic device-local limit file preserves provider/voice
+formats and legacy migration. Absent limits are unsaved defaults, not a write.
+Malformed, unknown, out-of-range or unreadable saved values leave ordinary
+speech unavailable with visible recovery. Repair and refresh is explicit;
+per-option reset never guesses an unknown companion cap.
+
+At the host's single ordinary-response speech boundary, the complete spoken
+title/body/warnings must fit both caps. Current routes lack authoritative safe
+omission metadata, so this slice deliberately refuses over-cap speech and
+forces truthful full visual recovery rather than truncating or generating a
+replacement. The owner approved this bounded admission behavior. Full visual
+results/details remain unchanged; no new model request is made.
+Exact proposal/approval readback, required question/options and bounded voice
+previews retain existing mandatory bounds and privacy rules. No arbitrary
+full-content reading tool is added or weakened.
+
+The [Unicode measure](../src/Kora.Core/Voice/SpokenSummaryMeasure.cs) counts
+letter/digit runs with specified mark/apostrophe/hyphen joiners and word-bearing
+punctuation-delimited sentence segments, including trailing fragments.
+Digit-surrounded ASCII dots, initials and a fixed abbreviation list are
+nonterminal. [Exact supported semantics](../docs/settings.md#spoken-summary-limits)
+include CJK, repeated punctuation, line breaks, decimals and acronym word
+boundaries; these are deterministic text counts, not approximate characters,
+natural-language inference or acoustic duration.
+
+Configuration changes invalidate pending output before asynchronous UI
+notification. The configuration lock encloses counting and policy-locked
+provider enqueue, preventing stale limits at start; provider generations and
+existing stop/privacy/disposal paths retire queued synthesis/playback without
+replay. Cancellation is checked before admission/start and before writes;
+post-commit cancellation does not invent an unsaved result.
+This completes only bounded caps, not full R10 or speech/acoustic acceptance.
+The following complete model-facing contract remains future work.
+
+### Delivered bounded exact input-device preference (R10)
+
+Schema 1 admits only `speech.input-device`: an exact endpoint-ID choice,
+device-local, input-preference-only, default `system-default`. Native Settings,
+tray and passive recovery-card selection share the existing atomic audio
+preference format and the [audited preference workflow](../src/Kora.Application/Configuration/InputDevicePreferenceService.cs)
+with typed and **activated** voice commands. Use `list input settings`,
+`get speech.input-device`, `set speech.input-device to <exact listed endpoint ID>`
+and `reset speech.input-device`; there are no friendly-name, index or
+natural-language selector aliases. Option grammar is case-insensitive, endpoint
+IDs are ordinal exact. The configured assistant-name prefix is supported.
+The original input is limited to the existing 1,024 UTF-8 bytes, without controls;
+the complete schema/result is limited to the existing 64 KiB, never truncated.
+
+Discovery deliberately uses the current five-second single-flight metadata
+refresh; get reports the recorded snapshot. Both expose desired/effective,
+System default, saved/default/unavailable source, metadata/call revisions,
+exact choices, availability, readiness and explicit recovery. Endpoint names
+are local presentation content only. Duplicate friendly names remain distinct.
+A missing pin survives startup/refresh; unknown or failed detection is
+unavailable, not System or another same-name replacement. System follows the
+Windows multimedia default; selecting/resetting System explicitly removes
+only the existing microphone override, including when there is no default.
+
+Commands resolve IDs to host-held catalogue objects before finite revalidation.
+Equal-but-not-presented native choices remain rejected. Original host request/
+session lineage and observed call/input/recovery revisions survive awaits;
+the existing call-policy lock encloses live revalidation and atomic persistence.
+Protected or unknown calls deny original voice-channel writes even if later
+dispatched through UI. Unknown owner/session/permission, stale metadata,
+cancellation, pending question/approval and disposal cannot authorize a write.
+Audit/storage failures report not-confirmed; terminal audit failure may follow
+a committed file replacement, so inspect before a fresh request, not automatic
+retry or an invented rollback. Reentrant writes cannot publish a new choice.
+
+Selection is preference only: changed input invalidates stale capture and
+releases it, while manual disablement and run holds remain closed. No operation
+grants consent/permission, opens capture, enables listening, tests audio,
+downloads assets, changes models/OS privacy, forwards provider text, or answers
+a pending question. Separate existing native Enable remains separate. No model
+tools, general registry, full R10/R03/R09/R05/A or hardware acceptance is claimed.
+### Delivered bounded exact output-device preference (R10)
+
+Schema 1 admits the existing `speech.output-device` preference through shared
+[configuration](../src/Kora.Application/Configuration/OutputDeviceConfigurationService.cs)
+and [audio-control admission](../src/Kora.Application/Voice/AudioControlAdmission.cs).
+Native Settings Refresh/Save/reset and exact typed/ACTIVATED commands share that
+workflow: `list output settings`, `get speech.output-device`,
+`status speech.output-device`, `set speech.output-device to <exact presented ID>`,
+and `reset speech.output-device`. Grammar is case-insensitive; endpoint IDs are
+ordinal exact. There are no spoken-name, friendly-name, index or fuzzy aliases.
+Original input retains the existing 1,024 UTF-8 byte/control limits; complete
+versioned results retain 64 KiB bounds and are rejected, never truncated.
+
+The bridge records original local intent using existing authoritative host
+workspace/task services, commits a real active device-control session, and
+leases that persisted session/generation during each control operation.
+Fresh IDs propose identities only: durable admission, current host ownership,
+unlocked privacy, original input and current call/input/recovery revisions
+authorize the operation. Trace/provider/user fields cannot select the session
+or supply authority. This consumer-focused bridge grants no approval, question,
+tool, microphone, task cancellation or provisioning authority.
+
+Five-second single-flight discovery enumerates endpoint metadata only. Host-held
+choices bind exact object identity, session/generation, original channel,
+captured live eligibility, topology/default and preference revisions.
+Cross-session, equal-but-unpresented, stale or changed saved preferences require
+a fresh discovery; SET cannot implicitly invent a never-presented choice.
+Get/status report desired, saved/default/unavailable source, effective route,
+live System default, metadata/call revisions, choices, mute and recovery.
+Duplicate friendly names remain distinct. Missing pins remain saved/unavailable;
+System follows the live multimedia default and reset removes only Kora's override.
+
+The existing atomic preference store/paths and original-channel call-policy lock
+enclose persistence and typed audit. Protected/unknown calls deny voice-originated
+writes, including UI-dispatched voice requests. Evidence or lifecycle failures
+hold output unavailable rather than claiming rollback or replaying an effect;
+a file may already be committed when terminal evidence fails. Inspect and refresh
+explicitly. Activation/live notification follows confirmed receipts.
+
+Changes retire stale queued/in-flight output and late provider callbacks without
+replaying speech or reopening capture. Selection/reset never plays a trial,
+changes Windows defaults/mute/volume, releases run holds, answers a question,
+grants consent or changes independent provider/voice/name/input/summary settings.
+Ordinary later speech freshly resolves the route. Missing, software-muted,
+zero-volume, open/playback or cancellation failures preserve the complete visual
+response under existing privacy gates; acoustic audibility is not claimed.
+The legacy muted-fallback preference remains stored independently but cannot
+suppress mandatory full visual recovery.
+
+This is a bounded preference feature, not full R10/I/A or acoustic acceptance.
+Unique speech/acoustic/hardware/provider experiment receipts and executables are
+retained: metadata, storage and native-binding fixtures do not supersede them.
+
+### Delivered bounded per-Kora playback volume (R10)
+
+`speech.playback-volume` is a device-local **integer percent, 0-100 inclusive**.
+The unsaved/reset default is **100**, preserving the original unscaled engine
+output; it is not amplification or a Windows volume percentage. One
+[domain scalar](../src/Kora.Core/Configuration/PlaybackVolume.cs) validates exact
+canonical decimal input (no sign, padding, fractional value, percent suffix or
+leading zeros). A separate version-1 atomic preference file uses the existing
+store and application-data paths; no other preference is rewritten.
+
+Native Settings draft/save/reset and exact typed/ACTIVATED
+`list volume settings`, `get/status speech.playback-volume`,
+`set speech.playback-volume to <0-100>` and `reset speech.playback-volume`
+share the [volume workflow](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs).
+The current assistant-name prefix, 1,024-byte UTF-8/control input bound and
+complete 64-KiB result bound apply. Results expose desired/effective percent,
+saved/default/unavailable provenance, default/bounds, availability, recovery,
+configuration/call revisions, application timing and independent reset.
+
+An atomic unconfirmed-write marker is installed before changing the scalar
+file (including reset) and removed only after exact readback and both audit/task
+terminal receipts. Failed evidence therefore remains unavailable across restart,
+not just in memory. The marker is not authority or a new registry. Inspect the
+committed scalar and receipts before explicitly repairing unconfirmed state;
+normal refresh cannot silently clear that hold.
+
+The existing persisted audio-control admission resolves original local user
+input and an active session/generation. Host-held scalar proposals bind that
+authority, original channel, captured ownership/unlocked privacy/call/input
+eligibility and preference revision. Requested audit, live call-policy-locked
+revalidation, atomic persistence, exact readback and terminal task/audit receipts
+precede activation. Unknown/protected calls deny voice mutations; correlation
+IDs and lookalike/stale/foreign proposals supply no authority. Changed saved
+state or failed storage/readback/evidence leaves output explicitly unavailable;
+committed bytes are not falsely described as rolled back. Invalid saved values
+throw `InvalidDataException`; inspect/repair and refresh explicitly.
+
+Zero prevents new synthesis/automatic playback and keeps the **complete original
+visual response**, including warnings and mandatory question/approval readback.
+Changes retire active and queued output; raising/resetting never replays it.
+Windows uses gain on Kora's owned `SpeechSynthesizer` instance only. Delivered
+Kokoro uses signed PCM16 little-endian attenuation toward zero; unity is
+byte-identical and no sample is amplified. Empty/incomplete/unsupported samples
+fail visibly. Adapters without qualified owned-gain capability are explicitly
+unavailable, not silent-success audio.
+
+No system/call/other-process volume, mixer, mute or default device is written.
+Microphone/PTT, consent, permission, run holds, provider/voice/rate/downloads,
+summary caps (3 sentences/80 words), output routing, pinned/unavailable/System
+behavior, name, grants, approvals and pending previews remain independent.
+Stop/recovery stays available. The preference stores no response/audio content
+and changes no session, ordinary diagnostic or audit retention.
+
+This completes only bounded per-Kora volume, not full R10, provider/native or
+hardware/acoustic acceptance. The speech experiment's file-rendered SAPI
+samples, capture/threshold executable, hardware/provider gaps and historical
+receipts have no whole-executable maintained equivalent here: retain all;
+nothing is deleted or rerun.
+
+### Proposed full configuration contract
 
 Voice and settings UI use the same typed host configuration service.
 There are no UI-only preferences or hidden configuration-file edits required for normal use.
@@ -66,12 +788,20 @@ show the new effective value.
 Bounded R15 now supplies run-scoped manual call controls and truthful automatic
 availability in **Settings > Calls**, outside the future generic settings/tool
 registry. Original voice provenance, observed call revision and live ownership/
-privacy gate manual changes. Protected calls reject voice-originated voice and
+privacy/input/native-lifetime and committed original-user session-generation
+admission gate manual changes. Exact `list call settings`, get/status/set-on/
+set-off/reset-off for `call.manual-active` share those native controls, not a
+saved call tuple or model tool. Passive cached inspection never creates an
+effect/approval/activity or replaces a question/security preview. Changed
+manual state retires old speech/input/callbacks; off/reset never replay or reopen.
+Required correlated authority audits reuse the consolidated lease; lost
+evidence is explicit conservative protection, not rollback or less protection.
+Protected calls reject voice-originated voice and
 in-call option writes, including reset/clear semantics; read-only inspection and
 stop/cancel remain eligible. Saved output/activation preferences are retained.
 New call-protection downgrades and temporary/speak-once exceptions remain
 unavailable pending complete exact trusted review; they are not exposed as
-working verbal/model operations. See the [bounded R15 receipt](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07).
+working verbal/model operations. See the [bounded R15 manual parity](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08).
 
 Each registered option declares:
 
@@ -158,9 +888,12 @@ not silently replace a specifically selected endpoint. The persistent system tra
 context menu lists detected microphones and provides Disable listening while
 capture is active plus Enable listening for recovery after manual disablement or
 failure; selecting a replacement alone does not restart recording.
-Unlock/resume, restored permissions, reconnection, asset repair and selection
-changes never release a current-run recovery hold without explicit Enable
-listening. Without owner-aware protection selected, normal privacy/output/call
+Normal authoritative unlock can restore only previously enabled PTT readiness
+or a separately qualified wake-only mode after confirmed closure and fresh
+microphone-matrix gates. It does not resume interrupted capture or override mute
+or withdrawal. Resume, restored permissions, reconnection, asset repair and
+selection changes require explicit Enable listening; intervening failures cancel
+automatic unlock restoration. Production always-on detection remains unavailable. Without owner-aware protection selected, normal privacy/output/call
 policy governs baseline speech; unavailable verification alone does not mute it.
 "Start listening" can set the preference only through an already available explicit input channel; a closed microphone cannot receive the utterance.
 Do not keep a secret listening path merely to support voice unmute.
@@ -178,7 +911,7 @@ All voice-profile settings and management changes obey the protected-call origin
 | Output device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; stale/missing/unselected/muted/zero-volume/open/playback failure forces visual fallback | "Speak through my headphones" |
 | Local voice | Supported installed voice; do not silently download on selection | "Use the second installed voice" |
 | Speech rate | Engine normal; advertised supported range | "Speak twenty percent slower" |
-| Kora playback volume | Normal configured level; 0-100%, affects only Kora | "Set your volume to thirty percent" |
+| Kora playback volume | 100% original/unscaled; integer 0-100%, Kora-owned speech only; zero blocks synthesis with full visual output | Delivered exact: "set speech.playback-volume to 30" |
 | Spoken summary length | At most 3 sentences/80 words; user may lower either limit | "Keep spoken summaries under forty words" |
 | Detail presentation | Offer by default / Open automatically / Link only; applies to host-classified detail-recommended finalized foreground responses | "Always open detailed results" / "Stop asking about details" |
 | Speech text / rich display | Independent optional captions, source/rendered Markdown, diagram and viewer preferences | "Show the words you're saying" |
@@ -212,7 +945,7 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Call speech mode | Suppress automatic requested/proactive speech; one-shot override allowed | "Only suppress unsolicited suggestions during calls" |
-| In-call feedback override | UI-only by default; Voice / UI / Both / Inherit; Active/Suspected observations use this separate device-local setting ahead of task/queue/session/device response mode, subject to speech/privacy policy | "Use UI responses only when I'm in a call" |
+| In-call feedback override (`calls.feedback-mode`) | **Bounded delivered** UI default; Voice / UI / Both / Inherit; Active/Suspected only, ahead of ordinary response mode with all hard speech/privacy gates | Exact `set calls.feedback-mode to UI`; natural-language example remains proposed |
 | Ignore reusable grants during calls (`calls.ignoreReusableGrants`) | On by default; Boolean device-local setting; require fresh single-use approval instead of Session/Perpetual reuse while call protection applies; Off requires exact protection-downgrade confirmation | "Ignore saved grants while I'm in a call" |
 | Voice activation during calls | On; independently configurable and does not reopen capture without explicit listening consent | "Disable voice activation during calls" |
 | Unknown enabled-detector behaviour | Suppress automatic speech | "Use normal speech when detection is unavailable" |
@@ -226,6 +959,9 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Reminder deferral | 24 hours; 1 hour-7 days | "Remind me about updates tomorrow" |
 
 Detectors need explicit setup/account/network consent; setting a preference does not create Graph credentials.
+Only the bounded feedback/manual controls and existing protection settings are
+delivered here. Other table entries, including general proactive/quiet-hours/
+notification/temporary-exception configuration, remain proposed.
 The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
 Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
 The grant-ignore setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention.
@@ -253,6 +989,13 @@ Notification settings cannot hide necessary action approval from the visual inte
 Lowering capacity never evicts existing work; hold admissions until occupancy fits.
 Shortening lifetime/expiry shows affected requests/content and requires confirmation before expiring them immediately.
 Archive and deletion are independent configurable values using one inactivity clock, not time since creation/Done.
+Those session-retention settings, timer, automatic purge and apply-now controls
+remain proposed, not registered production options. The delivered native
+[logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
+is a separate explicit exact-ID preview/confirmation, not a retention setting
+or full recoverable-copy deletion. It removes addressed live authority rows
+only, preserving independent Perpetual grants, task/audit provenance and
+disclosed recoverable copies. Diagnostic/audit setting changes never invoke it.
 Passive selection/history queries do not extend it; actual user/work activity and explicit resume do.
 Changing retention previews resulting due dates and requires a separate apply-now decision for immediate archive/deletion; otherwise existing due dates remain until subsequent meaningful activity, with new sessions using the new policy.
 Normal automatic expiry under the disclosed policy does not require repeated per-session confirmation.
@@ -288,20 +1031,31 @@ Credentials/tokens/passwords are not dictatable option values; voice starts supp
 | Shared skill sources | User-selected bounded read-only roots | "Use skills from my Copilot profile" |
 | Skill enablement/default source binding | Reviewed digest/device-local binding | "Use the Kora-specific deployment skill when I say deployment" |
 | Source refresh preference | Revalidate before dispatch; optional bounded discovery refresh | "Refresh shared skill discovery every hour" |
-| Diagnostic database retention | 30 days by default; independently configurable within the registered bounded schema; daily JSON remains limited to 30 files/30 days | "Keep diagnostic events for fourteen days" |
-| Audit retention | 90 days by default; configurable from 30-365 days | "Keep audit metadata for six months" |
+| Knowledge source registration | None by default; explicit reviewed file/folder and session/managed scope | "Add my Team TSGs folder as a knowledge source" |
+| Knowledge source refresh | Manual initially; later bounded scheduled refresh only after R26 background-work gates | "Refresh Team TSGs" |
+| Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
+| Knowledge source limits | Host defaults within verified file/source/context maxima; user may lower them | "Limit knowledge files to one megabyte" |
+| Knowledge citation detail | Source plus heading/page/line location | "Show detailed knowledge citations" |
+| Diagnostic database retention | Delivered canonical integer 1–365; default/reset 30; only future ordinary SQLite commits, existing deadlines unchanged; apply-now unavailable; daily JSON stays 30 files/30 days | `set logging.sqlite-diagnostic-retention-days to 14` |
+| Audit retention | Delivered canonical integer 30–365; default/reset 90; only NEW required authority audit and independently qualified diagnostic audit projections; old deadlines unchanged; apply-now/pruning unavailable | `set logging.audit-retention-days to 180` |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
 Do not require typing a path, but do not infer one from unrelated context.
+Long, ambiguous or low-confidence knowledge paths fall back to the native
+picker rather than being guessed. Adding a knowledge source, using its excerpts
+with a hosted model and deleting Kora's derived copies are separate decisions.
+The complete source, retrieval, settings and voice contract is
+[File and Folder Ingestion](File_And_Folder_Ingestion.md).
 The Roaming AppData skill store and protected installation/source layout are architectural boundaries, not voice-selectable arbitrary write roots.
 Permitted conversation history uses durable standard SQLite under verified private profile permissions and session retention. Copies outside that boundary are readable; database encryption is not required. Raw audio/secret persistence, silent remote diagnostic upload, automatic executable imports and secret logging remain unsupported.
 Diagnostic, audit and session retention are independent. Session deletion does
 not remove content-minimising audit records, while audit expiry does not remove
 perpetual grants. Browsing/search/reasoning never refreshes either diagnostic or
-audit retention. Reducing audit retention previews affected records and requires
-separate apply-now confirmation before reducing existing due dates; otherwise
-the new 30-365-day policy applies to new audit records. Removing source
+audit retention. The delivered audit option is future-only; apply-now and
+existing-deadline reduction are unavailable. Any future affected-record
+preview/apply-now flow remains proposed and requires separate approval.
+Removing source
 enablement explains any immediate destructive/invalidation effect before
 confirmation.
 
@@ -319,8 +1073,9 @@ confirmation.
 During the unsigned phase, update installation is external to Kora; no install/stage/download approval or "automatic install" setting exists.
 Changing channels does not authorise a downgrade, skip verification, or rewrite the protected feed/trust configuration.
 Logon startup uses saved ongoing consent and fresh gates, not a pre-logon
-listener or a waiver of locked-session policy; current-run unlock/resume
-recovery still requires explicit Enable listening under the microphone matrix.
+listener or a waiver of locked-session policy. Normal unlock restores only prior
+enabled intent after fresh microphone-matrix gates; resume and other failure
+recovery still require explicit Enable listening.
 
 ## 8. Permissions and Approvals
 

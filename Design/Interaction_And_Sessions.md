@@ -1,7 +1,13 @@
 # Human Interaction and Persistent Sessions
 
-Status: agreed product direction; bounded R04/R05 durable question/grant and
-minimal session-authority slice implemented; full interaction/session integration proposed.
+Status: agreed product direction; bounded durable question/grant/session metadata,
+exact session/task controls and consolidated schema-v6 task/question/queue/required-audit
+authority with bounded ordered interaction history and inventoried configurable
+session retention implemented. The deterministic
+local-version queue and its exact pending cancellation are delivered; cancellation
+of the separate genuine current-run local-version pre-dispatch question wait
+remains gateway-bound. Full conversation, effect and model-assisted routing
+integration remains proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -9,6 +15,37 @@ This is the canonical interaction/session contract. It replaces the former singl
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
 
 ## Current Implementation and Design Gap
+
+The [R18 local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+now observes only fixed authoritative local-version queue/question state and
+already-verified cached maintenance in the already-open selected Sessions
+surface. Its exact event IDs/revisions, fixed summaries, independent fatigue,
+dismiss/defer/expiry and atomic bounded suppression are not new conversation,
+question, execution or grant authority. Pending original questions remain
+separately bound; passive delivery/status never resumes, dispatches, retargets
+voice or updates meaningful activity. Session retirement removes owned broker
+receipts before deletion; restart reconstructs no source or effects from them.
+
+The [R13 fixed local-version queue](Work_Management.md#delivered-deterministic-local-version-queue)
+addresses existing immutable session IDs directly. Pending capacity, FIFO,
+fair manual admission, revisions, dependencies and restart interruption are
+host-owned; names/selected windows never substitute for IDs. Queue slots cover
+only this read-only profile, not providers, workers, audio or arbitrary resources.
+Native **Refresh selected work**, **Enqueue local version**, **Dispatch ready local
+versions fairly**, exact pending cancellation and separately labelled confirmed
+clear use the same workflow as typed/current-name activated commands. Selection
+alone neither enqueues nor dispatches. New work in Done/Removed sessions is denied.
+Passive history/queue inspection never renews activity or restores authority.
+
+The [R14 coordinated native work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+delivers list-plus-selected-session work, atomic bounded queue/task/question
+observation, stable identity/revision/order, observed eligibility/deadlines/
+capacity and explicit recovery/gaps. Native pending cancel/remove/clear and
+manual dispatch reuse exact command workflows; in-flight selection changes
+invalidate admission. Pending question identities stay visible independently
+of history/evidence and never gain a workspace reply/review target.
+Five-second passive work refresh preserves focus and does not disable native
+input, renew cancellation inspection, extend activity, resume or dispatch.
 
 The runnable bootstrap has one response title/body and latest transcript in `MainViewModel`, displayed by `ResponseWindow`.
 Typed and recognized spoken commands converge on the deterministic built-in command router.
@@ -38,11 +75,254 @@ adapter. A bounded native question/review route now composes the existing
 durable local-version query; no effect dispatcher is activated. See the
 [native question boundary](Interaction_Fallback.md#delivered-bounded-native-question---2026-10-07).
 There is no general typed form service,
-full session conversation/history UI, concurrent task
-scheduler, or model-facing session tool API.
-Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
+full conversation/composer UI, general concurrent provider/effect scheduler,
+or model-facing session tool API. The bounded history, native work ledger,
+question and passive detail slices do not qualify those broader capabilities.
+
+### R12 Bounded Session Retention Delivered - 2026-10-09
+
+Schema v6 preserves v5 queue authority and adds one durable per-session meaningful-activity timestamp. Default
+archive is 24 hours and deletion 30 days from that same timestamp, not from
+creation/archive. Create/resume, admitted substantive original-user work,
+accepted final answers/cancellation and real dispatch/terminal progress refresh
+it monotonically. Drafts, passive browse, rename and control/configuration
+bookkeeping do not. Unknown historical activity gets a conservative migration
+baseline; no chronology is fabricated. Native future-only
+[configuration](User_Configuration.md#r12-bounded-session-retention-delivered---2026-10-09)
+does not alter existing due dates without subsequent meaningful activity.
+
+Startup/access checks and an owned one-minute host-only maintenance timer
+process at most 32 candidates, never execute or schedule work. Intent-recorded,
+dispatched, Unknown work, unresolved questions and current-run control
+authorities hold rather than being abandoned; held controls cannot starve due
+idle sessions. Exact-generation audited host-only Perpetual session marking
+holds the whole session, independently of Perpetual permission grants. There
+is no new marking UI. Archive revokes source/generation/scoped authority but
+preserves content and does not reset the activity clock.
+
+Deletion awaits source/presentation revocation, removes owned history,
+question/draft/answer, task/event/wait/run, terminal queue, observation, scoped-grant and metadata
+content, legacy task copies and authenticated owned artifacts/staging, and
+clears SQLite row/index/free-page and committed rollback-journal copies.
+Unrelated sessions, independent artifact deletion owners and independently
+Perpetual grants survive. Only exact-ID content-free authority tombstones,
+redacted history gaps and content-minimised independent required audit remain;
+late append/publication is denied. Removing authority alone is not acceptance:
+a separate final inventory receipt is required and interrupted acceptance
+retries storage cleanup without execution.
+
+Unrecognised ownership, malformed envelopes, uncertain key publication,
+uninventoried storage/backup entries or hot/nonempty journals fail closed.
+No managed-backup publisher/ownership format is delivered; arbitrary copies
+are held, not guessed or claimed erased. No provider/user-export, forensic or
+media-erasure acceptance is claimed. This entry supersedes older statements
+below that retention/timers were absent from their historical bounded slices.
+Full R12 remains partial; blocked R11 is required only for the remaining
+general execution/queue integration, not the delivered fixed local-version queue
+or this non-executing maintenance increment.
+
+Validation after rebase onto `5755aa7d` (#118): Release 0 warnings/errors using
+existing locked dependency assets; no restore/feed change needed.
+Core 1,028, Application 2,860, Tools 69, Definitions 6, Windows 1,215 passed,
+zero failures/skips;
+portable coverage 100% lines/branches. Tests check actual plaintext absence
+from database/journal, owned file removal, preservation, holds, cancellation,
+invalid persistence/migration, interrupted acceptance, bounded fairness,
+queue holds/inventoried deletion, restart no-replay and retained-source
+invalidation of #118's selected-session work surface without losing unrelated
+work or its passive-refresh/question coexistence contracts.
+See the [dated roadmap receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09);
+installed/native/RC and full R12/A3 qualification remain open.
+
+### Delivered Bounded Ordered Interaction History - 2026-10-09
+
+The authoritative `SessionHistoryEvent` projection records only actually
+host-committed question snapshots/final answers, decision metadata and task-state
+receipts. It is **not a full conversation store**: bootstrap user/model messages,
+response bodies and general conversation composition were never durably admitted
+and are unavailable, not fabricated from diagnostics. A successful task receipt
+does not prove an external effect. Draft transitions have decision metadata, not
+final-answer text; migrated current records are explicitly `Baseline` snapshots.
+
+Schema v4 adds per-session history heads and immutable event/source projections
+under the existing authority lease and transaction. Store transitions, not a
+model, name, diagnostic mirror or arbitrary append API, author the events.
+Stable event GUIDs, session-local monotonic sequences, source IDs/revisions,
+session generations and SHA-256 provenance survive restart. Required typed
+audit/task provenance is checked; audit is not mined to synthesize turns.
+Validated v1/v2/v3 migrations preserve original authority/audit/task bytes.
+The v3-to-v4 transaction adds an explicit gap followed by labelled current
+snapshots; GUID sorting is not presented as pre-migration chronological order.
+Unknown schemas, inconsistent projections/heads and failed migrations are
+unavailable; a rollback/retry performs storage maintenance, never execution.
+
+`session history <exact-id>` and `session get <exact-id> <event-id>` share
+`SessionWorkspaceService` with the native Sessions viewer. Typed and currently
+configured-name activated command prefixes select only the grammar; names never
+resolve sessions. These routes write no control intent, terminal receipt, audit,
+meaningful-activity timestamp or lifecycle state. Private ownership/inspection
+and originating channel/revision are rechecked before presentation.
+Native history uses an explicit exact-ID field, bounded inert text, keyboard
+buttons and accessible names; it changes no question, approval, focus or voice
+target and provides no reply/playback controls.
+
+Pages default to 25, at most 50 records/64 KiB complete output. Continuations
+bind the exact session, authorization generation, original sequence ceiling and
+last returned sequence; later appends cannot expand a snapshot. Lifecycle
+changes invalidate continuations. Oversized individual content is explicitly
+`Unavailable` with stable metadata/citation retained, never silently truncated.
+Exact event lookup cannot cross sessions. Gaps, metadata-only, unavailable and
+redacted records are distinct. Passive reads do not resume a Done session.
+
+Logical disposition retains readable exact history citations but atomically
+redacts history source/content alongside the existing removal of live question/
+answer/name/observation/scoped-grant rows. Event ID, sequence, source revision
+and provenance digest remain stable; the Removed identity remains excluded from
+the live workspace and cannot resume or gain meaningful appends. Its known ID
+can inspect only redacted history. The preview digest includes history, excluding
+only the confirmation's own fresh control receipt; concurrent addressed work
+invalidates the preview. Cancellation/audit/admission failures roll back together.
+No history timer, automatic purge, apply-now or physical-copy erasure is added.
+
+Shared-profile skill inspection, immutable local file previews and clipboard
+inspection remain volatile/read-only control content, not conversation turns,
+attachments or model input. Their paths/text/provenance are never imported.
+History never reconstructs captions or authorizes replay: only fresh separately
+admitted actual playback can create a caption. History content never enters logs,
+activity tags/baggage or model context, and retrieval has no network/model
+dependency. Full composer, search, model history reasoning, Ask Evidence, broad
+export, queues and scheduler remain unavailable. Unique storage/interruption/
+capacity/copy evidence in the storage experiment is retained, not deleted or
+claimed replaced by this increment.
 
 ### Delivered Minimal Sessions Workspace - 2026-10-07
+
+The bounded deterministic command extension now shares this workspace's host
+service and guarded transactions: typed and activated voice expose
+`session help/list/status/inspect/create/rename/done/resume`. The single
+[typed grammar](../src/Kora.Core/Commands/SessionCommand.cs) owns quoting and
+input/page/result limits; [user syntax and recovery](../docs/commands.md#bounded-exact-id-session-commands)
+describe actual availability. Exact immutable IDs and explicit generations/
+metadata revisions are required; names remain labels only. No implicit
+selected-window, title or approval target exists. Pending bootstrap questions
+and approvals block these commands without cancellation or retargeting.
+Every accepted command owns fresh deliberate lineage and a durable control
+intent; observational reads never change authority. Voice enablement/consent,
+origin, private presentation and call/recovery revisions remain checked.
+Protected-call voice mutations are explicitly unavailable, not deferred.
+Full session routing, transcript persistence, scheduler, general effect cancellation, recoverable-copy deletion,
+retention and model-facing session tools remain unimplemented.
+
+### Delivered Bounded Exact-ID Logical Disposition - 2026-10-08
+
+The native Sessions workspace has separate **Preview logical disposition** and
+**Confirm logical disposition** actions. This is explicitly not full R12
+deletion. Preview resolves the exact existing ID, displayed authorization
+generation and metadata revision under private admission, enumerates live rows
+and discloses retained data. It records no control intent and changes nothing.
+The Application host holds the single-use preview; confirmation must be fresh
+LocalUi input with the same proposal and unchanged control revision. Voice,
+typed `session delete`, models, title matching and implicit selection are not
+admitted deletion routes in this increment.
+
+The Windows writer revalidates authoritative task/question state and a framed
+digest of all addressed live authority records and task revisions, not a
+bounded UI page. Unknown IDs, stale generations/metadata, any intervening
+addressed work (even if completed), pending questions including expired ones,
+nonterminal or Unknown work, lost ownership/privacy/call admission, missing or
+corrupt storage fail closed. It never cancels, reconciles or abandons work to
+make disposition eligible. Resolve supported pre-dispatch waits explicitly;
+general uncertain-effect disposition is unavailable.
+The desktop control gate consumes the existing `IsProtected` call policy,
+including uncertain manual-call evidence even when automatic state reads
+Clear/Unavailable; independent passive inspection does not become mutation
+authority.
+
+Under the shared authority lease and one transaction, disposition advances
+generation, writes a non-reusable Removed tombstone, removes only that session's
+live metadata/name, host observations, questions/drafts/answers, admitted wait
+bindings and scoped grants, and commits both fresh control terminal success
+and required typed audit. Independent Perpetual records, unrelated sessions,
+task/event provenance and audit chain remain unchanged. Removed sessions are
+not live-workspace browsable or resumable; the later bounded history increment
+permits exact-ID inspection of redacted citations only. The task writer rejects new intents and late
+outcomes; interaction/snapshot/lifecycle paths cannot append to or recreate a
+Removed identity. A competing append wins before disposition and blocks or
+invalidates it, or loses after the committed tombstone.
+
+**Retained/unavailable:** opaque tombstone and task/event IDs/states/revisions,
+content-minimising authority audit/digests, independent evidence/diagnostics,
+Perpetual provenance, inert legacy migration storage, SQLite journals/free pages
+and any copied database remain. General conversations/history, managed session
+artifacts/snapshots/indexes/caches and inventoried managed-backup deletion are
+not implemented. User exports/provider copies are outside local deletion.
+No forensic, cryptographic-erasure or full R12/A3 deletion acceptance is claimed.
+No retention setting, inactivity timer, automatic purge or apply-now behavior
+is added. See [the user workflow](../docs/windows-and-tray.md#logical-session-disposition).
+
+Precommit audit/gate/cancellation failures roll back the tombstone, live rows
+and terminal success together; an incomplete control intent is recoverable
+without execution. After COMMIT, terminal success is already durable, so
+restart never appends a recovery receipt into a Removed session. Receipt or
+commit uncertainty remains an explicit error, not rollback or automatic retry.
+Owned-process interruption, actual production SQLite, native-state and portable
+host tests maintain these boundaries; installed/live visual/accessibility and
+physical power-loss acceptance remain open.
+
+### Bounded Authoritative Task Observation and Pre-dispatch Cancellation
+
+The independent native evidence inspector's opt-in **AuthorityAudit** source
+reads this same committed schema-v3 interaction authority, not a diagnostic
+copy. Task/question/grant changes are shown as their committed typed revision/
+digest references and recorded outcomes; no historical payload or effect is
+fabricated. It never records control intent, answers questions, retargets
+approvals, refreshes meaningful activity or queries the frozen legacy ledger.
+See [bounded source and cursor semantics](Information_Display.md#delivered-bounded-native-evidence-inspection).
+
+Exact typed and activated voice `task status <session-id> <task-id>` and
+`task inspect <session-id> <task-id>` expose only the addressed existing
+durable task, session generation, admitted source/current-run distinction
+and complete bounded question record when present. Unknown/foreign IDs do
+not resolve by title, window, model output or trace. States are receipts,
+not inferred progress, planned steps, ETAs or physical effect cessation.
+The single session-command grammar owns the 1,024-byte input and 64 KiB
+complete-output bounds; inspection does not extend meaningful activity.
+
+`task cancel <session-id> <task-id> <task-revision> <generation>
+<question-id> <question-revision>` and the native workspace's **Inspect exact
+selected task** / separate **Cancel inspected pre-dispatch wait** share one
+host service. Fresh deliberate original-user control intent, current
+ownership/privacy/channel/call-revision admission and all exact conflict
+tokens are required. Safe cancellation introduces no effect and does not
+promote unknown user IDs into a fabricated host session: the actual existing
+session is resolved under private admission before recording fresh control
+intent. Admission is checked again after resolution and at COMMIT. It does not
+require the lifecycle mutation's unprotected-call permission; voice still
+requires admitted activation. Legacy bootstrap questions/approvals keep their
+existing targets and blockers. Always-available stop/recovery is unchanged.
+
+Only an already admitted current-run native local-version wait is cancellable.
+Its question precedes dispatch. A separate host-owned run/wait record, not
+question purpose/source text, proves the admitted source. The answered exact
+key alone reaches the pre-dispatch gateway. Task terminal cancellation,
+question revision/status, target observation revocation and required trusted
+typed audit share one transactional store and COMMIT. No grant is created or
+consumed; unrelated work/sessions and independent Perpetual grants survive.
+Answer/cancel/dispatch/revision/expiry races have one truthful winner; stale,
+foreign, expired or previous-run targets refuse. Late/disposed input cannot
+resume or dispatch. A possible committed outcome followed by receipt failure
+requires inspection, never a rollback claim or automatic retry.
+
+Schema v3 consolidates the existing ordered task ledger into the private
+interaction partition, preserving identities/events, session generations,
+metadata, questions/grants and exact audit bytes. The fully validated legacy
+task ledger is frozen before a complete destination schema transaction and
+retained inert. Interrupted migration can revalidate/retry storage maintenance
+only; lost/corrupt authority is not reconstructed as empty state. Evidence
+projections/retention remain independent. Previously dispatched/Unknown work
+stays uncertain/quarantined and is never relabelled Cancelled. This bounded
+slice closes no full R12/R13/A acceptance, scheduling, queues, workers, content
+retention/deletion, runtime/model-management execution or model task tools.
 
 **Sessions** in the tray, exact **open sessions** (configured-name prefix
 supported), and **Ctrl+Shift+S** in the compact response open a native
@@ -54,14 +334,14 @@ channels, generations and current durable task records. Separate selected-ID
 Evidence uses the existing bounded diagnostic/audit/span/link reader; missing
 session/conversation evidence remains explicitly unavailable. Pages default
 to 25 records and the store accepts at most 50. They are observations across
-independent partitions, not an atomic runtime ledger; refresh for concurrent
+separate bounded reads and independent evidence projection, not an atomic runtime ledger; refresh for concurrent
 changes. Passive pages require existing private partitions and never create a
 replacement when storage is missing. Removed authority tombstones are not
 offered as browsable sessions.
 
 Reading, selecting and keyboard navigation never admit a reply, select an
 approval target, update activity, resume, or restore model/provider context.
-No composer, rename/create metadata, scheduling, archive timer, deletion,
+The original minimal slice had no composer, rename/create metadata, scheduling, archive timer, full deletion,
 retention, export or model lane is added. Full R12 conversation/work/queue/
 retention/delete and full coordinated R14/native acceptance remain open.
 
@@ -74,8 +354,8 @@ neither recreates missing storage and guesses that forgotten work is idle.
 Current private desktop
 ownership, unlocked privacy admission and unprotected known call policy,
 including its revision, must still hold at the authoritative commit.
-The existing task lease precedes the interaction lease and stays held
-through COMMIT. A bounded maintained task query rejects any other
+The consolidated authority lease/connection stays held through the single
+COMMIT; no second nested interaction lease is acquired. A bounded maintained task query rejects any other
 nonterminal or Unknown task (including recovered outcome-unknown work);
 only the exact fresh revision-1 control intent is excepted. Pending questions
 also block, even when their deadline passed. Nothing is auto-abandoned or
@@ -117,6 +397,73 @@ No executable proof file is removed: its intertwined SQLCipher/envelope,
 WAL engine comparison, crypto/artifact/keyed-backup/rekey/leakage/native-provider
 cases remain unique. See the
 [equivalence assessment](../experiments/r02-storage-proof/README.md#maintained-minimal-sessions-equivalence-assessment---2026-10-07).
+
+### Delivered Bounded Session Metadata and Explicit Creation - 2026-10-07
+
+On dispatch baseline `d0a8e82` (#68), the native **Sessions** surface adds a
+name draft, **Create empty Active session**, and **Rename selected ID** over
+the shared [workspace service](../src/Kora.Application/Hosting/SessionWorkspaceService.cs).
+Create deliberately allocates a new immutable ID, Active generation 1 and
+metadata revision 1. It creates no executor, execution task/context, model
+conversation, question, approval or permission. The fresh administrative
+control intent/terminal receipt is retained by the existing task ledger for
+audit and no-replay recovery; it is not dispatched work.
+
+Names are intentional private user content, persisted only in the interaction
+partition, never diagnostic messages, activity names/tags or raw audit
+envelopes. The authoritative [domain rule](../src/Kora.Core/Hosting/SessionName.cs)
+requires nonblank NFC Unicode, no surrounding whitespace, valid UTF-16,
+at most **120 Unicode scalars / 480 UTF-8 bytes**, and no control, format,
+line-separator or paragraph-separator characters. Invalid input is rejected,
+not truncated, trimmed or normalized silently. Duplicate names are allowed:
+neither a title nor the selected window resolves authority. Bounded keyset
+pages expose name, metadata revision, exact ID, generation and lifecycle;
+selection remains passive and retains the existing separately paged typed
+question/task detail. No transcript, summary or arbitrary history schema is added.
+
+Rename requires the exact subject ID, expected authorization generation and
+expected metadata revision (0 only for explicitly unnamed legacy records).
+Its atomic transaction changes only metadata/revision and the required
+content-minimizing typed audit commitment. It does not resume Done sessions,
+alter generation/grants, revive questions, dispatch work or extend a meaningful
+activity clock. Rename can label a session with Pending/Unknown work without
+resolving it; those records still block Done/resume. No inactivity clock or
+automatic retention behavior is delivered by this slice.
+
+Create and rename require fresh original LocalUi/ActivatedVoice lineage,
+existing private task/interaction stores, current ownership/privacy and known
+unprotected call policy/revision, rechecked immediately before COMMIT. Native
+controls use the same host service; only **open sessions** is currently admitted
+as a typed/voice session command. Name-based targeting, spoken Create/Rename,
+model routing and a session composer remain unadmitted. Selection never
+retargets global input or approval. Privacy closure clears the draft and all
+late content. Failure/cancellation is visible; a possible committed outcome
+is inspected before retry, not replayed or claimed rolled back.
+
+The private interaction application ID and partition remain unchanged.
+Schema **v1 -> v2** validates exact legacy schema, integrity and all existing
+authority/audit records before transactionally adding the bounded metadata
+table and version. Legacy IDs remain explicitly unnamed, not fabricated
+titles. The migration preserves generations, questions, observations, scoped
+and independent Perpetual grants, task records and audit bytes. Unknown/old
+unsupported versions, malformed schema/content, downgraded metadata commits,
+missing committed metadata, stale row/audit commitments and missing files
+refuse without initializing replacement authority. Schema maintenance is
+not session admission or meaningful activity.
+
+Maintained tests cover actual owned SQLite durable reopen/migration,
+preservation, stale/competing revisions, duplicate-name exact-ID isolation,
+privacy/call revision races, cancellation and required audit failure; native
+VM/static composition covers explicit controls, passive selection and content
+clearing. Owned-process kills before/after Create, Rename and migration COMMIT
+verify atomic reopen and no automatic replay. Release/analyzers and portable
+**100% line/branch** coverage pass. Native visual/screen-reader/DPI and installed
+privacy trials remain open. This is not full R12, R14 or A3 acceptance.
+
+No storage experiment executable is removed: production metadata/migration
+and kill/reopen checks supersede only the matching generic expectations,
+not unique SQLCipher/envelope, WAL comparison, artifact/backup/rekey/leakage,
+DPAPI or native-provider evidence. Historical receipts remain unchanged.
 
 ### Bounded R05 Foundation Boundary
 

@@ -2,18 +2,14 @@ namespace Kora.Core.Diagnostics;
 
 public sealed class EvidenceRetentionPolicy
 {
-    public const int DiagnosticDays = 30;
+    public const int DiagnosticDays = Kora.Core.Configuration.DiagnosticRetentionDays.DefaultDays;
     public const int DailyFileDays = 30;
     public const int DailyFileCount = 30;
-    public const int DefaultAuditDays = 90;
+    public const int DefaultAuditDays = Kora.Core.Configuration.AuditRetentionDays.DefaultDays;
 
     public EvidenceRetentionPolicy(int auditDays = DefaultAuditDays)
     {
-        if (auditDays is < 30 or > 365)
-        {
-            throw new ArgumentOutOfRangeException(nameof(auditDays));
-        }
-        AuditDays = auditDays;
+        AuditDays = new Kora.Core.Configuration.AuditRetentionDays(auditDays).Days;
     }
 
     public int AuditDays { get; }

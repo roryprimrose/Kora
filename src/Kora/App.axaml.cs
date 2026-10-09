@@ -12,6 +12,8 @@ using Kora.Application;
 using Kora.Application.Maintenance;
 using Kora.Core.Configuration;
 using Kora.Core.Hosting;
+using Kora.Core.Diagnostics;
+using Kora.Application.Hosting;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,15 +24,18 @@ public sealed partial class App : Avalonia.Application
 {
     private SystemTrayController? systemTray;
     private SettingsWindowController? settingsWindow;
+    private MicrophoneRecoveryWindowController? microphoneRecovery;
     private DocumentationWindowController? documentationWindow;
     private DetailWindowController? detailWindow;
     private ResponseWindowController? responseWindow;
+    private SpeechCaptionWindowController? speechCaptionWindow;
     private GrantListWindowController? grantListWindow;
     private QuestionWindowController? questionWindow;
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
     private SessionsWindowController? sessionsWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
+    private LocalFilePreviewWindowController? fileWindow;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
@@ -41,6 +46,10 @@ public sealed partial class App : Avalonia.Application
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
+        => HostRequestRunner.Run(RequestOrigin.HostSystem, InitializeFramework,
+            HostActivityLayer.Desktop, HostOperation.Startup);
+
+    private void InitializeFramework()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -55,9 +64,12 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<MainWindow>>());
             desktop.MainWindow = window;
+            microphoneRecovery = new MicrophoneRecoveryWindowController(viewModel,
+                Services.GetRequiredService<ILogger<MicrophoneRecoveryWindow>>());
             settingsWindow = new SettingsWindowController(
                 viewModel,
-                Services.GetRequiredService<ILogger<SettingsWindowController>>());
+                Services.GetRequiredService<ILogger<SettingsWindowController>>(),
+                microphoneRecovery.Open);
             MarkdownDocumentRenderer.Renderer = new NativeDetailRenderer(
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
             detailWindow = new DetailWindowController(
@@ -72,10 +84,13 @@ public sealed partial class App : Avalonia.Application
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>());
+            speechCaptionWindow = new SpeechCaptionWindowController(viewModel);
             grantListWindow = new GrantListWindowController(viewModel);
+            var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
+                Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>());
+            nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             questionWindow = new QuestionWindowController(viewModel,
-                new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
-                    Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>()),
+                nativeQuestions,
                 Services.GetRequiredService<Kora.Application.Hosting.DurableVersionQuery>(),
                 Services.GetRequiredService<IApplicationInfo>(),
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
@@ -86,7 +101,9 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 Services.GetRequiredService<ILogger<SkillPackagesWindowController>>(),
-                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()));
+                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
+                Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
+                Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
@@ -94,7 +111,8 @@ public sealed partial class App : Avalonia.Application
                 () => evidenceWindow?.Open(),
                 () => skillPackagesWindow.Open(),
                 () => sessionsWindow?.Open(),
-                () => maintenanceWindow?.Open());
+                () => maintenanceWindow?.Open(),
+                microphoneRecovery.Open);
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -104,17 +122,37 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                Services.GetRequiredService<ILogger<SessionsViewModel>>());
+                Services.GetRequiredService<ILogger<SessionsViewModel>>(),
+                Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>());
             sessionsWindow.Bind();
+            var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
+            Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
+            viewModel.BindLocalEvents(localEvents);
+            var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
+            Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
+            sessionRetention.Revoking += sessionsWindow.RevokeSession;
+            sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
+            sessionRetention.Failed += viewModel.ReportHostInteractionFailure;
+            sessionRetention.Start();
+            viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
+            fileWindow = new LocalFilePreviewWindowController(viewModel, window);
+            viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
+                Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>());
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
+            var maintenanceCommands = Services.GetRequiredService<MaintenanceCommands>();
+            Services.GetRequiredService<MaintenanceViewModel>().BindCachedCommands(maintenanceCommands,
+                () => viewModel.CanRunMaintenanceCommands);
+            viewModel.BindMaintenanceCommands(maintenanceCommands);
             var host = viewModel;
             host.BindClipboardOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             host.BindCallOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
+            host.BindVoiceOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
             var dispatcher = Services.GetRequiredService<IUiDispatcher>();
             Services.GetRequiredService<DesktopInstanceOwnershipBridge>().BindCallbacks(
@@ -162,6 +200,10 @@ public sealed partial class App : Avalonia.Application
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs eventArgs)
+        => HostRequestRunner.Run(RequestOrigin.HostSystem, DisposeDesktopControllers,
+            HostActivityLayer.Desktop, HostOperation.Recovery);
+
+    private void DisposeDesktopControllers()
     {
         Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();
         if (logger is not null)
@@ -178,11 +220,15 @@ public sealed partial class App : Avalonia.Application
         systemTray = null;
         settingsWindow?.Dispose();
         settingsWindow = null;
+        microphoneRecovery?.Dispose();
+        microphoneRecovery = null;
         documentationWindow?.Dispose();
         documentationWindow = null;
         detailWindow?.Dispose();
         detailWindow = null;
         responseWindow?.Dispose();
+        speechCaptionWindow?.Dispose();
+        speechCaptionWindow = null;
         responseWindow = null;
         grantListWindow?.Dispose();
         grantListWindow = null;
@@ -196,6 +242,8 @@ public sealed partial class App : Avalonia.Application
         sessionsWindow = null;
         clipboardWindow?.Dispose();
         clipboardWindow = null;
+        fileWindow?.Dispose();
+        fileWindow = null;
         maintenanceWindow?.Dispose();
         maintenanceWindow = null;
     }

@@ -3,6 +3,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Kora"
+    xmlns:controls="using:Kora.Controls"
     x:DataType="local:EvidenceViewModel"
     Title="Evidence - read-only local inspection"
     Icon="/Assets/Kora.ico"
@@ -11,7 +12,7 @@
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
   <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
-    <TextBlock Text="Evidence - diagnostic, audit, span and link records" FontSize="20" FontWeight="SemiBold" />
+    <TextBlock Text="Evidence - SQLite; DailyLog; opt-in CombinedLog ordinary diagnostics" FontSize="20" FontWeight="SemiBold" />
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" MinWidth="130"
                 AutomationProperties.Name="Evidence source" />
@@ -34,7 +35,7 @@
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Trace correlation filter" />
     </StackPanel>
-    <TextBlock Grid.Row="3" Text="{Binding Status}" TextWrapping="Wrap"
+    <controls:NamedTextBlock Grid.Row="3" Text="{Binding Status}" TextWrapping="Wrap"
                AutomationProperties.Name="Evidence status and storage limitations" />
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
       <Grid RowDefinitions="*,Auto,*">
@@ -58,7 +59,7 @@
         </ListBox>
       </Grid>
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-        <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
+        <controls:NamedTextBlock Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
                    AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
       </ScrollViewer>
     </Grid>

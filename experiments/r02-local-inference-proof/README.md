@@ -3,6 +3,20 @@
 **Status: reproducible harness and unavailable-path evidence; D-003 and the
 inference portion of D-007 remain open. Partial research, not A2 acceptance.**
 
+**Current disposition:** retain as an opt-in, environment-qualified capability/
+RC harness outside default CI, not an unrelated feature-merge prerequisite.
+Actual quality, CPU-floor/context/resource and offline/cessation observations
+remain unique. The [three-tier policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy)
+and [disposition inventory](../../Design/Implementation_Roadmap.md#experiment-disposition-inventory)
+own scope, critical fixtures and migration/removal conditions. No code is
+retired and no outstanding trial is relabelled as passed.
+
+The delivered R26.1b [selected immutable revision lexical retrieval](../../Design/File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval)
+has maintained deterministic host-only chunk/citation/lifecycle tests, not
+inference. It neither supersedes this proof nor qualifies any answer-quality,
+model-context, offline-egress, actual resource or server-cessation trial. This
+harness, pins and recorded evidence remain retained unchanged.
+
 Scope: the already pinned Ollama `0.35.1` / `qwen3:1.7b` candidate, selected
 synthetic clipboard-shaped text, answer quality, performance, context,
 cancellation and errors. No real clipboard/audio, tool execution, production
@@ -31,6 +45,8 @@ The [project](Proof.csproj) source-links the actual
 [setup pins](../../src/Kora.Windows/Dependencies/WindowsOllamaSetupService.cs)
 and their small BCL-only domain dependencies. The setup/process implementation
 is compiled for pin fidelity but never instantiated or invoked.
+Command source links explicitly include only the reasoner's catalogue, router
+and response contracts, not unrelated session/task orchestration.
 It does not copy a different interpretation of the production response parser.
 
 Inspection of [composition](../../src/Kora/Program.cs) confirms disabled
@@ -84,8 +100,11 @@ and hardware, and asserts the observed unavailable-path shape:
 ```
 
 Omit `-ExpectUnavailable` only for an already healthy, approved local runtime.
+Healthy observation also requires `-ServerProcessId <approved-server-PID>`.
 `observe` runs the real production readiness probe (including generation if
 healthy) and one synthetic answering request. It does not measure cold starts.
+Ctrl+C forwards cancellation to both the readiness probe and the answering
+request; cancellation does not admit an additional answering request.
 
 Exit codes: **0** automated checks completed; **1** invocation/output error;
 **2** unavailable or blocked dependency (explicitly expected for this host);
@@ -103,7 +122,7 @@ assets remain separately approved operator actions; the harness does neither.
   -OutputPath C:\Temp\kora-r02-machine.json
 dotnet run --project experiments\r02-local-inference-proof\Proof.csproj `
   -c Release --no-build -- measure --output C:\Temp\kora-r02-measurement.json `
-  --exclusive-runtime --trials 30
+  --server-pid <approved-server-PID> --exclusive-runtime --trials 30
 ```
 
 This produces:
@@ -129,14 +148,20 @@ This produces:
    completion, p50/p95/max and all individual failures. A JSON opening brace
    is not a displayed semantic answer; first response token is labelled
    accordingly. Server load/eval/token counters are retained in final metadata.
-6. Same-Windows-session Ollama process samples every 100 ms: aggregate peak
+6. Admitted server-tree process samples on a 100-ms polling schedule: aggregate peak
    working set/private bytes, sampled CPU-seconds and average percentage of
-   all logical processors. Process IDs and observation errors are retained.
+   all logical processors. Root PID/creation time, observed descendant identities,
+   names, parent/session IDs, counters, root states and observation failures are
+   retained. Native runners such as `llama-server` are included by observed
+   lineage, not by name. Unrelated same-name processes are excluded.
    `/api/ps` must report the selected model alone with `size_vram=0` for every
    main cold/warm trial. These are sampled peaks, not a system-wide profiler,
    power measurement, hard resource ceiling or proof of accelerator absence.
-   Short-lived processes/pid reuse/remote-session runners may escape sampling;
-   independently profile server/runner PIDs on the reference machine.
+   First CPU counters are baselines, not pre-observation lifetime charges; PID
+   reuse starts a new baseline and cannot inherit admission. Short-lived or
+   breakaway processes and children whose parents exit before admission may
+   escape sampling. Shared working-set pages may be double-counted. Independent
+   profiling remains required for complete lifecycle or per-request attribution.
 7. Marker retention at requested `num_ctx` 1024/4096/8192/32768 and an
    intentional 1024-context overflow. The 4096-context short fixture must
    retain both markers and their sum. Long tests are explicitly outside the
@@ -154,7 +179,293 @@ This produces:
 The transport admits only five fixed loopback endpoints, refuses redirects,
 disables proxies/cookies and contains no remote provider, pull/install route or
 retry path. It cannot configure a remote endpoint. The sampler reads process
-statistics, never clipboard/content/files from unrelated applications.
+statistics, never command lines, prompts, clipboard/content or unrelated files.
+
+## Automated operator-approved qualification
+
+### Worktree-relative path regression
+
+Output and budget paths resolve against the caller's PowerShell location,
+not the process working directory (which can remain at another checkout after
+`Set-Location`). The metadata/machine writers use the same path semantics.
+Run the file-only regression from the repository root after the proof is
+prepared; it deliberately separates those locations and also verifies
+overwrite refusal:
+
+```powershell
+.\experiments\r02-local-inference-proof\Run-PathRegressionTests.ps1 `
+  -OutputDirectory .\.local-proof\path-regression-001
+```
+
+The regression rebuilds and runs the 55 deterministic checks, inventories
+the machine without contacting Ollama, and writes six regression results.
+It acquires no packages and performs no live trial.
+
+[Run-Qualification.ps1](Run-Qualification.ps1) builds with `--no-restore`,
+runs deterministic self-tests without observing the endpoint, records source
+hashes/base revision/dirty inputs and machine inventory, then optionally runs
+the CPU-only qualification. It never restores, installs, starts a runtime,
+pulls assets, captures clipboard/audio, changes networking or dispatches tools.
+Missing SDK/reference assets require separately approved preparation. Any
+package preparation must use the operator's permitted feed via a command-local
+override, not a committed machine-specific configuration.
+
+For deterministic validation only:
+
+```powershell
+.\experiments\r02-local-inference-proof\Run-Qualification.ps1 `
+  -OutputDirectory C:\Temp\kora-li-validation-001 -ValidateOnly
+```
+
+Before live trials, explicitly approve exclusive runtime use and unloading/
+reloading. Supply a JSON file with all six pre-agreed maximum timing budgets
+in milliseconds. For example, the operator agreed these targets on 2026-10-07:
+
+```json
+{
+  "ColdCompletionMs": 20000,
+  "WarmCompletionMs": 10000,
+  "ColdFirstResponseMs": 10000,
+  "WarmFirstResponseMs": 2000,
+  "ClientCancellationMs": 2000,
+  "RecoveryCompletionMs": 10000
+}
+```
+
+These are test criteria, not production deadlines. The cancellation target
+also requires independent server-cessation evidence that this runner cannot
+provide. Memory/CPU budgets and controlled contention remain unresolved.
+
+```powershell
+.\experiments\r02-local-inference-proof\Run-Qualification.ps1 `
+  -OutputDirectory C:\Temp\kora-li-live-001 `
+  -BudgetsPath C:\Temp\kora-li-budgets.json `
+  -ServerProcessId <approved-server-PID> -ExclusiveRuntime -Trials 30
+```
+
+Replace the PID placeholder only after a fresh, separately approved ownership
+preflight. The runner neither discovers ownership from a process name nor
+starts a server. Admission records the selected process's creation time and
+requires it to own only loopback port-11434 listeners. Each forwarded request,
+including cleanup, rechecks the root and listener; replacement, absence or
+inability to verify blocks transmission. This is a best-effort snapshot check,
+not an atomic connection-to-process binding or proof that no other client can
+arrive. Exclusive-use consent and environmental controls remain necessary.
+
+The default is the exact authoritative production runtime pin. A changed
+installed runtime is refused unless an operator separately approves a named
+comparison and supplies both `-RuntimeVersion` and `-ComparisonRuntime`.
+For a separately approved `0.40.0` comparison, add:
+
+```powershell
+  -RuntimeVersion 0.40.0 -ComparisonRuntime
+```
+
+No comparison changes production pins or establishes compatibility/selection.
+Both runtime profiles require the unchanged pinned model digest, using the
+production identity helper for equivalent bare/prefixed SHA-256 forms.
+
+The `qualify` mode extends `measure` with:
+
+- At least 30 unloaded-model cold plus 30 paired warm trials **on each path**:
+  experimental streaming and source-linked buffered production with CPU-only
+  override. Production first-token timing remains unobservable.
+- Per-trial maximum-budget checks and p50/p95/max, including failures and
+  missing timings rather than successful-only acceptance.
+- Three repetitions at 50/200/1000-ms cancellation schedules on each path,
+  client-cancellation latency from the actual cancellation signal, subsequent
+  answer quality/timing and a two-second post-return resource observation.
+  Completion before the scheduled cancellation is a race observation, not
+  a cancellation pass. Sampled CPU/residency is not server-cessation proof.
+  The observer follows the explicitly admitted server PID/creation-time tree
+  across names. Initial/final samples and polling errors are retained; absent
+  or reused identities and inaccessible roots are explicit incomplete evidence.
+  Its totals still cannot qualify resource budgets or physical cessation.
+- Existing context/overflow and missing-model checks, explicitly retaining
+  exact-token accounting, actual production timeout and independent isolation
+  as unproven boundaries.
+- Atomic incremental `measurement.json` checkpoints, a visible Ctrl+C
+  cancellation path, final owned-model unload confirmation, and retained server/
+  assets. Hard termination cannot guarantee cleanup; inspect partial evidence
+  and ownership before any replay.
+- `qualification.json`, command log, machine/source validation receipt and a
+  `human-review.json` worksheet referencing every main/production/recovery answer.
+  This includes the standalone post-cancellation recovery as well as the repeated
+  cancellation recoveries.
+  Human scores are intentionally blank; lexical checks never substitute for
+  the reviewed rubric.
+
+Deterministic validation uses fake process frames/listeners for all inference
+orchestration. One non-elevated, read-only native positive control observes the
+self-test process; it does not contact Ollama, generate, change residency or
+start/stop processes. Unobserved synthetic resource results explicitly say
+`Not observed`; zero counters are never presented as model measurements.
+Previously saved live receipts used the old name-only sampler and remain
+partial: this observer does not repair or relabel their native-runner gaps.
+
+Exit 0 means the measured automated checks and timing coverage passed, not
+LI01-LI07/D-003/D-007/A2 acceptance. A failed/blocked run retains its evidence;
+do not automatically retry, loosen budgets or change identities. The full
+licence/storage inventory, physical floor, offline capture and admitted-host
+repeat remain separate gates.
+
+### Serial trial schedule and admission stop
+
+**2026-10-09 unattended admission:** the operator conditionally approved exact
+pinned provisioning and a non-exclusive synthetic observation on this machine,
+with no manual input, UI/elevation/reboot, broad PATH/service/startup change,
+unrelated-process operation, capture/network-policy change or exclusive trial.
+The [admission receipt](results/unattended-preflight-2026-10-09/admission.json)
+records a stop before installer/weight acquisition. Refreshed
+[public identities/licences](results/unattended-preflight-2026-10-09/candidate-metadata.json)
+match the pins, but the approved acquisition path's exact tagged Inno source
+declares HKCU PATH mutation, a post-install GUI-app launch and image-name kill
+hooks. `--disable-interactivity` does not suppress or authorise these effects.
+No install, live request or teardown ran. The advertised official portable ZIP
+is not an approved replacement lifecycle in this repository; do not improvise
+one or treat conditional host approval as exclusive-use/offline consent.
+
+The [2026-10-08 preparation receipt](results/continuation-2026-10-08/preparation.json)
+contains file-only evidence, not permission to execute this schedule.
+No supported runtime/listener/default selected-model manifest was available;
+no live test was attempted. Do not infer reusable consent from a historical
+setup or comparison. This proof gates only affected inference exposure and
+RC manifests including it, not unrelated development.
+
+After explicit approval of the exact environment, assets and operations:
+
+1. Complete builds, deterministic tests, hashing and licence/storage review
+   first. Stop or wait for all *owned* competing proof/build/benchmark jobs;
+   do not stop unrelated users' processes. Record a quiet measurement window
+   before admitting runtime identity and beginning measurements.
+2. Read-only preflight records the approved PID/creation identity, exact
+   runtime/model/blob digests, listeners, initial residency and CPU-only plan.
+   Missing assets, unsupported identity, other clients or uncertain ownership
+   stop admission; they do not trigger acquisition/startup/unloading.
+3. With separately approved exclusive-use and residency changes, run one
+   qualification invocation. It awaits each request: 30 immediately paired
+   cold/warm streaming trials, then 30 paired buffered trials. Keep both
+   paths distinct. No other proof runner, comparison, self-test or build runs
+   concurrently. The attributable resource sampler is measurement
+   instrumentation, not a second inference workload. "Cold" is model-unloaded,
+   not a flushed OS/page cache.
+4. Run context, cancellation/recovery and error phases serially after timing
+   pairs. Client completion alone is not server quiescence: independent
+   cessation/race/actual-timeout instrumentation and approved budgets must
+   precede any exclusive follow-up. Confirm owned cleanup and retain failures;
+   do not retry automatically or relax criteria.
+5. If separately approved, repeat relevant phases in the owned independently
+   network-blocked environment. Keep offline instrumented trials separate
+   from uncontended timing trials, disclose instrumentation overhead, and
+   capture only admitted Kora/Ollama/runner traffic. No shared-machine network
+   changes or unrelated capture is authorised by this runbook.
+6. End all trial workloads before offline accounting and human review.
+   Preserve individual failures and unchanged rubric; obtain candidate/floor
+   disposition before the integrated-host repeat. Memory/CPU headroom,
+   physical reference support and cessation deadlines remain owner decisions.
+
+### Executable retention review - 2026-10-08
+
+Maintained `WindowsOllamaReasonerTests`, `WindowsOllamaSetupServiceTests`,
+`LocalInferenceDependencyProbeTests` and `OllamaModelIdentityTests` cover
+overlapping mocked parser/payload, setup/reuse, unavailable and digest cases.
+They do not supersede the complete executable or its exact rubric, serial
+cold/warm/cancellation measurements, process/listener admission, native-tree
+observer, offline saved-answer/envelope analysis or incremental evidence.
+
+Retain all current experiment executables. `Proof.csproj` compiles the
+source-linked adapter and `SelfTests.cs` plus the linked runtime-lifecycle
+`NativeSnapshot.cs`; `Run-Qualification.ps1` consumes `Run-Validation.ps1`,
+which consumes `Record-Machine.ps1`. The README and Design local-inference,
+acceptance, decision, deferred-validation and roadmap pages retain their
+reproduction/handoff consumers. `Record-CandidateMetadata.ps1` remains the
+public licence/digest metadata reproduction route; it was not invoked during
+file-only preparation. `Run-PathRegressionTests.ps1` adds wrapper-location
+coverage absent from the maintained adapter tests.
+
+No exact standalone file is wholly redundant, so no path is deleted. Moving
+an overlapping assertion is not enough to retire a file containing unique
+measurement or admission checks; first migrate those checks and update every
+verified consumer, then retain historical receipts without relabelling them.
+
+### Bounded native-observer positive control
+
+After separate exclusive-use, CPU-only generation and owned-model-unload approval,
+use `-ObserverControl` for exactly two prompted requests rather than a full batch.
+Require an empty `/api/ps` inventory; pre-existing residency is refused without
+unloading it. The control runs one cold buffered and one warm streamed request
+asking for `2 + 2`, with context 4096, seed 7, temperature zero, thinking disabled
+and five-minute keep-alive. The actual requests must differ only by `stream`.
+
+```powershell
+.\experiments\r02-local-inference-proof\Run-Qualification.ps1 `
+  -OutputDirectory C:\Temp\kora-li-observer-control-001 `
+  -BudgetsPath C:\Temp\kora-li-budgets.json -ObserverControl `
+  -ServerProcessId <approved-server-PID> `
+  -ServerStartedUtcTicks <creation-ticks-from-approved-preflight> `
+  -ExclusiveRuntime -RuntimeVersion 0.40.0 -ComparisonRuntime
+```
+
+Do not combine this mode with `-Trials` or the two comparison-mode switches.
+The expected creation ticks optionally bind any live mode to the operator's
+preflight, rejecting a reused/restarted PID before requests. Active foreign
+TCP clients visible in listener snapshots also block requests; these checks do
+not establish continuous exclusivity or atomic process/connection identity.
+
+Receipts retain both answers, exact requests including the unload, root/native-runner
+counters, CPU/context metadata, timing checks and the final `/api/ps` unload
+confirmation. Terminal request ledgers are checkpointed after cleanup, including
+failed cleanup attempts. The native positive control
+requires `llama-server` to be observed with working-set and lifetime CPU activity
+on both paths, positive interval CPU deltas, and no reported sampling errors.
+A failed control is not retried automatically. Cleanup revalidates the root,
+version and model digest before unloading only the selected test model, keeping
+the pre-existing server/assets. Human scores stay blank. Success proves a bounded
+observer signal, not complete resource accounting, reliable candidate answers,
+cancellation, offline containment or LI01-LI07 qualification.
+
+### Matched sampling comparison
+
+After separate live-comparison approval, add `-CompareSampling` to the
+automated runner:
+
+```powershell
+.\experiments\r02-local-inference-proof\Run-Qualification.ps1 `
+  -OutputDirectory C:\Temp\kora-li-sampling-001 `
+  -BudgetsPath C:\Temp\kora-li-budgets.json -ExclusiveRuntime -Trials 30 `
+  -RuntimeVersion 0.40.0 -ComparisonRuntime -CompareSampling
+```
+
+Both profiles use the source-linked **buffered** reasoner, unchanged model,
+synthetic fixtures/system, JSON/`think=false`/512-token prediction, CPU-only,
+context 4096, seed 7 and five-minute residency. The only requested factor is
+temperature omitted (runtime/model default) versus explicitly zero. Do not
+assume a numeric value for an omitted default.
+
+There are two recorded warmups, then 30 measured warm requests per profile
+with alternating order, exact overridden requests, effective-context/CPU
+residency checks and the unchanged lexical rubric. These profiles are not
+unchanged production defaults. Warm completion budgets apply; cold/first-token
+and cancellation qualification are not measured by this comparison.
+Retain per-fixture failures and human review; a better screening score does
+not prove general quality or authorize promoting an option to production.
+The same identity, incremental evidence and owned cleanup guards apply.
+
+### Matched transport comparison
+
+With separate live approval, use `-CompareStreaming` instead of
+`-CompareSampling`. Both profiles hold temperature zero, context 4096, seed 7,
+CPU-only, JSON, thinking disabled, prediction bound and residency fixed.
+The buffered profile runs the source-linked reasoner; the streamed profile
+replays its captured request through the experiment's NDJSON reader. Only the
+outgoing `stream` flag differs.
+
+The runner records two warmups and 30 warm requests per profile with alternating
+order, full request/answer evidence and unchanged screening/human-review rows.
+Warm completion and streamed first-response-token budgets apply; a first JSON
+token is not a displayed useful answer. This is an experiment comparison, not
+production streaming, cold qualification or integrated UI/tool-loop evidence.
+Never supply both comparison switches or promote a profile automatically.
 
 ## Answer-quality rubric
 
@@ -191,6 +502,73 @@ No model output grants or executes anything in this harness.
 The contracts do not set numeric local-answer latency/RAM UX budgets.
 Report distributions/resources rather than inventing a "fast enough" pass.
 The accountable owner must agree budgets and human scoring before selection.
+
+### Offline saved-answer factual assessment
+
+`assess-answers` reads existing measurement files without creating a transport,
+observing Ollama or generating answers. It produces a separate derived report;
+raw receipts and their original lexical verdicts are never rewritten.
+
+```powershell
+dotnet run --project experiments\r02-local-inference-proof\Proof.csproj `
+  -c Release --no-build --no-restore -- assess-answers `
+  --output C:\Temp\kora-li-saved-answer-assessment.json `
+  --input C:\Temp\kora-li-live-001\measurement.json `
+  --input C:\Temp\kora-li-comparison-001\measurement.json
+```
+
+The report includes SHA-256 for each input and the bundled fixture inventory,
+stable answer references, original/current lexical screens and bounded factual
+subchecks. Invoice totals are calculated from the fixture quantities/prices;
+Python-list means are calculated from the fixture values, without executing
+Python or model text. The assessor checks explicit total/output claims and
+restricted numeric-literal equations. It identifies wrong and contradictory
+assertions even when the answer also contains the correct number.
+Scalar assertions and equations share normalization of supported operator
+spellings, including equivalent Unicode multiplication/division signs, so an
+expression prefix is not assessed as a standalone total or output.
+
+Negated, quoted, hypothetical or unrecognised assertions require review rather
+than being treated as definite numerical failures. Repeating the explicitly
+forbidden injection marker remains a failure even inside a quotation. Shape,
+length and original lexical checks remain unchanged. Unsupported source schemas,
+unknown fixture IDs, changed reference formats and malformed records are explicit
+errors; incomplete requests are not assessed as completed answers.
+
+`Supported subchecks` is not an answer pass: missing tax/uncertainty, explanation
+completeness, unrecognised claims and the full human rubric remain outstanding.
+The assessor does not infer human scores, override failed historical screening,
+establish general semantic correctness or change candidate qualification.
+Exit 0 means the derived report was produced, not that its answers passed.
+
+### Offline request-envelope accounting
+
+`account-envelope` accounts for recorded outbound payloads and new source-linked
+synthetic captures, without creating a real transport or observing a runtime:
+
+```powershell
+dotnet run --project experiments\r02-local-inference-proof\Proof.csproj `
+  -c Release --no-build --no-restore -- account-envelope `
+  --output C:\Temp\kora-li-request-envelope.json `
+  --input C:\Temp\kora-li-live-001\measurement.json
+```
+
+Repeat `--input` for additional saved runs. Raw evidence is unchanged; a new
+output is required. Recorded payload strings retain exact UTF-8 re-encoding;
+recorded JSON objects are explicitly labelled reserialized, not exact original
+byte framing. Counts include the complete application JSON, each top-level
+serialized field value and decoded string sizes. JSON name/separator/whitespace
+overhead is separate. Bytes and UTF-16 code units are not model-token counts.
+
+The source-linked captures cover all fixtures, ASCII input boundaries
+4095/4096/4097 and 4096-code-unit Unicode/surrogate-pair inputs. Rejection at
+4097 is checked before any synthetic transport call. They share the production
+reasoner request composition and the existing proof CPU override, not a second
+prompt builder. Only the proof's current status context is captured: selected
+artifacts, history/tool-result assembly and integrated-host maxima remain open.
+No token/byte ceiling is invented. Tokenizer identity, model-template expansion,
+output/thinking reservations, effective context and truncation/overflow behavior
+still require qualification; exit 0 does not close those gates.
 
 ## Approved network-blocked proof procedure
 
@@ -386,10 +764,11 @@ provider or authority substitution. No LI row is waived by merging partial work.
 
 ## Proof code lifecycle
 
-Retain this harness through LI01-LI07 and R06-R08/R10 adapter delivery because
-it owns the exact candidate rubric and deferred measurement procedure. Move
+Retain this opt-in harness for LI01-LI07 and affected capability/RC qualification
+because it owns the exact candidate rubric and environment procedure. Move
 quality, budget, cancellation, unavailable-path and offline cases into the
 production adapter/integration suites as those boundaries become executable.
 Remove the standalone harness only after equivalent production coverage and
-final reviewed evidence exist; preserve historical receipts. See the shared
-[proof-code disposition](../../Design/Deferred_Validation.md#2026-10-05-safe-revalidation-and-proof-code-disposition).
+final reviewed evidence exist and consumer/reference checks pass; preserve
+historical receipts and unique lab procedures. Current disposition is owned by
+the roadmap inventory above; dated equivalence assessments remain evidence.

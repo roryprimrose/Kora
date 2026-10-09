@@ -2,7 +2,8 @@
 
 Status: agreed window structure; bounded native-text-v1 document details
 implemented, with a bounded durable native question/review window; coordinated
-Sessions/history layouts remain proposed.
+authoritative per-session work and bounded ordered history delivered as below.
+The full conversation/composer and general concurrent execution layouts remain proposed.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
 
@@ -17,6 +18,52 @@ Security controls constrain these workflows; they are not a substitute for desig
 
 Voice-only, UI-only, and mixed operation use the same services and retained state, subject to explicit call-origin/secure-workflow exceptions.
 Every session/task/question/artifact control names its actual target; ambient animation, window focus, and selected session never supply execution authority.
+
+### Delivered Authoritative Sessions Work Surface - 2026-10-09
+
+The native Sessions window places the bounded All/Active/Done session page
+beside one selected exact session's authoritative work. Selection passively
+reads `SessionWorkSnapshot`: one validated SQLite read transaction captures
+session/generation, authority and queue revisions, stable FIFO positions,
+pending count/capacity, host slot limit, deadline metadata, task observations
+and exactly bound pending-question metadata. Queue records include all live
+entries and up to 25 recent terminal/recovery receipts; nonqueue tasks and
+pending questions are each limited to 50. Omitted counts are explicit; a
+complete result exceeding 64 KiB is unavailable, never truncated as authority.
+Nonterminal task receipts precede other task IDs; chronological sequence is
+available only from the separate immutable history source.
+
+Queued/current/waiting/blocked/cancelled/removed/interrupted/Unknown states
+come from durable records. Eligibility reasons use the scheduler's same
+`SessionQueuePolicy`, not a view-model guess. Ready is an observation, not
+permission or a prediction of the next fair admission. Pending expiry is
+30 minutes; a recorded current admission supplies the five-minute active
+deadline. Pre-dispatch question waits have their own expiry and no scheduler
+slot/active clock; their cards remain visible while history/evidence is read.
+Answer/review remains in the original separately owned Questions window.
+
+Native Inspect, eligible Cancel, Remove pending ID, confirmed pending Clear,
+fixed version Enqueue and manual fair Dispatch use the already admitted exact
+command/host workflows. Displayed IDs/generations/revisions and the captured
+selection epoch bind controls; stale records and session/selection/privacy
+changes refuse. Admitted work cannot be cancelled by pretending its effect
+terminated. Done/disposition/redacted citations and independent Perpetual
+grants retain their existing gates.
+
+An owned five-second passive refresh updates selected work only while idle;
+it never disables/focuses controls or activates another window. Busy/changed
+selection drops late observations. Refresh preserves selection by exact ID,
+does not silently renew inspected question-cancellation authority, and stops/
+detaches on close. Missing/disposed/corrupt/oversized authority is an explicit
+unavailable recovery state. Browsing/filtering/history/refresh never records
+meaningful activity, dispatches, reprioritizes, resumes, retargets voice or
+questions, consumes grants or creates execution authority.
+
+Immutable detail/script references, volatile file/skill/clipboard inspections,
+captions, history and diagnostic/evidence sources remain distinct; none is a
+queue payload. There is no composer, model management, Ask Evidence, export,
+rich browser, new worker/effect/provider or full R14/A4 acceptance. Maintained
+headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
 ### Delivered Passive Details Boundary
 

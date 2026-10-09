@@ -6,6 +6,12 @@ public interface IResponseOutputPreferences
 
     void SaveDefaultMode(ResponseOutputMode mode);
 
+    ResponseOutputMode? ReadBackDefaultMode();
+
+    void BeginDefaultModeWrite();
+
+    void ConfirmDefaultModeWrite();
+
     bool? LoadMutedOutputVisualFallback();
 
     void SaveMutedOutputVisualFallback(bool enabled);

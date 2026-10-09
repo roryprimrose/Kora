@@ -2,13 +2,52 @@
 
 Status: accepted design direction; bounded native-text-v1 passive viewer
 implemented for explicitly opened embedded guide pages. General model/result
-routing, durable history/artifact resolution and isolated HTML remain gated.
+routing, full conversation/artifact resolution and isolated HTML remain gated.
 The guide, bootstrap grant document and passive viewer share the bounded
 native Markdig/Avalonia pipeline. This is a partial R14 delivery, not the
 general artifact or permission-management experience described below.
 The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
+
+## Delivered Bounded Passive Session History - 2026-10-09
+
+The [coordinated work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+places authoritative work and exactly bound pending-question metadata beside
+this separate history reader. Reading history/evidence never replaces those
+cards or changes their reply target. Stable work IDs/revisions, FIFO order,
+observed deadlines/capacity and explicit eligibility/gap states come from a
+single bounded authority snapshot, not logs or rendered detail text. Separate
+immutable/volatile viewers remain uncomposed as queue content.
+
+The native Sessions window now offers **Read exact history** and **Next history
+snapshot page**, with an explicit immutable-session-ID field and accessible
+button/field names. The same Application service provides exact typed/activated
+`session history` and `session get` routes. A session name, selected window,
+diagnostic record, trace ID or caption never resolves a history subject.
+This inert native display has no reply, approval, attachment, playback, model,
+export or replay action. Browsing changes neither focus/voice targets nor
+meaningful activity, lifecycle or current approval/question state.
+
+The single [typed history contract](Interaction_And_Sessions.md#delivered-bounded-ordered-interaction-history---2026-10-09)
+owns host-committed question/final-answer, decision metadata and task-state
+receipt projections, stable exact citations and session-local sequence.
+The default 25/max 50-record, complete 64 KiB result preserves one exact
+generation/sequence snapshot across pages and restart; later appends are excluded.
+Changed lifecycle, unknown IDs/cross-session cursors, missing/corrupt storage
+and privacy loss fail closed. Oversized content is explicitly unavailable;
+metadata-only, baseline/gap and disposition-redacted records are not inferred
+responses. Done sessions remain readable; Removed sessions allow only exact
+redacted-citation inspection, not live-list membership or resume.
+
+Bootstrap messages/response bodies were not admitted to this durable store and
+remain unavailable. Shared-profile skill content and local file/clipboard
+previews remain volatile inspections. No history content enters diagnostics,
+activity tags or model context; only fresh admitted actual playback can create
+captions. This is partial R12/R14 delivery, not a full conversation composer,
+history search/model reasoning or Ask Evidence. The separately delivered fixed
+queue/native work surface is not a general scheduler. Real installed
+visual/screen-reader/DPI acceptance remains open.
 
 ## Delivered Exact Host-Record Review - 2026-10-07
 
@@ -27,6 +66,42 @@ full clipboard answering and real native acceptance remain unavailable/open.
 
 ### Delivered Bounded Native Evidence Inspection
 
+**AuthorityAudit** is a separate opt-in source for the real schema-v3
+interaction store's committed typed `security_audit_events`. It is not the
+SQLite diagnostic **Audit** projection or a daily audit mirror. **All** remains
+SQLite evidence-source-only and **CombinedLog** remains ordinary diagnostics
+only. No sources are merged, deduplicated or promoted by text, trace IDs or a
+`SecurityAudit` property. Source-qualified `kora-evidence:authorityaudit:...`
+citations identify the committed audit correlation ID within that source.
+
+The existing native inspector and complete 50-record/64-KiB page serializer
+show the original typed event/outcome/request/session/task/approval metadata,
+schema/table/sequence/commit digest, recorded trace/span IDs, intent revision,
+session generation, question/grant revision and typed change references/digests.
+These references are not historical payload reconstruction or a file graph.
+Only events actually committed by this interaction store are included:
+configuration/effect audits using other stores or the typed logging path are
+not imported or promoted, and the task ledger is not a fabricated audit stream.
+Only trace/span IDs were committed by this schema; diagnostic span metadata,
+parentage and links are not invented. Trace inspection remains in this source.
+If a single change-reference payload exceeds the complete page byte budget,
+`ContentOmitted` explicitly suppresses its change list while retaining the
+commit/source/outcome/revision metadata; no truncated trusted list is claimed.
+
+Reads use the initialized current store's shared lease and read-only connection,
+never its writing/migration API or the retired task ledger. Sequence ordering
+provides deterministic ties even when commit times are equal or go backwards.
+Each request scans at most 4,096 audit rows under existing five-second storage
+admission/query limits. The signed query/session-bound 15-minute continuation
+retains the original sequence/digest ceiling and native file/host-lifetime
+identity; appends do not expand it. Missing/inconsistent rows, obsolete schema,
+replacement, corruption, expired cursors and denied access are explicit errors,
+not an empty success or silent restart. Audit reads never prune or write.
+This is passive observation, not task/answer/grant admission, session activity
+or proof that an effect occurred. Local hash consistency is not forensic tamper
+resistance or an externally anchored checkpoint; files remain unencrypted and
+user-modifiable. Native installed/accessibility acceptance remains open.
+
 The tray's **Evidence (read-only)** entry opens a separate, non-topmost native
 window using the existing theme resources. It is not the clipboard-capable
 passive detail viewer. Source, safe-text, session/task GUID and W3C trace
@@ -43,8 +118,29 @@ silently shortened. Missing records/trace segments, expired-but-present
 records, unavailable sources and storage/access/validation errors are visible.
 Due dates do not prove physical removal; absent segments may never have been
 recorded. The query is a diagnostic projection, not the atomic interaction
-audit or proof of authorization/effect. Session/conversation history is
-unavailable, not an empty successful fabricated store.
+audit or proof of authorization/effect. This evidence source is not session/conversation history; the separately
+admitted bounded history source above is never synthesized from diagnostics.
+
+The source selector also admits **DailyLog**, independently of SQLite.
+**All** remains SQLite-only; daily mirrors do not alter its counts. Daily
+records use independent file/offset/digest citations, retain their original
+envelope evidence ID and typed observation/correlation fields, and have no
+database commit/due time (`RetentionUnknown`). **Read selected trace** stays
+within DailyLog; span/parent/link records are unavailable there. Audit mirrors
+are unsupported, not promoted to database audit records. The serialized
+`DailyReport` labels the snapshot, scanned files/bytes/lines, unsupported copies,
+audit mirrors and ingestion gaps; skipped copies produce `Partial`.
+
+Daily reads admit at most 32 files / 8 MiB of earliest complete-line prefix /
+4,096 physical lines / 256 KiB per line (excluding LF) and five seconds per
+request. The existing 50-record/64-KiB output limit still applies. Next page
+uses one of eight bounded 15-minute host-held manifests; eviction requires a
+fresh search. Active appends/new daily files do not expand it. Source changes,
+replacement, pruning/rotation, corruption, incomplete final lines, expired
+snapshots, timeout and access failure are visible. `ScanLimitReached` is not a
+complete-file claim and does not imply paging beyond the admitted prefix.
+No combined cross-source ranking, file audit/graph, export or Ask Evidence is
+delivered by this slice; native installed/accessibility acceptance remains open.
 
 Controls have native accessible labels and keyboard navigation. Result text
 is inert and non-selectable. Copy/cut clipboard paths and context menus are
@@ -263,6 +359,17 @@ Limit failure is an explicit presentation outcome with retained source
 identity; it is never silent truncation or a success-shaped empty view.
 
 ### Detail Routing and Offer Interaction
+
+The delivered bounded R10 ordinary-speech boundary measures the complete spoken
+title/body against device-local caps (default 3 sentences/80 words, independently
+lowerable). Current results do not carry trusted safe-omission metadata, so
+over-cap speech is explicitly refused with forced full visual recovery, never
+truncated or model-shortened. Full result/detail source is unchanged. Mandatory
+exact approval/proposal readback and required question/options retain their
+existing bounds/privacy behavior. See [the delivered contract](User_Configuration.md#delivered-bounded-spoken-summary-limits-r10)
+and [exact counting semantics](../docs/settings.md#spoken-summary-limits).
+This is not delivery of all routing/rendering/explicit full-content reading
+behavior proposed below.
 
 The host, not model prose or generated markup, decides whether a finalized
 response has a detailed representation. The response presenter evaluates the
@@ -557,6 +664,47 @@ surface.
 
 ## Optional Speech Text
 
+### Delivered bounded local utterance slice (R25)
+
+`display.speech-text` is device-local, unsaved/default/reset **Off**. Native
+Settings and exact typed/current-name activated commands share the admitted,
+audited atomic configuration service. **CurrentUtterance** is the only enabled
+mode in this slice: an ephemeral selectable native window shows the exact text
+passed by the host's admitted response speech route, only while the provider
+reports that matching playback identity/generation and utterance segment 0 as
+actually playing. Synthesis, queued work, failed/suppressed output and voice
+preview do not acquire caption authority.
+
+Response replacement/retirement, playback stop/cancel/failure, configuration
+revision, original request/session/channel, input recovery/activation generation,
+call/privacy revision and current unlocked ownership gates retire or reject the
+caption; late frames never restore it. The controller samples independently of
+presence visibility at 50 ms, with immediate retirement on host transition paths.
+No text enters preferences, logs, model requests or caption history. Required
+native questions/approvals/errors and full visual fallback remain independent.
+Changing this preference neither speaks/stops/replays output nor opens capture
+or changes response/call policy. Unknown or unconfirmed preferences hold captions
+off without disabling ordinary speech.
+
+The [2026-10-09 bounded UX increment](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09)
+retains only already-observed text after normal successful completion for a
+validated 0-30-second delay (default 5), or while run-only pinned. Retained text
+is labelled **PREVIOUS SPEECH**; unpin keeps the original completion deadline.
+Interruption and every source/privacy retirement still clear immediately,
+regardless of pinning. Placement persists one primary working-area corner with
+a 24-DIP margin. It does not activate on show or span the desktop as an
+input-catching overlay. No content is persisted.
+
+**Current sentence** and word alignment remain open: the actual adapter supplies
+utterance segment 0 only, so estimated boundaries are not advertised as
+host-admitted playback alignment. Display selection/arbitrary coordinates and
+broader natural caption/navigation commands below remain proposed. Native
+accessibility properties/selection/pin/settings are source-tested, not installed
+accessibility or acoustic qualification. Rich HTML/browser/diagram rendering is
+not delivered. The acoustic experiment remains maintained and is not retired.
+
+### Broader proposed contract
+
 Expose a voice-settable `speechText` preference: off (initial ambient default), current sentence, or current utterance.
 It displays the exact final text submitted to TTS, not the entire answer, user transcription, or a newly generated paraphrase.
 Bind text to response ID, playback generation, and segment so interruption/replacement cannot leave stale captions attached to new speech.
@@ -781,7 +929,17 @@ or network access.
 
 ## Voice Settings and Navigation
 
-All supported options use [User Configuration](User_Configuration.md), including:
+Delivered caption options use [User Configuration](User_Configuration.md):
+
+| ID | Default / choices | Exact example after current activation name |
+|---|---|---|
+| `display.speech-text` | Off / CurrentUtterance | `set display.speech-text to CurrentUtterance` |
+| `display.speech-text-dismissal-delay` | 5 seconds; canonical integer 0-30 | `set display.speech-text-dismissal-delay to 10` |
+| `display.speech-text-placement` | BottomRight / BottomLeft / TopRight / TopLeft; primary working area | `set display.speech-text-placement to TopLeft` |
+| `display.speech-text-pin` | false / true; current observed caption only, run-only | `set display.speech-text-pin to true` |
+
+All also have exact get/status/reset and `list speech text settings` discovery.
+The broader proposed registry includes:
 
 | Preference | Default / choices | Example after "Kora" |
 |---|---|---|

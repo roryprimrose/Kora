@@ -3,32 +3,34 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+
 using Kora.Windows.Dependencies;
 
 namespace R02Proof;
 
 internal sealed record GenerationResult(
     string State, double? FirstTokenMs, double? FirstResponseTokenMs, double CompletionMs,
-    string Response, string Thinking, JsonNode? FinalMetadata, ResourceResult Resources, string? Error);
+    string Response, string Thinking, JsonNode? FinalMetadata, ResourceResult Resources, string? Error,
+    double? CancellationRequestedMs, double? ClientCancellationLatencyMs);
 
 internal static class Measurements
 {
     public const string Endpoint = "http://127.0.0.1:11434";
 
-    public static async Task<JsonNode> GetAsync(HttpClient client, string path)
+    public static async Task<JsonNode> GetAsync(HttpClient client, string path, CancellationToken cancellationToken = default)
     {
-        using var response = await client.GetAsync(Endpoint + path);
+        using var response = await client.GetAsync(Endpoint + path, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return JsonNode.Parse(await response.Content.ReadAsStringAsync())
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))
             ?? throw new InvalidDataException("Empty endpoint metadata.");
     }
 
-    public static async Task<JsonNode> ShowAsync(HttpClient client)
+    public static async Task<JsonNode> ShowAsync(HttpClient client, CancellationToken cancellationToken = default)
     {
         using var response = await client.PostAsJsonAsync(Endpoint + "/api/show",
-            new { model = WindowsOllamaSetupService.Model });
+            new { model = WindowsOllamaSetupService.Model }, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return JsonNode.Parse(await response.Content.ReadAsStringAsync())
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))
             ?? throw new InvalidDataException("Empty model metadata.");
     }
 
@@ -45,27 +47,33 @@ internal static class Measurements
         return payload;
     }
 
-    public static async Task UnloadAsync(HttpClient client)
+    public static async Task<JsonNode> UnloadAsync(HttpClient client, CancellationToken cancellationToken = default)
     {
         using var response = await client.PostAsJsonAsync(Endpoint + "/api/generate",
-            new { model = WindowsOllamaSetupService.Model, keep_alive = 0, stream = false });
+            new { model = WindowsOllamaSetupService.Model, keep_alive = 0, stream = false }, cancellationToken);
         response.EnsureSuccessStatusCode();
         var watch = Stopwatch.StartNew();
         do
         {
-            var ps = await GetAsync(client, "/api/ps");
-            if (!ps["models"]!.AsArray().Any(model => model!["name"]!.GetValue<string>() == WindowsOllamaSetupService.Model))
-                return;
-            await Task.Delay(100);
+            var ps = await GetAsync(client, "/api/ps", cancellationToken);
+            if (ps["models"] is not JsonArray models)
+                throw new InvalidDataException("Missing loaded-model inventory; unload cannot be confirmed.");
+            if (!models.Any(model => model!["name"]!.GetValue<string>() == WindowsOllamaSetupService.Model))
+                return ps;
+            await Task.Delay(100, cancellationToken);
         } while (watch.Elapsed < TimeSpan.FromSeconds(10));
         throw new InvalidOperationException("Could not establish an unloaded-model cold start.");
     }
 
     public static async Task<GenerationResult> StreamAsync(
-        HttpClient client, JsonObject payload, CancellationToken cancellationToken = default)
+        HttpClient client, JsonObject payload, CancellationToken cancellationToken = default,
+        ProcessTreeObserver? observer = null)
     {
         var watch = Stopwatch.StartNew();
-        await using var meter = new ResourceMeter();
+        long cancellationTicks = -1;
+        using var registration = cancellationToken.Register(() =>
+            Interlocked.Exchange(ref cancellationTicks, watch.ElapsedTicks));
+        await using var meter = new ResourceMeter(observer);
         double? first = null;
         double? firstResponse = null;
         var answer = new StringBuilder();
@@ -122,8 +130,12 @@ internal static class Measurements
             error = exception.GetType().Name + ": " + exception.Message;
         }
         watch.Stop();
+        var requestedTicks = Interlocked.Read(ref cancellationTicks);
+        double? requestedMs = requestedTicks < 0 ? null : requestedTicks * 1000.0 / Stopwatch.Frequency;
         return new(state, first, firstResponse, watch.Elapsed.TotalMilliseconds,
-            answer.ToString(), thinking.ToString(), final, await meter.FinishAsync(), error);
+            answer.ToString(), thinking.ToString(), final, await meter.FinishAsync(), error,
+            requestedMs, state == "Cancelled" && requestedMs.HasValue
+                ? Math.Max(0, watch.Elapsed.TotalMilliseconds - requestedMs.Value) : null);
     }
 
     public static (string? Answer, bool AnswerOnly) ParseAnswer(string response)

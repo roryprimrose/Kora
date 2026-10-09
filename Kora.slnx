@@ -11,6 +11,7 @@
     <Project Path="src/Kora.Windows/Kora.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Kora.NativeUxFixture/Kora.NativeUxFixture.csproj" />
     <Project Path="tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj" />
     <Project Path="tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj" />
     <Project Path="tests/Kora.Definitions.UnitTests/Kora.Definitions.UnitTests.csproj" />

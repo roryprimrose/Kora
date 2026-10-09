@@ -20,6 +20,7 @@ public sealed class WindowsSqliteHostTaskStoreTests
     {
         using var fixture = new OwnedStorageFixture();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var request = Request();
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
@@ -27,14 +28,14 @@ public sealed class WindowsSqliteHostTaskStoreTests
             ActivityStopped = activity =>
             {
                 if (string.Equals(activity.GetTagItem("kora.storage.boundary") as string,
-                    "storage.task.commit", StringComparison.Ordinal))
+                    "storage.task.commit", StringComparison.Ordinal)
+                    && Equals(activity.GetTagItem("kora.request.id"), request.RequestId.Value))
                 {
                     cancellation.Cancel();
                 }
             },
         };
         ActivitySource.AddActivityListener(listener);
-        var request = Request();
         using var host = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
         await new WindowsSqliteHostTaskStore(fixture).CommitAsync(intent, 0, cancellation.Token);
@@ -231,7 +232,7 @@ public sealed class WindowsSqliteHostTaskStoreTests
         command.CommandText = "SELECT count(*) FROM host_task_events;";
         command.ExecuteScalar().Should().Be(3L);
         command.CommandText = "PRAGMA user_version;";
-        command.ExecuteScalar().Should().Be(1L);
+        command.ExecuteScalar().Should().Be(2L);
         command.CommandText = "PRAGMA journal_mode;";
         command.ExecuteScalar().Should().Be("persist");
         command.CommandText = "PRAGMA synchronous;";

@@ -27,6 +27,15 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Fact]
+    public void Queued_fixed_read_reuses_the_existing_registry_action_with_fresh_native_authority()
+    {
+        using var fixture = new Fixture();
+        using var root = Root();
+        var action = new Kora.Application.Hosting.DeterministicVersionQueueAction(fixture.Registry);
+        action.Observe(TestContext.Current.CancellationToken).Outcome.Should().Be(CapabilityOutcome.Succeeded);
+    }
+
+    [Fact]
     public void Results_emit_structured_host_correlated_logs_without_hostile_input_content()
     {
         var logger = new RecordingLogger();

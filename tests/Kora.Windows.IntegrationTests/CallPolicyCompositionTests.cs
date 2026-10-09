@@ -108,14 +108,14 @@ public sealed class CallPolicyCompositionTests
         var document = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SettingsWindow.axaml"));
         var tab = document.Descendants().Single(e => string.Equals(e.Name.LocalName, "TabItem", StringComparison.Ordinal)
             && string.Equals(e.Attribute("Header")?.Value, "Calls", StringComparison.Ordinal));
-        foreach (var command in new[] { "EnableManualCallCommand", "ClearManualCallCommand" })
+        foreach (var command in new[] { "EnableManualCallCommand", "ClearManualCallCommand", "ResetManualCallCommand", "GetManualCallStatusCommand" })
         {
             var button = tab.Descendants().Single(e => string.Equals(e.Attribute("Command")?.Value,
                 "{Binding " + command + "}", StringComparison.Ordinal));
             button.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
             button.Attribute("TabIndex").Should().NotBeNull();
         }
-        foreach (var status in new[] { "CallStateStatus", "CallManualStatus", "CallProtectionLimitations" })
+        foreach (var status in new[] { "CallStateStatus", "CallManualStatus", "ManualCallConfigurationStatus", "CallProtectionLimitations" })
         {
             tab.Descendants().Should().Contain(e => e.Attribute("Text") != null && e.Attribute("Text")!.Value == "{Binding " + status + "}");
         }

@@ -10,6 +10,8 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
     private Func<CancellationToken, Task>? abort;
     private bool quiescenceActive;
     private bool abortFailed;
+    private long admissionRevision;
+    public long AdmissionRevision { get { lock (sync) { return admissionRevision; } } }
 
     public bool IsCapabilityAdmissionOpen
     {
@@ -46,6 +48,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             activate = activateExisting;
             quiesce = quiesceForHandoff;
             abort = abortHandoff;
+            admissionRevision = checked(admissionRevision + 1);
         }
     }
 
@@ -56,6 +59,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             activate = null;
             quiesce = null;
             abort = null;
+            admissionRevision = checked(admissionRevision + 1);
         }
     }
 
@@ -98,6 +102,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             callback = quiesce;
             abortCallback = abort;
             quiescenceActive = true;
+            admissionRevision = checked(admissionRevision + 1);
         }
 
         try
@@ -122,6 +127,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             lock (sync)
             {
                 quiescenceActive = false;
+                admissionRevision = checked(admissionRevision + 1);
             }
         }
     }
@@ -138,6 +144,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             lock (sync)
             {
                 abortFailed = true;
+                admissionRevision = checked(admissionRevision + 1);
             }
         }
     }

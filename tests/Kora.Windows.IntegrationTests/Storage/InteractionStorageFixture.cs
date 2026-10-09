@@ -61,9 +61,9 @@ internal sealed class InteractionStorageFixture : IDisposable
         await PublishAsync();
     }
 
-    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null)
+    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null, AuditRetentionPolicy? auditPolicy = null)
     {
-        Store = new(Paths, Tasks, Time, checkpoint);
+        Store = new(Paths, Tasks, Time, checkpoint, auditPolicy: auditPolicy);
         Questions = new(Store, Time);
         Authorization = new(Store, Time);
     }
@@ -128,6 +128,39 @@ internal sealed class InteractionStorageFixture : IDisposable
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA foreign_keys=OFF;" + sql;
         command.ExecuteNonQuery();
+    }
+
+    internal void StageLegacy(int version)
+    {
+        var events = new List<HostTaskRecord>();
+        using (var authority = OpenRaw())
+        {
+            using var read = authority.CreateCommand();
+            read.CommandText = """
+                SELECT t.task_id,t.request_id,t.session_id,t.origin,t.invocation_id,e.revision,e.state
+                FROM host_tasks t JOIN host_task_events e ON e.task_id=t.task_id ORDER BY t.task_id,e.revision;
+                """;
+            using var rows = read.ExecuteReader();
+            while (rows.Read()) { events.Add(WindowsSqliteHostTaskStore.Decode(rows)); }
+        }
+        using (var legacy = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(Paths.LocalRoot, "HostStorageV1", "host.db"),
+            Mode = SqliteOpenMode.ReadWrite, Pooling = false,
+        }.ToString()))
+        {
+            legacy.Open();
+            using var transaction = legacy.BeginTransaction();
+            using var clear = legacy.CreateCommand();
+            clear.Transaction = transaction;
+            clear.CommandText = "PRAGMA journal_mode=PERSIST; DELETE FROM host_task_events; DELETE FROM host_tasks; UPDATE task_authority_handoff SET frozen=0;";
+            clear.ExecuteNonQuery();
+            foreach (var record in events) { WindowsSqliteHostTaskStore.WriteTask(legacy, transaction, record); }
+            transaction.Commit();
+        }
+        Mutate("DROP TABLE session_retention; DROP TABLE session_queue; DROP TABLE session_history; DROP TABLE session_history_heads; DROP TABLE host_task_waits; DROP TABLE host_task_runs; DROP TABLE host_task_events; DROP TABLE host_tasks;"
+            + (version == 1 ? "DROP TABLE session_metadata;" : string.Empty)
+            + "PRAGMA user_version=" + version.ToString(System.Globalization.CultureInfo.InvariantCulture) + ";");
     }
 
     public void Dispose()

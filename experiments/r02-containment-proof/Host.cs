@@ -11,8 +11,9 @@ namespace ContainmentProof;
 
 internal static class Host
 {
-    internal static int Run(string output, string powershell)
+    internal static int Run(string output, string powershell, string consent, bool networkHandoff = false)
     {
+        InvocationPolicy.RequireOwnedTrialConsent(consent);
         output = Path.GetFullPath(output);
         powershell = Path.GetFullPath(powershell);
         if (Directory.Exists(output)) throw new ArgumentException("Evidence destination must be new");
@@ -22,7 +23,7 @@ internal static class Host
         if (token.Elevated) throw new InvalidOperationException("Privileged trials are not admitted by this proof");
         Directory.CreateDirectory(output);
         string name = $"kora.r02.{Guid.NewGuid():N}";
-        string scratch = Path.Combine(Path.GetTempPath(), name);
+        string scratch = Path.Combine(output, name);
         string credential = $"{name}.synthetic";
         IntPtr sid = IntPtr.Zero;
         bool credentialCreated = false;
@@ -77,7 +78,16 @@ internal static class Host
                     profile.EndsWith("lost-receipt", StringComparison.Ordinal));
                 string specPath = Path.Combine(allowed, "spec.json");
                 Wire.Write(specPath, spec);
-                trials.Add(Trial(profile, spec, specPath, contained ? sid : IntPtr.Zero, allowed));
+                var started = DateTimeOffset.UtcNow;
+                var trial = Trial(profile, spec, specPath, contained ? sid : IntPtr.Zero, allowed);
+                var ended = DateTimeOffset.UtcNow;
+                trials.Add(trial);
+                if (networkHandoff && NetworkCollection.Profiles.Contains(profile, StringComparer.Ordinal))
+                {
+                    Wire.Write(Path.Combine(output, "trials.json"), trials);
+                    CollectNetworkAsync(output, spec, trial, scratch, token, started, ended)
+                        .GetAwaiter().GetResult();
+                }
             }
             Wire.Write(Path.Combine(output, "environment.json"), new
             {
@@ -124,6 +134,40 @@ internal static class Host
                 }
             }
         }
+    }
+
+    private static async Task CollectNetworkAsync(string output, Spec spec, Trial trial,
+        string scratch, TokenFacts host, DateTimeOffset started, DateTimeOffset ended)
+    {
+        if (trial.Receipt is null || trial.Receipt.RunId != trial.Profile ||
+            !trial.TreeStopped || trial.LaunchError is not null || trial.Failure is not null ||
+            trial.Receipt.Token.UserSid != host.UserSid || trial.Receipt.Token.Elevated ||
+            trial.Receipt.Token.AppContainer != trial.Profile.StartsWith("appcontainer", StringComparison.Ordinal))
+            throw new InvalidDataException("Cannot request collection for an unverifiable worker trial.");
+        NetworkImage Image(string name, string path) =>
+            new(name, path, Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))));
+        var request = new NetworkRequest(Guid.NewGuid().ToString("N"), trial.Profile, scratch,
+            host.UserSid, trial.Receipt.Token.ContainerSid, started, ended, spec.Address, spec.Port,
+            [Image("dotnet", spec.Executable), Image("powershell", spec.PowerShell)]);
+        NetworkCollection.Validate(request, output, DateTimeOffset.UtcNow);
+        string path = Path.Combine(output, $"network-{trial.Profile}.request.json");
+        string completionPath = Path.Combine(output, $"network-{trial.Profile}.completed.json");
+        string temporary = path + ".tmp";
+        Wire.Write(temporary, request);
+        string digest = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(temporary)));
+        File.Move(temporary, path);
+        Console.WriteLine($"W1 collector request ready: {path}; assets retained for at most 90 seconds.");
+        var clock = Stopwatch.StartNew();
+        await NetworkCollection.AwaitCompletionAsync(request.RequestId, digest, async () =>
+        {
+            if (!File.Exists(completionPath)) return null;
+            if (new FileInfo(completionPath).Length > NetworkCollection.MaximumJsonBytes)
+                throw new InvalidDataException("Collector receipt exceeds 64 KiB.");
+            return System.Text.Json.JsonSerializer.Deserialize<NetworkCompletion>(
+                await File.ReadAllTextAsync(completionPath), Wire.Json)
+                ?? throw new InvalidDataException("Empty collector receipt.");
+        }, () => clock.Elapsed, () => Task.Delay(200));
+        Console.WriteLine("W1 filtered XML received for inspection; denial attribution remains unproven.");
     }
 
     private static Trial Trial(string profile, Spec spec, string specPath, IntPtr sid, string directory)
@@ -220,17 +264,11 @@ internal static class Host
                 Native.Close(process.Process);
             }
         }
-        // Breakaway is expected to fail. If it unexpectedly succeeds, terminate only our recorded child.
-        if (receipt is not null)
+        // Receipt PIDs are untrusted observations, never termination authority.
+        if (receipt is not null && !DescendantObservations.ReportedChildrenAreTracked(receipt.Children, pids))
         {
-            foreach (int child in receipt.Children.Except(pids))
-            {
-                failure = $"Unexpected child {child} outside job; profile unsupported";
-                using var escaped = Process.GetProcessById(child);
-                escaped.Kill(entireProcessTree: true);
-                escaped.WaitForExit(5000);
-                stopped = false;
-            }
+            failure = "Unverified reported child outside job; no PID-only termination; profile unsupported";
+            stopped = false;
         }
         var childTokens = Directory.GetFiles(directory, "child-*.json")
             .Select(Wire.Read<TokenFacts>).ToList();

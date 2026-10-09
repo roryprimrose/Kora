@@ -2,6 +2,8 @@ namespace Kora.Core.Configuration;
 
 public interface IPresencePreferences
 {
+    bool? LoadPresenceDisplayEnabled();
+
     int? LoadPresenceTimeoutSeconds();
 
     int? LoadPresenceSizePixels();
@@ -17,6 +19,8 @@ public interface IPresencePreferences
     int? LoadPresenceSpeechScaleAmountPercent();
 
     PresencePosition? LoadPresencePosition();
+
+    void SavePresenceDisplayEnabled(bool value);
 
     void SavePresenceTimeoutSeconds(int seconds);
 

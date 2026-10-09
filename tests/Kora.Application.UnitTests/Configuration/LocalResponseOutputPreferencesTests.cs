@@ -11,8 +11,8 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class LocalResponseOutputPreferencesTests : IDisposable
 {
     private readonly string root = Path.Combine(
-        Path.GetTempPath(),
-        $"Kora.Tests.{Guid.NewGuid():N}");
+        Environment.CurrentDirectory, ".net-test-artifacts",
+        $"response-preferences-{Guid.NewGuid():N}");
 
     [Fact]
     public void LoadDefaultMode_returns_null_when_no_preference_exists()
@@ -58,6 +58,40 @@ public sealed class LocalResponseOutputPreferencesTests : IDisposable
         var action = () => preferences.SaveDefaultMode((ResponseOutputMode)100);
 
         action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData(" hybrid ", ResponseOutputMode.Hybrid)]
+    [InlineData("VOICEONLY", ResponseOutputMode.VoiceOnly)]
+    [InlineData("VisualOnly\r\n", ResponseOutputMode.VisualOnly)]
+    [InlineData("0", ResponseOutputMode.Hybrid)]
+    [InlineData("1", ResponseOutputMode.VoiceOnly)]
+    [InlineData("2", ResponseOutputMode.VisualOnly)]
+    public void Existing_defined_enum_storage_semantics_are_read_without_rewriting(string content, ResponseOutputMode mode)
+    {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "response-output-mode.txt");
+        File.WriteAllText(path, content);
+        CreatePreferences().LoadDefaultMode().Should().Be(mode);
+        File.ReadAllText(path).Should().Be(content);
+    }
+
+    [Fact]
+    public void Unconfirmed_mode_write_survives_restart_without_rewriting_legacy_mode_or_companion_preferences()
+    {
+        var preferences = CreatePreferences();
+        preferences.SaveDefaultMode(ResponseOutputMode.Hybrid);
+        preferences.SaveMutedOutputVisualFallback(false);
+        preferences.BeginDefaultModeWrite();
+        preferences.SaveDefaultMode(ResponseOutputMode.VoiceOnly);
+        preferences.ReadBackDefaultMode().Should().Be(ResponseOutputMode.VoiceOnly);
+        var restarted = CreatePreferences();
+        restarted.Invoking(value => value.LoadDefaultMode()).Should().Throw<InvalidDataException>();
+        restarted.LoadMutedOutputVisualFallback().Should().BeFalse();
+        preferences.ConfirmDefaultModeWrite();
+        restarted.LoadDefaultMode().Should().Be(ResponseOutputMode.VoiceOnly);
+        Directory.GetFiles(Path.Combine(root, "Preferences"), "*.tmp").Should().BeEmpty();
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using Kora.Application.Interaction;
 using Kora.Application.Communication;
+using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -19,6 +20,7 @@ internal sealed class NativeQuestionHost
     private readonly ILogger<NativeQuestionViewModel> logger;
     private Func<bool> canInteract = static () => false;
     private Func<CallPolicyObservation>? callObservation;
+    private SessionWorkspaceService? workspace;
 
     internal NativeQuestionHost(WindowsSqliteHostInteractionStore store, TimeProvider time,
         ILogger<NativeQuestionViewModel> logger)
@@ -34,8 +36,9 @@ internal sealed class NativeQuestionHost
 
     internal void BindGate(Func<bool> gate) => canInteract = gate;
     internal void BindCallObservation(Func<CallPolicyObservation> observe) => callObservation = observe;
+    internal void BindWorkspace(SessionWorkspaceService service) => workspace = service;
 
-    internal async Task AskVersionAsync(Func<NativeQuestionViewModel, Task> present,
+    internal async Task<HostTaskRecord> AskVersionAsync(Func<NativeQuestionViewModel, Task> present,
         CancellationToken cancellationToken)
     {
         var request = HostActivity.RequireCurrent().Request;
@@ -47,19 +50,43 @@ internal sealed class NativeQuestionHost
         await store.PublishTrustedSnapshotAsync(request, policy,
             proposal: null, expectedObservationRevision: 0, cancellationToken);
         var presented = await questions.CreateAsync(request,
-            new("Show the local Kora version and private-storage disclosure?",
-                QuestionKind.SingleChoice, [new("show", "Show local version")], purpose: "local-version", sourceId: "host"),
+            LocalVersionWait.CreateSpec(),
             time.GetUtcNow().AddMinutes(5), cancellationToken);
         if (presented.Outcome != HostInteractionOutcome.Presented || presented.Question is null)
         {
             throw new InvalidOperationException("The durable native question was not admitted.");
         }
-        var state = CreateState(presented.Question);
-        await present(state);
+        await store.AdmitVersionWaitAsync(presented.Question.Key, cancellationToken);
+        var admittedWorkspace = workspace ?? throw new InvalidOperationException("The native task control workspace is not bound.");
+        var state = CreateState(presented.Question, async key =>
+        {
+            var cancelled = await admittedWorkspace.CancelTaskAsync(new(key.Request.SessionId, key.Request.TaskId,
+                new(1), presented.Question.SessionGeneration, key.QuestionId, key.Revision),
+                RequestOrigin.LocalUi, () => canInteract(), cancellationToken);
+            return new(HostInteractionOutcome.Cancelled, "pre-dispatch-work-cancelled", cancelled.Question);
+        });
+        var externallyCancelled = new TaskCompletionSource<HostTaskObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnCancelled(HostTaskObservation observation)
+        {
+            if (observation.Task.Request == request) { externallyCancelled.TrySetResult(observation); }
+        }
+        admittedWorkspace.WaitingTaskCancelled += OnCancelled;
+        try
+        {
+            var current = await store.ReadTaskAsync(request.SessionId, request.TaskId, cancellationToken);
+            if (current?.Task.State == HostTaskState.Cancelled) { state.AcceptCommittedCancellation(current); }
+            var presentedTask = present(state);
+            if (await Task.WhenAny(presentedTask, externallyCancelled.Task) == externallyCancelled.Task)
+            {
+                state.AcceptCommittedCancellation(await externallyCancelled.Task);
+            }
+            await presentedTask;
+        }
+        finally { admittedWorkspace.WaitingTaskCancelled -= OnCancelled; }
         var result = await state.Completion;
         if (result.Outcome == HostInteractionOutcome.Cancelled)
         {
-            throw new OperationCanceledException("The local version question was explicitly cancelled.", cancellationToken);
+            return (await store.ReadTaskAsync(request.SessionId, request.TaskId, cancellationToken))!.Task;
         }
         if (result.Outcome != HostInteractionOutcome.Answered || result.Question is not { } answered
             || answered.Key.Request != request || answered.Key.QuestionId != state.Key.QuestionId
@@ -68,9 +95,11 @@ internal sealed class NativeQuestionHost
         {
             throw new InvalidOperationException("The exact native question did not produce an eligible committed answer.");
         }
+        return await store.AdmitVersionDispatchAsync(answered.Key, () => canInteract(), cancellationToken);
     }
 
     // Only a trusted host with an existing admitted record calls this; never resolve by focused window.
-    internal NativeQuestionViewModel CreateState(HostQuestionRecord question) =>
-        new(question, questions, authorization, reviews, () => canInteract(), time, logger);
+    internal NativeQuestionViewModel CreateState(HostQuestionRecord question,
+        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null) =>
+        new(question, questions, authorization, reviews, () => canInteract(), time, logger, cancel);
 }

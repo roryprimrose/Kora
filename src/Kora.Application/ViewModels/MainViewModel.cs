@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -10,13 +11,16 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
+using Kora.Application.Voice;
 using Kora.Core;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
 using Kora.Core.Context;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
@@ -30,14 +34,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string ApplicationRestartAction = "application.restart";
     private const string PresencePositionConfigurationAction = "configuration.presence-position";
     private const string ResponseWindowConfigurationAction = "configuration.response-window";
-    private const string AssistantNameConfigurationAction = "configuration.assistant-name";
     private const string CallAwareConfigurationAction = "configuration.call-aware-policy";
     private const string CurrentApplicationTarget = "application.current";
     private const string CurrentMachineTarget = "machine.current";
     private const string CurrentWindowsSessionTarget = "windows-session.current";
     private const string DeviceLocalPreferencesTarget = "preferences.device-local";
-    private const string MicrophoneConfigurationAction = "configuration.microphone";
-    private const string OutputDeviceConfigurationAction = "configuration.audio-output";
+    private const string MicrophoneConfigurationAction = InputDevicePreferenceService.AuditAction;
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
     private const string MutedOutputFallbackConfigurationAction = "configuration.muted-output-visual-fallback";
     private const string SpeechProviderInstallAction = "speech-provider.install";
@@ -51,10 +53,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private const string SessionLockAction = "session.lock";
     private const string ShutdownApprovalAction = "power.shutdown";
     private const string RestartApprovalAction = "power.restart";
-    private const string VoiceSelectionConfigurationAction = "configuration.voice-selection";
 
     private readonly BuiltInCommandCatalog commandCatalog;
     private readonly BuiltInCommandRouter commandRouter;
+    private readonly ArtifactCommandRouter artifactCommandRouter;
+    private readonly ArtifactCatalogue artifactCatalogue;
     private readonly DependencyBootstrapper dependencyBootstrapper;
     private readonly DependencySetupWorkflow dependencySetup;
     private readonly ILocalModelReasoner localModelReasoner;
@@ -63,9 +66,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IMicrophoneAccessService microphoneAccessService;
     private readonly IActivatedVoiceRecognitionService voiceRecognition;
     private readonly ITextToSpeechService textToSpeech;
-    private readonly IAssistantNamePreferences assistantNamePreferences;
     private readonly IAppearancePreferences appearancePreferences;
-    private readonly ITextToSpeechPreferences textToSpeechPreferences;
     private readonly IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences;
     private readonly IAudioDevicePreferences audioDevicePreferences;
     private readonly IResponseOutputPreferences responseOutputPreferences;
@@ -129,6 +130,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private SecurityAuditEvent? pendingGrantChangeAudit;
     private LocalModelQuestion? pendingModelQuestion;
     private string? pendingQuestionRequest;
+    private LocalModelArtifact? pendingQuestionArtifact;
     private int pendingQuestionDepth;
     private bool isGrantEditorVisible;
     private CommandDefinition? selectedGrantAction;
@@ -158,6 +160,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string voiceAvailabilityMessage = "Checking installed Windows speech voices.";
     private string outputDeviceAvailabilityMessage = "Checking Windows audio output devices.";
     private ApplicationThemeMode themeMode = ApplicationThemeMode.System;
+    private bool isPresenceDisplayEnabled = PresenceSettings.DefaultDisplayEnabled;
     private int presenceTimeoutSeconds = PresenceSettings.DefaultTimeoutSeconds;
     private int responseTimeoutSeconds = ResponseWindowSettings.DefaultTimeoutSeconds;
     private int presenceSizePixels = PresenceSettings.DefaultSizePixels;
@@ -179,6 +182,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MicrophoneAccessState.Unknown,
         "Windows microphone access has not been checked.");
     private string? listeningPauseReason;
+    private WindowsSessionState? listeningPauseSessionState;
     private string? activeSpokenText;
     private SpeechVoice? activeSpeechVoice;
     private BuiltInAction? pendingPowerAction;
@@ -187,6 +191,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(
         BuiltInCommandCatalog commandCatalog,
         BuiltInCommandRouter commandRouter,
+        ArtifactCatalogue artifactCatalogue,
+        ArtifactCommandRouter artifactCommandRouter,
         DependencyBootstrapper dependencyBootstrapper,
         DependencySetupWorkflow dependencySetup,
         ILocalModelReasoner localModelReasoner,
@@ -195,9 +201,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IMicrophoneAccessService microphoneAccessService,
         IActivatedVoiceRecognitionService voiceRecognition,
         ITextToSpeechService textToSpeech,
-        IAssistantNamePreferences assistantNamePreferences,
+        AssistantNameConfigurationService assistantNameConfiguration,
         IAppearancePreferences appearancePreferences,
-        ITextToSpeechPreferences textToSpeechPreferences,
         IOptionalSpeechOfferPreferences optionalSpeechOfferPreferences,
         IAudioDevicePreferences audioDevicePreferences,
         IResponseOutputPreferences responseOutputPreferences,
@@ -215,13 +220,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DurableVersionQuery durableVersionQuery,
         Kora.Application.Tools.ReadOnlyCapabilityRegistry capabilityRegistry,
         AppearanceConfigurationService appearanceConfiguration,
+        SpeechConfigurationService speechConfiguration,
         Kora.Tools.Clipboard.ClipboardSnapshotBroker clipboardPreview,
         Kora.Tools.Clipboard.ClipboardRead clipboardRead,
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
-        Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke)
+        Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
+        BoundedMicrophoneCatalog? microphoneCatalog = null,
+        OutputDeviceConfigurationService? outputConfiguration = null,
+        PlaybackVolumeConfigurationService? playbackVolumeConfiguration = null,
+        ResponseModeConfigurationService? responseModeConfiguration = null,
+        DiagnosticRetentionConfigurationService? diagnosticRetentionConfiguration = null,
+        ManualCallControl? manualCallControl = null,
+        AuditRetentionConfigurationService? auditRetentionConfiguration = null,
+        WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
+        InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
+        SpeechTextConfigurationService? speechTextConfiguration = null,
+        SessionRetentionConfigurationService? sessionRetentionConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
+        this.artifactCatalogue = artifactCatalogue;
+        this.artifactCommandRouter = artifactCommandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
         this.dependencySetup = dependencySetup;
         this.localModelReasoner = localModelReasoner;
@@ -230,14 +249,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.microphoneAccessService = microphoneAccessService;
         this.voiceRecognition = voiceRecognition;
         this.textToSpeech = textToSpeech;
-        this.assistantNamePreferences = assistantNamePreferences;
+        this.assistantNameConfiguration = assistantNameConfiguration;
+        assistantNameConfiguration.Changed += OnAssistantNameConfigurationChanged;
         this.appearancePreferences = appearancePreferences;
-        this.textToSpeechPreferences = textToSpeechPreferences;
         this.optionalSpeechOfferPreferences = optionalSpeechOfferPreferences;
         this.audioDevicePreferences = audioDevicePreferences;
+        inputDevicePreferences = new(audioDevicePreferences, securityAuditLog);
         this.responseOutputPreferences = responseOutputPreferences;
         this.callAwarePreferences = callAwarePreferences;
         communicationPolicy = new CallCommunicationPolicy(callStateService);
+        this.manualCallControl = manualCallControl;
         currentCallState = callStateService.CurrentState;
         this.sessionController = sessionController;
         this.applicationProcessController = applicationProcessController;
@@ -252,6 +273,87 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.capabilityRegistry = capabilityRegistry;
         this.appearanceConfiguration = appearanceConfiguration;
         appearanceConfiguration.Changed += OnAppearanceChanged;
+        this.speechConfiguration = speechConfiguration;
+        this.windowsSpeechRateConfiguration = windowsSpeechRateConfiguration;
+        if (windowsSpeechRateConfiguration is not null)
+        {
+            try { windowsSpeechRateConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+            {
+                windowsSpeechRateConfiguration.HoldUnavailable();
+            }
+            selectedWindowsSpeechRate = windowsSpeechRateConfiguration.Get().Desired?.Value ?? WindowsSpeechRate.Default.Value;
+            windowsSpeechRateConfiguration.Changed += OnWindowsSpeechRateChanged;
+        }
+        speechConfiguration.Changed += OnSpeechConfigurationChanged;
+        this.outputConfiguration = outputConfiguration;
+        this.playbackVolumeConfiguration = playbackVolumeConfiguration;
+        if (playbackVolumeConfiguration is not null)
+        {
+            try { playbackVolumeConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                playbackVolumeConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading playback volume");
+            }
+            selectedPlaybackVolume = playbackVolumeConfiguration.Get().Desired?.Percent ?? PlaybackVolume.Default.Percent;
+            playbackVolumeConfiguration.Changed += OnPlaybackVolumeChanged;
+        }
+        this.responseModeConfiguration = responseModeConfiguration;
+        this.inCallFeedbackConfiguration = inCallFeedbackConfiguration;
+        if (inCallFeedbackConfiguration is not null)
+        {
+            try { inCallFeedbackConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                ApplicationLog.Error(logger, exception, "Reading in-call feedback");
+            }
+            inCallFeedbackConfiguration.Changed += OnInCallFeedbackChanged;
+        }
+        this.speechTextConfiguration = speechTextConfiguration;
+        if (speechTextConfiguration is not null)
+        {
+            try { speechTextConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                speechTextConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading speech-text presentation preference");
+            }
+            speechTextConfiguration.Changed += OnSpeechTextConfigurationChanged;
+        }
+        this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
+        this.sessionRetentionConfiguration = sessionRetentionConfiguration;
+        this.auditRetentionConfiguration = auditRetentionConfiguration;
+        if (auditRetentionConfiguration is not null)
+        {
+            try { auditRetentionConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                auditRetentionConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading future-only audit retention");
+            }
+            selectedAuditRetentionDays = auditRetentionConfiguration.Get().Desired.Days;
+            auditRetentionConfiguration.Changed += OnAuditRetentionChanged;
+        }
+        if (diagnosticRetentionConfiguration is not null)
+        {
+            try { diagnosticRetentionConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                diagnosticRetentionConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading SQLite diagnostic retention");
+            }
+            selectedDiagnosticRetentionDays = diagnosticRetentionConfiguration.Get().Desired?.Days ?? DiagnosticRetentionDays.DefaultDays;
+            diagnosticRetentionConfiguration.Changed += OnDiagnosticRetentionChanged;
+        }
+        if (responseModeConfiguration is not null)
+        {
+            responseModeConfiguration.Changed += OnResponseModeConfigurationChanged;
+        }
+        if (outputConfiguration is not null)
+        {
+            outputConfiguration.Changed += OnOutputConfigurationChanged;
+        }
         this.clipboardPreview = clipboardPreview;
         this.clipboardRead = clipboardRead;
         this.clipboardReuse = clipboardReuse;
@@ -259,9 +361,62 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
         AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
-            new(execute, HandleCommandException, canExecute);
+            new(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
+                    HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, execute),
+                exception => Kora.Application.Hosting.HostRequestRunner.Run(
+                    HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
+                    () => HandleCommandException(exception)), canExecute);
 
         ResetAppearanceOptionCommand = CreateCommand(ResetSelectedAppearanceOptionAsync);
+        ResetSpeechProviderCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Provider));
+        ResetSpeechVoiceCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.Voice));
+        RefreshOutputDevicesCommand = CreateCommand(RefreshOutputConfigurationAsync);
+        SaveOutputDeviceCommand = CreateCommand(() => SaveOutputChoiceAsync(false));
+        ResetOutputDeviceCommand = CreateCommand(() => SaveOutputChoiceAsync(true));
+        RefreshPlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SavePlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedPlaybackVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetPlaybackVolumeCommand = CreateCommand(() => ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedWindowsSpeechRate.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
+        SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
+        ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
+        SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Set,
+            SelectedAuditRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetAuditRetentionCommand = CreateCommand(() => ExecuteAuditRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
+        SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
+        ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
+        RefreshInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
+            new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
+            new(AppearanceCommandOperation.Set), SecurityAuditInitiator.LocalUser,
+            SelectedInCallFeedbackChoice ?? throw new InvalidOperationException("Refresh and choose one exact in-call feedback mode.")));
+        ResetInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
+            new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        RefreshSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Get));
+        SaveSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Set));
+        ResetSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Reset));
+        ToggleSpeechCaptionPinCommand = CreateCommand(() =>
+        {
+            ChangeSpeechCaptionPin(!IsSpeechCaptionPinned, SecurityAuditInitiator.LocalUser);
+            return Task.CompletedTask;
+        });
+        SaveSpeechCaptionOptionCommand = CreateCommand(() => ExecuteSpeechTextCommandAsync(
+            new(AppearanceCommandOperation.Set, CaptionOption: SelectedSpeechCaptionOption), SecurityAuditInitiator.LocalUser,
+            SelectedSpeechCaptionChoice));
+        ResetSpeechCaptionOptionCommand = CreateCommand(() => ExecuteSpeechTextCommandAsync(
+            new(AppearanceCommandOperation.Reset, CaptionOption: SelectedSpeechCaptionOption), SecurityAuditInitiator.LocalUser));
+        ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
+        ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
             ToggleListeningAsync,
             () => !lifecycleAdmissionClosed && !IsBusy
@@ -275,6 +430,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         WithdrawVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(false));
         EnableVoiceConsentCommand = CreateCommand(() => SetVoiceConsentAsync(true));
         RefreshMicrophonesCommand = CreateCommand(RefreshMicrophonesAsync);
+        this.microphoneCatalog = microphoneCatalog
+            ?? new BoundedMicrophoneCatalog(voiceRecognition, privacyObservation, microphoneAccessService, logger);
         RefreshCommand = CreateCommand(
             RefreshAsync,
             () => !IsBusy && !IsLocalModelSetupActive && !IsPowerShellSetupActive
@@ -282,7 +439,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RunTypedCommand = CreateCommand(
             RunTypedCommandAsync,
             () => !string.IsNullOrWhiteSpace(CommandText)
-                  && (!IsBusy || IsSetupStatusCommand()));
+                  && (!IsBusy || IsSetupStatusCommand()
+                      || SessionCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
+                      || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null
@@ -299,10 +459,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ToggleCallVoiceActivationCommand = CreateCommand(ToggleCallVoiceActivationAsync);
         EnableManualCallCommand = CreateCommand(() => SetManualCallAsync(true, RequestOrigin.LocalUi, CallPolicyRevision));
         ClearManualCallCommand = CreateCommand(() => SetManualCallAsync(false, RequestOrigin.LocalUi, CallPolicyRevision));
+        ResetManualCallCommand = CreateCommand(() => ExecuteManualCallCommandAsync(new(AppearanceCommandOperation.Reset),
+            CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision, native: true)));
+        GetManualCallStatusCommand = CreateCommand(() => ExecuteManualCallCommandAsync(new(AppearanceCommandOperation.Get),
+            CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision)));
         OpenMicrophonePrivacySettingsCommand = CreateCommand(OpenMicrophonePrivacySettingsAsync);
         ApplyAssistantNameCommand = CreateCommand(
             () => SetAssistantNameAsync(AssistantNameInput),
             CanApplyAssistantName);
+        ResetAssistantNameCommand = CreateCommand(ResetAssistantNameAsync);
         ApproveModelActionCommand = CreateCommand(
             () => ApproveModelActionAsync(ModelApprovalScope.Once),
             () => IsModelActionApprovalPending && !IsBusy && !IsLocalModelSetupActive
@@ -410,6 +575,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = [];
 
     public ObservableCollection<DependencyStatus> Dependencies { get; } = [];
+
+    public ObservableCollection<ArtifactCommandOption> ArtifactCommandOptions { get; } = [];
 
     public IReadOnlyList<SetupTask> SetupTasks => dependencyBootstrapper.Tasks.Tasks;
 
@@ -678,7 +845,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading;
+    public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
+        || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null;
 
     public bool IsLocalModelSetupActive
     {
@@ -863,6 +1031,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string PresenceTimeoutDescription =>
         "Hide the presence after this many seconds of inactivity when no prompts are waiting.";
 
+    public string PresenceDisplayDescription =>
+        IsPresenceDisplayEnabled
+            ? "Show the animated presence when the assistant provides status feedback."
+            : "Keep the animated presence hidden while other interactive surfaces remain available.";
+
     public string ResponseTimeoutDescription =>
         "Hide an unpinned response window after this many seconds without interaction.";
 
@@ -908,6 +1081,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplicationThemeMode value,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
         ApplyAppearance(AppearanceOption.Theme, new AppearanceValue.Theme(value), initiator, nameof(ThemeMode));
+
+    public bool IsPresenceDisplayEnabled
+    {
+        get => isPresenceDisplayEnabled;
+        set => _ = SetPresenceDisplayEnabled(value);
+    }
+
+    public bool SetPresenceDisplayEnabled(
+        bool value,
+        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser) =>
+        ApplyAppearance(AppearanceOption.PresenceDisplay, new AppearanceValue.Toggle(value), initiator, nameof(IsPresenceDisplayEnabled));
 
     public int PresenceTimeoutSeconds
     {
@@ -1070,34 +1254,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedMicrophone;
         set
         {
-            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(MicrophoneConfigurationAction)) { return; }
-            if (!suppressAudioDevicePreferenceSave && value is not null && !Microphones.Contains(value))
+            if (committingMicrophonePreference) { return; }
+            if (!suppressAudioDevicePreferenceSave && value is not null)
             {
-                ApplicationLog.Information(logger, "Rejected a stale microphone selection; refresh devices");
-                ShowFailure("The microphone list changed.", "Refresh and select the current endpoint again.");
+                ApplyDirectMicrophonePreference(value);
                 return;
             }
-            var selectionChanged = !string.Equals(
-                selectedMicrophone?.Id,
-                value?.Id,
-                StringComparison.Ordinal);
-            if (selectionChanged && !suppressAudioDevicePreferenceSave)
+            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(MicrophoneConfigurationAction)) { return; }
+            if (!suppressAudioDevicePreferenceSave && selectedMicrophone is not null)
             {
                 HoldVoiceInput("Microphone changed · use Enable listening");
             }
-            if (SetProperty(ref selectedMicrophone, value))
-            {
-                ToggleListeningCommand.NotifyCanExecuteChanged();
-                UpdateMicrophoneAvailability(selectedMicrophoneUnavailable: false);
-                if (selectionChanged
-                    && !suppressAudioDevicePreferenceSave)
-                {
-                    if (value is not null)
-                    {
-                        SaveMicrophonePreference(value);
-                    }
-                }
-            }
+            SetSelectedMicrophoneState(value);
         }
     }
 
@@ -1110,22 +1278,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (SetProperty(ref selectedSpeechProvider, value))
             {
                 NotifySpeechProviderStateChanged();
-                if (!suppressSpeechProviderPreferenceSave && value is not null)
-                {
-                    if (value.IsInstalled)
-                    {
-                        SaveSpeechProviderPreference(value.Id);
-                    }
-
-                    PopulateVoicesForProvider(
-                        textToSpeech.GetVoices(),
-                        preferredVoiceId: null,
-                        savedVoiceUnavailable: false);
-                }
-                else
-                {
-                    UpdateSpeechProviderAvailability();
-                }
+                UpdateSpeechProviderAvailability();
             }
         }
     }
@@ -1135,22 +1288,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedVoice;
         set
         {
-            if (!suppressVoicePreferenceSave && !AdmitVoiceOptionMutation(VoiceSelectionConfigurationAction)) { return; }
+            if (!suppressVoicePreferenceSave)
+            {
+                if (value is not null) { ApplySpeechChoice(SpeechOption.Voice, value.ConfigurationId); }
+                else if (AdmitVoiceOptionMutation("configuration.voice-selection")) { ClearActiveSpeechVoice(); }
+                return;
+            }
             if (SetProperty(ref selectedVoice, value))
             {
-                if (SelectedSpeechProvider is { IsInstalled: true })
-                {
-                    SetActiveSpeechVoice(value);
-                }
+                SetActiveSpeechVoice(value);
 
                 PreviewVoiceCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(IsSpeechOutputAvailable));
                 NotifyOutputPolicyChanged();
-                UpdateVoiceAvailability(savedVoiceUnavailable: false);
-                if (!suppressVoicePreferenceSave && value is not null)
-                {
-                    SaveVoicePreference(value.Id);
-                }
             }
         }
     }
@@ -1160,23 +1310,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => selectedOutputDevice;
         set
         {
-            if (!suppressAudioDevicePreferenceSave && !AdmitVoiceOptionMutation(OutputDeviceConfigurationAction)) { return; }
-            var selectionChanged = !string.Equals(
-                selectedOutputDevice?.Id,
-                value?.Id,
-                StringComparison.Ordinal);
-            if (SetProperty(ref selectedOutputDevice, value))
-            {
-                PreviewVoiceCommand.NotifyCanExecuteChanged();
-                NotifyOutputPolicyChanged();
-                UpdateOutputDeviceAvailability();
-                if (selectionChanged
-                    && !suppressAudioDevicePreferenceSave
-                    && value is not null)
-                {
-                    SaveOutputDevicePreference(value);
-                }
-            }
+            // Native mutation uses the presented choice + explicit Save command; device records are observations only.
+            if (!synchronizingOutput && !ReferenceEquals(selectedOutputDevice, value)) { OnPropertyChanged(nameof(SelectedOutputDevice)); }
         }
     }
 
@@ -1264,7 +1399,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ResponseOutputMode DefaultResponseMode
     {
         get => defaultResponseMode;
-        set
+        internal set
         {
             if (!suppressResponseModeSave && !AdmitVoiceOptionMutation(ResponseOutputConfigurationAction)) { return; }
             if (!Enum.IsDefined(value))
@@ -1276,10 +1411,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 OnPropertyChanged(nameof(DefaultResponseModeOption));
                 NotifyOutputPolicyChanged();
-                if (!suppressResponseModeSave)
-                {
-                    SaveResponseOutputPreference(value);
-                }
             }
         }
     }
@@ -1287,7 +1418,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ResponseModeOverrideOption DefaultResponseModeOption
     {
         get => ResponseModeOptions.Single(option => option.Mode == DefaultResponseMode);
-        set
+        internal set
         {
             if (!ResponseModeOptions.Contains(value))
             {
@@ -1303,7 +1434,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ResponseOutputMode ConfiguredResponseMode
     {
         get => DefaultResponseMode;
-        set => DefaultResponseMode = value;
+        internal set => DefaultResponseMode = value;
     }
 
     public bool FallbackToVisualWhenOutputMuted
@@ -1323,14 +1454,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var wasVisible = IsVisualResponseVisible;
             SetProperty(ref fallbackToVisualWhenOutputMuted, value);
             UpdateOutputDeviceAvailability();
             NotifyOutputPolicyChanged();
-            if (!wasVisible && IsVisualResponseVisible && CanRevealPrivatePresentation && !isInitializing)
-            {
-                WindowActionRequested?.Invoke(this, WindowAction.Show);
-            }
         }
     }
 
@@ -1385,15 +1511,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public ResponseOutputMode EffectiveResponseMode =>
-        ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode);
+        InCallFeedbackRules.Resolve(ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode),
+            DesiredInCallFeedback, communicationPolicy.Current.EffectiveState);
 
     public bool IsSpeechOutputAvailable =>
         activeSpeechVoice is not null
+        && (playbackVolumeConfiguration is null || playbackVolumeConfiguration.Get().AllowsSpeech)
+        && IsWindowsSpeechRateOutputEligible
+        && (responseModeConfiguration is null || responseModeConfiguration.Get().Available)
+        && (inCallFeedbackConfiguration is null || inCallFeedbackConfiguration.Get().Available)
+        && (outputConfiguration is null || outputConfiguration.Get(CallPolicyRevision).Available)
         && EffectiveOutputDevice is not null
         && !EffectiveOutputDevice.IsMuted;
 
     private MicrophoneDevice? EffectiveMicrophone =>
-        SelectedMicrophone?.IsSystemDefault == true
+        string.Equals(inputDevicePreferences.Source, "unavailable", StringComparison.Ordinal) ? null
+        : SelectedMicrophone?.IsSystemDefault == true
             ? systemDefaultMicrophone
             : SelectedMicrophone is not null && Microphones.Contains(SelectedMicrophone)
                 ? SelectedMicrophone : null;
@@ -1411,10 +1544,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         || IsSpeechOutputVisualFallbackRequired;
 
     private bool IsSpeechOutputVisualFallbackRequired =>
-        !IsSpeechOutputAvailable
-        && (activeSpeechVoice is null
-            || EffectiveOutputDevice?.IsMuted != true
-            || FallbackToVisualWhenOutputMuted);
+        !IsSpeechOutputAvailable;
 
     public bool IsSpeechResponseEnabled =>
         IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
@@ -1480,15 +1610,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         communicationPolicy.Current.SuppressSpeech;
 
     public bool IsVoiceActivationAvailable =>
-        communicationPolicy.Current.AllowActivation;
+        isAssistantNameAvailable && communicationPolicy.Current.AllowActivation;
 
     public string CallVisualOverrideButtonText => ShowVisualTextDuringCalls
-        ? "Use normal response mode during calls"
+        ? "Disable call speech suppression"
         : "Show visual text during calls";
 
     public string CallVisualOverrideStatus => ShowVisualTextDuringCalls
-        ? "On · detected calls use visual-only responses"
-        : "Off · detected calls use the normal response mode";
+        ? "On · protected calls suppress speech and require full visual output"
+        : "Off · legacy speech policy is relaxed; independent feedback and hard gates still apply";
 
     public string CallVoiceActivationButtonText => AllowVoiceActivationDuringCalls
         ? "Disable voice activation during calls"
@@ -1512,7 +1642,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         get
         {
-            var scope = TaskResponseMode is not null
+            var scope = IsInCallFeedbackOverrideApplied
+                ? "In-call feedback override"
+                : TaskResponseMode is not null
                 ? "Current task override"
                 : QueueResponseMode is not null
                     ? "Current queue override"
@@ -1523,11 +1655,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? " Visual text is forced because speech output is unavailable or failed."
                 : string.Empty;
             var callOverride = IsCallVisualOverrideActive
-                ? " Detected-call override: visual text only; voice activation remains independently configured."
+                ? " Call speech protection: speech withheld and full visual required; feedback and voice activation remain independent."
                 : string.Empty;
             var modeLabel = ResponseModeOptions.Single(
                 option => option.Mode == EffectiveResponseMode).Label;
-            return $"{scope}: {modeLabel}.{callOverride}{fallback}";
+            return $"{scope}: {modeLabel}.{callOverride}{fallback} {spokenSummaryRecovery}".TrimEnd();
         }
     }
 
@@ -1548,13 +1680,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string ResponseTitle
     {
         get => responseTitle;
-        private set => SetProperty(ref responseTitle, value);
+        private set
+        {
+            if (SetProperty(ref responseTitle, value)) { RetireSpeechCaptionSource(); }
+        }
     }
 
     public string ResponseBody
     {
         get => responseBody;
-        private set => SetProperty(ref responseBody, value);
+        private set
+        {
+            sessionPresentationSources.Clear();
+            if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); }
+        }
     }
 
     public string Transcript
@@ -1570,9 +1709,70 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (SetProperty(ref commandText, value))
             {
+                RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
         }
+    }
+
+    public bool IsArtifactCommandDropdownVisible => ArtifactCommandOptions.Count > 0;
+
+    public void ApplyArtifactCommandOption(ArtifactCommandOption option)
+    {
+        ArgumentNullException.ThrowIfNull(option);
+        if (!ArtifactCommandOptions.Contains(option))
+        {
+            return;
+        }
+        CommandText = option.Command + " ";
+    }
+
+    public void DismissArtifactCommandOptions()
+    {
+        ArtifactCommandOptions.Clear();
+        OnPropertyChanged(nameof(IsArtifactCommandDropdownVisible));
+    }
+
+    private void RefreshArtifactCommandOptions()
+    {
+        ArtifactCommandOptions.Clear();
+        foreach (var option in FilterArtifactCommandOptions(CommandText, artifactCatalogue.Artifacts))
+        {
+            ArtifactCommandOptions.Add(option);
+        }
+        OnPropertyChanged(nameof(IsArtifactCommandDropdownVisible));
+    }
+
+    internal static IReadOnlyList<ArtifactCommandOption> FilterArtifactCommandOptions(
+        string input,
+        IReadOnlyList<ArtifactDefinition> artifacts)
+    {
+        if (!input.StartsWith('/'))
+        {
+            return [];
+        }
+        var query = input[1..];
+        ArtifactKind? kind = null;
+        foreach (var candidate in Enum.GetValues<ArtifactKind>())
+        {
+            var prefix = candidate.ToString().ToLowerInvariant();
+            if (query.StartsWith(prefix + " ", StringComparison.OrdinalIgnoreCase))
+            {
+                kind = candidate;
+                query = query[(prefix.Length + 1)..];
+                break;
+            }
+        }
+        if (query.Any(char.IsWhiteSpace))
+        {
+            return [];
+        }
+        return artifacts
+            .Where(artifact => (kind is null || artifact.Kind == kind)
+                && artifact.CommandName.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(artifact => artifact.CommandName, StringComparer.OrdinalIgnoreCase)
+            .Select(ArtifactCommandOption.From)
+            .ToArray();
     }
 
     private bool IsSetupStatusCommand() =>
@@ -1647,7 +1847,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         "Voice consent is saved for this Windows profile and device. Activated command audio is processed locally. "
         + "Production wake detection is not available in this build: no ambient audio is recorded or transcribed. "
         + "Use explicit push-to-talk after enabling listening. Disable listening closes capture for this run; "
-        + "Withdraw consent keeps it closed across restart. Lock, disconnect, suspend and device/permission loss require explicit recovery.";
+        + "Withdraw consent keeps it closed across restart. Normal unlock restores previously enabled readiness after fresh checks, "
+        + "without resuming capture. Disconnect, suspend and device/permission loss require explicit recovery.";
 
     public string ListeningButtonText => IsVoiceEnabled ? "Disable listening" : "Enable listening";
 
@@ -1663,7 +1864,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ? "Microphone closed · ongoing voice consent not granted"
         : IsMicrophoneAccessDenied
             ? "Microphone closed · Windows access is blocked"
-            : listeningPauseReason
+            : listeningPauseSessionState is { } sessionState
+                ? $"Microphone closed · Windows session is {sessionState}; use Enable listening"
+                : listeningPauseReason
               ?? (IsVoiceActivationAvailable
                   ? "Microphone closed"
                   : "Microphone closed · voice activation paused during detected call");
@@ -2375,10 +2578,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NotifyOutputPolicyChanged();
     }
 
-    private void PresentModelQuestion(LocalModelQuestion question, string request, int depth)
+    private void PresentModelQuestion(
+        LocalModelQuestion question,
+        string request,
+        int depth,
+        LocalModelArtifact? artifact)
     {
         pendingModelQuestion = question;
         pendingQuestionRequest = request;
+        pendingQuestionArtifact = artifact;
         pendingQuestionDepth = depth;
         ModelQuestionChoices = question.Options.Select((text, index) =>
             new ModelQuestionChoice(index + 1, text)).ToArray();
@@ -2396,6 +2604,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         pendingModelQuestion = null;
         pendingQuestionRequest = null;
+        pendingQuestionArtifact = null;
         ModelQuestionChoices = [];
         OnPropertyChanged(nameof(ModelQuestionChoices));
         OnPropertyChanged(nameof(IsModelQuestionPending));
@@ -2414,6 +2623,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var answer = choice.Text;
+        var artifact = pendingQuestionArtifact;
         var followup = JsonSerializer.Serialize(new
         {
             OriginalRequest = original,
@@ -2438,7 +2648,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await HandleUnmatchedRequestAsync(followup, SecurityAuditInitiator.TypedCommand, depth);
+        await HandleUnmatchedRequestAsync(
+            followup,
+            SecurityAuditInitiator.TypedCommand,
+            depth,
+            artifact: artifact);
     }
 
     public async Task CancelModelQuestionAsync()
@@ -2508,6 +2722,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
         ClearClipboardPreview();
+        ClearFilePreview();
         HoldVoiceInput("Microphone closed · application exiting");
         textToSpeech.InvalidateOutput();
         try
@@ -2519,6 +2734,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
         }
         await clipboardPreview.WaitForQuiescenceAsync();
+        if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
         WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
@@ -2557,16 +2773,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(SetupTasks));
 
             MicrophoneAccessStatus = microphoneAccessService.GetStatus();
-            var savedAssistantName = assistantNamePreferences.LoadName();
-            try
+            assistantNameConfiguration.Reload();
+            SynchronizeAssistantNameConfiguration();
+            if (!isAssistantNameAvailable)
             {
-                ApplyAssistantNameState(savedAssistantName ?? AssistantNameRules.DefaultName);
-            }
-            catch (ArgumentException exception) when (savedAssistantName is not null)
-            {
-                throw new InvalidDataException(
-                    "The saved assistant name conflicts with a built-in command.",
-                    exception);
+                throw new InvalidDataException(assistantNameConfiguration.Get().Recovery);
             }
 
             alwaysAllowedModelActions.Clear();
@@ -2612,7 +2823,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 suppressResponseWindowPreferenceSave = false;
             }
 
-            var savedMicrophoneId = audioDevicePreferences.LoadMicrophoneId();
+            microphoneCatalogCurrent = false;
+            var savedMicrophoneId = inputDevicePreferences.Load();
+            suppressAudioDevicePreferenceSave = true;
+            try
+            {
+                SelectedMicrophone = savedMicrophoneId is null
+                    || string.Equals(savedMicrophoneId, SystemAudioDevices.Microphone.Id, StringComparison.Ordinal)
+                    ? SystemAudioDevices.Microphone : new MicrophoneDevice(savedMicrophoneId, "Unavailable saved microphone");
+            }
+            finally { suppressAudioDevicePreferenceSave = false; }
             var microphones = voiceRecognition.GetMicrophones();
             Interlocked.Increment(ref microphoneTopologyRevision);
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
@@ -2629,7 +2849,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var savedMicrophoneUnavailable =
                 savedMicrophoneId is not null && savedMicrophone is null;
             var selectedSpeechProviderId = SelectedSpeechProvider?.Id;
-            var selectedVoiceId = SelectedVoice?.Id;
             var speechProviders = textToSpeech.GetProviders();
             SpeechProviders.Clear();
             foreach (var provider in speechProviders)
@@ -2637,7 +2856,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 SpeechProviders.Add(provider);
             }
 
-            var voices = textToSpeech.GetVoices();
             var savedOutputDeviceId = audioDevicePreferences.LoadOutputDeviceId();
             var outputDevices = textToSpeech.GetOutputDevices();
             OutputDevices.Clear();
@@ -2648,6 +2866,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             systemDefaultOutputDevice = textToSpeech.GetDefaultOutputDevice();
+            outputConfiguration?.Observe(new(outputDevices, systemDefaultOutputDevice));
             var savedOutputDevice = OutputDevices.FirstOrDefault(
                 item => string.Equals(item.Id, savedOutputDeviceId, StringComparison.Ordinal));
             var savedOutputDeviceUnavailable =
@@ -2656,17 +2875,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             try
             {
                 SelectedMicrophone = savedMicrophoneId is not null
-                    ? savedMicrophone
+                    ? savedMicrophone ?? new MicrophoneDevice(savedMicrophoneId, "Unavailable saved microphone")
                     : SystemAudioDevices.Microphone;
-                SelectedOutputDevice = savedOutputDeviceId is not null
-                    ? savedOutputDevice
-                    : SystemAudioDevices.Output;
+                SetOutputDeviceSnapshot(savedOutputDeviceId is not null
+                    ? savedOutputDevice ?? (outputConfiguration is not null
+                        ? new AudioOutputDevice(savedOutputDeviceId, "Unavailable saved output") : null)
+                    : SystemAudioDevices.Output);
             }
             finally
             {
                 suppressAudioDevicePreferenceSave = false;
             }
 
+            catalogPrivacyRevision = privacyObservation.Current.TopologyRevision;
+            Interlocked.Exchange(ref observedTopologyRevision, catalogPrivacyRevision);
+            microphoneCatalogCurrent = true;
             UpdateMicrophoneAvailability(savedMicrophoneUnavailable);
             UpdateOutputDeviceAvailability(savedOutputDeviceUnavailable);
             ToggleListeningCommand.NotifyCanExecuteChanged();
@@ -2674,10 +2897,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
 
-            var savedSpeechProviderId = textToSpeechPreferences.LoadProviderId();
+            speechConfiguration.Reload();
+            var savedSpeechProviderId = speechConfiguration.Get().Selection?.ProviderId;
             savedSpeechProviderIdForOffer = savedSpeechProviderId;
-            var savedVoiceId = textToSpeechPreferences.LoadVoiceId();
-            var savedResponseMode = responseOutputPreferences.LoadDefaultMode();
+            responseModeConfiguration?.Observe();
+            var savedResponseMode = responseModeConfiguration is null
+                ? responseOutputPreferences.LoadDefaultMode() : responseModeConfiguration.Get().Desired;
             var savedMutedOutputFallback = responseOutputPreferences.LoadMutedOutputVisualFallback();
             var savedCallAwareSettings = callAwarePreferences.Load() ?? CallAwareSettings.Default;
             communicationPolicy.LoadSettings(savedCallAwareSettings);
@@ -2709,26 +2934,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         SpeechProviderIds.Windows,
                         StringComparison.Ordinal))
                 ?? SpeechProviders.FirstOrDefault();
-            var preferredVoiceId = selectedSpeechProviderId is not null
-                ? selectedVoiceId
-                : savedVoiceId;
             suppressSpeechProviderPreferenceSave = true;
-            suppressVoicePreferenceSave = true;
             try
             {
                 SelectedSpeechProvider = preferredProvider;
-                PopulateVoicesForProvider(
-                    voices,
-                    preferredVoiceId,
-                    ShouldReportUnavailableSavedVoice(
-                        savedVoiceId,
-                        selectedSpeechProviderId,
-                        savedSpeechProviderId,
-                        preferredProvider));
+                SynchronizeSpeechConfiguration();
             }
             finally
             {
-                suppressVoicePreferenceSave = false;
                 suppressSpeechProviderPreferenceSave = false;
             }
 
@@ -2754,6 +2967,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     (_, _, 0) => "Connect or enable a Windows audio output device, then refresh. Typed and visual commands remain available.",
                     _ => "With saved voice consent, safe startup enables push-to-talk. Ambient wake is unavailable; the microphone stays closed until explicit activation.",
                 };
+            if (speechConfiguration.Get().Recovery is { } speechRecovery)
+            {
+                if (Voices.Count > 0) { setupTitle = "Speech output is unavailable."; }
+                setupBody += Environment.NewLine + speechRecovery;
+            }
             PresentResponse(AssistantState.Information, setupTitle, setupBody);
             OnPropertyChanged(nameof(MicrophoneTopologyRevision));
             ApplicationLog.EnvironmentRefreshCompleted(
@@ -2856,22 +3074,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (IsVoiceEnabled)
         {
-            HoldVoiceInput("Microphone closed · listening was disabled manually");
-            try
-            {
-                await StopListeningAsync();
-            }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            {
-                ApplicationLog.Error(logger, exception, "Disabling voice activation");
-                ShowFailure("Microphone cleanup needs attention.",
-                    exception.Message + " Restart Kora before using voice again.");
-                return;
-            }
-            SetListeningPauseReason(
-                "Microphone closed · listening was disabled manually");
-            ApplicationLog.Information(logger, "Voice activation was disabled by the user");
-            ShowInformation("Listening disabled.", "The microphone capture device has been released.");
+            await DisableListeningAsync();
             return;
         }
 
@@ -2889,12 +3092,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var revision = Interlocked.Read(ref voiceRecoveryRevision);
-            var privacy = privacyObservation.Refresh();
-            MicrophoneAccessStatus = microphoneAccessService.GetStatus();
-            if (!HasVoiceConsent || EffectiveMicrophone is null || MicrophoneAccessStatus.State != MicrophoneAccessState.Allowed
-                || !IsVoiceActivationAvailable || lifecycleAdmissionClosed
-                || !privacy.CanCaptureFrom(SelectedMicrophone!)
-                || !sessionController.IsCurrentSessionUnlocked())
+            if (!RefreshVoiceReadiness())
             {
                 HoldVoiceInput("Microphone closed · readiness/session gate failed");
                 await StopListeningAsync();
@@ -2916,8 +3114,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     return;
                 }
             }
-            Interlocked.Exchange(ref voiceEnabled, 1);
-            Interlocked.Exchange(ref privacyPresentationHeld, 0);
+            if (!TryEnableVoiceReadiness(revision))
+            {
+                ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
+                return;
+            }
             OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
             NotifyVoiceEnablementChanged();
             SetListeningPauseReason(null);
@@ -2979,12 +3180,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 provider.Id,
                 progress);
             RefreshSpeechProviderCatalog(provider.Id);
-            if (SelectedVoice is not null)
-            {
-                SaveSpeechProviderPreference(provider.Id);
-                SaveVoicePreference(SelectedVoice.Id);
-            }
-
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
             ShowInformation(
                 $"{provider.Name} is ready.",
@@ -3117,7 +3312,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         suppressSpeechProviderPreferenceSave = true;
-        suppressVoicePreferenceSave = true;
         try
         {
             SelectedSpeechProvider = SpeechProviders.FirstOrDefault(
@@ -3125,89 +3319,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     provider.Id,
                     providerId,
                     StringComparison.Ordinal));
-            PopulateVoicesForProvider(
-                textToSpeech.GetVoices(),
-                preferredVoiceId: null,
-                savedVoiceUnavailable: false);
+            speechConfiguration.Reload();
+            SynchronizeSpeechConfiguration();
         }
         finally
         {
-            suppressVoicePreferenceSave = false;
             suppressSpeechProviderPreferenceSave = false;
         }
-    }
-
-    private void PopulateVoicesForProvider(
-        IReadOnlyList<SpeechVoice> availableVoices,
-        string? preferredVoiceId,
-        bool savedVoiceUnavailable)
-    {
-        Voices.Clear();
-        if (SelectedSpeechProvider is not null)
-        {
-            if (SelectedSpeechProvider.IsInstalled)
-            {
-                foreach (var voice in availableVoices)
-                {
-                    if (string.Equals(
-                            voice.ProviderId,
-                            SelectedSpeechProvider.Id,
-                            StringComparison.Ordinal))
-                    {
-                        Voices.Add(voice);
-                    }
-                }
-            }
-        }
-
-        var preferredVoice = Voices.FirstOrDefault(
-            voice => string.Equals(
-                voice.Id,
-                preferredVoiceId,
-                StringComparison.Ordinal));
-        var defaultVoice = Voices.FirstOrDefault(
-                voice => string.Equals(
-                    voice.Id,
-                    SelectedSpeechProvider?.DefaultVoiceId,
-                    StringComparison.Ordinal))
-            ?? SpeechVoiceSelector.SelectDefault(
-                Voices,
-                CultureInfo.CurrentUICulture);
-        SelectedVoice = preferredVoice ?? defaultVoice;
-        if (SelectedSpeechProvider?.IsInstalled == false)
-        {
-            RetainOrSelectActiveSpeechVoice(availableVoices);
-        }
-
-        UpdateVoiceAvailability(
-            savedVoiceUnavailable
-            && preferredVoiceId is not null
-            && preferredVoice is null);
-        UpdateSpeechProviderAvailability();
-    }
-
-    private static bool ShouldReportUnavailableSavedVoice(
-        string? savedVoiceId,
-        string? selectedSpeechProviderId,
-        string? savedSpeechProviderId,
-        SpeechProvider? preferredProvider)
-    {
-        if (savedVoiceId is null)
-        {
-            return false;
-        }
-
-        if (selectedSpeechProviderId is not null)
-        {
-            return false;
-        }
-
-        var effectiveSavedProviderId =
-            savedSpeechProviderId ?? SpeechProviderIds.Windows;
-        return string.Equals(
-            preferredProvider?.Id,
-            effectiveSavedProviderId,
-            StringComparison.Ordinal);
     }
 
     private async Task PreviewVoiceAsync()
@@ -3222,7 +3340,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ShowInformation("Voice preview is suppressed.", "Protected call policy requires visual-only output.");
             return;
         }
-        if (SelectedVoice is not { } voice || SelectedOutputDevice is not { } outputDevice
+        if (playbackVolumeConfiguration is not null && !playbackVolumeConfiguration.Get().AllowsSpeech)
+        {
+            ShowInformation("Voice preview is unavailable.",
+                "Kora playback volume is zero or unavailable. Inspect volume status in Settings; changing it never replays stopped speech.");
+            return;
+        }
+        if (!IsSpeechOutputAvailable || SelectedVoice is not { } voice || SelectedOutputDevice is not { } outputDevice
             || EffectiveOutputDevice is not { IsMuted: false })
         {
             ApplicationLog.Information(logger, "Denied voice preview without an explicit voice and available output");
@@ -3245,10 +3369,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             ApplicationLog.Information(logger, "Voice preview was invalidated by a privacy transition");
         }
+        catch (PlaybackVolumeUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Previewing with unavailable Kora playback volume");
+            PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
+        }
+        catch (WindowsSpeechRateUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Previewing with unavailable Windows speech rate");
+            windowsSpeechRateConfiguration?.HoldUnavailable();
+            PreserveSpokenResponseFailure("Windows speech rate is unavailable. Full visual output is retained; explicitly refresh rate preferences.");
+        }
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Previewing the selected speech voice");
-            SelectedVoice = null;
+            ClearActiveSpeechVoice();
             ShowFailure("The selected speech voice is unavailable.", exception.Message);
         }
         catch (AudioOutputDeviceUnavailableException exception)
@@ -3259,7 +3394,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (InvalidOperationException exception)
         {
             ApplicationLog.Error(logger, exception, "Previewing text-to-speech");
-            SelectedVoice = null;
+            ClearActiveSpeechVoice();
             ShowFailure("Text-to-speech is unavailable.", exception.Message);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -3277,6 +3412,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task StopSpeakingAsync()
     {
+        RetireSpeechCaption();
         try
         {
             await textToSpeech.StopAsync();
@@ -3360,148 +3496,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Task SetAllowVoiceActivationDuringCallsAsync(bool value) =>
         SetCallSettingsAsync(communicationPolicy.Current.Settings with { AllowVoiceActivationDuringCalls = value });
 
-    public async Task SetAssistantNameAsync(
-        string value,
-        SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
-    {
-        if (!AdmitVoiceOptionMutation(AssistantNameConfigurationAction, initiator)) { return; }
-        var origin = OriginalOrigin(initiator);
-        var callRevision = CallPolicyRevision;
-        var audit = StartAudit(
-            SecurityAuditCategory.ConfigurationWrite,
-            AssistantNameConfigurationAction,
-            initiator,
-            DeviceLocalPreferencesTarget);
-        string normalizedName;
-        try
-        {
-            normalizedName = AssistantNameRules.Normalize(value);
-            commandCatalog.GetCommands(normalizedName);
-        }
-        catch (ArgumentException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Denied, "invalid-name");
-            ShowFailure("The assistant name is invalid.", exception.Message);
-            return;
-        }
-
-        if (string.Equals(normalizedName, AssistantName, StringComparison.Ordinal))
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Cancelled, "no-change");
-            AssistantNameInput = AssistantName;
-            return;
-        }
-
-        try
-        {
-            if (IsVoiceEnabled || IsListening)
-            {
-                HoldVoiceInput("Microphone closed · activation name changed; use Enable listening");
-                await StopListeningAsync();
-            }
-            var denied = communicationPolicy.CheckMutation(origin, callRevision, () => IsCallMutationHostEligible);
-            if (denied is { } outcome)
-            {
-                CompleteAudit(audit, SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
-                ReportCallMutation(outcome, AssistantNameConfigurationAction, origin);
-                return;
-            }
-            assistantNamePreferences.SaveName(normalizedName);
-            CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "access-denied");
-            ApplicationLog.Error(logger, exception, "Saving the assistant name preference because access was denied");
-            ShowFailure("The assistant name could not be saved.", exception.Message);
-            return;
-        }
-        catch (IOException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "io-error");
-            ApplicationLog.Error(logger, exception, "Saving the assistant name preference due to an I/O error");
-            ShowFailure("The assistant name could not be saved.", exception.Message);
-            return;
-        }
-        catch (InvalidOperationException exception)
-        {
-            CompleteAudit(audit, SecurityAuditOutcome.Failed, "capture-stop-failed");
-            ApplicationLog.Error(logger, exception, "Closing input before changing the assistant name");
-            ShowFailure("The assistant name could not be changed.", exception.Message);
-            return;
-        }
-
-        ApplyAssistantNameState(normalizedName);
-        ShowSuccess(
-            $"{AssistantName} is ready.",
-            $"The display name, command prefix, and spoken identity now use {AssistantName}.");
-    }
-
-    private void SaveMicrophonePreference(MicrophoneDevice microphone)
-    {
-        _ = SavePreference(
-            () =>
-            {
-                if (microphone.IsSystemDefault)
-                {
-                    audioDevicePreferences.ClearMicrophoneId();
-                }
-                else
-                {
-                    audioDevicePreferences.SaveMicrophoneId(microphone.Id);
-                }
-            },
-            MicrophoneConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "microphone preference");
-    }
-
-    private void SaveOutputDevicePreference(AudioOutputDevice outputDevice)
-    {
-        _ = SavePreference(
-            () =>
-            {
-                if (outputDevice.IsSystemDefault)
-                {
-                    audioDevicePreferences.ClearOutputDeviceId();
-                }
-                else
-                {
-                    audioDevicePreferences.SaveOutputDeviceId(outputDevice.Id);
-                }
-            },
-            OutputDeviceConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "audio output preference");
-    }
-
-    private void SaveSpeechProviderPreference(string providerId)
-    {
-        _ = SavePreference(
-            () => textToSpeechPreferences.SaveProviderId(providerId),
-            SpeechProviderSelectionConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "speech provider preference");
-    }
-
-    private void SaveVoicePreference(string voiceId)
-    {
-        _ = SavePreference(
-            () => textToSpeechPreferences.SaveVoiceId(voiceId),
-            VoiceSelectionConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "speech voice preference");
-    }
-
-    private void SaveResponseOutputPreference(ResponseOutputMode value)
-    {
-        _ = SavePreference(
-            () => responseOutputPreferences.SaveDefaultMode(value),
-            ResponseOutputConfigurationAction,
-            SecurityAuditInitiator.LocalUser,
-            "default response mode");
-    }
-
     private bool SaveMutedOutputFallbackPreference(bool value)
     {
         var audit = StartAudit(
@@ -3573,6 +3567,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SecurityAuditInitiator initiator,
         string settingName)
     {
+        using var activity = HostActivity.BeginOperation(
+            HostActivityLayer.Application, HostOperation.Storage, OriginalOrigin(initiator));
         var audit = StartAudit(
             SecurityAuditCategory.ConfigurationWrite,
             actionId,
@@ -3582,6 +3578,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             savePreference();
             CompleteAudit(audit, SecurityAuditOutcome.Succeeded);
+            activity.Complete(HostOperationOutcome.Completed);
             return true;
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
@@ -3595,29 +3592,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 exception,
                 $"Saving the {settingName}");
             ShowFailure($"The {settingName} could not be saved.", exception.Message);
+            activity.Complete(HostOperationOutcome.Failed);
             return false;
         }
-    }
-
-    private void UpdateVoiceAvailability(bool savedVoiceUnavailable)
-    {
-        VoiceAvailabilityMessage = SelectedVoice switch
-        {
-            not null when savedVoiceUnavailable =>
-                $"The saved voice is unavailable. Using {SelectedVoice.Name} ({SelectedVoice.Culture}) for this profile culture.",
-            not null => $"{SelectedVoice.Name} ({SelectedVoice.Culture}) is selected.",
-            null when SelectedSpeechProvider?.IsInstalled == false =>
-                $"Download {SelectedSpeechProvider.Name} before selecting one of its voices.",
-            null when string.Equals(
-                SelectedSpeechProvider?.Id,
-                SpeechProviderIds.Windows,
-                StringComparison.Ordinal) =>
-                "No Windows speech pack is available. Install a text-to-speech voice in Windows Settings.",
-            null when Voices.Count == 0 =>
-                "The selected provider has no compatible speech voices.",
-            _ =>
-                "No voice matches the Windows profile culture. Choose another voice.",
-        };
     }
 
     private void UpdateSpeechProviderAvailability()
@@ -3649,11 +3626,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UpdateSpeechProviderAvailability();
     }
 
-    private void SetListeningPauseReason(string? value)
+    private void SetListeningPauseReason(string? value, WindowsSessionState? sessionState = null)
     {
-        if (!string.Equals(listeningPauseReason, value, StringComparison.Ordinal))
+        if (!string.Equals(listeningPauseReason, value, StringComparison.Ordinal)
+            || listeningPauseSessionState != sessionState)
         {
             listeningPauseReason = value;
+            listeningPauseSessionState = sessionState;
             OnPropertyChanged(nameof(ListeningStatus));
         }
     }
@@ -3666,6 +3645,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 $"System is selected and follows the Windows default microphone for {AssistantName} capture.",
             { IsSystemDefault: true } =>
                 "System is selected, but Windows has no active default microphone.",
+            not null when !Microphones.Contains(SelectedMicrophone) =>
+                "The saved microphone is no longer available. Select another microphone.",
             not null => $"{SelectedMicrophone.Name} is selected for {AssistantName} capture.",
             null when selectedMicrophoneUnavailable =>
                 "The saved microphone is no longer available. Select another microphone.",
@@ -3675,9 +3656,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateOutputDeviceAvailability(bool selectedDeviceUnavailable = false)
     {
-        var mutedOutputStatus = FallbackToVisualWhenOutputMuted
-            ? "Visual text is forced."
-            : "Automatic visual fallback for muted output is off.";
+        const string mutedOutputStatus = "Visual text is forced. Acoustic audibility is not guaranteed.";
         OutputDeviceAvailabilityMessage = SelectedOutputDevice switch
         {
             { IsSystemDefault: true } when systemDefaultOutputDevice is { IsMuted: true } =>
@@ -3705,26 +3684,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs)
     {
+        ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+            HostActivityLayer.Application, HostOperation.Request, causes);
         if (!IsVoiceEnabled || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
+            ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedBeforeQueue");
+            activity.Complete(HostOperationOutcome.Completed);
             return;
         }
         try
         {
+            var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
             await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs));
+                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput));
+            activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Handling a recognized voice command");
             ShowFailure("The command could not be completed.", exception.Message);
+            activity.Complete(HostOperationOutcome.Failed);
         }
     }
 
     private void OnRecognitionFailed(object? sender, VoiceRecognitionFailureEventArgs eventArgs)
     {
+        if (eventArgs.Reason == VoiceRecognitionFailureReason.PrivacyTransition
+            && privacyObservation.Current.SessionState == WindowsSessionState.Locked)
+        {
+            ApplicationLog.Debug(logger, "Deferred locked-session recognition recovery to the privacy observer");
+            return;
+        }
         if (!IsVoiceEnabled
             || Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
         {
@@ -3750,18 +3743,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private async Task HandleRecognizedVoiceTranscriptAsync(
-        VoiceTranscriptEventArgs eventArgs)
+        VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput)
     {
         if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
+            ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedAfterQueue");
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
         {
+            ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedDuplicate");
             return;
         }
+        ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
         if (IsSpeaking)
         {
@@ -3770,24 +3766,128 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsSpeaking = false;
         }
 
+        if (!IsVoiceEnabled || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
+        {
+            ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");
+            return;
+        }
         await HandleTranscriptAsync(
             eventArgs.Transcript,
             eventArgs.Confidence,
-            SecurityAuditInitiator.VoiceCommand);
+            SecurityAuditInitiator.VoiceCommand,
+            manualInput);
     }
 
     private async Task HandleTranscriptAsync(
         string spokenText,
         float confidence,
-        SecurityAuditInitiator initiator)
+        SecurityAuditInitiator initiator,
+        ManualCallInput? manualInput = null)
     {
+        var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
+        if (InCallFeedbackCommand.Parse(spokenText, AssistantName) is { } callFeedbackCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no call feedback change was dispatched.";
+                return;
+            }
+            await ExecuteInCallFeedbackCommandAsync(callFeedbackCommand, initiator);
+            return;
+        }
+        if (ManualCallCommand.Parse(spokenText, AssistantName) is { } manualCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no call change was dispatched.";
+                return;
+            }
+            await ExecuteManualCallCommandAsync(manualCommand, manualInput ?? CaptureManualCallInput(
+                OriginalOrigin(initiator), CallPolicyRevision));
+            return;
+        }
+        if (OutputDeviceCommand.Parse(spokenText, AssistantName) is { } outputCommand)
+        {
+            await ExecuteOutputDeviceCommandAsync(outputCommand, initiator);
+            return;
+        }
+        if (AuditRetentionCommand.Parse(spokenText, AssistantName) is { } auditRetentionCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no audit-retention change was dispatched.";
+                return;
+            }
+            await ExecuteAuditRetentionCommandAsync(auditRetentionCommand, initiator);
+            return;
+        }
+        if (DiagnosticRetentionCommand.Parse(spokenText, AssistantName) is { } diagnosticRetentionCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no logging-retention control was dispatched.";
+                return;
+            }
+            await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
+            return;
+        }
+        if (WindowsSpeechRateCommand.Parse(spokenText, AssistantName) is { } rateCommand)
+        {
+            await ExecuteWindowsSpeechRateCommandAsync(rateCommand, initiator);
+            return;
+        }
+        if (PlaybackVolumeCommand.Parse(spokenText, AssistantName) is { } volumeCommand)
+        {
+            await ExecutePlaybackVolumeCommandAsync(volumeCommand, initiator);
+            return;
+        }
+        if (SpeechTextCommand.Parse(spokenText, AssistantName) is { } speechTextCommand)
+        {
+            await ExecuteSpeechTextCommandAsync(speechTextCommand, initiator);
+            return;
+        }
+        if (ResponseModeCommand.Parse(spokenText, AssistantName) is { } responseModeCommand)
+        {
+            await ExecuteResponseModeCommandAsync(responseModeCommand, initiator);
+            return;
+        }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
             ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
+        if (AssistantNameCommand.Parse(spokenText, AssistantName) is { } assistantCommand
+            && (isAssistantNameAvailable || !commandRouter.IsActivationPrefixed(spokenText, AssistantName)))
+        {
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+                () => ExecuteAssistantNameCommandAsync(assistantCommand, initiator));
+            return;
+        }
+        if (!isAssistantNameAvailable
+            && commandRouter.Match(spokenText, AssistantName).Command?.Action is not
+                (BuiltInAction.CancelTask or BuiltInAction.StopSpeaking or BuiltInAction.CancelPowerAction
+                or BuiltInAction.OpenSettings or BuiltInAction.OpenDocumentation or BuiltInAction.ExitApplication))
+        {
+            ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
+            return;
+        }
+        if (Kora.Core.Interaction.LocalEventCommand.Parse(spokenText, AssistantName) is { } eventCommand)
+        {
+            await ExecuteLocalEventCommandAsync(eventCommand, initiator);
+            return;
+        }
+        if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
+        {
+            await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
+            return;
+        }
+        if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
+        {
+            await ExecuteSessionCommandAsync(sessionCommand, initiator);
+            return;
+        }
         if (string.Equals(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript,
             "open sessions", StringComparison.Ordinal))
         {
@@ -3811,12 +3911,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }, CancellationToken.None);
             if (ShouldSpeakResponse(BuiltInAction.ShowVersion))
             {
-                await SpeakCurrentResponseAsync();
+                await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
             }
             return;
         }
         await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
-            () => RouteTranscriptAsync(spokenText, confidence, initiator));
+            () => RouteTranscriptAsync(spokenText, confidence, initiator, speechRevision));
     }
 
     internal static bool IsDurableVersionQueryEligible(
@@ -3837,8 +3937,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task RouteTranscriptAsync(
         string spokenText,
         float confidence,
-        SecurityAuditInitiator initiator)
+        SecurityAuditInitiator initiator,
+        long speechRevision)
     {
+        if (InputDeviceCommand.Parse(spokenText, AssistantName) is { } inputCommand)
+        {
+            await ExecuteInputDeviceCommandAsync(inputCommand, initiator);
+            return;
+        }
         if (pendingModelQuestion is { } question)
         {
             if (initiator != SecurityAuditInitiator.VoiceCommand
@@ -3868,6 +3974,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             if (commandRouter.Match(spokenText, AssistantName).IsMatch
                 || AppearanceCommand.Parse(spokenText, AssistantName) is not null
+                || SpeechCommand.Parse(spokenText, AssistantName) is not null
                 || ClipboardCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is not null)
             {
                 await CancelModelQuestionAsync();
@@ -3952,7 +4059,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (SpeechCommand.Parse(spokenText, AssistantName) is { } speechCommand)
+        {
+            await ExecuteSpeechCommandAsync(speechCommand, initiator);
+            return;
+        }
+
         var match = commandRouter.Match(spokenText, AssistantName);
+        if (LocalFileCommand.Parse(match.NormalizedTranscript) is { } fileCommand)
+        {
+            await ExecuteFileCommandAsync(fileCommand);
+            return;
+        }
         if (ClipboardCommand.Parse(match.NormalizedTranscript) is { } clipboardCommand)
         {
             await ExecuteClipboardCommandAsync(clipboardCommand);
@@ -3960,6 +4078,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         if (TryPresentCapabilityCommand(match.NormalizedTranscript))
         {
+            return;
+        }
+        var artifactMatch = artifactCommandRouter.Match(spokenText, AssistantName);
+        if (artifactMatch.IsArtifactCommand)
+        {
+            if (artifactMatch.Invocation is null)
+            {
+                ShowInformation("Artifact command not found.", artifactMatch.Error!);
+                return;
+            }
+            await HandleUnmatchedRequestAsync(
+                spokenText,
+                initiator,
+                artifactInvocation: artifactMatch.Invocation);
             return;
         }
         if (!match.IsMatch || match.Command is null)
@@ -3971,7 +4103,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await ExecuteAsync(match.Command, initiator);
         if (ShouldSpeakResponse(match.Command.Action))
         {
-            await SpeakCurrentResponseAsync();
+            await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
         }
     }
 
@@ -3986,7 +4118,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task HandleUnmatchedRequestAsync(
         string spokenText,
         SecurityAuditInitiator initiator,
-        int questionDepth = 0)
+        int questionDepth = 0,
+        ArtifactInvocation? artifactInvocation = null,
+        LocalModelArtifact? artifact = null)
     {
         if (initiator == SecurityAuditInitiator.VoiceCommand
             && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -3997,23 +4131,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return Task.CompletedTask;
         }
 
-        var request = spokenText.Trim();
-        if (string.Equals(
+        var request = artifactInvocation?.Request ?? spokenText.Trim();
+        if (artifactInvocation is null && string.Equals(
             request.TrimEnd(',', ':', '-', '—').TrimEnd(),
             AssistantName,
             StringComparison.OrdinalIgnoreCase))
         {
             request = string.Empty;
         }
-        else if (commandRouter.IsActivationPrefixed(request, AssistantName))
+        else if (artifactInvocation is null
+            && commandRouter.IsActivationPrefixed(request, AssistantName))
         {
             request = request[AssistantName.Length..].TrimStart(' ', ',', ':', '-', '—');
         }
 
         if (string.IsNullOrWhiteSpace(request))
         {
-            ShowInformation("No question was heard.", $"Say “{AssistantName}” followed by a request.");
-            return Task.CompletedTask;
+            if (artifactInvocation is null)
+            {
+                ShowInformation("No question was heard.", $"Say “{AssistantName}” followed by a request.");
+                return Task.CompletedTask;
+            }
+            request = $"Run the selected {artifactInvocation.Artifact.Kind.ToString().ToLowerInvariant()}.";
+        }
+
+        if (artifact is null && artifactInvocation is not null)
+        {
+            artifact = new LocalModelArtifact(
+                artifactInvocation.Artifact.Id,
+                artifactInvocation.Artifact.Kind,
+                artifactInvocation.Artifact.Name,
+                artifactInvocation.Artifact.Source,
+                artifactInvocation.Artifact.Version,
+                artifactInvocation.Artifact.Digest,
+                artifactInvocation.Artifact.Content);
         }
 
         if (request.Length > 4096)
@@ -4065,9 +4216,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanInstallPowerShell));
         OnPropertyChanged(nameof(CanInstallLocalModel));
         ShowInformation(
-            "Thinking locally.",
-            "Only your current request text is sent to the selected local model.");
-        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth);
+            artifact is null ? "Thinking locally." : $"Running {artifact.Name} locally.",
+            artifact is null
+                ? "Only your current request text is sent to the selected local model."
+                : "Your current request and the selected bundled artifact instructions are sent only to the selected local model. Artifact selection does not approve or execute an action.");
+        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth, artifact);
         _ = activeReasoningTask.ContinueWith(completed =>
         {
             if (completed.Exception is { } exception)
@@ -4087,8 +4240,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         bool busy, bool modelSetup, bool powerShellSetup) =>
         reasoning || actionDispatch || approvalPrompt || busy || modelSetup || powerShellSetup;
 
-    private async Task RunReasoningAsync(string request, CancellationTokenSource cancellation, int questionDepth)
+    private async Task RunReasoningAsync(
+        string request,
+        CancellationTokenSource cancellation,
+        int questionDepth,
+        LocalModelArtifact? artifact)
     {
+        var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
         try
@@ -4103,7 +4261,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         task.Id, "local.reasoning", StringComparison.Ordinal))
                     .Select(task => new LocalModelTask(
                         task.Name, task.State, task.ProgressPercentage)).ToArray());
-            var decision = await localModelReasoner.ReasonAsync(request, context, cancellation.Token);
+            var decision = await localModelReasoner.ReasonAsync(request, context, artifact, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             if (new object?[] { decision.Answer, decision.Action, decision.GrantChange, decision.Question }
                     .Count(value => value is not null) != 1
@@ -4131,7 +4289,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    PresentModelQuestion(clarification, request, questionDepth + 1);
+                    PresentModelQuestion(clarification, request, questionDepth + 1, artifact);
                     announceApproval = true;
                 }
             }
@@ -4184,7 +4342,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else
             {
                 ShowInformation("Local model response", $"Generated locally; verify important details.\n\n{decision.Answer}");
-                await SpeakCurrentResponseAsync();
+                await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -4227,7 +4385,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             isModelApprovalPromptActive = true;
             try
             {
-                await SpeakModelApprovalPromptAsync();
+                await SpeakModelApprovalPromptAsync(speechRevision);
             }
             catch (Exception exception) when (exception is InvalidOperationException
                 or UnauthorizedAccessException or IOException)
@@ -4267,7 +4425,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, admittedCallRevision);
                 if (ShouldSpeakResponse(safeAction))
                 {
-                    await SpeakCurrentResponseAsync();
+                    await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
                 }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
@@ -4283,7 +4441,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task SpeakModelApprovalPromptAsync()
+    private async Task SpeakModelApprovalPromptAsync(long? expectedSpeechRevision = null)
     {
         var wasListening = IsListening;
         if (wasListening)
@@ -4304,7 +4462,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     $"{question.Prompt} {options}. Choose an option by number or say cancel question. "
                     + (RequireAssistantNameForVoiceApproval
                         ? "Begin your answer by addressing me by name."
-                        : "You may answer without addressing me by name."));
+                        : "You may answer without addressing me by name."),
+                    expectedSpeechRevision: expectedSpeechRevision);
             }
             else if (pendingGrantChange is { } change)
             {
@@ -4313,7 +4472,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     + (RequireAssistantNameForVoiceApproval
                         ? "Begin your answer by addressing me by name."
                         : "You may answer without addressing me by name.");
-                await SpeakCurrentResponseAsync(spoken);
+                await SpeakCurrentResponseAsync(spoken, expectedSpeechRevision: expectedSpeechRevision);
             }
             else if (pendingModelAction is { } action)
             {
@@ -4323,7 +4482,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     + (RequireAssistantNameForVoiceApproval
                         ? "Begin your answer by addressing me by name."
                         : "You may answer without addressing me by name.");
-                await SpeakCurrentResponseAsync(spoken);
+                await SpeakCurrentResponseAsync(spoken, expectedSpeechRevision: expectedSpeechRevision);
                 if (State == AssistantState.Failure && IsModelActionApprovalPending)
                 {
                     ShowFailure(
@@ -4359,7 +4518,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task CancelCurrentTaskAsync()
     {
+        RetireSpeechCaption();
+        textToSpeech.InvalidateOutput();
         ClearClipboardPreview();
+        ClearFilePreview();
         CancelPendingPowerAudit("task-cancelled");
         if (powerShellSetupCancellation is not null)
         {
@@ -4594,33 +4756,74 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NotifyOutputPolicyChanged();
     }
 
-    private async Task SpeakCurrentResponseAsync(string? spokenText = null)
+    private string? spokenSummaryRecovery;
+
+    private async Task SpeakCurrentResponseAsync(string? spokenText = null, long? expectedSpeechRevision = null,
+        CancellationToken cancellationToken = default)
     {
-        if (!IsSpeechResponseEnabled)
+        var speechRevision = expectedSpeechRevision ?? Interlocked.Read(ref manualCallSpeechRevision);
+        bool Eligible() => IsSpeechResponseEnabled && !cancellationToken.IsCancellationRequested
+            && speechRevision == Interlocked.Read(ref manualCallSpeechRevision);
+        if (!Eligible())
         {
+            if (speechRevision != Interlocked.Read(ref manualCallSpeechRevision))
+            {
+                PreserveSpokenResponseFailure("Speech from the earlier request was retired by manual call control; the complete result remains visual.");
+            }
             return;
         }
 
+        var exactReadback = spokenText is not null || IsResponseInteractionPending;
         spokenText ??= $"{ResponseTitle}. {ResponseBody}";
         IsSpeaking = true;
         activeSpokenText = spokenText;
         ApplicationLog.Debug(logger, "Starting spoken response output");
+        var completedSpeech = false;
         try
         {
-            await communicationPolicy.StartSpeech(() => textToSpeech.SpeakAsync(
-                spokenText,
-                activeSpeechVoice!,
-                SelectedOutputDevice!), () => IsSpeechResponseEnabled);
+            // Admission checks cancellation; generation invalidation and StopAsync own resource release.
+            Task Start() => StartCaptionedSpeechAsync(spokenText, Eligible);
+            if (exactReadback)
+            {
+                await communicationPolicy.StartSpeech(Start, Eligible);
+            }
+            else
+            {
+                var recovery = await speechConfiguration.StartSummarySpeechAsync(spokenText, communicationPolicy,
+                    Eligible, Start, cancellationToken);
+                if (recovery is not null)
+                {
+                    spokenSummaryRecovery = recovery;
+                    forceVisualResponse = true;
+                    NotifyOutputPolicyChanged();
+                    if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
+                }
+            }
+            completedSpeech = true;
         }
         catch (OperationCanceledException)
         {
             ApplicationLog.Information(logger, "Spoken response was invalidated by a privacy transition");
+            forceVisualResponse = true;
+            NotifyOutputPolicyChanged();
+            if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
+        }
+        catch (PlaybackVolumeUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Playing a response with unavailable Kora playback volume");
+            PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
+        }
+        catch (WindowsSpeechRateUnavailableException exception)
+        {
+            ApplicationLog.Error(logger, exception, "Playing a response with unavailable Windows speech rate");
+            windowsSpeechRateConfiguration?.HoldUnavailable();
+            PreserveSpokenResponseFailure("Windows speech rate is unavailable. Full visual output is retained; explicitly refresh rate preferences.");
         }
         catch (ArgumentOutOfRangeException exception)
         {
             ApplicationLog.Error(logger, exception, "Playing a response with the selected speech voice");
             ClearActiveSpeechVoice();
-            ShowFailure("The selected speech voice is unavailable.", exception.Message);
+            PreserveSpokenResponseFailure("The selected speech voice is unavailable. Refresh installed voices; the complete visual response is retained.");
         }
         catch (AudioOutputDeviceUnavailableException exception)
         {
@@ -4631,67 +4834,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             ApplicationLog.Error(logger, exception, "Playing a response with text-to-speech");
             ClearActiveSpeechVoice();
-            ShowFailure("Text-to-speech is unavailable.", exception.Message);
+            PreserveSpokenResponseFailure("Text-to-speech is unavailable. Refresh speech readiness; the complete visual response is retained.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Playing a spoken response unexpectedly");
-            ShowFailure("Speech output failed.", exception.Message);
+            PreserveSpokenResponseFailure("Speech playback failed. The complete visual response is retained; no automatic retry.");
         }
         finally
         {
+            if (completedSpeech) { CompleteSpeechCaption(); }
+            else { RetireSpeechCaption(); }
             activeSpokenText = null;
             IsSpeaking = false;
         }
-    }
-
-    private void RetainOrSelectActiveSpeechVoice(
-        IReadOnlyList<SpeechVoice> availableVoices)
-    {
-        var installedProviderIds = SpeechProviders
-            .Where(provider => provider.IsInstalled)
-            .Select(provider => provider.Id)
-            .ToHashSet(StringComparer.Ordinal);
-        var retainedVoice = activeSpeechVoice is null
-            ? null
-            : availableVoices.FirstOrDefault(
-                voice => string.Equals(
-                             voice.Id,
-                             activeSpeechVoice.Id,
-                             StringComparison.Ordinal)
-                         && string.Equals(
-                             voice.ProviderId,
-                             activeSpeechVoice.ProviderId,
-                             StringComparison.Ordinal)
-                         && installedProviderIds.Contains(voice.ProviderId));
-        if (retainedVoice is not null)
-        {
-            SetActiveSpeechVoice(retainedVoice);
-            return;
-        }
-
-        var fallbackProvider = SpeechProviders.FirstOrDefault(
-                provider => provider.IsInstalled
-                            && string.Equals(
-                                provider.Id,
-                                SpeechProviderIds.Windows,
-                                StringComparison.Ordinal))
-            ?? SpeechProviders.FirstOrDefault(provider => provider.IsInstalled);
-        var fallbackVoices = availableVoices
-            .Where(voice => string.Equals(
-                voice.ProviderId,
-                fallbackProvider?.Id,
-                StringComparison.Ordinal))
-            .ToArray();
-        var fallbackVoice = fallbackVoices.FirstOrDefault(
-                voice => string.Equals(
-                    voice.Id,
-                    fallbackProvider?.DefaultVoiceId,
-                    StringComparison.Ordinal))
-            ?? SpeechVoiceSelector.SelectDefault(
-                fallbackVoices,
-                CultureInfo.CurrentUICulture);
-        SetActiveSpeechVoice(fallbackVoice);
     }
 
     private void SetActiveSpeechVoice(SpeechVoice? voice)
@@ -4703,8 +4859,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ClearActiveSpeechVoice()
     {
-        SelectedVoice = null;
-        SetActiveSpeechVoice(null);
+        speechConfiguration.HoldUnavailable("Speech output is unavailable. Choose an installed voice or explicitly refresh/reset. Visual responses remain available.");
     }
 
     private static bool ShouldSpeakResponse(BuiltInAction action) =>
@@ -4720,6 +4875,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         string unavailableTitle,
         bool preserveResponseOnMute = false)
     {
+        outputConfiguration?.HoldUnavailable("Native output open, mute or playback failure. Full visual output is retained; refresh before using the saved route.");
         if (SelectedOutputDevice?.IsSystemDefault == true)
         {
             systemDefaultOutputDevice = exception.Reason == AudioOutputFailureReason.Muted
@@ -4729,9 +4885,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(IsSpeechOutputAvailable));
             NotifyOutputPolicyChanged();
             UpdateOutputDeviceAvailability();
-            if (exception.Reason == AudioOutputFailureReason.Muted && preserveResponseOnMute)
+            if (preserveResponseOnMute)
             {
-                RevealMutedResponse();
+                PreserveSpokenResponseFailure("Audio output is unavailable or muted. The complete visual response is retained; no endpoint is substituted.");
                 return;
             }
             ShowFailure(
@@ -4754,7 +4910,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     OutputDevices[outputIndex] = mutedOutput;
                 }
-                SelectedOutputDevice = mutedOutput;
+                SetOutputDeviceSnapshot(mutedOutput);
             }
             finally
             {
@@ -4762,20 +4918,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             if (preserveResponseOnMute)
             {
-                RevealMutedResponse();
+                PreserveSpokenResponseFailure("Audio output is muted or volume is zero. The complete visual response is retained.");
                 return;
             }
             ShowFailure("Audio output is muted.", exception.Message);
             return;
         }
 
-        SelectedOutputDevice = null;
+        if (preserveResponseOnMute)
+        {
+            PreserveSpokenResponseFailure("The selected output could not be opened or playback failed. The saved pin is retained; no endpoint is substituted.");
+            return;
+        }
+        SetOutputDeviceSnapshot(null);
         ShowFailure(unavailableTitle, exception.Message);
     }
 
-    private void RevealMutedResponse()
+    private void PreserveSpokenResponseFailure(string recovery)
     {
-        if (IsVisualResponseVisible && CanRevealPrivatePresentation)
+        spokenSummaryRecovery = recovery;
+        forceVisualResponse = true;
+        NotifyOutputPolicyChanged();
+        if (CanRevealPrivatePresentation)
         {
             WindowActionRequested?.Invoke(this, WindowAction.Show);
         }
@@ -4840,6 +5004,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     "Built-in commands are ready.",
                     $"{Commands.Count} deterministic commands are registered. Say “{AssistantName}, open documentation” and choose Commands for the full list. "
                     + "Use “list capabilities” for the admitted read-only registry, or “describe capability” followed by a canonical ID. "
+                    + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
+                    + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + "Use “preview clipboard” for an explicit local plain-text snapshot; clipboard explanation is unavailable. "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
@@ -5026,6 +5192,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task LockCurrentSessionAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
         ClearClipboardPreview();
+        ClearFilePreview();
         var audit = StartAudit(
             SecurityAuditCategory.ProtectedOperation,
             SessionLockAction,
@@ -5143,10 +5310,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AssistantState responseState,
         string title,
         string body,
-        bool requestWindow = true)
+        bool requestWindow = true,
+        bool refreshOutput = true)
     {
+        RetireSpeechCaptionSource();
         ClearResponseActions();
-        if (!isInitializing
+        if (!isInitializing && refreshOutput
             && responseState is not (AssistantState.Failure or AssistantState.Listening)
             && EffectiveResponseMode != ResponseOutputMode.VisualOnly
             && SelectedOutputDevice is not null
@@ -5156,6 +5325,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         State = responseState;
+        spokenSummaryRecovery = null;
         ResponseTitle = title;
         ResponseBody = body;
         forceVisualResponse = ShouldForceVisualResponse(
@@ -5177,6 +5347,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsVisualResponseVisible));
         OnPropertyChanged(nameof(IsSpeechResponseEnabled));
         OnPropertyChanged(nameof(ResponseOutputStatus));
+        OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
+        OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
+        OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanInspectWindowsSpeechRate));
+        OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
+        OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));
+        OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
+        OnPropertyChanged(nameof(WindowsSpeechRateStatus));
+        OnPropertyChanged(nameof(PlaybackVolumeStatus));
+        OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
+        OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
+        OnPropertyChanged(nameof(DiagnosticRetentionStatus));
+        OnPropertyChanged(nameof(CanChangeAuditRetention));
+        OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
+        OnPropertyChanged(nameof(AuditRetentionStatus));
+        OnPropertyChanged(nameof(CanChangeResponseMode));
+        OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
+        OnPropertyChanged(nameof(IsInCallFeedbackOverrideApplied));
+        OnPropertyChanged(nameof(InCallFeedbackStatus));
+        OnPropertyChanged(nameof(CanInspectInCallFeedback));
+        OnPropertyChanged(nameof(CanInspectInCallFeedbackNative));
+        OnPropertyChanged(nameof(CanChangeInCallFeedbackNative));
     }
 
     private string[] GetRecognitionPhrases()
@@ -5184,6 +5376,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var commands = commandCatalog.GetCommands(AssistantName)
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
+            .Concat(LocalFileCommand.FixedPhrases)
+            .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(AssistantNameCommand.DiscoveryPhrases)
+            .Concat(InputDeviceCommand.FixedPhrases)
+            .Concat(OutputDeviceCommand.FixedPhrases)
+            .Concat(PlaybackVolumeCommand.FixedPhrases)
+            .Concat(WindowsSpeechRateCommand.FixedPhrases)
+            .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(AuditRetentionCommand.FixedPhrases)
+            .Concat(ManualCallCommand.FixedPhrases)
+            .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(InCallFeedbackCommand.FixedPhrases)
+            .Concat(SpeechTextCommand.FixedPhrases)
+            .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
+            .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);
         return commands
@@ -5243,6 +5450,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateAssistantNameSettingStatus()
     {
+        if (!isAssistantNameAvailable)
+        {
+            AssistantNameSettingStatus = assistantNameConfiguration.Get().Recovery!;
+            return;
+        }
         try
         {
             var normalizedName = AssistantNameRules.Normalize(AssistantNameInput);

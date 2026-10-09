@@ -15,6 +15,351 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+Provider-neutral host controls add no new command or qualified model tool loop.
+Existing bootstrap reasoning and unavailable messages remain unchanged;
+hosted inference, Local only/Local first/Hosted preferred modes, reviewed
+handoff and durable memory are not enabled by this host-only foundation.
+Clipboard and file preview/search commands still perform no model submission.
+
+## Trusted local events
+
+An already-open **Sessions** selected work surface shows bounded trusted
+local-version queue/question observations and already-verified maintenance
+availability. No window opens, focus changes or speech occurs automatically.
+Native **Review exact event**, **Dismiss exact event**, and **Defer exact event
+15 minutes** share the same broker as these exact typed/current-name activated
+commands:
+
+| Exact syntax | Result |
+|---|---|
+| `event status <event-id> <revision>` | Passive current metadata and explicit delivery/stale/unavailable reason |
+| `event review <event-id> <revision>` | Same bounded passive review; not a question answer or maintenance Open |
+| `event dismiss <event-id> <revision>` | Reject only that exact event revision |
+| `event defer <event-id> <revision>` | Defer fifteen minutes, capped at the original source expiry |
+
+Copy the exact canonical D GUID and positive revision from the current native
+row. Names, arbitrary IDs, stale revisions, extra words and old/current-source
+changes refuse. Refresh and reselect after a mutation; its revision advances.
+Activated input still needs normal current-name activation/voice consent, but
+this response is always visual. Pending foreground questions/approvals remain
+unchanged; answer them separately. No ambient microphone, model, network,
+dispatch, deadline extension, grant or maintenance Check/Open is added.
+
+PresentedNoReplay is status, not another notification. Category-limited,
+dismissed, deferred and expired rows do not repeat their summary. Fixed
+hourly limits are Work 3, Failure 2, Attention 2, Maintenance 1, with one-minute
+spacing. At most eight rows are visible, with omitted counts. Corrupt,
+unconfirmed, unavailable or full suppression storage holds the broker; work
+inspection remains independent. Restart never reconstructs current events or
+replays presented/dismissed/expired effects. Fresh native observation may admit
+an unexpired explicit deferral under its original deadline.
+
+## Deterministic local-version queue
+
+Native **Sessions** queue controls and exact typed/current-name activated input
+share one host service. No model, network or audio is required for management
+or the fixed read. Voice commands still require normal activation/consent;
+the queue cannot open a microphone or speak a response.
+
+| Exact syntax | Result |
+|---|---|
+| `queue help` | Bounded syntax and unavailable scope |
+| `queue list <session-id>` | Current entries/revision plus bounded atomic work snapshot, recent receipts, pending question identities, capacity and eligibility reasons |
+| `queue status <session-id> <task-id>` | Exact retained work receipt; unknown IDs provide no authority |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>]` | Add one fixed local application-version read; dependency requires an existing exact task |
+| `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
+| `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
+| `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
+| `queue dispatch <session-id> <generation> <queue-revision>` | Manually process up to 32 already enqueued ready local-version reads fairly across eligible sessions |
+
+Use canonical nonempty D GUIDs and the exact displayed positive session/entry
+revisions. Queue revision is the displayed committed snapshot revision; zero
+is valid only before the first queue mutation. For typed enqueue, supply fresh
+request/task GUIDs; native **Enqueue local version** generates them. Duplicate
+IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
+fail closed. The selected session's ID is visible and never inferred from a
+name, model response or window title.
+
+Enqueue does not start work. Selecting an exact session passively reads work;
+**Refresh selected work** refreshes that observation. Choose **Inspect selected
+work ID**, **Cancel selected eligible work**, **Remove pending ID** or
+**Confirm clear displayed pending queue** only for displayed exact revisions.
+The native controls call the same exact command workflows. Stale controls refuse
+instead of following another selection or revision. Only the separate genuine
+pre-dispatch local-version question wait can use exact task cancellation;
+admitted/effect work is not cancellable in this delivered slice.
+All/Active/Done filtering affects only the current bounded session page.
+Five-second passive work refresh never dispatches, reprioritizes, extends
+meaningful activity, moves focus or retargets voice/questions/approvals.
+Dispatch is manual, FIFO within a session and fair across ready sessions;
+the invoking session gains no priority. Capacity is ten pending entries
+per session and one admitted task per session. The shipped host uses one
+global slot; only the fixed local-read implementation permits a host
+limit of one or two.
+
+Pending eligibility expires after 30 minutes; an expired head remains visible
+until explicitly removed/cleared, and blocks later work at that position.
+The five-minute active budget starts at admission; late read results cannot
+be successful receipts. Existing pre-dispatch user questions have their own
+expiry and consume neither slot nor active budget; this fixed profile creates
+no in-task questions. It provides no effect-worker cancellation or forced
+termination. A failed batch stops; make a fresh explicit dispatch decision.
+
+Lock/privacy/ownership or call-policy changes retire eligibility even after
+unlock: inspect, remove and explicitly requeue rather than resuming stale work.
+Unknown outcomes quarantine the addressed session and dependent tasks, while
+unrelated sessions remain eligible. Restart restores status/history only:
+pending work is Interrupted and prior dispatch is Unknown, never replayed.
+Do not blindly retry a failed audit/storage/receipt operation; a commit may
+already exist. Inspect exact durable IDs/revisions before a new decision.
+
+No script, power, write connector, arbitrary resource/effect, hosted provider
+or local-model reasoning descriptor is schedulable. This is a deterministic
+read-only core, not full two-slot worker/provider/hardware acceptance.
+
+## In-call feedback override
+
+Native **Settings > Calls** and exact typed/current-name ACTIVATED commands
+share one device-local, original-input host workflow:
+
+| Exact command | Result |
+|---|---|
+| `list call feedback settings` | One admitted descriptor: choices/UI default, scope, saved/default/unavailable provenance, desired/effective/applied mode, revisions, timing, hard gates and recovery |
+| `get calls.feedback-mode` | Current preference and independent output policy |
+| `status calls.feedback-mode` | Same bounded status |
+| `set calls.feedback-mode to Voice` | Save only the in-call feedback preference |
+| `set calls.feedback-mode to UI` | Save UI-only preference |
+| `set calls.feedback-mode to Both` | Save combined preference |
+| `set calls.feedback-mode to Inherit` | Restore ordinary response selection during calls |
+| `reset calls.feedback-mode` | Remove only this override; unsaved UI default |
+
+Use the current configured prefix, not an old alias. Complete input/result
+bounds are 1,024 UTF-8 bytes/64 KiB. Extra words, unknown targets, controls and
+numeric/ordinary-mode aliases clarify locally; no model settings tool is added.
+Active/Suspected (including manual Active) alone applies this before ordinary
+output. Unknown/invalid evidence withholds speech and keeps full visual
+recovery; Clear/Unavailable uses ordinary selection. Voice/Both never bypass
+independent call speech suppression, privacy/lock/mute/capture/lifetime/safety
+gates, or enable input/consent/grants.
+
+Protected-call original-voice set/reset is refused, never relabelled by a later
+click or deferred until clearance. Initiate a new eligible UI change. Host-held
+choices and current name/input/call/configuration/session/native lifetime are
+revalidated. Audits, atomic save/readback and durable intent outcome precede
+activation; stale/corrupt/unconfirmed state stays unavailable with explicit
+recovery, including across restart. No capture, detector, autoplay or replay.
+See [Settings recovery](settings.md#in-call-feedback-override).
+
+## Explicit local file preview
+
+| Exact command | Result |
+|---|---|
+| `preview file` | Open the trusted native picker for one local UTF-8 `.txt`, `.md` or `.markdown` file, then metadata-only review |
+| `clear file preview` | Discard this volatile review/revision; never delete the original |
+| `search file` / `inspect file` | Focus the admitted revision's native lexical search/inspection control; no arguments, path or implicit source selection |
+
+The tray's **Preview file (local inspection only)** uses the same host service.
+Current-name activated input can open selection; spoken/typed paths and IDs
+cannot confirm a read. Use **Confirm: read this exact selected file locally**
+in the native review, before its two-minute expiry. The review discloses the
+canonical path, original host session/origin, identity, exact bytes and bounds.
+The immutable plain-text result shows source/revision/item IDs and SHA-256 of
+original bytes (including BOM). There is no automatic refresh.
+
+Maximum: one fixed-drive file, 256 KiB source bytes, 240 path characters,
+32 components; strict UTF-8 only. Unsupported, inaccessible, unstable,
+reparse/hard-link, protected, hidden/system and source-control/generated
+inputs fail closed without truncation or silent exclusions. Close, clear,
+Cancel task, lock/privacy/ownership or origin/call-generation changes discard
+the preview. File content never becomes a command or approval.
+
+Enter query text only in the native search control, not in a command or
+conversation. This deliberately keeps queries/excerpts out of transcripts,
+history, speech, models and clipboard. Limits: 256 UTF-16 characters,
+512 UTF-8 bytes, 32 unique terms, 64 characters per term; invalid input is
+rejected, never silently shortened. Ranking is deterministic OR matching:
+distinct normalized terms, frequency capped at 16 per term, then source offset.
+Terms are Unicode letters/numbers with attached combining marks, canonical
+Form C and invariant uppercase; punctuation separates terms. Duplicate terms
+do not boost ranking. Oversized source words are skipped whole.
+Adding arguments to `search file` / `inspect file` is rejected locally rather
+than falling through to inference; it neither selects a path nor performs a search.
+
+At most eight exact excerpts / 16 KiB excerpt UTF-8 are returned. Each is at
+most 2,048 UTF-16 characters / 128 lines. Results display the query observation
+time, source/revision/item IDs, original-byte SHA-256 digest, display filename,
+heading, exact UTF-16 offsets, and 1-based line/column range (exclusive end;
+CRLF is one newline). Truncation is explicit; no match differs from stale,
+cancelled, busy, invalid or unavailable. Search does not re-read the current
+path or refresh the revision. Closing/revoking/replacing/discarding the source,
+Cancel task and privacy/ownership changes invalidate late results. This is a
+volatile local inspection, not a durable workspace session attachment.
+
+**Unavailable:** folder preview, UNC/removable drives, durable attachments,
+knowledge sources, persistent/vector indexing, local/hosted reasoning or file-model
+tools. Preview neither submits content nor authorizes egress. It never reads
+or changes the clipboard, executes content, logs content/paths or saves the
+revision. [Privacy details](privacy-safety-and-logs.md#local-file-inspection).
+
+## SQLite diagnostic retention
+
+Native **Settings > Logging** and exact typed/current-name ACTIVATED commands
+share one independent host-admitted workflow:
+
+| Exact command | Result |
+|---|---|
+| `list logging settings` | Both independent diagnostic/audit options' integer schema/default/bounds, saved/effective provenance, revisions, timing, exclusions and recovery |
+| `get logging.sqlite-diagnostic-retention-days` | Inspect the confirmed preference or explicit unavailable recovery |
+| `status logging.sqlite-diagnostic-retention-days` | Same bounded current status |
+| `set logging.sqlite-diagnostic-retention-days to 14` | Canonical integer 1–365; applies only to newly committed ordinary SQLite records after required audit and atomic save/readback/receipt |
+| `reset logging.sqlite-diagnostic-retention-days` | Remove only this override; future commits use default 30 |
+
+Use **Kora,** or the current configured prefix, not an old alias. The complete
+input is at most 1,024 UTF-8 bytes and output 64 KiB; controls, ambiguous/extra
+words, noncanonical integers and unrelated logging targets clarify/reject
+locally. No natural-language/model mutation or guessed setting is admitted.
+Original-channel host/session/generation/privacy/call/input and expected
+revisions are fresh-checked. Pending exact questions/approvals remain intact.
+Protected-call original voice mutation is denied, never deferred or relabelled.
+
+**Existing deadlines stay exactly unchanged. Apply-now/immediate deletion is
+unavailable.** No set/reset triggers pruning. Independent audit retention,
+daily files 30 days/30 files, session/chat/history, grants/approvals and cleanup
+schedule are unchanged. Perpetual grants have no time expiry/retention/eviction.
+See [settings and explicit recovery](settings.md#sqlite-diagnostic-retention).
+
+## Future-only audit retention
+
+Native **Settings > Logging** and exact typed/current-name ACTIVATED input
+share the independent audit workflow:
+
+| Exact command | Result |
+|---|---|
+| `get logging.audit-retention-days` | Complete saved/default/effective policy, 30–365 bounds/default 90, revision, timing/exclusions and explicit held recovery |
+| `status logging.audit-retention-days` | Same bounded current status |
+| `set logging.audit-retention-days to 180` | Canonical integer 30–365; changes NEW required authority audit and independent diagnostic audit projections after required prior-policy receipts and atomic save/readback/intent outcome |
+| `reset logging.audit-retention-days` | Removes only the audit override; future audit commits use 90 |
+
+Use the current assistant prefix, not an old alias. `list logging settings`
+includes this option alongside independent ordinary SQLite days. Inputs remain
+bounded to 1,024 UTF-8 bytes and complete output to 64 KiB; malformed reserved
+commands stay local and never route to inference. Original owner/session/
+generation/privacy/topology/input/call/native-lifetime and proposal revisions
+must remain eligible; protected-call original voice mutation is denied.
+
+Existing deadlines/payloads/citations are unchanged. Apply-now, immediate
+deletion, pruning and cleanup triggers are unavailable. This is not a grant
+lifetime control: every grant and its validity/scopes remain, and Perpetual
+records have no expiry/retention/eviction. No session/history/approval/task/
+question pruning or ordinary/file policy changes. See
+[held evidence and restart recovery](settings.md#future-only-audit-retention).
+
+## Assistant display / PTT command-prefix setting
+
+Typed input and explicitly activated voice use the same host configuration
+workflow as **Settings > Speech & audio > Apply name / Reset name to Kora**:
+
+| Exact command | Result |
+|---|---|
+| `list assistant settings` | Schema/default/bounds/scope/effect/timing/reset and current revision/provenance/recovery for the one admitted setting |
+| `get assistant.name` | Current display/PTT prefix and saved/default provenance, or explicit unavailable recovery |
+| `set assistant.name to Nova Prime` | Validate with the existing name rules and atomically save one device-local value |
+| `reset assistant.name` | Restore Kora only; no durable identity, session-name, grant, approval, data-path or namespace reset |
+
+The spoken target **assistant name** is equivalent to `assistant.name`.
+The active configured prefix is optional: **Kora, set assistant name to Nova**.
+After success use **Nova, get assistant name**; Kora is no hidden alias.
+Input is bounded to 320 characters after prefix removal, and names retain
+their existing exact case/Unicode validation with whitespace trimming/collapse.
+Unknown targets and malformed grammar clarify locally; invalid names are
+audited denials, never inference or arbitrary configuration execution.
+
+Set/reset require current host ownership/privacy and configuration/call
+revisions. Protected/unknown calls reject original voice requests. These
+commands do not answer, replace or approve a pending exact question/approval.
+Mutation retires stale capture/transcript/completion generations and does not
+replay input or re-enable listening. Explicit **Enable listening** and a new PTT
+are required. Grammar-start failure is visible with no old-prefix fallback.
+Corrupt saved state disables prefix routing; native recovery and unprefixed
+get/set/reset, stop/cancel and Settings remain available.
+This is **not production wake-name capability**, a model settings tool, an
+acoustic acceptance result or completion of all R10.
+
+## Exact cached release maintenance
+
+Typed input and explicitly activated voice use the same guarded native
+maintenance workflow:
+
+| Exact command | Result |
+|---|---|
+| `maintenance status` | Cached channel/status, last verification/staleness and review/snooze readiness; missing or failed checks remain Unknown/error, not "up to date" |
+| `maintenance review` | Review the exact fresh host-held canonical record/source/architecture/digest/unsigned disclosure and reveal the existing native review window |
+| `maintenance snooze` | Snooze only that fresh, reviewed Available notice for 24 hours within this run; no persistent reminder policy or other prompt change |
+
+The optional **Kora,** prefix uses the current configured name. The complete
+original input is at most 128 characters; phrases are case-insensitive with
+outer whitespace trimming, not fuzzy punctuation/extra-word matching.
+Complete visual results are at most 8,192 characters; oversized results fail
+explicitly, not by truncation. No command speaks, probes devices, activates
+capture, invokes a model/provider or treats release text/URLs as authority.
+
+Use native Maintenance to grant **public metadata checks for this run**, check
+or explicitly open an already reviewed canonical page. These cached commands
+never check/refresh, grant/renew consent, open a browser, download, install,
+elevate or activate source. Stale or failed metadata requires a deliberate
+native check after admission recovery, not automatic command fallback.
+Commands preserve the complete current exact question/approval and cannot
+answer it. Unknown ownership/privacy, protected/unknown calls, stale/foreign
+records, changed original voice generation/session or failed required audit/
+receipt deny success and require a fresh explicit request. This is bounded
+command parity, not a general notification broker, production wake or
+installed/native/runtime acceptance.
+
+## Exact current-run manual call control
+
+Native **Settings > Calls** and typed/already **activated** voice share:
+
+| Exact command | Result |
+|---|---|
+| `list call settings` | Complete schema, default-off, run-only scope, timing, reset and cached policy/source revision |
+| `get call.manual-active` / `status call.manual-active` | Manual flag, independent automatic observation/availability, effective conservative protection and saved flags |
+| `set call.manual-active to on` | Enable only the current-run manual layer |
+| `set call.manual-active to off` | Clear only that layer; never assert detector Clear |
+| `reset call.manual-active` | Same manual-off effect; no saved preference reset |
+
+The optional prefix is the current installed display/PTT name, not a hidden
+old-name alias or production wake. Grammar is case-insensitive with outer
+whitespace trimming. `on`/`off` are the only set choices; extra words, controls,
+unknown call targets and inputs over **1,024 UTF-8 bytes** clarify locally.
+Complete versioned JSON is limited to **64 KiB**, never truncated.
+These reserved routes run before pending-question input. Inspection is passive
+and cached: no control intent, meaningful activity, approval, detector probe,
+model, speech, capture or unrelated effect. Results appear in the transcript/
+native cached status without replacing the full question, approval or preview.
+Mutation is refused while a question/approval is pending; it cannot answer,
+approve, rebind or defer a change until clearance.
+
+Set/reset require original input captured before asynchronous work, genuine
+host-created committed intent/session generation, own live request context,
+current source/policy revision and current ownership/privacy/input gates.
+Protected/Unknown calls deny original voice mutations, including off/reset;
+a later mouse confirmation cannot relabel that voice input. Start a new
+eligible native/typed request instead.
+Changed manual state fences old synthesis/playback, input and callbacks;
+old requests may finish visually but cannot synthesize/replay after off/reset.
+Capture stays closed until a separate fresh **Enable listening** and PTT.
+No consent, microphone, saved call flags, grant record, output mode or volume
+is changed. Mandatory full visual information remains intact.
+
+Required typed authority audits precede the fenced process-memory transition
+and record its truthful outcome on the existing shared SQLite lease. This is
+not atomic persistence of the manual flag. A lost audit/receipt or unconfirmed
+retirement reports **not-confirmed** and retains explicit conservative
+evidence-unavailable protection; it never claims rollback, retries, or uses
+unknown evidence to authorize less protection. Startup remains manual-off
+with honest detector-unavailable status. Automatic detection, speak-once,
+protection relaxation and full R15/native/acoustic acceptance remain absent.
+
 ## Read-only host discovery
 
 These exact local commands require the active, unlocked Kora host and do not
@@ -45,6 +390,34 @@ use the existing Readiness UI for a deliberate fresh check and recovery details.
 An observed ready dependency does not grant execution permission. No hosted
 provider, MCP adapter, or model tool/result loop is delivered by this registry.
 Existing help, version, setup/status, lock and power phrases retain their behavior.
+
+## Exact input-device preference
+
+Typed input and **activated** voice use:
+
+- **list input settings** — metadata-only discovery with the existing
+  five-second single-flight deadline;
+- **get speech.input-device** — recorded desired/effective choice, source,
+  metadata/call revisions, availability/readiness and recovery;
+- **set speech.input-device to {exact listed endpoint ID}** — preference only;
+- **reset speech.input-device** — explicitly selects `system-default` (System).
+
+The configured-name prefix is supported. Option grammar is case-insensitive;
+endpoint IDs are exact and case-sensitive. Friendly names, indices, fuzzy
+targeting and natural-language aliases are not selectors. Duplicate friendly
+names are distinct IDs. System follows the Windows multimedia default;
+unavailable pins remain pinned. Complete versioned JSON results are at most
+64 KiB; original commands are at most 1,024 UTF-8 bytes without controls.
+Oversize results are rejected, not partially presented.
+
+These routes share the native Settings/tray/recovery-card preference workflow.
+Selection/reset never enables listening, grants consent/permission, tests audio
+or changes model/OS settings. Changed selection closes stale input; manual
+disablement and recovery holds remain closed. Protected/unknown calls reject
+original voice mutations; stale metadata, unknown ownership/privacy/permission,
+pending questions/approvals and failures require a new explicit operation.
+Terminal audit failure may follow a file replacement: inspect before retrying,
+not automatic rollback/replay. There is no model tool or pending-question bridge.
 
 ## Explicit local clipboard preview
 
@@ -87,6 +460,105 @@ and compact response's **Ctrl+Shift+S**. It does not change a pending question
 or approval target, create a conversation, resume a session or call a model.
 Done/resume are explicit selected-ID native actions, not inferred from words
 in history or from selecting a row.
+The native workspace also offers **Create empty Active session** and **Rename
+selected ID** with bounded durable names and optimistic revisions. These are
+also available through the bounded exact commands below, but not model tools. A name never selects authority,
+and the selected window never redirects global commands. Creation grants no
+execution permission; rename/browse never resumes or changes approvals.
+Native Sessions additionally offers separate
+[preview/confirmation for logical disposition](windows-and-tray.md#logical-session-disposition).
+It removes addressed live authority rows, not recoverable copies or full
+history. No typed/voice `session delete` or model deletion tool is admitted.
+
+### Bounded exact-ID session commands
+
+Typed input and **activated** voice share one grammar, with the configured
+assistant-name prefix supported. Use **session help** for the full syntax:
+
+| Command | Actual bounded result |
+|---|---|
+| `session list [after <exact-id>] [limit <1-50>]` | Active/Done IDs, names, authorization generations and metadata revisions |
+| `session status <exact-id>` | Exact authority and optional durable name; not inferred runtime progress |
+| `session inspect <exact-id> [tasks\|questions] [after <exact-id>] [limit <1-50>]` | A page of existing task IDs/request IDs/states/revisions/origins or question IDs/revisions/states |
+| `session create "<name>"` | Empty named Active session with a fresh host-owned ID |
+| `session rename <exact-id> <generation> <metadata-revision> "<name>"` | Rename only, including a Done session |
+| `session done <exact-id> <generation>` | Guarded idle lifecycle transition; not cancellation or proof of success |
+| `session resume <exact-id> <generation>` | Explicit Active transition; never reruns work or revives approvals |
+| `session history <exact-id> [after <generation>:<snapshot>:<sequence>] [limit <1-50>]` | Passive ordered host interaction history with stable exact citations; no control intent or activity extension |
+| `session get <exact-id> <event-id>` | One exact history event belonging to that session, or explicit unknown; never name lookup or replay |
+
+IDs must be nonempty canonical hyphenated GUIDs. Revisions are unsigned decimal
+integers (generation positive, metadata revision zero for absent legacy metadata).
+Copy the exact observation; a stale revision fails and requires a fresh request.
+Names are NFC single-line Unicode, at most 120 scalars and 480 UTF-8 bytes,
+without surrounding whitespace or control/format characters. Names must be
+quoted; double an interior quote, e.g. `session create "A ""quoted"" label"`.
+No punctuation stripping, name lookup, ordinal/window selection or fuzzy matching
+applies to this grammar. Whole input is limited to 1,024 UTF-8 bytes, pages
+default to 25/max 50, and the complete structured JSON result is at most 64 KiB.
+Overflow fails explicitly rather than truncating. List/inspect cursors are exact IDs, not
+saved snapshots; refresh for concurrent changes. History continuations instead
+use the returned generation, snapshot ceiling and last sequence, separated by
+colons. They remain bound to that exact session and exclude later appends.
+Lifecycle changes require a fresh history read. Lifecycle results omit
+unobserved metadata; request status to observe it.
+
+Each accepted command has fresh original-user lineage. Except for passive
+`history/get`, legacy controls retain a durable host control
+intent/terminal receipt; reads do not change lifecycle, metadata, question or
+grant authority. Existing partitions must be present. Errors are explicit:
+refresh after conflict, resolve live/Unknown work or pending questions, or recover
+private storage/ownership before a new deliberate request. A receipt failure
+after a commit is not rollback; inspect current state before retrying.
+The typed Run entry remains available for this deterministic namespace while
+bootstrap work is busy; it does not cancel that work. Mutations still pass the
+same exact-subject live-work and current host gates, not a new executor lane.
+
+History records only committed host question snapshots/final answers, decision
+metadata and task-state receipts. Gaps/current migration baselines, metadata-only,
+over-budget unavailable content and disposition-redacted events are explicit.
+Bootstrap user/model messages and response bodies are unavailable, not recovered
+from logs. A task success is not proof of an external effect. Done histories
+are readable; an exact Removed ID returns redacted citations only. There is no
+composer, search, model history reasoning, Ask Evidence, broad export, attachment,
+queue, scheduler, automatic resume or playback. History does not import volatile
+file previews/shared skills or reconstruct captions. See the
+[native workflow](windows-and-tray.md#bounded-passive-interaction-history).
+
+Activated voice uses the existing enablement/consent/capture/privacy boundary
+and retains its originating channel and observed call/recovery revision through
+commit. During protected calls, reads require permitted activation and private
+presentation; voice mutations are explicitly unavailable under the existing
+workspace clear/unavailable-call gate. Nothing is queued for later. Unknown
+ownership/privacy fails closed. Pending bootstrap questions/approvals block
+session commands without changing their targets; resolve them explicitly first.
+
+**Exact task controls** use the same typed/activated-voice grammar and limits:
+
+| Command | Actual bounded result |
+|---|---|
+| `task help` | Syntax and availability |
+| `task status <session-id> <task-id>` | Exact durable state/revision, session generation, source/current-run and pending/terminal question distinctions |
+| `task inspect <session-id> <task-id>` | The same complete bounded authoritative record, not inferred progress or remaining steps |
+| `task cancel <session-id> <task-id> <task-revision> <generation> <question-id> <question-revision>` | Atomically cancel only admitted current-run local-version work still waiting before dispatch |
+
+Copy exact IDs and all tokens from a fresh inspection. Only the tray's native
+local-version question currently admits that wait. Its question is now before
+dispatch; cancellation commits the terminal task, revised cancelled question,
+target capability revocation and required audit together. It never creates or
+consumes a grant, deletes a task, replays work or terminates a worker.
+Unknown/foreign IDs, stale/different questions or revisions, expiry, previous
+runs, answered/committed/dispatched/Unknown work and lost host authority refuse.
+Already terminal work stays terminal; inspect its real outcome. A confirmed
+pre-dispatch cancellation is not a claim that an already invoked effect stopped.
+A confirmed cancellation claims no effect termination. This safe cancellation is also available during a protected call with private
+ownership and eligible original activation; call/recovery revisions still gate
+commit. Pending legacy bootstrap questions/approvals remain unchanged.
+
+This is not conversation/transcript persistence, a queue/executor/scheduler,
+general effect cancellation, deletion/retention, routing inference, model tools, or a
+session-name inference feature. Native selected-ID Create/Rename/Done/resume
+continue to use the same host workspace service and guarded storage transaction.
 
 ### Show the Kora window
 - **show Kora**
@@ -144,6 +616,147 @@ model/network interpretation. Changes and per-option reset share the direct
 UI service, domain validation, revision check, atomic persistence, audit and
 live notifications. There is no whole-profile reset or undo, model tool
 exposure, arbitrary JSON patch or configuration-file editing authority.
+
+### Inspect or change an exact output choice
+
+Audio **output endpoint** preference changes are separate:
+
+- **list output settings**
+- **get speech.output-device**
+- **status speech.output-device**
+- **set speech.output-device to &lt;exact presented endpoint ID&gt;**
+- **reset speech.output-device**
+
+Discover first, then use one exact ID; no name/index/fuzzy alias is accepted.
+Native Settings uses the same admitted choice/save/reset workflow. System is
+`system-default`; reset removes only Kora's output override. These commands never
+play audio, change Windows defaults/volume, grant consent or answer an approval.
+Protected/unknown calls block original voice-channel mutations. Stale choices,
+ownership/privacy changes and failed evidence require explicit refresh/recovery.
+
+### Inspect or change Kora playback volume
+
+- **list volume settings**
+- **get speech.playback-volume**
+- **status speech.playback-volume**
+- **set speech.playback-volume to 30**
+- **reset speech.playback-volume**
+
+Use one canonical integer 0-100 (no `%`, fraction, sign, padding or leading
+zero). The current assistant-name prefix works; old names are not aliases.
+Native Settings shares the admitted, revisioned atomic/audited workflow.
+Default/reset **100** is original unscaled output; **0** blocks synthesis and
+keeps the complete visual response. Changes stop stale active/queued speech;
+raising/resetting never replays it. Original voice mutations are denied during
+protected/unknown calls. These commands never play a trial, change global/call
+volume, microphone/consent, other options, retention or pending approvals.
+Discovery is metadata only, not a model tool or acoustic test. Input is bounded
+to 1,024 UTF-8 bytes without controls; the complete result is bounded to 64 KiB.
+See [availability and recovery](settings.md#kora-playback-volume).
+
+### Inspect or change Windows-native speech rate
+
+Exact typed or already **ACTIVATED** input uses the current assistant prefix:
+
+- **list rate settings**
+- **get speech.windows-rate**
+- **status speech.windows-rate**
+- **set speech.windows-rate to -10**
+- **set speech.windows-rate to 0**
+- **set speech.windows-rate to 10**
+- **reset speech.windows-rate**
+
+Canonical integer **-10..10**, normal/default/reset **0**, means Windows
+provider-native engine rate, not percent or words per minute. Signs are accepted
+only for negative nonzero values; padding, plus signs, negative zero, fractions,
+suffixes and leading zeros are refused locally. Discovery/status includes
+provider-qualified support and desired/effective/source/revisions/recovery.
+**Kokoro is unsupported and unchanged**; no common speed scale is applied.
+
+Native Settings uses the same admitted action with explicit draft/save/reset.
+Original-channel audio session/generation, current name/provider/source/call/
+privacy/ownership and native-lifetime conditions remain required. Protected/
+Unknown calls deny voice-originated writes, even if later dispatched through UI.
+Confirmed changes retire active/queued output and reach future eligible Windows
+synthesis only. They never capture, synthesize/autoplay/replay, switch provider,
+alter assets or change global Windows audio settings. Pending exact approvals/
+questions and full interrupted visual responses remain intact. Unconfirmed
+persistence/evidence stays unavailable across restart; inspect and repair before
+fresh refresh. Existing call/output/zero-volume gates and retention rules stay.
+
+### Inspect or change the device-default response mode
+
+- **list response settings**
+- **get responses.default-mode**
+- **status responses.default-mode**
+- **set responses.default-mode to Hybrid**
+- **set responses.default-mode to VoiceOnly**
+- **set responses.default-mode to VisualOnly**
+- **reset responses.default-mode**
+
+Only these exact enum names (case-insensitive) are accepted; numbers, lists,
+invented options, fuzzy aliases and extra words clarify locally before inference.
+Typed and explicitly activated voice use the same grammar, optionally prefixed
+with the current assistant name. Input is bounded to 1024 UTF-8 bytes including
+the prefix and rejects controls; complete JSON output is bounded to 64 KiB,
+never truncated into a success-shaped partial result.
+The existing device preference is saved atomically and read back under real
+host/session/generation/original-channel/call admission. Reset saves Hybrid only.
+Protected/Unknown calls reject original voice mutations; a fresh eligible
+typed/native request is separate. Pending exact questions/approvals are not
+answered or replaced. Results remain visual, never autoplay/replay or capture.
+Task/queue precedence and mandatory call/privacy/full-visual recovery remain
+unchanged; no narrower override or model settings tool is added.
+
+### Inspect or change an installed speech choice
+
+- **list speech settings**
+- **get speech.provider**
+- **get speech.voice**
+- **set speech.provider to windows-sapi**
+- **set speech.voice to kokoro / af_heart**
+- **reset speech.provider**
+- **reset speech.voice**
+
+Use the installed IDs actually listed on your device. Exact spoken option
+names, such as **speech provider**, and the configured assistant-name prefix
+also work. Voice choices use `provider / ID`, or an unambiguous exact voice ID;
+selecting a voice explicitly selects that provider too. IDs are not guessed,
+translated or case-normalized, and unknown or unavailable choices do not
+trigger a model, download or substitute. The command bound is 320 characters
+after the optional name prefix; voice IDs are at most 256 characters.
+
+Provider set/reset also restores that provider's advertised default voice;
+provider reset chooses Windows. Voice reset restores only the current
+provider's advertised default. An unavailable default requires an explicit
+installed voice choice. Status reports saved/desired/effective values,
+revision and recovery. Protected calls reject original voice-channel set/reset,
+including a later UI confirmation; a new eligible Settings/typed request is
+required. Rate and model settings tools are not added; volume uses the
+independent exact commands above.
+See [the shared native controls](settings.md#speech-provider).
+
+### Inspect or lower spoken summary caps
+
+- **list speech settings**
+- **get speech.summary-sentences**
+- **get speech.summary-words**
+- **set speech.summary-sentences to 2**
+- **set speech.summary-words to 40**
+- **reset speech.summary-sentences**
+- **reset speech.summary-words**
+
+The exact spoken names **speech summary sentences** and **speech summary words**
+also work, with the configured-name prefix for activated voice.
+Values are exact positive integers: sentences **1-3**, words **1-80**.
+Defaults are **3 sentences / 80 words**. Reset changes only that cap.
+These device-local settings share the installed-speech workflow, original-channel
+call/privacy/ownership gate, revisions, audit and live Settings notifications.
+Neither command permits a model interpretation, extra model call or asset change.
+Ordinary speech includes the title and retained warnings and must fit both caps.
+Over-cap results remain fully visual with an explicit refusal status, never
+truncated. Exact approval/question readback retains its own mandatory bounds.
+See [counting and recovery semantics](settings.md#spoken-summary-limits).
 
 ### Open settings
 - **open settings**
@@ -433,3 +1046,118 @@ model; selecting an option is **not** permission to run an action or create a
 grant. A later action proposal still requires its own approval, unless a
 specific grant already covers that action. Kora limits consecutive questions
 to three; start a new request with more details if it reaches that limit.
+## Run skills and future artifacts
+
+Kora can apply a bundled skill's instructions to a local-model request from
+the command box or activated voice. Future bundled instructions and prompts
+use the same command format.
+
+**Type a slash command**
+
+Type `/` in the command box to open a dropdown of every available bundled and
+disk-backed artifact. Continue typing to filter by command name, or type a
+kind such as `/skill `, `/prompt `, or `/instruction `. Use Up/Down and Enter
+or select an item with the pointer; Escape closes the dropdown.
+
+Use a direct command:
+
+```text
+/lock
+/restart
+/shutdown
+```
+
+You can also include the artifact kind:
+
+```text
+/skill lock
+/skill restart
+/skill shutdown
+```
+
+An artifact that accepts request text uses the rest of the line as its input:
+
+```text
+/prompt explain why this setup failed
+```
+
+The current release bundles only the three skills listed above. An unknown,
+incomplete, or wrong-kind slash command shows an error and is not sent to the
+model as an ordinary question.
+
+**Say an artifact command**
+
+Start with your configured assistant name, then say **run** or **use**:
+
+- "Kora, run lock."
+- "Kora, use the restart skill."
+- "Kora, run the shut down the machine skill."
+- "Kora, use explain to summarize this result." when a future `explain`
+  artifact is available.
+
+If you renamed Kora, use the configured name. Voice artifact requests without
+the activation name are rejected in the same way as other free-form voice
+requests.
+
+**Where disk artifacts are loaded from**
+
+Kora loads compatible files at startup from its own roaming `Skills`,
+`Instructions`, and `Prompts` folders and the existing VS Code or VS Code
+Insiders prompt/instruction locations. Personal skill roots under `.copilot`,
+`.agents`, `.claude`, or another selected profile folder **are not loaded into
+the model or artifact command catalogue**. Use the separate read-only native
+inspection below. A shared root registration does not authorize any existing
+prompt/instruction route.
+
+Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
+`*.instructions.md`. Files require bounded UTF-8 content and YAML frontmatter.
+Skills marked `user-invocable: false` do not appear. Conflicting command names,
+IDs, or spoken names fail closed instead of choosing one source silently.
+Restart Kora after adding or changing an artifact.
+
+### Inspect shared profile skills locally
+
+Open the tray **Skill packages**, then **Shared profile sources (read only)**.
+Choose **Choose and register profile root (read only)** and select an exact
+bounded local directory below your Windows profile, such as `.agents\skills`.
+Kora resolves the profile through Windows Known Folder APIs, not environment
+variables or a typed/model-supplied profile override. It never scans the whole
+profile. Select a registered root and choose **List selected source**.
+
+Review every compatible or unavailable package with its source ID/file,
+declared name/version, exact SHA-256 byte digest, immutable inert SKILL.md text,
+tool references, additional uninspected entries and reasons.
+**Recheck selected revision** labels a changed live revision stale without
+changing the displayed old snapshot; list again for a new review.
+
+The narrow reader requires flat YAML `name`, `version` (for example `1.0.0`)
+and `description`. Unsupported metadata/YAML, scripts or extra package files,
+executable/unknown fenced code and unresolved references remain unavailable,
+not silently omitted. Invalid UTF-8 is unavailable without lossy conversion.
+Limits are four roots, 32 packages/256 entries/four directory levels per source,
+64 KiB per SKILL.md and 1 MiB instruction bytes per source. Links/reparse points,
+hard links, path escapes and removed/replaced/busy sources fail closed.
+
+Registration persists only root consent and directory identity in device-local
+atomic preferences. Corrupt/unknown saved registrations block discovery; restore
+a verified registration file or the original source explicitly. No silent reset,
+repair or rebinding occurs. Closing privacy cancels reads and clears the view.
+
+**Enable, disable, invoke, Kora-specific authoring and model exposure are
+unavailable here.** Registration/review grants no execution, egress, approval
+or bundled trust; Kora never writes the shared source, fetches references,
+installs dependencies or executes its scripts. This is not a harmlessness or
+complete dependency-inventory certification.
+
+**What “run” means**
+
+Kora sends the current request and the exact selected bundled instructions
+only to the configured local model. The artifact is source- and
+version-qualified, and it remains selected if Kora asks a clarification
+question.
+
+Selecting an artifact does **not** run its embedded PowerShell, approve a
+protected operation, create a grant, or mean an action succeeded. If the model
+proposes a registered action, Kora still applies the ordinary host validation,
+approval, privacy, audit, and execution rules. The current embedded
+session-control scripts remain inspection-only.

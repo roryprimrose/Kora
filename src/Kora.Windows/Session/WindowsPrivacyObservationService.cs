@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Windows.Diagnostics;
@@ -85,16 +87,22 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
 
     private WindowsPrivacySnapshot Refresh(
         bool topologyChanged,
-        WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.Unknown)
+        WindowsPrivacyChangeReason reason = WindowsPrivacyChangeReason.Unknown,
+        PrivacyObservation? observation = null)
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
         lock (querySync)
         {
-            return ReadAndPublish(topologyChanged, reason);
+            var result = ReadAndPublish(topologyChanged, reason, observation, out var outcome);
+            activity.Complete(outcome);
+            return result;
         }
     }
 
-    private WindowsPrivacySnapshot ReadAndPublish(bool topologyChanged, WindowsPrivacyChangeReason reason)
+    private WindowsPrivacySnapshot ReadAndPublish(bool topologyChanged, WindowsPrivacyChangeReason reason,
+        PrivacyObservation? observation, out HostOperationOutcome outcome)
     {
+        outcome = HostOperationOutcome.Cancelled;
         long requestedVersion;
         WindowsPrivacyChangedEventArgs? change;
         WindowsPrivacySnapshot result;
@@ -109,22 +117,27 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
         }
 
         WindowsPrivacySnapshot observed;
+        var queryStarted = Stopwatch.GetTimestamp();
         try
         {
             observed = source.Read();
+            outcome = HostOperationOutcome.Completed;
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            outcome = HostOperationOutcome.Failed;
             WindowsLog.Error(logger, exception, "Observing Windows privacy prerequisites");
             observed = new WindowsPrivacySnapshot(
                 WindowsSessionState.Unknown, MicrophoneAccessState.Unknown,
                 0, [], null, null);
         }
+        var queryCompleted = Stopwatch.GetTimestamp();
 
         lock (sync)
         {
             if (disposed || requestedVersion != observationVersion)
             {
+                outcome = HostOperationOutcome.Cancelled;
                 return current;
             }
 
@@ -143,16 +156,22 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
                 TopologyRevision = current.TopologyRevision + (changedEndpoints ? 1 : 0),
                 ActiveMicrophoneIds = Array.AsReadOnly(observed.ActiveMicrophoneIds.ToArray()),
             };
-            change = Update(observed, reason);
+            change = Update(observed, reason, observation ?? PrivacyObservation.Create(queryCompleted));
             result = current;
         }
 
         Notify(change);
+        if (change is not null)
+        {
+            WindowsLog.PrivacyQueryCompleted(logger, change.Observation.Id, reason,
+                queryStarted, queryCompleted, Stopwatch.Frequency);
+        }
         return result;
     }
 
     private void OnSourceChanged(object? sender, WindowsPrivacySignalEventArgs eventArgs)
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Windows, HostOperation.Runtime);
         WindowsPrivacyChangedEventArgs? change = null;
         lock (sync)
         {
@@ -171,19 +190,22 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
                     change = Update(current with { SessionState = state },
                         eventArgs.Reason == WindowsPrivacyChangeReason.Unknown
                             ? WindowsPrivacyChangeReason.Session
-                            : eventArgs.Reason);
+                            : eventArgs.Reason, eventArgs.Observation);
                 }
             }
         }
 
         Notify(change);
         Refresh(eventArgs.TopologyChanged, eventArgs.Reason |
-            (eventArgs.TopologyChanged ? WindowsPrivacyChangeReason.DeviceTopology : WindowsPrivacyChangeReason.Unknown));
+            (eventArgs.TopologyChanged ? WindowsPrivacyChangeReason.DeviceTopology : WindowsPrivacyChangeReason.Unknown),
+            eventArgs.Observation);
+        activity.Complete(HostOperationOutcome.Completed);
     }
 
     private WindowsPrivacyChangedEventArgs? Update(
         WindowsPrivacySnapshot observed,
-        WindowsPrivacyChangeReason reason)
+        WindowsPrivacyChangeReason reason,
+        PrivacyObservation observation)
     {
         if (current.SessionState == observed.SessionState &&
             current.MicrophoneAccess == observed.MicrophoneAccess &&
@@ -219,7 +241,7 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
             reason |= WindowsPrivacyChangeReason.DefaultSpeaker;
         }
 
-        return new WindowsPrivacyChangedEventArgs(previous, current, reason);
+        return new WindowsPrivacyChangedEventArgs(previous, current, reason, observation);
     }
 
     private void Notify(WindowsPrivacyChangedEventArgs? args)
@@ -229,6 +251,10 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
             return;
         }
 
+        using var scope = logger.BeginScope(new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["PrivacyObservationId"] = args.Observation.Id,
+        });
         foreach (var callback in Changed?.GetInvocationList() ?? [])
         {
             try
@@ -240,5 +266,10 @@ public sealed class WindowsPrivacyObservationService : IWindowsPrivacyObservatio
                 WindowsLog.Error(logger, exception, "Notifying a Windows privacy observer");
             }
         }
+        // Receipt emission follows synchronous negative closure, never delaying its admission gate.
+        WindowsLog.PrivacyObserved(logger, args.Observation.Id, args.Reason,
+            args.Current.SessionState, args.Current.MicrophoneAccess, args.Current.TopologyRevision,
+            args.Observation.ObservedTimestamp, args.Observation.TimestampFrequency,
+            args.Observation.OsEventToNotificationDelayMilliseconds);
     }
 }

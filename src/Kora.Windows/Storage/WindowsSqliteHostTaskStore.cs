@@ -13,7 +13,7 @@ namespace Kora.Windows.Storage;
 public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
 {
     private const int ApplicationId = 1263489585;
-    private static readonly string[] Schema =
+    internal static readonly string[] Schema =
     [
         """
         CREATE TABLE host_tasks(
@@ -32,7 +32,12 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             PRIMARY KEY(task_id, revision)) STRICT
         """,
     ];
-    private readonly RestrictedSqliteDatabase database;
+    private RestrictedSqliteDatabase database;
+    private readonly RestrictedSqliteDatabase legacy;
+    private readonly RestrictedStorageDirectory interactionPartition;
+    private Action<SqliteConnection>? validateAuthority;
+    private Guid? authorityRun;
+    private Action<SqliteConnection, SqliteTransaction, HostTaskRecord, bool>? observeActivity;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
 
     public WindowsSqliteHostTaskStore(IApplicationDataPaths paths)
@@ -42,30 +47,151 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
 
     internal WindowsSqliteHostTaskStore(IApplicationDataPaths paths, ISqliteTransactionCheckpoint? checkpoint)
     {
-        database = new RestrictedSqliteDatabase(paths, "HostStorageV1", "host.db", ApplicationId, Schema);
+        legacy = new RestrictedSqliteDatabase(paths, "HostStorageV1", "host.db", ApplicationId,
+            LegacySchema, new(1, 2, Schema, (connection, transaction, token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                ValidateTasks(connection);
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = HandoffTable + "; INSERT INTO task_authority_handoff VALUES(1,0);";
+                command.ExecuteNonQuery();
+            }));
+        database = legacy;
+        interactionPartition = new(paths, includeKeys: false, partitionName: HostInteractionSchema.Partition);
         this.checkpoint = checkpoint;
+    }
+
+    private const string HandoffTable = """
+        CREATE TABLE task_authority_handoff(
+            singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),
+            frozen INTEGER NOT NULL CHECK(frozen IN (0,1))) STRICT
+        """;
+    private static readonly string[] LegacySchema = [.. Schema, HandoffTable];
+
+    internal void BindAuthority(RestrictedSqliteDatabase authority, Action<SqliteConnection> validate, Guid runId,
+        Action<SqliteConnection, SqliteTransaction, HostTaskRecord, bool>? activity = null)
+    {
+        database = authority;
+        validateAuthority = validate;
+        authorityRun = runId;
+        observeActivity = activity;
+    }
+
+    internal void RequireFreshAuthority(CancellationToken token)
+    {
+        using var lease = legacy.AcquireReadLease(token);
+        using var source = legacy.Open(created: false, token);
+        ValidateTasks(source);
+        using var command = source.CreateCommand();
+        command.CommandText = "SELECT (SELECT count(*) FROM host_tasks)+(SELECT frozen FROM task_authority_handoff WHERE singleton=1);";
+        if (command.ExecuteScalar() is not long value || value != 0)
+        {
+            throw new InvalidDataException("Interaction authority is missing beside existing/frozen tasks. Restore or explicitly recover storage; replacement is forbidden.");
+        }
+    }
+
+    internal void ImportAuthority(SqliteConnection destination, SqliteTransaction transaction, CancellationToken token)
+    {
+        using var lease = legacy.AcquireReadLease(token);
+        using var source = legacy.Open(created: false, token);
+        ValidateTasks(source);
+        using (var freeze = source.CreateCommand())
+        {
+            freeze.CommandText = "UPDATE task_authority_handoff SET frozen=1 WHERE singleton=1;";
+            if (freeze.ExecuteNonQuery() != 1) { throw new InvalidDataException("The legacy task handoff is missing."); }
+        }
+        foreach (var table in new[] { "host_tasks", "host_task_events" })
+        {
+            using var read = source.CreateCommand();
+            read.CommandText = "SELECT * FROM " + table + ";";
+            using var rows = read.ExecuteReader();
+            while (rows.Read())
+            {
+                token.ThrowIfCancellationRequested();
+                using var write = destination.CreateCommand();
+                write.Transaction = transaction;
+                var parameters = Enumerable.Range(0, rows.FieldCount).Select(index => "$p" + index.ToString(CultureInfo.InvariantCulture)).ToArray();
+                write.CommandText = "INSERT INTO " + table + " VALUES(" + string.Join(',', parameters) + ");";
+                for (var index = 0; index < rows.FieldCount; index++)
+                {
+                    write.Parameters.AddWithValue(parameters[index], rows.GetValue(index));
+                }
+                write.ExecuteNonQuery();
+            }
+        }
+        legacy.VerifyFiles();
+        ValidateTasks(destination);
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
         new(Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var lease = database.AcquireLease(out var created, cancellationToken);
-            using var connection = OpenDatabase(created, cancellationToken);
+            if (validateAuthority is null && !legacy.HasExistingPartition() && interactionPartition.HasExistingPartition())
+            {
+                throw new InvalidDataException("The legacy task handoff partition is missing beside interaction authority. Replacement is forbidden.");
+            }
+            using var lease = AcquireTaskLease(out var created, cancellationToken);
+            using var connection = OpenDatabase(created, cancellationToken, allowFrozen: true);
         }, cancellationToken));
+
+    internal void RequireRetiredAuthority(CancellationToken token)
+    {
+        using var lease = legacy.AcquireReadLease(token);
+        using var source = legacy.Open(created: false, token);
+        ValidateTasks(source);
+        using var command = source.CreateCommand();
+        command.CommandText = "SELECT frozen FROM task_authority_handoff WHERE singleton=1;";
+        if (command.ExecuteScalar() is not long frozen || frozen != 1)
+        {
+            throw new InvalidDataException("The consolidated task authority has no validated frozen handoff. Recovery is required.");
+        }
+    }
 
     // The interaction writer holds this same lease until its own SQLite COMMIT finishes.
     // No task cancellation/terminal transition can interleave with admitted authority.
     internal T WithCommittedIntent<T>(HostRequest request, Func<HostTaskRecord, T> operation,
         CancellationToken cancellationToken, bool requireIdle = false)
+        => WithCommittedIntent(request, (_, intent) => operation(intent), cancellationToken, requireIdle);
+
+    internal T WithCommittedIntent<T>(HostRequest request, Func<SqliteConnection, HostTaskRecord, T> operation,
+        CancellationToken cancellationToken, bool requireIdle = false)
+    {
+        RequireCommittedIntentContext(request);
+        using var lease = AcquireTaskLease(out var created, cancellationToken);
+        using var connection = OpenDatabase(created, cancellationToken);
+        var intent = ReadCommittedIntent(connection, request, requireIdle);
+        RequireNotDisposed(connection, request.SessionId);
+        var result = operation(connection, intent);
+        database.VerifyFiles();
+        return result;
+    }
+
+    internal async Task<T> WithCommittedIntentAsync<T>(HostRequest request,
+        Func<SqliteConnection, HostTaskRecord, Task<T>> operation, CancellationToken cancellationToken)
+    {
+        RequireCommittedIntentContext(request);
+        using var lease = AcquireTaskLease(out var created, cancellationToken);
+        using var connection = OpenDatabase(created, cancellationToken);
+        var intent = ReadCommittedIntent(connection, request, requireIdle: false);
+        RequireNotDisposed(connection, request.SessionId);
+        var result = await operation(connection, intent).ConfigureAwait(false);
+        database.VerifyFiles();
+        return result;
+    }
+
+    private static void RequireCommittedIntentContext(HostRequest request)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Activity!.IsStopped || live.Request != request)
         {
             throw new InvalidOperationException("The interaction lost its live owning host request.");
         }
-        using var lease = database.AcquireLease(out var created, cancellationToken);
-        using var connection = OpenDatabase(created, cancellationToken);
+    }
+
+    private static HostTaskRecord ReadCommittedIntent(SqliteConnection connection, HostRequest request, bool requireIdle)
+    {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM host_tasks WHERE task_id=$task;";
         command.Parameters.AddWithValue("$task", request.TaskId.Value.ToString("D"));
@@ -74,9 +200,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             intent = reader.Read() ? Decode(reader) : null;
         }
-        if (intent is null || intent.IsTerminal || intent.Request.RequestId != request.RequestId
-            || intent.Request.SessionId != request.SessionId || intent.Request.Origin != request.Origin
-            || (intent.Request.InvocationId is { } invocation && invocation != request.InvocationId))
+        if (intent is null || intent.IsTerminal || !request.IsWithinIntent(intent.Request))
         {
             throw new InvalidDataException("Interaction authority requires matching committed nonterminal intent.");
         }
@@ -99,9 +223,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
                 }
             }
         }
-        var result = operation(intent);
-        database.VerifyFiles();
-        return result;
+        return intent;
     }
 
     public ValueTask<HostTaskRecord?> ReadTaskAsync(HostId<TaskIdentity> taskId, CancellationToken cancellationToken)
@@ -110,7 +232,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         return new ValueTask<HostTaskRecord?>(Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var lease = database.AcquireLease(out var created, cancellationToken);
+            using var lease = AcquireTaskLease(out var created, cancellationToken);
             using var connection = OpenDatabase(created, cancellationToken);
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT * FROM host_tasks WHERE task_id=$task;";
@@ -134,6 +256,18 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
             // WithCommittedIntent owns the task lease. Use that same connection/lease rather
             // than a passive UI query or a second acquisition of the non-reentrant lease.
             return operation(intent);
+        }, cancellationToken, requireIdle: true);
+
+    internal T WithCommittedIdleIntent<T>(HostRequest request, Func<SqliteConnection, HostTaskRecord, T> operation,
+        CancellationToken cancellationToken) =>
+        WithCommittedIntent(request, (connection, intent) =>
+        {
+            if (intent.State != HostTaskState.IntentRecorded || intent.Revision.Value != 1
+                || request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            {
+                throw new InvalidOperationException("Lifecycle control requires a fresh original-user control intent.");
+            }
+            return operation(connection, intent);
         }, cancellationToken, requireIdle: true);
 
     public ValueTask<SessionPage<HostTaskRecord>> ReadSessionPageAsync(HostId<SessionIdentity> session,
@@ -209,7 +343,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         using var boundary = new StorageOperation("storage.task.commit", cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         var created = false;
-        using var lease = requireExisting ? database.AcquireReadLease(cancellationToken)
+        using var lease = requireExisting || validateAuthority is not null ? database.AcquireReadLease(cancellationToken)
             : database.AcquireLease(out created, cancellationToken);
         using var connection = OpenDatabase(created, cancellationToken);
         using var transaction = connection.BeginTransaction();
@@ -235,7 +369,87 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         {
             throw new InvalidOperationException("The task revision, identity or transition conflicts with durable state.");
         }
+        if (validateAuthority is not null)
+        {
+            RequireNotDisposed(connection, record.Request.SessionId);
+        }
+        if (validateAuthority is not null && record.State is HostTaskState.DispatchRecorded or HostTaskState.Cancelled)
+        {
+            using var waiting = connection.CreateCommand();
+            waiting.Transaction = transaction;
+            waiting.CommandText = "SELECT 1 FROM host_task_waits WHERE task_id=$id;";
+            waiting.Parameters.AddWithValue("$id", record.Request.TaskId.Value.ToString("D"));
+            if (waiting.ExecuteScalar() is not null)
+            {
+                throw new InvalidOperationException("Admitted question waits require the shared atomic cancellation or answered pre-dispatch gateway.");
+            }
+        }
+        if (validateAuthority is not null)
+        {
+            using var queued = connection.CreateCommand();
+            queued.Transaction = transaction;
+            queued.CommandText = "SELECT payload FROM session_queue WHERE task_id=$id;";
+            queued.Parameters.AddWithValue("$id", record.Request.TaskId.Value.ToString("D"));
+            if (queued.ExecuteScalar() is string payload)
+            {
+                var entry = HostInteractionCodec.Decode<SessionQueueEntry>(payload);
+                if (!(entry.IsPending && record.State == HostTaskState.Interrupted)
+                    && !(entry.IsCurrent && record.State == HostTaskState.Unknown))
+                {
+                    throw new InvalidOperationException("Queued work requires the shared atomic admission/receipt service; only no-replay recovery may write generically.");
+                }
+            }
+        }
 
+        WriteTask(connection, transaction, record);
+        observeActivity?.Invoke(connection, transaction, record,
+            expectedRevision == 0 && !requireExisting && record.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice);
+        if (expectedRevision == 0 && authorityRun is { } run)
+        {
+            using var source = connection.CreateCommand();
+            source.Transaction = transaction;
+            source.CommandText = "INSERT INTO host_task_runs VALUES($task,$run);";
+            source.Parameters.AddWithValue("$task", record.Request.TaskId.Value.ToString("D"));
+            source.Parameters.AddWithValue("$run", run.ToString("D"));
+            source.ExecuteNonQuery();
+        }
+        checkpoint?.BeforeCommit(connection, transaction);
+        database.VerifyFiles();
+        cancellationToken.ThrowIfCancellationRequested();
+        // Once COMMIT succeeds, cancellation must not turn a durable receipt into a cancelled result.
+        transaction.Commit();
+        boundary.Complete();
+    }
+
+    internal void PurgeRetiredSession(HostId<SessionIdentity> session, CancellationToken token)
+    {
+        using var lease = legacy.AcquireReadLease(token);
+        using var connection = legacy.Open(created: false, token);
+        ValidateTasks(connection);
+        legacy.RequireEmptyArtifactInventory();
+        using var settings = connection.CreateCommand();
+        settings.CommandText = "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0; SELECT frozen FROM task_authority_handoff WHERE singleton=1;";
+        if (settings.ExecuteScalar() is not long frozen || frozen != 1)
+        {
+            throw new InvalidDataException("Legacy deletion requires the validated retired handoff.");
+        }
+        using var transaction = connection.BeginTransaction();
+        using var delete = connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText = """
+            DELETE FROM host_task_events WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
+            DELETE FROM host_tasks WHERE session_id=$id;
+            """;
+        delete.Parameters.AddWithValue("$id", session.Value.ToString("D"));
+        delete.ExecuteNonQuery();
+        token.ThrowIfCancellationRequested();
+        transaction.Commit();
+        connection.Close();
+        legacy.ClearCommittedJournal();
+    }
+
+    internal static void WriteTask(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord record)
+    {
         using var write = connection.CreateCommand();
         write.Transaction = transaction;
         write.CommandText = """
@@ -253,19 +467,32 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         write.Parameters.AddWithValue("$revision", record.Revision.Value);
         write.Parameters.AddWithValue("$state", (int)record.State);
         write.ExecuteNonQuery();
-        checkpoint?.BeforeCommit(connection, transaction);
-        database.VerifyFiles();
-        cancellationToken.ThrowIfCancellationRequested();
-        // Once COMMIT succeeds, cancellation must not turn a durable receipt into a cancelled result.
-        transaction.Commit();
-        boundary.Complete();
+        using var schema = connection.CreateCommand();
+        schema.Transaction = transaction;
+        schema.CommandText = "SELECT 1 FROM sqlite_schema WHERE name='session_history';";
+        if (schema.ExecuteScalar() is not null)
+        {
+            SessionHistoryPersistence.Task(connection, transaction, record);
+        }
+    }
+
+    private void RequireNotDisposed(SqliteConnection connection, HostId<SessionIdentity> session)
+    {
+        if (validateAuthority is null) { return; }
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM work_sessions WHERE session_id=$id AND state=2;";
+        command.Parameters.AddWithValue("$id", session.Value.ToString("D"));
+        if (command.ExecuteScalar() is not null)
+        {
+            throw new InvalidOperationException("A disposed session cannot admit new interaction work.");
+        }
     }
 
     private ReadOnlyCollection<HostTaskRecord> ReadIncomplete(int limit, CancellationToken cancellationToken)
     {
         using var boundary = new StorageOperation("storage.task.read", cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        using var lease = database.AcquireLease(out var created, cancellationToken);
+        using var lease = AcquireTaskLease(out var created, cancellationToken);
         using var connection = OpenDatabase(created, cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM host_tasks WHERE state IN (0,1) ORDER BY task_id LIMIT $limit;";
@@ -282,11 +509,46 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         return records.AsReadOnly();
     }
 
-    private SqliteConnection OpenDatabase(bool created, CancellationToken cancellationToken)
+    private SqliteConnection OpenDatabase(bool created, CancellationToken cancellationToken, bool allowFrozen = false)
     {
         var connection = database.Open(created, cancellationToken);
         try
         {
+            if (created && ReferenceEquals(database, legacy))
+            {
+                using var initial = connection.CreateCommand();
+                initial.CommandText = "INSERT INTO task_authority_handoff VALUES(1,0);";
+                initial.ExecuteNonQuery();
+            }
+
+            ValidateTasks(connection);
+            validateAuthority?.Invoke(connection);
+            if (ReferenceEquals(database, legacy))
+            {
+                using var handoff = connection.CreateCommand();
+                handoff.CommandText = "SELECT frozen FROM task_authority_handoff WHERE singleton=1;";
+                if (handoff.ExecuteScalar() is not long value || (!allowFrozen && value != 0))
+                {
+                    throw new InvalidOperationException("Legacy task authority is frozen or missing. Open the consolidated host store; no work was replayed.");
+                }
+            }
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
+    }
+
+    private FileStream AcquireTaskLease(out bool created, CancellationToken token)
+    {
+        created = false;
+        return validateAuthority is null ? database.AcquireLease(out created, token) : database.AcquireReadLease(token);
+    }
+
+    internal static void ValidateTasks(SqliteConnection connection)
+    {
             using var validate = connection.CreateCommand();
             validate.CommandText = """
                 SELECT count(*) FROM host_tasks t
@@ -304,19 +566,6 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
                 throw new InvalidDataException("The persisted task state or event projection is invalid.");
             }
             ValidateLedger(connection);
-            return connection;
-        }
-        catch (SqliteException exception)
-        {
-            connection.Dispose();
-            cancellationToken.ThrowIfCancellationRequested();
-            throw new InvalidDataException("The private host database could not be opened or validated.", exception);
-        }
-        catch
-        {
-            connection.Dispose();
-            throw;
-        }
     }
 
     private static void ValidateLedger(SqliteConnection connection)
@@ -372,7 +621,7 @@ public sealed class WindowsSqliteHostTaskStore : IHostTaskStore
         }
     }
 
-    private static HostTaskRecord Decode(SqliteDataReader reader)
+    internal static HostTaskRecord Decode(SqliteDataReader reader)
     {
         static Guid Identifier(SqliteDataReader row, string column)
         {

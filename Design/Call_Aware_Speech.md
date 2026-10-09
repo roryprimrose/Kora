@@ -1,8 +1,15 @@
 # Call-Aware Speech and Voice Configuration
 
-Status: bounded manual host mode and conservative output/origin gates delivered;
+Status: bounded manual host mode, independent device-local feedback and conservative output/origin gates delivered;
 full R15 remains partial. Automatic tool detection is unavailable, not implemented.
 The remaining detector and configurable exception contracts below are proposed.
+
+The [delivered R18 broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
+is visual/native only. It neither requests synthesis/playback nor inherits
+Voice/Both feedback as permission. Protected Active/Suspected/Unknown call
+evidence holds its admission; a changed call/privacy/lock/owner epoch retires
+held action eligibility. Call end never opens a window, speaks a backlog,
+changes a question target, enables listening or creates reusable authority.
 
 ## Delivered Bounded Manual Mode - 2026-10-07
 
@@ -68,6 +75,115 @@ No call-only executable with maintained equivalent evidence was identified for
 retirement, and none is deleted or rerun.
 
 Related: [Proactive Interaction](Proactive_Interaction.md), [Task Lifecycle](Task_Lifecycle.md), [Environment Setup](Environment_Setup.md), [Security](Security_Data_Flows.md).
+
+## Delivered Manual Command Parity - 2026-10-08
+
+The existing run-only layer now has shared native and exact typed/activated
+`list call settings`, `get/status call.manual-active`, `set ... to on/off` and
+`reset call.manual-active` routes. The current installed prefix is optional;
+the fixed phrases are in both activation/recognition grammars. Reserved call
+input precedes pending-question dispatch. Cached inspection is passive and
+bounded (1,024-byte input / 64-KiB complete JSON); it never creates intent,
+approval, unrelated activity, speech or automatic evidence. Mutation refuses
+pending questions/approvals and preserves complete required visual content.
+
+[ManualCallControl](../src/Kora.Application/Communication/ManualCallControl.cs)
+reuses the common original-input/committed-intent
+[HostControlAdmission](../src/Kora.Application/Hosting/HostControlAdmission.cs)
+with its own session domain, and delegates to a dedicated
+[host-only storage seam](../src/Kora.Core/Storage/IManualCallControlStore.cs),
+not fabricated audio/maintenance authority. The host allocates original-user
+control identity, commits intent, and revalidates current session generation,
+own live context, original channel, observation revision and captured native
+lifetime/owner/privacy/input gates. Required requested and outcome authority
+audits use the consolidated lease/connection; their unique audit identities
+correlate through the same exact host request/session/task and causal trace,
+not caller fields or an invented approval. The same lease remains owned across
+awaited resource closure before its truthful terminal audit; closure failure
+or cancellation cannot acquire a successful terminal receipt.
+
+The current observation lock surrounds the transition's generation fence and
+source/admission recheck. Manual on/off/reset fence pending synthesis/playback
+and capture/callback generations; late old requests may finish visually but
+cannot synthesize after the layer clears. Resource release is awaited without
+reopening capture or replaying output. Changed input needs explicit fresh
+listening enablement/PTT. These are process-memory effects, not an atomic
+persisted manual flag. Lost outcome evidence or unconfirmed resource closure
+does not certify rollback: a separate explicit run-owned
+`ManualControlEvidenceUnavailable` hold prevents speech, activation and reusable
+grant admission, without changing automatic observations or saved flags.
+Further manual mutations cannot use that unknown state as authority.
+
+The saved `CallAwareSettings` tuple, defaults, Perpetual/session grant records
+and unavailable `ExactReviewUnavailable` relaxation path remain unchanged.
+Restart starts manual-off with the composed detector still unavailable. This
+does not deliver automatic detection, persisted call state, new settings/model
+tools, speak-once, output mode/volume, microphone/consent, or full R15.
+Maintained portable/native-binding and actual private-SQLite tests cover
+parity, grammar/bounds, original input, source/generation and retirement/audit
+failure without installed devices/providers or live effects.
+
+**Experiment disposition:** no executable or receipt is removed or rerun.
+Speech's acoustic/hardware/provider evidence, MG1's actual runtime envelope and
+late-effect receipts, runtime/worker/containment proofs, and storage-engine/
+encryption/artifact/release/source consumers are not equivalent to these
+deterministic command/policy and standard-SQLite compositions. No call-only
+maintained equivalent executable was found. Native accessibility, automatic
+provider detection, real-call/acoustic/runtime/installed and A0-A4 qualification
+remain separately gated.
+
+## Delivered Bounded In-Call Feedback
+
+The independent device-local **`calls.feedback-mode`** defaults to **UI** and
+offers **Voice / UI / Both / Inherit** in native Settings and exact
+typed/current-name ACTIVATED discovery/get/status/set/reset. The
+[authoritative contract](User_Configuration.md#delivered-bounded-device-local-in-call-feedback-r10r15)
+defines source provenance, reset, atomic/audited confirmation and recovery.
+It applies before ordinary task/queue/session/device output only under
+effective Active/Suspected, including manual Active. Unknown/invalid evidence
+does not activate a mode override and always withholds speech with full visual
+recovery; Clear/Unavailable use ordinary precedence. Unavailable/corrupt/pending
+feedback storage also withholds output across restart, without disabling input.
+
+Feedback does not grant speech permission. Voice/Both/Inherit retain independent
+call suppression and every ownership/privacy/mute/capture/lifetime/visual gate.
+No automatic detector, speak-once exception, downgrade review, general model
+settings tool or proactive configuration is added. Original protected-call
+voice mutations remain denied; fresh admitted UI changes remain possible.
+Changes retire queued/active output without replay/capture/consent/grant changes.
+Native accessibility, source-age/detector integration and real acoustic leakage/
+stop timing remain separate acceptance. All experiment evidence is retained;
+see [the assessed disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
+
+## Delivered Bounded Local Caption UX - 2026-10-09
+
+The disabled-by-default R25 local caption adjunct now supports primary-screen
+corner placement, a validated 0-30-second normal-completion dismissal delay
+(default 5), and run-only pin/unpin. Native and exact typed/current-name
+ACTIVATED discovery/get/status/set/reset share the
+[caption configuration contract](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09).
+Placement/delay reuse the existing admitted session/generation, original-channel,
+revision, audit/atomic/readback/receipt and unconfirmed-evidence gates.
+They never enable captions or change speech/output/call/capture policy.
+
+Only already-observed matching host-admitted response playback text can remain
+after normal successful completion, explicitly labelled **PREVIOUS SPEECH**.
+Pinning cannot retain unplayed/queued/failed/suppressed text or defeat immediate
+stop/cancel/replacement, call revision, privacy/ownership, input-recovery or
+configuration retirement. Clearance/unlock/unpin never replays speech or revives
+a retired caption. Original protected-call voice pin/option mutation is denied;
+inspection remains visual and passive. Required full native recovery remains
+independent. Caption content is never persisted, logged, put in history or sent
+to a model.
+
+Sentence alignment is still open because actual playback exposes only utterance
+segment 0, without admitted sentence boundaries. No synthesis/playback change,
+estimated timing, detector, call-feedback change, model egress or rich renderer
+is introduced. Existing bounded ordinary-speech caps remain intact; a brief
+spoken offer for an over-limit detailed answer is separate work. Maintained
+tests use fake playback/time and private preference fixtures, with source-tested
+native bindings; they do not qualify installed accessibility, live audio/calls
+or acoustic stop timing. All experiment evidence is retained.
 
 ## Default Behaviour
 

@@ -206,7 +206,14 @@ All voice-setting/in-call-option mutations, including reset/undo and speak-once 
 
 ## Verbal Settings
 
-Rich display commands are defined in [Information Display](Information_Display.md): "show the words you're saying", "hide speech text", "show the full answer", "preview that HTML", "show the source", and "close the content viewer".
+Delivered caption controls are exact `list speech text settings` and
+`get/status/set/reset display.speech-text`, `display.speech-text-placement`,
+`display.speech-text-dismissal-delay` and run-only `display.speech-text-pin`.
+See [the exact values and scope](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09).
+Broader proposed rich display commands are defined in
+[Information Display](Information_Display.md): "show the words you're saying",
+"hide speech text", "show the full answer", "preview that HTML", "show the source",
+and "close the content viewer". These natural aliases are not delivered.
 Renderer/browser availability and consent remain explicit; viewing content is not browser automation.
 Optional "learn my voice", "show my voice-learning status", "test my learned voice", and "forget my learned voice" use the [local profile contract](Security_Data_Flows.md#optional-local-frequent-speaker-learning), not ambient collection or authenticated-owner claims.
 

@@ -125,7 +125,7 @@ public sealed class SessionCommandTests
         Encoding.UTF8.GetByteCount(input).Should().Be(SessionCommand.MaximumInputBytes);
         SessionCommand.Parse(input, "Kora")!.Operation.Should().Be(SessionCommandOperation.Help);
         SessionCommand.Parse(input + " ", "Kora")!.Operation.Should().Be(SessionCommandOperation.Invalid);
-        SessionCommand.DiscoveryPhrases.Should().Equal("session help", "session list", "task help");
+        SessionCommand.DiscoveryPhrases.Should().Equal("session help", "session list", "task help", "queue help");
     }
 
     [Fact]

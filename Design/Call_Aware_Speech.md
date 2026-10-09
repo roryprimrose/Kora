@@ -148,6 +148,36 @@ Native accessibility, source-age/detector integration and real acoustic leakage/
 stop timing remain separate acceptance. All experiment evidence is retained;
 see [the assessed disposition](Implementation_Roadmap.md#bounded-in-call-feedback-experiment-disposition).
 
+## Delivered Bounded Local Caption UX - 2026-10-09
+
+The disabled-by-default R25 local caption adjunct now supports primary-screen
+corner placement, a validated 0-30-second normal-completion dismissal delay
+(default 5), and run-only pin/unpin. Native and exact typed/current-name
+ACTIVATED discovery/get/status/set/reset share the
+[caption configuration contract](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09).
+Placement/delay reuse the existing admitted session/generation, original-channel,
+revision, audit/atomic/readback/receipt and unconfirmed-evidence gates.
+They never enable captions or change speech/output/call/capture policy.
+
+Only already-observed matching host-admitted response playback text can remain
+after normal successful completion, explicitly labelled **PREVIOUS SPEECH**.
+Pinning cannot retain unplayed/queued/failed/suppressed text or defeat immediate
+stop/cancel/replacement, call revision, privacy/ownership, input-recovery or
+configuration retirement. Clearance/unlock/unpin never replays speech or revives
+a retired caption. Original protected-call voice pin/option mutation is denied;
+inspection remains visual and passive. Required full native recovery remains
+independent. Caption content is never persisted, logged, put in history or sent
+to a model.
+
+Sentence alignment is still open because actual playback exposes only utterance
+segment 0, without admitted sentence boundaries. No synthesis/playback change,
+estimated timing, detector, call-feedback change, model egress or rich renderer
+is introduced. Existing bounded ordinary-speech caps remain intact; a brief
+spoken offer for an over-limit detailed answer is separate work. Maintained
+tests use fake playback/time and private preference fixtures, with source-tested
+native bindings; they do not qualify installed accessibility, live audio/calls
+or acoustic stop timing. All experiment evidence is retained.
+
 ## Default Behaviour
 
 Suppress automatic speech during a detected/suspected call, or while an enabled detector cannot establish current state.

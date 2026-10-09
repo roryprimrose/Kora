@@ -16,6 +16,15 @@ public sealed partial class MainViewModelTests
 {
     private sealed class CaptionPreferences : ISpeechTextPreferences
     {
+        public SpeechCaptionOptions? Options { get; set; }
+        public SpeechCaptionOptions? LoadOptions() => Pending ? throw new InvalidDataException() : ReadBackOptions();
+        public SpeechCaptionOptions? ReadBackOptions() => Options;
+        public void SaveOptions(SpeechCaptionOptions options)
+        {
+            AfterSave?.Invoke();
+            if (Failure is { } failure) { throw failure; }
+            Options = options;
+        }
         public SpeechTextMode? Mode { get; set; }
         public bool Pending { get; set; }
         public Exception? Failure { get; set; }
@@ -42,6 +51,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.ClearSpokenResponse();
         await fixture.RunAsync("show your window");
         fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.SpeechCaptionPlacement.Should().BeNull();
         fixture.TextToSpeech.SpokenText.Should().NotBeNull();
         fixture.TextToSpeech.CaptionPlaybackId.Should().BeNull();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
@@ -72,6 +82,10 @@ public sealed partial class MainViewModelTests
         var missing = new Fixture();
         await using var missingAdmission = missing.OutputAdmission;
         missing.ViewModel.SpeechTextChoices.Should().BeEmpty();
+        missing.ViewModel.SpeechCaptionPlacement.Should().BeNull();
+        missing.ViewModel.SpeechCaptionOptionChoices.Should().BeEmpty();
+        missing.ViewModel.SpeechCaptionOptionsList.Should().Equal(SpeechCaptionOption.Placement, SpeechCaptionOption.DismissalDelay);
+        missing.ViewModel.SpeechCaptionLabel.Should().Be("CURRENT PLAYBACK - UTTERANCE");
         missing.ViewModel.SpeechTextConfigurationStatus.Should().Contain("unavailable");
         await missing.ViewModel.ResetSpeechTextCommand.ExecuteAsync();
         var fixture = new Fixture(enableSpeechText: true);
@@ -229,6 +243,85 @@ public sealed partial class MainViewModelTests
         fixture.OutputPreferences.SavedMode.Should().BeNull();
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
         fixture.Voice.StartedPhrases.Should().Contain("get display.speech-text");
+    }
+
+    [Fact]
+    public async Task Caption_option_native_typed_and_activated_routes_preserve_companions_and_never_enable_captions()
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        await fixture.RunAsync("set display.speech-text-placement to TopLeft");
+        fixture.CaptionPreferences.Options.Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.TopLeft, 5));
+        fixture.ViewModel.SpeechCaptionPlacement.Should().Be(SpeechCaptionPlacement.TopLeft);
+        await fixture.RunAsync("set display.speech-text-dismissal-delay to 30");
+        await fixture.RunAsync("reset display.speech-text-placement");
+        fixture.CaptionPreferences.Options.Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.BottomRight, 30));
+        await fixture.RaiseActivatedTranscriptAsync("Kora, reset display.speech-text-dismissal-delay", 1);
+        fixture.CaptionPreferences.Options.Should().Be(SpeechCaptionOptions.Default);
+        fixture.ViewModel.SelectedSpeechCaptionOption = SpeechCaptionOption.DismissalDelay;
+        fixture.ViewModel.SelectedSpeechCaptionOption = SpeechCaptionOption.DismissalDelay;
+        await fixture.ViewModel.RefreshSpeechTextCommand.ExecuteAsync();
+        fixture.ViewModel.SelectedSpeechCaptionChoice = fixture.ViewModel.SpeechCaptionOptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.Delay(0));
+        await fixture.ViewModel.SaveSpeechCaptionOptionCommand.ExecuteAsync();
+        fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(0);
+        await fixture.ViewModel.ResetSpeechCaptionOptionCommand.ExecuteAsync();
+        fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(5);
+        await fixture.RunAsync("get display.speech-text-pin");
+        fixture.ViewModel.Transcript.Should().Contain("run-only/current-caption");
+        await fixture.RunAsync("set display.speech-text-pin to true");
+        fixture.ViewModel.Transcript.Should().Contain("requires");
+        fixture.CaptionPreferences.Mode.Should().BeNull();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Voice.StartedPhrases.Should().Contain("set display.speech-text-placement to TopLeft");
+    }
+
+    [Fact]
+    public async Task Normal_completion_keeps_a_pinned_caption_but_stop_and_source_changes_still_retire_it()
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        fixture.TextToSpeech.ClearSpokenResponse();
+        fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = fixture.RunAsync("show your window");
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        fixture.TextToSpeech.PlaybackFrame = new(true, 0.5, fixture.TextToSpeech.CaptionPlaybackId, 4);
+        fixture.ViewModel.RefreshSpeechPlaybackFrame();
+        await fixture.ViewModel.ToggleSpeechCaptionPinCommand.ExecuteAsync();
+        fixture.ViewModel.IsSpeechCaptionPinned.Should().BeTrue();
+        fixture.ViewModel.SpeechCaptionPinLabel.Should().Be("Unpin");
+        fixture.TextToSpeech.SpeakGate.SetResult();
+        await response;
+        fixture.ViewModel.IsSpeechCaptionVisible.Should().BeTrue();
+        fixture.ViewModel.IsPreviousSpeechCaption.Should().BeTrue();
+        fixture.ViewModel.SpeechCaptionLabel.Should().Be("PREVIOUS SPEECH");
+        await fixture.RunAsync("reset display.speech-text-pin");
+        fixture.ViewModel.IsSpeechCaptionPinned.Should().BeFalse();
+        fixture.ViewModel.SpeechCaptionPinLabel.Should().Be("Pin");
+        await fixture.RunAsync("set display.speech-text-pin to true");
+        fixture.ViewModel.IsSpeechCaptionPinned.Should().BeTrue();
+        await fixture.RunAsync("get display.speech-text");
+        fixture.ViewModel.SpeechCaptionText.Should().BeNull();
+        fixture.ViewModel.IsSpeechCaptionPinned.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Protected_call_original_voice_cannot_pin_and_remains_visual()
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.CallState.SetState(CallState.Unknown);
+        await fixture.Dispatcher.LastInvocation;
+        await fixture.ViewModel.ExecuteSpeechTextCommandAsync(
+            new(AppearanceCommandOperation.Set, IsPinControl: true, PinValue: true),
+            Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand, cancellationToken: TestContext.Current.CancellationToken);
+        fixture.ViewModel.IsSpeechCaptionPinned.Should().BeFalse();
+        fixture.ViewModel.Transcript.Should().Contain("requires");
     }
 
     [Fact]

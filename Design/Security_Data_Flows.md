@@ -1,5 +1,49 @@
 # Security and Data Flows
 
+## Deterministic fixed local-version queue boundary
+
+The native selected-session work surface is a passive consumer of one bounded
+validated authority snapshot. It adds no store/schema, egress, authority grant
+or model-facing tool. IDs/revisions/selection epoch bind admitted controls to
+the same exact command services and commit checks. Background observations
+neither extend meaningful activity nor dispatch/renew/retarget questions.
+No session name, question text, history/evidence content, path, preview/skill
+body or caption enters queue payloads, diagnostics or activity tags/baggage.
+Close/privacy loss cancels and clears live presentation; disposed subjects
+fail closed while exact redacted history remains independently readable.
+
+The schema-v5 queue is host-only metadata over the existing qualified local
+version action. Original native/typed/current-name activated user routes share
+one service; no model or provider receives queue bodies, IDs or observations.
+Only exact session/request/task identities and explicit expected revisions
+admit mutation. Name, focus, incoming trace, model text, grant or selected
+window cannot create dispatch authority.
+
+Private ownership, call/privacy epoch, existing Active session generation,
+capacity/dependencies and fair slots are checked before and under the
+transactional commit lease. Lock/unlock and handoff epochs retire eligibility;
+no ambient resume occurs. Queue admission/terminal task state and required
+typed audit are one COMMIT. Generic task writes cannot bypass the queue
+gateway; only truthful no-replay Interrupted/Unknown recovery is permitted.
+Audit/storage failures expose uncertainty and stop dispatch without retry.
+
+Only the fixed read-only registry action is callable, with fresh host-bound
+Native authority. No arbitrary resource/effect descriptors, scripts, power,
+write connectors, hosted/local-model reasoning or audio are admitted.
+Unknown/unclassified effects quarantine the addressed session and dependent
+work, while unrelated fixed local reads remain eligible. No SDK callback or
+cancel acknowledgement certifies an effect's termination.
+
+Queue rows retain content-free identity/revision/timing/state metadata.
+They contain no label, utterance, path, skill body, file/clipboard preview,
+caption or model output. Deferred work uses fresh activities and causal links,
+not a retired parent or Baggage; logs contain only fixed structured failure
+type. Ordered history still derives from committed task receipts, never from
+logs or queue contents. Logical disposition retains these minimal audited
+identities while redacting existing history content; it is not forensic erasure.
+Perpetual grants remain independent. Restart restores observation only,
+projects interrupted/unknown tasks and never dispatches a saved queue.
+
 ## Passive Committed Authority Audit Inspection
 
 The native inspector's separate **AuthorityAudit** source reads real typed

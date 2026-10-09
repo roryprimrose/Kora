@@ -12,6 +12,14 @@ native answer/approval controls.
 
 ## Delivered Bounded Passive Session History - 2026-10-09
 
+The [coordinated work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+places authoritative work and exactly bound pending-question metadata beside
+this separate history reader. Reading history/evidence never replaces those
+cards or changes their reply target. Stable work IDs/revisions, FIFO order,
+observed deadlines/capacity and explicit eligibility/gap states come from a
+single bounded authority snapshot, not logs or rendered detail text. Separate
+immutable/volatile viewers remain uncomposed as queue content.
+
 The native Sessions window now offers **Read exact history** and **Next history
 snapshot page**, with an explicit immutable-session-ID field and accessible
 button/field names. The same Application service provides exact typed/activated
@@ -37,7 +45,8 @@ remain unavailable. Shared-profile skill content and local file/clipboard
 previews remain volatile inspections. No history content enters diagnostics,
 activity tags or model context; only fresh admitted actual playback can create
 captions. This is partial R12/R14 delivery, not a full conversation composer,
-history search/model reasoning, Ask Evidence, queue or scheduler. Real installed
+history search/model reasoning or Ask Evidence. The separately delivered fixed
+queue/native work surface is not a general scheduler. Real installed
 visual/screen-reader/DPI acceptance remains open.
 
 ## Delivered Exact Host-Record Review - 2026-10-07
@@ -666,7 +675,7 @@ reports that matching playback identity/generation and utterance segment 0 as
 actually playing. Synthesis, queued work, failed/suppressed output and voice
 preview do not acquire caption authority.
 
-Response replacement/retirement, playback finish/stop/cancel, configuration
+Response replacement/retirement, playback stop/cancel/failure, configuration
 revision, original request/session/channel, input recovery/activation generation,
 call/privacy revision and current unlocked ownership gates retire or reject the
 caption; late frames never restore it. The controller samples independently of
@@ -677,15 +686,22 @@ Changing this preference neither speaks/stops/replays output nor opens capture
 or changes response/call policy. Unknown or unconfirmed preferences hold captions
 off without disabling ordinary speech.
 
-This intentionally clears immediately on finish/interruption rather than
-retaining sensitive stale text. **Current sentence**, word alignment, pinning,
-configurable dismissal delay, persisted placement/display selection and broad
-caption/navigation commands below remain proposed. The initial window is fixed
-at the primary working-area lower-right with a 24-DIP margin; it does not activate
-on show or span the desktop as an input-catching overlay. Native accessibility
-properties and selection are source-tested, not installed/accessibility or
-acoustic qualification. Rich HTML/browser/diagram rendering is not delivered.
-The acoustic speech experiment remains maintained and is not retired by R25.
+The [2026-10-09 bounded UX increment](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09)
+retains only already-observed text after normal successful completion for a
+validated 0-30-second delay (default 5), or while run-only pinned. Retained text
+is labelled **PREVIOUS SPEECH**; unpin keeps the original completion deadline.
+Interruption and every source/privacy retirement still clear immediately,
+regardless of pinning. Placement persists one primary working-area corner with
+a 24-DIP margin. It does not activate on show or span the desktop as an
+input-catching overlay. No content is persisted.
+
+**Current sentence** and word alignment remain open: the actual adapter supplies
+utterance segment 0 only, so estimated boundaries are not advertised as
+host-admitted playback alignment. Display selection/arbitrary coordinates and
+broader natural caption/navigation commands below remain proposed. Native
+accessibility properties/selection/pin/settings are source-tested, not installed
+accessibility or acoustic qualification. Rich HTML/browser/diagram rendering is
+not delivered. The acoustic experiment remains maintained and is not retired.
 
 ### Broader proposed contract
 
@@ -913,7 +929,17 @@ or network access.
 
 ## Voice Settings and Navigation
 
-All supported options use [User Configuration](User_Configuration.md), including:
+Delivered caption options use [User Configuration](User_Configuration.md):
+
+| ID | Default / choices | Exact example after current activation name |
+|---|---|---|
+| `display.speech-text` | Off / CurrentUtterance | `set display.speech-text to CurrentUtterance` |
+| `display.speech-text-dismissal-delay` | 5 seconds; canonical integer 0-30 | `set display.speech-text-dismissal-delay to 10` |
+| `display.speech-text-placement` | BottomRight / BottomLeft / TopRight / TopLeft; primary working area | `set display.speech-text-placement to TopLeft` |
+| `display.speech-text-pin` | false / true; current observed caption only, run-only | `set display.speech-text-pin to true` |
+
+All also have exact get/status/reset and `list speech text settings` discovery.
+The broader proposed registry includes:
 
 | Preference | Default / choices | Example after "Kora" |
 |---|---|---|

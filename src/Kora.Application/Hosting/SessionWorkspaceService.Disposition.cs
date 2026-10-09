@@ -13,7 +13,7 @@ public sealed partial class SessionWorkspaceService
     {
         var revision = access.ControlRevision;
         lock (dispositionGate) { pendingDisposition = null; }
-        var preview = await ReadAsync(() => store.PreviewDispositionAsync(session, generation, metadataRevision, token))
+        var preview = await ReadAsync(() => store.PreviewDispositionAsync(session, generation, metadataRevision, token), token)
             .ConfigureAwait(false);
         if (!access.CanControl || access.ControlRevision != revision)
         {

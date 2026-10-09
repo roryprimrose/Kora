@@ -1,5 +1,41 @@
 # Privacy, safety, and logs
 
+## Fixed deterministic queue privacy
+
+The [native authoritative work surface](windows-and-tray.md#authoritative-sessions-work)
+reads one bounded atomic queue/task/question snapshot. Session filtering,
+selection, passive refresh and history/immutable-detail inspection do not write intent
+or meaningful activity, change priority, dispatch, resume, renew grants or
+retarget voice/questions/approvals. Controls bind the exact displayed IDs/
+revisions and selection epoch to the existing host command/commit gates.
+Pending-question cards are metadata; only the separate original Questions
+window can answer/review. Background refresh preserves focus, stops on close
+and clears late/private/unavailable records rather than claiming empty success.
+No new persistence, network/model egress or content logging is introduced.
+
+The [local-version queue](commands.md#deterministic-local-version-queue) stores
+only host request/task/session IDs, revisions, generation, fixed-profile state,
+dependency identity and eligibility timing in the private schema-v5 interaction
+store. It accepts no utterance, label, source path, clipboard/file preview,
+skill text, caption or model output. Queue management and execution call no
+model/network/audio service, and never create context/egress approval.
+
+Every admission/outcome requires current private ownership, unchanged
+privacy/call/owner epoch and exact durable authority. Lock/unlock, takeover,
+Done/disposition, full capacity, missing audit/storage and stale IDs/revisions
+cannot silently admit or resume work. Deferred traces use host identities and
+causal links, never content-bearing tags or Baggage. Structured failure logs
+contain a fixed exception type, not command text or observations.
+
+Restart never replays queues or grants. Unknown work remains quarantined;
+the independent Perpetual store is not a scheduler credential. Pending
+cancel/remove/confirmed clear retains content-free task/history receipts.
+Logical disposition retains minimal audited queue identities/timing with task
+and audit evidence while redacting retained history content; this is not
+forensic erasure or removal of exported copies. Reads do not extend activity.
+Volatile preview, lexical retrieval, shared-skill inspection and captions
+remain separate and cannot be attached, replayed or reconstructed by queues.
+
 ## Bounded passive interaction history
 
 The [Sessions history viewer](windows-and-tray.md#bounded-passive-interaction-history)
@@ -27,8 +63,9 @@ and the non-reusable tombstone. Exact known Removed IDs can read redacted
 citations only. SQLite free pages/journals, inert migration copies and exports/
 provider copies are not erased. No new history retention timer, automatic purge,
 backup deletion or forensic-erasure claim is added. Full composer/search/model
-history reasoning, Ask Evidence, broad export, queues and scheduler remain
-unavailable.
+history reasoning, Ask Evidence and broad export remain unavailable; the
+separate fixed local-version queue/native work surface is not a general
+effect/provider scheduler.
 
 ## Committed authority audit inspection
 

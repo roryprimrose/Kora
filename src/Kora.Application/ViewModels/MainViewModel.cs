@@ -234,7 +234,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AuditRetentionConfigurationService? auditRetentionConfiguration = null,
         WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
         InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
-        SpeechTextConfigurationService? speechTextConfiguration = null)
+        SpeechTextConfigurationService? speechTextConfiguration = null,
+        SessionRetentionConfigurationService? sessionRetentionConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -321,6 +322,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             speechTextConfiguration.Changed += OnSpeechTextConfigurationChanged;
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
+        this.sessionRetentionConfiguration = sessionRetentionConfiguration;
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         if (auditRetentionConfiguration is not null)
         {
@@ -380,6 +382,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SelectedWindowsSpeechRate.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
+        SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
+        ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
         SaveDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Set,
             SelectedDiagnosticRetentionDays.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
@@ -400,6 +405,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Get));
         SaveSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Set));
         ResetSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Reset));
+        ToggleSpeechCaptionPinCommand = CreateCommand(() =>
+        {
+            ChangeSpeechCaptionPin(!IsSpeechCaptionPinned, SecurityAuditInitiator.LocalUser);
+            return Task.CompletedTask;
+        });
+        SaveSpeechCaptionOptionCommand = CreateCommand(() => ExecuteSpeechTextCommandAsync(
+            new(AppearanceCommandOperation.Set, CaptionOption: SelectedSpeechCaptionOption), SecurityAuditInitiator.LocalUser,
+            SelectedSpeechCaptionChoice));
+        ResetSpeechCaptionOptionCommand = CreateCommand(() => ExecuteSpeechTextCommandAsync(
+            new(AppearanceCommandOperation.Reset, CaptionOption: SelectedSpeechCaptionOption), SecurityAuditInitiator.LocalUser));
         ResetSummarySentencesCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummarySentences));
         ResetSummaryWordsCommand = CreateCommand(() => ResetSpeechAsync(SpeechOption.SummaryWords));
         ToggleListeningCommand = CreateCommand(
@@ -1675,6 +1690,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => responseBody;
         private set
         {
+            sessionPresentationSources.Clear();
             if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); }
         }
     }
@@ -4756,6 +4772,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsSpeaking = true;
         activeSpokenText = spokenText;
         ApplicationLog.Debug(logger, "Starting spoken response output");
+        var completedSpeech = false;
         try
         {
             // Admission checks cancellation; generation invalidation and StopAsync own resource release.
@@ -4776,6 +4793,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
                 }
             }
+            completedSpeech = true;
         }
         catch (OperationCanceledException)
         {
@@ -4819,7 +4837,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            RetireSpeechCaption();
+            if (completedSpeech) { CompleteSpeechCaption(); }
+            else { RetireSpeechCaption(); }
             activeSpokenText = null;
             IsSpeaking = false;
         }

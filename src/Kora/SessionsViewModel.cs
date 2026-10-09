@@ -32,31 +32,68 @@ internal sealed partial class SessionsViewModel(
     private SessionHistoryPage? history;
     private string historySessionId = string.Empty;
     private string nameDraft = string.Empty;
-    private string status = "Refresh to inspect durable names and authority, or enter an exact ID for bounded passive interaction history. No composer or queue is available.";
+    private string status = "Refresh to inspect exact sessions and passive history. The deterministic queue admits fixed local-version reads only; no model-assisted routing or general executor.";
     private string detail = string.Empty;
     private bool busy;
+    private bool refreshingWork;
     private bool closed;
+    private bool notifying;
 
-    public IReadOnlyList<SessionWorkspaceEntry> Sessions => sessions?.Records ?? [];
+    private SessionListFilter sessionFilter;
+    public IReadOnlyList<SessionListFilter> SessionFilters { get; } = Enum.GetValues<SessionListFilter>();
+    public SessionListFilter SessionFilter
+    {
+        get => sessionFilter;
+        set
+        {
+            if (!CanRead || !Enum.IsDefined(value)) { return; }
+            sessionFilter = value;
+            if (selected is not null && !Sessions.Contains(selected)) { ClearSelection(); }
+            OnPropertyChanged();
+            Notify();
+        }
+    }
+    public IReadOnlyList<SessionWorkspaceEntry> Sessions => sessions is null ? []
+        : [.. sessions.Records.Where(record => sessionFilter == SessionListFilter.All
+            || record.Authority.IsActive == (sessionFilter == SessionListFilter.Active))];
+    public SessionWorkspaceEntry? SelectedSessionRecord => selected;
+    internal bool ReferencesSession(HostId<SessionIdentity> session) =>
+        !closed && (selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
+        || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal));
+
+    internal void RevokeSessionList()
+    {
+        sessions = null;
+        Notify();
+    }
+
     public IReadOnlyList<HostTaskRecord> TaskRecords => tasks?.Records ?? [];
     public bool CanInspectTask => CanRead && selectedTask is not null;
     public bool CanCancelTask => CanInspectTask && inspectedTask is
-        { CurrentSource: true, Task.State: HostTaskState.IntentRecorded, Question.Status: QuestionStatus.Pending };
+    { CurrentSource: true, Task.State: HostTaskState.IntentRecorded, Question.Status: QuestionStatus.Pending }
+        && inspectedTask.Task.Request.TaskId == selectedTask?.Request.TaskId
+        && inspectedTask.Task.Request.SessionId == selected?.Authority.SessionId
+        && inspectedTask.Question.ExpiresAt > (workSnapshot?.ObservedAt ?? DateTimeOffset.MaxValue);
 
     public void SelectTask(HostTaskRecord? task)
     {
         if (!CanRead || (task is not null && !TaskRecords.Contains(task))) { return; }
         selectedTask = task;
+        selectionEpoch++;
         inspectedTask = null;
         Notify();
     }
 
     public Task InspectTaskAsync() => RunAsync(async () =>
     {
+        var epoch = selectionEpoch;
+        var subject = RequireSelected().Authority.SessionId;
+        var task = selectedTask?.Request.TaskId ?? throw new InvalidOperationException("Select an exact task from this page.");
         var result = await service.ExecuteCommandAsync(new(SessionCommandOperation.TaskInspect,
-            RequireSelected().Authority.SessionId.Value)
-            { TaskId = selectedTask?.Request.TaskId.Value ?? throw new InvalidOperationException("Select an exact task from this page.") },
-            RequestOrigin.LocalUi, () => !closed && access.CanInspect, lifetime.Token);
+            subject.Value)
+        { TaskId = task.Value },
+            RequestOrigin.LocalUi, () => !closed && access.CanInspect && selectionEpoch == epoch
+                && selected?.Authority.SessionId == subject && selectedTask?.Request.TaskId == task, lifetime.Token);
         inspectedTask = result.TaskDetails.SingleOrDefault();
         detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(result));
         status = "Exact task observation. Inspect is passive; cancellation is a separate deliberate action using these revisions.";
@@ -66,12 +103,24 @@ internal sealed partial class SessionsViewModel(
     {
         var target = inspectedTask ?? throw new InvalidOperationException("Inspect the exact selected task before cancellation.");
         var question = target.Question ?? throw new InvalidOperationException("No admitted question wait exists.");
-        var result = await service.CancelTaskAsync(new(target.Task.Request.SessionId, target.Task.Request.TaskId,
-            target.Task.Revision, target.Generation, question.Key.QuestionId, question.Key.Revision),
-            RequestOrigin.LocalUi, () => !closed && access.CanInspect, lifetime.Token);
-        inspectedTask = result;
+        var epoch = selectionEpoch;
+        var result = await service.ExecuteCommandAsync(new(SessionCommandOperation.TaskCancel, target.Task.Request.SessionId.Value,
+            target.Generation.Value)
+        {
+            TaskId = target.Task.Request.TaskId.Value,
+            TaskRevision = target.Task.Revision.Value,
+            QuestionId = question.Key.QuestionId.Value,
+            QuestionRevision = question.Key.Revision.Value
+        },
+            RequestOrigin.LocalUi, () => !closed && access.CanInspect && selectionEpoch == epoch
+                && selectedTask?.Request.TaskId == target.Task.Request.TaskId
+                && selected?.Authority.SessionId == target.Task.Request.SessionId, lifetime.Token);
+        await RefreshSelectedWorkAsync();
+        var cancelled = result.TaskDetails.Single();
+        inspectedTask = cancelled;
         detail = Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("committed",
-            "Exact local-version wait cancelled before dispatch; no effect termination claimed.") { TaskDetails = [result] }));
+            "Exact local-version wait cancelled before dispatch; no effect termination claimed.")
+        { TaskDetails = [cancelled] }));
         status = "Durable terminal task, question cancellation and required audit committed atomically. Refresh to observe other work.";
     });
     public string NameDraft
@@ -149,8 +198,13 @@ internal sealed partial class SessionsViewModel(
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
+        var retained = selected?.Authority.SessionId;
         sessions = await service.ReadMetadataAsync(null, 25, lifetime.Token);
-        ClearSelection();
+        if (retained is { } id && sessions.Records.Any(record => record.Authority.SessionId == id))
+        {
+            await RefreshSelectedWorkAsync();
+        }
+        else { ClearSelection(); }
         status = "Active/Done minimal authority: " + sessions.Records.Length.ToString(CultureInfo.InvariantCulture)
             + " records on this page. " + (sessions.Next is null ? "End of current list." : "More pages available.");
     });
@@ -163,22 +217,32 @@ internal sealed partial class SessionsViewModel(
         status = "Next bounded authority page. Refresh for concurrent additions/changes.";
     });
 
-    public Task SelectAsync(SessionWorkspaceEntry? record) => RunAsync(async () =>
+    public Task SelectAsync(SessionWorkspaceEntry? record)
     {
-        if (record is not null && !Sessions.Contains(record))
+        if (notifying) { return Task.CompletedTask; }
+        if (busy)
         {
-            throw new InvalidOperationException("Select an existing record from this page.");
+            if (record is not null && record.Authority.SessionId != selected?.Authority.SessionId) { selectionEpoch++; }
+            return Task.CompletedTask;
         }
-        ClearSelection();
-        selected = record;
-        if (record is null) { return; }
-        nameDraft = record.Metadata?.Name.Value ?? string.Empty;
-        historySessionId = record.Authority.SessionId.Value.ToString("D");
-        questions = await service.ReadQuestionsAsync(record.Authority.SessionId, null, 25, lifetime.Token);
-        tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
-        Render();
-        status = "Passive selected detail. Selection never targets a question, approval or command. Pages are observations, not an atomic work ledger.";
-    });
+        return RunAsync(async () =>
+        {
+            if (record is not null && !Sessions.Contains(record))
+            {
+                throw new InvalidOperationException("Select an existing record from this page.");
+            }
+            ClearSelection();
+            selected = record;
+            if (record is null) { return; }
+            nameDraft = record.Metadata?.Name.Value ?? string.Empty;
+            historySessionId = record.Authority.SessionId.Value.ToString("D");
+            questions = await service.ReadQuestionsAsync(record.Authority.SessionId, null, 25, lifetime.Token);
+            tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
+            await RefreshSelectedWorkAsync();
+            Render();
+            status = "Passive selected work snapshot. Questions remain exactly bound; no activity, priority, voice target or dispatch changed.";
+        });
+    }
 
     public Task NextQuestionsAsync() => RunAsync(async () =>
     {
@@ -189,8 +253,6 @@ internal sealed partial class SessionsViewModel(
 
     public Task NextTasksAsync() => RunAsync(async () =>
     {
-        selectedTask = null;
-        inspectedTask = null;
         tasks = await service.ReadTasksAsync(RequireSelected().Authority.SessionId,
             tasks?.Next ?? throw new InvalidOperationException("No next task page."), 25, lifetime.Token);
         Render();
@@ -211,6 +273,7 @@ internal sealed partial class SessionsViewModel(
         selected = new(changed, target.Metadata);
         questions = await service.ReadQuestionsAsync(changed.SessionId, null, 25, lifetime.Token);
         tasks = await service.ReadTasksAsync(changed.SessionId, null, 25, lifetime.Token);
+        await RefreshSelectedWorkAsync();
         evidencePage = null;
         Render();
         status = "Committed " + (active ? "resume" : "Done") + " for " + changed.SessionId.Value.ToString("D")
@@ -250,7 +313,7 @@ internal sealed partial class SessionsViewModel(
             .Append(record.IsActive ? " | Active" : " | Done").Append(" | generation ").Append(record.Generation.Value)
             .AppendLine().Append("Name: ").AppendLine(entry.Metadata?.Name.Value ?? "Unnamed session (metadata not yet set)")
             .Append("Metadata revision: ").Append(entry.Metadata?.Revision.Value ?? 0).AppendLine()
-            .AppendLine("Name is user content, never authority. No conversation, queue, scheduler or restored context.")
+            .AppendLine("Name is user content, never authority. Work snapshot, history and evidence are separate; no restored context.")
             .AppendLine("Task records (current durable state, not inferred runtime progress):");
         foreach (var task in tasks?.Records ?? [])
         {
@@ -286,13 +349,15 @@ internal sealed partial class SessionsViewModel(
         detail = text.ToString();
     }
 
-    private async Task RunAsync(Func<Task> operation)
+    private async Task RunAsync(Func<Task> operation, bool passive = false)
     {
-        if (busy || closed) { return; }
+        if (busy || closed || passive && refreshingWork) { return; }
+        var subject = selected?.Authority.SessionId;
+        var clearedPresentation = false;
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), viewer.SessionId,
             viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
-        busy = true;
-        Notify();
+        if (passive) { refreshingWork = true; }
+        else { busy = true; Notify(); }
         try
         {
             if (!access.CanInspect) { throw new InvalidOperationException("Private desktop ownership is unavailable."); }
@@ -302,30 +367,53 @@ internal sealed partial class SessionsViewModel(
         }
         catch (OperationCanceledException)
         {
-            sessions = null;
-            ClearSelection();
-            status = "Cancelled or privacy closed; no late content or rollback of a possible committed lifecycle is claimed. Refresh durable state before retrying.";
+            if (!passive || closed || !access.CanInspect || !busy && selected?.Authority.SessionId == subject)
+            {
+                sessions = null;
+                ClearSelection();
+                clearedPresentation = true;
+                status = "Cancelled or privacy closed; no late content or rollback of a possible committed lifecycle is claimed. Refresh durable state before retrying.";
+            }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            sessions = null;
-            ClearSelection();
-            status = "Sessions unavailable/denied: " + exception.Message
-                + " Refresh durable state before retrying; no empty success, abandoned work or replay is claimed.";
+            if (!passive || !busy && selected?.Authority.SessionId == subject)
+            {
+                sessions = null;
+                ClearSelection();
+                clearedPresentation = true;
+                status = "Sessions unavailable/denied: " + exception.Message
+                    + " Refresh durable state before retrying; no empty success, abandoned work or replay is claimed.";
+            }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
         }
         finally
         {
-            busy = false;
-            if (closed) { lifetime.Dispose(); }
-            Notify();
+            if (passive)
+            {
+                refreshingWork = false;
+                if (clearedPresentation) { Notify(); }
+                NotifyWork();
+                NotifyQueue();
+                OnPropertyChanged(nameof(CanInspectTask));
+                OnPropertyChanged(nameof(CanCancelTask));
+                OnPropertyChanged(nameof(Status));
+            }
+            else { busy = false; Notify(); }
+            if (closed && !busy && !refreshingWork) { lifetime.Dispose(); }
         }
     }
 
     private void ClearSelection()
     {
+        selectionEpoch++;
+        workSnapshot = null;
+        workRecords = [];
+        selectedWork = null;
+        queueSnapshot = null;
+        selectedQueueEntry = null;
         dispositionPreview = null;
         selected = null;
         selectedTask = null;
@@ -343,7 +431,7 @@ internal sealed partial class SessionsViewModel(
         if (closed) { return; }
         closed = true;
         lifetime.Cancel();
-        if (!busy) { lifetime.Dispose(); }
+        if (!busy && !refreshingWork) { lifetime.Dispose(); }
         sessions = null;
         ClearSelection();
         Notify();
@@ -351,27 +439,35 @@ internal sealed partial class SessionsViewModel(
 
     private void Notify()
     {
-        OnPropertyChanged(nameof(Sessions));
-        OnPropertyChanged(nameof(TaskRecords));
-        OnPropertyChanged(nameof(CanInspectTask));
-        OnPropertyChanged(nameof(CanCancelTask));
-        OnPropertyChanged(nameof(Status));
-        OnPropertyChanged(nameof(Detail));
-        OnPropertyChanged(nameof(NameDraft));
-        OnPropertyChanged(nameof(CanCreate));
-        OnPropertyChanged(nameof(CanRename));
-        OnPropertyChanged(nameof(CanPreviewDisposition));
-        OnPropertyChanged(nameof(CanConfirmDisposition));
-        OnPropertyChanged(nameof(CanRead));
-        OnPropertyChanged(nameof(CanNext));
-        OnPropertyChanged(nameof(CanNextQuestions));
-        OnPropertyChanged(nameof(CanNextTasks));
-        OnPropertyChanged(nameof(CanEvidence));
-        OnPropertyChanged(nameof(CanNextEvidence));
-        OnPropertyChanged(nameof(CanDone));
-        OnPropertyChanged(nameof(CanResume));
-        OnPropertyChanged(nameof(HistorySessionId));
-        OnPropertyChanged(nameof(CanHistory));
-        OnPropertyChanged(nameof(CanNextHistory));
+        notifying = true;
+        try
+        {
+            NotifyWork();
+            NotifyQueue();
+            OnPropertyChanged(nameof(Sessions));
+            OnPropertyChanged(nameof(SelectedSessionRecord));
+            OnPropertyChanged(nameof(TaskRecords));
+            OnPropertyChanged(nameof(CanInspectTask));
+            OnPropertyChanged(nameof(CanCancelTask));
+            OnPropertyChanged(nameof(Status));
+            OnPropertyChanged(nameof(Detail));
+            OnPropertyChanged(nameof(NameDraft));
+            OnPropertyChanged(nameof(CanCreate));
+            OnPropertyChanged(nameof(CanRename));
+            OnPropertyChanged(nameof(CanPreviewDisposition));
+            OnPropertyChanged(nameof(CanConfirmDisposition));
+            OnPropertyChanged(nameof(CanRead));
+            OnPropertyChanged(nameof(CanNext));
+            OnPropertyChanged(nameof(CanNextQuestions));
+            OnPropertyChanged(nameof(CanNextTasks));
+            OnPropertyChanged(nameof(CanEvidence));
+            OnPropertyChanged(nameof(CanNextEvidence));
+            OnPropertyChanged(nameof(CanDone));
+            OnPropertyChanged(nameof(CanResume));
+            OnPropertyChanged(nameof(HistorySessionId));
+            OnPropertyChanged(nameof(CanHistory));
+            OnPropertyChanged(nameof(CanNextHistory));
+        }
+        finally { notifying = false; }
     }
 }

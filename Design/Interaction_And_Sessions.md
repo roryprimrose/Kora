@@ -1,9 +1,13 @@
 # Human Interaction and Persistent Sessions
 
 Status: agreed product direction; bounded durable question/grant/session metadata,
-exact session/task controls and consolidated schema-v4 task/question/required-audit
-authority with bounded ordered interaction history implemented. Cancellation covers only the genuine current-run local-version
-pre-dispatch question wait; full interaction/session/queue/effect integration remains proposed.
+exact session/task controls and consolidated schema-v6 task/question/queue/required-audit
+authority with bounded ordered interaction history and inventoried configurable
+session retention implemented. The deterministic
+local-version queue and its exact pending cancellation are delivered; cancellation
+of the separate genuine current-run local-version pre-dispatch question wait
+remains gateway-bound. Full conversation, effect and model-assisted routing
+integration remains proposed.
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -11,6 +15,27 @@ This is the canonical interaction/session contract. It replaces the former singl
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
 
 ## Current Implementation and Design Gap
+
+The [R13 fixed local-version queue](Work_Management.md#delivered-deterministic-local-version-queue)
+addresses existing immutable session IDs directly. Pending capacity, FIFO,
+fair manual admission, revisions, dependencies and restart interruption are
+host-owned; names/selected windows never substitute for IDs. Queue slots cover
+only this read-only profile, not providers, workers, audio or arbitrary resources.
+Native **Refresh selected work**, **Enqueue local version**, **Dispatch ready local
+versions fairly**, exact pending cancellation and separately labelled confirmed
+clear use the same workflow as typed/current-name activated commands. Selection
+alone neither enqueues nor dispatches. New work in Done/Removed sessions is denied.
+Passive history/queue inspection never renews activity or restores authority.
+
+The [R14 coordinated native work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
+delivers list-plus-selected-session work, atomic bounded queue/task/question
+observation, stable identity/revision/order, observed eligibility/deadlines/
+capacity and explicit recovery/gaps. Native pending cancel/remove/clear and
+manual dispatch reuse exact command workflows; in-flight selection changes
+invalidate admission. Pending question identities stay visible independently
+of history/evidence and never gain a workspace reply/review target.
+Five-second passive work refresh preserves focus and does not disable native
+input, renew cancellation inspection, extend activity, resume or dispatch.
 
 The runnable bootstrap has one response title/body and latest transcript in `MainViewModel`, displayed by `ResponseWindow`.
 Typed and recognized spoken commands converge on the deterministic built-in command router.
@@ -40,9 +65,64 @@ adapter. A bounded native question/review route now composes the existing
 durable local-version query; no effect dispatcher is activated. See the
 [native question boundary](Interaction_Fallback.md#delivered-bounded-native-question---2026-10-07).
 There is no general typed form service,
-full session conversation/history UI, concurrent task
-scheduler, or model-facing session tool API.
-Existing proposals for native questions, rich details, a work ledger, and scoped grants are foundations, not proof those capabilities already exist.
+full conversation/composer UI, general concurrent provider/effect scheduler,
+or model-facing session tool API. The bounded history, native work ledger,
+question and passive detail slices do not qualify those broader capabilities.
+
+### R12 Bounded Session Retention Delivered - 2026-10-09
+
+Schema v6 preserves v5 queue authority and adds one durable per-session meaningful-activity timestamp. Default
+archive is 24 hours and deletion 30 days from that same timestamp, not from
+creation/archive. Create/resume, admitted substantive original-user work,
+accepted final answers/cancellation and real dispatch/terminal progress refresh
+it monotonically. Drafts, passive browse, rename and control/configuration
+bookkeeping do not. Unknown historical activity gets a conservative migration
+baseline; no chronology is fabricated. Native future-only
+[configuration](User_Configuration.md#r12-bounded-session-retention-delivered---2026-10-09)
+does not alter existing due dates without subsequent meaningful activity.
+
+Startup/access checks and an owned one-minute host-only maintenance timer
+process at most 32 candidates, never execute or schedule work. Intent-recorded,
+dispatched, Unknown work, unresolved questions and current-run control
+authorities hold rather than being abandoned; held controls cannot starve due
+idle sessions. Exact-generation audited host-only Perpetual session marking
+holds the whole session, independently of Perpetual permission grants. There
+is no new marking UI. Archive revokes source/generation/scoped authority but
+preserves content and does not reset the activity clock.
+
+Deletion awaits source/presentation revocation, removes owned history,
+question/draft/answer, task/event/wait/run, terminal queue, observation, scoped-grant and metadata
+content, legacy task copies and authenticated owned artifacts/staging, and
+clears SQLite row/index/free-page and committed rollback-journal copies.
+Unrelated sessions, independent artifact deletion owners and independently
+Perpetual grants survive. Only exact-ID content-free authority tombstones,
+redacted history gaps and content-minimised independent required audit remain;
+late append/publication is denied. Removing authority alone is not acceptance:
+a separate final inventory receipt is required and interrupted acceptance
+retries storage cleanup without execution.
+
+Unrecognised ownership, malformed envelopes, uncertain key publication,
+uninventoried storage/backup entries or hot/nonempty journals fail closed.
+No managed-backup publisher/ownership format is delivered; arbitrary copies
+are held, not guessed or claimed erased. No provider/user-export, forensic or
+media-erasure acceptance is claimed. This entry supersedes older statements
+below that retention/timers were absent from their historical bounded slices.
+Full R12 remains partial; blocked R11 is required only for the remaining
+general execution/queue integration, not the delivered fixed local-version queue
+or this non-executing maintenance increment.
+
+Validation after rebase onto `5755aa7d` (#118): Release 0 warnings/errors using
+existing locked dependency assets; no restore/feed change needed.
+Core 1,028, Application 2,860, Tools 69, Definitions 6, Windows 1,215 passed,
+zero failures/skips;
+portable coverage 100% lines/branches. Tests check actual plaintext absence
+from database/journal, owned file removal, preservation, holds, cancellation,
+invalid persistence/migration, interrupted acceptance, bounded fairness,
+queue holds/inventoried deletion, restart no-replay and retained-source
+invalidation of #118's selected-session work surface without losing unrelated
+work or its passive-refresh/question coexistence contracts.
+See the [dated roadmap receipt](Implementation_Roadmap.md#r12-bounded-session-retention-delivered---2026-10-09);
+installed/native/RC and full R12/A3 qualification remain open.
 
 ### Delivered Bounded Ordered Interaction History - 2026-10-09
 

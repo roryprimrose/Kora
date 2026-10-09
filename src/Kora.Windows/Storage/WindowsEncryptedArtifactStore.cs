@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 
 using Kora.Core.Dependencies;
+using Kora.Core.Hosting;
 
 namespace Kora.Windows.Storage;
 
@@ -13,6 +14,7 @@ internal sealed class WindowsEncryptedArtifactStore
     // The caller owns the key and must quiesce outstanding operations before disposing it.
     private readonly WindowsStorageKey key;
     private readonly IStoragePublicationCheckpoint? checkpoint;
+    private readonly RestrictedSqliteDatabase authority;
 
     internal WindowsEncryptedArtifactStore(
         IApplicationDataPaths paths, WindowsStorageKey key, IStoragePublicationCheckpoint? checkpoint = null)
@@ -21,6 +23,8 @@ internal sealed class WindowsEncryptedArtifactStore
         directory = new RestrictedStorageDirectory(paths);
         this.key = key;
         this.checkpoint = checkpoint;
+        authority = new(paths, HostInteractionSchema.Partition, HostInteractionSchema.FileName,
+            HostInteractionSchema.ApplicationId, HostInteractionSchema.CurrentTables, currentVersion: HostInteractionSchema.Version);
     }
 
     internal async Task<ArtifactReference> PublishAsync(
@@ -33,6 +37,12 @@ internal sealed class WindowsEncryptedArtifactStore
         if (plaintext.Length > ArtifactEnvelope.MaximumPlaintextBytes)
         {
             throw new InvalidDataException("The artifact exceeds its plaintext bound.");
+        }
+        using var authorityLease = authority.HasExistingPartition() ? authority.AcquireReadLease(cancellationToken) : null;
+        using var authorityConnection = authorityLease is not null ? authority.OpenReadOnly(cancellationToken) : null;
+        if (authorityConnection is not null)
+        {
+            WindowsSqliteHostInteractionStore.RequireArtifactSources(authorityConnection, identity);
         }
         using var lease = directory.AcquireLease();
         await WindowsStorageKeyStore.ValidateLoadedKeyAsync(directory, key, cancellationToken).ConfigureAwait(false);
@@ -154,6 +164,55 @@ internal sealed class WindowsEncryptedArtifactStore
         operation.Complete();
         // Recovery is observation only. It never publishes artifacts, deletes files, or replays actions.
         return new ArtifactReconciliation(issues.AsReadOnly(), entries.Length, examinedBytes);
+    }
+
+    internal async Task DeleteOwnedAsync(HostId<SessionIdentity> session, Func<Task> revokeAndRewrite,
+        CancellationToken token)
+    {
+        using var lease = directory.AcquireBoundedLease(requireExisting: true, token);
+        await WindowsStorageKeyStore.ValidateLoadedKeyAsync(directory, key, token).ConfigureAwait(false);
+        var files = Directory.EnumerateFileSystemEntries(directory.Artifacts)
+            .Take(MaximumReconciliationEntries + 1).ToArray();
+        if (files.Length > MaximumReconciliationEntries)
+        {
+            throw new InvalidDataException("Deletion artifact inventory exceeds its bound.");
+        }
+        var owned = new List<string>();
+        long bytes = 0;
+        foreach (var path in files)
+        {
+            directory.VerifyFile(path);
+            var (id, _) = ParseFileName(path);
+            var length = new FileInfo(path).Length;
+            if (length > MaximumReconciliationBytes - bytes)
+            {
+                throw new InvalidDataException("Deletion artifact inventory exceeds its byte bound.");
+            }
+            bytes += length;
+            var envelope = await StorageFilePublication.ReadBoundedAsync(directory, path,
+                ArtifactEnvelope.MaximumEnvelopeBytes, token).ConfigureAwait(false);
+            var identity = ArtifactEnvelope.ReadIdentity(envelope);
+            if (identity.ArtifactId != id) { throw new InvalidDataException("Deletion inventory identity differs from its file name."); }
+            try
+            {
+                var plaintext = ArtifactEnvelope.Decrypt(key, envelope);
+                CryptographicOperations.ZeroMemory(plaintext);
+            }
+            catch (CryptographicException exception)
+            {
+                throw new InvalidDataException("Artifact ownership is unauthenticated; session deletion is held.", exception);
+            }
+            if (identity.DeletionOwnerId == session) { owned.Add(path); }
+        }
+        token.ThrowIfCancellationRequested();
+        // No partial-file removal before source revocation. The same lease excludes publication throughout.
+        await revokeAndRewrite().ConfigureAwait(false);
+        foreach (var path in owned)
+        {
+            directory.VerifyFile(path);
+            File.Delete(path);
+            if (File.Exists(path)) { throw new IOException("A revoked session artifact was not removed."); }
+        }
     }
 
     private string GetPath(Guid id, bool staged)

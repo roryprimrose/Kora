@@ -1,8 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 
 using Kora.Core.Storage;
-using Kora.Core.Hosting;
 
 namespace Kora;
 
@@ -16,7 +16,7 @@ internal sealed partial class SessionsWindow : Window
         Next.Click += async (_, _) => await model.NextAsync();
         Records.SelectionChanged += async (_, _) =>
         {
-            if (model.CanRead) { await model.SelectAsync(Records.SelectedItem as SessionWorkspaceEntry); }
+            await model.SelectAsync(Records.SelectedItem as SessionWorkspaceEntry);
         };
         CreateSession.Click += async (_, _) => await model.CreateAsync();
         RenameSession.Click += async (_, _) => await model.RenameAsync();
@@ -24,10 +24,15 @@ internal sealed partial class SessionsWindow : Window
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         ReadHistory.Click += async (_, _) => await model.ReadHistoryAsync();
         NextHistory.Click += async (_, _) => await model.ReadHistoryAsync(next: true);
-        TaskRecords.SelectionChanged += (_, _) =>
-            model.SelectTask(TaskRecords.SelectedItem is HostTaskRecord task ? task : null);
-        InspectTask.Click += async (_, _) => await model.InspectTaskAsync();
-        CancelTask.Click += async (_, _) => await model.CancelTaskAsync();
+        WorkRecords.SelectionChanged += (_, _) =>
+            model.SelectWorkRecord(WorkRecords.SelectedItem as SessionWorkRow);
+        InspectWork.Click += async (_, _) => await model.InspectWorkAsync();
+        RemoveQueueEntry.Click += async (_, _) => await model.RemoveQueueEntryAsync();
+        ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
+        EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
+        DispatchQueue.Click += async (_, _) => await model.DispatchQueueAsync();
+        CancelQueueEntry.Click += async (_, _) => await model.CancelWorkAsync();
+        ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         Evidence.Click += async (_, _) => await model.ReadEvidenceAsync();
         NextEvidence.Click += async (_, _) => await model.ReadEvidenceAsync(next: true);
         Done.Click += async (_, _) => await model.ChangeLifecycleAsync(active: false);
@@ -35,7 +40,19 @@ internal sealed partial class SessionsWindow : Window
         PreviewDisposition.Click += async (_, _) => await model.PreviewDispositionAsync();
         ConfirmDisposition.Click += async (_, _) => await model.ConfirmDispositionAsync();
         CloseView.Click += (_, _) => Close();
-        Closed += (_, _) => model.Close();
+        var refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        async void OnRefreshTick(object? sender, EventArgs args)
+        {
+            if (model.CanRefreshWork) { await model.RefreshWorkAsync(); }
+        }
+        refresh.Tick += OnRefreshTick;
+        Opened += (_, _) => refresh.Start();
+        Closed += (_, _) =>
+        {
+            refresh.Stop();
+            refresh.Tick -= OnRefreshTick;
+            model.Close();
+        };
         KeyDown += (_, args) =>
         {
             if (args.Key == Key.Escape) { Close(); args.Handled = true; }

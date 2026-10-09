@@ -10,7 +10,7 @@ and general application launching are not yet available. Bounded durable
 session authority/workspace/names, explicit local clipboard preview,
 read-only host discovery, installed speech/appearance settings and independent
 daily/SQLite evidence inspection are delivered foundations, not full
-conversation history, queues, a model tool loop or release acceptance. Bounded
+conversation history, general effect queues, a model tool loop or release acceptance. Bounded
 ordered host interaction history and exact native/typed retrieval now cover
 committed questions/final answers, decision metadata and task-state receipts
 only; bootstrap messages/response bodies, search/model reasoning and replay
@@ -18,8 +18,17 @@ remain unavailable. See the
 [exact merged implementation snapshot](Design/Implementation_Roadmap.md#current-merged-snapshot---2026-10-07)
 for source/PR boundaries and retained experiment evidence.
 Native and [exact typed/activated-voice session commands](docs/commands.md#bounded-exact-id-session-commands)
-share host lifecycle/metadata authority. They do not provide name-based routing,
-model session tools or concurrent scheduling.
+share host lifecycle/metadata authority. They do not provide name-based routing
+or model session tools. The [deterministic local-version queue](docs/commands.md#deterministic-local-version-queue)
+adds exact-ID pending work, bounded fair manual dispatch, atomic task/audit
+receipts and no-replay recovery over the existing read-only version action.
+It needs no model/network/audio, admits no arbitrary resources/effects and
+does not qualify concurrent workers, providers or hardware.
+The [authoritative Sessions work surface](docs/windows-and-tray.md#authoritative-sessions-work)
+now coordinates the bounded session list, selected work/queue and pending
+question identities beside separate history/evidence. Exact native controls
+reuse the admitted command services; passive refresh/filtering preserves focus
+without activity extension, automatic dispatch or question/voice retargeting.
 
 Development merges use directly applicable checks, not unrelated experiment
 completion. Capability enablement and final release qualification remain

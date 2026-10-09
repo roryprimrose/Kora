@@ -2,8 +2,8 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Kora.Controls"
-    Title="Sessions - bounded durable workspace" Icon="/Assets/Kora.ico"
-    Width="1050" Height="760" MinWidth="800" MinHeight="560"
+    Title="Sessions - authoritative work and durable history" Icon="/Assets/Kora.ico"
+    Width="1180" Height="900" MinWidth="900" MinHeight="700"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
   <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
@@ -11,6 +11,8 @@
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
+      <ComboBox ItemsSource="{Binding SessionFilters}" SelectedItem="{Binding SessionFilter, Mode=TwoWay}"
+                IsEnabled="{Binding CanRead}" AutomationProperties.Name="Filter this bounded session page by All, Active or Done; no activity or routing" />
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
@@ -29,7 +31,7 @@
       <Button x:Name="NextHistory" Content="Next history snapshot page" IsEnabled="{Binding CanNextHistory}" />
     </StackPanel>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
-      <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" IsEnabled="{Binding CanRead}"
+      <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Durable session names, exact IDs, lifecycle and optimistic revisions">
         <ListBox.ItemTemplate>
           <DataTemplate>
@@ -43,14 +45,58 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>
-      <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="10">
-        <ComboBox x:Name="TaskRecords" ItemsSource="{Binding TaskRecords}" IsEnabled="{Binding CanRead}"
-                  AutomationProperties.Name="Exact task records from the current selected session page; selection is passive">
-          <ComboBox.ItemTemplate>
-            <DataTemplate><TextBlock Text="{Binding Request.TaskId.Value}" /></DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
-        <ScrollViewer Grid.Row="1">
+      <Grid Grid.Column="1" RowDefinitions="Auto,2*,Auto,Auto,*" RowSpacing="10">
+        <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Selected exact session work snapshot, revisions, observation time, capacity and gaps" />
+        <ListBox Grid.Row="1" x:Name="WorkRecords" ItemsSource="{Binding WorkRecords}"
+                 SelectedItem="{Binding SelectedWorkRecord, Mode=OneWay}"
+                 AutomationProperties.Name="Authoritative queued, current, waiting, blocked, cancelled and unknown work; selection is passive">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Spacing="3" Margin="4">
+                <TextBlock Text="{Binding State}" />
+                <TextBlock Text="{Binding Identity}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Revisions}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Deadline}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <WrapPanel Grid.Row="2">
+          <Button x:Name="ReadQueue" Content="Refresh selected _work" IsEnabled="{Binding CanRefreshWork}"
+                  AutomationProperties.Name="Passively refresh selected exact session work; no meaningful activity or dispatch" />
+          <Button x:Name="InspectWork" Content="_Inspect selected work ID" IsEnabled="{Binding CanInspectWork}"
+                  AutomationProperties.Name="Inspect exact selected task or queue ID without execution authority" />
+          <Button x:Name="CancelQueueEntry" Content="_Cancel selected eligible work" IsEnabled="{Binding CanCancelWork}"
+                  AutomationProperties.Name="Cancel only the exact displayed pending queue entry or admitted pre-dispatch question wait at its revisions" />
+          <Button x:Name="RemoveQueueEntry" Content="_Remove pending ID" IsEnabled="{Binding CanRemoveQueueEntry}"
+                  AutomationProperties.Name="Remove only the exact selected pending queue ID and revision; history retained" />
+          <Button x:Name="EnqueueVersion" Content="Enqueue local version" IsEnabled="{Binding CanEnqueueVersion}" />
+          <Button x:Name="DispatchQueue" Content="Dispatch ready local versions fairly" IsEnabled="{Binding CanControlQueue}"
+                  AutomationProperties.Name="Explicit manual bounded fair dispatch among already enqueued current-run sessions; no effect or provider execution" />
+          <Button x:Name="ClearQueue" Content="Confirm clear displayed pending queue" IsEnabled="{Binding CanClearQueue}"
+                  AutomationProperties.Name="Explicitly confirm removal of the displayed pending queue at its exact revision; active work and history remain" />
+        </WrapPanel>
+        <StackPanel Grid.Row="3" Spacing="4">
+          <TextBlock Text="Pending questions — exact original targets; answer only in the separate Questions window" TextWrapping="Wrap" FontWeight="SemiBold" />
+          <ScrollViewer MaxHeight="160">
+          <ItemsControl ItemsSource="{Binding PendingQuestions}" AutomationProperties.Name="Pending questions remain visible beside work and history; never retargeted by selection">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding Key.QuestionId.Value, StringFormat='Question {0}'}" />
+                  <TextBlock Text="{Binding Key.Request.TaskId.Value, StringFormat='Exact task {0}'}" />
+                  <TextBlock Text="{Binding Key.Revision.Value, StringFormat='Question revision {0}'}" />
+                  <TextBlock Text="{Binding Generation.Value, StringFormat='Session generation {0}'}" />
+                  <TextBlock Text="{Binding Kind, StringFormat='Question kind {0}'}" />
+                  <TextBlock Text="{Binding ExpiresAt, StringFormat='User-wait expiry {0:O}; no scheduler slot or active-task clock'}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+        <ScrollViewer Grid.Row="4">
           <controls:NamedTextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
                      AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
         </ScrollViewer>
@@ -59,8 +105,6 @@
     <WrapPanel Grid.Row="5">
       <Button x:Name="NextQuestions" Content="Next questions" IsEnabled="{Binding CanNextQuestions}" />
       <Button x:Name="NextTasks" Content="Next tasks" IsEnabled="{Binding CanNextTasks}" />
-      <Button x:Name="InspectTask" Content="Inspect exact selected task" IsEnabled="{Binding CanInspectTask}" />
-      <Button x:Name="CancelTask" Content="Cancel inspected pre-dispatch wait" IsEnabled="{Binding CanCancelTask}" />
       <Button x:Name="Evidence" Content="Read selected evidence" IsEnabled="{Binding CanEvidence}" />
       <Button x:Name="NextEvidence" Content="Next evidence" IsEnabled="{Binding CanNextEvidence}" />
       <Button x:Name="Done" Content="Mark selected ID _Done" IsEnabled="{Binding CanDone}" AutomationProperties.Name="Explicitly mark the displayed selected session ID Done using its expected generation" />

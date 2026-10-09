@@ -18,6 +18,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Kora" />
     <InternalsVisibleTo Include="Kora.Application.UnitTests" />
+    <InternalsVisibleTo Include="Kora.Windows.IntegrationTests" />
   </ItemGroup>
 
   <PropertyGroup>

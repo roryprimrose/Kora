@@ -6,8 +6,8 @@ namespace Kora.Application.Configuration;
 
 public sealed class SpeechTextChoice
 {
-    internal SpeechTextChoice(SpeechTextMode mode, long revision, Guid owner,
-        WorkSessionAuthorization session, RequestOrigin origin, Func<bool> eligible)
+    internal SpeechTextChoice(SpeechTextMode? mode, long revision, Guid owner,
+        WorkSessionAuthorization session, RequestOrigin origin, Func<bool> eligible, SpeechCaptionValue? captionValue = null)
     {
         Mode = mode;
         Revision = revision;
@@ -15,9 +15,11 @@ public sealed class SpeechTextChoice
         Session = session;
         Origin = origin;
         Eligible = eligible;
+        CaptionValue = captionValue;
     }
-    public SpeechTextMode Mode { get; }
-    public string Label => Mode.ToString();
+    public SpeechTextMode? Mode { get; }
+    public SpeechCaptionValue? CaptionValue { get; }
+    public string Label => CaptionValue is { } value ? value.Label : Mode!.Value.ToString();
     internal long Revision { get; }
     internal Guid Owner { get; }
     internal WorkSessionAuthorization Session { get; }

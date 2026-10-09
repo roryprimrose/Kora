@@ -15,6 +15,69 @@ For the full design-defined catalogue, including capabilities not yet shipped,
 see [Tools and built-in skills: current and planned](tools-and-built-in-skills.md).
 The exact phrases on this page remain the current-release command reference.
 
+## Deterministic local-version queue
+
+Native **Sessions** queue controls and exact typed/current-name activated input
+share one host service. No model, network or audio is required for management
+or the fixed read. Voice commands still require normal activation/consent;
+the queue cannot open a microphone or speak a response.
+
+| Exact syntax | Result |
+|---|---|
+| `queue help` | Bounded syntax and unavailable scope |
+| `queue list <session-id>` | Current entries/revision plus bounded atomic work snapshot, recent receipts, pending question identities, capacity and eligibility reasons |
+| `queue status <session-id> <task-id>` | Exact retained work receipt; unknown IDs provide no authority |
+| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>]` | Add one fixed local application-version read; dependency requires an existing exact task |
+| `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
+| `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
+| `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
+| `queue dispatch <session-id> <generation> <queue-revision>` | Manually process up to 32 already enqueued ready local-version reads fairly across eligible sessions |
+
+Use canonical nonempty D GUIDs and the exact displayed positive session/entry
+revisions. Queue revision is the displayed committed snapshot revision; zero
+is valid only before the first queue mutation. For typed enqueue, supply fresh
+request/task GUIDs; native **Enqueue local version** generates them. Duplicate
+IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
+fail closed. The selected session's ID is visible and never inferred from a
+name, model response or window title.
+
+Enqueue does not start work. Selecting an exact session passively reads work;
+**Refresh selected work** refreshes that observation. Choose **Inspect selected
+work ID**, **Cancel selected eligible work**, **Remove pending ID** or
+**Confirm clear displayed pending queue** only for displayed exact revisions.
+The native controls call the same exact command workflows. Stale controls refuse
+instead of following another selection or revision. Only the separate genuine
+pre-dispatch local-version question wait can use exact task cancellation;
+admitted/effect work is not cancellable in this delivered slice.
+All/Active/Done filtering affects only the current bounded session page.
+Five-second passive work refresh never dispatches, reprioritizes, extends
+meaningful activity, moves focus or retargets voice/questions/approvals.
+Dispatch is manual, FIFO within a session and fair across ready sessions;
+the invoking session gains no priority. Capacity is ten pending entries
+per session and one admitted task per session. The shipped host uses one
+global slot; only the fixed local-read implementation permits a host
+limit of one or two.
+
+Pending eligibility expires after 30 minutes; an expired head remains visible
+until explicitly removed/cleared, and blocks later work at that position.
+The five-minute active budget starts at admission; late read results cannot
+be successful receipts. Existing pre-dispatch user questions have their own
+expiry and consume neither slot nor active budget; this fixed profile creates
+no in-task questions. It provides no effect-worker cancellation or forced
+termination. A failed batch stops; make a fresh explicit dispatch decision.
+
+Lock/privacy/ownership or call-policy changes retire eligibility even after
+unlock: inspect, remove and explicitly requeue rather than resuming stale work.
+Unknown outcomes quarantine the addressed session and dependent tasks, while
+unrelated sessions remain eligible. Restart restores status/history only:
+pending work is Interrupted and prior dispatch is Unknown, never replayed.
+Do not blindly retry a failed audit/storage/receipt operation; a commit may
+already exist. Inspect exact durable IDs/revisions before a new decision.
+
+No script, power, write connector, arbitrary resource/effect, hosted provider
+or local-model reasoning descriptor is schedulable. This is a deterministic
+read-only core, not full two-slot worker/provider/hardware acceptance.
+
 ## In-call feedback override
 
 Native **Settings > Calls** and exact typed/current-name ACTIVATED commands

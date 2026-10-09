@@ -26,12 +26,32 @@ Exact typed or current-name activated commands are `list speech text settings`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
 
-Captions clear immediately on completion, interruption, replacement, lock,
+Captions clear immediately on interruption, replacement, lock,
 ownership/privacy/call change or unconfirmed configuration. Corrupt or pending
 preferences keep captions off; inspect saved state and audit receipts before
 explicit repair. Required approval/error panels remain visible independently.
-Sentence timing, pinning, placement preferences, dismissal delays, broad caption
-commands and rich browser/HTML/diagram rendering are not implemented.
+After **normal successful completion**, already-observed text remains for
+**5 seconds** by default and is labelled **PREVIOUS SPEECH**. The caption's
+**Pin / Unpin** button keeps that one caption visible after completion. Unpin
+uses the original deadline, not a new delay. Pinning never bypasses the immediate
+retirement rules above, and is never saved across responses or restart.
+
+In Settings choose **Placement** or **DismissalDelay**, inspect, choose an exact
+value, then **Save caption option only**. **Reset selected caption option**
+resets only that option. These device-local options do not enable captions:
+
+| ID | Choices / bounds | Default and reset |
+|---|---|---|
+| `display.speech-text-placement` | `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` on the primary working area, 24-DIP margin | `BottomRight` |
+| `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 | 5 |
+| `display.speech-text-pin` | `true` / `false`, current observed caption only; run-only | `false` |
+
+Each has exact `get/status <id>`, `set <id> to <value>` and `reset <id>`.
+`list speech text settings` discovers the persisted options; exact pin status
+shows its run-only scope. Invalid saved options are rejected, not defaulted.
+Sentence alignment remains unavailable because playback supplies no admitted
+sentence boundaries. Broad natural caption commands and rich browser/HTML/
+diagram rendering remain unimplemented.
 
 ## Windows-native speech rate
 

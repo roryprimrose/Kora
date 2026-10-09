@@ -150,9 +150,16 @@ public sealed class SessionsViewModelTests
             .And.Contain("viewModel.ShowSessions()");
         Read("Program.cs").Should().Contain("ISessionWorkspaceStore>(interactions)");
         Read("App.axaml.cs").Should().Contain("sessionsWindow?.Dispose()");
-        Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("IsReady").And.Contain("IsHandoffRecoveryRequired")
+        Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("IsCapabilityAdmissionOpen").And.Contain("IsHandoffRecoveryRequired")
             .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision")
             .And.Contain("!main.CallObservation.IsProtected");
+        Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("OnPrivacyClosure").And.Contain("AdmissionRevision");
+        source.Should().Contain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
+        code.Should().Contain("model.RefreshWorkAsync").And.Contain("model.DispatchQueueAsync")
+            .And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= OnRefreshTick")
+            .And.NotContain(".Focus(");
+        source.Should().Contain("WorkStatus").And.Contain("PendingQuestions").And.Contain("CanRemoveQueueEntry")
+            .And.Contain("Authoritative queued, current, waiting, blocked, cancelled and unknown work");
     }
 
     private static string Read(string name)

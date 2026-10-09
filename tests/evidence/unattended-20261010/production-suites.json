@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "qualificationDate": "2026-10-10",
+  "status": "passed-authorized-scope-with-explicit-native-ui-gaps",
+  "sourceRevision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "branch": "agents/production-test-isolated-worktree",
+  "worktreeName": "production-test-isolated-worktree",
+  "environment": {
+    "os": "Windows",
+    "architecture": "x64",
+    "configuration": "Release",
+    "dotnetSdk": "10.0.401",
+    "dotnetRuntime": "10.0.12",
+    "powerShell": "7.6.6",
+    "shellArguments": "-NoProfile -NonInteractive",
+    "testRunner": "Microsoft.Testing.Platform with xUnit v3",
+    "suiteTimeout": "15m"
+  },
+  "build": {
+    "initialCommand": "dotnet build .\\Kora.slnx --configuration Release --no-restore -warnaserror",
+    "initialExitCode": 1,
+    "initialFailure": "NETSDK1004: project.assets.json absent in fresh isolated worktree",
+    "initialLogSha256": "D8178A5CE1E69766EED89E229263E486D90B15F21B66B2ECC26418AE02B88739",
+    "restoreCommand": "dotnet restore .\\Kora.slnx --locked-mode",
+    "restoreExitCode": 0,
+    "restoreLogSha256": "402B6EA5786B19698221A9202DB718EEE0B9BB942BECEE67A54975AA531E9D08",
+    "finalCommand": "dotnet build .\\Kora.slnx --configuration Release --no-restore -warnaserror",
+    "finalExitCode": 0,
+    "warnings": 0,
+    "errors": 0,
+    "finalLogSha256": "7B94BD44BF602B78D2384240C4C9F48061A70A169EF86AE748347CCA924FBFFC"
+  },
+  "testCommandTemplate": "dotnet test --project .\\tests\\{suite}\\{suite}.csproj --configuration Release --no-build --report-trx --report-trx-filename {artifact}.trx --results-directory {external-proof-root}\\{artifact} --timeout 15m",
+  "windowsCommandSuffix": "--filter (safetyExclusions mapped to FullyQualifiedName!=<selector> and joined with &)",
+  "suites": [
+    {
+      "suite": "Kora.Core.UnitTests",
+      "artifact": "core",
+      "exitCode": 0,
+      "executed": 1314,
+      "passed": 1314,
+      "failed": 0,
+      "runnerSkipped": 0,
+      "safetyExcluded": 0,
+      "startedUtc": "2026-10-09T20:49:35.5053864Z",
+      "finishedUtc": "2026-10-09T20:49:40.4510754Z",
+      "trxSha256": "9447DF43226E2E1B2FF476CCB75449B1E04EE43A67CC5073D5E97D808F61FFBD"
+    },
+    {
+      "suite": "Kora.Application.UnitTests",
+      "artifact": "application",
+      "exitCode": 0,
+      "executed": 3570,
+      "passed": 3570,
+      "failed": 0,
+      "runnerSkipped": 0,
+      "safetyExcluded": 0,
+      "startedUtc": "2026-10-09T20:49:36.3238138Z",
+      "finishedUtc": "2026-10-09T20:50:02.8405271Z",
+      "trxSha256": "E4905303CDC95472EDEA4B2273CEBB5183B7A78B100CE9BAC98C9DFC5D2F8A36"
+    },
+    {
+      "suite": "Kora.Tools.UnitTests",
+      "artifact": "tools",
+      "exitCode": 0,
+      "executed": 90,
+      "passed": 90,
+      "failed": 0,
+      "runnerSkipped": 0,
+      "safetyExcluded": 0,
+      "startedUtc": "2026-10-09T20:49:34.644396Z",
+      "finishedUtc": "2026-10-09T20:49:36.437537Z",
+      "trxSha256": "1BAA6B2BE65333F8C8C3F30887EB53147B93E847418D5028DBD5830EDF03C99B"
+    },
+    {
+      "suite": "Kora.Definitions.UnitTests",
+      "artifact": "definitions",
+      "exitCode": 0,
+      "executed": 6,
+      "passed": 6,
+      "failed": 0,
+      "runnerSkipped": 0,
+      "safetyExcluded": 0,
+      "startedUtc": "2026-10-09T20:49:35.2054416Z",
+      "finishedUtc": "2026-10-09T20:49:38.695255Z",
+      "trxSha256": "0F3E7AE47F958D9CD9FFF99402B5F7611BB8DDABCC5CB25639F6BA4C09199255"
+    },
+    {
+      "suite": "Kora.Windows.IntegrationTests",
+      "artifact": "windows",
+      "exitCode": 0,
+      "discoveredUnfiltered": 1294,
+      "discoveredAuthorized": 1291,
+      "executed": 1291,
+      "passed": 1291,
+      "failed": 0,
+      "runnerSkipped": 0,
+      "safetyExcluded": 3,
+      "startedUtc": "2026-10-09T20:50:27.5841665Z",
+      "finishedUtc": "2026-10-09T20:54:35.6438121Z",
+      "trxSha256": "9AD6D7A1257CAA8CE4E332FCD3E10863D0232DA7A6805D49FAB34A993BDAB171"
+    }
+  ],
+  "totals": {
+    "maintainedCasesIncludingSafetyExclusions": 6274,
+    "executed": 6271,
+    "passed": 6271,
+    "failed": 0,
+    "runnerSkipped": 0,
+    "safetyExcluded": 3
+  },
+  "safetyExclusions": [
+    {
+      "selector": "Kora.Windows.IntegrationTests.Presentation.WindowsPresenceWindowInputTests.Native_window_styles_switch_click_through_without_changing_position_or_activation_flags",
+      "cases": 1,
+      "reason": "Creates and mutates a real Win32 HWND; native UI effects are outside unattended authorization."
+    },
+    {
+      "selector": "Kora.Windows.IntegrationTests.Presentation.WindowsPresenceWindowInputTests.Native_hit_testing_reaches_the_underlying_window_except_during_Ctrl_interaction",
+      "cases": 1,
+      "reason": "Creates real windows on a private native desktop and switches the test thread desktop; native UI effects are outside unattended authorization."
+    },
+    {
+      "selector": "Kora.Windows.IntegrationTests.Presentation.WindowsPresenceWindowInputTests.Native_hit_testing_repeatedly_restores_and_releases_private_desktops",
+      "cases": 1,
+      "reason": "Repeats real private-desktop/window creation and thread desktop switching; native UI effects are outside unattended authorization."
+    }
+  ],
+  "retainedBoundaryEvidence": {
+    "ownedChildRecoveryCases": [
+      {
+        "method": "Owned_child_interruption_recovers_atomic_receipts_without_replaying_work",
+        "passed": 8
+      },
+      {
+        "method": "Owned_child_interruption_reopens_exact_evidence_or_refuses_unsafe_recovery",
+        "passed": 12
+      },
+      {
+        "method": "Owned_child_kill_reopens_atomic_question_grant_audit_and_preserves_active_generation_without_replay",
+        "passed": 6
+      },
+      {
+        "method": "Owned_process_interruption_reopens_one_task_question_audit_truth_without_replay",
+        "passed": 2
+      },
+      {
+        "method": "Owned_metadata_or_migration_kill_reopens_one_atomic_schema_authority_and_audit_truth",
+        "passed": 8
+      }
+    ],
+    "ownedChildRecoveryPassed": 36,
+    "ownedChildReleaseBarrierPassed": 4,
+    "headlessCases": [
+      { "class": "AccessibilityRuntimeContractTests", "passed": 20 },
+      { "class": "BoundedSurfaceAccessibilityTests", "passed": 9 },
+      { "class": "LocalEventBrokerWindowTests", "passed": 3 },
+      { "class": "NativeQuestionWindowContractTests", "passed": 8 },
+      { "class": "NativeUxFixtureContractTests", "passed": 18 },
+      { "class": "SessionsHistoryDetailTests", "passed": 2 },
+      { "class": "SessionsHistorySearchTests", "passed": 1 },
+      { "class": "SessionsWorkWindowTests", "passed": 5 }
+    ],
+    "headlessPassed": 66,
+    "remainingOwnedStorageRoots": 0,
+    "remainingOwnedContinuityFiles": 0,
+    "remainingOwnedSharedProfileRoots": 0
+  },
+  "verification": {
+    "allSuiteTrxCountersAndResultNodesAgree": true,
+    "allResultNodesPassed": true,
+    "windowsAuthorizedDiscoveryEqualsExecutedTestIdentities": true,
+    "windowsDiscoveryDifferenceEqualsExactThreeSafetyExclusions": true,
+    "unfilteredWindowsDiscoverySha256": "F732F150F6A3572E8366B9BF220F36133B0007EA2FD5E01AD74BCF36FA3C1837",
+    "authorizedWindowsDiscoverySha256": "BEF8F57FECA9F472C2929EF85E79B1792C36C733C8824CD952110AE6934F68E8",
+    "productionSourceAndTestFixturesChanged": false,
+    "engFilesChanged": false,
+    "rawArtifactsCommitted": false
+  }
+}

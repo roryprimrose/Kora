@@ -420,6 +420,9 @@ def main():
         "kind": "recorded_synthetic_audio_not_acoustic_proof",
         "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "main_baseline": subprocess.check_output(["git", "rev-parse", "origin/main"], text=True).strip(),
+        "source_worktree_dirty": bool(subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=normal"], text=True, cwd=ROOT,
+        ).strip()),
         "hardware": hardware(), "python": platform.python_version(), "logical_cpus": os.cpu_count(),
         "versions": {name: importlib.metadata.version(name) for name in
                      ("numpy", "psutil", "sentencepiece", "sherpa-onnx", "sherpa-onnx-core")},

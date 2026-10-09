@@ -23,7 +23,7 @@ public sealed partial class SessionWorkspaceService
             return (queue ?? throw new InvalidOperationException("The deterministic queue service is unavailable."))
                 .ExecuteCommandAsync(command, origin, admission, token);
         }
-        if (command.Operation is SessionCommandOperation.History or SessionCommandOperation.HistoryGet)
+        if (command.Operation is SessionCommandOperation.History or SessionCommandOperation.HistoryGet or SessionCommandOperation.HistorySearch)
         {
             return ExecuteHistoryCommandAsync(command, origin, admission, token);
         }
@@ -140,7 +140,14 @@ public sealed partial class SessionWorkspaceService
             HostActivityLayer.Application, HostOperation.Request);
         try
         {
-            var result = command.Operation == SessionCommandOperation.History
+            var result = command.Operation == SessionCommandOperation.HistorySearch
+                ? new SessionCommandResult("observed", SessionHistorySearchPage.Scope)
+                {
+                    HistorySearch = await SearchHistoryAsync(session, command.HistoryQuery
+                        ?? throw new InvalidOperationException("A lexical query is required."),
+                        command.HistorySearchCursor, command.Limit, token).ConfigureAwait(false),
+                }
+                : command.Operation == SessionCommandOperation.History
                 ? new SessionCommandResult("observed", SessionHistoryPage.Scope)
                 {
                     History = await ReadHistoryAsync(session, command.HistoryCursor, command.Limit, token).ConfigureAwait(false),

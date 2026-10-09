@@ -20,6 +20,30 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R14 Passive Exact-Session Lexical History Search - 2026-10-09
+
+The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.
+
+The [shared lexical rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs) constrain literal Unicode OR queries; [search results](../src/Kora.Core/Storage/SessionHistorySearchPage.cs) retain exact immutable event/session/sequence/source-revision/digest provenance, 200-receipt scan, 50-result/64-KiB bounds and explicit gaps/omissions/continuations. Only admitted committed fields are searched. Done stays passive; Removed content is absent. Native query/subject/privacy changes, cancellation and late reads cannot publish old results. The existing exact detail resolver is reused.
+
+[Core boundaries](../tests/Kora.Core.UnitTests/Storage/SessionHistorySearchTests.cs), [workflow and hostile-context tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Search.cs), [scratch SQLite/restart/disposition tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteHistorySearchTests.cs) and [headless native recovery](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs) are maintained equivalents for this slice only. Full R12/R14/A4, composer, general artifact history, model history reasoning, Ask Evidence, installed screen-reader/DPI and environment qualification remain open.
+
+Experiment disposition: retain executables and historical receipts unchanged. The [storage proof](../experiments/r02-storage-proof/README.md) still has unique capacity/copy/crypto/native/recovery cases beyond these actual standard-SQLite passive history tests. The [runtime proof](../experiments/r02-runtime-proof/README.md) and [local-inference proof](../experiments/r02-local-inference-proof/README.md) exercise mediation/final-request/provider and quality/offline/resource behavior not invoked by this model-free search.
+
+Runtime consumers also remain: [RT1 historical witness](../experiments/r02-dotnet-control-proof/Run-Conformance.ps1), [management input validation](../experiments/r02-dotnet-management-proof/Test-Inputs.ps1) and [synthetic runtime extraction](../eng/RuntimeValidation.Common.ps1). Executable archival requires exact maintained equivalence plus migration of these consumers; unique native lab procedures and receipts must remain. This increment does not satisfy those triggers and removes no executable code.
+
+Local receipt against reviewed main `1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`: locked restore through the machine-local approved feed; Release solution build with zero warnings/errors; Core 1,198, Application 3,123, Tools 69, Definitions 6 and Windows 1,232 pass with zero failures/skips. Matching latest-only portable reports pass the unchanged [coverage gate](../eng/Assert-CodeCoverage.ps1): 16,599/16,599 lines and 9,877/9,877 branches. The native status-only delta was rebuilt and its headless search test rerun after the full Windows suite.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+total: 1232; failed: 0; succeeded: 1232; skipped: 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <matching-latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0%; Branch coverage: 100.0%
+lines-covered/valid: 16599/16599; branches-covered/valid: 9877/9877
+```
+
 ### D-014 Reviewed User-Memory Admission Increment - 2026-10-09
 
 The first dependency-safe memory package delivers the

@@ -74,7 +74,7 @@ public sealed partial class MainViewModel
             foreach (var row in result.Sessions) { sessionPresentationSources.Add(row.Id); }
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException
-            or UnauthorizedAccessException or OperationCanceledException)
+            or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
             ApplicationLog.Error(logger, exception, "Running a bounded session command");
             if (disposed || !IsHostInputEligible) { return; }

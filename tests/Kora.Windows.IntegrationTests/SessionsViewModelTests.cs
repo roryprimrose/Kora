@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
-public sealed class SessionsViewModelTests
+public sealed partial class SessionsViewModelTests
 {
     [WindowsFact]
     public async Task Closing_pending_passive_read_clears_late_records_and_never_changes_lifecycle_or_admits_work()
@@ -137,7 +137,7 @@ public sealed class SessionsViewModelTests
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(2, "only the bounded name draft and exact immutable history ID are editable; no conversation composer exists");
+            .Should().HaveCount(3, "only the bounded name draft, exact immutable history ID and volatile lexical query are editable; no conversation composer exists");
         source.Should().Contain("NameDraft").And.Contain("CanCreate").And.Contain("CanRename");
         source.Should().Contain("HistorySessionId").And.Contain("CanHistory").And.Contain("CanNextHistory")
             .And.Contain("Read bounded ordered session history without resuming");
@@ -157,7 +157,7 @@ public sealed class SessionsViewModelTests
         source.Should().Contain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
         code.Should().Contain("model.RefreshWorkAsync").And.Contain("model.DispatchQueueAsync")
             .And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= OnRefreshTick")
-            .And.NotContain(".Focus(");
+            .And.Contain("ClearHistorySearch.Click += (_, _) => { model.HistoryQuery = string.Empty; HistoryQuery.Focus(); }");
         source.Should().Contain("WorkStatus").And.Contain("PendingQuestions").And.Contain("CanRemoveQueueEntry")
             .And.Contain("Authoritative queued, current, waiting, blocked, cancelled and unknown work");
     }
@@ -172,8 +172,16 @@ public sealed class SessionsViewModelTests
         return File.ReadAllText(Path.Combine(directory!.FullName, "src", "Kora", name));
     }
 
-    private sealed class HeldStore : ISessionWorkspaceStore
+    private sealed class HeldStore : ISessionWorkspaceStore, ISessionHistoryStore
     {
+        internal TaskCompletionSource<SessionHistoryPage> HistoryCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ValueTask<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session,
+            SessionHistoryCursor? cursor, int limit, CancellationToken cancellationToken) =>
+            cursor?.After == cursor?.Snapshot && cursor is not null
+                ? ValueTask.FromResult(new SessionHistoryPage(session, cursor.Generation, false, cursor.Snapshot, [], null))
+                : new(HistoryCompletion.Task);
+        public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,
+            Guid eventId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
             HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,

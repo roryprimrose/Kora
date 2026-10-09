@@ -138,7 +138,7 @@ internal sealed partial class SessionsViewModel(
     public string HistorySessionId
     {
         get => historySessionId;
-        set { historySessionId = value; history = null; selectedHistory = null; selectionEpoch++; OnPropertyChanged(); Notify(); }
+        set { historySessionId = value; ClearHistorySearch(); history = null; selectedHistory = null; selectionEpoch++; OnPropertyChanged(); Notify(); }
     }
     public IReadOnlyList<SessionHistoryEvent> HistoryRecords => history?.Records ?? [];
     public SessionHistoryEvent? SelectedHistoryRecord => selectedHistory;
@@ -183,6 +183,7 @@ internal sealed partial class SessionsViewModel(
             throw new InvalidOperationException("Enter the exact immutable session ID, not a name.");
         }
         var epoch = selectionEpoch;
+        ClearHistorySearch();
         selectedHistory = null;
         var page = await service.ReadHistoryAsync(new(id),
             next ? history?.Next ?? throw new InvalidOperationException("No next history page.") : null, 25, lifetime.Token);
@@ -474,6 +475,7 @@ internal sealed partial class SessionsViewModel(
         tasks = null;
         evidencePage = null;
         history = null;
+        ClearHistorySearch();
         selectedHistory = null;
         detail = string.Empty;
         nameDraft = string.Empty;
@@ -534,6 +536,7 @@ internal sealed partial class SessionsViewModel(
             OnPropertyChanged(nameof(HistoryRecords));
             OnPropertyChanged(nameof(SelectedHistoryRecord));
             OnPropertyChanged(nameof(CanOpenHistoryDetail));
+            NotifyHistorySearch();
         }
         finally { notifying = previous; }
     }

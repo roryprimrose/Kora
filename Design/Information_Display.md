@@ -42,7 +42,7 @@ only a content-free redacted gap/tombstone. Restart performs no replay.
 The delivered lexical file citation surface, volatile file/clipboard previews,
 skill review, queue/status and diagnostic evidence are reused separately, not
 duplicated or persisted here. Artifact bodies, general finalized-response/
-script/diff routing, conversation composer, history search/model reasoning,
+script/diff routing, conversation composer, model history reasoning,
 Ask Evidence, broad export and installed accessibility/DPI acceptance remain
 gated. See [the roadmap/evidence assessment](Implementation_Roadmap.md#r14-immutable-selected-session-receipt-details---2026-10-09).
 
@@ -81,9 +81,11 @@ remain unavailable. Shared-profile skill content and local file/clipboard
 previews remain volatile inspections. No history content enters diagnostics,
 activity tags or model context; only fresh admitted actual playback can create
 captions. This is partial R12/R14 delivery, not a full conversation composer,
-history search/model reasoning or Ask Evidence. The separately delivered fixed
+model history reasoning or Ask Evidence. The separately delivered fixed
 queue/native work surface is not a general scheduler. Real installed
 visual/screen-reader/DPI acceptance remains open.
+
+Passive exact-session history search now uses the existing receipt list and detail action. The [search workflow](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) consumes only delivered committed fields and preserves generation/query-bound pagination, exact provenance, gaps and complete byte bounds. Native selection still freshly resolves the immutable event through the existing detail service. Search text/results are volatile, cleared on query/subject/privacy retirement, and never become reply, model, replay or execution authority ([native state](../src/Kora/SessionsViewModel.Search.cs)).
 
 ## Delivered Exact Host-Record Review - 2026-10-07
 

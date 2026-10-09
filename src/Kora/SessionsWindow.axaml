@@ -23,7 +23,8 @@
       <Button Grid.Column="2" x:Name="RenameSession" Content="Re_name selected ID" IsEnabled="{Binding CanRename}"
               AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
     </Grid>
-    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10">
+    <StackPanel Grid.Row="3" Spacing="6">
+    <WrapPanel>
       <TextBox Text="{Binding HistorySessionId, Mode=TwoWay}" Width="320" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Exact immutable session ID for passive history; names do not select sessions" />
       <Button x:Name="ReadHistory" Content="_Read exact history" IsEnabled="{Binding CanHistory}"
@@ -31,6 +32,18 @@
       <Button x:Name="NextHistory" Content="Next history snapshot page" IsEnabled="{Binding CanNextHistory}" />
       <Button x:Name="OpenHistoryDetail" Content="Open immutable receipt _details" IsEnabled="{Binding CanOpenHistoryDetail}"
               AutomationProperties.Name="Freshly resolve the exact selected session history receipt into read-only native details; no artifact body or execution authority" />
+    </WrapPanel>
+    <WrapPanel>
+      <TextBox x:Name="HistoryQuery" Text="{Binding HistoryQuery, Mode=TwoWay}" Width="320" MaxLength="256"
+               IsEnabled="{Binding CanRead}" PlaceholderText="Lexical words; Enter searches, Escape clears"
+               AutomationProperties.Name="Volatile exact-session history query; whole-word Unicode OR search, no model or activity renewal" />
+      <Button x:Name="SearchHistory" Content="_Search exact history" IsEnabled="{Binding CanSearchHistory}"
+              AutomationProperties.Name="Search retained committed history for this exact immutable session ID; no resume or reply" />
+      <Button x:Name="NextHistorySearch" Content="Next _search snapshot page" IsEnabled="{Binding CanNextHistorySearch}"
+              AutomationProperties.Name="Continue bounded lexical scan even when the previous search page has no matches" />
+      <Button x:Name="CancelHistorySearch" Content="Cancel search" IsEnabled="{Binding CanCancelHistorySearch}" />
+      <Button x:Name="ClearHistorySearch" Content="Clear query and results" IsEnabled="{Binding CanRead}" />
+    </WrapPanel>
     </StackPanel>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
       <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"

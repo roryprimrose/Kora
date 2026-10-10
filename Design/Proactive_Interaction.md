@@ -101,6 +101,7 @@ The serialized broker suppresses first routine deliveries **before** presentatio
 Authoritative work/queue/status, history/citations, errors, mandatory security output, questions/approvals and private recovery remain independently reachable. Quiet never interrupts or relabels a pending question; synthesis remains NotRequested even under VoiceOnly.
 
 Native mutation requires the exact live original LocalUi request/session, current selected native lifetime, unchanged private host/call/control/retirement epochs and quiet choice revision. HostSystem, model/ambient callbacks and voice relabelling cannot invoke this internal seam.
+The real window's visibility generation is bound before admission; a hidden, not-yet-open or closed Sessions surface cannot mutate. Hide/reopen cannot revive a prior callback.
 Requested/terminal typed configuration audit and content-free generated diagnostics retain actual host correlation; failure/cancellation holds notice admission with explicit recovery, not a success-shaped default or silent rollback.
 
 Quiet suppression retains exact source/generation/revision/expiry and advances existing eligible/deferred receipt revisions. `RoutineSuppressed` is not Presented and consumes no category budget.

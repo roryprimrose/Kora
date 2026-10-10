@@ -12,6 +12,10 @@ internal sealed partial class SessionsWindow : Window
     {
         InitializeComponent();
         DataContext = model;
+        PropertyChanged += (_, args) =>
+        {
+            if (args.Property == IsVisibleProperty) { model.SetRoutineQuietSurfaceOpen(IsVisible); }
+        };
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
         SearchList.Click += async (_, _) => await model.SearchListAsync();

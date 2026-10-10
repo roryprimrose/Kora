@@ -24,6 +24,9 @@ adds exact-ID pending work, bounded fair manual dispatch, atomic task/audit
 receipts and no-replay recovery over the existing read-only version action.
 It needs no model/network/audio, admits no arbitrary resources/effects and
 does not qualify concurrent workers, providers or hardware.
+The [native exact-session retention panel](docs/settings.md#per-session-retention-status-and-hold) passively shows recorded UTC activity/due dates and kept/purged state. Keep/ordinary changes require separate exact native review/confirmation with atomic stale-state protection; ordinary dates may already be due.
+Session holds are not operation grants, memory or execution. Browsing never runs cleanup; due/policy/copy/source admission remains fail closed. No model/typed/voice mutation or apply-now cleanup is delivered.
+
 The [authoritative Sessions work surface](docs/windows-and-tray.md#authoritative-sessions-work)
 now coordinates the bounded session list, selected work/queue and pending
 question identities beside separate history/evidence. Exact native controls

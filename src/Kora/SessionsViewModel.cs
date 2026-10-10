@@ -144,7 +144,7 @@ internal sealed partial class SessionsViewModel(
     public string HistorySessionId
     {
         get => historySessionId;
-        set { historySessionId = value; ClearHistorySearch(); history = null; selectedHistory = null; selectionEpoch++; OnPropertyChanged(); Notify(); }
+        set { historySessionId = value; ClearHistorySearch(); ClearRetention(); history = null; selectedHistory = null; selectionEpoch++; OnPropertyChanged(); Notify(); }
     }
     public IReadOnlyList<SessionHistoryEvent> HistoryRecords => history?.Records ?? [];
     public SessionHistoryEvent? SelectedHistoryRecord => selectedHistory;
@@ -294,6 +294,7 @@ internal sealed partial class SessionsViewModel(
             questions = await service.ReadQuestionsAsync(record.Authority.SessionId, null, 25, lifetime.Token);
             tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
             await RefreshSelectedWorkAsync();
+            await ReadSelectedRetentionAsync();
             Render();
             status = "Passive selected work snapshot. Questions remain exactly bound; no activity, priority, voice target or dispatch changed.";
         });
@@ -404,13 +405,14 @@ internal sealed partial class SessionsViewModel(
         detail = text.ToString();
     }
 
-    private async Task RunAsync(Func<Task> operation, bool passive = false)
+    private async Task RunAsync(Func<Task> operation, bool passive = false,
+        HostId<SessionIdentity>? activitySession = null)
     {
         if (busy || closed || passive && refreshingWork) { return; }
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
         var clearedPresentation = false;
-        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), viewer.SessionId,
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), activitySession ?? viewer.SessionId,
             viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
         if (passive) { refreshingWork = true; }
         else { busy = true; Notify(); }
@@ -473,6 +475,7 @@ internal sealed partial class SessionsViewModel(
         if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }
         ClearMemories();
         ClearLocalEvents();
+        ClearRetention();
         selectionEpoch++;
         workSnapshot = null;
         presentingWork = true;
@@ -514,6 +517,7 @@ internal sealed partial class SessionsViewModel(
         try
         {
             NotifyWork();
+            NotifyRetention();
             NotifyMemories();
             NotifyQueue();
             NotifyListSearch();

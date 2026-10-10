@@ -67,6 +67,16 @@ queue payload. There is no composer, model management, Ask Evidence, export,
 rich browser, new worker/effect/provider or full R14/A4 acceptance. Maintained
 headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
+### Delivered Native Exact-Session Retention Controls - 2026-10-10
+
+When due-content inspection is held, the existing canonical exact-ID field and **Read exact ID retention** provide metadata-only status/review without reading names/history/work or creating implicit conversation/resume authority. Removed/purged observations are nonmutable.
+
+The selected-session **Retention: status and exact review** panel now shows actual UTC activity/due dates and kept/purged state. **Refresh retention status** is passive. **Keep this session** / **Use ordinary retention** first stage an exact ID/generation/state/audit-revision preview; **Confirm exact retention review** is a separate native action. Cancel, selection changes and close discard it.
+
+Ordinary policy uses the displayed original due dates, never resets inactivity, and warns about soon/already-due background archive/delete. The session hold is explicitly not an operation grant, consent, memory, recall or execution. Observed work holds and unobserved copy/maintenance availability are distinguished. Stale/removed/purged, ownership/privacy/call changes and uncertain audit/commit/readback require fresh durable inspection, not blind checkbox-save or false rollback.
+
+Browsing no longer invokes cleanup. Confirmed policy, copy inventory, due-candidate holds and source revisions remain read-time fail-closed checks; eligible due ordinary content waits for private background maintenance. See the [retention contract](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) and [native/headless tests](../tests/Kora.Windows.IntegrationTests/SessionsRetentionViewModelTests.cs). No model, typed/voice mutation, apply-now or installed-native qualification is added.
+
 ### Delivered Passive Session-List Metadata Navigation - 2026-10-10
 
 The Sessions window now has a separate metadata query and explicit **NameSubstring** / **ExactId** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears only the focused query. This is not the adjacent exact-session lexical history search or Evidence filtering.

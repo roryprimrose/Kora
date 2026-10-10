@@ -37,6 +37,8 @@ internal sealed partial class SessionsWindow : Window
         };
         CreateSession.Click += async (_, _) => await model.CreateAsync();
         RenameSession.Click += async (_, _) => await model.RenameAsync();
+        AttachFile.Click += async (_, _) => await model.OpenAttachment(attach: true);
+        InspectAttachment.Click += async (_, _) => await model.OpenAttachment(attach: false);
         RefreshRetention.Click += async (_, _) => await model.RefreshRetentionAsync();
         KeepSession.Click += (_, _) => model.PreviewRetention(keep: true);
         OrdinaryRetention.Click += (_, _) => model.PreviewRetention(keep: false);

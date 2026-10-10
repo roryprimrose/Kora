@@ -12,6 +12,10 @@ Related: [Canonical Tool Catalogue](Internal_Model_Tools.md), [Interaction Contr
 
 ## Scope and Availability
 
+**Current host-only Session file flow:** the [R26.1e native attachment](File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10) uses `LocalSessionFileAttach` and the shared verified capture broker, with an exact-session metadata/durable-copy review and separate native confirmation. One immutable UTF-8 text/Markdown file per session, 256 KiB original bytes and sixteen retained profile files; no eviction.
+
+Restart-safe full inert source, same `lexical-lines-v1` citations and exact reviewed inventoried removal are local-only. The existing private interaction authority stores format-1 snapshots under schema 8; retained source descriptors are not filesystem, execution, model or egress authority. These are **H** flows, not new registered `context.*` tools. Managed sources, folders/versions/model/OCR/vector/egress remain unavailable.
+
 This catalogue covers the internal operations and named bundled skills
 specified by the current design. It does not invent tools for unspecified
 connectors, providers, or future integrations.

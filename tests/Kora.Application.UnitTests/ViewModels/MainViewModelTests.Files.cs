@@ -5,11 +5,58 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Tools.Files;
 using Microsoft.Extensions.Logging.Abstractions;
+using Kora.Application.Hosting;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("lock")]
+    [InlineData("owner")]
+    [InlineData("call")]
+    [InlineData("dispose")]
+    [InlineData("exit")]
+    public async Task SessionAttachmentCaptureParticipatesInPrivacyCancellationAndRealHandoffQuiescence(string change)
+    {
+        var fixture = new Fixture();
+        var workspace = new SessionCommandStore(fixture);
+        var sessions = new SessionWorkspaceService(workspace, new(fixture.HostStore), workspace,
+            NullLogger<SessionWorkspaceService>.Instance);
+        var action = new LocalSessionFileAttach(new FakeFileInspector(), fixture.Audit,
+            TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        await using var service = new SessionFileAttachmentService(sessions, workspace, action, new LocalFileLexicalRetrieval(),
+            TimeProvider.System, fixture.Audit, NullLogger<SessionFileAttachmentService>.Instance);
+        fixture.ViewModel.BindSessionAttachments(service);
+        var duplicate = () => fixture.ViewModel.BindSessionAttachments(service);
+        duplicate.Should().Throw<InvalidOperationException>();
+        var ownerEligible = true;
+        using (var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request))
+        {
+            await action.Select(new FakeFilePicker(), () => ownerEligible, TestContext.Current.CancellationToken);
+        }
+        fixture.ViewModel.IsCancelTaskVisible.Should().BeTrue();
+        (await fixture.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+        switch (change)
+        {
+            case "cancel": await fixture.ViewModel.CancelCurrentTaskAsync(); break;
+            case "lock": fixture.ViewModel.CloseForObservedPrivacyEvent("fixture", hidePresentation: true); break;
+            case "owner": ownerEligible = false; fixture.ViewModel.BindClipboardOwnershipGate(() => false); break;
+            case "call":
+                await fixture.ViewModel.SetManualCallAsync(true, RequestOrigin.LocalUi, fixture.ViewModel.CallPolicyRevision,
+                    TestContext.Current.CancellationToken); break;
+            case "dispose": fixture.ViewModel.Dispose(); break;
+            default: await fixture.ViewModel.ExitAsync(); break;
+        }
+        service.Review.Should().BeNull();
+        await service.WaitForQuiescence();
+        service.IsQuiescent.Should().BeTrue();
+        fixture.HostStore.Records.Should().BeEmpty();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("search file")]
     [InlineData("Kora, inspect file")]

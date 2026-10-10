@@ -5,18 +5,20 @@ using Avalonia.Media;
 using Kora.Application.Infrastructure;
 using Kora.Controls;
 using Kora.Core.Context;
+using Kora.Core.Storage;
+using Kora.Core.Hosting;
 
 namespace Kora;
 
 internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Window
 {
-    private readonly NamedTextBlock content = new() { FontFamily = new FontFamily("Consolas") };
+    private NamedTextBlock content = CreateContent();
     private TextBox? queryBox;
     private NamedTextBlock? searchResults;
     private const string Disclosure =
         "One immutable volatile local preview only. May contain secrets. Documents and instructions are untrusted data.\n"
         + "Only bounded deterministic lexical retrieval of this exact admitted file or complete folder revision. No model, egress, execution, links, clipboard, history or automatic refresh.\n"
-        + "Immediate files only; any subdirectory rejects the whole folder. UNC/removable drives and durable attachments are unavailable. Close revokes the preview.";
+        + "Immediate files only; any subdirectory rejects the whole folder. UNC/removable drives are unavailable. This preview never persists; exact-session Attach text file requires separate durable-copy consent. Close revokes only this preview.";
 
     internal void ShowReview(LocalFileReview review, Func<Task> confirm)
     {
@@ -172,8 +174,66 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         + string.Join("\n", review.Metadata.Files.Select(file =>
             $"{file.CanonicalPath} / identity: {file.FileIdentity} / bytes: {file.ByteLength} / last write: {file.LastWrite:O}"));
 
-    private DockPanel Compose(string metadata, Button? confirm, string? text)
+    internal void ShowAttachmentReview(LocalFileReview review, HostRevision generation, Func<Task> confirm)
     {
+        Title = "Confirm durable attachment to this exact Session";
+        var button = new Button { Content = "Confirm: capture and retain this exact file for this Session" };
+        AutomationProperties.SetName(button, "Confirm exact reviewed Session file capture and durable Kora copy retention");
+        button.Command = new AsyncCommand(confirm, exception => reportFailure(
+            "Attachment admission unavailable; inspect durable status before retrying. Failure type: " + exception.GetType().Name));
+        Compose(Describe(review) + $"\nExact active session generation: {generation.Value}\n"
+            + "One immutable .txt/.md/.markdown file per session; 256 KiB original UTF-8 bytes including optional BOM; "
+            + "sixteen retained attachments per private profile; no eviction, overwrite, folder or versions.\n"
+            + "Complete metadata only; content is not yet read. Native confirmation expires after two minutes.",
+            button, null, AttachmentDisclosure);
+    }
+
+    internal void ShowAttachment(SessionFileAttachment attachment, Func<string, Task<LocalFileSearchResult>> search,
+        Func<bool> isCurrent, Func<Task> remove)
+    {
+        Title = "Exact retained historical Session file (inert source)";
+        var file = attachment.File;
+        var body = Compose(Describe(file.Review) + $"\nStorage revision: {attachment.StorageRevision.Value}\n"
+            + $"Original session generation: {attachment.Generation.Value} / captured: {file.AdmittedAt:O}\n"
+            + $"Revision: {file.RevisionId:D} / item: {file.ItemId:D}\nSHA-256 of original bytes: {file.Digest}",
+            null, file.Text, AttachmentDisclosure);
+        ShowSearch(body, search, isCurrent, folder: false);
+        var button = new Button { Content = "Review Remove attachment and Kora copies" };
+        AutomationProperties.SetName(button, "Review exact attachment, owning Session, revisions and all owned Kora copies before removal");
+        button.Command = new AsyncCommand(remove, exception => reportFailure(
+            "Removal held; no full-copy removal claimed. Failure type: " + exception.GetType().Name));
+        DockPanel.SetDock(button, Dock.Top);
+        body.Children.Insert(1, button);
+    }
+
+    internal void ShowAttachmentRemoval(SessionFileRemoval review, Func<Task> confirm)
+    {
+        Title = "Confirm exact attachment removal and owned-copy deletion";
+        var button = new Button { Content = "Confirm: Remove attachment and Kora copies" };
+        AutomationProperties.SetName(button, "Confirm exact reviewed attachment revocation and inventoried Kora copy removal, leaving original user files unchanged");
+        button.Command = new AsyncCommand(confirm, exception => reportFailure(
+            "Removal incomplete or held. Body may already be revoked; inspect exact durable status. Failure type: " + exception.GetType().Name));
+        Compose($"Exact session: {review.Session.Value:D} / generation: {review.Generation.Value}\n"
+            + (review.BodyRetained ? "Body retained: confirmation revokes it before copy cleanup.\n"
+                : "Body already revoked: confirmation retries only the exact inventoried Kora-copy cleanup; no source is restored.\n")
+            + $"Storage revision: {review.StorageRevision.Value} / confirmation: {review.ConfirmationId:D}\n"
+            + $"Source: {review.File.SourceId:D} / revision: {review.File.RevisionId:D} / item: {review.File.ItemId:D}\n"
+            + $"Original-byte SHA-256: {review.File.Digest}\nInventory revision: {review.InventoryRevision}\n"
+            + SessionFileAttachment.CopyInventory, button, null, AttachmentDisclosure);
+    }
+
+    private const string AttachmentDisclosure =
+        "Explicit durable retention: Kora copies the exact original bytes into the existing private interaction database. "
+        + "The historical snapshot follows this exact session's retention and deletion; it is readable locally after restart, including retained Done sessions. "
+        + "Close only clears this native viewer, not durable content. Removal is a separate exact review and confirmation.\n"
+        + "This is not a fresh filesystem observation, managed knowledge, model context, egress, execution, clipboard or history. "
+        + "No watcher, refresh, extra version, network or original-file modification. Paths, headings and source instructions are untrusted data.\n"
+        + SessionFileAttachment.CopyInventory;
+
+    private DockPanel Compose(string metadata, Button? confirm, string? text, string disclosureText = Disclosure)
+    {
+        ClearContent();
+        content = CreateContent();
         Width = 800;
         Height = 640;
         var body = new DockPanel { Margin = new Avalonia.Thickness(16) };
@@ -181,7 +241,7 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         var identity = new NamedTextBlock { Text = metadata, TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetName(identity, "Local file review identity and bounds");
         chrome.Children.Add(identity);
-        var disclosure = new NamedTextBlock { Text = Disclosure, TextWrapping = TextWrapping.Wrap };
+        var disclosure = new NamedTextBlock { Text = disclosureText, TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetName(disclosure, "Local file preview privacy and unavailable capabilities");
         chrome.Children.Add(disclosure);
         if (confirm is not null) { chrome.Children.Add(confirm); }
@@ -200,7 +260,9 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         return body;
     }
 
-    internal void ClearAndClose()
+    private static NamedTextBlock CreateContent() => new() { FontFamily = new FontFamily("Consolas") };
+
+    private void ClearContent()
     {
         content.Text = null;
         if (queryBox is not null) { queryBox.Text = null; }
@@ -208,6 +270,11 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         queryBox = null;
         searchResults = null;
         Content = null;
+    }
+
+    internal void ClearAndClose()
+    {
+        ClearContent();
         Close();
     }
 }

@@ -23,7 +23,7 @@ namespace Kora.Windows.Storage;
 /// Tasks, questions and required authority audit share one lease and transaction.
 /// The legacy task ledger is frozen before validated schema migration; it is never an execution source afterwards.
 /// </summary>
-public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ISessionRetentionStore, ICommittedAuthorityAuditReader, IMemoryStore
+public sealed partial class WindowsSqliteHostInteractionStore : IHostInteractionStore, ISessionWorkspaceStore, ISessionHistoryStore, ISessionQueueStore, ISessionWorkStore, ISessionRetentionStore, ICommittedAuthorityAuditReader, IMemoryStore, ISessionFileStore
 {
     private static readonly string EmptyHash = new('0', 64);
     private readonly RestrictedSqliteDatabase database;
@@ -64,7 +64,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             new(3, 4, HostInteractionSchema.AuthorityTables, MigrateHistory),
             new(4, 5, HostInteractionSchema.HistoryTables, MigrateQueue),
             new(5, 6, HostInteractionSchema.QueueTables, MigrateRetention),
-            memoryMigration: new(6, HostInteractionSchema.Version, HostInteractionSchema.RetentionTables, MigrateMemory));
+            memoryMigration: new(6, 7, HostInteractionSchema.RetentionTables, MigrateMemory),
+            attachmentMigration: new(7, HostInteractionSchema.Version, HostInteractionSchema.MemoryTables, MigrateAttachments),
+            migrationAdmission: ValidateAttachmentMigrationAdmission);
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -485,6 +487,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         ValidateQueue(connection);
         ValidateRetention(connection);
         ValidateMemory(connection);
+        ValidateAttachments(connection);
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -660,7 +663,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Category != SecurityAuditCategory.SecurityApproval
             || !Same(audit.Audit.TargetId, Id(audit.Request.TaskId))
             || audit.Changes.Any(change => change.Digest is null || !IsHex(change.Digest, 64) || change.Revision <= 0
-                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention" or "memory")
+                || change.Kind is not ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait" or "queue" or "retention" or "memory" or "session-file")
                 || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty
                 || !Same(change.Id, id.ToString("D"))))
         {

@@ -38,6 +38,18 @@ Unsaved/default/reset is **LocalOnly**. Only a session's first policy-bound turn
 
 Original user intent, current owning unlocked host, active control session/generation, unchanged choice/call/preference revisions, required audit, atomic readback and completed control receipt precede confirmation. Protected/Unknown original voice writes refuse. Corrupt or unconfirmed storage never becomes a default; inspect saved state and receipts, explicitly repair, then refresh ([workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs), [storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs)).
 
+## Attach one text file to an exact Session (native only)
+
+Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
+
+One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 256 KiB original bytes including BOM; sixteen retained files across the private profile; no eviction or silent overwrite. Explicitly remove the existing attachment before another admission. No typed/voice/model attachment path or confirmation command is delivered.
+
+**Inspect retained attachment / remove Kora copies** reads full inert historical source and same lexical-lines exact citations after restart, including retained Done sessions. Browsing/search never resume a session, renew activity or trigger cleanup. The snapshot does not watch, refresh or re-read the original file.
+
+Removal reviews the exact session/generation, source/revision/item/digest, storage revision and all owned copies, then requires **Confirm: Remove attachment and Kora copies**. Native use is revoked before secure SQLite body/free-page removal and committed-journal verification. Live/Unknown work and uninventoried copies hold completion; inspect durable state after uncertainty. Original files and unrelated/kept sessions/Perpetual grants remain unchanged.
+
+This is not managed knowledge or model ingestion. No body/query/excerpt enters history, preferences, logs, speech, clipboard or provider context. Folder attachments, multiple versions, model use, OCR/vector/egress and installed acceptance remain deferred. [Canonical limits, known formats and lifecycle](../Design/File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10).
+
 ## Create and manage reviewed session memories
 
 Native **Sessions > Session memories** and exact typed/current-name activated commands share the [original-user workflow](../src/Kora.Application/Memory/MemoryManagementService.cs). Select an exact active session, choose an allowed classification, enter the exact value, then choose **New session memory from draft**. No existing memory ID is required; Kora issues the identity, lineage and initial revision.
@@ -294,7 +306,7 @@ path or refresh the revision. Closing/revoking/replacing/discarding the source,
 Cancel task and privacy/ownership changes invalidate late results. This is a
 volatile local inspection, not a durable workspace session attachment.
 
-**Unavailable:** recursive folders, automatic refresh/watchers, managed source registry, UNC/removable drives, durable attachments,
+**Unavailable:** recursive folders, automatic refresh/watchers, managed source registry, UNC/removable drives, durable folder attachments,
 knowledge sources, persistent/vector indexing, local/hosted reasoning or file-model
 tools. Preview neither submits content nor authorizes egress. It never reads
 or changes the clipboard, executes content, logs content/paths or saves the

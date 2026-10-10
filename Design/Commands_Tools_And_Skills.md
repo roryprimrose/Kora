@@ -549,7 +549,7 @@ Model: tool definitions, skill summaries, request/context        |
 2. For unmatched natural language, supply only approved request/context and the relevant capability definitions. The management lane may propose scheduling or clarification; executable tool use remains in the task runtime or the narrow host-owned priority route.
 3. Accept a typed answer, clarification, source-qualified skill selection, or tool/task invocation proposal. Display text is not an operation. Resolve a selected skill to its pinned workflow and permitted references; return approved instructions to the runtime or interpret declarative steps in the bounded host engine. Selection alone never dispatches its script, and subsequent tool/task proposals must not execute the effect twice.
 4. Validate IDs, schemas, parameters, targets, intent lineage, current dependencies, and host policy. The model's claim that an action is safe or already approved has no authority.
-5. If permission is missing, present the host-resolved effect, resources, and permitted duration choices. A clarification answer is not approval. Approval replies are bound and routed by the host to the existing proposal, not sent to the model to interpret as a new grant.
+5. Reuse an applicable exact grant first. Otherwise apply the proposed [session level](Session_Permission_Levels.md#levels-and-decision-order): Review all asks, Model review uses a tools-disabled reviewer, and Approve all skips ordinary review. Disclosure consent stays explicit and may share the action card. Replies bind to the host proposal, not model interpretation.
 6. Revalidate immediately before execution and dispatch through the admitted implementation. Exact phrases, model proposals, UI task invocations, and skill workflows share the applicable action gate.
 7. Return a correlated structured result: observed data or success/failure/unknown/denied/cancelled outcome, observation time, provenance, and any action receipt. An accepted proposal or script exit alone is not proof of the requested effect.
 8. For model-mediated work, assess result egress before returning bounded result data to the same task runtime. It may answer or propose another permitted step, within lifecycle limits. Each step retains its own checks; denial never authorises retries or alternate tools.
@@ -559,6 +559,8 @@ Native SDK function/tool calling and typed inference responses are alternative t
 An agent SDK can own iteration only if every invocation and result transmission remains mediated.
 An inference adapter uses the shared Kora-owned loop.
 In neither case does the model directly execute application code.
+
+Safe/Approve-all admissions create no grants. Commands/UI, MCP, generated/stored scripts and skill steps share the host decision; unsupported profiles remain unavailable. [Call approval eligibility](Session_Permission_Levels.md#voice-approval-and-protected-calls) restricts spoken approval by default, not grants or the level. These are proposed additions, not implemented transports.
 
 ## Internal Tool Example: Current Session State
 

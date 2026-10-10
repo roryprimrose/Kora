@@ -20,6 +20,16 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### Proposed Session Permission Levels - 2026-10-10
+
+[Session Permission Levels](Session_Permission_Levels.md) records the agreed product direction, not delivered runtime behavior: grant-first Review all / Model review / Approve all, isolated tools-disabled reviewer, combined exact action/disclosure consent, persistent Active-session levels with Done reset, and default-disabled configurable spoken approvals during calls without ignoring grants.
+
+Keep existing packages: R05/D-008 owns authorization/audit; R10 owns controls; R12 owns session policy/lifecycle; R08/R13 owns admitted reviewer/budgets; R15 owns call approval-channel migration; R11/R16 owns execution. No new experiment or unrelated qualification prerequisite is introduced.
+
+**I:** exact/session storage, original-user intent, revision-safe policy/grant/consent, reviewer boundary and shared admission. **E:** affected runtime/egress/containment/ownership gates and the [permission-level matrix](Acceptance_Criteria.md#session-permission-level-gate). **Q:** only enabled levels/routes in the release capability manifest.
+
+Sequence policy/storage and Review-all parity, then exact automatic admission/reviewer, then call migration/native explanations. Existing grant suppression remains until qualified enablement; no stale setting/route may advertise channel-only protection. Preserve grants/history; document unsupported routes instead of translating Approve all to unrestricted SDK permission.
+
 ### R14 Immutable Volatile Web-Result Native Details - 2026-10-10
 
 Delivered subset: actual successful bounded WebPageGet response → explicit exact-item native details → same immutable inert-text viewer/search/source/disclosure-gated copy.

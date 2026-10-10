@@ -146,14 +146,14 @@ Channel parity, execution-risk classification, and persistent session semantics 
 
 The design concerns are resolved under the chosen trust model by the following host-enforced requirements, not by authenticating every speaker:
 
-- Resolve exact intent, target, session, resources, and material effects; clarify ambiguity and require action-specific consequential confirmation.
+- Resolve exact intent, target, session, resources, and material effects; clarify ambiguity and apply exact grants, session review policy and independently required consequential confirmation.
 - Keep question answers, presentation/navigation, grant edits, and action approvals distinct; none substitutes for another.
 - Revalidate implementation/dependency digests, invocation, grant scope, source/identity, and current call/policy generation immediately before dispatch.
 - Treat documents, webpages, scripts, model/tool output, and historical instructions as untrusted content, never new user intent or authorization.
 - Admit only scoped capabilities and approved destinations; keep credentials, protected Kora resources, unrestricted execution, and trusted consent out of model control.
 - Preserve deterministic stop/mute/cancel, truthful receipt/unknown outcomes, and no blind replay after timeout/restart.
 - Explain which session, operation, and grant permitted an effect, without leaking sensitive data into ordinary diagnostics.
-- Enforce the default-On in-call grant-ignore and voice-origin settings restrictions independently of output mode.
+- Under the proposed [session permission-level contract](Session_Permission_Levels.md), disable spoken approval during calls by default without changing grants or levels, and preserve voice-origin settings restrictions independently of output mode. Current grant-ignore enforcement remains until qualified migration.
 
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
@@ -597,6 +597,14 @@ admission are still independent gates.
 
 ## Grants and Approvals
 
+### Proposed Session Review Policy
+
+[Session Permission Levels](Session_Permission_Levels.md#levels-and-decision-order) owns the grant-first flow. An applicable grant skips action review; otherwise Review all asks, an isolated Safe verdict can satisfy ordinary authority in Model review, and Approve all skips discretionary analysis. Neither automatic path creates grants or supplies independent consent.
+
+The default treatment/risk tables below describe review when needed, especially Review all, rather than mandatory ordinary approval in all levels. Prohibited effects, unknown authority, containment, OS/provider checks, source privacy and required disclosure consent remain fail-closed. Combined action/disclosure cards may record distinct exact authorities from one explicit user answer.
+
+The proposed [call approval-channel policy](Call_Aware_Speech.md#spoken-approvals-during-calls) preserves reusable grants and levels while disabling spoken approvals by default. The R05/manual-call implementation paragraphs below remain source-backed current behavior, not the migrated feature.
+
 ### R05 Authorization Foundation
 
 The delivered [native exact-grant management subset](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10) is separate from named model-action preferences. Passive bounded reads are not applicability or effect receipts. One explicit native confirmation admits a fresh original-user control request/session; stored approval/request/trace or model text cannot supply that intent. Independent Perpetual records remain inspectable and exactly revocable after origin-session retirement.
@@ -683,7 +691,7 @@ Executable extensions need real containment or explicit trust; a path-scoped gat
 | Remote read tool | Single-use exact parameters/destination, or a separately explicitly confirmed preconfigured read grant |
 | Local write | Approve exact target and change |
 | External write | Approve exact account, destination, parameters, and effect |
-| Executable code or destructive operation | Separate high-risk review; no generic "allow everything" |
+| Executable code or destructive operation | High-risk exact review when required by the selected level; Approve all supplies no broad grant and cannot waive mandatory execution/consent boundaries |
 
 ### Grant Types and Inheritance
 
@@ -709,9 +717,9 @@ Persist its revoked state and reason without deleting the perpetual record.
 Restoring the old bytes never restores authorization; fresh exact approval
 creates a new grant. Temporary call-policy blocking and unverifiable resources
 are inapplicability, not content-change revocation.
-The default-On [in-call grant-ignore setting](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls) temporarily excludes Session/Perpetual reuse and requires fresh single-use approval per operation, without changing stored grants.
-The host revalidates it immediately before dispatch, including background work; feedback/speak-once preferences cannot bypass it.
-During protected calls, the [settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated voice/in-call configuration changes, including disabling grant-ignore/detection and clearing manual call state.
+The proposed [call spoken-approval setting](Call_Aware_Speech.md#spoken-approvals-during-calls) defaults Off and restricts spoken grant/consent answers during protection, without changing grant reuse, scope or session level. Current call grant-ignore remains until the qualified migration.
+The host revalidates voice-answer eligibility at acceptance and ordinary operation authority at dispatch, including background work; feedback/speak-once preferences cannot enable spoken approval.
+During protected calls, the [settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated voice/in-call configuration changes, including enabling spoken approvals, disabling detection and clearing manual call state.
 Trusted initiating-channel lineage and request/apply revalidation prevent model/tool or later UI-confirmation laundering; a new UI request is required.
 The delivered [manual-call command subset](Call_Aware_Speech.md#delivered-manual-command-parity---2026-10-08)
 captures original input before asynchronous work and uses dedicated original-user
@@ -759,7 +767,7 @@ New sources, changed snapshots, derived payloads, tool results, destinations, or
 
 Approval tokens bind task/invocation IDs, identity, resource and parameter/content hashes, destination, expiry, and use count.
 They are invalid after cancellation, expiry, relevant policy change, or changed action.
-Do not approve an action based only on a model-written description.
+Do not approve an action based only on a model-written description. The proposed isolated reviewer evaluates exact host-resolved evidence under the selected Model review policy; its Safe verdict supplies neither a grant nor independent consent.
 
 Tool/skill discovery is descriptive, not authorisation. A model selects a
 source-qualified skill revision or proposes a registered tool/task; the host

@@ -202,6 +202,7 @@ adapter admission or release acceptance.
 24. [Local Inference Qualification and Technical Plan](Local_Inference.md): R02 outcomes, candidate/compatibility/context/resource consequences and the path to D-003/D-007 qualification and A2 integration.
 25. [File and Folder Ingestion and Grounded Reasoning](File_And_Folder_Ingestion.md): deliberate path selection, immutable source revisions, retrieval/citations, local and hosted model boundaries, voice/settings behavior, and the staged R26 delivery plan.
 26. [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md): explicit Ollama/Copilot session modes and handoff, user-governed durable memory, provider-independent local retrieval, image treatment, provenance, and delivery sequencing.
+27. [Session Permission Levels](Session_Permission_Levels.md): proposed Review all / Model review / Approve all policy, grant-first authorization, isolated reviewer, combined disclosure consent, default-disabled spoken approvals during calls, audit, and lifecycle.
 
 ## Human Interaction and Sessions
 
@@ -239,6 +240,7 @@ is an offline design mockup, not an implemented application or a change to relea
 
 - Windows is the only supported application platform for the foreseeable future; portable shared logic and trusted platform boundaries preserve extensibility without committing to Linux/macOS ports.
 - Kora owns task lifecycle, context selection, policy, approvals, and presentation.
+- Proposed [session permission levels](Session_Permission_Levels.md#levels-and-decision-order) govern otherwise ungranted actions without overriding mandatory boundaries. Calls restrict spoken approval by default, not grant reuse or the selected level; current call enforcement remains unchanged until qualified migration.
 - Commands identify user intent; internal host tools expose Kora functionality; skills describe outcomes and compose admitted tools/tasks. Registered executable tasks, not skill names, are the unit of content-bound execution permission.
 - Kora advertises relevant tool definitions and enabled skill summaries; the model proposes, the host validates/authorises/executes, and approved structured results return for model continuation. Exact local controls use the same services and applicable gates without inference.
 - A replaceable agent-runtime adapter may own its model/tool loop only when Kora can enforce the required controls.

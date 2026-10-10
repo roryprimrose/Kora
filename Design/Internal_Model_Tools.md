@@ -192,7 +192,7 @@ Retain each perpetual grant's minimal scope, implementation digests, creator/evi
 Operational audit/use events and consumed/ended grant evidence may have separate disclosed retention; perpetual records cannot be swept up in that cleanup.
 Approval proposals declare `grantScope: Once/Session/Perpetual` and a bound session ID for Session; the current protocol's `Always` maps to Perpetual.
 Short-lived question/proposal deadlines and one-invocation dispatch receipts do not impose expiry on perpetual grants.
-The separate default-On `calls.ignoreReusableGrants` setting temporarily ignores Session/Perpetual reuse during protected calls and requires fresh single-use approval per exact operation.
+The proposed [session levels](Session_Permission_Levels.md#levels-and-decision-order) apply after exact grant lookup; only an isolated tools-disabled reviewer, not the executing model, can supply the advisory Safe verdict. Automatic admissions create no grants. Proposed `calls.allowSpokenApprovals` defaults Off during protected calls without ignoring reusable grants or changing the level.
 Device-local preapproved HTTP/HTTPS URI patterns participate in this same grant
 policy when a host-bound `network.get-web-page` proposal is evaluated. Host
 wildcards occupy entire DNS labels and require at least one literal host label;
@@ -201,13 +201,13 @@ matching canonical destination can satisfy only the per-address grant; session,
 ownership, expiry, effect, content, identity, policy and egress gates still
 apply. The host compares the raw resolved URI with its proposal destination
 digest. Every redirect is a new destination requiring a fresh proposal and
-policy decision. Preapproval is reusable authority, so
-`calls.ignoreReusableGrants` ignores it during protected calls and forces a
-fresh Once review. This authorization foundation does not advertise or deliver
+policy decision. Under the proposed call migration, preapproval remains eligible
+during calls; only spoken approval submissions are restricted by default.
+Current call grant suppression remains until migration. This authorization foundation does not advertise or deliver
 a web-fetch action.
-The host owns call/setting revalidation at dispatch; models cannot self-confirm the operation or switch this protection Off.
-`approvals.inspect`/`approvals.explain` distinguish "ignored during call" from expired/removed/inapplicable and permanently content-revoked grants, while `approvals.request` reports effective required scope Once and the blocker.
-See [Ignoring Reusable Grants During Calls](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls); this changes applicability, not storage or perpetual retention.
+The host owns answer eligibility and operation revalidation; models cannot self-confirm the operation or change this setting without explicit original-user confirmation.
+`approvals.inspect`/`approvals.explain` distinguish grant applicability and automatic decision basis from **spoken approval disabled during call**. `approvals.request` reports the exact required approval/consent and eligible channels; calls do not force Once under the proposed contract.
+See [Spoken Approvals During Calls](Call_Aware_Speech.md#spoken-approvals-during-calls); this changes input eligibility, not grant storage or perpetual retention.
 The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-originated voice/in-call configuration mutations, including call-protection downgrades, manual clearance, reset/undo, and temporary/speak-once exceptions.
 Host-recorded origin survives model/tool hops and cannot be replaced by a later approval click; the user must start a new UI request. Models cannot choose the registry's protected-option classification.
 
@@ -306,7 +306,7 @@ and absent segments never imply a complete history or pruning.
 | `approvals.show` | Grant/proposal/filter ID; trusted inventory/editor reference | M/E | Proposed A3; opening editor creates no permission |
 | `approvals.request` | Typed exact invocation/resources/identity/digests/destination, grant scope/bound session ID and lineage; host-classified approval proposal | M/E | Proposed A3; M proposes management approval only, not task execution |
 | `approvals.propose_edit`, `approvals.revoke` | Exact grant IDs/revisions and scoped edit/remove preview; trusted decision-required/result | M/E | Proposed A3; user action required, no arbitrary expiry or bulk retention deletion |
-| `settings.list`, `settings.get` | Category/option ID and scope; registered choices, current/effective value and blockers | M/E | Proposed A3; includes session retention, concurrency, normal/session/in-call feedback, and default-On in-call grant-ignore |
+| `settings.list`, `settings.get` | Category/option ID and scope; registered choices, current/effective value and blockers | M/E | Proposed A3; includes session retention, concurrency, session permission level, feedback, and default-Off call spoken-approval eligibility |
 | `settings.propose_change`, `settings.reset`, `settings.undo` | Typed option/value/scope/revision or identified prior change, trusted initiating-channel lineage; reviewed atomic proposal/result or rejected voice-origin request | M/E | Proposed A3; enforce protected-call option classification at request/apply; no file/JSON patch, consent bypass, restored grants or replayed side effects |
 | `evidence.list` | Required source kind (`log`, `audit`, `session`, `span`, or `all`), bounded time/trace/session/task/invocation/approval/correlation filters and cursor; ordered permitted summaries plus retention/source/gap status | E; M minimal status | Proposed A3; deterministic app capability, at most 50 records/64 KiB, no model required |
 | `evidence.get`, `evidence.get_receipt` | Stable evidence ID or exact trace/session/invocation/action identity; one permitted content-minimising log, audit, span, session or receipt record with typed structured fields/properties and related evidence references | E; M minimal status | Proposed A3; read-only, preserves source kind/authority/value kinds and never exposes secret parameters |

@@ -15,8 +15,8 @@ Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.
 ### Delivered bounded fixed local-version queue settings (R10/R13)
 
 Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated input share the [queue configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
-Only device-local `queue.pending-per-session` (integer **1-10**, default/reset **10**), `queue.execution-slots` (integer **1-2**, default/reset **1**) and `queue.pending-lifetime-minutes` (canonical integer **1-120 minutes**, unsaved/default/reset **30**) are registered.
-Each option resets independently; resetting all three removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
+Device-local options are `queue.pending-per-session` (**1-10**, default/reset **10**), `queue.execution-slots` (**1-2**, default/reset **1**), `queue.pending-lifetime-minutes` (**1-120 minutes**, default/reset **30**) and `queue.active-budget-minutes` (**1-60 minutes**, default/reset **5**); all values are canonical integers.
+Each option resets independently, preserving the other three; resetting all four removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
 
 Use `list queue settings`, `get`/`status <option-id>`, `set <option-id> to <canonical integer>` or `reset <option-id>`; no fuzzy/model setter or whole-profile reset is added ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs)).
 Native Refresh captures the host-held draft revision, call revision, original input and exact visible lifetime; Save/Reset requires that unchanged admitted draft.
@@ -24,8 +24,8 @@ Hiding/reopening, concurrent typed edits, stale session/generation/origin or pri
 
 Required typed REQUESTED/terminal audit, atomic save/readback, durable original-input control receipt and confirmed readback precede activation.
 Protected Active/Suspected/Unknown original-voice writes are denied without UI relabelling, downgrade or delayed application ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
-Schema-2 `session-queue.txt` has four lines: `2`, capacity, slots and pending lifetime in minutes; overrides are canonical integers or exact `default`.
-Known schema-1 three-line files validate first, preserve capacity/slots and supply only the newly introduced lifetime default 30; observation never rewrites them. The next explicit confirmed edit writes schema 2.
+Schema-3 `session-queue.txt` has five lines: `3`, capacity, slots, pending lifetime minutes and active budget minutes; overrides are canonical integers or exact `default`.
+Known schema-1/2 files validate first and preserve prior fields. Schema 1 supplies pending default 30; both supply active default 5. Observation never rewrites source bytes; the next explicit confirmed edit writes schema 3. Partial, downgraded shapes and unknown versions are unavailable, not converted.
 The file (256-byte ceiling) and durable `session-queue-unconfirmed.txt` marker use `IApplicationDataPaths` and the shared atomic store.
 Unknown schema/shape, noncanonical values, invalid UTF-8, inaccessible or unconfirmed state is unavailable, never a successful default or rollback.
 Inspect saved state and audit/control receipts, explicitly repair, then refresh; ordinary refresh cannot clear an unconfirmed marker ([storage tests](../tests/Kora.Application.UnitTests/Configuration/LocalSessionQueuePreferencesTests.cs)).
@@ -40,10 +40,14 @@ Manual dispatch, FIFO/fairness, one active task per session and no replay remain
 Pending lifetime affects **only newly enqueued admitted entries after confirmed activation**. Editing or refreshing preferences never enqueues, dispatches, cancels, expires or extends meaningful activity. Existing pending/cancelled/expired/running entries retain their exact deadlines and identities.
 New queue payload format 2 captures `RecordVersion=2` and integer `PendingLifetimeMinutes`; exact `ExpiresAt - EnqueuedAt` must match that captured value under the original enqueue intent/revision and committed change digest.
 Legacy payloads without either field still require exactly 30 minutes and retain their original serialized bytes/digests; no database schema or historical authority migration occurs. Unknown/partial/downgraded formats and changed raw payload bytes fail closed ([serialization tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Lifetime.cs)).
-Active budget **5 minutes** and separate user-question expiry remain unchanged/unavailable to edit. Apply-now and the broader 1-50 capacity contract are not delivered.
+Active budget affects **future admission only after confirmed activation**, including a later admission from an old pending entry; it never alters that entry's enqueue time, pending lifetime or expiry. The actual chosen budget, precise UTC admission/deadline and same-run monotonic start are captured together under the original fair queue/configuration/host/current-intent transaction.
+Explicit payload format 3 binds `ActiveBudgetMinutes`, `AdmittedAt` and `ActiveDeadlineAt` to the original committed dispatch digest/time; later terminal revisions retain that authority. Known already-admitted legacy/format-2 records keep their original fixed five-minute deadline from their original admission audit, never current preferences.
+Work/status presents the same precise captured deadline for current, Unknown and retained terminal work. Current-event eligibility uses the active clock, not pending expiry. Actual callbacks succeed only strictly before the captured monotonic budget; equal/late results suppress the version and commit failure, with no physical termination or rollback claim.
+Cancellation/private-authority loss suppresses late receipts and drains admitted callbacks; uncertain dispatch stays for Unknown recovery and session quarantine, without free slots or restart replay. Separate user-question expiry, R08's independent 15-second model deadline, cancellation-grace and native/worker/provider/power limits remain immutable.
+Apply-now, current-task extension and the broader 1-50 capacity/general execution contract are not delivered ([actual enforcement and durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.ActiveDeadline.cs)).
 No worker, automatic dispatch, resource lease, model tool, general execution or real two-slot provider/hardware qualification is added ([bounded workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
 
-Validation and retained experiment reasons are recorded in the [dated bounded delivery receipt](Implementation_Roadmap.md#r10r13-bounded-fixed-queue-settings---2026-10-09). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
+Validation and retained experiment reasons are recorded in the [active-deadline delivery receipt](Implementation_Roadmap.md#r10r13-future-admission-active-deadlines---2026-10-10). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
 
 ### R18 bounded local event suppression
 

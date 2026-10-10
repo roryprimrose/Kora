@@ -21,6 +21,29 @@ public sealed class AuthorityLocalEventSourceTests
 {
     [Theory]
     [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(60)]
+    public void CurrentEventUsesCapturedActiveDeadlineRatherThanPendingExpiryOrCurrentDefault(int minutes)
+    {
+        using var f = new Fixture();
+        var snapshot = f.Snapshot();
+        var pending = snapshot.QueueRecords[0].Entry with { RecordVersion = 2, PendingLifetimeMinutes = 1, ExpiresAt = f.Time.Now.AddMinutes(1) };
+        var admitted = pending.Admit(new(2), 2, f.Time.Now.AddSeconds(1), minutes);
+        var row = new SessionQueueObservation(admitted, SessionQueueEligibility.Current, admitted.ActiveDeadlineAt);
+        snapshot = snapshot with { QueueRecords = [row] };
+        var near = admitted.ActiveDeadlineAt!.Value.AddTicks(-1);
+        AuthorityLocalEventSource.FromWork(snapshot, near).Single().ExpiresAt.Should().Be(admitted.ActiveDeadlineAt);
+        AuthorityLocalEventSource.FromWork(snapshot, admitted.ActiveDeadlineAt.Value).Should().BeEmpty();
+        AuthorityLocalEventSource.FromWork(snapshot with { QueueRecords = [row with { ActiveDeadline = null }] }, near).Should().BeEmpty();
+        var futurePending = pending with { EnqueuedAt = f.Time.Now.AddSeconds(2), ExpiresAt = f.Time.Now.AddSeconds(2).AddMinutes(1) };
+        var futureActive = futurePending.Admit(new(2), 2, f.Time.Now.AddSeconds(3), minutes);
+        AuthorityLocalEventSource.FromWork(snapshot with { QueueRecords =
+            [new(futureActive, SessionQueueEligibility.Current, futureActive.ActiveDeadlineAt)] }, f.Time.Now).Should().BeEmpty();
+        snapshot.QueueRecords.Single().Entry.State.Should().Be(SessionQueueState.Running);
+    }
+
+    [Theory]
+    [InlineData(1)]
     [InlineData(30)]
     [InlineData(120)]
     public void Captured_queue_lifetime_is_the_event_deadline_and_never_extended_by_observation(int minutes)
@@ -58,7 +81,8 @@ public sealed class AuthorityLocalEventSourceTests
         item.SourceRevision.Should().Be(snapshot.QueueRecords[0].Entry.Revision.Value);
         item.SessionId.Should().Be(f.Request.SessionId);
         item.TaskId.Should().Be(f.Request.TaskId);
-        item.ExpiresAt.Should().Be(snapshot.QueueRecords[0].Entry.ExpiresAt);
+        item.ExpiresAt.Should().Be(type == LocalEventType.Current ? snapshot.QueueRecords[0].ActiveDeadline
+            : snapshot.QueueRecords[0].Entry.ExpiresAt);
         item.Validate();
     }
 
@@ -329,7 +353,8 @@ public sealed class AuthorityLocalEventSourceTests
         {
             var entry = new SessionQueueEntry(Request, new(1), new(1), 1, state, Guid.NewGuid(), 0, Time.Now, Time.Now.AddMinutes(30));
             return new(new(new(Request.SessionId, new(1), true), null), 1, Time.Now,
-                new(Request.SessionId, new(1), 0, [entry]), 1, 10, 1, [new(entry, eligibility, null)], 0, [], 0, [], 0);
+                new(Request.SessionId, new(1), 0, [entry]), 1, 10, 1,
+                [new(entry, eligibility, state == SessionQueueState.Running ? Time.Now.AddMinutes(5) : null)], 0, [], 0, [], 0);
         }
         public ValueTask<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long admissionRevision,
             SessionQueueLimits limits, CancellationToken token) { ObservedLimits = limits; OnRead?.Invoke(); return ValueTask.FromResult(Current); }

@@ -25,6 +25,66 @@ public sealed partial class WindowsSqliteSessionQueueTests
     [InlineData(RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser)]
     [InlineData(RequestOrigin.LocalUi, SecurityAuditInitiator.TypedCommand)]
     [InlineData(RequestOrigin.ActivatedVoice, SecurityAuditInitiator.VoiceCommand)]
+    public async Task ConfirmedActiveSettingsHaveTrustedCorrelatedReceiptsAndCaptureFutureAdmissionOnly(
+        RequestOrigin origin, SecurityAuditInitiator initiator)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
+        var pending = await EnqueueAsync(f, f.Request.SessionId, minutes: 120);
+        var pendingPayload = QueuePayload(f, pending);
+        var observed = new LifetimeEvidence();
+        var sink = new WindowsSqliteEvidenceSink(f.Paths);
+        sink.Initialize();
+        using var provider = new EvidenceLoggerProvider([sink, observed], observed);
+        using var factory = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace).AddProvider(provider));
+        var audit = new LoggerSecurityAuditLog(factory.CreateLogger<LoggerSecurityAuditLog>());
+        await using var admission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
+        using var call = new CallCommunicationPolicy(new LifetimeClearCall());
+        var preferences = new LocalSessionQueuePreferences(f.Paths);
+        await using var settings = new SessionQueueConfigurationService(preferences, admission, audit);
+        settings.Observe();
+        SessionQueueEntry? previous = null;
+        foreach (var budget in new[] { 1, 5, 60 })
+        {
+            await settings.RefreshAsync(origin, static () => true, f.Token);
+            var proposal = settings.Propose(SessionQueueOption.ActiveBudgetMinutes, budget.ToString(CultureInfo.InvariantCulture),
+                settings.Get().Revision, call.Current.Revision);
+            (await settings.ApplyAsync(proposal, origin, initiator, call, static () => true, f.Token)).Should().BeTrue();
+            if (previous is not null)
+            {
+                (await f.Store.ReadQueueEntryAsync(f.Request.SessionId, previous.Request.TaskId, f.Token)).Should().Be(previous);
+                pending = await EnqueueAsync(f, f.Request.SessionId, minutes: 120);
+                pendingPayload = QueuePayload(f, pending);
+            }
+            QueuePayload(f, pending).Should().Be(pendingPayload);
+            using var root = HostActivity.BeginRoot(pending.Request, HostActivityLayer.Application, HostOperation.Request);
+            var receipt = await settings.WithLimitsAsync(limits =>
+                f.Store.AdmitAsync(pending, 1, limits, () => settings.IsCurrent(limits), f.Token).AsTask(), f.Token);
+            receipt.Entry.ActiveBudgetMinutes.Should().Be(budget);
+            receipt.Entry.ActiveDeadlineAt.Should().Be(f.Time.Now.AddMinutes(budget));
+            receipt.Entry.ExpiresAt.Should().Be(pending.ExpiresAt);
+            previous = await CompleteAsync(f, receipt.Entry);
+            await using var cold = new SessionQueueConfigurationService(new LocalSessionQueuePreferences(f.Paths), admission, audit);
+            cold.Observe();
+            cold.Get().Effective!.ActiveBudgetMinutes.Should().Be(budget);
+        }
+        await settings.RefreshAsync(origin, static () => true, f.Token);
+        (await settings.ApplyAsync(settings.Propose(SessionQueueOption.ActiveBudgetMinutes, null,
+            settings.Get().Revision, call.Current.Revision), origin, initiator, call, static () => true, f.Token)).Should().BeTrue();
+        settings.Get().Effective!.ActiveBudgetMinutes.Should().Be(5);
+        observed.Gaps.Should().BeEmpty();
+        observed.Audits.Should().HaveCount(8).And.OnlyContain(item => item.Audit.ActionId == "configuration.queue-active-budget-minutes"
+            && item.Audit.Initiator == initiator && item.Diagnostic.Host!.Origin == origin
+            && item.Audit.CorrelationId == item.Diagnostic.Host.RequestId.Value
+            && item.Diagnostic.Host.SessionId != f.Request.SessionId);
+        (await f.Store.ReadQueueEntryAsync(f.Request.SessionId, previous!.Request.TaskId, f.Token)).Should().Be(previous);
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser)]
+    [InlineData(RequestOrigin.LocalUi, SecurityAuditInitiator.TypedCommand)]
+    [InlineData(RequestOrigin.ActivatedVoice, SecurityAuditInitiator.VoiceCommand)]
     public async Task Genuine_configuration_receipts_capture_future_lifetimes_and_preserve_original_authority(
         RequestOrigin origin, SecurityAuditInitiator initiator)
     {
@@ -264,7 +324,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         return rows.ToArray();
     }
 
-    private static void StageKnownLegacyQueue(InteractionStorageFixture f, SessionQueueEntry entry, string payload)
+    private static void StageKnownLegacyQueue(InteractionStorageFixture f, SessionQueueEntry entry, string payload, bool latestOnly = false)
     {
         // Materialize the exact former serializer's known fixture and chain BEFORE preservation assertions.
         // Production never rewrites historical audit authority.
@@ -284,7 +344,8 @@ public sealed partial class WindowsSqliteSessionQueueTests
             foreach (var change in envelope["Changes"]!.AsArray())
             {
                 if (string.Equals(change!["Kind"]!.GetValue<string>(), "queue", StringComparison.Ordinal)
-                    && string.Equals(change["Id"]!.GetValue<string>(), entry.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal))
+                    && string.Equals(change["Id"]!.GetValue<string>(), entry.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal)
+                    && (!latestOnly || change["Revision"]!.GetValue<long>() == entry.Revision.Value))
                 { change["Digest"] = LifetimeDigest(payload); }
             }
             var encoded = envelope.ToJsonString();

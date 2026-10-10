@@ -203,17 +203,22 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             ActivityLink[] links;
                             lock (causeGate) { links = causes.TryGetValue(ready.Request.TaskId, out var cause) ? [new(cause.Context)] : []; }
                             using var dispatch = HostActivity.BeginRoot(ready.Request, HostActivityLayer.Application, HostOperation.Runtime, links);
-                            var started = time.GetTimestamp();
                             var admitted = await store.AdmitAsync(ready, admissionRevision, current,
                                 () => eligible() && (configuration is null || configuration.IsCurrent(current)), linked.Token).ConfigureAwait(false);
+                            admitted.Entry.Validate();
+                            if (admitted.Entry.RecordVersion != SessionQueueEntry.CapturedActiveRecordVersion
+                                || admitted.Entry.ActiveBudgetMinutes != current.ActiveBudgetMinutes)
+                            {
+                                throw new InvalidDataException("The committed active budget is missing or differs from its admitted configuration.");
+                            }
                             dispatch.Complete(HostOperationOutcome.Completed);
                             var continuation = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Tool);
-                            return (admitted, continuation, started);
+                            return (admitted.Entry, continuation, admitted.StartedTimestamp);
                         }, linked.Token).ConfigureAwait(false);
                         if (work is null) { break; }
                         var observation = work.Value;
                         running.Add(Task.Run(() => ObserveAndCommitAsync(observation.Entry, observation.Continuation,
-                            eligible, observation.Started), CancellationToken.None));
+                            eligible, observation.Started, linked.Token), CancellationToken.None));
                         admittedCount++;
                     }
                     if (running.Count == 0) { break; }
@@ -248,21 +253,24 @@ public sealed partial class SessionQueueService : IAsyncDisposable
     }
 
     private async Task<SessionQueueDispatchReceipt> ObserveAndCommitAsync(SessionQueueEntry admitted,
-        Func<HostActivity> continuation, Func<bool> eligible, long started)
+        Func<HostActivity> continuation, Func<bool> eligible, long started, CancellationToken token)
     {
         using var activity = continuation();
         try
         {
             RequireEligible(eligible);
-            var result = action.Observe(lifetime.Token);
+            token.ThrowIfCancellationRequested();
+            var result = action.Observe(token);
             RequireEligible(eligible);
+            token.ThrowIfCancellationRequested();
             var outcome = result.Outcome == CapabilityOutcome.Succeeded
-                && time.GetElapsedTime(started) < SessionQueuePolicy.ActiveDeadline
+                && time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)
                 ? SessionQueueState.Succeeded : SessionQueueState.Failed;
-            var completed = await store.CompleteAsync(admitted, outcome, eligible, CancellationToken.None).ConfigureAwait(false);
+            var completed = await store.CompleteAsync(admitted, outcome,
+                () => eligible() && !token.IsCancellationRequested, CancellationToken.None).ConfigureAwait(false);
             lock (causeGate) { causes.Remove(admitted.Request.TaskId); }
             activity.Complete(outcome == SessionQueueState.Succeeded ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-            return new(completed, result.Version);
+            return new(completed, outcome == SessionQueueState.Succeeded ? result.Version : null);
         }
         catch
         {

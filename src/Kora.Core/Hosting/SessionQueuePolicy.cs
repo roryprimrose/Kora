@@ -3,7 +3,8 @@ namespace Kora.Core.Hosting;
 public static class SessionQueuePolicy
 {
     public static readonly TimeSpan PendingLifetime = TimeSpan.FromMinutes(SessionQueueLimits.DefaultPendingLifetimeMinutes);
-    public static readonly TimeSpan ActiveDeadline = TimeSpan.FromMinutes(5);
+    // Compatibility default for known pre-capture admissions only; new callbacks enforce their committed entry budget.
+    public static readonly TimeSpan ActiveDeadline = SessionQueueLimits.ActiveBudget(SessionQueueLimits.DefaultActiveBudgetMinutes);
 
     /// <summary>Round-robin by last successful admission, FIFO within each session; blocked heads never bypass.</summary>
     public static SessionQueueEntry? SelectReady(IReadOnlyList<SessionQueueEntry> entries,

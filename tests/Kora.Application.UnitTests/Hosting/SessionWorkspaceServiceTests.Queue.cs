@@ -19,6 +19,144 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellationOrPrivacyChangeDuringReceiptCannotPassFinalCommitAdmission(bool privacy)
+    {
+        using var f = new Fixture();
+        using var cancellation = new CancellationTokenSource();
+        await using var queue = f.QueueService();
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        f.BeforeComplete = () => { if (privacy) { f.CanControl = false; } else { cancellation.Cancel(); } };
+        var dispatch = () => queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, cancellation.Token);
+        await dispatch.Should().ThrowAsync<InvalidOperationException>();
+        f.QueueRows.Single().State.Should().Be(SessionQueueState.Running);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MissingOrMismatchedCommittedActiveAuthorityNeverExecutesOrReportsSuccess(bool mismatch)
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        f.AdmissionReceipt = entry => mismatch ? entry with { ActiveBudgetMinutes = 60,
+            ActiveDeadlineAt = entry.AdmittedAt!.Value.AddMinutes(60) }
+            : entry with { RecordVersion = 2, ActiveBudgetMinutes = null, AdmittedAt = null, ActiveDeadlineAt = null };
+        var dispatch = () => queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await dispatch.Should().ThrowAsync<InvalidDataException>();
+        f.QueueActions.Should().Be(0);
+        f.QueueRows.Single().State.Should().Be(SessionQueueState.Running);
+    }
+
+    [Fact]
+    public async Task AdmissionRacingActiveBudgetEditCapturesOneCompletePolicyThenFutureDispatchUsesNewBudget()
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        settings.Service.Observe();
+        await using var queue = f.QueueService(configuration: settings.Service);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        var original = f.QueueRows.Single();
+        await settings.Refresh();
+        await settings.Set("1", SessionQueueOption.ActiveBudgetMinutes);
+        f.QueueRows.Single().Should().Be(original);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.BeforeAdmitAsync = async limits =>
+        {
+            limits.ActiveBudgetMinutes.Should().Be(1);
+            entered.SetResult();
+            await release.Task;
+        };
+        var dispatch = queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await entered.Task;
+        var edit = settings.Set("60", SessionQueueOption.ActiveBudgetMinutes);
+        edit.IsCompleted.Should().BeFalse();
+        f.QueueRows.Single().Should().Be(original);
+        release.SetResult();
+        var first = (await dispatch).QueueDispatch!.Single();
+        await edit;
+        f.BeforeAdmitAsync = null;
+        first.Entry.ActiveBudgetMinutes.Should().Be(1);
+        first.Entry.ActiveDeadlineAt.Should().Be(first.Entry.AdmittedAt!.Value.AddMinutes(1));
+        first.Entry.EnqueuedAt.Should().Be(original.EnqueuedAt);
+        first.Entry.ExpiresAt.Should().Be(original.ExpiresAt);
+        first.Version!.Version.Should().Be("1.0.0");
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = f.QueueRevision },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        var second = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = f.QueueRevision },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        second.QueueDispatch!.Single().Entry.ActiveBudgetMinutes.Should().Be(60);
+        f.QueueRows.First().Should().Be(first.Entry);
+    }
+
+    [Theory]
+    [InlineData(1, 60, true)]
+    [InlineData(60, 1, false)]
+    public async Task ActiveBudgetEditDuringHeldCurrentCallbackCannotAlterDeadlineOrResult(
+        int originalBudget, int futureBudget, bool late)
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        await settings.Refresh();
+        await settings.Set(originalBudget.ToString(System.Globalization.CultureInfo.InvariantCulture), SessionQueueOption.ActiveBudgetMinutes);
+        await using var queue = f.QueueService(configuration: settings.Service);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        var pending = f.QueueRows.Single();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        f.OnObserve = () => { entered.Set(); release.Wait(f.Token); };
+        var dispatch = queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await Task.Run(() => entered.Wait(f.Token), f.Token);
+        var active = f.QueueRows.Single();
+        await settings.Refresh();
+        await settings.Set(futureBudget.ToString(System.Globalization.CultureInfo.InvariantCulture), SessionQueueOption.ActiveBudgetMinutes);
+        f.QueueRows.Single().Should().Be(active);
+        f.QueueTime.Ticks += TimeSpan.FromMinutes(late ? originalBudget : 2).Ticks;
+        dispatch.IsCompleted.Should().BeFalse();
+        release.Set();
+        var receipt = (await dispatch).QueueDispatch!.Single();
+        receipt.Entry.ActiveDeadlineAt.Should().Be(active.ActiveDeadlineAt);
+        receipt.Entry.ActiveBudgetMinutes.Should().Be(originalBudget);
+        receipt.Entry.ExpiresAt.Should().Be(pending.ExpiresAt);
+        receipt.Entry.State.Should().Be(late ? SessionQueueState.Failed : SessionQueueState.Succeeded);
+        if (late) { receipt.Version.Should().BeNull(); }
+        else { receipt.Version!.Version.Should().Be("1.0.0"); }
+    }
+
+    [Fact]
+    public async Task EarlyCancellationDrainsHeldCallbackWithoutLateReceiptOrAnotherAdmission()
+    {
+        using var f = new Fixture();
+        await using var queue = f.QueueService();
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var cancellation = new CancellationTokenSource();
+        f.OnObserve = () => { entered.Set(); release.Wait(f.Token); };
+        var dispatch = queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 2 },
+            RequestOrigin.LocalUi, () => true, cancellation.Token);
+        await Task.Run(() => entered.Wait(f.Token), f.Token);
+        cancellation.Cancel();
+        dispatch.IsCompleted.Should().BeFalse();
+        f.QueueRows.Should().ContainSingle(entry => entry.IsCurrent).And.ContainSingle(entry => entry.IsPending);
+        f.QueueActions.Should().Be(1);
+        release.Set();
+        var outcome = () => dispatch;
+        await outcome.Should().ThrowAsync<OperationCanceledException>();
+        f.QueueRows.Should().NotContain(entry => entry.State == SessionQueueState.Succeeded);
+        f.QueueActions.Should().Be(1);
+    }
+
     [Fact]
     public async Task Enqueue_racing_confirmed_lifetime_edit_captures_exactly_one_policy_without_dispatch_or_rewriting_old_work()
     {
@@ -336,20 +474,37 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.ActionRequests.Should().HaveCount(32);
     }
 
-    [Fact]
-    public async Task Active_budget_begins_at_admission_and_late_read_cannot_be_success()
+    [Theory]
+    [InlineData(1, -1)]
+    [InlineData(1, 0)]
+    [InlineData(1, 1)]
+    [InlineData(5, -1)]
+    [InlineData(5, 0)]
+    [InlineData(5, 1)]
+    [InlineData(60, -1)]
+    [InlineData(60, 0)]
+    [InlineData(60, 1)]
+    public async Task MonotonicNearEqualAndAfterDeadlineEnforceCapturedBudgetNotPendingWait(int minutes, int offsetTicks)
     {
         using var fixture = new Fixture();
-        await using var queue = fixture.QueueService(slots: 2, clock: fixture.QueueTime);
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        await settings.Refresh();
+        await settings.Set(minutes.ToString(System.Globalization.CultureInfo.InvariantCulture), SessionQueueOption.ActiveBudgetMinutes);
+        await using var queue = fixture.QueueService(slots: 2, clock: fixture.QueueTime, configuration: settings.Service);
         var command = fixture.QueueCommand(SessionCommandOperation.QueueEnqueue) with { DependencyTaskId = Guid.NewGuid() };
         var accepted = await queue.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
         accepted.Queue!.Entries.Single().Dependency!.Value.Value.Should().Be(command.DependencyTaskId!.Value);
         fixture.QueueRows[0] = fixture.QueueRows[0] with { Dependency = null };
         fixture.QueueTime.Ticks = TimeSpan.FromMinutes(4).Ticks;
-        fixture.OnObserve = () => fixture.QueueTime.Ticks += SessionQueuePolicy.ActiveDeadline.Ticks;
+        fixture.OnObserve = () => fixture.QueueTime.Ticks += TimeSpan.FromMinutes(minutes).Ticks + offsetTicks;
         var result = await queue.ExecuteCommandAsync(fixture.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = 1 },
             RequestOrigin.LocalUi, () => true, fixture.Token);
-        result.QueueDispatch!.Single().Entry.State.Should().Be(SessionQueueState.Failed);
+        var receipt = result.QueueDispatch!.Single();
+        receipt.Entry.ActiveBudgetMinutes.Should().Be(minutes);
+        receipt.Entry.ActiveDeadlineAt.Should().Be(fixture.QueueTime.GetUtcNow().AddMinutes(minutes));
+        receipt.Entry.State.Should().Be(offsetTicks < 0 ? SessionQueueState.Succeeded : SessionQueueState.Failed);
+        if (offsetTicks < 0) { receipt.Version!.Version.Should().Be("1.0.0"); }
+        else { receipt.Version.Should().BeNull(); }
     }
 
     [Fact]
@@ -398,6 +553,9 @@ public sealed partial class SessionWorkspaceServiceTests
         internal string? QueueFailure { get; set; }
         internal Action? OnObserve { get; set; }
         internal Action? BeforeAdmit { get; set; }
+        internal Func<SessionQueueLimits, Task>? BeforeAdmitAsync { get; set; }
+        internal Func<SessionQueueEntry, SessionQueueEntry>? AdmissionReceipt { get; set; }
+        internal Action? BeforeComplete { get; set; }
         internal Action? AfterQueueRead { get; set; }
         internal CapabilityOutcome QueueActionOutcome { get; init; } = CapabilityOutcome.Succeeded;
         internal int QueueActions { get; private set; }
@@ -463,21 +621,26 @@ public sealed partial class SessionWorkspaceServiceTests
             return ValueTask.FromResult(SessionQueuePolicy.SelectReady(QueueRows,
                 new Dictionary<HostId<TaskIdentity>, HostTaskState>(), queueRun, QueueTime.GetUtcNow(), admissionRevision, limits));
         }
-        public ValueTask<SessionQueueEntry> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
+        public async ValueTask<SessionQueueAdmissionReceipt> AdmitAsync(SessionQueueEntry expected, long admissionRevision,
             SessionQueueLimits limits, Func<bool> eligible, CancellationToken token)
         {
             QueueCheck("admit");
+            if (BeforeAdmitAsync is { } before) { await before(limits); }
             BeforeAdmit?.Invoke();
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
             LastAdmittedLimits = limits;
-            var next = expected with { State = SessionQueueState.Running, Revision = new(2), DispatchOrder = ++QueueRevision };
+            QueueRevision = Math.Max(QueueRevision, QueueRows.Max(entry => entry.Position));
+            var started = QueueTime.GetTimestamp();
+            var next = expected.Admit(new(2), ++QueueRevision, QueueTime.GetUtcNow(), limits.ActiveBudgetMinutes);
             QueueRows[QueueRows.IndexOf(expected)] = next;
-            return ValueTask.FromResult(next);
+            return new SessionQueueAdmissionReceipt(AdmissionReceipt?.Invoke(next) ?? next, started);
         }
         public ValueTask<SessionQueueEntry> CompleteAsync(SessionQueueEntry expected, SessionQueueState outcome,
             Func<bool> eligible, CancellationToken token)
         {
             QueueCheck("complete");
+            BeforeComplete?.Invoke();
+            if (!eligible()) { throw new InvalidOperationException("Private receipt admission changed."); }
             var next = expected with { State = outcome, Revision = new(3) };
             QueueRows[QueueRows.IndexOf(expected)] = next;
             QueueRevision++;

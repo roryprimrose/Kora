@@ -33,9 +33,9 @@ Host-held option/configuration/call revisions and native visible-lifetime identi
 Protected original-voice writes deny without channel relabelling or deferred application.
 Required typed audit, atomic save/readback and durable completed intent precede activation; unknown/corrupt/unconfirmed storage holds new admissions without defaulting ([service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs)).
 
-Only pending capacity 1-10 and synchronous read-only slots 1-2 are configurable.
+Only pending capacity 1-10, synchronous read-only slots 1-2, future-enqueue pending lifetime 1-120 minutes/default 30 and future-admission active budget 1-60 minutes/default 5 are configurable.
 Short consuming transactions serialize with edits and revalidate confirmed storage at reads/commits, but active callbacks do not hold that configuration gate.
-Lowering limits never removes pending records or revokes existing admissions; fixed pending/active deadlines remain unchanged.
+Lowering limits never removes pending records or revokes existing admissions; existing pending metadata and admitted deadlines remain unchanged. Original dispatch authority binds format-3 active budget/precise UTC deadline and same-run monotonic enforcement; legacy admissions retain five minutes. Cancellation/elapsed budgets suppress late output without termination/rollback authority.
 No grant, execution token, schema migration, automatic dispatch, model configuration tool or general effect/provider authority is created ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [durable invariants](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
 
 The native selected-session work surface is a passive consumer of one bounded

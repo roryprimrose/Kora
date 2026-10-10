@@ -44,7 +44,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var projected = ProjectQueue(connection, entry, now);
             return new SessionQueueObservation(projected, SessionQueuePolicy.Eligibility(projected,
                 projectedQueue, states, runId, now, admissionRevision, limits, authority.Authority.IsActive, blocked, quarantined),
-                entry.IsCurrent && entry.RunId == runId ? ReadAdmissionTime(connection, entry).Add(SessionQueuePolicy.ActiveDeadline) : null);
+                entry.ActiveDeadlineAt ?? (entry.DispatchOrder > 0
+                    ? SessionQueueLimits.ActiveDeadlineAt(ReadAdmissionTime(connection, entry), SessionQueueLimits.DefaultActiveBudgetMinutes) : null));
         }).ToArray();
         var taskRecords = ReadWorkTasks(connection, session);
         var questions = ReadQuestions(connection, session).Where(question => question.Status == QuestionStatus.Pending)

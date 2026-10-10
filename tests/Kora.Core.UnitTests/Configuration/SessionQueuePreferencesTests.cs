@@ -6,6 +6,25 @@ namespace Kora.Core.UnitTests.Configuration;
 
 public sealed class SessionQueuePreferencesTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(60)]
+    public void ActiveBudgetEdgesAndEveryResetPreserveIndependentOverrides(int minutes)
+    {
+        var value = new SessionQueuePreferences(3, 2, 120).With(SessionQueueOption.ActiveBudgetMinutes,
+            minutes.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        value.ActiveBudgetMinutes.Should().Be(minutes);
+        value.Limits.Should().Be(new SessionQueueLimits(3, 2, 120, minutes));
+        value.With(SessionQueueOption.ActiveBudgetMinutes, null).Should().Be(new SessionQueuePreferences(3, 2, 120));
+        value.With(SessionQueueOption.PendingPerSession, null).Should().Be(new SessionQueuePreferences(null, 2, 120, minutes));
+        value.With(SessionQueueOption.ExecutionSlots, null).Should().Be(new SessionQueuePreferences(3, null, 120, minutes));
+        value.With(SessionQueueOption.PendingLifetimeMinutes, null).Should().Be(new SessionQueuePreferences(3, 2, null, minutes));
+        new SessionQueuePreferences(activeBudgetMinutes: minutes).IsDefault.Should().BeFalse();
+        new SessionQueuePreferences().Limits.ActiveBudgetMinutes.Should().Be(5);
+        SessionQueueLimits.ActiveBudget(minutes).Should().Be(TimeSpan.FromMinutes(minutes));
+    }
+
     [Fact]
     public void Exact_fixed_profile_defaults_independent_overrides_and_resets()
     {
@@ -65,6 +84,17 @@ public sealed class SessionQueuePreferencesTests
     [InlineData(SessionQueueOption.PendingLifetimeMinutes, "30 minutes")]
     [InlineData(SessionQueueOption.PendingLifetimeMinutes, "٣٠")]
     [InlineData(SessionQueueOption.PendingLifetimeMinutes, "2147483648")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "0")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "-1")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "61")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "05")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "+5")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "5 ")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, " 5")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "5.0")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "5 minutes")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "٥")]
+    [InlineData(SessionQueueOption.ActiveBudgetMinutes, "2147483648")]
     public void Malformed_noncanonical_or_broader_proposed_ranges_never_enter_the_fixed_profile(SessionQueueOption option, string text)
     {
         var action = () => new SessionQueuePreferences().With(option, text);

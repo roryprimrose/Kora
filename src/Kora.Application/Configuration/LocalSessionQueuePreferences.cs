@@ -31,7 +31,9 @@ public sealed class LocalSessionQueuePreferences : ISessionQueuePreferences
         while (reader.ReadLine() is { } line) { values.Add(line); }
         var lines = values.ToArray();
         var legacy = lines.Length == 3 && string.Equals(lines[0], "1", StringComparison.Ordinal);
-        if (!legacy && (lines.Length != 4 || !string.Equals(lines[0], "2", StringComparison.Ordinal)))
+        var lifetime = lines.Length == 4 && string.Equals(lines[0], "2", StringComparison.Ordinal);
+        var active = lines.Length == 5 && string.Equals(lines[0], "3", StringComparison.Ordinal);
+        if (!legacy && !lifetime && !active)
         {
             throw new InvalidDataException("The saved queue preference schema or shape is unknown.");
         }
@@ -39,7 +41,8 @@ public sealed class LocalSessionQueuePreferences : ISessionQueuePreferences
         {
             return new SessionQueuePreferences().With(SessionQueueOption.PendingPerSession, Decode(lines[1]))
                 .With(SessionQueueOption.ExecutionSlots, Decode(lines[2]))
-                .With(SessionQueueOption.PendingLifetimeMinutes, legacy ? null : Decode(lines[3]));
+                .With(SessionQueueOption.PendingLifetimeMinutes, legacy ? null : Decode(lines[3]))
+                .With(SessionQueueOption.ActiveBudgetMinutes, active ? Decode(lines[4]) : null);
         }
         catch (ArgumentOutOfRangeException exception)
         {
@@ -56,10 +59,11 @@ public sealed class LocalSessionQueuePreferences : ISessionQueuePreferences
         if (preferences.IsDefault) { store.Delete(FileName); }
         else
         {
-            store.WriteLines(FileName, ["2",
+            store.WriteLines(FileName, ["3",
                 preferences.PendingPerSession?.ToString(CultureInfo.InvariantCulture) ?? "default",
                 preferences.ExecutionSlots?.ToString(CultureInfo.InvariantCulture) ?? "default",
-                preferences.PendingLifetimeMinutes?.ToString(CultureInfo.InvariantCulture) ?? "default"]);
+                preferences.PendingLifetimeMinutes?.ToString(CultureInfo.InvariantCulture) ?? "default",
+                preferences.ActiveBudgetMinutes?.ToString(CultureInfo.InvariantCulture) ?? "default"]);
         }
     }
 }

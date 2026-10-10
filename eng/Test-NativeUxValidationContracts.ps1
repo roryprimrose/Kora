@@ -215,6 +215,27 @@ Check (!(Test-Path -LiteralPath (Join-Path $OutputDirectory 'validate-workstatio
     !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'denied-workstation')) -and
     !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'expired-workstation')) -and
     !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'unbounded-workstation'))) 'Expanded validation and refused admission create no trial, baseline, process or input'
+$retention = Join-Path $PSScriptRoot 'Invoke-NativeUxRetention.ps1'
+$null = [Management.Automation.Language.Parser]::ParseFile($retention, [ref]$tokens, [ref]$errors)
+Check ($errors.Count -eq 0) 'Retention driver parses'
+Reject 'Retention automation needs separate explicit desktop approval' {
+    & $retention -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'denied-retention') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(5))
+} 'Explicit desktop automation approval'
+Reject 'Retention automation refuses expired approval before baseline launch' {
+    & $retention -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'expired-retention') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(-1)) -ApproveDesktopAutomation
+} 'future deadline'
+Reject 'Retention automation refuses unbounded approval before baseline launch' {
+    & $retention -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'unbounded-retention') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddHours(2)) -ApproveDesktopAutomation
+} 'future deadline'
+& $retention -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'validate-retention') `
+    -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(5)) -ValidateOnly
+Check (!(Test-Path -LiteralPath (Join-Path $OutputDirectory 'validate-retention')) -and
+    !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'denied-retention')) -and
+    !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'expired-retention')) -and
+    !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'unbounded-retention'))) 'Retention validation and refusal create no native process, input, baseline or trial'
 Write-ProofJson ([ordered]@{ schema = 1; count = $passed.Count; checks = @($passed)
     nativeLaunch = $false; scope = 'Synthetic file-only contracts, not native acceptance.' }) `
     (Join-Path $OutputDirectory 'contracts.json')

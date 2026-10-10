@@ -198,6 +198,33 @@ readability remain operator-only.
 These results reduce repetitive manual input; **none populates the human
 observation template or signs off Narrator/readability/physical displays**.
 
+### Separate native retention automation
+
+The [retention driver](../../eng/Invoke-NativeUxRetention.ps1) reuses the
+five-row mechanical baseline and opens another fresh default scratch fixture.
+It needs separate fixed-deadline desktop approval, not operator control input:
+
+```powershell
+$retention = Join-Path $env:TEMP ('kora-native-retention-' + [guid]::NewGuid().ToString('N'))
+.\eng\Invoke-NativeUxRetention.ps1 -PreparedDirectory $proof -OutputDirectory $retention `
+    -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(15)) -ApproveDesktopAutomation
+```
+
+Seven rows cover passive exact-ID retention and isolation; preview/cancel
+without commit; Keep with newer audit revision and fresh-window readback;
+subject/refresh review invalidation; ordinary retention without clock reset;
+actual live/unresolved scratch work-hold observation; and synthetic gate
+revocation without replay. Exact-ID inspection must not create selected lifecycle
+authority. Other sessions, immutable identities and recorded activity/archive/
+delete clocks remain unchanged. This uses the real retention service, not
+direct SQL mutation or an effect-capable fixture.
+
+Inspect `baseline\mechanics.json` and `retention\retention.json`. Preserve failed
+attempts. Window reopening is not process-restart persistence. The hold row
+observes metadata; due timer cleanup/hold enforcement is separate storage-test
+evidence. No native due-date, power-loss, copy-disposal, forensic-erasure,
+installed, audio, real OS-transition or human accessibility acceptance is inferred.
+
 ### Separate silent caption fixture
 
 The default fixture still refuses all speech. A separately approved launch may

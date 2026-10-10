@@ -337,15 +337,24 @@ public sealed class ExactGrantsViewModelTests
         await using var f = new Fixture(logger);
         f.State.ReportFailure(new IOException("private-sensitive-body"));
         logger.Last.Should().Contain(nameof(IOException)).And.NotContain("private-sensitive-body");
+        logger.Context.Should().NotBeNull();
+        logger.Context!.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+        logger.Context.Outcome.Should().Be(HostOperationOutcome.Failed);
+        HostActivity.Current.Should().BeNull();
     }
 
     private sealed class EnabledLogger : ILogger<ExactGrantsViewModel>
     {
         internal string? Last { get; private set; }
+        internal HostActivity? Context { get; private set; }
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-            Func<TState, Exception?, string> formatter) => Last = formatter(state, exception);
+            Func<TState, Exception?, string> formatter)
+        {
+            Context = HostActivity.RequireCurrent();
+            Last = formatter(state, exception);
+        }
     }
 
     private sealed class Access : ISessionWorkspaceAccess

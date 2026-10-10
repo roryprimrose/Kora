@@ -1,5 +1,7 @@
 using System.ComponentModel;
 
+using Avalonia.Threading;
+
 using Kora.Application.Interaction;
 using Kora.Application.ViewModels;
 using Kora.Core.Storage;
@@ -33,7 +35,17 @@ internal sealed class ExactGrantsWindowController : IDisposable
         main.PropertyChanged += OnMainChanged;
     }
 
-    private bool Admitted() => !disposed && ownsDesktop() && main.CanRevealPrivatePresentation;
+    private bool Admitted()
+    {
+        if (!Dispatcher.UIThread.CheckAccess()) { return Dispatcher.UIThread.Invoke(Admitted); }
+        return !disposed && ownsDesktop() && main.CanRevealPrivatePresentation;
+    }
+
+    private bool WindowAdmitted()
+    {
+        if (!Dispatcher.UIThread.CheckAccess()) { return Dispatcher.UIThread.Invoke(WindowAdmitted); }
+        return window is { IsVisible: true } && Admitted();
+    }
 
     internal void Open()
     {
@@ -44,7 +56,7 @@ internal sealed class ExactGrantsWindowController : IDisposable
         }
         if (window is null)
         {
-            state = new(store, control, access, () => window is { IsVisible: true } && Admitted(), logger);
+            state = new(store, control, access, WindowAdmitted, logger);
             window = new(state);
             window.Closed += OnClosed;
             window.Show();

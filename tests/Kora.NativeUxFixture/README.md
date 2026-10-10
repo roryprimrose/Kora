@@ -280,6 +280,83 @@ artifact commands. Limits, virtualization, passive selection and execution
 boundaries are unchanged. Exact native discovery is machine evidence, not a
 claim that Narrator announced the rows or that their rendering is readable.
 
+### Exact-grant inspection and single-record revocation preparation
+
+The [exact-grant driver](../../eng/Invoke-NativeUxExactGrants.ps1) is a separate
+scratch-only proof. Its default `Prepare` stage builds/publishes the fixture and
+runs the focused headless contracts. It never starts a native window, sends
+desktop input, starts an interactive hour, or supplies approval:
+
+```powershell
+.\eng\Invoke-NativeUxExactGrants.ps1 -Stage Prepare -OutputDirectory <new-fixed-local-proof-directory>
+.\eng\Test-NativeUxExactGrantsContracts.ps1 -OutputDirectory <new-fixed-local-contract-directory>
+```
+
+Only the parent/operator may run the frozen prepared worktree later, after all
+unattended children finish and the next fixed one-hour interactive authority is
+separately recorded. **Do not fill or derive the deadline during preparation.**
+
+```powershell
+.\eng\Invoke-NativeUxExactGrants.ps1 -Stage Run `
+    -PreparedDirectory <prepared-directory> -OutputDirectory <new-native-trial-directory> `
+    -DeadlineUtc <UNFILLED-PARENT-RECORDED-UTC-DEADLINE> -ApproveDesktopAutomation
+```
+
+Run refuses missing/expired/over-one-hour deadlines, missing approval, changed
+source/build-input fingerprints, changed driver/helpers and changed payloads.
+`-ValidateOnly` checks Run prerequisites without launch/input, but still requires
+the operator's explicit deadline. It is not an approval or acceptance receipt.
+The mechanics driver's internal `-LoadHelpersOnly` path reuses its existing
+PID/HWND/foreground/deadline helpers without launching a baseline fixture.
+Original mechanics defaults and refusals remain unchanged.
+No-launch driver contracts also reject direct or selection-mediated page-discovery
+recursion and inventory resets inside discovery. Extracted helper tests use local
+fakes to check bounded viewport discovery, exact/missing lookup and one-step
+pagination; they do not execute the driver launch path or qualify native scrolling.
+
+The optional `--exact-grants-fixture` launch flag cannot be combined with other
+fixture modes. It seeds 51 synthetic grants via genuine host-owned committed
+intent, proposal, trusted snapshot, approval question and LocalUi answer paths.
+No raw SQL, fabricated grant records, real permission, dispatcher or effect
+execution is used. Exact IDs are generated at **later fixture initialization**,
+not at Prepare; the later native receipt retains IDs/revisions, audit head,
+bounded inventory and grant digests, origin observations and recorded retention
+clocks. Passive reads do not issue approval/control intent or renew clocks.
+Launcher observation sequence numbers are presentation-only completion markers,
+not authority revisions.
+The production exact inspection and outcome text use the existing
+`NamedTextBlock` peer so native automation exposes the displayed ID/revision
+and current outcome together with their labels; this adds no control authority.
+The retained inventory uses the existing `ScrollableListBox` peer to expose its
+current native viewport. Discovery reads exact IDs only from displayed row text,
+not the stock container's domain-record name, which contains other correlation IDs.
+Native admission resolves window visibility and privacy on the UI thread even
+when storage revalidates the confirmation after asynchronous I/O. Failure
+presentation retains a live host diagnostic activity without granting control.
+If an enumerated owned HWND retires before UIA resolves its provider, discovery
+records the retirement only after Windows confirms that the handle has no owner.
+Provider failures for live handles still abort; consequential actions are never retried.
+
+| Row | Machine assertion |
+| --- | --- |
+| G01 | All 51 exact IDs through bounded native pages; current inspection, passive audit/grant/clock invariance and no inferred applicability |
+| G02 | Genuine overflowing native ScrollPattern extent, viewport and endpoint readback; selection preserved; Blocked rather than simulated if unavailable |
+| G03 | Selection and refresh retire the displayed review |
+| G04 | One authority-only synthetic use advances revision/use count; stale displayed revoke conflicts without effect dispatch |
+| G05 | Genuine origin lifecycle change invalidates stale displayed inspection |
+| G06 | Synthetic privacy closes the old window; a fresh window has no replayed review |
+| G07 | Explicit reviewed revoke of target only, immutable readback and subsequent genuine consume denial |
+| G08 | 48 unrelated grants including Perpetual unchanged; target/Perpetual clocks unchanged; fresh-window readback |
+
+There are no automatic action retries, bulk removal, approvals from inspection,
+or promises that revocation stops or rolls back running effects. The native
+receipt is synthetic mechanics only, not Narrator/readability, real OS privacy,
+real effect containment, process restart or installed qualification. G02 can
+remain Blocked if this provider does not expose a genuine overflowing list.
+Failed attempts and local output remain durable; stop normally via the exact
+owned fixture. Forced termination fails the trial and can leave scratch state.
+Do not edit historical receipts or relabel preparation as native acceptance.
+
 ### Minimum operator walkthrough after automated mechanics
 
 Do not manually repeat the machine-only queue, history, source-hash, stale-ID

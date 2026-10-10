@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory)][string] $OutputDirectory,
     [Parameter(Mandatory)][DateTimeOffset] $DeadlineUtc,
     [switch] $ApproveDesktopAutomation,
-    [switch] $ValidateOnly
+    [switch] $ValidateOnly,
+    [switch] $LoadHelpersOnly
 )
 . (Join-Path $PSScriptRoot 'NativeUxValidation.Common.ps1')
 Assert-NativeUxProfile
@@ -15,7 +16,7 @@ $prepared = Assert-NativeUxBundle $PreparedDirectory
 if ($DeadlineUtc -le [DateTimeOffset]::UtcNow -or $DeadlineUtc -gt [DateTimeOffset]::UtcNow.AddHours(1)) {
     throw 'Supply a future deadline no more than one hour away; expired desktop approval cannot launch.'
 }
-if (!$ValidateOnly -and !$ApproveDesktopAutomation) {
+if (!$ValidateOnly -and !$LoadHelpersOnly -and !$ApproveDesktopAutomation) {
     throw 'Explicit -ApproveDesktopAutomation is required: this trial opens windows, changes fixture focus and sends guarded Tab/Shift+Tab input.'
 }
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
@@ -56,6 +57,10 @@ public static class KoraFixtureKeyboard
         }, IntPtr.Zero)) throw new Win32Exception("Owned native window enumeration failed.");
         return windows.ToArray();
     }
+    public static uint WindowProcess(IntPtr window)
+    {
+        return GetWindowThreadProcessId(window, out uint owner) == 0 ? 0 : owner;
+    }
     public static void Activate(int process, int window)
     {
         var handle = new IntPtr(window);
@@ -77,9 +82,11 @@ public static class KoraFixtureKeyboard
     }
 }
 '@
-New-ProofDirectory $OutputDirectory
-$scratch = Join-Path $OutputDirectory 'scratch'
-New-Item -ItemType Directory -Path $scratch | Out-Null
+if (!$LoadHelpersOnly) {
+    New-ProofDirectory $OutputDirectory
+    $scratch = Join-Path $OutputDirectory 'scratch'
+    New-Item -ItemType Directory -Path $scratch | Out-Null
+}
 $rows = [Collections.Generic.List[object]]::new()
 $receipt = [ordered]@{ schema = 1; status = 'Running'; startedUtc = [DateTimeOffset]::UtcNow.ToString('O')
     deadlineUtc = $DeadlineUtc.ToUniversalTime().ToString('O')
@@ -87,6 +94,7 @@ $receipt = [ordered]@{ schema = 1; status = 'Running'; startedUtc = [DateTimeOff
     preparationSha256 = (Get-FileHash -LiteralPath (Join-Path $PreparedDirectory 'automated.json')).Hash.ToLowerInvariant()
     source = $prepared.source; processId = $null; exitCode = $null; readyObserved = $false
     providerReadinessDeferrals = 0
+    retiredWindowHandles = 0
     retiredChoiceElements = 0
     scratchCleaned = $false; forcedTermination = $false; rows = @()
     scope = 'PID-scoped synthetic native UI Automation and guarded keyboard mechanics, not Narrator audio, visual readability, text-scale/mixed-DPI, real privacy/ownership or full qualification'
@@ -109,7 +117,13 @@ function Assert-OwnedElement {
 function Get-OwnedWindows {
     @(
         foreach ($handle in [KoraFixtureKeyboard]::Windows($script:fixturePid)) {
-            $element = [Windows.Automation.AutomationElement]::FromHandle($handle)
+            try { $element = [Windows.Automation.AutomationElement]::FromHandle($handle) }
+            catch [Management.Automation.MethodInvocationException] {
+                if ([KoraFixtureKeyboard]::WindowProcess($handle) -ne 0) { throw }
+                $receipt.retiredWindowHandles++
+                Write-Host 'An enumerated owned HWND retired before provider resolution; no action is retried.'
+                continue
+            }
             if ($null -eq $element -or $null -eq $element.Current -or $element.Current.ProcessId -le 0) {
                 # A newly created HWND can precede its UIA provider; admit no operation until both identities resolve.
                 if ($receipt.providerReadinessDeferrals -eq 0) { Write-Host 'Waiting for an owned HWND automation provider; no input admitted while its identity is unknown.' }
@@ -203,6 +217,12 @@ function Get-FocusName {
     $focus = [Windows.Automation.AutomationElement]::FocusedElement
     Assert-OwnedElement $focus
     $focus.Current.Name
+}
+
+if ($LoadHelpersOnly) {
+    $process.Dispose()
+    Write-Host 'Owned native mechanics helpers loaded only. No process, window, input or proof directory created.'
+    return
 }
 
 try {

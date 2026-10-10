@@ -50,9 +50,12 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private readonly EvidenceLoggerProvider? evidenceProvider;
     private AudioControlAdmission? captionAdmission;
 
-    internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false)
+    internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false, bool exactGrants = false)
     {
-        if (silentCaption && listOverflow) { throw new ArgumentException("Synthetic caption and list-overflow fixture modes are separate."); }
+        if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) > 1)
+        {
+            throw new ArgumentException("Synthetic caption, list-overflow and exact-grants fixture modes are separate.");
+        }
         if (!NativeUxFixtureHost.IsLocalScratchParent(scratchParent))
         {
             throw new ArgumentException("An existing absolute scratch parent on a fixed local drive, not a reparse point, is required.", nameof(scratchParent));
@@ -60,6 +63,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         LocalRoot = Path.Combine(Path.GetFullPath(scratchParent), "kora-native-ux-" + Guid.NewGuid().ToString("N"));
         SilentSpeech = silentCaption ? new SilentCaptionSpeech() : null;
         ListOverflow = listOverflow;
+        ExactGrants = exactGrants;
         if (Directory.Exists(LocalRoot) || File.Exists(LocalRoot))
         {
             throw new IOException("The fresh native UX scratch path already exists.");
@@ -202,6 +206,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         }
         initialized = true;
         if (ListOverflow) { await InitializeListOverflowAsync(); }
+        if (ExactGrants) { await InitializeExactGrantsAsync(); }
         startup.Complete(HostOperationOutcome.Completed);
     }
 
@@ -320,6 +325,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         queue?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         OverflowEvents?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         captionAdmission?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        ExactGrantControl?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         SilentSpeech?.DisposeAsync().AsTask().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
         Access.Dispose();

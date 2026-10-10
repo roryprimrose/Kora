@@ -13,12 +13,14 @@ using Kora;
 using Kora.Application;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Interaction;
 using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Controls;
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.NativeUxFixture;
@@ -39,6 +41,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
     private bool canClose;
     private bool failed;
     private long overflowSnapshotRevision;
+    private long exactSnapshotRevision;
 
     internal NativeUxFixtureWindow(NativeUxFixtureSession session, IClassicDesktopStyleApplicationLifetime desktop)
     {
@@ -106,6 +109,33 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
             window.ShowResponse();
             return Task.CompletedTask;
         });
+        if (session.ExactGrants)
+        {
+            AddAction(content, "Exact grants (scratch host-issued records only)", () =>
+            {
+                controllers.OfType<ExactGrantsWindowController>().Single().Open();
+                return Task.CompletedTask;
+            });
+            AddAction(content, "Inspect synthetic exact grant state", async () =>
+            {
+                await SetExactObservationAsync();
+            });
+            AddAction(content, "Consume synthetic use target once without effect dispatch", async () =>
+            {
+                await session.ConsumeExactUseTargetAsync();
+                await SetExactObservationAsync();
+            });
+            AddAction(content, "End synthetic grant origin without selection refresh", async () =>
+            {
+                await session.AdvanceExactLifecycleAsync();
+                await SetExactObservationAsync();
+            });
+            AddAction(content, "Probe subsequent revoked target consume denial without effects", async () =>
+            {
+                await session.DenyRevokedExactConsumeAsync();
+                await SetExactObservationAsync();
+            });
+        }
         if (session.ListOverflow)
         {
             AddAction(content, "Inspect synthetic list overflow state", async () =>
@@ -237,6 +267,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         {
             session.Access.SetOpen(true);
             await session.Main.RefreshCommand.ExecuteAsync();
+            if (session.ExactGrants) { session.Main.ShowApplication(); }
             status.Text = "Synthetic gate reopened. Use a fresh explicit window/request; no old answer or audio is replayed.";
             NotifyCommands();
         }, requiresOpenGate: false);
@@ -250,6 +281,16 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
                 + "Narrator audio and Windows display changes require a separate operator decision; the fixture never starts or changes them. "
                 + "All screenshots/automation must target this fixture PID, never the whole desktop.",
             TextWrapping = TextWrapping.Wrap,
+        });
+    }
+
+    private async Task SetExactObservationAsync()
+    {
+        var observation = await session.ObserveExactGrantsAsync();
+        status.Text = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            ObservationSequence = checked(++exactSnapshotRevision),
+            State = observation,
         });
     }
 
@@ -308,6 +349,12 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
                 session.Access, NullLogger<SessionsViewModel>.Instance, session.OverflowEvents);
             sessions.Bind();
             controllers.Add(sessions);
+            if (session.ExactGrants)
+            {
+                controllers.Add(new ExactGrantsWindowController(session.Main, session.Interactions,
+                    session.ExactGrantControl!, session.Access, () => session.Access.Open,
+                    session.Loggers.CreateLogger<ExactGrantsViewModel>()));
+            }
             if (session.SilentSpeech is not null)
             {
                 var caption = new SpeechCaptionWindow(session.Main);

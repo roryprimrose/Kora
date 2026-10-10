@@ -4,6 +4,8 @@ using System.Text;
 
 using Kora.Application.Infrastructure;
 using Kora.Core.Authorization;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
 
@@ -169,7 +171,9 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
 
     public void ReportFailure(Exception exception)
     {
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Recovery, RequestOrigin.LocalUi);
         Failed(exception.GetType().Name);
+        activity.Complete(HostOperationOutcome.Failed);
         if (disposed) { return; }
         preview = null;
         Reviewed = false;

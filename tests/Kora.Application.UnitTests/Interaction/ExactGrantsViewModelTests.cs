@@ -17,6 +17,205 @@ namespace Kora.Application.UnitTests.Interaction;
 public sealed class ExactGrantsViewModelTests
 {
     [Fact]
+    public async Task NativeExplicitCompleteBatchRequiresSeparateConfirmationAndRetainsAllReadbackRevisions()
+    {
+        await using var f = new Fixture();
+        var second = f.Preview with { Grant = f.Preview.Grant with { Id = new(Guid.NewGuid()) } };
+        f.Store.Additional = [second];
+        await f.State.RefreshAsync(f.Token);
+        f.State.SetBatchSelection([f.Preview, second]);
+        f.State.PreviewBatchCommand.CanExecute(null).Should().BeTrue();
+        f.State.BatchReviewed = true;
+        f.State.CanRevokeBatch.Should().BeFalse();
+        await f.State.PreviewBatchCommand.ExecuteAsync();
+        f.State.BatchReviewed.Should().BeFalse();
+        f.State.BatchInspection.Should().Contain(f.Preview.Grant.Id.Value.ToString("D"))
+            .And.Contain(second.Grant.Id.Value.ToString("D")).And.Contain("revision: 1")
+            .And.Contain("Perpetual").And.Contain("bounded.read").And.Contain("Active");
+        f.State.CanRevokeBatch.Should().BeFalse();
+        f.State.BatchReviewed = true;
+        f.State.CanRevokeBatch.Should().BeTrue();
+        await f.State.RevokeBatchCommand.ExecuteAsync();
+        f.State.Message.Should().Contain("ALL selected IDs").And.Contain("unknown");
+        f.Store.Current!.Grant.Revision.Value.Should().Be(2);
+        f.Store.Additional[0].Grant.Revision.Value.Should().Be(2);
+        f.Store.RevokeRequest!.SessionId.Should().NotBe(f.Preview.Grant.ApprovedProposal.Request.SessionId);
+        f.Store.CapturedAdmission!().Should().BeFalse();
+        f.State.BatchReviewed.Should().BeFalse();
+        f.State.CanRevokeBatch.Should().BeFalse();
+        f.State.BatchInspection.Should().Contain("Select explicit");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public async Task BatchPreviewAndConfirmationAreRetiredBySelectionReorderPageControlPrivacyAndClose(int change)
+    {
+        await using var f = new Fixture();
+        var second = f.Preview with { Grant = f.Preview.Grant with { Id = new(Guid.NewGuid()) } };
+        f.Store.Additional = [second];
+        await f.State.RefreshAsync(f.Token);
+        f.State.SetBatchSelection([f.Preview, second]);
+        await f.State.PreviewBatchAsync(f.Token);
+        f.State.BatchReviewed = true;
+        if (change == 0) { f.State.SetBatchSelection([second, f.Preview]); }
+        else if (change == 1) { await f.State.RefreshAsync(f.Token); }
+        else if (change == 2) { f.Access.ControlRevision++; f.State.SynchronizeAuthority(); }
+        else if (change == 3) { f.Eligible = false; f.State.SynchronizeAuthority(); }
+        else if (change == 4) { f.Access.CanInspect = false; f.State.SynchronizeAuthority(); }
+        else if (change == 5) { f.State.Dispose(); }
+        else { f.Access.CanControl = false; f.State.SynchronizeAuthority(); }
+        f.State.BatchReviewed.Should().BeFalse();
+        f.State.BatchInspection.Should().Contain("Select explicit");
+        f.State.CanRevokeBatch.Should().BeFalse();
+        f.Store.Revokes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task BatchLatePreviewNeverPresentsPrivateOutputOrRetainsConfirmation(int change)
+    {
+        await using var f = new Fixture();
+        await f.State.RefreshAsync(f.Token);
+        f.State.SetBatchSelection([f.Preview]);
+        using var cancel = new CancellationTokenSource();
+        f.Store.BeforePreview = () =>
+        {
+            if (change == 0) { f.State.SetBatchSelection([]); }
+            else if (change == 1) { f.Access.ControlRevision++; }
+            else if (change == 2) { f.Access.CanControl = false; }
+            else if (change == 3) { f.State.Dispose(); }
+            else { cancel.Cancel(); }
+        };
+        var preview = () => f.State.PreviewBatchAsync(cancel.Token);
+        await preview.Should().ThrowAsync<Exception>();
+        f.State.BatchInspection.Should().Contain("Select explicit");
+        f.State.BatchReviewed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task BatchSelectionRejectsForeignDuplicateOverBoundEmptyAndUnreviewedInputs()
+    {
+        await using var f = new Fixture();
+        f.State.SynchronizeAuthority();
+        await f.State.RefreshAsync(f.Token);
+        var foreign = () => f.State.SetBatchSelection([f.Preview with { StoreIdentity = "foreign" }]);
+        foreign.Should().Throw<InvalidOperationException>();
+        var duplicate = () => f.State.SetBatchSelection([f.Preview, f.Preview]);
+        duplicate.Should().Throw<InvalidOperationException>();
+        var overBound = () => f.State.SetBatchSelection(Enumerable.Repeat(f.Preview, 51));
+        overBound.Should().Throw<InvalidOperationException>();
+        var empty = () => f.State.PreviewBatchAsync(f.Token);
+        await empty.Should().ThrowAsync<InvalidDataException>();
+        var unreviewed = () => f.State.RevokeBatchAsync(f.Token);
+        await unreviewed.Should().ThrowAsync<InvalidOperationException>();
+        f.State.SetBatchSelection([f.Preview]);
+        await f.State.PreviewBatchAsync(f.Token);
+        f.State.SynchronizeAuthority();
+        f.State.BatchInspection.Should().Contain("Batch preview ID");
+        f.State.ReportFailure(new IOException("sensitive"));
+        f.State.BatchInspection.Should().Contain("Select explicit");
+        f.State.BatchReviewed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ChangedCompletePreviewIsRefusedInsteadOfAdoptingDifferentSelectedAuthority()
+    {
+        await using var f = new Fixture();
+        await f.State.RefreshAsync(f.Token);
+        f.State.SetBatchSelection([f.Preview]);
+        f.Store.PreviewResult = new(Guid.NewGuid(),
+            [f.Preview with { Grant = f.Preview.Grant with { Id = new(Guid.NewGuid()) } }]);
+        var preview = () => f.State.PreviewBatchAsync(f.Token);
+        await preview.Should().ThrowAsync<InvalidDataException>();
+        f.State.BatchInspection.Should().Contain("Select explicit");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task BatchAuthorizationRequiresExactStoreNativeOriginAndSameHostResolvedRequest(int unavailable)
+    {
+        await using var f = new Fixture();
+        var request = HostRequest.Create(unavailable == 1 ? RequestOrigin.HostSystem : RequestOrigin.LocalUi);
+        var activityRequest = unavailable == 2 ? HostRequest.Create(RequestOrigin.LocalUi) : request;
+        using var activity = HostActivity.BeginRoot(activityRequest, HostActivityLayer.Application, HostOperation.Request);
+        var authorization = unavailable == 0 ? f.Tracing.Authorization : f.Authorization;
+        var action = () => authorization.RevokeExactBatchAsync(request, new(1),
+            new(Guid.NewGuid(), [f.Preview]), static () => true, f.Token).AsTask();
+        await action.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task BatchAuthorizationCancellationTerminatesAuditAndRevokesNothing()
+    {
+        await using var f = new Fixture();
+        await f.State.RefreshAsync(f.Token);
+        f.State.SetBatchSelection([f.Preview]);
+        await f.State.PreviewBatchAsync(f.Token);
+        f.State.BatchReviewed = true;
+        f.Store.RevokeFailure = new OperationCanceledException();
+        var revoke = () => f.State.RevokeBatchAsync(f.Token);
+        await revoke.Should().ThrowAsync<OperationCanceledException>();
+        f.Store.Current.Should().Be(f.Preview);
+        f.Store.Revokes.Should().Be(0);
+        HostActivity.Current.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public async Task BatchMutationAdmissionAndUncertainReadbackNeverClaimPartialSuccessOrRollback(int failure)
+    {
+        await using var f = new Fixture();
+        await f.State.RefreshAsync(f.Token);
+        f.State.SetBatchSelection([f.Preview]);
+        await f.State.PreviewBatchAsync(f.Token);
+        f.State.BatchReviewed = true;
+        if (failure == 0) { f.Store.BeforeRevoke = () => f.State.SetBatchSelection([]); }
+        else if (failure == 1) { f.Store.AfterRevoke = () => f.Eligible = false; }
+        else if (failure == 2) { f.Store.AfterRevoke = () => f.Store.ReadFailure = new IOException("read unavailable"); }
+        else if (failure == 3) { f.Store.BatchResult = new(HostInteractionOutcome.Revoked, "bad-receipt", []); }
+        else if (failure == 4) { f.Store.BatchResult = new(HostInteractionOutcome.Conflict, "bad-receipt", [f.Preview.Grant]); }
+        else { f.Store.AfterRevoke = () => f.Store.Current = f.Preview; }
+        var revoke = () => f.State.RevokeBatchAsync(f.Token);
+        await revoke.Should().ThrowAsync<Exception>();
+        f.State.Message.Should().NotContain("ALL selected IDs");
+    }
+
+    [Fact]
+    public async Task BatchConflictReportsNoRevocationsAndAmbientRequestCannotSupplyBatchControl()
+    {
+        await using var f = new Fixture();
+        await f.State.RefreshAsync(f.Token);
+        f.State.SetBatchSelection([f.Preview]);
+        await f.State.PreviewBatchAsync(f.Token);
+        f.State.BatchReviewed = true;
+        f.Store.Conflict = true;
+        await f.State.RevokeBatchAsync(f.Token);
+        f.State.Message.Should().Contain("NONE revoked");
+        var batch = new ExactGrantBatch(Guid.NewGuid(), [f.Preview]);
+        using var ambient = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Application, HostOperation.Request);
+        var revoke = () => f.Control.RevokeBatchAsync(batch, static () => true, f.Token);
+        await revoke.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
     public async Task PassiveNativeListAndCurrentInspectionRequireNoIntentOrExecutionAndDisplayTruthfulSafeMetadata()
     {
         await using var f = new Fixture();
@@ -76,7 +275,8 @@ public sealed class ExactGrantsViewModelTests
             f.Preview.Grant.ApprovedProposal.Request.SessionId, new(2), observation == 1);
         f.Store.Current = f.Preview with
         {
-            OriginSession = session, OriginSessionRemoved = observation == 3,
+            OriginSession = session,
+            OriginSessionRemoved = observation == 3,
             Grant = f.Preview.Grant with { UseCount = 1, LastUsedAt = DateTimeOffset.UnixEpoch },
         };
         await f.InspectAsync();

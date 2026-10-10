@@ -11,6 +11,8 @@
       <TextBlock Text="Sessions (Active / Done)" FontSize="20" FontWeight="SemiBold" />
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
+      <Button x:Name="AllWork" Content="_All work / attention overview" IsEnabled="{Binding CanRead}"
+              AutomationProperties.Name="Open passive bounded cross-session work observations; opening grants nothing and does not resume or dispatch" />
       <ComboBox ItemsSource="{Binding SessionFilters}" SelectedItem="{Binding SessionFilter, Mode=TwoWay}"
                 IsEnabled="{Binding CanRead}" AutomationProperties.Name="All, Active or Done: ordinary current page filter, or metadata-search scope across pages; no activity or routing" />
     </StackPanel>

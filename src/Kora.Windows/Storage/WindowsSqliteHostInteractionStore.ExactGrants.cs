@@ -16,6 +16,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IExactGrantStore
 {
     private readonly Lock exactGrantControlGate = new();
     private readonly HashSet<HostId<SessionIdentity>> exactGrantControlSessions = [];
+    private ExactGrantBatch? currentExactGrantBatch;
     // No Open/ValidateAuthority here: those collect all grants. Passive reads use the initialized
     // shared private lease and validate only bounded exact rows and their committed provenance.
     public ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantCursor? cursor, CancellationToken cancellationToken) =>
@@ -141,6 +142,97 @@ public sealed partial class WindowsSqliteHostInteractionStore : IExactGrantStore
             Commit(transaction, request, cancellationToken, admitted);
             storage.Complete(HostOperationOutcome.Completed);
             return decision;
+        }, cancellationToken), cancellationToken));
+    }
+
+    public ValueTask<ExactGrantBatch> PreviewExactGrantBatchAsync(ExactGrantBatch selection, CancellationToken cancellationToken)
+    {
+        selection.Validate();
+        return new(Task.Run(() =>
+        {
+            using var lease = database.AcquireReadLease(cancellationToken);
+            var identity = RequireInspectionIdentity();
+            using var connection = database.OpenReadOnly(cancellationToken);
+            using var transaction = connection.BeginTransaction(deferred: true);
+            _ = ReadAuditSnapshot(connection, identity, null);
+            foreach (var target in selection.Records)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (ReadExactGrant(connection, target.Grant.Id, identity) != target)
+                {
+                    throw new InvalidOperationException("A selected exact record changed or is unavailable. Refresh the inventory and review a new complete batch.");
+                }
+            }
+            var preview = selection with { PreviewId = Guid.NewGuid() };
+            preview.Validate();
+            cancellationToken.ThrowIfCancellationRequested();
+            database.VerifyFiles();
+            lock (exactGrantControlGate) { currentExactGrantBatch = preview; }
+            return preview;
+        }, cancellationToken));
+    }
+
+    public ValueTask<ExactGrantBatchDecision> RevokeExactGrantBatchAsync(HostRequest request, HostRevision controlGeneration,
+        ExactGrantBatch preview, SecurityAuditEvent requested, Func<bool> admitted, CancellationToken cancellationToken)
+    {
+        preview.Validate();
+        RequireLive(request);
+        if (request.Origin != RequestOrigin.LocalUi || !Same(requested.ActionId, "approval.revoke-exact-batch")
+            || requested.Outcome != SecurityAuditOutcome.Requested || requested.ApprovalId is not null
+            || requested.Initiator != SecurityAuditInitiator.LocalUser)
+        {
+            throw new InvalidOperationException("Exact batch revocation requires its original native control intent and typed audit.");
+        }
+        return new(Task.Run(() => tasks.WithCommittedIntent(request, (connection, intent) =>
+        {
+            using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
+            ValidateAuthority(connection);
+            using var transaction = connection.BeginTransaction();
+            var control = RequireSession(connection, request.SessionId).Authority;
+            bool isCurrentControl;
+            bool isCurrentPreview;
+            lock (exactGrantControlGate)
+            {
+                isCurrentControl = exactGrantControlSessions.Contains(request.SessionId);
+                isCurrentPreview = ReferenceEquals(currentExactGrantBatch, preview);
+            }
+            if (!isCurrentControl || !control.IsActive || control.Generation != controlGeneration || !admitted())
+            {
+                throw new InvalidOperationException("Exact batch control, ownership or privacy is unavailable.");
+            }
+            var identity = RequireInspectionIdentity();
+            var unchanged = isCurrentPreview;
+            foreach (var target in preview.Records)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                // Validate every selected row before constructing or writing any changed authority.
+                unchanged &= ReadExactGrant(connection, target.Grant.Id, identity) == target;
+            }
+            var revoked = unchanged
+                ? preview.Records.Select(item => item.Grant.Revoke("explicit-user-revocation")).ToImmutableArray()
+                : ImmutableArray<OperationGrant>.Empty;
+            var result = new ExactGrantBatchDecision(unchanged ? HostInteractionOutcome.Revoked : HostInteractionOutcome.Conflict,
+                unchanged ? "explicit-user-revocation" : "exact-grant-batch-preview-changed", revoked);
+            var terminal = requested.WithOutcome(unchanged ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied, result.Reason);
+            var decision = new HostInteractionDecision(result.Outcome, result.Reason);
+            var sequence = AppendAudit(connection, transaction, intent, control, terminal, decision,
+                revoked.Select(GrantChange).ToArray(), requested, requestedGrants: preview.Records.Select(item => GrantChange(item.Grant)).ToArray());
+            foreach (var grant in revoked)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteGrant(connection, transaction, grant, sequence);
+            }
+            Commit(transaction, request, cancellationToken, () =>
+            {
+                if (!admitted()) { return false; }
+                lock (exactGrantControlGate) { return !unchanged || ReferenceEquals(currentExactGrantBatch, preview); }
+            });
+            lock (exactGrantControlGate)
+            {
+                if (ReferenceEquals(currentExactGrantBatch, preview)) { currentExactGrantBatch = null; }
+            }
+            storage.Complete(HostOperationOutcome.Completed);
+            return result;
         }, cancellationToken), cancellationToken));
     }
 

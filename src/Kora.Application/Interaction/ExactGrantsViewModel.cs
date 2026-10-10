@@ -18,7 +18,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     public const string Disclosure = "Exact host-issued operation grants, not legacy named-action preferences. "
         + "Stored Active is not an allow decision. Current applicability and running-work status are unknown here. "
         + "Revocation denies subsequent grant consumes; it does not stop or roll back already-running effects. "
-        + "No execution, model calls, bulk removal, edits or new approvals are available.";
+        + "Only explicitly selected, completely reviewed bounded batches may be removed; no revoke-all scan, execution, model calls, edits or new approvals are available.";
     private readonly IExactGrantStore store;
     private readonly ExactGrantControlAdmission control;
     private readonly ISessionWorkspaceAccess access;
@@ -35,6 +35,10 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     private ExactGrantInspection? selected;
     private ExactGrantInspection? preview;
     private string message = "Refresh to read bounded retained metadata from the current private store.";
+    private ImmutableArray<ExactGrantInspection> batchSelection = [];
+    private ExactGrantBatch? batchPreview;
+    private bool batchReviewed;
+    private long batchControlRevision;
 
     public ExactGrantsViewModel(IExactGrantStore store, ExactGrantControlAdmission control,
         ISessionWorkspaceAccess access, Func<bool> nativeAdmission, ILogger<ExactGrantsViewModel> logger)
@@ -48,12 +52,97 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         NextCommand = new(() => NextAsync(), ReportFailure, () => !Busy && next is not null && !disposed);
         InspectCommand = new(() => InspectAsync(), ReportFailure, () => !Busy && Selected is not null && !disposed);
         RevokeCommand = new(() => RevokeAsync(), ReportFailure, () => CanRevoke);
+        PreviewBatchCommand = new(() => PreviewBatchAsync(), ReportFailure,
+            () => !Busy && !disposed && !batchSelection.IsEmpty);
+        RevokeBatchCommand = new(() => RevokeBatchAsync(), ReportFailure, () => CanRevokeBatch);
     }
 
     public AsyncCommand RefreshCommand { get; }
     public AsyncCommand NextCommand { get; }
     public AsyncCommand InspectCommand { get; }
     public AsyncCommand RevokeCommand { get; }
+    public AsyncCommand PreviewBatchCommand { get; }
+    public AsyncCommand RevokeBatchCommand { get; }
+    public bool BatchReviewed { get => batchReviewed; set { SetProperty(ref batchReviewed, value); NotifyCommands(); } }
+    public bool CanRevokeBatch => !disposed && !Busy && BatchReviewed && batchPreview is not null
+        && access.CanControl && nativeAdmission() && batchControlRevision == access.ControlRevision;
+    public string BatchInspection => batchPreview is null ? "Select explicit exact IDs in this page (Ctrl/Shift), then preview the complete batch."
+        : "Batch preview ID: " + batchPreview.PreviewId.ToString("D") + "; selected records: "
+            + batchPreview.Records.Length.ToString(CultureInfo.InvariantCulture) + Environment.NewLine
+            + string.Join(Environment.NewLine + Environment.NewLine, batchPreview.Records.Select(Format));
+
+    public void SetBatchSelection(IEnumerable<ExactGrantInspection> selection)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        var exact = selection.ToImmutableArray();
+        if (exact.Length > ExactGrantPage.MaximumRecords || exact.Distinct().Count() != exact.Length
+            || exact.Any(item => !Records.Any(record => ReferenceEquals(record, item))))
+        {
+            ClearBatch();
+            throw new InvalidOperationException("Select unique exact records only from the currently admitted inventory page.");
+        }
+        selectionVersion++;
+        batchSelection = exact;
+        ClearBatch();
+        preview = null;
+        Reviewed = false;
+        OnPropertyChanged(nameof(Inspection));
+        NotifyCommands();
+    }
+
+    private void ClearBatch()
+    {
+        batchPreview = null;
+        BatchReviewed = false;
+        OnPropertyChanged(nameof(BatchInspection));
+    }
+
+    public async Task PreviewBatchAsync(CancellationToken token = default)
+    {
+        ClearBatch();
+        var selection = new ExactGrantBatch(Guid.NewGuid(), batchSelection);
+        selection.Validate();
+        using var linked = Begin(token);
+        var revision = access.ControlRevision;
+        var version = selectionVersion;
+        try
+        {
+            var current = await store.PreviewExactGrantBatchAsync(selection, linked.Token);
+            RequireCurrent(revision, version, controlRequired: true, linked.Token);
+            current.Validate();
+            if (!current.Records.SequenceEqual(selection.Records))
+            {
+                throw new InvalidDataException("The complete batch preview differs from the exact selected inventory.");
+            }
+            batchPreview = current;
+            batchControlRevision = revision;
+            Message = "Review EVERY selected exact ID/revision/scope/action/status, then separately confirm this complete batch. Denies future consumes; does not cancel or roll back running work.";
+            OnPropertyChanged(nameof(BatchInspection));
+        }
+        finally { Busy = false; }
+    }
+
+    public async Task RevokeBatchAsync(CancellationToken token = default)
+    {
+        if (!CanRevokeBatch) { throw new InvalidOperationException("A current complete exact batch and separate explicit confirmation are required."); }
+        using var linked = Begin(token);
+        var exact = batchPreview!;
+        var revision = batchControlRevision;
+        var version = selectionVersion;
+        bool Admitted() => !disposed && nativeAdmission() && access.CanControl && access.ControlRevision == revision
+            && selectionVersion == version && ReferenceEquals(batchPreview, exact) && BatchReviewed;
+        try
+        {
+            var result = await control.RevokeBatchAsync(exact, Admitted, linked.Token);
+            RequireCurrent(revision, version, controlRequired: true, linked.Token);
+            ClearBatch();
+            batchSelection = [];
+            Message = result.Outcome == HostInteractionOutcome.Revoked
+                ? "Entire exact reviewed batch committed and read back. Future consumes denied for ALL selected IDs. Running effects: unknown; not cancelled or rolled back. Refresh current authority."
+                : "Entire exact batch rejected: a selected record or preview changed. NONE revoked by this batch. Refresh and inspect a new complete selection.";
+        }
+        finally { Busy = false; }
+    }
     public ImmutableArray<ExactGrantInspection> Records { get => records; private set => SetProperty(ref records, value); }
     public string Message { get => message; private set => SetProperty(ref message, value); }
     public bool Busy { get => busy; private set { SetProperty(ref busy, value); NotifyCommands(); } }
@@ -67,6 +156,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         {
             if (!SetProperty(ref selected, value)) { return; }
             selectionVersion++;
+            ClearBatch();
             preview = null;
             Reviewed = false;
             OnPropertyChanged(nameof(Inspection));
@@ -84,6 +174,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     {
         using var linked = Begin(token);
         var revision = access.ControlRevision;
+        batchSelection = [];
+        ClearBatch();
         Selected = null;
         var version = ++selectionVersion;
         preview = null;
@@ -104,6 +196,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
 
     public async Task InspectAsync(CancellationToken token = default)
     {
+        ClearBatch();
         var target = Selected ?? throw new InvalidOperationException("Select one exact ID first.");
         using var linked = Begin(token);
         var revision = access.ControlRevision;
@@ -175,6 +268,9 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         Failed(exception.GetType().Name);
         activity.Complete(HostOperationOutcome.Failed);
         if (disposed) { return; }
+        ClearBatch();
+        batchSelection = [];
+        selectionVersion++;
         preview = null;
         Reviewed = false;
         Records = [];
@@ -183,13 +279,27 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Inspection));
     }
 
+    public void SynchronizeAuthority()
+    {
+        if (batchPreview is not null && (!nativeAdmission() || !access.CanControl
+            || !access.CanInspect || batchControlRevision != access.ControlRevision))
+        {
+            selectionVersion++;
+            ClearBatch();
+            batchSelection = [];
+        }
+    }
+
     private void NotifyCommands()
     {
         RefreshCommand.NotifyCanExecuteChanged();
         NextCommand.NotifyCanExecuteChanged();
         InspectCommand.NotifyCanExecuteChanged();
         RevokeCommand.NotifyCanExecuteChanged();
+        PreviewBatchCommand.NotifyCanExecuteChanged();
+        RevokeBatchCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanRevoke));
+        OnPropertyChanged(nameof(CanRevokeBatch));
     }
 
     public void Dispose()
@@ -200,6 +310,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         lifetime.Cancel();
         lifetime.Dispose();
         selected = preview = null;
+        ClearBatch();
+        batchSelection = [];
         Records = [];
         Reviewed = false;
         Message = "Closed. No late private output is admitted.";

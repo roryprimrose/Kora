@@ -20,6 +20,30 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R14 Bounded Passive Cross-Session Work / Attention Overview - 2026-10-11
+
+Delivered subset: **Tray > Sessions > All work / attention overview** opens an owned native read-only window; explicit Refresh/Next/Cancel observes up to ten admitted metadata identities and independent current per-session work snapshots per call, plus bounded metadata lookahead.
+
+Complete 64 KiB output, existing fifty task/question bounds, source revisions/generation/UTC provenance, captured deadlines, confirmed fixed-profile slots and observed policy reasons remain explicit.
+
+Stored lifecycle and observed needs-answer filters have honest bounded scan scope. Query/admission/source-bound continuations consume nonmatches, preserve byte-deferred IDs and show omissions/unavailable/end markers without global atomicity/count/all-clear/ETA/provider contention.
+
+Metadata/work mismatch discloses no previous private work. Total storage timeout, cancellation, before/after privacy/call/owner/retained-source checks and lifecycle/disposition/retention revocation fence late reads.
+
+Fresh exact-session navigation does not resume/reorder/dispatch/cancel/enqueue, renew meaningful activity or inspected cancellation authority, consume grants or retarget voice/questions. There is no new authority store, global observer, auto-refresh/heartbeat, browse-triggered cleanup, model/network/audio/script/filesystem/copy/egress route, grant tier or #168 permission-design adoption.
+
+Maintained evidence: [portable page/budget/gated-race tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverview.cs) and [multiple real private SQLite sources](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.WorkOverview.cs).
+
+[Headless native scroll/focus/navigation](../tests/Kora.Windows.IntegrationTests/AllWorkWindowTests.cs) complements the [user limits](../docs/windows-and-tray.md#all-work--attention-overview).
+
+Exact experiment-equivalence assessment: these tests cover bounded passive consumer/source boundaries only. No complete experiment assertion set or maintained consumer is superseded. Preserve unique native/runtime/containment/storage-copy/crypto/capacity/hardware/recovery and legacy witness procedures; no experiment is removed, rerun or promoted by mocks.
+
+Full conversation/composer, provider/resource coordination, unread durable tracking, permission design and installed-native acceptance remain separate.
+
+Validation from the isolated R14 worktree on base `7aa16fd79f8df05af9128edac449a3b0f421c77f`: Release solution **0 warnings/errors**; Core **1,562**, Application **4,142**, Tools **173**, Definitions **6**, Windows **1,624** passed, **0 failures/skips**, unchanged default-mode Windows parallelism. Latest-only portable coverage is exactly **100% lines/branches**, with existing gates unchanged.
+
+Missing assets required one locked restore from the approved Networking-AAA feed; no manifests/feed configuration changed. Earlier failed focused selector/equality/focus/cancellation-fixture attempts remain retained as failed receipts, not qualification; final corrected focused and full source runs pass. No live application, hardware/provider or user-database qualification was attempted.
+
 ### R14 Immutable Volatile Web-Result Native Details - 2026-10-10
 
 Delivered subset: actual successful bounded WebPageGet response → explicit exact-item native details → same immutable inert-text viewer/search/source/disclosure-gated copy.
@@ -3102,6 +3126,16 @@ Publisher/source-tool files were not edited by R04; no release, downloaded
 code, installer or application was executed by these fixture checks.
 
 ### R05 Bounded Authorization/Question Foundation
+
+**Reviewed exact selected-batch revocation — 2026-10-11.** The native exact-grants window adds explicit multi-selection from its current admitted page, complete fresh bounded preview, and separate exact-batch confirmation. The [shared store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ExactGrants.cs) validates every unchanged Active target and commits all canonical revocations plus typed audit atomically, not as single-record commits.
+
+The complete serialized preview is capped at 50 records / 64 KiB, without truncation or revoke-all scans. Exact IDs/revisions/provenance, current native control and selection/window/privacy lifetime fence confirmation; stale/use/lifecycle/revoke/reorder changes reject the whole batch. Independent Perpetual origin removal remains supported through fresh CURRENT native authority. Readback/commit uncertainty is explicit recovery, never partial success or physical cancellation.
+
+[Actual private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteExactGrantBatchTests.cs) cover multiple retained changes, one-stale/all-unchanged rejection, audit/write failure rollback, cancellation/privacy commit fences, concurrent consume, origin removal and unrelated authority. [Portable tests](../tests/Kora.Application.UnitTests/Interaction/ExactGrantsViewModelTests.cs) cover explicit selection, separate confirmation, page/reorder/control/privacy/close retirement and all-or-nothing receipt checks.
+
+Experiment equivalence remains narrow: no production-equivalent exact batch path exists in the retained containment/runtime/native/storage experiments. Their non-superseded lifecycle, containment, hardware, storage and historical receipts remain unchanged; this is no full R05/RC/runtime qualification or implementation of the separately owned action-level permission design. Single-ID revocation and legacy named preferences remain unchanged.
+
+**Batch validation receipt:** based on `7aa16fd79f8df05af9128edac449a3b0f421c77f`, zero-warning/error Release solution build; Core **1573**, Application **4114**, Tools **173**, Definitions **6**, default-parallel Windows **1624** passed with zero failures/skips. Fresh-only portable line/branch coverage passed the unchanged exact **100% / 100%** gate. Owned TRX/coverage receipts remain under `.net-test-artifacts/batch-delivery`; focused actual-native/SQLite tests passed **35** cases.
 
 **Native exact-grant management continuation — 2026-10-10.** A separate tray **Exact operation grants** surface now delivers passive bounded list/current inspection and explicit single approval-ID/revision revocation through the shared private SQLite authority. [Contracts/store](../src/Kora.Core/Storage/IExactGrantStore.cs), [fresh native control admission](../src/Kora.Application/Interaction/ExactGrantControlAdmission.cs), [presenter](../src/Kora.Application/Interaction/ExactGrantsViewModel.cs) and [actual private-store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteExactGrantTests.cs) retain exact state/provenance and reject stale/use/lifecycle/privacy/control races.
 

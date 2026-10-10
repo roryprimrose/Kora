@@ -239,7 +239,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 var questions = ReadQuestions(connection).Where(q => q.Key.Request.SessionId == request.SessionId
                     && q.Status == QuestionStatus.Pending).Select(question => question with
                     {
-                        Key = question.Key.Next(), Status = QuestionStatus.Cancelled,
+                        Key = question.Key.Next(),
+                        Status = QuestionStatus.Cancelled,
                     }).ToArray();
                 var grants = ReadGrants(connection).Where(g => g.Scope != OperationGrantScope.Perpetual
                     && g.ApprovedProposal.Request.SessionId == request.SessionId && g.Status == OperationGrantStatus.Active)
@@ -310,7 +311,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                     && q.Proposal is { } pending && pending.Binding.HasObservedContentChange(proposal.Binding))
                     .Select(question => question with
                     {
-                        Key = question.Key.Next(), Status = QuestionStatus.Cancelled,
+                        Key = question.Key.Next(),
+                        Status = QuestionStatus.Cancelled,
                     }).ToImmutableArray();
             }
             var changes = new List<AuthorityChange>
@@ -558,7 +560,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     private long AppendAudit(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord intent,
         WorkSessionAuthorization session, SecurityAuditEvent audit, HostInteractionDecision? decision = null,
         IReadOnlyList<AuthorityChange>? changes = null, SecurityAuditEvent? requestedAudit = null,
-        HostRevision? requestedGrantRevision = null, DateTimeOffset? admissionTime = null)
+        HostRevision? requestedGrantRevision = null, DateTimeOffset? admissionTime = null,
+        AuthorityChange[]? requestedGrants = null)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Request.RequestId != intent.Request.RequestId || live.CorrelationId != audit.CorrelationId
@@ -592,7 +595,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt,
             auditPolicy is null ? retentionPolicy.AuditDue(committedAt) : auditPolicy.Due(committedAt), decision?.Outcome,
             decision?.Question?.Key.QuestionId, decision?.Question?.Key.Revision,
-            decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? [], requestedAudit, requestedGrantRevision);
+            decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? [], requestedAudit, requestedGrantRevision, requestedGrants);
         var json = HostInteractionCodec.Encode(envelope);
         var hash = Hash(sequence, previousHash, json);
         checkpoint?.BeforeAudit(connection, transaction);
@@ -676,9 +679,26 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         {
             throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
         }
-        if (Same(audit.Audit.ActionId, "approval.revoke-exact") != (audit.RequestedAudit is not null)
-            || (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
-            || audit.RequestedGrantRevision is { Value: <= 0 })
+        var batch = Same(audit.Audit.ActionId, "approval.revoke-exact-batch");
+        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch) != (audit.RequestedAudit is not null)
+            || !batch && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
+            || audit.RequestedGrantRevision is { Value: <= 0 }
+            || batch != (audit.RequestedGrants is not null)
+            || batch && (audit.RequestedGrantRevision is not null || audit.Audit.ApprovalId is not null
+                || audit.RequestedGrants!.Length is < 1 or > ExactGrantPage.MaximumRecords
+                || audit.RequestedGrants.Any(change => change is null || !Same(change.Kind, "grant")
+                    || change.Revision <= 0 || change.Digest is null || !IsHex(change.Digest, 64)
+                    || !Guid.TryParseExact(change.Id, "D", out var id) || id == Guid.Empty || !Same(change.Id, id.ToString("D")))
+                || audit.RequestedGrants.Select(change => change.Id).Distinct(StringComparer.Ordinal).Count() != audit.RequestedGrants.Length
+                || audit.Outcome is not (HostInteractionOutcome.Revoked or HostInteractionOutcome.Conflict)
+                || audit.Audit.Initiator != SecurityAuditInitiator.LocalUser
+                || audit.Outcome == HostInteractionOutcome.Revoked && audit.Audit.Outcome != SecurityAuditOutcome.Succeeded
+                || audit.Outcome == HostInteractionOutcome.Conflict && audit.Audit.Outcome != SecurityAuditOutcome.Denied
+                || audit.Outcome == HostInteractionOutcome.Conflict && audit.Changes.Length != 0
+                || audit.Outcome == HostInteractionOutcome.Revoked && (audit.Changes.Length != audit.RequestedGrants.Length
+                    || audit.RequestedGrants.Any(before => !audit.Changes.Any(after =>
+                        Same(after.Kind, "grant") && Same(after.Id, before.Id)
+                        && before.Revision < long.MaxValue && after.Revision == before.Revision + 1)))))
         {
             throw new InvalidDataException("Exact revocation is missing its requested audit and inspected revision.");
         }
@@ -687,7 +707,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || !Same(requested.ActionId, audit.Audit.ActionId) || requested.Initiator != audit.Audit.Initiator
             || !Same(requested.TargetId, audit.Audit.TargetId) || requested.ApprovalId != audit.Audit.ApprovalId
             || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
-            || !Same(requested.ActionId, "approval.revoke-exact") || audit.Request.Origin != RequestOrigin.LocalUi))
+            || !(Same(requested.ActionId, "approval.revoke-exact") || batch) || audit.Request.Origin != RequestOrigin.LocalUi))
         {
             throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }
@@ -880,7 +900,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
 
     private static OperationGrant EndGrant(OperationGrant grant, string reason) => grant with
     {
-        Revision = new(checked(grant.Revision.Value + 1)), Status = OperationGrantStatus.Revoked, RevocationReason = reason,
+        Revision = new(checked(grant.Revision.Value + 1)),
+        Status = OperationGrantStatus.Revoked,
+        RevocationReason = reason,
     };
 
     private static int Execute(SqliteConnection connection, SqliteTransaction? transaction, string sql,
@@ -922,7 +944,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         HostInteractionOutcome? Outcome, HostId<QuestionIdentity>? QuestionId, HostRevision? QuestionRevision,
         HostId<ApprovalIdentity>? ApprovalId, HostRevision? GrantRevision, AuthorityChange[] Changes,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SecurityAuditEvent? RequestedAudit = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] HostRevision? RequestedGrantRevision = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] HostRevision? RequestedGrantRevision = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] AuthorityChange[]? RequestedGrants = null);
 
     private sealed record AuthorityChange(string Kind, string Id, long Revision, string Digest);
 

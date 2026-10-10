@@ -68,6 +68,7 @@ internal sealed class ExactGrantsWindowController : IDisposable
     private void OnMainChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (!Admitted()) { Close(); }
+        else { state?.SynchronizeAuthority(); }
     }
     private void OnPrivacyClosure(object? sender, EventArgs args) => Close();
     private void OnClosed(object? sender, EventArgs args)

@@ -96,7 +96,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     audit.TraceId, audit.SpanId, audit.IntentRevision, audit.SessionGeneration,
                     audit.Outcome, audit.QuestionId, audit.QuestionRevision, audit.ApprovalId, audit.GrantRevision,
                     audit.Changes.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray(),
-                    audit.RequestedAudit, audit.RequestedGrantRevision);
+                    audit.RequestedAudit, audit.RequestedGrantRevision,
+                    audit.RequestedGrants?.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray());
                 var record = new EvidenceRecord(new(EvidenceSource.AuthorityAudit, new(audit.Audit.CorrelationId)),
                     audit.CommittedAt, audit.DueAt,
                     audit.DueAt <= now ? EvidenceSegmentStatus.ExpiredButPresent : EvidenceSegmentStatus.Present,

@@ -16,9 +16,12 @@
       <Button Content="Refresh inventory" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh exact grant inventory" />
       <Button Content="Next bounded page" Command="{Binding NextCommand}" AutomationProperties.Name="Read next bounded exact grant page" />
       <Button Content="Inspect selected exact ID" Command="{Binding InspectCommand}" AutomationProperties.Name="Inspect current selected exact grant ID" />
+      <Button Content="Preview exact selected batch" Command="{Binding PreviewBatchCommand}" AutomationProperties.Name="Preview every explicitly selected exact grant" />
     </StackPanel>
     <Grid Grid.Row="2" ColumnDefinitions="350,*" ColumnSpacing="12">
-      <controls:ScrollableListBox ItemsSource="{Binding Records}" SelectedItem="{Binding Selected}" AutomationProperties.Name="Retained exact operation grants">
+      <controls:ScrollableListBox ItemsSource="{Binding Records}" SelectedItem="{Binding Selected}"
+                                 SelectionMode="Multiple" SelectionChanged="OnSelectionChanged"
+                                 AutomationProperties.Name="Retained exact operation grants">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="auth:ExactGrantInspection">
             <StackPanel Margin="4">
@@ -33,14 +36,22 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
-      <ScrollViewer Grid.Column="1">
-        <controls:NamedTextBlock Text="{Binding Inspection}" AutomationProperties.Name="Current exact grant inspection" TextWrapping="Wrap" />
-      </ScrollViewer>
+      <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="12">
+        <ScrollViewer>
+          <controls:NamedTextBlock Text="{Binding Inspection}" AutomationProperties.Name="Current exact grant inspection" TextWrapping="Wrap" />
+        </ScrollViewer>
+        <ScrollViewer Grid.Row="1">
+          <controls:NamedTextBlock Text="{Binding BatchInspection}" AutomationProperties.Name="Complete exact selected batch preview" TextWrapping="Wrap" />
+        </ScrollViewer>
+      </Grid>
     </Grid>
     <StackPanel Grid.Row="3" Spacing="8">
       <CheckBox Content="I reviewed the exact displayed ID and revision. Revoke only this active record."
                 IsChecked="{Binding Reviewed}" AutomationProperties.Name="Explicit confirmation of the displayed exact approval ID and revision" />
       <Button Content="Confirm: revoke this exact inspected ID/revision" Command="{Binding RevokeCommand}" AutomationProperties.Name="Confirm revocation of only this exact inspected ID and revision" />
+      <CheckBox Content="I reviewed EVERY displayed exact batch ID, revision, scope, action and status. Revoke only this complete selected batch."
+                IsChecked="{Binding BatchReviewed}" AutomationProperties.Name="Separate explicit confirmation of the complete exact selected batch" />
+      <Button Content="Confirm: revoke entire reviewed exact batch" Command="{Binding RevokeBatchCommand}" AutomationProperties.Name="Atomically revoke only the complete exact reviewed selected batch" />
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="4" Text="{Binding Message}" AutomationProperties.Name="Exact grant operation status" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
   </Grid>

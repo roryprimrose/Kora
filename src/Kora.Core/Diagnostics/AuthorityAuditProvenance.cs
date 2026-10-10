@@ -2,6 +2,8 @@ using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Auditing;
 
+using System.Text.Json.Serialization;
+
 namespace Kora.Core.Diagnostics;
 
 /// <summary>Committed typed store metadata, not executable authority or a diagnostic projection.</summary>
@@ -12,4 +14,5 @@ public sealed record AuthorityAuditProvenance(
     HostRevision? QuestionRevision, HostId<ApprovalIdentity>? GrantId, HostRevision? GrantRevision,
     IReadOnlyList<AuthorityAuditChange> Changes,
     SecurityAuditEvent? RequestedAudit = null,
-    HostRevision? RequestedGrantRevision = null);
+    HostRevision? RequestedGrantRevision = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<AuthorityAuditChange>? RequestedGrants = null);

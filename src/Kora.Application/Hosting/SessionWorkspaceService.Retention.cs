@@ -42,6 +42,7 @@ public sealed partial class SessionWorkspaceService
             HostActivityLayer.Application, HostOperation.Policy);
         try
         {
+            InvalidateWorkOverview(expected.State.SessionId);
             var committed = await ControlAsync(expected.State.SessionId, origin,
                 (request, eligible) => RetentionControls.SetRetentionHoldAsync(request, expected, perpetual, eligible, token),
                 token, admission, existingSubject: true).ConfigureAwait(false);

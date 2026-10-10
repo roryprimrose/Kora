@@ -1,4 +1,4 @@
-using System.Xml.Linq;
+﻿using System.Xml.Linq;
 
 using AwesomeAssertions;
 
@@ -12,7 +12,8 @@ public sealed class ExactGrantsWindowContractTests
         var source = Read("ExactGrantsWindow.axaml");
         var document = XDocument.Parse(source);
         foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "Selected", "Inspection", "Reviewed", "Message",
-            "PreviewBatchCommand", "RevokeBatchCommand", "BatchInspection", "BatchReviewed" })
+            "PreviewBatchCommand", "RevokeBatchCommand", "BatchInspection", "BatchReviewed",
+            "ReadHistoryCommand", "NextHistoryCommand", "HistoryRows", "HistorySummary" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
                 attribute.Value.Contains("{Binding " + binding, StringComparison.Ordinal)));
@@ -28,7 +29,10 @@ public sealed class ExactGrantsWindowContractTests
             string.Equals(element.Attribute("AutomationProperties.Name")?.Value, "Retained exact operation grants", StringComparison.Ordinal))
             .Name.LocalName.Should().Be("ScrollableListBox");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
-            .Should().HaveCount(6);
+            .Should().HaveCount(8);
+        document.Descendants().Single(element =>
+            string.Equals(element.Attribute("ItemsSource")?.Value, "{Binding HistoryRows}", StringComparison.Ordinal))
+            .Name.LocalName.Should().Be("ScrollableListBox");
         source.Should().Contain("SelectionMode=\"Multiple\"").And.Contain("EVERY displayed exact batch ID")
             .And.Contain("SelectionChanged=\"OnSelectionChanged\"");
         Read("GrantListWindow.axaml").Should().NotContain("RevokeCommand");

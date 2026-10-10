@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
 
@@ -55,6 +55,9 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         PreviewBatchCommand = new(() => PreviewBatchAsync(), ReportFailure,
             () => !Busy && !disposed && !batchSelection.IsEmpty);
         RevokeBatchCommand = new(() => RevokeBatchAsync(), ReportFailure, () => CanRevokeBatch);
+        ReadHistoryCommand = new(() => ReadHistoryAsync(), ReportFailure, () => CanReadHistory);
+        NextHistoryCommand = new(() => NextHistoryAsync(), ReportFailure,
+            () => CanReadHistory && historyNext is not null);
     }
 
     public AsyncCommand RefreshCommand { get; }
@@ -82,6 +85,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             throw new InvalidOperationException("Select unique exact records only from the currently admitted inventory page.");
         }
         selectionVersion++;
+        ClearHistory();
         batchSelection = exact;
         ClearBatch();
         preview = null;
@@ -156,6 +160,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         {
             if (!SetProperty(ref selected, value)) { return; }
             selectionVersion++;
+            ClearHistory();
             ClearBatch();
             preview = null;
             Reviewed = false;
@@ -163,8 +168,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             NotifyCommands();
         }
     }
-    public string Inspection => preview is null ? "Select one exact retained ID, then Inspect current record."
-        : Format(preview);
+    public string Inspection => inspectedHistoryTarget is { } inspected ? Format(inspected)
+        : "Select one exact retained ID, then Inspect current record.";
 
     public Task RefreshAsync(CancellationToken token = default) => ReadPageAsync(null, token);
     public Task NextAsync(CancellationToken token = default) =>
@@ -179,6 +184,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         Selected = null;
         var version = ++selectionVersion;
         preview = null;
+        ClearHistory();
         Reviewed = false;
         Records = [];
         next = null;
@@ -197,6 +203,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     public async Task InspectAsync(CancellationToken token = default)
     {
         ClearBatch();
+        ClearHistory();
         var target = Selected ?? throw new InvalidOperationException("Select one exact ID first.");
         using var linked = Begin(token);
         var revision = access.ControlRevision;
@@ -209,10 +216,13 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             var current = await store.InspectExactGrantAsync(target.Grant.Id, linked.Token);
             RequireCurrent(revision, version, controlRequired: false, linked.Token);
             preview = current;
+            inspectedHistoryTarget = current;
+            historyControlRevision = revision;
             previewControlRevision = revision;
             Message = current is null ? "Exact retained record is unavailable. No applicability or revocation is inferred."
                 : "Current exact inspection. Review this immutable ID/revision before explicit confirmation.";
             OnPropertyChanged(nameof(Inspection));
+            NotifyCommands();
         }
         finally { Busy = false; }
     }
@@ -231,6 +241,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             var decision = await control.RevokeAsync(exact, Admitted, linked.Token);
             RequireCurrent(revision, version, controlRequired: true, linked.Token);
             preview = null;
+            ClearHistory();
             Reviewed = false;
             Message = decision.Outcome == HostInteractionOutcome.Revoked
                 ? "Exact revocation committed and read back. Subsequent consumes denied. Already-running work: unknown; not stopped or rolled back. Refresh to inspect retained state."
@@ -272,6 +283,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         batchSelection = [];
         selectionVersion++;
         preview = null;
+        ClearHistory();
         Reviewed = false;
         Records = [];
         next = null;
@@ -281,6 +293,15 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
 
     public void SynchronizeAuthority()
     {
+        if (inspectedHistoryTarget is not null && (!nativeAdmission() || !access.CanInspect
+            || historyControlRevision != access.ControlRevision))
+        {
+            selectionVersion++;
+            preview = null;
+            Reviewed = false;
+            ClearHistory();
+            OnPropertyChanged(nameof(Inspection));
+        }
         if (batchPreview is not null && (!nativeAdmission() || !access.CanControl
             || !access.CanInspect || batchControlRevision != access.ControlRevision))
         {
@@ -298,6 +319,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         RevokeCommand.NotifyCanExecuteChanged();
         PreviewBatchCommand.NotifyCanExecuteChanged();
         RevokeBatchCommand.NotifyCanExecuteChanged();
+        ReadHistoryCommand.NotifyCanExecuteChanged();
+        NextHistoryCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanRevoke));
         OnPropertyChanged(nameof(CanRevokeBatch));
     }
@@ -310,6 +333,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         lifetime.Cancel();
         lifetime.Dispose();
         selected = preview = null;
+        ClearHistory();
         ClearBatch();
         batchSelection = [];
         Records = [];

@@ -1203,7 +1203,17 @@ Separately tick **I reviewed EVERY displayed exact batch ID** and press **Confir
 
 All revocations and content-free requested/terminal audit plus exact before/after revision references commit under one shared-store lease/transaction and admission fence. No loop of single commits or partial-success receipt is used. Subsequent consumes deny every committed target; running work is not cancelled or rolled back. Unrelated grants, named preferences, scope, reasons and use history remain unchanged except each selected grant's canonical retained revocation revision/reason.
 
-This subset has no global/provider/account/resource/skill/capability **revoke all** scan, model/tool execution, approval creation, editing/scope broadening, export, detailed use-history browser, generic voice/typed command or inferred allow/deny explanation. Named preferences are neither migrated nor promoted, and direct lock/power gates remain unchanged. The separately owned action-level permission design and full R05/A0–A4/release qualification remain open.
+**Passive exact-ID history continuation — 2026-10-11.** After inspecting an actual retained record, choose **Read history for this exact grant ID**. The separate read-only list shows retained committed `security_audit_events` envelopes with typed grant-ID membership, including exact grant changes and single/batch requested revision references. It does not use top-level approval filters, names, paths, digests or diagnostic mirrors as membership.
+
+Each page is at most **50 records / 64 KiB of complete serialized output** and scans at most **4096 prefix rows** within a **5-second request**. The signed continuation binds the exact ID, current native viewer, private store lifetime, sequence/digest ceiling and predecessor to one **15-minute** snapshot. Zero-match pages may still have more prefix to scan; source/row replacement, malformed/stale cursors, missing predecessors and corruption fail closed.
+
+Rows disclose original source/schema/sequence, commit SHA-256, request/session/task/invocation and trace provenance, time/deadline, recorded action/outcome and exact requested versus committed revision/digest references. Unrelated batch change references are omitted with explicit counts. Requested review is not a committed change, and a committed consume is not proof an action executed. Unlinked earlier reviews/failed attempts are unavailable; metadata counts never manufacture missing historical use rows.
+
+The finite observed snapshot distinguishes expired-but-present retained audit deadlines, zero exact matches, scan bounds and unavailable current records. It is not exhaustive, forensic, tamperproof or proof of physical removal. Gaps/retention and current applicability/execution remain unknown. Independent Perpetual origins may be removed; the current native viewer does not borrow the original session's authority.
+
+Reading or selecting history never resumes/renews activity, executes/replays work or supplies approval/cancellation controls. History navigation clears actionable revocation review; inspect afresh before a new single/batch confirmation. Selection/source/privacy/ownership/control/close/cancellation changes retire private output and late callbacks.
+
+This subset has no global/provider/account/resource/skill/capability **revoke all** scan, model/tool execution, approval creation, editing/scope broadening, export, generic cross-grant history/voice/typed command or inferred allow/deny explanation. Named preferences are neither migrated nor promoted, and direct lock/power gates remain unchanged. The separately owned action-level permission design and full R05/A0–A4/release qualification remain open.
 
 Required operations:
 

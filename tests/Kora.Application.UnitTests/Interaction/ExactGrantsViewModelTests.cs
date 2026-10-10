@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Interaction;
 using Kora.Application.UnitTests.Configuration;
@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.UnitTests.Interaction;
 
 [Collection("Host tracing")]
-public sealed class ExactGrantsViewModelTests
+public sealed partial class ExactGrantsViewModelTests
 {
     [Fact]
     public async Task NativeExplicitCompleteBatchRequiresSeparateConfirmationAndRetainsAllReadbackRevisions()

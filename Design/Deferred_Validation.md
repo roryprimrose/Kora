@@ -696,6 +696,54 @@ attributed to these bytes. The renewed window retains the original synthetic
 ownership/privacy boundaries. Auto-merge does not bypass required checks,
 approvals or up-to-date branch rules.
 
+### 2026-10-10 Automated Native Session-Retention Controls
+
+After #162 merged, the operator separately approved one fixed hour of
+scratch-only retention UI automation and supporting checks. The maintained
+[retention driver](../eng/Invoke-NativeUxRetention.ps1) uses the default
+synthetic fixture's real retention service and the existing exact PID/HWND,
+foreground keyboard and deadline guards. No production policy, private gate,
+normal profile data or fixture effect boundary was changed.
+
+Fresh preparation passed 106 focused tests, zero skips, with zero Release
+build/publish warnings or errors. The no-launch admission suite passed 48
+checks. Supporting Windows retention and owned-process interruption/recovery
+classes passed 94 tests; Application timer/configuration/preferences classes
+passed 54; Core settings/evidence-retention policy classes passed 22. All had
+zero skips. These are scoped groups, not a repository-wide qualification total.
+
+Two final identical-driver/payload repetitions passed all five baseline and
+seven retention rows each: passive exact-ID clocks/isolation without selected
+lifecycle authority; preview/cancel without commit; Keep with newer audit
+revision and fresh-window readback; subject/refresh review invalidation;
+ordinary retention preserving activity/archive/delete clocks and unrelated
+sessions; actual live/unresolved scratch-work hold observation; and synthetic
+gate revocation of an uncommitted review without replay. All four final fixture
+PIDs exited 0, had empty stderr, cleaned their exact scratch children, required
+no force and were absent when the strict source-bound summary was sealed.
+
+Earlier attempts remain distinct local evidence. Two header-discovery attempts
+stopped before retention actions: the native expander exposes a ToggleButton
+with TogglePattern and a duplicate TextBlock label, not ExpandCollapsePattern.
+A read-only owned diagnostic established that shape and exited cleanly.
+Another attempt truthfully refused private fixture setup after synthetic gate
+reopen; setup now precedes revocation without weakening the hold. A repetition
+hit a retired native descendant during observation and exited cleanly; the
+final driver uses the established bounded observation-only retry, never an
+automatic confirmation/action retry. The earlier different-driver complete
+pass and every failed receipt remain unchanged, not relabelled as final bytes.
+
+**Disposition: this bounded native retention-control workflow is machine-
+verified without operator control input.** Window reopen is not a UI
+process-restart proof. Native hold metadata is not due timer cleanup evidence;
+actual due/Unknown/pending/copy holds and interrupted recovery belong to the
+separate storage tests. Native already-due dates, general managed-copy disposal,
+physical power-loss, forensic erasure, installed behavior, real privacy/audio
+and human Narrator/readability/display acceptance remain unqualified by this
+batch. Raw snapshots, receipts, payloads, TRX, immutable approval and sealed
+summary remain local. Publication of this driver/documentation does not
+broaden the recorded qualification or relabel historical receipts.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

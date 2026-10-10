@@ -31,6 +31,8 @@ Experiment equivalence is bounded: maintained tests add exact private SQLite hol
 Validation on `d3c0dc59` (#159): root Release build **0 warnings/errors**; Core **1,512**, Application **3,910**, Tools **167**, Definitions **6**, Windows **1,490** passed with **0 failures/skips**, normal parallel fixtures unchanged. Latest-only portable line/branch gate **100%/100%**. Missing assets required one locked restore from the approved Networking-AAA feed, with no manifest/feed/config changes.
 Focused selectors retain earlier failed/zero-test attempts as non-authoritative; final qualified selectors and actual private SQLite/native regressions pass. Receipts remain in the owned worktree `.net-test-artifacts`; CI must independently validate the PR's exact revision.
 
+Rebase onto merged `1c5bd171` (#160) preserves captured future-only queue budgets/deadlines, admission timing and pending/version compatibility. Integrated default-mode Release build remains **0 warnings/errors**; Core **1,531**, Application **3,952**, Tools **167**, Definitions **6**, Windows **1,526** pass with **0 failures/skips**; latest-only portable coverage remains exactly **100% lines/branches**. This is integration evidence only, not broader runtime/native/RC acceptance.
+
 ### R12/D-014 Bounded Original-User Session Memory Proposals - 2026-10-10
 
 The [original-user proposal increment](Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10) adds native **New session memory from draft** and exact typed/activated `memory propose` input to the same admission workflow used by delivered management. Host-issued identity/lineage/revision needs no existing memory. Creation is only volatile Proposed/Pending metadata.

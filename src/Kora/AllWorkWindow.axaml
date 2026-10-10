@@ -1,0 +1,72 @@
+<Window x:Class="Kora.AllWorkWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    Title="All work / attention overview - passive observations" Icon="/Assets/Kora.ico"
+    Width="1120" Height="760" MinWidth="850" MinHeight="600"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}" WindowStartupLocation="CenterScreen">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+    <WrapPanel>
+      <Button x:Name="Refresh" Content="_Refresh overview" IsEnabled="{Binding CanEdit}" />
+      <Button x:Name="Next" Content="_Next session page" IsEnabled="{Binding CanNext}" />
+      <Button x:Name="CancelRead" Content="_Cancel read" IsEnabled="{Binding CanCancel}" />
+      <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
+                IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored lifecycle filter, independent of task and queue state" />
+      <CheckBox Content="Observed needs _answer" IsChecked="{Binding NeedsAnswer, Mode=TwoWay}"
+                IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Pending-question metadata in scanned snapshots only; unavailable sources remain explicit, never a fresh reply target" />
+    </WrapPanel>
+    <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap"
+                            AutomationProperties.Name="Bounded overview scope, scanned and omission markers; no global totals or all-clear" />
+    <Grid Grid.Row="2" ColumnDefinitions="360,*" ColumnSpacing="12">
+      <controls:ScrollableListBox x:Name="Records" ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord, Mode=OneWay}"
+               AutomationProperties.Name="Independent work grouped by exact immutable session; selection is passive and grants nothing">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding Session.Metadata.Name.Value}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Session.Authority.SessionId.Value}" FontFamily="Cascadia Mono,Consolas,monospace" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Availability}" />
+              <TextBlock Text="{Binding Session.Authority.IsActive, StringFormat='Stored Active: {0} (false means Done)'}" />
+              <TextBlock Text="{Binding Work.ExecutionSlots, StringFormat='Confirmed fixed-profile slots: {0}'}" />
+              <TextBlock Text="{Binding Work.ObservedCurrentFixedReads, StringFormat='Observed current fixed reads here: {0}'}" />
+              <TextBlock Text="{Binding Work.PendingQuestions.Length, StringFormat='Observed pending questions: {0}'}" />
+              <ItemsControl ItemsSource="{Binding Work.QueueRecords}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Entry.Request.TaskId.Value, StringFormat='Queue task {0}'}" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Entry.State, StringFormat='Queue state: {0}'}" />
+                      <TextBlock Text="{Binding Eligibility, StringFormat='Observed policy reason: {0}'}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ItemsControl ItemsSource="{Binding Work.Tasks}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Request.TaskId.Value, StringFormat='Durable task {0}'}" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding State, StringFormat='Durable task state: {0}'}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="Select for complete source revisions, deadlines and omission counts." TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </controls:ScrollableListBox>
+      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="Complete bounded selected group work metadata and policy reasons">
+        <controls:NamedTextBlock Text="{Binding SelectedDetails}" TextWrapping="Wrap"
+                             AutomationProperties.Name="Exact observation provenance, stored lifecycle, queue/task states, deadlines and pending-question metadata; no bodies or authority" />
+      </ScrollViewer>
+    </Grid>
+    <WrapPanel Grid.Row="3">
+      <Button x:Name="Navigate" Content="Open exact _session with fresh passive read" IsEnabled="{Binding CanNavigate}"
+              AutomationProperties.Name="Navigate this immutable session ID through Sessions private workspace admission; no resume, dispatch, cancel, enqueue or question retarget" />
+      <Button x:Name="CloseView" Content="_Close" />
+    </WrapPanel>
+  </Grid>
+</Window>

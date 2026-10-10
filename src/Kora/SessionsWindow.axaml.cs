@@ -8,6 +8,7 @@ namespace Kora;
 
 internal sealed partial class SessionsWindow : Window
 {
+    internal event EventHandler? AllWorkRequested;
     internal SessionsWindow(SessionsViewModel model)
     {
         InitializeComponent();
@@ -18,6 +19,7 @@ internal sealed partial class SessionsWindow : Window
         };
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
+        AllWork.Click += (_, _) => AllWorkRequested?.Invoke(this, EventArgs.Empty);
         SearchList.Click += async (_, _) => await model.SearchListAsync();
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
         CancelListSearch.Click += (_, _) => model.CancelListSearch();

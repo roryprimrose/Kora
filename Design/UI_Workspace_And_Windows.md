@@ -67,6 +67,32 @@ queue payload. There is no composer, model management, Ask Evidence, export,
 rich browser, new worker/effect/provider or full R14/A4 acceptance. Maintained
 headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
+### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
+
+**Tray > Sessions > All work / attention overview** opens a separate owned native read-only window. Opening performs no reads or grants; manual Refresh/Next/Cancel scans at most ten canonical session IDs per click through admitted metadata and reads independent current `SessionWorkSnapshot` sources, plus bounded metadata lookahead.
+
+All/Active/Done is stored lifecycle; **Observed needs answer** filters observed pending-question metadata, not reply eligibility.
+
+One complete typed projection is limited to 64 KiB. It retains exact session IDs/generations/metadata revisions, per-session authority/queue revisions and observation time, confirmed fixed-profile slot/capacity limits, observed current fixed reads, all returned policy reasons/queue deadlines and up to fifty task/question records per session.
+
+Queue receipt, task and question omissions remain explicit; full bodies/history/attachments/memory/diagnostic strings are excluded.
+
+The collected page is **not globally atomic** and not provider/resource coordination. No global live/Unknown count, full inventory, unread tracking, ETA or all-clear is inferred.
+
+Next consumes only scanned IDs, including nonmatches; a byte-deferred group is retried, and a single oversized group is explicitly OutputBound without silently truncating task details. Unavailable or metadata/work generation/lifecycle/revision mismatch groups contain no previous private work.
+
+Continuations bind host, private admission, source epoch and filters. A ten-second total storage timeout or cancellation rejects the whole partial read. Confirmed policy/call/private ownership and retained-source admission run before/after reads; lifecycle/disposition/retention changes revoke the page and in-flight callbacks.
+
+No browse-triggered cleanup, background heartbeat, input-disabling refresh or automatic collection is introduced. Close/privacy/dispose cancels reads and clears rows, filters, exact IDs and continuation; late callbacks cannot reopen.
+
+**Open exact session with fresh passive read** resolves that immutable ID through the same private workspace service, rereads metadata/work/questions/tasks/retention, and publishes only while the source epoch remains admitted.
+
+It never resumes, dispatches, enqueues, reprioritizes, cancels, consumes grants, renews activity, changes voice/question targets or renews inspected task cancellation authority. Native question actions remain separate.
+
+[Portable bounds/race tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverview.cs) and [multiple real private SQLite sessions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.WorkOverview.cs) evidence bounded sources.
+
+[Headless native focus/scroll/navigation](../tests/Kora.Windows.IntegrationTests/AllWorkWindowTests.cs) is not installed accessibility/DPI, full conversation/composer, provider or general work-execution proof.
+
 ### Delivered Native Exact-Session Retention Controls - 2026-10-10
 
 When due-content inspection is held, the existing canonical exact-ID field and **Read exact ID retention** provide metadata-only status/review without reading names/history/work or creating implicit conversation/resume authority. Removed/purged observations are nonmutable.
@@ -351,7 +377,7 @@ destination/egress controls.
 Show the selected session's executing task, known planned steps, observed receipts, pending tasks, dependencies, and resource/provider/user blockers.
 Reorder/remove/replace actions identify exact queued tasks and preview their scope; Cancel is not session Delete.
 Pause dispatch prevents new work, not a fictitious pause of an uncancellable remote operation.
-An All work view groups tasks by session and shows configured/effective slots, active tasks, ready/blocked queues, and cross-session resource conflicts.
+The delivered bounded passive All work view above groups observed tasks by session and shows confirmed fixed-profile slots, active/ready/blocked/Unknown reasons and omissions. General cross-session resource/provider conflict coordination remains proposed, not inferred from collected pages.
 Controls default to the named session/task; Stop all work is a separate explicit all-session operation.
 Sending another request to a busy session shows the management decision and target task/queue position; native Queue/Replace/Clarify choices remain available without inference. Replacement still resolves cancellation/unknown effects before dispatch.
 Selecting a session never changes scheduler priority, cancels another task, or borrows its provider/approval context.

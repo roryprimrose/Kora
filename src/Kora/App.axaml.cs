@@ -34,6 +34,7 @@ public sealed partial class App : Avalonia.Application
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
     private SessionsWindowController? sessionsWindow;
+    private AllWorkWindowController? allWorkWindow;
     private ClipboardPreviewWindowController? clipboardWindow;
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
@@ -140,6 +141,12 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
                 Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow);
             sessionsWindow.Bind();
+            allWorkWindow = new AllWorkWindowController(viewModel,
+                Services.GetRequiredService<SessionWorkspaceService>(),
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                Services.GetRequiredService<ILogger<AllWorkViewModel>>(), sessionsWindow);
+            allWorkWindow.Bind();
+            sessionsWindow.OpenAllWork = allWorkWindow.Open;
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
             viewModel.BindLocalEvents(localEvents);
@@ -263,6 +270,8 @@ public sealed partial class App : Avalonia.Application
         evidenceWindow = null;
         skillPackagesWindow?.Dispose();
         skillPackagesWindow = null;
+        allWorkWindow?.Dispose();
+        allWorkWindow = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
         attachmentWindow?.Dispose();

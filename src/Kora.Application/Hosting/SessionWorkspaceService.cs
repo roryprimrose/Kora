@@ -15,13 +15,17 @@ namespace Kora.Application.Hosting;
 public sealed partial class SessionWorkspaceService(
     ISessionWorkspaceStore store, HostTaskCoordinator tasks,
     ISessionWorkspaceAccess access, ILogger<SessionWorkspaceService> logger,
-    SessionQueueService? queue = null)
+    SessionQueueService? queue = null, TimeProvider? overviewTime = null)
 {
     public event Action<HostTaskObservation>? WaitingTaskCancelled;
     public event Action<HostId<SessionIdentity>>? SessionRetired;
     public event Action<HostId<SessionIdentity>>? SessionLifecycleChanged;
     private SessionRetentionService? retention;
-    public void BindRetention(SessionRetentionService service) => retention = service;
+    public void BindRetention(SessionRetentionService service)
+    {
+        retention = service;
+        service.Revoking += InvalidateWorkOverview;
+    }
     private Kora.Application.Interaction.LocalEventBroker? localEvents;
     public void BindLocalEvents(Kora.Application.Interaction.LocalEventBroker broker) => localEvents = broker;
 
@@ -147,6 +151,7 @@ public sealed partial class SessionWorkspaceService(
     {
         var result = await ControlAsync(session, origin,
             (request, eligible) => store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, eligible, token), token).ConfigureAwait(false);
+        InvalidateWorkOverview(session);
         SessionLifecycleChanged?.Invoke(session);
         return result;
     }

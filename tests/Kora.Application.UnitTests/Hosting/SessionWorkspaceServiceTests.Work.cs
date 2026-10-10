@@ -70,10 +70,12 @@ public sealed partial class SessionWorkspaceServiceTests
 
     private sealed partial class Fixture : ISessionWorkStore
     {
+        internal Func<HostId<SessionIdentity>, CancellationToken, Task<SessionWorkSnapshot>>? OverviewReader { get; set; }
         internal bool ForeignWork { get; set; }
         public async ValueTask<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long admissionRevision,
             SessionQueueLimits limits, CancellationToken token)
         {
+            if (OverviewReader is { } reader) { return await reader(session, token); }
             var observed = await ReadQueueAsync(session, token);
             return new(new(ForeignWork ? Session with { SessionId = new(Guid.NewGuid()) } : Session, null), 1, QueueTime.GetUtcNow(), observed, observed.Entries.Count,
                 limits.PendingPerSession, limits.ExecutionSlots,

@@ -12,6 +12,22 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture]
 
 ## Delivered deterministic local-version queue
 
+### Delivered passive cross-session work observation - 2026-10-11
+
+The [native All work / attention overview](UI_Workspace_And_Windows.md#delivered-bounded-passive-all-work--attention-overview---2026-10-11) consumes existing admitted metadata and per-session atomic work reads, never another authority database or global observer.
+
+Each manual call bounds current work reads to ten session identities, plus bounded metadata lookahead, existing fifty task/question limits and one complete 64 KiB projection, with a ten-second storage timeout and explicit Cancel.
+
+Stored Active/Done, exact immutable IDs/generations/metadata revisions, authority/queue revisions, UTC observation time, confirmed fixed-profile slots/capacity, observed current fixed reads, captured pending/active deadlines, queue policy reasons, task states and pending-question identities retain their original source.
+
+No duplicate readiness/blocked policy, provider resource contention, ETA, unread durability or full-scope count is invented. Bodies/history/memory/attachments/diagnostic text do not enter this projection.
+
+All/Active/Done and observed needs-answer are bounded scan/snapshot filters. Nonmatches advance the query-bound cursor, including zero-match pages; byte-deferred IDs do not. Omissions/unavailable/oversized groups are explicit, never empty-success or all-clear. Pages are independently observed mutable keysets, not globally atomic; behind-cursor changes require Refresh.
+
+Native navigation rereads one exact session through private owner/call/source admission and cannot resume/reorder/dispatch/cancel/enqueue, consume grants, renew activity or retarget voice/questions. Lifecycle/disposition/retention/hold changes invalidate rows and in-flight reads. Closure clears private page/filter/IDs and cancels late callbacks; browsing adds no cleanup or timer.
+
+Full work management, multi-session effects/controls, general dispatch/provider coordination and installed-native qualification remain separate. Permission-level proposal #168 is design only; no tiers or grant controls are adopted.
+
 `SessionQueueService` and the consolidated store own a complete bounded
 read-only slice: exact existing session IDs, original-user request/task IDs,
 session generation, entry revision and queue revision; default ten pending entries

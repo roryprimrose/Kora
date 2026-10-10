@@ -59,8 +59,13 @@ public sealed class PreapprovedUriPattern
 
         var (host, port) = ParseAuthority(authority, scheme, value);
         var labels = host.Split('.');
-        if (labels.All(label => string.Equals(label, "*", StringComparison.Ordinal))
-            || labels.Any(label => label.Length == 0
+        if (labels.All(label => string.Equals(label, "*", StringComparison.Ordinal)))
+        {
+            throw new ArgumentException(
+                "A host wildcard must include at least one concrete DNS label.",
+                nameof(value));
+        }
+        if (labels.Any(label => label.Length == 0
             || label.Contains('*') && !string.Equals(label, "*", StringComparison.Ordinal)))
         {
             throw new ArgumentException(

@@ -368,6 +368,18 @@ Do not edit [recorded-results.json](evidence/recorded-results.json) or
 was part of this offline run. Add separately identified reviewed acoustic
 evidence once it exists.
 
+### 2026-10-11 unattended rerun disposition
+
+The [2026-10-11 unattended receipt](evidence/unattended-20261011.md) records a
+truthful blocked dependency-backed rerun from `origin/main` `cf44a5f`. The
+experiment environment, model assets and fixtures were absent, so the 15
+benchmark tests, fresh threshold sweep and optional 1800-second file-only
+pilot produced no measurements. Dependency-free compilation and all 12
+privacy receipt tests passed. Existing candidate and packaged-notice evidence
+was reviewed without acquiring assets, credentials or packages; current
+notice parity was also blocked by absent restored project assets. Historical
+receipts remain unchanged, and D-002/D-007 remain open.
+
 ### Proof code lifecycle
 
 **2026-10-07 bounded tray-recovery disposition:** retain all executable paths

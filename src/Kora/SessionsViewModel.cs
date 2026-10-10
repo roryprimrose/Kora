@@ -301,18 +301,62 @@ internal sealed partial class SessionsViewModel(
             {
                 throw new InvalidOperationException("Select an existing record from this page.");
             }
-            ClearSelection();
-            selected = record;
-            if (record is null) { return; }
-            nameDraft = record.Metadata?.Name.Value ?? string.Empty;
-            historySessionId = record.Authority.SessionId.Value.ToString("D");
-            questions = await service.ReadQuestionsAsync(record.Authority.SessionId, null, 25, lifetime.Token);
-            tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
-            await RefreshSelectedWorkAsync();
-            await ReadSelectedRetentionAsync();
-            Render();
-            status = "Passive selected work snapshot. Questions remain exactly bound; no activity, priority, voice target or dispatch changed.";
+            await ReadSelectedAsync(record);
         });
+    }
+
+    internal Task SelectExactAsync(HostId<SessionIdentity> session, Func<bool> admitted, CancellationToken token) =>
+        RunAsync(async () =>
+        {
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, token);
+            if (!admitted()) { throw new OperationCanceledException("The overview source changed."); }
+            var page = await service.SearchListAsync(SessionListSearchKind.ExactId, SessionListFilter.All,
+                session.Value.ToString("D"), null, 1, cancellation.Token);
+            var record = page.Records.Single();
+            var snapshot = await service.ReadWorkAsync(session, cancellation.Token);
+            var observedQuestions = await service.ReadQuestionsAsync(session, null, 25, cancellation.Token);
+            var observedTasks = await service.ReadTasksAsync(session, null, 25, cancellation.Token);
+            var observedRetention = await service.ReadRetentionAsync(session, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (!admitted() || snapshot.Session != record || observedRetention.Generation != record.Authority.Generation)
+            {
+                throw new OperationCanceledException("The overview source, exact metadata or generation changed.");
+            }
+            LeaveListSearch();
+            ClearSelection();
+            sessionFilter = SessionListFilter.All;
+            sessions = new(page.Records, null);
+            selected = record;
+            nameDraft = record.Metadata?.Name.Value ?? string.Empty;
+            historySessionId = session.Value.ToString("D");
+            questions = observedQuestions;
+            tasks = observedTasks;
+            retentionSubject = session;
+            retentionObservation = observedRetention;
+            ApplyWork(snapshot);
+            Render();
+            status = "Fresh passive exact-session navigation. Opening and selection grant nothing; answer only in the original Questions window.";
+            // Navigation cannot renew an inspected task cancellation target, even when a question wait was observed.
+            inspectedTask = null;
+            selectedTask = null;
+            selectedQueueEntry = null;
+            selectedWork = null;
+            OnPropertyChanged(nameof(SessionFilter));
+        }, activitySession: session);
+
+    private async Task ReadSelectedAsync(SessionWorkspaceEntry? record)
+    {
+        ClearSelection();
+        selected = record;
+        if (record is null) { return; }
+        nameDraft = record.Metadata?.Name.Value ?? string.Empty;
+        historySessionId = record.Authority.SessionId.Value.ToString("D");
+        questions = await service.ReadQuestionsAsync(record.Authority.SessionId, null, 25, lifetime.Token);
+        tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
+        await RefreshSelectedWorkAsync();
+        await ReadSelectedRetentionAsync();
+        Render();
+        status = "Passive selected work snapshot. Questions remain exactly bound; no activity, priority, voice target or dispatch changed.";
     }
 
     public Task NextQuestionsAsync() => RunAsync(async () =>

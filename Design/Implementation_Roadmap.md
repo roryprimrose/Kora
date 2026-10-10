@@ -20,6 +20,30 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R14 Bounded Passive Cross-Session Work / Attention Overview - 2026-10-11
+
+Delivered subset: **Tray > Sessions > All work / attention overview** opens an owned native read-only window; explicit Refresh/Next/Cancel observes up to ten admitted metadata identities and independent current per-session work snapshots per call, plus bounded metadata lookahead.
+
+Complete 64 KiB output, existing fifty task/question bounds, source revisions/generation/UTC provenance, captured deadlines, confirmed fixed-profile slots and observed policy reasons remain explicit.
+
+Stored lifecycle and observed needs-answer filters have honest bounded scan scope. Query/admission/source-bound continuations consume nonmatches, preserve byte-deferred IDs and show omissions/unavailable/end markers without global atomicity/count/all-clear/ETA/provider contention.
+
+Metadata/work mismatch discloses no previous private work. Total storage timeout, cancellation, before/after privacy/call/owner/retained-source checks and lifecycle/disposition/retention revocation fence late reads.
+
+Fresh exact-session navigation does not resume/reorder/dispatch/cancel/enqueue, renew meaningful activity or inspected cancellation authority, consume grants or retarget voice/questions. There is no new authority store, global observer, auto-refresh/heartbeat, browse-triggered cleanup, model/network/audio/script/filesystem/copy/egress route, grant tier or #168 permission-design adoption.
+
+Maintained evidence: [portable page/budget/gated-race tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverview.cs) and [multiple real private SQLite sources](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.WorkOverview.cs).
+
+[Headless native scroll/focus/navigation](../tests/Kora.Windows.IntegrationTests/AllWorkWindowTests.cs) complements the [user limits](../docs/windows-and-tray.md#all-work--attention-overview).
+
+Exact experiment-equivalence assessment: these tests cover bounded passive consumer/source boundaries only. No complete experiment assertion set or maintained consumer is superseded. Preserve unique native/runtime/containment/storage-copy/crypto/capacity/hardware/recovery and legacy witness procedures; no experiment is removed, rerun or promoted by mocks.
+
+Full conversation/composer, provider/resource coordination, unread durable tracking, permission design and installed-native acceptance remain separate.
+
+Validation from the isolated R14 worktree on base `7aa16fd79f8df05af9128edac449a3b0f421c77f`: Release solution **0 warnings/errors**; Core **1,562**, Application **4,142**, Tools **173**, Definitions **6**, Windows **1,624** passed, **0 failures/skips**, unchanged default-mode Windows parallelism. Latest-only portable coverage is exactly **100% lines/branches**, with existing gates unchanged.
+
+Missing assets required one locked restore from the approved Networking-AAA feed; no manifests/feed configuration changed. Earlier failed focused selector/equality/focus/cancellation-fixture attempts remain retained as failed receipts, not qualification; final corrected focused and full source runs pass. No live application, hardware/provider or user-database qualification was attempted.
+
 ### R14 Immutable Volatile Web-Result Native Details - 2026-10-10
 
 Delivered subset: actual successful bounded WebPageGet response → explicit exact-item native details → same immutable inert-text viewer/search/source/disclosure-gated copy.

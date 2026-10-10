@@ -45,6 +45,19 @@ This is not a conversation composer, general effect cancellation, provider/
 worker qualification, Ask Evidence, export or rich browser. Real installed
 screen-reader/DPI acceptance remains open.
 
+## All work / attention overview
+
+Open **Tray > Sessions > All work / attention overview**, then **Refresh overview**. Opening alone grants nothing and starts no collection. **Next session page** and **Cancel read** are explicit; there is no automatic refresh.
+
+- Each click scans at most ten session identities. The complete page stays within 64 KiB; each independent session source retains the existing fifty task/question bounds and recent queue receipt limit. Scanned/nonmatching/unavailable groups, omitted records and end/byte-limit markers are visible. Next works after zero matches and never skips a byte-deferred session.
+- **All / Active / Done** is the stored session lifecycle, not a task state. **Observed needs answer** means pending-question metadata at that snapshot; unavailable sources remain visible. Question IDs are not freshly admitted reply targets.
+- Select a group to read exact IDs/generations, source revisions/UTC time, fixed-profile slots/capacity, observed current fixed reads, queue/task states, scheduler reasons and captured deadlines. Full private bodies, history, attachments, memory and diagnostic text are not collected.
+- Pages are **not globally atomic**. No global counts, all-clear, ETA, unread tracking or actual provider/resource contention is claimed. Refresh for mutations/new IDs behind the cursor.
+- **Open exact session with fresh passive read** navigates the immutable ID through fresh private workspace reads. It never resumes, dispatches, enqueues, reprioritizes, cancels, renews activity, consumes grants or retargets voice/questions. Inspect/cancel authority is not renewed; reply only in the original Questions window.
+- Storage has a ten-second total timeout. Privacy, ownership, retained-source, lifecycle/disposition or retention/hold changes reject or clear observations; stale work is never relabelled current. Close clears rows, filters, IDs and continuation and suppresses late callbacks. Browsing causes no cleanup/background heartbeat.
+
+This is a passive bounded overview, not a conversation/composer, general provider manager, Stop all, permission-tier feature or installed-native acceptance proof.
+
 ## Search the session list
 
 In **Sessions**, choose **NameSubstring** or **ExactId**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.

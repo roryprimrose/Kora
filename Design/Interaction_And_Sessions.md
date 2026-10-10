@@ -195,6 +195,31 @@ export, queues and scheduler remain unavailable. Unique storage/interruption/
 capacity/copy evidence in the storage experiment is retained, not deleted or
 claimed replaced by this increment.
 
+### Delivered Passive Session-List Name and Exact-ID Search - 2026-10-10
+
+The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) navigate names or an explicitly selected exact immutable ID.
+They reuse the persisted private metadata reader, authoritative name/audit validation and unchanged admission revision, without task intent, activity renewal, grants, model calls, memory use or new storage/index authority.
+
+Names use literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. Queries reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All.
+ExactId accepts only a nonempty canonical lowercase D GUID; a name that resembles an ID never supplies authority.
+
+Name scans consume at most 50 metadata rows per click, with the existing bounded reader lookahead and five-second lease/SQLite progress and lock boundaries. Native results are limited to 25 records; the reusable workflow accepts 1–50 and caps the complete serialized page at 64 KiB.
+A byte/result limit preserves continuation before any deferred match. Scanned, unnamed and nonmatch counts and remaining/end scope distinguish an empty bounded result from exhaustion.
+
+All/Active/Done scopes search across pages. Unnamed metadata never matches a name but remains available by exact ID; Removed sessions never browse. Canonical-ID ordering is deterministic and culture-independent.
+Continuations bind the exact query/mode/filter, process-local service/store identity and private admission revision. They cannot silently restart on a changed query, filter, host/source or admission.
+
+Mutable metadata has no committed historical sequence ceiling. Later renames/state/removal are observed only in subsequently read rows; earlier changes and additions behind the cursor require Search again. Later appended IDs can appear, and end describes only that observation. No finite atomic snapshot is fabricated.
+Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled reads are explicit recovery states, never empty-success unfiltered inventories.
+
+The [native surface](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) distinguishes metadata search from history and Evidence. Typing in ordinary list mode preserves selected work; unchanged exact visible results retain work/history/memory presentation without renewing inspected cancellation authority.
+Invalidated/changed selections clear their targets. Query/selection/source/privacy epochs, cancellation and close fence late content.
+
+[Core rules/cursors/bytes](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs), [bounded workflow failures](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs), [actual private SQLite boundaries](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs),
+[late callbacks](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs) and [headless native preservation](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs) are the maintained evidence.
+
+This delivers only passive session-list metadata navigation, not conversation/composer, history lexical expansion, diagnostic Evidence filters, name-based model/voice routing, caption-monitor selection, providers or installed-native R14/A4 acceptance.
+
 ### Delivered Passive Exact-Session Lexical History Search - 2026-10-09
 
 The [Application scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) consumes the delivered private ordered history reader, without a new schema, index, content capture or authority write. The [Core matcher](../src/Kora.Core/Storage/SessionHistorySearch.cs) reuses the selected-file lexical query/token rules: NFC invariant-case whole-word OR, 256 characters/512 UTF-8 bytes, 32 distinct terms/64 characters per term. Only committed question/option labels, final answer/choices and typed kind/task/decision/question-status metadata are searchable; bootstrap bodies, reasoning, full conversations/artifacts and volatile previews remain unavailable.

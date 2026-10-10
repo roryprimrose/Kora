@@ -17,6 +17,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         if (record.State == 2) { throw new InvalidOperationException("Removed sessions are not browsable."); }
         var entry = new SessionWorkspaceEntry(record.Authority, ReadMetadata(connection, session));
         database.VerifyFiles();
+        cancellationToken.ThrowIfCancellationRequested();
         return entry;
     }, cancellationToken));
 
@@ -58,10 +59,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var rows = new List<SessionWorkspaceEntry>();
             while (reader.Read())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var authority = DecodeSession(reader).Authority;
                 rows.Add(new(authority, ReadMetadata(connection, authority.SessionId)));
             }
             database.VerifyFiles();
+            cancellationToken.ThrowIfCancellationRequested();
             return new SessionPage<SessionWorkspaceEntry>([.. rows.Take(limit)],
                 rows.Count > limit ? rows[limit - 1].Authority.SessionId.Value : null);
         }, cancellationToken));

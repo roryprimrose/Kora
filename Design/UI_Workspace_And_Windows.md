@@ -65,6 +65,25 @@ queue payload. There is no composer, model management, Ask Evidence, export,
 rich browser, new worker/effect/provider or full R14/A4 acceptance. Maintained
 headless focus/accessible-name checks are not installed screen-reader/DPI proof.
 
+### Delivered Passive Session-List Metadata Navigation - 2026-10-10
+
+The Sessions window now has a separate metadata query and explicit **NameSubstring** / **ExactId** modes. **Search session metadata**, **Next metadata search**, **Cancel** and **Clear** navigate across the persisted list, not just its currently loaded page. Enter searches; Escape clears only the focused query. This is not the adjacent exact-session lexical history search or Evidence filtering.
+
+NameSubstring is literal ordinal, case-sensitive NFC name containment, with the existing [SessionName limits](../src/Kora.Core/Hosting/SessionName.cs). ExactId requires a nonempty canonical lowercase D GUID and uses the existing exact metadata lookup.
+Unknown/Removed IDs are unavailable, not a fallback inventory. All/Active/Done applies across the metadata scan; outside search it retains ordinary page-only filtering.
+
+Each name-search click consumes at most 50 validated metadata rows plus the reader's one-row lookahead, returns at most 25 native matches and bounds complete serialized output to 64 KiB. Zero matches can still have Next.
+Scanned/unnamed/nonmatching counts, result/byte limits and current end are explicit. A matching row deferred by an output limit is reconsidered on Next; no matching name or record is truncated or silently omitted.
+
+This is mutable canonical-ID keyset navigation, not a sequence-bounded history snapshot. Continuations bind exact query, mode, state filter, host/store lifetime and private admission revision. Renames, lifecycle/deletion and additions behind the cursor require a fresh Search.
+New later IDs may appear; an observed end is not a historical inventory claim. No schema, index, snapshot cache or new ownership authority is introduced.
+
+Results retain actual names, immutable IDs, lifecycle and optimistic generation/metadata revisions, including explicitly unnamed records. Selection is preserved only when its exact visible record remains unchanged.
+Query/source/selection/privacy changes, cancellation and closure suppress late results; disappearing or changed selected metadata clears stale work/detail/question-cancellation/memory presentation. Names never resolve actions, grants, model or voice targets.
+
+[Native controls](../src/Kora/SessionsViewModel.ListSearch.cs), [passive workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs), [private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs) and [headless bindings/preservation](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs) evidence this slice.
+Existing work refresh and memory proposal controls remain independent. Composer, model history, providers and installed-native qualification remain open.
+
 ### Delivered Passive Details Boundary
 
 The [passive lexical increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) adds exact-session query, Search/Next/Cancel/Clear controls beside the existing history ID. Enter searches; Escape clears within the focused field. Search results reuse the immutable receipt list and fresh detail viewer without changing selected work or pending-question identities. Complete 64 KiB results and explicit scanned/gap/omitted counts distinguish an empty bounded page from an exhausted snapshot ([controls](../src/Kora/SessionsWindow.axaml), [headless recovery](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs)).

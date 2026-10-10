@@ -53,7 +53,10 @@ internal sealed partial class SessionsViewModel(
         set
         {
             if (!CanRead || !Enum.IsDefined(value)) { return; }
+            var searching = listSearchMode;
+            InvalidateListSearch();
             sessionFilter = value;
+            if (searching) { status = ListQueryHint; }
             if (selected is not null && !Sessions.Contains(selected)) { ClearSelection(); }
             OnPropertyChanged();
             Notify();
@@ -69,7 +72,9 @@ internal sealed partial class SessionsViewModel(
 
     internal void RevokeSessionList()
     {
+        InvalidateListSearch();
         sessions = null;
+        status = "Session metadata source/lifecycle changed. Rows and search continuation revoked; Refresh or Search requires fresh private admission.";
         Notify();
     }
 
@@ -198,7 +203,7 @@ internal sealed partial class SessionsViewModel(
             + (history.Disposed ? ". Disposed: content redacted; immutable citations retained." : ". No session activity, reply, focus or voice target changed.");
     }, passive: true);
     public bool CanRead => !busy && !closed && access.CanInspect;
-    public bool CanNext => CanRead && sessions?.Next is not null;
+    public bool CanNext => CanRead && !listSearchMode && sessions?.Next is not null;
     public bool CanNextQuestions => CanRead && questions?.Next is not null;
     public bool CanNextTasks => CanRead && tasks?.Next is not null;
     public bool CanEvidence => CanRead && selected is not null;
@@ -246,9 +251,10 @@ internal sealed partial class SessionsViewModel(
 
     public Task RefreshAsync() => RunAsync(async () =>
     {
+        LeaveListSearch();
         var retained = selected?.Authority.SessionId;
         sessions = await service.ReadMetadataAsync(null, 25, lifetime.Token);
-        if (retained is { } id && sessions.Records.Any(record => record.Authority.SessionId == id))
+        if (retained is { } id && Sessions.Any(record => record.Authority.SessionId == id))
         {
             await RefreshSelectedWorkAsync();
         }
@@ -259,6 +265,7 @@ internal sealed partial class SessionsViewModel(
 
     public Task NextAsync() => RunAsync(async () =>
     {
+        if (listSearchMode) { throw new InvalidOperationException("Use Next metadata search or Refresh the ordinary list."); }
         sessions = await service.ReadMetadataAsync(sessions?.Next
             ?? throw new InvalidOperationException("Refresh before requesting a next page."), 25, lifetime.Token);
         ClearSelection();
@@ -420,6 +427,7 @@ internal sealed partial class SessionsViewModel(
                 || !busy && selected?.Authority.SessionId == subject && selectionEpoch == epoch)
             {
                 sessions = null;
+                RevokeListSearchPresentation();
                 ClearSelection();
                 clearedPresentation = true;
                 status = "Cancelled or privacy closed; no late content or rollback of a possible committed lifecycle is claimed. Refresh durable state before retrying.";
@@ -432,6 +440,7 @@ internal sealed partial class SessionsViewModel(
             if (!passive || !busy && selected?.Authority.SessionId == subject)
             {
                 sessions = null;
+                RevokeListSearchPresentation();
                 ClearSelection();
                 clearedPresentation = true;
                 status = "Sessions unavailable/denied: " + exception.Message
@@ -488,6 +497,8 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        InvalidateListSearch();
+        listQuery = string.Empty;
         lifetime.Cancel();
         if (!busy && !refreshingWork) { lifetime.Dispose(); }
         sessions = null;
@@ -503,6 +514,7 @@ internal sealed partial class SessionsViewModel(
             NotifyWork();
             NotifyMemories();
             NotifyQueue();
+            NotifyListSearch();
             OnPropertyChanged(nameof(Sessions));
             OnPropertyChanged(nameof(SelectedSessionRecord));
             OnPropertyChanged(nameof(TaskRecords));

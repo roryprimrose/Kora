@@ -96,6 +96,50 @@ Line coverage: 100.0% (18279/18279); Branch coverage: 100.0% (11013/11013)
 Raw line-rate/branch-rate: 1 / 1
 ```
 
+### R14 Passive Session-List Metadata Search - 2026-10-10
+
+Delivered [native name/exact-ID list navigation](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) across bounded persisted metadata pages, separately from history lexical search and Evidence.
+Explicit modes, canonical-ID ordering, cross-page All/Active/Done scope, query/host/admission-bound continuation, complete byte/scan limits and truthful mutable-keyset recovery reuse existing private store and domain validation.
+
+[Core policy tests](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs), [passive workflow tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs), [actual private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs) and [headless native controls](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs)
+cover beyond-first-50 matches, Unicode/duplicate names, unnamed/exact IDs, state/removal, bounds, mutable changes, fail-closed cursors and passive preservation.
+
+No schema/index, new source or snapshot authority, conversation/history lexical scope, diagnostic filter, memory/skill/provider/file mutation, model or voice targeting is added. Caption monitor selection is outside this authorized increment. Existing memory proposals and selected work refresh remain functional.
+Composer/full conversation, general history/model/provider and installed screen-reader/DPI/native gates remain open.
+
+Experiment equivalence assessment: no executable or historical receipt is wholly superseded by bounded metadata navigation. Retain unique [storage crypto/copy/native/recovery assertions](../experiments/r02-storage-proof/README.md#proof-code-lifecycle), [runtime mediation/provider evidence](../experiments/r02-runtime-proof/README.md),
+[local-inference quality/resource assertions](../experiments/r02-local-inference-proof/README.md), containment and speech receipts. New tests do not invoke or reclassify them.
+
+Consumer assessment: the existing workspace list, exact controls, passive work timer, immutable history detail resolver and memory management share unchanged IDs/revisions/admission seams. Core Tools/Definitions dependency direction and typed/voice `session search` history grammar are unchanged.
+Runtime conformance/historical witness and management/runtime-extraction consumers remain; no experiment or eng/proof tooling is removed or rerun.
+
+Local validation: initial verified base `67be98ad67ce2a154ea22bbf21359c63edb37afa`; rebased only the owned branch onto `dac36b02d6e2570f72d8d58e26b9213c3b384268`, preserving #150 memory proposals, #153 preview refresh, #148 maintained validation and #149 source withdrawal.
+Validated code head `49bb79cc1aa5b46de44146d02339caf58dbab0c5`; this subsequent receipt-only edit changes no executable code.
+
+Missing assets were restored locked from the approved Networking-AAA feed only. All final commands ran synchronously in the verified search worktree, with no provider/hardware/installed-native or unrelated proof trials. Exact output, TRX and latest-only coverage reports remain under ignored `.net-test-artifacts\session-list-search-final-main-20261010`.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1372; Application: 3682; Tools: 137; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: 1345; all five suites failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 18547/18547; Branch coverage: 11152/11152; exact 100%/100%
+```
+
+Current-head follow-up for [PR #154](https://github.com/roryprimrose/Kora/pull/154): rebased onto `969ef020d807b6adf6639093d3c3354f1e9dd9d0` (#151), retaining the independently owned advanced Evidence section and all source/query/snapshot behavior. Added a deterministic native publication fence for admission changes after the service read completes.
+Validated code head `1c450c8309ff6a6218c4171e251e0d59e9803ed6`; this later receipt-only edit changes no executable code. Default configured test execution was used, with no serialized/isolated acceptance substitution.
+
+```text
+Release solution build: 0 warnings; 0 errors
+Core: 1372; Application: 3691; Tools: 137; Definitions: 6; Windows: 1389
+All five suites: failed 0; skipped 0
+Unchanged portable coverage gate: 18551/18551 lines; 11173/11173 branches; exact 100%/100%
+Exact output/TRX/latest-only coverage: .net-test-artifacts\session-list-search-969ef02
+```
+
 ### R14 Passive Exact-Session Lexical History Search - 2026-10-09
 
 The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.

@@ -73,6 +73,13 @@ internal sealed partial class SessionsViewModel
     private void ApplyWork(SessionWorkSnapshot? snapshot)
     {
         if (snapshot is null) { throw new InvalidOperationException("The authoritative work snapshot service is unavailable."); }
+        if (listSearchMode && sessions?.Records.Contains(snapshot.Session) != true)
+        {
+            InvalidateListSearch();
+            status = "Selected metadata changed during passive work refresh. Search again; stale controls and details were cleared.";
+            Notify();
+            return;
+        }
         var selectedId = selectedWork?.TaskId;
         workSnapshot = snapshot;
         selected = snapshot.Session;

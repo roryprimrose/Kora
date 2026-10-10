@@ -12,7 +12,7 @@
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
       <ComboBox ItemsSource="{Binding SessionFilters}" SelectedItem="{Binding SessionFilter, Mode=TwoWay}"
-                IsEnabled="{Binding CanRead}" AutomationProperties.Name="Filter this bounded session page by All, Active or Done; no activity or routing" />
+                IsEnabled="{Binding CanRead}" AutomationProperties.Name="All, Active or Done: ordinary current page filter, or metadata-search scope across pages; no activity or routing" />
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
@@ -24,6 +24,19 @@
               AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
     </Grid>
     <StackPanel Grid.Row="3" Spacing="6">
+    <WrapPanel>
+      <ComboBox ItemsSource="{Binding ListSearchKinds}" SelectedItem="{Binding ListSearchKind, Mode=TwoWay}"
+                IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Session metadata search mode: literal ordinal case-sensitive NameSubstring or canonical lowercase exact immutable ID" />
+      <TextBox x:Name="ListQuery" Text="{Binding ListQuery, Mode=TwoWay}" Width="320"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Session name substring or exact ID; Enter searches"
+               AutomationProperties.Name="Volatile session-list metadata query, not conversation-history search; NFC name limits, no silent truncation or normalization" />
+      <Button x:Name="SearchList" Content="Search session _metadata" IsEnabled="{Binding CanSearchList}"
+              AutomationProperties.Name="Search names or exact IDs across bounded session metadata pages, never target an action by name" />
+      <Button x:Name="NextListSearch" Content="Next metadata search" IsEnabled="{Binding CanNextListSearch}"
+              AutomationProperties.Name="Continue the query-bound mutable metadata scan, including after zero matches; not an atomic history snapshot" />
+      <Button x:Name="CancelListSearch" Content="Cancel metadata search" IsEnabled="{Binding CanCancelListSearch}" />
+      <Button x:Name="ClearListSearch" Content="Clear metadata search" IsEnabled="{Binding CanEditListSearch}" />
+    </WrapPanel>
     <WrapPanel>
       <TextBox Text="{Binding HistorySessionId, Mode=TwoWay}" Width="320" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Exact immutable session ID for passive history; names do not select sessions" />

@@ -40,6 +40,23 @@ This is not a conversation composer, general effect cancellation, provider/
 worker qualification, Ask Evidence, export or rich browser. Real installed
 screen-reader/DPI acceptance remains open.
 
+## Search the session list
+
+In **Sessions**, choose **NameSubstring** or **ExactId**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.
+
+- **NameSubstring** is literal, case-sensitive ordinal containment. `%`, `_` and punctuation are ordinary characters, not wildcards or SQL. Use NFC single-line Unicode, no control/format characters or surrounding whitespace, at most 120 scalars / 480 UTF-8 bytes. Invalid input is rejected without trimming, normalization or truncation.
+- **ExactId** requires the complete nonempty immutable ID in canonical lowercase `00000000-0000-0000-0000-000000000001` format. It looks up that one session, including unnamed metadata. Unknown/Removed IDs are unavailable, not a fallback list.
+- **All / Active / Done** applies to the whole metadata search. Outside search it continues filtering only the ordinary current page.
+- **Next metadata search** continues even after zero matches. Each click scans at most 50 rows plus one bounded lookahead, displays at most 25 matches and retains complete records within 64 KiB. Counts and output/scan limits are explicit; deferred matches are not silently skipped.
+- **Cancel metadata search** suppresses late results. **Clear metadata search** (or Escape in its field) discards the volatile query/results. **Refresh** returns to ordinary list paging. Query, mode, state, privacy, source or host changes require a fresh Search.
+
+Names can duplicate or change. Every result still shows its actual name, immutable ID, Active/Done state, generation and metadata revision; unnamed metadata stays visibly unnamed. Actions use exact observed IDs/revisions, never names.
+Unchanged visible selection retains selected work, original question identities, history and memory drafts; a disappeared or changed subject clears stale controls and details.
+
+This is a mutable ordered list, **not an atomic historical snapshot**. Renames/state/deletion and newly added IDs behind the cursor need a fresh Search. Later IDs may appear on Next. End means no later row at that observation, not a complete historical inventory.
+
+Typing, search, Next and selection are passive: no activity renewal, resume, task intent, dispatch priority, voice/question retarget, grant, memory use or model/network operation. Search is not a composer, conversation-history lexical search or caption-monitor control.
+
 ## Native local file inspection
 
 **Tray > Preview file (local inspection only)** opens the trusted Windows

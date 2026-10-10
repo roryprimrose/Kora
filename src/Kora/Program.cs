@@ -287,6 +287,15 @@ internal static class Program
         services.AddSingleton<ProviderModeConfigurationService>();
         services.AddSingleton<IModelProviderModePreferences>(provider =>
             new LocalModelProviderModePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<Kora.Core.Network.IPreapprovedUriPreferences>(provider =>
+            new LocalPreapprovedUriPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<PreapprovedUriConfigurationService>();
+        services.AddSingleton<Kora.Core.Network.IPreapprovedUriConfiguration>(provider =>
+            provider.GetRequiredService<PreapprovedUriConfigurationService>());
+        services.AddSingleton<Kora.Tools.Network.PreapprovedUriList>();
+        services.AddSingleton<Kora.Tools.Network.PreapprovedUriAdd>();
+        services.AddSingleton<Kora.Tools.Network.PreapprovedUriRemove>();
+        services.AddSingleton<Kora.Tools.Network.PreapprovedUriClear>();
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));

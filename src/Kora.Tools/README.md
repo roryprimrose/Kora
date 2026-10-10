@@ -25,6 +25,7 @@ helpers and brokers are not separately advertised actions.
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
 | [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy. |
 | [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
+| [Network](Network) | `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | Core owns URI-pattern validation and matching; Application owns atomic device-local persistence, original-user admission and audit. These settings do not deliver or register a network retrieval action. |
 
 Do not add a broad capability class with one method per tool, duplicate broker
 policy across actions, or add classes for speculative unavailable operations.
@@ -88,6 +89,20 @@ not IDs registered by these classes. Explanation and model dispatch remain
 unavailable pending the qualified tool/result loop and clipboard-answering,
 secret and egress gates. Preview does not grant transmission consent. See the
 [delivered boundary](../../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+
+### Preapproved network addresses
+
+The Network actions converge settings-window, typed-command and activated-voice
+changes on one audited configuration service. A pattern is an absolute HTTP or
+HTTPS URI; host wildcards must occupy a complete DNS label, while path and query
+wildcards are supported. Credentials and fragments are rejected. The policy is
+fail-closed for malformed persistence and exposes `IsPreapproved(Uri)` for an
+admitted retrieval boundary.
+
+No general web retrieval capability or model-callable configuration registry is
+delivered by this slice. Preapproval only removes a future per-address grant
+when that retrieval boundary calls the shared policy; it does not enable
+network access, provider execution, credentials, redirects, or egress by itself.
 
 ### R26 immutable local file actions
 

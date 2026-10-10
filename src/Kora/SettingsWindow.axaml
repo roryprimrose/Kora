@@ -961,6 +961,57 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Network">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <StackPanel Spacing="5" Margin="0,0,0,8">
+              <TextBlock Text="Preapproved addresses" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Allow model-originated retrieval of matching HTTP or HTTPS addresses without a per-address permission grant. This does not enable a network provider or a general retrieval tool."
+                  Classes="muted"
+                  FontSize="13"
+                  TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="URI pattern" Classes="settings-title" />
+                <TextBlock
+                    Text="Use an absolute HTTP or HTTPS URI. An asterisk in a host must occupy a whole DNS label, such as https://*.example.com/*. Path and query wildcards are supported. Credentials and fragments are not allowed."
+                    Classes="settings-description"
+                    TextWrapping="Wrap" />
+                <TextBox
+                    Text="{Binding PreapprovedUriInput}"
+                    PlaceholderText="https://*.example.com/*"
+                    AutomationProperties.Name="Preapproved URI pattern" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Add pattern"
+                          Command="{Binding AddPreapprovedUriCommand}" />
+                  <Button Content="Refresh"
+                          Command="{Binding RefreshPreapprovedUrisCommand}" />
+                  <Button Content="Remove selected"
+                          Command="{Binding RemovePreapprovedUriCommand}" />
+                  <Button Content="Clear all"
+                          Command="{Binding ClearPreapprovedUrisCommand}" />
+                </StackPanel>
+                <controls:NamedTextBlock
+                    Text="{Binding PreapprovedUriStatus}"
+                    AutomationProperties.Name="Preapproved URI configuration status"
+                    AutomationProperties.LiveSetting="Polite"
+                    Classes="settings-description"
+                    TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <ListBox
+                ItemsSource="{Binding PreapprovedUriPatterns}"
+                SelectedItem="{Binding SelectedPreapprovedUri}"
+                MinHeight="120"
+                AutomationProperties.Name="Preapproved URI patterns" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
       <TabItem Header="Providers">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">

@@ -10,6 +10,30 @@ namespace Kora.Core.UnitTests.Presentation;
 public sealed class DetailContentTests
 {
     [Fact]
+    public void History_ownership_is_required_distinct_and_never_fabricates_response_ids()
+    {
+        var reference = Reference();
+        var session = new HostId<SessionIdentity>(Guid.NewGuid());
+        var item = new AdmittedDetailContent(reference, DetailContentKind.PlainText, DetailContentOrigin.SessionHistory,
+            DetailSensitivity.DisclosureConfirmationRequired, "Receipt", "Persisted history", "record", historySession: session);
+        item.HistorySession.Should().Be(session);
+        item.SessionSource.Should().BeNull();
+        item.IsSameSnapshot(new(reference, item.Kind, item.Origin, item.Sensitivity, item.Title, item.Provenance,
+            item.Source, historySession: session)).Should().BeTrue();
+        item.IsSameSnapshot(new(reference, item.Kind, item.Origin, item.Sensitivity, item.Title, item.Provenance,
+            item.Source, historySession: new(Guid.NewGuid()))).Should().BeFalse();
+        var missing = () => new AdmittedDetailContent(reference, item.Kind, item.Origin, item.Sensitivity,
+            item.Title, item.Provenance, item.Source);
+        missing.Should().Throw<InvalidDataException>();
+        var fabricated = () => new AdmittedDetailContent(reference, item.Kind, DetailContentOrigin.EmbeddedDocument,
+            item.Sensitivity, item.Title, item.Provenance, item.Source, historySession: session);
+        fabricated.Should().Throw<InvalidDataException>();
+        var invalid = () => new AdmittedDetailContent(reference, item.Kind, item.Origin, item.Sensitivity,
+            item.Title, item.Provenance, item.Source, historySession: default(HostId<SessionIdentity>));
+        invalid.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void Content_preserves_exact_immutable_source_and_host_chrome()
     {
         var reference = Reference();

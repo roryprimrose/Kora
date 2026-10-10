@@ -77,7 +77,10 @@ public sealed partial class SessionWorkspaceServiceTests
     public async Task Explicit_control_owns_fresh_original_intent_and_commits_terminal_receipt(RequestOrigin origin, bool active)
     {
         using var fixture = new Fixture();
+        HostId<SessionIdentity>? changed = null;
+        if (active) { fixture.Service.SessionLifecycleChanged += session => changed = session; }
         var result = await fixture.Service.ChangeLifecycleAsync(fixture.Request.SessionId, new(1), active, origin, fixture.Token);
+        changed.Should().Be(active ? fixture.Request.SessionId : (HostId<SessionIdentity>?)null);
         result.Should().Be(new WorkSessionAuthorization(fixture.Request.SessionId, new(2), active));
         fixture.TaskWrites.Should().HaveCount(2);
         var intent = fixture.TaskWrites[0];
@@ -208,14 +211,20 @@ public sealed partial class SessionWorkspaceServiceTests
         internal bool ReviseDuringControl { get; init; }
         internal string? Failure { get; init; }
         internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; init; }
+        internal Func<Guid?, int, SessionPage<SessionWorkspaceEntry>>? ListReader { get; set; }
+        internal Func<HostId<SessionIdentity>, SessionWorkspaceEntry>? ExactListReader { get; set; }
+        internal Action? AfterListRead { get; set; }
+        internal int ListReads { get; private set; }
         internal Action? AfterHistoryRead { get; set; }
         internal Exception? HistoryFailure { get; set; }
         internal SessionHistoryEvent? HistoryEvent { get; set; }
+        internal Func<HostId<SessionIdentity>, SessionHistoryCursor?, int, SessionHistoryPage>? HistoryReader { get; set; }
         public ValueTask<SessionHistoryPage> ReadHistoryAsync(HostId<SessionIdentity> session,
             SessionHistoryCursor? cursor, int limit, CancellationToken cancellationToken)
         {
             if (HistoryFailure is { } failure) { throw failure; }
             AfterHistoryRead?.Invoke();
+            if (HistoryReader is { } reader) { return ValueTask.FromResult(reader(session, cursor, limit)); }
             return ValueTask.FromResult(new SessionHistoryPage(session, new(1), false, 0, [], null));
         }
         public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,
@@ -244,11 +253,18 @@ public sealed partial class SessionWorkspaceServiceTests
                 ? new SessionPage<WorkSessionAuthorization>([Session], Session.SessionId.Value) : new([], null));
         }
 
-        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(MetadataPage ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null));
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken)
+        {
+            ListReads++;
+            var result = ListReader?.Invoke(after, limit) ?? MetadataPage
+                ?? new SessionPage<SessionWorkspaceEntry>([new(Session, null)], null);
+            AfterListRead?.Invoke();
+            return ValueTask.FromResult(result);
+        }
 
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
+            if (ExactListReader is { } reader) { return ValueTask.FromResult(reader(session)); }
             if (RevokeDuringDispositionResolution) { AdvanceRevision(); }
             if (RevokeDuringTaskResolution) { CanInspect = false; }
             return ValueTask.FromResult(new SessionWorkspaceEntry(

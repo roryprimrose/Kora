@@ -20,6 +20,296 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R12/D-014 Bounded Original-User Session Memory Proposals - 2026-10-10
+
+The [original-user proposal increment](Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10) adds native **New session memory from draft** and exact typed/activated `memory propose` input to the same admission workflow used by delivered management. Host-issued identity/lineage/revision needs no existing memory. Creation is only volatile Proposed/Pending metadata.
+
+Exact inspect → explicit review → separate admission remains required. Domain text limits, 128 durable/volatile identity capacity including shells/tombstones, fresh exact original intent, private session/generation/owner/control admission, cancellation, audit/storage failure and late callback fences remain authoritative. Closure/privacy/session changes and restart discard drafts/unadmitted bodies. No speech/history/log/provider content is added.
+
+Maintained evidence: [Core grammar/domain boundaries](../tests/Kora.Core.UnitTests/Commands/MemoryCommandTests.cs), [Application hostile/revoked/failure/capacity tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.Proposals.cs), [private SQLite native/exact create-to-inspect/review/admit and discard tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Proposals.cs), and [static native binding contract](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.cs).
+
+Experiment assessment: no experiment assertion is exactly superseded by this model-free volatile proposal/UI addition. Retain all [storage proof](../experiments/r02-storage-proof/README.md#proof-code-lifecycle) crypto/copy/native/recovery assertions and receipts, plus [runtime](../experiments/r02-runtime-proof/README.md) and [local-inference](../experiments/r02-local-inference-proof/README.md) mediation/provider/quality/resource evidence. No executable or consumer is removed or rerun.
+
+Existing RT1 witness, management input-validation and synthetic runtime-extraction consumers remain unchanged. No eng proof-tool changes, hardware/provider trials, full R12/D-014 qualification or release acceptance are claimed.
+
+Local validation receipt: initial base `ca7e5393bbf1f8c62d17b19baa9752728e817e21`; conflict-free rebase onto main `9d156f30f469440e06d515368a5a2e399f51cea9`, preserving proof-only #141/#143. Code head `4eb5fcde2aeaf332dc062ffeeccb124f34586a30`; the subsequent receipt-only commit changes no executable code. Missing assets were restored locked from the approved Networking-AAA feed only.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1322; Application: 3602; Tools: 90; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: 1303; all five suites failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <latest-only-final-main-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0% (18273/18273); Branch coverage: 100.0% (10992/10992)
+```
+
+Follow-up receipt for [PR #150](https://github.com/roryprimrose/Kora/pull/150): rebased onto `c8365251488a063bd2e9ea76a6fb91002ea376bb` (#144) and reran the zero-warning Release build, all five suites and unchanged exact coverage gate with the same counts. A further rebase onto `444e7cd25bc10640766dd61d50e3c6566d1ae70e` (#145) adds only two proof receipt files; verified identical production/test/build-input trees and repeated the zero-warning build.
+
+Final privacy receipt on base `444e7cd25bc10640766dd61d50e3c6566d1ae70e`, code head `cd82be25e0a56d170e39e8e35f727b24dbb4eff9`: failed memory commands emit only exception type, never a diagnostic exception payload containing user text. The injected-storage-error test verifies this boundary. Release build 0 warnings/errors; Core 1322, Application 3603, Tools 90, Definitions 6, Windows 1303 pass with 0 failures/skips. Latest-only unchanged gate: 18275/18275 lines and 10992/10992 branches, 100%/100%.
+
+### R14 Advanced Native Read-Only Evidence Filters - 2026-10-10
+
+The optional [native Advanced filters area](../src/Kora/EvidenceWindow.axaml) exposes existing typed request/invocation/approval/audit-correlation IDs, inclusive ISO UTC/offset times, diagnostic severity and typed audit outcome through the [native parser](../src/Kora/EvidenceViewModel.Filters.cs).
+It uses the existing [bounded query service](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs). Default All remains SQLite-only; DailyLog/CombinedLog ordinary records never become committed AuthorityAudit.
+
+Both time edges are inclusive: SQLite/AuthorityAudit compare commit time, DailyLog observation time; CombinedLog retains independent snapshots and time semantics, not an atomic graph. Blank is unset; malformed/noncanonical identifiers, ambiguous/invalid times, reversed ranges and undefined enums refuse without an unfiltered/default read.
+Unsupported source/typed-filter combinations explicitly refuse. Any basic/advanced filter edit clears old results/selection/cursor, cancels an in-flight read and suppresses late content; Next retains the exact immutable query.
+
+Maintained evidence is [native typed/filter/culture/lifecycle and real SQLite/daily/combined tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs), [committed authority native filters](../tests/Kora.Windows.IntegrationTests/Storage/WindowsCommittedAuthorityAuditTests.cs),
+[inert XAML contract](../tests/Kora.Windows.IntegrationTests/EvidenceViewModelTests.cs) and [authenticated per-field continuation binding](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs).
+Existing 50-record/complete-64-KiB output and reader scan/time/snapshot/expiry bounds remain unchanged; no schema/index, shared authority, durable filter preference, model tool, copy/export, deletion or activity-extension path is added.
+
+This deterministic read-only slice is not full R14/workspace/Ask Evidence or installed visual/screen-reader/DPI acceptance. Experiment disposition: retain unique executables/receipts and their consumers unchanged.
+[Storage](../experiments/r02-storage-proof/README.md), [runtime](../experiments/r02-runtime-proof/README.md), [containment](../experiments/r02-containment-proof/README.md) and [speech](../experiments/r02-speech-proof/README.md) proofs exercise capacity/crypto/recovery, runtime/provider/mediation, process containment and acoustic/resource behaviors not invoked by filtering.
+These tests do not replace their release evidence or authorize archival.
+
+Local receipt for implementation `d97987474984ee9e0736407bb1f7b2e65a8cf0eb`, rebased onto reviewed main `c8365251488a063bd2e9ea76a6fb91002ea376bb`: missing worktree assets were restored locked using the machine-approved feed. The final Release solution build and all five suites passed with zero failures/skips.
+Fresh four-suite portable reports passed the unchanged [100% coverage gate](../eng/Assert-CodeCoverage.ps1), raw line/branch rates exactly `1`; source-generated logging source-file notices from report generation do not affect the zero-warning build or coverage totals.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1314; Application: 3579; Tools: 90; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: total 1337; failed 0; succeeded 1337; skipped 0
+All five suites: failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <fresh-r14-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0%; Branch coverage: 100.0%
+lines-covered/valid: 18223/18223; branches-covered/valid: 10975/10975
+```
+
+Queue-main rebase preserved `444e7cd25bc10640766dd61d50e3c6566d1ae70e` (#145). Compared with the full-suite implementation receipt above, only the roadmap receipt and two upstream publication-evidence files changed; production/test/manifests were identical.
+A fresh Release solution build again had zero warnings/errors, and all 120 focused native/query/SQLite/daily/combined/authority tests passed with zero failures/skips.
+
+Post-memory-main receipt: rebased onto `9d982afa26d0a9eafeb4c4f6bb66f5db2b05b8b7` (#150), preserving memory/Core HostActivity changes and both independent roadmap sections. Tested implementation head `43ba853c0582658ab8bc7554cf12fcf90e1a7f92`; the following receipt-only commit changes no executable code.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+Core: 1322; Application: 3612; Tools: 90; Definitions: 6; Windows: 1346
+All five Release suites: failed 0; skipped 0
+Fresh four-suite portable coverage, unchanged gate:
+Line coverage: 100.0% (18279/18279); Branch coverage: 100.0% (11013/11013)
+Raw line-rate/branch-rate: 1 / 1
+```
+
+### R14 Passive Session-List Metadata Search - 2026-10-10
+
+Delivered [native name/exact-ID list navigation](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) across bounded persisted metadata pages, separately from history lexical search and Evidence.
+Explicit modes, canonical-ID ordering, cross-page All/Active/Done scope, query/host/admission-bound continuation, complete byte/scan limits and truthful mutable-keyset recovery reuse existing private store and domain validation.
+
+[Core policy tests](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs), [passive workflow tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs), [actual private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs) and [headless native controls](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs)
+cover beyond-first-50 matches, Unicode/duplicate names, unnamed/exact IDs, state/removal, bounds, mutable changes, fail-closed cursors and passive preservation.
+
+No schema/index, new source or snapshot authority, conversation/history lexical scope, diagnostic filter, memory/skill/provider/file mutation, model or voice targeting is added. Caption monitor selection is outside this authorized increment. Existing memory proposals and selected work refresh remain functional.
+Composer/full conversation, general history/model/provider and installed screen-reader/DPI/native gates remain open.
+
+Experiment equivalence assessment: no executable or historical receipt is wholly superseded by bounded metadata navigation. Retain unique [storage crypto/copy/native/recovery assertions](../experiments/r02-storage-proof/README.md#proof-code-lifecycle), [runtime mediation/provider evidence](../experiments/r02-runtime-proof/README.md),
+[local-inference quality/resource assertions](../experiments/r02-local-inference-proof/README.md), containment and speech receipts. New tests do not invoke or reclassify them.
+
+Consumer assessment: the existing workspace list, exact controls, passive work timer, immutable history detail resolver and memory management share unchanged IDs/revisions/admission seams. Core Tools/Definitions dependency direction and typed/voice `session search` history grammar are unchanged.
+Runtime conformance/historical witness and management/runtime-extraction consumers remain; no experiment or eng/proof tooling is removed or rerun.
+
+Local validation: initial verified base `67be98ad67ce2a154ea22bbf21359c63edb37afa`; rebased only the owned branch onto `dac36b02d6e2570f72d8d58e26b9213c3b384268`, preserving #150 memory proposals, #153 preview refresh, #148 maintained validation and #149 source withdrawal.
+Validated code head `49bb79cc1aa5b46de44146d02339caf58dbab0c5`; this subsequent receipt-only edit changes no executable code.
+
+Missing assets were restored locked from the approved Networking-AAA feed only. All final commands ran synchronously in the verified search worktree, with no provider/hardware/installed-native or unrelated proof trials. Exact output, TRX and latest-only coverage reports remain under ignored `.net-test-artifacts\session-list-search-final-main-20261010`.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1372; Application: 3682; Tools: 137; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: 1345; all five suites failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 18547/18547; Branch coverage: 11152/11152; exact 100%/100%
+```
+
+Current-head follow-up for [PR #154](https://github.com/roryprimrose/Kora/pull/154): rebased onto `969ef020d807b6adf6639093d3c3354f1e9dd9d0` (#151), retaining the independently owned advanced Evidence section and all source/query/snapshot behavior. Added a deterministic native publication fence for admission changes after the service read completes.
+Validated code head `1c450c8309ff6a6218c4171e251e0d59e9803ed6`; this later receipt-only edit changes no executable code. Default configured test execution was used, with no serialized/isolated acceptance substitution.
+
+```text
+Release solution build: 0 warnings; 0 errors
+Core: 1372; Application: 3691; Tools: 137; Definitions: 6; Windows: 1389
+All five suites: failed 0; skipped 0
+Unchanged portable coverage gate: 18551/18551 lines; 11173/11173 branches; exact 100%/100%
+Exact output/TRX/latest-only coverage: .net-test-artifacts\session-list-search-969ef02
+```
+
+### R14 Passive Exact-Session Lexical History Search - 2026-10-09
+
+The next bounded R14 increment delivers [passive exact-session lexical search](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) over the existing ordered committed history. The [Application workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reuses private ownership, generation-bound reader snapshots and end-of-read admission. No schema/version/index changes, authority writes, new bodies, embeddings or query persistence are added.
+
+The [shared lexical rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs) constrain literal Unicode OR queries; [search results](../src/Kora.Core/Storage/SessionHistorySearchPage.cs) retain exact immutable event/session/sequence/source-revision/digest provenance, 200-receipt scan, 50-result/64-KiB bounds and explicit gaps/omissions/continuations. Only admitted committed fields are searched. Done stays passive; Removed content is absent. Native query/subject/privacy changes, cancellation and late reads cannot publish old results. The existing exact detail resolver is reused.
+
+[Core boundaries](../tests/Kora.Core.UnitTests/Storage/SessionHistorySearchTests.cs), [workflow and hostile-context tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Search.cs), [scratch SQLite/restart/disposition tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteHistorySearchTests.cs) and [headless native recovery](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs) are maintained equivalents for this slice only. Full R12/R14/A4, composer, general artifact history, model history reasoning, Ask Evidence, installed screen-reader/DPI and environment qualification remain open.
+
+Experiment disposition: retain executables and historical receipts unchanged. The [storage proof](../experiments/r02-storage-proof/README.md) still has unique capacity/copy/crypto/native/recovery cases beyond these actual standard-SQLite passive history tests. The [runtime proof](../experiments/r02-runtime-proof/README.md) and [local-inference proof](../experiments/r02-local-inference-proof/README.md) exercise mediation/final-request/provider and quality/offline/resource behavior not invoked by this model-free search.
+
+Runtime consumers also remain: [RT1 historical witness](../experiments/r02-dotnet-control-proof/Run-Conformance.ps1), [management input validation](../experiments/r02-dotnet-management-proof/Test-Inputs.ps1) and [synthetic runtime extraction](../eng/RuntimeValidation.Common.ps1). Executable archival requires exact maintained equivalence plus migration of these consumers; unique native lab procedures and receipts must remain. This increment does not satisfy those triggers and removes no executable code.
+
+Local receipt against reviewed main `1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`: locked restore through the machine-local approved feed; Release solution build with zero warnings/errors; Core 1,198, Application 3,123, Tools 69, Definitions 6 and Windows 1,232 pass with zero failures/skips. Matching latest-only portable reports pass the unchanged [coverage gate](../eng/Assert-CodeCoverage.ps1): 16,599/16,599 lines and 9,877/9,877 branches. The native status-only delta was rebuilt and its headless search test rerun after the full Windows suite.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+total: 1232; failed: 0; succeeded: 1232; skipped: 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <matching-latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0%; Branch coverage: 100.0%
+lines-covered/valid: 16599/16599; branches-covered/valid: 9877/9877
+```
+
+Rebase receipt: preserved the intervening provider-policy #125 main `55dc2816032841a14adde37fc333a711c810e4f1` without a merge. Tested rebased implementation head `728f3540af51676eb57257e4dd0d490a0fe6ad9b`: fresh Release solution build, all five required suites and latest-only aggregate portable coverage pass. The subsequent receipt-only documentation commit does not change binaries.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1216; Application: 3201; Tools: 69; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: total 1232; failed 0; succeeded 1232; skipped 0
+All five suites: failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <rebased-latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0%; Branch coverage: 100.0%
+lines-covered/valid: 16868/16868; branches-covered/valid: 10131/10131
+```
+
+Queue-main rebase receipt: preserved #127 main `42f1382d91fa5a2d164a7e86e6346940f6c3fcff`, including queue preference/observation consumer serialization, without a sibling/main merge. Tested combined implementation head `041c8d9265e0bce2317909df853b03740a54e5c9`; search adds no schema/version change. Fresh Release build and all five required suites pass. This distinct latest-only receipt does not aggregate older coverage reports.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project .\tests\Kora.<Core|Application|Tools|Definitions>.UnitTests\Kora.<name>.UnitTests.csproj --configuration Release --no-build --coverlet --coverlet-output-format cobertura
+Core: 1229; Application: 3294; Tools: 69; Definitions: 6
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+Windows: total 1234; failed 0; succeeded 1234; skipped 0
+All five suites: failed 0; skipped 0
+.\eng\Assert-CodeCoverage.ps1 -ReportPath <queue-main-latest-only-Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage: 100.0%; Branch coverage: 100.0%
+lines-covered/valid: 17273/17273; branches-covered/valid: 10349/10349
+```
+
+### D-014 Reviewed User-Memory Admission Increment - 2026-10-09
+
+This first-package receipt remains historical; its volatile storage gaps are superseded only by the [bounded durable increment](#r04r12d-014-session-only-durable-memory-storage---2026-10-09) below.
+
+The first dependency-safe memory package delivers the
+[reviewed admission contract](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09):
+portable strong identities and exact typed scopes; request/profile/session/source
+lineage; bounded value/serialized-candidate policy; explicit prohibited classes;
+host-owned propose/review/admit/edit/disable/forget and eligibility-before-use.
+Review receipts bind the exact revision and current boundary. Edits clear review
+and use; disable cannot silently re-enable; forgetting clears candidate/receipt
+and leaves a non-reusable volatile tombstone. Unknown scope, ownership, privacy,
+lineage, session and hosted/unknown disclosure remain closed.
+
+Application reuses host-resolved Activity, current-host/control/privacy access,
+authoritative session metadata and trusted typed audit. Its narrow internal
+profile/source observation seam has no production/native implementation yet.
+Concurrent revision conflicts, cancellation, lifecycle/audit callbacks and late
+authoritative reads cannot publish stale state. Session retirement conceptually
+clears session content; disposal clears the bounded workspace. Exact local-use
+IDs/provenance are receipts, never persistence, prompt or hosted authority.
+
+This package does **not** compose memory into the desktop/model host or overlap
+R14 immutable artifact/detail UI work. No Windows API, schema/storage adapter,
+dependency, native CRUD surface, provider, ranking, prompt, handoff, ingestion
+or embedding is added. R10/R12/R14 durable memory remains dependent/open:
+authoritative storage/audit transaction and native authority fences,
+restart/migration/lifecycle inventory/copy deletion, fresh original-user control
+intent, list/review/edit/disable/forget visibility, and request-use provenance.
+Retrieval eligibility is delivered; retrieval selection/ranking is not.
+
+Retain all experiments. Maintained deterministic tests cover this domain and
+application admission contract, not actual SQLite atomicity/recovery/disposal,
+SDK-native memory/session I/O, RT1 final-request serialization, RT2 all-path
+egress/quiescence or local model quality/offline/reference-floor evidence.
+None of their unique executable assertions or historical receipts is wholly
+superseded, and no experimental production code is modified.
+
+Local validation against merged main `02ecc68` (#121): locked root restore
+through the machine-local Networking-AAA Azure Artifacts source; Release root
+build with zero warnings/errors; Core **1,151**, Application **3,087**, Tools
+**69**, Definitions **6** and Windows integration **1,220** pass, with no
+failures/skips (**5,533 total**). Latest-only reports from matching current
+binaries cover **16,447/16,447 portable lines** and **9,803/9,803 branches**,
+exactly **100%/100%**, without new exclusions, threshold changes or analyzer
+suppressions. Focused tests cover hostile proposals, prohibited classes, exact
+limits, revision conflicts, scope/owner/privacy closure, review/edit/disable/
+forget, session retirement, cancellation/late/reentrant audit callbacks,
+correlation and no implicit persistence/use/hosted disclosure.
+This is not native CRUD, durable deletion or provider qualification evidence.
+
+Before publication, rebased the intervening CI-only #3 merge `5451813`.
+Fresh Release root build and all five required suites repeat the same passing
+counts; matching latest-only portable reports repeat exact **16,447/16,447
+lines** and **9,803/9,803 branches**. No R14 UI/storage implementation is changed.
+
+### R04/R12/D-014 Session-Only Durable Memory Storage - 2026-10-09
+
+The [delivered storage boundary](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09) extends the existing private standard-SQLite interaction store to schema v7. It delivers validated source-preserving v6 migration, exact original reviewed candidate/revision/lineage binding, fresh original-user committed intent, atomic required typed audit, restart validation, redacted pending edits, retained disabled state and durable non-reusable tombstones. The Application workflow uses the transaction seam and a real private session resolver; no second authority or preference/body store is introduced.
+
+Authoritative retirement, exact disposition hashing and session-owned retention include memory. Uninventoried interaction-store copies hold forget/edit redaction and retention acceptance. Maintained [actual-store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.cs) cover rollback, reopen, hostile/downgraded state, late writes, cancellation, independent-session preservation and subsequent legitimate writes without forgotten-body/receipt resurrection. [Portable admission tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.cs) maintain callback/lifecycle/cache and scope closure.
+
+Only Session durable scope is available. Private partition identity is not DeviceProfile/global selection authority; Project/Source scopes fail closed. Proposals/first reviews and edited replacement bodies remain volatile until exact admission. Native CRUD/review/list, broader scope authority, ranking/prompt/provider integration and hosted disclosure are not delivered. Desktop registration adds the store seam, not a memory UI/tool route. This remains bounded R04/R12/D-014 work, not end-to-end Rxx/A0-A4 or profile qualification.
+
+**Experiment assessment:** retain every remaining executable and historical receipt. [Storage](../experiments/r02-storage-proof/README.md) generic migration/reopen/atomic audit/retention assertions now have memory-specific actual-store equivalents, but its opaque capacity/performance payloads, encrypted-engine/FTS/DPAPI/rekey/artifact/backup/native comparisons and shared consumers are not exact memory-schema equivalents. Whole-harness archival still requires maintained assertion mapping and resolution of those consumers. [Node](../experiments/r02-runtime-proof/README.md), [RT1](../experiments/r02-dotnet-control-proof/README.md) and [RT2](../experiments/r02-runtime-lifecycle-proof/README.md) native memory/session I/O, final-request/all-status denial, hook-only failure witnesses and all-path observation remain unexercised; archive only after exact maintained enabled-profile equivalents. MG1, containment/W2, inference, speech and distribution dispositions remain as recorded in the [inventory](#experiment-disposition-inventory); no consumer is removed, experiment executed or qualification relabelled.
+
+Consumer checks additionally retain the [synthetic runtime runner](../eng/Invoke-SyntheticRuntimeValidation.ps1), [released lifecycle runner](../eng/Invoke-ReleasedRuntimeLifecycle.ps1), [MG1 linked volatile filesystem](../experiments/r02-dotnet-management-proof/ManagementProof.csproj) and [inference linked native observer](../experiments/r02-local-inference-proof/Proof.csproj). Memory-store assertions are not replacements for these native/profile consumers or the [storage cryptography harness](../experiments/r02-storage-proof/Program.cs).
+
+Local validation on fetched/rebased main `1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`: locked root restore used only the machine-local Azure Artifacts source after this new worktree's missing-assets failure. Release root build and all required suites completed against the final memory sources with no failures/skips. Focused actual-store memory tests pass **24/24**, including subsequent-write/reopen body and receipt non-resurrection. Latest-only matching portable reports passed the unchanged exact gate at **16,542/16,542 lines** and **9,859/9,859 branches**, without exclusions, suppression or threshold changes.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project <project below> --configuration Release --no-build --report-trx
+Kora.Core.UnitTests: 1152 passed; Kora.Application.UnitTests: 3109 passed.
+Kora.Tools.UnitTests: 69 passed; Kora.Definitions.UnitTests: 6 passed.
+Kora.Windows.IntegrationTests: 1248 passed. All five: 0 failed, 0 skipped.
+Latest-only reportgenerator + eng\Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100:
+Line coverage 100%; branch coverage 100% (16542 lines, 9859 branches).
+```
+
+This is source/maintained-test evidence, not installed storage, real provider/native memory I/O, OS power-loss/forensic deletion or release/profile qualification.
+
+Rebase receipt: preserved the intervening volatile provider-policy/handoff sections from main `55dc2816032841a14adde37fc333a711c810e4f1` (#125), resolving only the shared status paragraph. Rebuilt combined sources in Release with zero warnings/errors. Fresh suites pass Core **1,170**, Application **3,187**, Tools **69**, Definitions **6** and Windows **1,248** (**5,680 total**, zero failures/skips in the final runs). Matching latest-only reports pass exact **16,811/16,811 portable lines** and **10,113/10,113 branches**, with unchanged gates.
+
+The first combined Windows run recorded 1 failure/1,247 passes in the existing [50 ms audio-open cleanup fixture](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs): `DisposeAsync` reported `"Native capture work is still closing; quiescence is not confirmed."` Its occurrence cause remains unconfirmed. An initially unqualified selector ran zero tests and was corrected, not counted as validation. The fully-qualified exact rerun passed 1/1; the unchanged full Windows rerun passed 1,248/1,248. No audio source, test, timer, threshold or exclusion was changed.
+
+Queue-integrated rebase receipt: conflict-free rebase onto main `42f1382d91fa5a2d164a7e86e6346940f6c3fcff` ([#127](https://github.com/roryprimrose/Kora/pull/127)), preserving admitted queue settings/consuming serialization and provider/memory authority. Tested source head: `c42be4548bcf6b35104001b3351b9c1cf618ce6d`. No sibling branch or main was merged/cherry-picked.
+
+Fresh combined Release build and all five suites passed on this source head; Windows ran after the portable suites with no changes to test settings or timers. This distinct attempt had zero failures/skips; the earlier failed-attempt receipt above remains historical. Latest-only portable aggregation used one fresh report per assembly, with unchanged exact gates and no exclusions.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+dotnet test --project <required project> --configuration Release --no-build --report-trx
+Core: 1183 passed; Application: 3280 passed; Tools: 69 passed; Definitions: 6 passed.
+Windows: 1250 passed. All five: 5788 passed, 0 failed, 0 skipped.
+Portable suites additionally: --coverlet --coverlet-output-format cobertura.
+Latest-only reportgenerator: four matching Cobertura reports, portable assembly filters.
+eng\Assert-CodeCoverage.ps1 -ReportPath <combined Cobertura.xml> -MinimumLine 100 -MinimumBranch 100
+Line coverage 100%: 17216/17216; branch coverage 100%: 10331/10331.
+```
+
+History-integrated rebase receipt: main advanced again before auto-merge to `99d4bafbdaca6d2db2f5c9bd2d9285ab88dc9aee` ([#124](https://github.com/roryprimrose/Kora/pull/124)). Conflict-free rebase preserved passive exact-session lexical search, admitted queue configuration and provider/memory authority. Tested source head: `d1191066006c5d2cb46ee4a742341598d612e0ad`. No merge/cherry-pick or schema-authority change.
+
+Fresh sequential validation used the same root Release/suite commands above and exactly one newly generated portable Cobertura report per assembly. All five suites passed without retries, failures or skips in this attempt. Earlier distinct receipts, including the audio failure and unchanged repeats, remain historical; no test, timeout, coverage threshold or exclusion was weakened.
+
+```text
+Release solution build: 0 warnings, 0 errors.
+Core: 1229 passed; Application: 3304 passed; Tools: 69 passed; Definitions: 6 passed.
+Windows: 1258 passed. All five: 5866 passed, 0 failed, 0 skipped.
+Latest-only portable aggregate: 17346/17346 lines; 10399/10399 branches.
+eng\Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100:
+Line coverage 100%; branch coverage 100%.
+```
+
 ### R04-R08 Provider-Neutral Host Control Increment - 2026-10-09
 
 The first D-014 implementation package delivers the
@@ -51,6 +341,176 @@ Artifacts source; Release solution build with zero warnings/errors; Core
 tests passed, none skipped. Current portable reports cover all 16,170 lines
 and 9,528 branches (100%/100%). No real provider/native qualification trial,
 installation, account or network-policy change was performed.
+
+### R08/D-014 Bounded Exact Native Handoff Review - 2026-10-10
+
+The [local consumer](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10) wires **Settings > Providers > Review pending exact provider handoff** to actual audited host-issued pending offers. Application owns bounded volatile publication/revocation and one exact presentation lifetime.
+
+Native chrome shows original identity/revision/destination/reason bindings and the immutable complete 32,768-byte/sixteen-evidence envelope, without truncation or active content. No arbitrary-context/model-serialized/sample route is exposed.
+
+Approve/decline/cancel and evidence removal call the same workflow. Old question/offer retirement and fresh reduced-envelope review prevent approval inheritance. Original intent, session/task/generation, question, destination/policy/privacy/control revisions, one-use, deferred Activity links, required audit and late-callback/close/cancel/disposal checks remain fail-closed.
+
+Unrelated questions and work/voice targets are not retargeted. Production shows unavailable/no pending qualified offer; confirmation claims exact context review only, not transmission or execution.
+
+Scope closes the native **review consumer** gap, not D-014/R08 acceptance. Production adapters/qualification/account/final-request-egress remain absent; LocalOnly defaults and per-turn semantics are unchanged. Deterministic wiring/hostile/stale/lifecycle/limit tests, genuine private SQLite question/audit rollback and XAML contracts are not installed native/provider acceptance.
+
+RT1 source-built bytes and RT2 all-path gates stay BLOCKED. MG1's released-runtime repeat is narrower evidence, not production/account acceptance. Unique runtime/native/account/local-floor/offline procedures and all experiment receipts/executables remain **retain**. No maintained-proof owner files, experiments, preferences or schemas change.
+
+Validation on `444e7cd` main with code head `0798163`: root Release build had zero warnings/errors. Core **1,314**, Application **3,616**, Tools **90**, Definitions **6** and Windows **1,299** passed, with zero failures/skips. Clean reports and the existing coverage gate confirmed **18,387/18,387 portable lines** and **11,058/11,058 branches** (100%/100%).
+
+After preserving merged memory #150 on `9d982af`, the root Release build again had zero warnings/errors. Core **1,322**, Application **3,649**, Tools **90**, Definitions **6** and Windows **1,308** passed with zero failures/skips. Clean portable reports confirmed **18,443/18,443 lines** and **11,096/11,096 branches** (100%/100%). The subsequent #147 rebase changes maintained receipts only, not feature code.
+
+Final rebase onto `b127e55` preserves memory, preview refresh, source withdrawal, evidence filters and session-list search. The zero-warning/error Release build and unchanged default-mode suites pass: Core **1,372**, Application **3,737**, Tools **137**, Definitions **6**, Windows **1,396**, with zero failures/skips. Clean portable coverage is **18,719/18,719 lines**, **11,277/11,277 branches** (100%/100%).
+
+Earlier default-parallel Windows failures and exact failing PR-event CI logs are retained, not reclassified as success. The source-withdrawal owner demonstrated a foreign stopped-Activity callback holding a real SQLite database open after listener disposal. Its Windows fixture used an undefined `Host tracing` collection and overlapped unrelated activities.
+
+Parent explicitly authorized only correction `9d341bbb`: that fixture now uses the existing exclusive `DurableStorageCompositionTestGroup`, with deterministic callback/open-database and collection-membership regressions. Default runner settings and production logging/audit/lifecycle code are unchanged. Serialized diagnostics were not acceptance; no global production callback/quiescence fix is claimed.
+
+### R08/D-014 Volatile Provider Policy and Exact Handoff Workflow - 2026-10-09
+
+The [bounded policy/workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+consumes the delivered provider-neutral ModelTurnHost and existing
+HostQuestionService authority/audit transactions. Core owns typed session modes,
+per-turn choices, observable reasons and canonical selection validation;
+Application owns volatile revision publication, exact review/removal and the
+host admission consumer. No sibling persistence schema or broad presentation
+code is changed.
+
+LocalOnly cannot offer hosted disclosure; LocalFirst requires exact one-use
+original-user review; HostedPreferred still requires independent remote egress.
+Context/destination/policy/question/session/task/control revisions are bound
+and revalidated. The host-audited local Unavailable result can offer a new review,
+never race providers or automatically retry/fallback
+([implementation and tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Policy.cs)).
+
+**I:** the consumed host/session/task/privacy/ownership, question and typed audit
+seams are implemented, with deterministic hostile-origin, cross-session,
+exact-limit, stale/expired/cancellation/late-callback and audit-failure tests.
+**E:** production adapters/accounts/acquisition, local L1-L5/L6 and exact-profile
+RT1/RT2/PV1 remain unavailable/open. **Q:** native provider settings and exact
+preview/admission, durable session policy, production final-request egress,
+streaming and offered-profile/RC acceptance remain dependent work. Review is not
+qualification; R04-R08/D-014 are not accepted end to end
+([qualification boundary](Runtime_Provider_Feasibility.md#qualification-scope-and-maintained-test-migration)).
+
+Experiment disposition: retain Node, RT1, RT2, MG1 and local-inference
+executables, unique procedures and historical receipts. Their actual SDK/native
+request/lifecycle/session-I/O/retry/account/hardware subjects are not exactly
+replaced by host-policy tests; shared RT1 derivations and
+[maintained runtime preparation consumers](../eng/RuntimeValidation.Common.ps1)
+remain. No assertion is labelled migrated and no code is removed; the
+[inventory](#experiment-disposition-inventory) retains its exact-equivalence
+and consumer closure requirements.
+
+Local validation receipt on reviewed base
+`1eb004bdf9b183ea2aa2b4983b1f12877d7436d0`: missing initial assets required only
+locked solution restore through the machine-local feed. The final Release build
+and all applicable suites passed; after exercising enabled fault/outcome
+diagnostics, latest portable reports pass the unchanged exact coverage gate.
+These are deterministic/local regression results, not runtime qualification.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s)
+
+dotnet test --project .\tests\Kora.<suite>.UnitTests\Kora.<suite>.UnitTests.csproj --configuration Release --no-build --report-trx --coverlet --coverlet-output-format cobertura
+Core: total 1170, failed 0, skipped 0
+Application: total 3177, failed 0, skipped 0
+Tools: total 69, failed 0, skipped 0
+Definitions: total 6, failed 0, skipped 0
+
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build --report-trx
+Windows: total 1224, failed 0, skipped 0
+
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .\.net-test-artifacts\final-base3\coverage-report\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+line=1 branch=1 lines=16738 branches=10063
+```
+
+### R14 immutable selected-session receipt details - 2026-10-09
+
+Built on current main including #119 native theme/UX proof and #120 trusted
+local visual events, with delivered lexical retrieval and inventoried retention.
+There is no admitted persisted artifact-body source. The bounded
+increment therefore resolves an exact host-committed `SessionHistoryEvent`
+through the existing private Application/storage read path, not a new artifact
+store or a fabricated response. Sessions exposes the current bounded history
+page's sequence/kind/availability/event IDs and **Open immutable receipt details**
+only for its exact selected session. Opening freshly resolves the receipt;
+selection/privacy/ownership/revision changes, cancellation, missing or foreign
+records and failed storage refuse. The existing complete 64 KiB serialization
+is presented as inert plain text in the shared native-text-v1 viewer.
+
+Event ID and session-local sequence bind the immutable detail reference.
+Availability, baseline/gaps, generation, source revision, recorded provenance
+digest and required audit references remain truthful metadata. Reopening the
+same receipt activates its existing viewer; a changed snapshot cannot replace
+it. Native chrome shows retained session/item/sequence, source digest and private
+disclosure classification. Search and explicit disclosure-confirmed Unicode
+copy reuse existing viewer policy; closing releases presentation only.
+History reads/detail resolution preserve passive focus and selected work/
+pending questions; they never resume, reprioritize, extend meaningful activity,
+create authority, replay, dispatch or invoke model/network/worker execution.
+
+Owned detail viewers are cleared before native confirmed logical disposition
+and by the retention revocation callback before inventoried deletion. Privacy/
+ownership closure clears all presentation. Logical disposition retains redacted
+citations; inventoried retention purges old event IDs, which resolve unavailable,
+and retains only a content-free redacted gap/tombstone. No schema/persistence/
+retention policy changes.
+Local file preview and lexical revision/digest/line citations, skill review,
+diagnostic evidence and queue controls remain their existing separate sources;
+none is imported as history or artifact content.
+
+Maintained Core classification/ownership and Application exact resolution/
+failure/cancellation/trace tests plus native receipt/work/question/focus,
+restart/redaction/copy and pre-deletion retirement tests cover this slice.
+General artifact bodies, full conversation/composer, script/diff result routing,
+history search/model reasoning, Ask Evidence, broad export and installed
+screen-reader/DPI qualification remain gated; R14/A4 is still partial.
+
+Validation: root locked restore through the machine-local mandated feed,
+Release build with zero warnings/errors, Core 1,114, Application 2,983,
+Tools 69, Definitions 6 and Windows integration 1,224 passed
+(5,396 total; zero failures/skips). The unchanged exact portable gate passes
+15,878/15,878 lines and 9,326/9,326 branches (100%/100%).
+Focused Application workspace tests passed 117/117; selected native receipt
+tests also passed before the full gate. Validation found an unchanged
+maintenance-disposal cancellation/admission race; after explicit owner
+approval, cancellation is now checked immediately after acquiring its semaphore.
+The existing cancellation regression and complete suites pass without weakening
+admission or changing maintenance effects. No installation, elevation, account,
+network-policy change, native audio or destructive user-data trial was performed.
+
+Pre-publication rebase onto provider host-control #121 (`02ecc68`) preserved
+both roadmap deliveries and introduced no artifact persistence or adapter
+composition. The combined Release build again passed with zero warnings/errors;
+Core 1,129, Application 3,048, Tools 69, Definitions 6 and Windows 1,224
+(5,476 total) passed with zero failures/skips. Fresh portable reports pass
+16,192/16,192 lines and 9,534/9,534 branches (exact 100%/100%).
+
+Strict auto-merge required subsequent rebases after workflow-only #3 and
+memory-admission #123 (`d66f966`). Version/publication contracts and selected
+native tests passed after #3; no production source/dependencies changed there.
+The #123 combined Release build and all required suites passed: Core 1,152,
+Application 3,099, Tools 69, Definitions 6, Windows 1,224 (5,550 total;
+zero failures/skips). Fresh portable coverage is 16,469/16,469 lines and
+9,809/9,809 branches (exact 100%/100%). Memory adds no persisted artifact
+body source or desktop composition, so this receipt-detail boundary is unchanged.
+
+#### R14 experiment equivalence assessment
+
+| Existing evidence | Maintained equivalence and disposition for this slice |
+|---|---|
+| [Storage](../experiments/r02-storage-proof/README.md) | Exact production receipt identity/digest across reopen, retained redaction and pre-deletion presentation retirement are maintained in `SessionsHistoryDetailTests` and `DetailWindowControllerTests`, supplementing existing history/retention tests. This is not authenticated managed-artifact/backup copy evidence: encrypted engines, crypto/key/rekey/DPAPI, capacity/migration, leakage and native consumers remain unique. Retain the intertwined harness and all receipts. |
+| [Node runtime](../experiments/r02-runtime-proof/README.md), [RT1 .NET controls](../experiments/r02-dotnet-control-proof/README.md) | Passive persisted receipt reads do not exercise provider mediation, all-status denial or the hook-only failure witness. Retain both exact-profile harnesses/receipts. |
+| [RT2 lifecycle](../experiments/r02-runtime-lifecycle-proof/README.md), [MG1 management](../experiments/r02-dotnet-management-proof/README.md) | No runtime or management provider is introduced; observation/quiescence, envelope/deadline and profile-specific identity/Unknown evidence are not superseded. Retain. |
+| [Containment](../experiments/r02-containment-proof/README.md), [W2 dependencies](../experiments/r02-w2-dependency-proof/README.md) | Inert native receipt rendering is not worker/token/ACL/network/child/helper/effect qualification. Preserve unique OS and rejected-candidate evidence and remaining consumers. |
+| [Local inference](../experiments/r02-local-inference-proof/README.md), [Speech](../experiments/r02-speech-proof/README.md) | Neither lexical retrieval nor receipt detail invokes inference/audio. Quality/resource/offline and acoustic/packaged-host evidence remains unique; retain opt-in harnesses. |
+| [Distribution](../experiments/r02-distribution-proof/README.md) | Existing archival disposition remains: maintained `eng`/installer tooling already replaced six scripts; original receipts are historical, not installed-byte acceptance. No new equivalence or retirement. |
+
+All ten experiment families were assessed; no remaining executable has all
+unique evidence superseded. No experiment source, pin or historical receipt is
+deleted, promoted to production or rerun for this passive slice.
 
 ### R18 trusted local visual broker increment - 2026-10-09
 
@@ -122,6 +582,57 @@ maintained authority/native tests supplement, not replace, storage recovery/
 capacity/copy/crypto consumers and runtime/lifecycle/containment/speech/
 distribution or real installed-native evidence. No harness is promoted,
 deleted, archived or reclassified as a production executor by this increment.
+
+### R10/R13 bounded fixed queue settings - 2026-10-09
+
+The existing synchronous read-only local-version queue now exposes only its authoritative domain ranges: pending capacity **1-10/default-reset 10** and global fixed-read slots **1-2/default-reset 1** ([domain](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [preferences](../src/Kora.Core/Configuration/SessionQueuePreferences.cs)).
+Native **Settings > Sessions** and exact typed/current-name activated list/get/status/set/per-option reset share original-input admission and host-held revisions.
+Native drafts expire on hide/reopen or concurrent edits; protected original-voice mutation denies without downgrade.
+Required typed REQUESTED/terminal audit, shared atomic save/readback, durable completed control receipt and confirmed readback precede activation ([service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [native workflow](../src/Kora.Application/ViewModels/MainViewModel.QueueConfiguration.cs)).
+
+Schema-1 device-local `session-queue.txt`/`session-queue-unconfirmed.txt` use `IApplicationDataPaths`; malformed/noncanonical/unknown schema or UTF-8 and unconfirmed/inaccessible state refuse, never default or claim rollback ([atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
+Short enqueue/admission/observation transactions serialize with edits and revalidate revisions/confirmed storage; running reads and whole dispatch batches do not hold that gate.
+Current limits feed [queue admission/fair dispatch](../src/Kora.Application/Hosting/SessionQueueService.cs), [native/exact work](../src/Kora.Application/Hosting/SessionWorkspaceService.cs) and [local event observation](../src/Kora.Application/Interaction/AuthorityLocalEventSource.cs).
+Lowering pending capacity never evicts/reclassifies queued entries; lowering slots never cancels/reinterprets active admissions.
+Existing deadlines remain unchanged ([race tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs), [durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+
+Pending lifetime **30 minutes** and admission budget **5 minutes** remain fixed/unavailable to edit.
+The proposed broader 1-50 capacity/deadline table is not this enabled profile.
+No schema migration, automatic dispatch, worker, resource lease, provider/audio/model tool or general execution is added.
+Full R10/R13/A3, real two-slot resource/provider/hardware qualification and installed native/accessibility acceptance remain open under the [three-tier policy](Acceptance_Criteria.md#three-tier-qualification-policy).
+See the [user contract](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) and [exact commands](../docs/commands.md#fixed-queue-settings).
+
+#### Validation receipt
+
+Tested base after conflict-free rebase preserving the merged provider sections: `55dc2816032841a14adde37fc333a711c810e4f1`; tested code head `4357eca75129ff45e0b03a2c51f8c75d2eeee797`.
+After the initial no-restore build reported NETSDK1004 missing isolated assets, locked restore used only the required machine-local Azure Artifacts source; no repository feed/lock configuration changed.
+Root Release build completed with **0 warnings / 0 errors**.
+The [domain fixtures](../tests/Kora.Core.UnitTests/Configuration/SessionQueuePreferencesTests.cs), [service/failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs), [native/exact routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs) and [UI contract](../tests/Kora.Windows.IntegrationTests/SessionQueueConfigurationUiContractTests.cs) cover the bounded delivery, not physical qualification.
+
+Final required suites after rebase: Core **1,183**, Application **3,270**, Tools **69**, Definitions **6**, Windows **1,226**; all passed with zero failures/skips.
+Latest-per-suite portable Cobertura inputs passed the unchanged [100% line and branch gate](../eng/Assert-CodeCoverage.ps1), not rounded near-100% or merged obsolete coverage runs.
+Commands and relevant result excerpts:
+
+```powershell
+dotnet restore .\Kora.slnx --locked-mode --source https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json
+dotnet build .\Kora.slnx --configuration Release --no-restore
+# Build succeeded. 0 Warning(s), 0 Error(s).
+# Each required suite: dotnet test --project <project> --configuration Release --no-build
+# Portable suites additionally used --report-trx --coverlet --coverlet-output-format cobertura.
+# Passed after rebase: Core 1183, Application 3270, Tools 69, Definitions 6, Windows 1226; zero failed/skipped.
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .\.net-test-artifacts\coverage-report\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+# Line coverage: 100.0% (minimum 100.0%)
+# Branch coverage: 100.0% (minimum 100.0%)
+```
+
+#### Experiment disposition
+
+Retain every experiment and historical receipt; none is retired, promoted or rerun by this slice.
+The [MG1 disposition](../experiments/r02-dotnet-management-proof/README.md#profile-and-historical-separation) retains actual released SDK/runtime HTTP/stdio and identity/byte/deadline/account separation absent from these local preference tests.
+The [RT2 lifecycle disposition](../experiments/r02-runtime-lifecycle-proof/README.md) retains real native lifecycle/file/socket/quiescence observation.
+The [containment disposition](../experiments/r02-containment-proof/README.md#scope-and-contracts) retains unique attributable network/token/ACL/child evidence and unproven strict denial gates.
+Exact maintained assertion equivalence and complete consumer/reference replacement are not established; deterministic capacity/revision tests cannot replace those native/provider/hardware procedures.
+Unrelated speech, inference, storage and distribution experiments remain outside this configuration scope under the [existing inventory](#experiment-disposition-inventory).
 
 ### R13 deterministic local-version queue increment - 2026-10-09
 
@@ -382,6 +893,72 @@ acoustic/runtime/installed qualification. Dated validation receipts below retain
 their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
+
+### R26.1d explicit volatile preview refresh - 2026-10-10
+
+Explicit native **Refresh this file/folder preview** and exact typed/current-name ACTIVATED `refresh file` / `refresh folder` operate only on the host-held exact admitted source, original canonical path and physical file/directory identity. The same Windows inspection policy, original/current session/task/control/privacy/call/ownership/generation gates and broker audit/release fences apply. A new complete metadata-only review and separate new native confirmation precede all content reads. File/folder bounds and formats are unchanged.
+
+Same-root refresh preserves the Kora source ID and original admitted host request, but publishes fresh exact revision/item identities/digests only after candidate consistency, complete inventory capture, release and terminal audit. The single-slot broker retires the old immutable preview/citations at start; failure/cancel admits nothing and requires fresh native picker recovery. Replaced/missing/aliased physical roots cannot silently acquire source trust. Original files remain untouched ([delivered boundary](File_And_Folder_Ingestion.md#delivered-explicit-volatile-preview-refresh---2026-10-10)).
+
+No watcher/scheduler/recursion, registry, durable attachment/history/index, model/egress/clipboard/speech or document execution/approval authority is added. Full managed-source lifecycle, R26.2 acceptance, qualified local/hosted reasoning, OCR/vector and installed-native/accessibility gates remain open. All unique historical/native/inference/storage/runtime/containment experiments and consumers are retained; no experiment is exactly replaced by bounded volatile refresh.
+
+Final local validation on implementation head `a8de68d01c213d335f7ce1948510623ca31608ff`, rebased on `444e7cd25bc10640766dd61d50e3c6566d1ae70e`: direct synchronous root Release build and all five full suites pass with zero warnings/errors, failures or skips. Initial missing assets (NETSDK1004) justified one locked restore through the authorized machine-local feed. Focused broker/host/native trials preceded final validation. An initial exact coverage failure identified redundant host freshness reads and one unexercised refusal result; capture-once admission and refusal tests fixed these without exclusions or threshold changes.
+
+```text
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+
+dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
+total: 1321; failed: 0; succeeded: 1321; skipped: 0
+dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
+total: 3580; failed: 0; succeeded: 3580; skipped: 0
+dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
+total: 137; failed: 0; succeeded: 137; skipped: 0
+dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTests.csproj --configuration Release --no-build
+total: 6; failed: 0; succeeded: 6; skipped: 0
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+total: 1311; failed: 0; succeeded: 1311; skipped: 0
+
+Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100
+lines: 18284 / 18284; branches: 11058 / 11058
+```
+
+The four final portable invocations also collected fresh Coverlet Cobertura/TRX reports under the feature-owned ignored `.net-test-artifacts\refresh-final-20261010` tree. The unchanged CI assembly filter and gate accept exact line-rate/branch-rate `1`, not rounded percentages. ReportGenerator reports absent compiler-generated `LoggerMessage.g.cs` source documents; these are generated-source lookup notices, not build/test warnings or missing coverage, and the exact report still passes. No dependency manifests, lockfiles, eng proof scripts, shared SQLite schema, experiment files, exclusions or thresholds changed.
+
+The experiment equivalence/consumer check retained the storage proof's intertwined migration/crypto/native/artifact consumers, actual local-inference quality/context/offline/resource trials, RT2 observer/quiescence and unresolved all-path runtime evidence, and native containment token/ACL/network/child measurements. Existing design, dependency-license, released-runtime and opt-in proof consumers remain intact. Volatile lexical refresh is not equivalent to any of those native/inference/durable/installed proofs.
+
+Latest-main revalidation on refresh head `d7c3a1970b66ce05a77391187ae22562fa664e6e`, base `9d982afa26d0a9eafeb4c4f6bb66f5db2b05b8b7`, preserves merged memory proposals and the Core host-scope distinction. Refresh refuses stopped/replaced host activity rather than fabricating native fallback authority; four focused hostile/expired-context cases cover both source kinds. Direct synchronous root Release build again has zero warnings/errors. Full suites: Core **1329**, Application **3617**, Tools **137**, Definitions **6**, Windows **1320**, all passed with zero failures/skips. Fresh rebased portable reports pass the unchanged exact gate: **18343/18343 lines**, **11100/11100 branches**, both rates `1`. This supersedes no earlier receipt and adds no experiment/eng proof run or installed/runtime qualification.
+
+### R26.1c bounded folder-scoped lexical retrieval - 2026-10-09
+
+Delivered on R26.1a/b: native folder selection, complete metadata-only review, exact native confirmation, and volatile immutable immediate-file revisions. Fixed limits are 32 files, 1 MiB combined original bytes and unchanged 256 KiB per file. Empty folders and any subdirectory or inadmissible item reject the whole selection. The same verified Windows handles, strict decoder, original-byte digests, shared revocation/audit broker and lexical-lines-v1 ranking/citation implementation serve file and folder selections ([exact boundary and staged plan](File_And_Folder_Ingestion.md#delivered-bounded-folder-scoped-lexical-retrieval---2026-10-09)).
+
+Native folder queries/excerpts never enter history, models, clipboard or durable storage. There is no recursion, refresh/watcher, durable cross-session attachment or disable/remove lifecycle; R26.2 remains separately gated. No embeddings/vector index, local-model reasoning or hosted egress is added. All experiments remain retained and installed native/accessibility acceptance remains outstanding ([maintained host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Folders.cs), [native filesystem tests](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Folders.cs)).
+
+Local validation on `e0692f438a058de0a20021b3420a981849706dbf` (latest `origin/main` at validation): locked restore through the machine-local feed override, root Release build with zero warnings/errors, and all five full suites with zero failures/skips. The initial obsolete folder-unavailable assertion and native directory exception-class mismatch were corrected; analyzer failures were corrected without suppressions. Fresh-only combined portable coverage passes the unchanged exact 100% line/branch gate ([Core fixtures](../tests/Kora.Core.UnitTests/Context/LocalFolderTests.cs), [broker fixtures](../tests/Kora.Tools.UnitTests/Files/LocalFolderTests.cs)).
+
+```text
+dotnet restore .\Kora.slnx --locked-mode --source <machine-local feed override>
+Restored all 13 projects.
+dotnet build .\Kora.slnx --configuration Release --no-restore
+Build succeeded. 0 Warning(s), 0 Error(s).
+
+dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
+total: 1261; failed: 0; succeeded: 1261; skipped: 0
+dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
+total: 3318; failed: 0; succeeded: 3318; skipped: 0
+dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
+total: 90; failed: 0; succeeded: 90; skipped: 0
+dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTests.csproj --configuration Release --no-build
+total: 6; failed: 0; succeeded: 6; skipped: 0
+dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
+total: 1284; failed: 0; succeeded: 1284; skipped: 0
+
+Assert-CodeCoverage.ps1 -MinimumLine 100 -MinimumBranch 100
+lines: 17551 / 17551; branches: 10554 / 10554
+```
+
+Portable test invocations also collected fresh Coverlet Cobertura reports for the unchanged CI assembly filter. No dependency manifest, lockfile, coverage exclusion or threshold changed.
 
 ### R26.1b selected immutable revision lexical retrieval - 2026-10-09
 
@@ -2695,9 +3272,9 @@ all 13 final x64/x86 PE manifest-resource bytes with declared source bytes.
 |---|---|---|---|---|
 | R10 - Implement typed configuration and capability-scoped setup | **Bounded native/exact configuration delivered**: nine appearance options, installed provider/voice pair, assistant display/PTT prefix, spoken-summary caps, exact microphone/output preferences, [per-Kora 0-100 volume](User_Configuration.md#delivered-bounded-per-kora-playback-volume-r10), [device-default Hybrid/VoiceOnly/VisualOnly](User_Configuration.md#delivered-bounded-device-default-response-mode-r10) and [future-only ordinary SQLite diagnostic days](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04). Diagnostic integer1–365/default-reset30 preserves old deadlines, audit90/domain, files30/30 and all authority; apply-now and cleanup-trigger changes unavailable. Shared domain validation, revisions, atomic save/audit/readback, live invalidation and explicit recovery retain original-channel admission. Volume default/reset 100 is unity; zero prevents synthesis/autoplay with full visual recovery, and raising/resetting never replays. Mode delivery adds no session/task/queue override or fallback/call-policy change; mandatory visual previews remain. Full R10/I03/I04/I08/I11/I14 and native/acoustic acceptance remain open; [dependency inventory](Dependency_Catalogue.md) is not a complete executable catalogue or provisioning budget | P1 - consistent voice/UI controls without unsafe mutations | I: consumed R04/R05/R06/R09 contracts; E/Q: R02-L2/L5 for local-model setup claims, affected speech profile evidence only | Retain delivered descriptors and workflows; register remaining speech/input/output options, queue/deadline/other-retention/concurrency, runtime, grants/calls, appearance/startup and admitted extension settings. Broader scopes, general verbal/model settings, whole-profile reset/undo and safe recovery/conflicts remain open. Turn admitted dependency entries into versioned source/identity/verification/ownership/probe/consent/refusal records; experimental/unimplemented adapters stay unavailable. Distinguish transfer/model storage from expanded runtime/staging/per-volume headroom and use the tested compatibility envelope; the 2 GB model guard is not a total provisioning budget. Retain app-led dependency detection/installation with or without installer assistance, optional-provider refusal without repeated prompts/downloads or cloud fallback, host-owned installation/sign-in/secure workflows and device-local protected-call origin gates. |
 | R11 - Deliver registered embedded multi-script skills and containment | **Bounded catalogue/identity/native review delivered**; runner unavailable; I17 partial proof is not admission; partial readiness/lock I08/I12 | P0 - finish lock without admitting arbitrary execution | I: consumed R03/R04/R05/R06/R10 contracts; E/Q: applicable R02 W1-W4/D-013 for worker exposure, not catalogue/review work | Embed lock manifest/instructions/fixtures, entry script and shared helper; verify `Kora.ScriptSet.v1`/`Kora.SkillDefinition.v1` complete framed identities and dependent-grant revocation. Direct/model/skill routes use the same pinned task exactly once with immutable source review. Complete W4: admit only fixed profiled workers with exact declared-resource review, best-effort transitive tracking/gap disclosure, protected required runtime/adapter admission, attributable network denial, bounded output/cancellation/Unknown receipts and real OS filesystem/child-process/credential/Kora-resource isolation. Prove observed lock outcome. Reject unsupported profiles or an unapproved broker substitution. Prepare power packages but do not enable OS power until R16. |
-| R12 - Complete session lifecycle, history and per-session work/queues | **Bounded authority workspace, metadata, exact task controls, native logical disposition, [ordered interaction history](#r12r14-bounded-ordered-interaction-history---2026-10-09), fixed local-version queue and [session retention](#r12-bounded-session-retention-delivered---2026-10-09) delivered**. Schema v6 preserves v5 queue, v4 ordered history and v3 task/question/required-audit authority while adding a meaningful-activity clock, future-only 24-hour archive/30-day deletion, source revocation, live/uncertain holds and inventoried content/artifact/staging/journal removal. Independent Perpetual records and unrelated content survive; authority revocation alone is not deletion acceptance. Done is readable; Removed IDs allow only redacted citations. Full R12/A3 remains partial. | P1 - durable, inspectable long-running work | Consumed R04/R05/#102/#114/#116 and R10 preference subset; blocked R11 is not needed by delivered non-executing retention or fixed local-version queue, but remains required for general execution integration | Implement full conversation composer/bodies, search/model history reasoning, broader immutable artifacts and task lifecycle. Names never select authority; passive browse never resumes or extends activity. General effect queues/leases/cancellation remain outstanding. Future managed-backup formats require explicit ownership/inventory and acceptance; uninventoried copies hold. Preserve independent Perpetual records, actual copy-removal tests and no replay authority; no forensic erase or full deletion/RC acceptance is claimed. |
+| R12 - Complete session lifecycle, history and per-session work/queues | **Bounded authority workspace, metadata, exact task controls, native logical disposition, [ordered interaction history](#r12r14-bounded-ordered-interaction-history---2026-10-09), [passive lexical history search](#r14-passive-exact-session-lexical-history-search---2026-10-09), fixed local-version queue and [session retention](#r12-bounded-session-retention-delivered---2026-10-09) delivered**. Schema v6 preserves v5 queue, v4 ordered history and v3 task/question/required-audit authority while adding a meaningful-activity clock, future-only 24-hour archive/30-day deletion, source revocation, live/uncertain holds and inventoried content/artifact/staging/journal removal. Independent Perpetual records and unrelated content survive; authority revocation alone is not deletion acceptance. Done is readable; Removed IDs allow only redacted citations. Full R12/A3 remains partial. | P1 - durable, inspectable long-running work | Consumed R04/R05/#102/#114/#116 and R10 preference subset; blocked R11 is not needed by delivered non-executing retention or fixed local-version queue, but remains required for general execution integration | Implement full conversation composer/bodies, model history reasoning and broader search scopes, immutable artifacts and task lifecycle. Names never select authority; passive browse never resumes or extends activity. General effect queues/leases/cancellation remain outstanding. Future managed-backup formats require explicit ownership/inventory and acceptance; uninventoried copies hold. Preserve independent Perpetual records, actual copy-removal tests and no replay authority; no forensic erase or full deletion/RC acceptance is claimed. |
 | R13 - Add bounded independent management and concurrent execution | Bounded exact controls plus [deterministic fixed local-version queues, revisioned atomic admission/receipts, FIFO/fair manual dispatch and no-replay recovery](#r13-deterministic-local-version-queue-increment---2026-10-09) delivered in schema v5. Host default one slot; limits 1–2 apply only to fixed synchronous local reads, not effect/provider qualification. Released-profile MG1 proof is not production management integration. | P1 - remain responsive while useful work runs | I: consumed R05/R06/R10/R12/#114 contracts; R08 only for model assistance; E/Q: local concurrency budgets only for local inference, MG1/management PV1 only for hosted assistance | Retain bounded exact deterministic core; complete broader contextual routing/status/choices, in-task wait/deadline and effect-specific cancel without hosted inference. Carry MG1's serialized 32 KiB input/4 KiB typed output, independent 15-second host deadline, one in-flight, rolling 30 attempts/hour/profile, fresh conversations and no forwarded retry into the host. Reject unknown targets/revisions and late output; Unknown needs observed receipts, not SDK acknowledgement. Add model assistance only after applicable runtime/account admission. Independently qualify real two-slot isolated task contexts/grants, resource leases, termination and reconciliation; fixed version tests and synthetic conversation counts are not provider/hardware evidence. No management task tools or approval authority; power follows R01. |
-| R14 - Build the coordinated Sessions workspace and interaction surfaces | Bounded Sessions list/details/lifecycle, durable names, exact controls and native question review remain delivered. [Authoritative selected-session work](#r14-authoritative-selected-session-work-increment---2026-10-09) now coordinates bounded atomic work/queue/questions, shared-policy eligibility/deadlines/capacity/gaps and exact revision-bound native controls with passive focus-preserving refresh. [Ordered history](#r12r14-bounded-ordered-interaction-history---2026-10-09) and independent evidence remain separate sources. | P1 - make sessions, decisions and results understandable | Consumed R05/R12/#114/R13/#116 subsets; R09 and broader task contracts for remaining coordination | Full conversation composer/bodies, history search/model reasoning, general effect/provider work and immutable artifact/script integration remain unavailable. AuthorityAudit reads committed rows, not diagnostic lookalikes or forensic proof. Ask Evidence/model tools/export need separate admission. Browsing never retargets approvals, extends activity or creates replay; names never resolve authority. Native installed visual/screen-reader/DPI and full R14/A4 acceptance remain open. |
+| R14 - Build the coordinated Sessions workspace and interaction surfaces | Bounded Sessions list/details/lifecycle, durable names, exact controls and native question review remain delivered. [Authoritative selected-session work](#r14-authoritative-selected-session-work-increment---2026-10-09) coordinates bounded atomic work/queue/questions, shared-policy eligibility/deadlines/capacity/gaps and exact revision-bound native controls with passive focus-preserving refresh. [Ordered history](#r12r14-bounded-ordered-interaction-history---2026-10-09) now has [passive exact-session lexical search](#r14-passive-exact-session-lexical-history-search---2026-10-09) and [immutable selected-session receipt details](#r14-immutable-selected-session-receipt-details---2026-10-09), freshly resolved through the existing private persisted read path into the shared native viewer, with pre-deletion retention/disposition revocation. Independent evidence remains a separate source. | P1 - make sessions, decisions and results understandable | Consumed R05/R12/#114/R13/#116/#118, lexical #113, retention #117 and current #119/#120/#122 subsets; R09 and broader task contracts for remaining coordination | Full conversation composer/bodies, model history reasoning and broader search scopes, general effect/provider work and general immutable artifact/script bodies and routing remain unavailable; receipt details are not fabricated artifact content. AuthorityAudit reads committed rows, not diagnostic lookalikes or forensic proof. Ask Evidence/model tools/broad export need separate admission. Browsing never retargets approvals, extends activity or creates replay; names never resolve authority. Native installed visual/screen-reader/DPI and full R14/A4 acceptance remain open. |
 | R15 - Complete call-aware feedback, authorization and request-origin gates | Bounded manual mode and independent [device-local Voice/UI/Both/Inherit feedback](#r10r15-bounded-device-local-in-call-feedback---2026-10-08), shared native/typed/activated parity and truthful status, conservative speech/origin and legacy reuse checks delivered; full R15 partial, detector unavailable I14 | P0 - prevent call leakage and reusable-authority surprises | R03, R05, R09, R10, R13, R14 | Maintained deterministic/manual/durable tests cover mixed evidence, Unknown, feedback precedence, current configuration/call/session/input/name revisions, original input/native lifetime, required-audit/shared-lease/atomic failures, restart markers, pending previews, output/input retirement and reuse/dispatch/disposal races. Saved legacy suppression/activation remains independent; Unknown always withholds speech. New protection downgrades and exceptions remain unavailable pending complete exact review. Remaining: qualified real detectors/source freshness, broader voice/call/proactive registry, production exact effect dispatch/generation wiring and native/acoustic/call acceptance. No automatic detector, authority migration or A0-A4 completion is claimed. |
 | R16 - Enable graceful protected power and all-session app controls | Partial proposals and current-app lifecycle I12/I13 | P0 - make disruptive actions safe and truthful | R01, R05, R11, R12, R13, R15 | Register/verify fixed shutdown/restart packages and helpers. Implement all-session impact review, fresh action-specific voice or equivalent UI confirmation, 30-second foreground prompt, two-minute single-use approval and 30-second cancellable host countdown. Perform mandatory real OS/provider checks; no extra UI click solely because risk is high, no forced close and no unrelated OS cancellation. Coordinate exit/restart and resource ownership; reconcile observed receipts rather than claiming success from a proposal. |
 | R17 - Finish supported distribution, setup and startup behavior | Binary MSI/custom Burn, scoped logon/completion, release automation, managed-source build-only tooling, immutable source-tool distribution/channel resolution and bounded native notify-only release discovery implemented; source activation, upgrade limitations and installed/protection acceptance outstanding | P1 - users can install/run safely without a development checkout | I: delivered distribution direction and consumed R03/R09/R10/R11/R16 subsets; E: D01/D03 and offered profile proof; Q: installed final manifest scope only | Complete R17-D01/D02/D03 below without another standalone feasibility project. Retain the delivered binary/CI/version/prerequisite/optional-consent, exact-source-tool and native metadata slices; finish separately approved source activation, supported upgrades/recovery, protected deployment and per-release native/licence qualification. Risk-based installed trials must cover logon/removal, repair/uninstall/all-users/completion and runtime-only launch against exact hashes after applicable resource/privacy/worker gates exist. Current per-user installs do not establish independent protection. Existing win-x86 output is not x86 acceptance; certify each offered architecture. NSIS-only paths are retired; historical receipts remain, with no executable experiment dependency. No in-app updater/download/install authority is added; reviewed dependency setup remains available. |
@@ -2783,7 +3360,7 @@ receipts do not close that gate or installed/native/durable acceptance.
 | ID and work package | Starting state | Priority/value | Needs | Completion condition |
 |---|---|---|---|---|
 | R20 - Deliver one admitted read-only MCP integration and bundled integration skill | Outstanding; connector/task choice still open | P2 - first safe external-source value | I: consumed R06/R10/R11 contracts; E: actual connector/profile proof; Q: R19 for RC inclusion, not implementation | Select one supported tool/task; implement host-owned setup/sign-in/credential references, connection lifecycle, capability discovery and exact identity/policy mapping. Pin and enable the bundled read-only skill; enforce bounded provenance, fresh source permission and per-result model egress. Pass a controllable MCP-server suite plus the same tests on the real connector. No arbitrary installation, writes or generic call-anything escape hatch. |
-| R21 - Add explicit shared-source skill discovery and enablement | **Bounded read-only registration/list/immutable inspection/recheck delivered**; enable/disable/invoke/model exposure and authoring unavailable | P2 - reuse existing skills safely | I: consumed R05/R06/R10/R11 contracts; E: source/skill profile proof; Q: R19 for RC inclusion, not discovery implementation | Explicit native registration grants only a bounded local read. Known-folder/handle identity, strict versioned YAML/UTF-8, count/depth/byte limits and incompatible/unavailable disclosure are implemented and tested; no ambient personal-skill model ingestion. Remaining separately confirmed enable/disable/invoke and Kora-specific fork/authoring work stays gated. Shared roots are never written or promoted to bundled trust. This slice does not close R20/R21/R23 or full Slice B. |
+| R21 - Add explicit shared-source skill discovery and enablement | **Bounded read-only registration/list/immutable inspection/recheck and exact local-read-consent withdrawal delivered**; enable/disable/invoke/model exposure and authoring unavailable | P2 - reuse existing skills safely | I: consumed R05/R06/R10/R11 contracts; E: source/skill profile proof; Q: R19 for RC inclusion, not discovery implementation | Explicit native registration grants only a bounded local read; identity/revision-bound native withdrawal removes only that registration and owned snapshots, including missing roots, never shared files or grants. Known-folder/handle identity, strict versioned YAML/UTF-8, count/depth/byte limits and incompatible/unavailable disclosure are implemented and tested; no ambient personal-skill model ingestion. Remaining separately confirmed enable/disable/invoke and Kora-specific fork/authoring work stays gated. Shared roots are never written or promoted to bundled trust. This slice does not close R20/R21/R23 or full Slice B. |
 | R22 - Deliver voice/UI declarative skill authoring | Outstanding | P2 - create useful workflows without executable imports | R05, R10, R12, R14, R20, R21 | Implement Builder clarification/shared draft, exact diff/capability summary, schema/dependency checks and data-only simulated examples. Stage/save/restore/delete only owned revisions with exact confirmation; save to the Kora user store and confirm enablement separately. Add bounded skill-revision file selection/read, not general filesystem access. Invoke only admitted tools under normal grants/egress; save/tests/enablement confer no execution permission. No compilation, external test/build commands, Git writes or application-code modification. |
 | R23 - Accept Slice B/C and manifest-scoped release regression | Proof outstanding | P0 - integration/authoring must not weaken the core | Q: R19 and enabled R20/R21/R22 scope; complete B/C claims require their full scope | Record applicable connector/account/access-revocation, hostile-source, source-revision, draft/save/enable and simulated-test results. Repeat affected A0-A4/privacy/cancellation/egress/grant tests and update capability/reference/user documentation to exact delivered availability and explicit exclusions. The full initial A/B/C scope is complete only after its gates, not after a catalogue or authoring UI exists; partial manifest-scoped releases must not claim that outcome. |
 
@@ -2797,7 +3374,7 @@ Do not advertise any deferred capability solely because an interface/schema is d
 |---|---|---|---|
 | R24 - Local frequent-speaker learning and enrolled verification | Optional; P3 | R03, R04, R05, R09, R10, R15 | Separate learning consent and verifier enrollment; protected per-SID/device storage, minimization/reset/delete, drift/playback/predominant-speaker tests and verifier FAR/FRR/anti-spoof/secure-OS proof. Learning is personalization, never identity/authority; missing either never blocks baseline voice. Close D-006 only for the advertised capability. |
 | R25 - Optional speech captions and richer browser/static HTML/diagram results | Bounded disabled-by-default local current-utterance captions plus run-only pinning, primary-screen corner placement and 0-30-second normal-completion delay delivered; sentence alignment/richer rendering/broader UX remain optional/separately gated P3 | R05, R08, R09, R14, R15 for remaining integration/proof, not blanket implementation prerequisites | Exact native/typed/activated local discovery/get/set/reset, actual matching host-admitted playback identity/generation/segment and immediate stop/cancel/response/privacy/call/ownership retirement even when pinned. Normal completion retains only observed text labelled previous speech; default delay 5 seconds, unpin preserves original deadline. Atomic typed placement/delay preferences never enable captions. No caption content persistence/logging/model egress or speech/capture/authority changes. Sentence alignment remains unavailable without admitted sentence boundaries; display selection/arbitrary placement and broader natural caption/viewer commands remain separate. Rich viewers still require immutable content, renderer isolation, disabled bridges/active content, finite approved assets/navigation and resource bounds. R10 acoustic proof and installed/native accessibility acceptance remain open; neither is claimed or retired by this slice. |
-| R26 - File/folder/screen/image context and knowledge retrieval/indexing | R26.1a local inspection and R26.1b selected immutable revision lexical retrieval delivered; broader stages deferred/P3; [exact retrieval boundary](File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval); [provider/memory/knowledge direction](Model_Providers_Memory_And_Knowledge.md) and [file/folder staged plan](File_And_Folder_Ingestion.md#r26-file-and-folder-ingestion-delivery-plan) remain specified | R03, R04, R05, R06, R07, R08, R10, R12, R14; connector-backed retrieval also R20 | Native picker + metadata-only review + exact confirmation admit one immutable volatile strict-UTF-8 text/Markdown preview (256 KiB), source/revision/item identity and original-byte digest. Host-only deterministic bounded lexical scan/native exact citations revalidate original session/task/privacy/ownership/generation and required terminal audit. Fixed-drive canonical verified handles still deny reparse/hard-link/protected/generated/source-control/unstable paths. No folder, durable attachment/registry, refresh, persistent/vector index, model/egress, clipboard or execution authority. Beyond this bounded foundation, deliver reviewed immutable UTF-8 text/Markdown file/folder source revisions, broader scoped lexical retrieval/citations, qualified local reasoning and separately admitted hosted egress. Admit later formats, OCR/vision and hybrid/vector indexing independently. Preserve explicit source/session/destination scope, Windows reparse/access controls, provenance, context budgets, refresh/revocation/deletion and bounded citations. No ambient collection, direct view-model path reads, whole-file prompt stuffing, blanket enterprise cache, model-chosen arbitrary paths or silent context reuse. All experiments retained; inference/storage/runtime proofs are not exactly superseded. Installed native/accessibility acceptance and broader R26.1–5 gates remain outstanding. |
+| R26 - File/folder/screen/image context and knowledge retrieval/indexing | R26.1a local inspection, R26.1b selected immutable revision lexical retrieval, R26.1c bounded folder-scoped lexical retrieval and R26.1d explicit volatile preview refresh delivered; broader stages deferred/P3; [refresh boundary](File_And_Folder_Ingestion.md#delivered-explicit-volatile-preview-refresh---2026-10-10); [provider/memory/knowledge direction](Model_Providers_Memory_And_Knowledge.md) and [staged plan](File_And_Folder_Ingestion.md#r26-file-and-folder-ingestion-delivery-plan) remain specified | R03, R04, R05, R06, R07, R08, R10, R12, R14; connector-backed retrieval also R20; R26.1c/d use delivered host boundaries, not blocked R08 | Native picker + metadata-only review + exact confirmation admit one immutable volatile UTF-8 text/Markdown file (256 KiB) or one complete reviewed immediate-folder set (1–32 files, 1 MiB combined, 256 KiB per file). Any subdirectory/inadmissible item or exceeded bound rejects the whole folder. Shared lexical-lines-v1 scan/ranking applies the existing eight-citation/16 KiB total excerpt budget; native citations revalidate original session/task/privacy/ownership/call/generation and required terminal audit. Fixed-drive canonical verified handles deny reparse/hard-link/protected/generated/source-control/unstable paths and revalidate complete membership before/after capture. Explicit refresh binds the host-held exact reference and original canonical physical root, reviews complete fresh metadata and requires separate new native confirmation before content reads. Same source ID, fresh revision/items/digests; the old single-slot preview/citations retire at start. Missing/replaced/aliased roots deny; failure/cancel requires fresh picker recovery, never silent rebinding. [Broker tests](../tests/Kora.Tools.UnitTests/Files/LocalFileRefreshTests.cs), [host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileRefresh.cs), [native fixtures](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Refresh.cs). No recursion, watcher/scheduler, durable cross-session attachment/registry, managed disable/remove lifecycle, persistent/vector index, embeddings, model/egress, clipboard or execution authority. R26.2 lifecycle, R26.3 qualified local reasoning, R26.4 hosted egress and R26.5 later formats/hybrid retrieval remain separately gated; R08 remains blocked. No ambient collection, view-model path reads, whole-file prompt stuffing, blanket enterprise cache, model-chosen paths or silent context reuse. All experiments retained. Installed native/accessibility acceptance and broader R26.1–5 gates remain outstanding. |
 | R27 - General executable imports and standalone application execution | Deferred; P3 | I: consumed R01/R05/R10/R11/R12/R13/R21 contracts; E/Q: applicable R02 execution profiles only | Resolve standalone-binary rollback policy; prove complete dependency discovery and immutable folder snapshots, registered execution profiles, real OS containment and content-bound applicability/revocation. Do not extend fixed bundled scripts into arbitrary shell strings or user-supplied executable authority. |
 | R28 - Write-capable connectors, repository/Git or broader desktop automation | Deferred; P3 | R05, R08, R12, R13, R20, R26 | Add explicit versioned tools and per-domain policy/resource/identity/recovery proofs. Revalidate external changes and uncertain writes; no self-modification, model-selected executable handlers or silent automatic write retries. Declarative authoring is not authorization for these capabilities. |
 | R29 - Kora MCP server, install-capable updates, custom executable/render extensions or intra-session parallel agents | Deferred; P3; distinct proposals, not one combined release | I: consumed R05/R08/R11/R13/R17 contracts per proposal; E: applicable R02/new profile proof; Q: R23 only for included RC scope | Require a recorded scope/decision and dedicated proofs per proposal: authenticated per-client scopes, future trusted signed update roots/activation path, extension identity/containment, renderer isolation or isolated subtask budgets/leases. Initial notify-only maintenance, fixed renderers and one-task-per-session remain unchanged until that proposal is accepted. |
@@ -3382,6 +3959,38 @@ concurrent call-feedback and file-preview work (Core 931, Application
 **100% line / 100% branch** coverage gate. These are deterministic/source
 mechanism results, not real-user/native-accessibility or complete release
 qualification.
+
+### Exact native local-read-consent withdrawal - 2026-10-10
+
+R21 additionally delivers **Withdraw local read consent** for one explicitly
+selected saved source, with native confirmation of exact source ID,
+profile-relative root and directory identity against the complete observed
+registration revision. The existing shared-control admission and preference
+fence serialize registration/withdrawal, with atomic publication, exact
+read-back and requested/terminal typed audit. Missing original directories need
+no filesystem selection or read to withdraw known consent. Invalid/unknown/
+duplicate saved state and stale confirmation fail closed without reset or
+dropping unrelated registrations.
+
+Withdrawal clears owned catalogue/text/hex snapshots and cancels in-flight
+reads/rechecks; exact source/selection/window/lifetime fences refuse late
+display. Re-registering requires fresh native selection and a new host-issued
+source ID. Durable mutation followed by audit/read-back/admission failure is
+explicitly unconfirmed, not rollback or success; reads stay closed pending
+fresh admitted observation/recovery. Shared files, enablement, execution,
+grants, runner/model routing, schema and other feature partitions are unchanged.
+
+Maintained evidence extends the
+[domain identity tests](../tests/Kora.Core.UnitTests/Skills/SharedSkillTests.cs),
+[Application consent/failure/race tests](../tests/Kora.Application.UnitTests/Skills/SharedSkillDiscoveryServiceTests.cs),
+[actual private atomic preference/typed audit tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSharedSkillWithdrawalTests.cs)
+and [headless native confirmation/snapshot/lifetime tests](../tests/Kora.Windows.IntegrationTests/SharedSkillWithdrawalWindowTests.cs).
+These deterministic fixtures replace no unique experiment evidence.
+Existing distribution/native/runtime/containment/dependency/historical
+consumers and witnesses retain their prior dispositions; no experiment code,
+proof gate or claim of real installed/user/native accessibility qualification
+is removed or promoted. R19, full R21/R23 and Slice B execution/authoring gates
+remain open.
 
 ## R25 Bounded Local Caption UX Delivered - 2026-10-09
 

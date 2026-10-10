@@ -1,4 +1,5 @@
 using Kora.Application.Maintenance;
+using Kora.Application.Configuration;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -7,13 +8,15 @@ namespace Kora.Application.Interaction;
 
 public sealed class AuthorityLocalEventSource(
     ISessionWorkStore work, ISessionWorkspaceAccess access, MaintenanceViewModel maintenance,
-    SessionQueueLimits limits, TimeProvider time) : ILocalEventSource
+    SessionQueueLimits limits, TimeProvider time, SessionQueueConfigurationService? configuration = null) : ILocalEventSource
 {
+    private Task<T> WithLimitsAsync<T>(Func<SessionQueueLimits, Task<T>> operation, CancellationToken token) =>
+        configuration is null ? operation(limits) : configuration.WithLimitsAsync(operation, token);
     public async Task<IReadOnlyList<LocalEvent>> ReadAsync(HostId<SessionIdentity> session, CancellationToken token)
     {
         var revision = access.ControlRevision;
         RequireAdmission(revision);
-        var snapshot = await work.ReadWorkAsync(session, revision, limits, token).ConfigureAwait(false);
+        var snapshot = await WithLimitsAsync(current => work.ReadWorkAsync(session, revision, current, token).AsTask(), token).ConfigureAwait(false);
         snapshot.RequireSubject(session);
         var events = FromWork(snapshot, time.GetUtcNow());
         var release = BindMaintenance(maintenance.ReadLocalEvent(session), snapshot);
@@ -26,7 +29,7 @@ public sealed class AuthorityLocalEventSource(
     {
         var revision = access.ControlRevision;
         RequireAdmission(revision);
-        return await work.WithCurrentWorkAsync(session, revision, limits, snapshot =>
+        return await WithLimitsAsync(currentLimits => work.WithCurrentWorkAsync(session, revision, currentLimits, snapshot =>
         {
             snapshot.RequireSubject(session);
             var events = FromWork(snapshot, time.GetUtcNow());
@@ -38,6 +41,8 @@ public sealed class AuthorityLocalEventSource(
                 { throw new InvalidOperationException("The authoritative event source, revision, deadline or profile changed."); }
                 token.ThrowIfCancellationRequested();
                 RequireAdmission(revision);
+                if (configuration is not null && !configuration.IsCurrent(currentLimits))
+                { throw new InvalidOperationException("Queue configuration changed before local event presentation."); }
                 var result = observation();
                 token.ThrowIfCancellationRequested();
                 RequireAdmission(revision);
@@ -45,7 +50,7 @@ public sealed class AuthorityLocalEventSource(
                 { throw new InvalidOperationException("The local event deadline or clock changed before presentation."); }
                 return result;
             });
-        }, token).ConfigureAwait(false);
+        }, token).AsTask(), token).ConfigureAwait(false);
     }
 
     private static LocalEvent? BindMaintenance(LocalEvent? cached, SessionWorkSnapshot snapshot) =>

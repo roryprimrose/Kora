@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "proof": "maintained-fake-release-publication-retry",
+  "result": "passed",
+  "baseline": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "testedRevision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "branch": "agents/fake-release-publication-isolation",
+  "isolation": {
+    "distinctTaskWorktreeVerified": true,
+    "rootWorktreeUsed": false,
+    "cleanBeforeExecution": true
+  },
+  "execution": {
+    "command": "pwsh -NoProfile -NonInteractive -File .\\eng\\Test-GitHubRelease.ps1",
+    "platform": "Windows",
+    "powershellVersion": "7.6.6",
+    "startedUtc": "2026-10-09T20:44:51.9688519+00:00",
+    "completedUtc": "2026-10-09T20:51:14.7642270+00:00",
+    "durationSeconds": 382.661,
+    "timeoutSeconds": 900,
+    "timedOut": false,
+    "exitCode": 0,
+    "assertions": 381,
+    "actionsProcessCases": 56,
+    "partialWriteAndHardInterruptionRetries": 15,
+    "totalActionsRunnerInvocations": 71,
+    "remainingFixtureEntries": 0,
+    "stderrBytes": 0
+  },
+  "rawEvidence": {
+    "storage": "external parent-session maintained-proofs/publication directory; not committed",
+    "run": "run-20261009T204450031Z",
+    "stdoutSha256": "992988a445f426e989e53bc700b233ef08b6f0fde02d9fcf6f89b3ddd40a9eca",
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inputs": [
+    {
+      "path": "eng/Test-GitHubRelease.ps1",
+      "gitBlob": "4f30cf4d69bd24dc4c179394d36a16652b3ecba8",
+      "checkoutSha256": "80e7079a7653156dfbe5c0bf320a4fdd8eac3d5b37dba30d36f25a83fc5d2d84"
+    },
+    {
+      "path": "eng/tests/GitHubRelease.Fixture.ps1",
+      "gitBlob": "3e9a163ca3974f9aae29b28c15b4cd856ec23072",
+      "checkoutSha256": "335981f5865237ff3391aab2b14676858d8b15d9b0cb796d489130a855dc7327"
+    },
+    {
+      "path": "eng/Publish-GitHubRelease.ps1",
+      "gitBlob": "73e97f1753f27a59e8024563150dfa093f110942",
+      "checkoutSha256": "1d1a71305cf0f99d2d2736341df64d8bd351218d1fd2f30a2ce702b0052ac1dd"
+    },
+    {
+      "path": "eng/GitHubRelease.Common.ps1",
+      "gitBlob": "a7839df7d6cef869877f55840ca820e82064539d",
+      "checkoutSha256": "e4dee78b45574e88392b80b5e4c2ee40afea5375c3a6456aac799b341e231e5e"
+    },
+    {
+      "path": "eng/SourceTools.Common.ps1",
+      "gitBlob": "0ef18695c9d2f66b0ceac94ef04116f71b5ca4ee",
+      "checkoutSha256": "b6423bf1855f12324555bb3152987542facf94c4217b2d6b70cf3267ed17a99e"
+    },
+    {
+      "path": "eng/Distribution.Common.ps1",
+      "gitBlob": "224f4861d2de27a391f2c836ea09e615a5832f2b",
+      "checkoutSha256": "0c14f4add0bee4cb48a9650c9b8c666455160d30a0da9c5640aafe0c3326f63a"
+    },
+    {
+      "path": "eng/Test-InstallerPayload.ps1",
+      "gitBlob": "9ea93293a9bca94d2e93438469f923e5b3884211",
+      "checkoutSha256": "25db4b031865041308de1c43432cc8ade8b1d89bad2df8ddcf1018fd7c580abe"
+    }
+  ],
+  "safety": {
+    "githubInterface": "in-process fake gh function in suite and Actions-style child runners; unexpected operations throw",
+    "realPublicationMutations": 0,
+    "realReleaseOrTagDeletes": 0,
+    "dependencyInstallsOrRestores": 0,
+    "installElevationProviderAccountDeviceOrConsentActions": 0,
+    "temporaryCodeRetained": false,
+    "publicationSourceChanged": false
+  },
+  "limits": [
+    "Fake GitHub API state only; no live endpoint, authentication, permission, network or service-consistency qualification.",
+    "Synthetic application, MSI and setup bytes; no installer build, ICE execution, installation, signing or production acceptance.",
+    "Failure and interruption scenarios use fixture state and controlled child-process exits, not machine shutdown.",
+    "This is the complete maintained publication/retry suite, not the solution, installer, source-bootstrap or published-runtime suites."
+  ]
+}

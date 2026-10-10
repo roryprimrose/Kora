@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Kora.Application.Configuration;
 using Kora.Application.Tools;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
@@ -22,6 +23,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
     private readonly ILogger<ModelTurnHost> logger;
     private readonly TimeProvider time;
     private readonly ModelProviderRegistration[] registrations;
+    private readonly ProviderModeConfigurationService? providerModeConfiguration;
     private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(15);
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -33,16 +35,17 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
 
     public ModelTurnHost(ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
-        ILogger<ModelTurnHost> logger, TimeProvider time)
+        ILogger<ModelTurnHost> logger, TimeProvider time, ProviderModeConfigurationService providerModeConfiguration)
         : this(workspace, access, host, tools, audit, logger, time,
         [
             new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
             new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
-        ]) { }
+        ], providerModeConfiguration) { }
 
     internal ModelTurnHost(ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
-        ILogger<ModelTurnHost> logger, TimeProvider time, ModelProviderRegistration[] registrations)
+        ILogger<ModelTurnHost> logger, TimeProvider time, ModelProviderRegistration[] registrations,
+        ProviderModeConfigurationService? providerModeConfiguration = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -52,6 +55,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
         this.logger = logger;
         this.time = time;
         this.registrations = registrations;
+        this.providerModeConfiguration = providerModeConfiguration;
     }
 
     public async Task<ModelTurnAdmission> AdmitAsync(ModelProviderSelection selection,
@@ -190,6 +194,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
         }
         CompleteAudit(requested, result);
         activity.Complete(ToActivityOutcome(result.Outcome));
+        turn.TerminalResult = result;
         return result;
     }
 
@@ -266,6 +271,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
         if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
@@ -384,6 +390,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable
         Task outstanding;
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
+        lock (policyGate) { policies.Clear(); }
         lifetime.Dispose();
     }
 }

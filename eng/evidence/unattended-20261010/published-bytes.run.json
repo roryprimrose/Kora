@@ -1,0 +1,584 @@
+{
+  "schema": 1,
+  "evidenceKind": "unattended-maintained-published-byte-qualification",
+  "proofLocalDate": "2026-10-10",
+  "collectedUtc": "2026-10-09T20:56:22.8177513+00:00",
+  "repository": "https://github.com/roryprimrose/Kora",
+  "sourceRevision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "branch": "agents/unattended-published-byte-qualification",
+  "sourceCleanDuringBuild": true,
+  "distinctRegisteredGitWorktreeVerified": true,
+  "primaryCheckoutBuiltOrEdited": false,
+  "buildHost": "Windows",
+  "sdk": "10.0.401",
+  "toolHostRuntime": "10.0.12",
+  "powerShell": "7.6.6",
+  "version": "0.1.0",
+  "productVersion": "0.1.0",
+  "versionProfile": "Repository feature-proof version, not main beta publication.",
+  "buildOriginIsOperatorMetadataNotAuthenticatedProvenance": true,
+  "staticProfilePassed": true,
+  "installedOrNativeLoadingAcceptance": false,
+  "productQualification": false,
+  "newConsentOrLicensingAccepted": false,
+  "productionScriptsChanged": false,
+  "summary": {
+    "nativePeFiles": 12,
+    "exactResourceByteChecks": 26,
+    "maintainedContractsPassed": 54,
+    "finalFiles": 410,
+    "peFiles": 144,
+    "distinctDeclaredSkillResources": 13,
+    "managedPeFiles": 132
+  },
+  "dependencyLicenceGate": {
+    "passed": true,
+    "committedNoticeCurrent": true,
+    "newOverridesOrAllowlistChanges": false,
+    "packageProvidedNoticeFiles": 28,
+    "tool": "nuget-license",
+    "licenceDirectoriesCopiedToEachPayload": true,
+    "perReleaseRedistributionClearance": false,
+    "toolVersion": "4.0.18",
+    "packageEntries": 91,
+    "licenceTextFiles": 91
+  },
+  "commands": [
+    {
+      "command": "dotnet build .\\Kora.slnx --configuration Release --no-restore",
+      "exitCode": 1,
+      "outcome": "NETSDK1004: missing project.assets.json",
+      "warnings": 0,
+      "errors": 13
+    },
+    {
+      "command": "dotnet publish .\\src\\Kora\\Kora.csproj --configuration Release --runtime <RID> --self-contained false --no-restore --property:RestoreLockedMode=true --property:Version=0.1.0 --output (Join-Path $run \"initial-<RID>\")",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "exitCodes": [
+        1,
+        1
+      ],
+      "outcome": "NETSDK1004: missing project.assets.json"
+    },
+    {
+      "command": "dotnet restore .\\Kora.slnx --locked-mode",
+      "exitCode": 0,
+      "restoredProjects": 13,
+      "reason": "Only after all initial no-restore attempts failed with missing dependencies."
+    },
+    {
+      "command": "dotnet build .\\Kora.slnx --configuration Release --no-restore",
+      "exitCode": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\eng\\Get-BuildVersion.ps1",
+      "exitCode": 0,
+      "version": "0.1.0",
+      "productVersion": "0.1.0",
+      "publish": false
+    },
+    {
+      "command": "dotnet publish .\\src\\Kora\\Kora.csproj --configuration Release --runtime <RID> --self-contained false --no-restore --property:RestoreLockedMode=true --property:Version=0.1.0 --output (Join-Path $run \"Kora-<RID>\")",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "exitCodes": [
+        0,
+        0
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\eng\\Test-DependencyLicenses.ps1",
+      "exitCode": 0,
+      "newLicenceApproval": false
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\eng\\Test-InstallerPayload.ps1 -PayloadPath $payload -Version 0.1.0 -SourceRevision $revision -WriteManifest",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "exitCodes": [
+        0,
+        0
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\eng\\Test-InstallerPayload.ps1 -PayloadPath $payload -Version 0.1.0 -SourceRevision $revision",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "exitCodes": [
+        0,
+        0
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -Command \"& '.\\eng\\Test-EmbeddedSkillResources.ps1' -AssemblyPath '<payload>\\Kora.Definitions.dll' | ConvertTo-Json -Depth 5\"",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "exitCodes": [
+        0,
+        0
+      ],
+      "executionOrder": "Immediately after publish, before licence-directory copies; inspected assembly unchanged."
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\eng\\Inspect-Publish.ps1 -Payload $payload -Rid $rid -Revision $revision -EvidenceDirectory $inspection -BuildOrigin $origin",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "exitCodes": [
+        0,
+        0
+      ],
+      "origin": "Unattended 2026-10-10; isolated exact-revision Windows build; SDK 10.0.401; runtime 10.0.12; pwsh 7.6.6; feature proof version 0.1.0; static-only"
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\eng\\Test-PublishContracts.ps1 -Payload $payload -Rid $rid -Inspection (Join-Path $inspection 'payload.json') -OutputDirectory (Join-Path $run \"contracts-$rid\")",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "exitCodes": [
+        0,
+        0
+      ]
+    },
+    {
+      "command": "Assert-Payload $payload $manifest (from eng\\Distribution.Common.ps1)",
+      "rids": [
+        "win-x64",
+        "win-x86"
+      ],
+      "outcome": "Passed after contracts and again after temporary-copy cleanup."
+    }
+  ],
+  "profiles": [
+    {
+      "rid": "win-x64",
+      "informationalVersion": "0.1.0",
+      "files": 207,
+      "totalBytes": 264625314,
+      "transferredPayloadFiles": 206,
+      "peFiles": 73,
+      "managedPeFiles": 66,
+      "nativePeFiles": 7,
+      "declaredNativeAssets": 10,
+      "publishedDependencyPackages": 53,
+      "firstPartyManifestResourceNames": 25,
+      "exactResourceByteChecks": 13,
+      "resourceInvocationAvailable": false,
+      "maintainedContractsPassed": 27,
+      "inspectionSchema": 2,
+      "inspectorVersion": "1.0.0",
+      "inspectionProfile": "windows-framework-dependent-v1",
+      "inspectionSha256": "ed277ca2b85f723f3c673cefeeb13fdd628a126ed088692c1ab35eb1cd2a5a4a",
+      "checksumSha256": "6265b02a2cf8218979d62bd7c7974f34aa7d3d426283fe950fd507d4eb0be1be",
+      "transferredManifestSha256": "208251bace18cd3b1d195acf60fe0180c888b17af80985b2a39f910b8cee976f",
+      "frameworks": [
+        {
+          "name": "Microsoft.NETCore.App",
+          "version": "10.0.0"
+        },
+        {
+          "name": "Microsoft.WindowsDesktop.App",
+          "version": "10.0.0"
+        }
+      ],
+      "nativeCapabilityGaps": [],
+      "releaseBlockers": [
+        "Per-release redistribution clearance is not established by static inspection.",
+        "Installed Windows protection and runtime-only acceptance require separate evidence.",
+        "Bundled-resource and worker acceptance require separate evidence."
+      ],
+      "rawNuspecMissingLicenceDeclarations": [
+        "OpenTK.Audio.OpenAL/5.0.0-pre.13",
+        "OpenTK.Core/5.0.0-pre.13",
+        "OpenTK.Mathematics/5.0.0-pre.13"
+      ],
+      "keyFileIdentities": [
+        {
+          "path": "e_sqlite3.dll",
+          "bytes": 1978880,
+          "sha256": "b7385d722c83fb52142a00477a726723745916d22a555711ee89834c1111fb2e"
+        },
+        {
+          "path": "Kora.Definitions.dll",
+          "bytes": 19456,
+          "sha256": "6c75706d96eb28981e186031cc8c0f46679938ba115bd9357014ca9ab87b1353"
+        },
+        {
+          "path": "Kora.deps.json",
+          "bytes": 39892,
+          "sha256": "efde9b92ed8ad3c9c56e95aa07142f8c1752f989eb406a4f3240732473c49dbd"
+        },
+        {
+          "path": "Kora.dll",
+          "bytes": 687616,
+          "sha256": "4a518e1f15808f75ef1db2cb2737a640dbc2fceb1b43d1ba4e484b586cbe404d"
+        },
+        {
+          "path": "Kora.exe",
+          "bytes": 195072,
+          "sha256": "15433a49d281c2dd91f877d604533496bdc2fecaecfdde6c0200d9e39fc7e234"
+        },
+        {
+          "path": "Kora.runtimeconfig.json",
+          "bytes": 519,
+          "sha256": "96bc2946dff8790400d652ec7f8de7bb043e954980d59470c112788b68a1fbd3"
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 5808,
+          "sha256": "3ae8fb82a4ff768f6ef4e24abd0c2a198838822968d0be097d8051daf3e0847c"
+        },
+        {
+          "path": "onnxruntime.dll",
+          "bytes": 16462648,
+          "sha256": "7e39e2bdbba836d98071ef28620735ba36a47c554cf794585269aecc50fab0da"
+        },
+        {
+          "path": "payload-manifest.json",
+          "bytes": 32701,
+          "sha256": "208251bace18cd3b1d195acf60fe0180c888b17af80985b2a39f910b8cee976f"
+        },
+        {
+          "path": "THIRD-PARTY-NOTICES.md",
+          "bytes": 39869,
+          "sha256": "747fb0c17748c3829d420d8dabd16fccff0a4e0d14eb47e34a8b6f054deacd87"
+        }
+      ],
+      "originalPayloadUnchangedAfterContracts": true
+    },
+    {
+      "rid": "win-x86",
+      "informationalVersion": "0.1.0",
+      "files": 203,
+      "totalBytes": 247775421,
+      "transferredPayloadFiles": 202,
+      "peFiles": 71,
+      "managedPeFiles": 66,
+      "nativePeFiles": 5,
+      "declaredNativeAssets": 6,
+      "publishedDependencyPackages": 52,
+      "firstPartyManifestResourceNames": 25,
+      "exactResourceByteChecks": 13,
+      "resourceInvocationAvailable": false,
+      "maintainedContractsPassed": 27,
+      "inspectionSchema": 2,
+      "inspectorVersion": "1.0.0",
+      "inspectionProfile": "windows-framework-dependent-v1",
+      "inspectionSha256": "49dc826d9da5e05b26d0e99b69e1fd46b20ad8e4c2acaf307a35b3448daae9f4",
+      "checksumSha256": "d140da0dcf26d9a249b48b630a1d34a40aa724ff376e09e3023eb32c9b3988b3",
+      "transferredManifestSha256": "29adb108ca5b057b5beadfb40ef8ea9ad39935004c70741c11be86c6c1380c40",
+      "frameworks": [
+        {
+          "name": "Microsoft.NETCore.App",
+          "version": "10.0.0"
+        },
+        {
+          "name": "Microsoft.WindowsDesktop.App",
+          "version": "10.0.0"
+        }
+      ],
+      "nativeCapabilityGaps": [
+        "win-x86 declares ONNX Runtime packages without an ONNX Runtime native payload; inference closure is not qualified."
+      ],
+      "releaseBlockers": [
+        "win-x86 declares ONNX Runtime packages without an ONNX Runtime native payload; inference closure is not qualified.",
+        "Per-release redistribution clearance is not established by static inspection.",
+        "Installed Windows protection and runtime-only acceptance require separate evidence.",
+        "Bundled-resource and worker acceptance require separate evidence."
+      ],
+      "rawNuspecMissingLicenceDeclarations": [
+        "OpenTK.Audio.OpenAL/5.0.0-pre.13",
+        "OpenTK.Core/5.0.0-pre.13",
+        "OpenTK.Mathematics/5.0.0-pre.13"
+      ],
+      "keyFileIdentities": [
+        {
+          "path": "e_sqlite3.dll",
+          "bytes": 1533952,
+          "sha256": "d13eb819d1353d98c684c88672868bbfcc6a52eb5987bdf2557ec02fabce4ea7"
+        },
+        {
+          "path": "Kora.Definitions.dll",
+          "bytes": 19968,
+          "sha256": "47dd6ef9bc7b7552e454af00d88fd03c4a1febf91d0a6616ab587fa9e172f813"
+        },
+        {
+          "path": "Kora.deps.json",
+          "bytes": 38855,
+          "sha256": "937c02bf7bb28745f3a2b88e71eba6bc49aa88f04ec30cb9a72d4bf8db84ebfd"
+        },
+        {
+          "path": "Kora.dll",
+          "bytes": 688128,
+          "sha256": "b31e8f3664c2731b57950ce71d5472fc395d6580853d7e81fe190608bc68a52d"
+        },
+        {
+          "path": "Kora.exe",
+          "bytes": 164352,
+          "sha256": "2a21f95f0ee40c9568c4aad489ebda1b8040a56edf649029c1e6ae08583eb982"
+        },
+        {
+          "path": "Kora.runtimeconfig.json",
+          "bytes": 519,
+          "sha256": "96bc2946dff8790400d652ec7f8de7bb043e954980d59470c112788b68a1fbd3"
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 5808,
+          "sha256": "3ae8fb82a4ff768f6ef4e24abd0c2a198838822968d0be097d8051daf3e0847c"
+        },
+        {
+          "path": "payload-manifest.json",
+          "bytes": 32135,
+          "sha256": "29adb108ca5b057b5beadfb40ef8ea9ad39935004c70741c11be86c6c1380c40"
+        },
+        {
+          "path": "THIRD-PARTY-NOTICES.md",
+          "bytes": 39869,
+          "sha256": "747fb0c17748c3829d420d8dabd16fccff0a4e0d14eb47e34a8b6f054deacd87"
+        }
+      ],
+      "originalPayloadUnchangedAfterContracts": true
+    }
+  ],
+  "installerSlice": {
+    "msiBurnCandidateProduced": false,
+    "newEulaAcceptance": false,
+    "testInstallerExecuted": false,
+    "compilerAndRequiredExtensionArchivesLocallyAvailable": false,
+    "status": "unavailable",
+    "iceValidation": "not-run",
+    "newToolAcquisition": false,
+    "completeReviewedToolClosureEstablished": false,
+    "bootstrapperApiEulaSha256": "3358af585772039e45d1192213838f906a478463ac3bb4da208ec0d874c2219b",
+    "buildInstallerExecuted": false,
+    "detailsReceipt": "published-bytes.wix-availability.json",
+    "installedAcceptance": "not-run"
+  },
+  "excludedOperations": [
+    "Application execution",
+    "Application/native assembly loading",
+    "Embedded skill execution",
+    "Installer/MSI execution or installation",
+    "Repair/uninstall",
+    "Startup registration",
+    "Shared prerequisite installation",
+    "Global runtime/tool installation",
+    "Elevation or Windows-policy changes",
+    "GUI/audio/control/device operations",
+    "Account/provider/credential operations",
+    "Installed protection or runtime-health acceptance",
+    "Production or D-005 acceptance"
+  ],
+  "rawOutput": {
+    "privateLocation": "Assigned parent-session maintained-proofs/publish/run-20261010-0744 directory; machine path deliberately omitted.",
+    "exactOriginalPayloadsRetained": true,
+    "logs": [
+      {
+        "name": "build-version.log",
+        "bytes": 214,
+        "sha256": "add95c69cc3d0a9ca9d778636713673c3faeab358b3211ee2826e4b8ffad03f7"
+      },
+      {
+        "name": "contracts-win-x64.log",
+        "bytes": 1943,
+        "sha256": "8bd00b5d72f3522c5dff43f2f3d543b35f6c2465e914f81ecccd80d4fd70daae"
+      },
+      {
+        "name": "contracts-win-x86.log",
+        "bytes": 1943,
+        "sha256": "90c52d85f4b1e0d0351b7d539be6d5047bba15dd64230daac4547f7cdb69c081"
+      },
+      {
+        "name": "dependency-license-gate.log",
+        "bytes": 165,
+        "sha256": "43237fd93fc0dbcb02db77fe8fbdc2971c85ccbce0c6001ab79264ad411c310c"
+      },
+      {
+        "name": "initial-build-no-restore.log",
+        "bytes": 11570,
+        "sha256": "34d6310eb3e604c335f7f637e55eb70a4af05351acbadbf6da8be82285d34970"
+      },
+      {
+        "name": "initial-publish-win-x64-no-restore.log",
+        "bytes": 401,
+        "sha256": "d6c613810ab577516876664ed208c199e657c4e0242801ae19dec7e2aa63c580"
+      },
+      {
+        "name": "initial-publish-win-x86-no-restore.log",
+        "bytes": 401,
+        "sha256": "d6c613810ab577516876664ed208c199e657c4e0242801ae19dec7e2aa63c580"
+      },
+      {
+        "name": "inspection-win-x64.log",
+        "bytes": 461,
+        "sha256": "a64db28e8b93facd5ef9fb73cdebaf2903b7c50bfde644535891ac8459525772"
+      },
+      {
+        "name": "inspection-win-x86.log",
+        "bytes": 461,
+        "sha256": "1830e9538488f5cc8be8a65eaa803aad9189b675268d3dda997a9ff09da59b89"
+      },
+      {
+        "name": "license-tool-availability.log",
+        "bytes": 7487,
+        "sha256": "3c58a56aa625e92640c10deb939939b7ad3739dc4932ea0842e1f31e80ce111b"
+      },
+      {
+        "name": "locked-restore.log",
+        "bytes": 1842,
+        "sha256": "898ac73c021534104cbd5bf1459af7145741287f3a9f4eaa514f6e043c0368f8"
+      },
+      {
+        "name": "payload-verify-win-x64.log",
+        "bytes": 89,
+        "sha256": "856fb6b0d39bef17742ae3b40f7b852ce787ecac0bf88cbd9a86a27b773c6feb"
+      },
+      {
+        "name": "payload-verify-win-x86.log",
+        "bytes": 89,
+        "sha256": "7da671e316732a59ac93f02d4f340dc0498d908a31ae06aba777e18716193916"
+      },
+      {
+        "name": "publish-win-x64.log",
+        "bytes": 1052,
+        "sha256": "c8c1c38f4419aab8ffc18b3daff17a62775466509681c5678acddfa3dd7897cd"
+      },
+      {
+        "name": "publish-win-x86.log",
+        "bytes": 1052,
+        "sha256": "3cbcefeac99e300bed88f21168ad4f4a1933c555d6e97688390a78f599c5f1b7"
+      },
+      {
+        "name": "release-build.log",
+        "bytes": 2164,
+        "sha256": "e367a6caf44d3e8b7652d8fed6371f3c89b75a6e629da81062a9708c597dd06e"
+      }
+    ]
+  },
+  "cleanup": {
+    "schema": 1,
+    "sourceRevision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+    "removedBuildDirectories": [
+      "installer/Kora.Setup/bin",
+      "installer/Kora.Setup/obj",
+      "src/Kora.Application/bin",
+      "src/Kora.Application/obj",
+      "src/Kora.Core/bin",
+      "src/Kora.Core/obj",
+      "src/Kora/bin",
+      "src/Kora/obj",
+      "src/Kora.Definitions/bin",
+      "src/Kora.Definitions/obj",
+      "src/Kora.Tools/bin",
+      "src/Kora.Tools/obj",
+      "src/Kora.Windows/bin",
+      "src/Kora.Windows/obj",
+      "tests/Kora.NativeUxFixture/bin",
+      "tests/Kora.NativeUxFixture/obj",
+      "tests/Kora.Application.UnitTests/bin",
+      "tests/Kora.Application.UnitTests/obj",
+      "tests/Kora.Core.UnitTests/bin",
+      "tests/Kora.Core.UnitTests/obj",
+      "tests/Kora.Definitions.UnitTests/bin",
+      "tests/Kora.Definitions.UnitTests/obj",
+      "tests/Kora.Tools.UnitTests/bin",
+      "tests/Kora.Tools.UnitTests/obj",
+      "tests/Kora.Windows.IntegrationTests/bin",
+      "tests/Kora.Windows.IntegrationTests/obj"
+    ],
+    "removedBuildDirectoryCount": 26,
+    "removedBuildFileCount": 1983,
+    "removedTemporaryContractPayloads": [
+      "contracts-win-x64/payload",
+      "contracts-win-x86/payload"
+    ],
+    "temporaryHelperCodeCreated": false,
+    "originalPublishedPayloadsRetained": true,
+    "originalPublishedPayloadIdentityRechecked": true,
+    "worktreeRetained": true,
+    "historicalReceiptsChanged": false
+  },
+  "receipts": [
+    {
+      "name": "published-bytes.inputs.json",
+      "bytes": 2902,
+      "sha256": "29069e1596d63c2209266aa3b0ca4b3685bfda8c0ae86b804899f9689da53e86"
+    },
+    {
+      "name": "published-bytes.md",
+      "bytes": 14024,
+      "sha256": "0f3013a46c3bb336376b1b7b5e0646c907db697d97a208dfd824b6fbafee5676"
+    },
+    {
+      "name": "published-bytes.win-x64.contracts.json",
+      "bytes": 2130,
+      "sha256": "0793b7ced2d0857df0a5b59464c6bdfb59c642e5f10f8dbf7037947c433dd3fb"
+    },
+    {
+      "name": "published-bytes.win-x64.payload.json",
+      "bytes": 87428,
+      "sha256": "ed277ca2b85f723f3c673cefeeb13fdd628a126ed088692c1ab35eb1cd2a5a4a"
+    },
+    {
+      "name": "published-bytes.win-x64.resources.json",
+      "bytes": 2662,
+      "sha256": "c12c402037fd509ea17e75917d491e9653d946ec6888e3f86f0f34f204c89901"
+    },
+    {
+      "name": "published-bytes.win-x64.SHA256SUMS",
+      "bytes": 22378,
+      "sha256": "6265b02a2cf8218979d62bd7c7974f34aa7d3d426283fe950fd507d4eb0be1be"
+    },
+    {
+      "name": "published-bytes.win-x64.transfer.json",
+      "bytes": 32701,
+      "sha256": "208251bace18cd3b1d195acf60fe0180c888b17af80985b2a39f910b8cee976f"
+    },
+    {
+      "name": "published-bytes.win-x86.contracts.json",
+      "bytes": 2145,
+      "sha256": "582f7f2338f4449a0b7dd3af8ea89ed71abad5d2d42273d7b894ecd27fceb4b0"
+    },
+    {
+      "name": "published-bytes.win-x86.payload.json",
+      "bytes": 84654,
+      "sha256": "49dc826d9da5e05b26d0e99b69e1fd46b20ad8e4c2acaf307a35b3448daae9f4"
+    },
+    {
+      "name": "published-bytes.win-x86.resources.json",
+      "bytes": 2662,
+      "sha256": "c12c402037fd509ea17e75917d491e9653d946ec6888e3f86f0f34f204c89901"
+    },
+    {
+      "name": "published-bytes.win-x86.SHA256SUMS",
+      "bytes": 22012,
+      "sha256": "d140da0dcf26d9a249b48b630a1d34a40aa724ff376e09e3023eb32c9b3988b3"
+    },
+    {
+      "name": "published-bytes.win-x86.transfer.json",
+      "bytes": 32135,
+      "sha256": "29adb108ca5b057b5beadfb40ef8ea9ad39935004c70741c11be86c6c1380c40"
+    },
+    {
+      "name": "published-bytes.wix-availability.json",
+      "bytes": 837,
+      "sha256": "425095d09d4a4bcb5c8d2b4f92a7a45640a0b0974410ef5555349b1384e18fe4"
+    }
+  ]
+}

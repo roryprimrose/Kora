@@ -1,5 +1,31 @@
 # Privacy, safety, and logs
 
+## Reviewed session memory controls
+
+Kora has a provider-independent reviewed memory domain and a bounded session-only private durable store.
+[Native and exact typed/activated controls](commands.md#create-and-manage-reviewed-session-memories) create a deliberate original-user volatile proposal and list/inspect/review/admit/edit/disable/forget exact session memories.
+There is no cross-session recall, provider-memory write or automatic attachment to model requests. Ordinary conversation is not silently saved as memory.
+
+The foundation separates untrusted proposals, explicit user review and host
+admission; edits remove prior review/use authority, disabled memories are
+ineligible, and forgetting leaves a content-free non-reusable tombstone. Exact
+session/profile/project/source identity and current ownership/privacy/source
+lineage are checked before use, with explicit failures for unknown state,
+forbidden content classes, size limits and revision conflicts. Credentials,
+secrets, health information, inferred traits, transient tasks and model claims
+are prohibited classes, not retention preferences. A model's class label is
+not evidence that its text is safe or a user approval. An original-user classification is not secrecy detection either.
+
+Any future local-use surface must expose exact memory IDs/revisions and source
+provenance. Local retention never grants hosted disclosure. The internal
+session-only store shares authoritative audit and session lifecycle/retention;
+proposals and edited replacement bodies stay volatile until exact review and admission.
+Drafts and unadmitted bodies are discarded on closure, session/privacy/ownership changes or restart.
+Uninventoried managed copies hold deletion acceptance. Broader scopes and provider use remain dependent work. Forgetting is not forensic erasure or
+removal of previously returned/exported/provider copies.
+Logs and Activities carry host IDs and typed outcomes, not memory content.
+See the [authoritative proposal boundary](../Design/Model_Providers_Memory_And_Knowledge.md#delivered-original-user-session-memory-proposals---2026-10-10).
+
 ## Trusted local event privacy
 
 The [bounded visual broker](commands.md#trusted-local-events) reads only
@@ -480,6 +506,28 @@ snapshot; later records do not silently extend it. Each page includes stable
 `kora-evidence` citations and at most 50 records / 64 KiB of serialized output,
 including metadata. A record too large for one page is explicitly marked
 `ContentOmitted`; content is never silently truncated.
+
+Expand **Advanced filters (optional)** for exact request, invocation, approval
+and audit-correlation GUIDs, **From / Until** times, severity and typed audit
+outcome. Blank fields are unset. GUIDs require nonempty hyphenated form without
+surrounding whitespace. Times require ISO `yyyy-MM-ddTHH:mm:ss` with optional
+1-7 fractional digits and `Z` or an explicit `+/-HH:mm` offset, normalized to
+UTC. **Both bounds are inclusive**: equal bounds select that exact instant.
+SQLite/AuthorityAudit compare commit time; DailyLog compares observation time;
+CombinedLog does not turn these into an atomic timeline. An ordinary log's
+audit correlation does not promote it into committed authority.
+
+Severity supports **All, Log, Audit, DailyLog, CombinedLog**; typed audit outcome
+supports **All, Audit, AuthorityAudit** only. Unsupported combinations show an
+explicit error with recovery, not a misleading empty success. **Clear advanced
+filters** resets all optional fields and typed choices to unset without a read.
+Malformed identifiers/times, reversed ranges and undefined choices do not
+default or fall back. Editing any filter clears results, selection and Next,
+cancels an in-flight read and requires a fresh **Search / refresh**; old/late
+results cannot return. Next continues the exact immutable query. These rules
+are exercised by [native typed-filter and real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
+and [signed-cursor tests](../tests/Kora.Application.UnitTests/Diagnostics/DurableEvidenceQueryTests.cs).
+
 Select a record to inspect parent/link status; **Read selected trace** shows
 its retained correlated records and **Open selected segment** follows an
 available cited span. Session/task IDs and traces are filters, not permission.

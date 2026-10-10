@@ -10,11 +10,28 @@ public sealed class LocalSharedSkillPreferences
     private const string FileName = "shared-skill-sources.json";
     private const int MaximumPreferenceBytes = 4096;
     private readonly IPreferenceStore store;
+    private readonly Lock gate = new();
 
     public LocalSharedSkillPreferences(IApplicationDataPaths paths) : this(new LocalPreferenceStore(paths)) { }
     internal LocalSharedSkillPreferences(IPreferenceStore store) => this.store = store;
 
     public IReadOnlyList<SharedSkillSource> Load()
+    {
+        lock (gate) { return LoadCore(); }
+    }
+
+    internal T WithUnchangedSources<T>(IReadOnlyList<SharedSkillSource> expected, Func<T> mutation)
+    {
+        lock (gate)
+        {
+            Validate(expected);
+            if (!LoadCore().SequenceEqual(expected))
+            { throw new InvalidOperationException("Source preferences changed; refresh and confirm again."); }
+            return mutation();
+        }
+    }
+
+    private IReadOnlyList<SharedSkillSource> LoadCore()
     {
         var text = store.ReadText(FileName, MaximumPreferenceBytes);
         if (text is null) { return Array.Empty<SharedSkillSource>(); }
@@ -47,6 +64,11 @@ public sealed class LocalSharedSkillPreferences
     }
 
     public void Save(IReadOnlyList<SharedSkillSource> sources)
+    {
+        lock (gate) { SaveCore(sources); }
+    }
+
+    private void SaveCore(IReadOnlyList<SharedSkillSource> sources)
     {
         Validate(sources);
         var text = JsonSerializer.Serialize(new

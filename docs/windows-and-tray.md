@@ -40,6 +40,23 @@ This is not a conversation composer, general effect cancellation, provider/
 worker qualification, Ask Evidence, export or rich browser. Real installed
 screen-reader/DPI acceptance remains open.
 
+## Search the session list
+
+In **Sessions**, choose **NameSubstring** or **ExactId**, enter the metadata query, and use **Search session metadata** (or Enter). This searches the persisted list across bounded pages, not just the already loaded rows. It is separate from **Search exact history** and diagnostic Evidence.
+
+- **NameSubstring** is literal, case-sensitive ordinal containment. `%`, `_` and punctuation are ordinary characters, not wildcards or SQL. Use NFC single-line Unicode, no control/format characters or surrounding whitespace, at most 120 scalars / 480 UTF-8 bytes. Invalid input is rejected without trimming, normalization or truncation.
+- **ExactId** requires the complete nonempty immutable ID in canonical lowercase `00000000-0000-0000-0000-000000000001` format. It looks up that one session, including unnamed metadata. Unknown/Removed IDs are unavailable, not a fallback list.
+- **All / Active / Done** applies to the whole metadata search. Outside search it continues filtering only the ordinary current page.
+- **Next metadata search** continues even after zero matches. Each click scans at most 50 rows plus one bounded lookahead, displays at most 25 matches and retains complete records within 64 KiB. Counts and output/scan limits are explicit; deferred matches are not silently skipped.
+- **Cancel metadata search** suppresses late results. **Clear metadata search** (or Escape in its field) discards the volatile query/results. **Refresh** returns to ordinary list paging. Query, mode, state, privacy, source or host changes require a fresh Search.
+
+Names can duplicate or change. Every result still shows its actual name, immutable ID, Active/Done state, generation and metadata revision; unnamed metadata stays visibly unnamed. Actions use exact observed IDs/revisions, never names.
+Unchanged visible selection retains selected work, original question identities, history and memory drafts; a disappeared or changed subject clears stale controls and details.
+
+This is a mutable ordered list, **not an atomic historical snapshot**. Renames/state/deletion and newly added IDs behind the cursor need a fresh Search. Later IDs may appear on Next. End means no later row at that observation, not a complete historical inventory.
+
+Typing, search, Next and selection are passive: no activity renewal, resume, task intent, dispatch priority, voice/question retarget, grant, memory use or model/network operation. Search is not a composer, conversation-history lexical search or caption-monitor control.
+
 ## Native local file inspection
 
 **Tray > Preview file (local inspection only)** opens the trusted Windows
@@ -53,7 +70,11 @@ same host workflow. Exact **search file** / **inspect file** focus native
 lexical search of that admitted revision. Queries are entered only in this
 native control; bounded exact excerpts carry revision/digest/line citations,
 observation time and truthful truncation/failure states. Results stay inert,
-volatile and host-only. Folder/knowledge/persistent-index/reasoning remain unavailable.
+volatile and host-only. **Tray > Preview folder** reviews all 1–32 immediate text/Markdown files (1 MiB combined, 256 KiB per file); any subdirectory or inadmissible item rejects the whole selection.
+
+Use native **Refresh this file preview** / **Refresh this folder preview**, or exact typed/current-name ACTIVATED `refresh file` / `refresh folder`, for a fresh complete metadata review of that exact admitted canonical physical source. **Confirm again** before new content reads; an old confirmation cannot be reused. Folder additions/removals/metadata changes are visible in review. Starting refresh retires the old immutable preview/citations. Failure/cancel leaves no admitted preview; missing/replaced/aliased roots require a new native picker selection. Original files are never changed.
+
+There is no automatic refresh, watcher, recursion, registry, durable attachment, knowledge/persistent-index/reasoning authority. Same privacy/ownership/call/control/lifetime and native release fences apply; unverified release blocks clean handoff/exit until recovery.
 See [commands and limits](commands.md#explicit-local-file-preview).
 
 ## Kora's presence
@@ -121,6 +142,13 @@ committed typed interaction-store audits, separately from diagnostic **Audit**,
 filter/page/citation display, without copying, export, execution or approval
 controls. [Privacy, limits and source distinctions](privacy-safety-and-logs.md#committed-authority-audit-inspection)
 describe its snapshot and recovery behavior.
+
+Expand **Advanced filters (optional)** for exact request/invocation/approval/
+audit-correlation IDs, inclusive ISO times with `Z` or explicit offset,
+diagnostic severity and typed audit outcome. **Clear advanced filters** unsets
+them without reading. Any filter edit retires results/selection/Next and
+requires a fresh search. [Formats, source support and time semantics](privacy-safety-and-logs.md#logs)
+are enforced without broadening authority, copying or export.
 
 Kora keeps a notification-area icon while running.
 Windows may initially place it under **Show hidden icons**. You can drag or pin
@@ -283,6 +311,26 @@ screen-reader or OS-session acceptance is claimed by fixture tests.
 
 ### Bounded passive interaction history
 
+After reading history, select a receipt in its bounded sequence/kind/availability/
+exact-ID list and choose **Open immutable receipt details**. This requires the
+history subject to match the selected session. The host freshly resolves that
+persisted event into the existing native read-only details window; it does not
+invent an artifact body or recover bootstrap/model response text. Native chrome
+shows the retained session, immutable item/sequence, digest and private source
+classification. Reopening the same receipt activates its existing viewer;
+conflicting snapshots require closing and refreshing, never silent replacement.
+Search/source viewing is passive; copying requires explicit private-disclosure
+confirmation. Close releases only presentation.
+
+History reading preserves focused controls, selected work and pending questions.
+Opening details may activate that owned viewer but never resumes or retargets
+work, changes queue priority, extends activity, or creates execution authority.
+Privacy/ownership loss clears private presentation. Logical disposition and
+automatic retention retire matching open details before deletion. Logical
+disposition retains redacted citations; inventoried retention purges old IDs,
+which become unavailable, and keeps only a content-free redacted gap/tombstone. File previews,
+lexical citations and skill inspection stay separate and volatile.
+
 The same **Sessions** window now also has a bounded
 [fixed local-version queue](commands.md#deterministic-local-version-queue).
 Select an exact existing session, choose **Read exact queue**, then explicitly
@@ -306,15 +354,19 @@ Only host-committed questions/final answers, decision metadata and task-state
 receipts are available. Migration baselines and gaps are labelled, not an
 invented timeline; a task receipt is not proof of an external effect.
 Bootstrap user/model messages, response bodies and full conversation composition
-are unavailable. There is no search, model history reasoning, Ask Evidence,
+are unavailable. There is no model history reasoning, Ask Evidence,
 export, replay or playback. File previews, shared-profile skill text and captions
 are not imported. Private ownership loss clears pending content.
-Exact typed/activated [history/get commands](commands.md#bounded-exact-id-session-commands)
+Exact typed/activated [history/get/search commands](commands.md#bounded-exact-id-session-commands)
 use the same service and do not record control intents or mutate sessions.
 
 Done sessions remain readable. Removed sessions do not reappear in the live
 list, but their exact known ID can inspect redacted history citations. This
 does not restore text, names, authority, approvals or work.
+
+**Search exact history** uses the same exact-ID field. Enter lexical words in the volatile query field and press Enter or the Search button. Results use the existing receipt list; select a match and use **Open immutable receipt details** for fresh resolution. **Next search snapshot page** continues even after an empty page; status reports scanned receipts, gaps and oversized matching omissions. Search defaults to 25 results, scans at most 200 receipts/call and bounds complete output to 64 KiB ([workflow](../src/Kora/SessionsViewModel.Search.cs)).
+
+Escape in the query field clears query/results without closing the window. **Clear query and results** returns focus to that field; **Cancel search** suppresses pending results. Editing query/subject, closing, privacy/ownership loss or retention retirement invalidates late content. Search does not disable the focused field, replace pending-question targets or renew activity ([native controls](../src/Kora/SessionsWindow.axaml.cs), [deterministic recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs), [late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.Search.cs)). These headless checks are not physical keyboard, installed screen-reader or DPI qualification.
 
 ### Logical session disposition
 

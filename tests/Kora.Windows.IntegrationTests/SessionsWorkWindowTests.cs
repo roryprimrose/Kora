@@ -8,6 +8,7 @@ using Kora.Application.Hosting;
 using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;

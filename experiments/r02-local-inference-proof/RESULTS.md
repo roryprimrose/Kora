@@ -1,13 +1,59 @@
 # R02 observed results and candidate recommendation
 
-Measured on 2026-10-05. **Incomplete feasibility evidence; keep D-003 and
+Original measurements are from 2026-10-05; a bounded 2026-10-09 rerun is
+recorded separately below. **Incomplete feasibility evidence; keep D-003 and
 reference-hardware inference acceptance open.**
 
 The user selected harness validation and a draft PR, with real-model,
 reference-hardware and offline evidence explicitly blocked. No provisioning or
 network-policy change was approved or performed.
 
-## Evidence inventory
+## 2026-10-09 unattended partial revalidation
+
+The [redacted derived receipt](results/unattended-partial-2026-10-09/receipt.json)
+records baseline `e0692f438a058de0a20021b3420a981849706dbf`, a clean initial
+checkout, the exact three dirty source/documentation paths at rerun, source
+hashes and SHA-256 references to the unchanged raw session artifacts.
+Raw commands, machine inventory, failures and observations remain outside Git;
+machine-specific checkout/output paths and assets are not committed.
+This receipt does not replace or relabel any earlier observation.
+
+| Check | Fresh result | Boundary |
+|---|---|---|
+| Initial Release `--no-restore` build | Exit 1, `NETSDK1004` missing `project.assets.json` | SDK 10.0.401 was already present; no installation |
+| Conditional local restore | Exit 0, experiment `NuGet.Config`, zero feeds, audit disabled | Only after the missing-assets error; no package/tool acquisition |
+| Metadata-only endpoint preflight | GET `/api/version`, curl exit 7, connection refused | No proxy, redirect, generation or lifecycle operation |
+| Initial external-directory path regression | Failed: `Record-Machine.ps1` could not identify the repository; nested **55/55** self-tests had passed | Failed log and partial qualification receipt retained |
+| Fixed external-directory path regression | **7/7 passed**, nested **55/55** self-tests, observation skipped | Source checkout identity no longer depends on the output directory being inside Git |
+| Separate `Run-Validation.ps1 -ExpectUnavailable -NoRestore` | Release build: **0 warnings/errors**; **55/55** self-tests; expected observe exit **2** | Wrapper completed successfully; not a full application test suite |
+| Source-linked endpoint observation | **Missing / Unavailable**, only `GET /api/version` and `GET /api/tags` | No POST, generation, fallback, model residency action or asset acquisition |
+
+The narrowly coupled fix anchors both machine revision and dirty-status queries
+to `$PSScriptRoot`. The added regression compares the machine revision with
+the source-linked validation revision while the caller is in an external
+evidence directory. Existing output-location and overwrite-refusal checks
+still pass. No production source, source-link list, pin, policy or shared
+configuration changed.
+
+Observed failure-detection latency was **2,133.1817 ms** for readiness and
+**2,081.8377 ms** for the answering workflow. These are refusal timings, not
+inference speed. First-token timing is null; model resources are explicitly
+**Not observed**, not zero-resource measurements. The deterministic suite's
+read-only self-process observer control is not an Ollama observation.
+
+No runtime/model was provisioned, installed, pulled, started, stopped,
+unloaded or reloaded; no clipboard was read. No healthy unknown-owned endpoint
+was used for generation. Public candidate metadata was not refreshed (the
+metadata writer was invoked only to verify early overwrite refusal).
+
+**Still open:** LI01-LI07, D-003/D-007 and A2; reference-floor CPU/context and
+resource budgets, real cold/warm performance and human-scored answer quality,
+independent offline/egress and server-cessation evidence, timeout/race recovery,
+licence/storage qualification, and integrated UI/voice/tool-loop acceptance.
+This rerun is publishable partial research under ordinary checks/reviews, not
+capability acceptance or permission for a live trial.
+
+## Historical evidence inventory
 
 | Evidence | Result | Boundary |
 |---|---|---|

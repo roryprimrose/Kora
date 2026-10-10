@@ -1,7 +1,11 @@
+using System.Text;
+
 using Kora.Core.Authorization;
+using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Presentation;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging;
@@ -14,6 +18,8 @@ public sealed partial class SessionWorkspaceService(
     SessionQueueService? queue = null)
 {
     public event Action<HostTaskObservation>? WaitingTaskCancelled;
+    public event Action<HostId<SessionIdentity>>? SessionRetired;
+    public event Action<HostId<SessionIdentity>>? SessionLifecycleChanged;
     private SessionRetentionService? retention;
     public void BindRetention(SessionRetentionService service) => retention = service;
     private Kora.Application.Interaction.LocalEventBroker? localEvents;
@@ -23,9 +29,10 @@ public sealed partial class SessionWorkspaceService(
     public Task<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(async () =>
         {
-            var snapshot = await (store as ISessionWorkStore
+            var snapshot = queue is not null ? await queue.ReadWorkAsync(session, access.ControlRevision, token).ConfigureAwait(false)
+                : await (store as ISessionWorkStore
                 ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
-                .ReadWorkAsync(session, access.ControlRevision, queue?.Limits ?? new SessionQueueLimits(), token).ConfigureAwait(false);
+                .ReadWorkAsync(session, access.ControlRevision, new SessionQueueLimits(), token).ConfigureAwait(false);
             snapshot.RequireSubject(session);
             return snapshot;
         }, token);
@@ -56,6 +63,24 @@ public sealed partial class SessionWorkspaceService(
 
     public Task<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session, Guid eventId, CancellationToken token) =>
         ReadAsync(() => History.ReadHistoryEventAsync(session, eventId, token), token);
+
+    public Task<AdmittedDetailContent> ReadHistoryDetailAsync(HostId<SessionIdentity> session, Guid eventId, CancellationToken token) =>
+        ReadAsync(async () =>
+        {
+            var record = await History.ReadHistoryEventAsync(session, eventId, token).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("The exact retained history receipt is unavailable. Refresh history.");
+            token.ThrowIfCancellationRequested();
+            if (record.SessionId != session || record.Id != eventId)
+            {
+                throw new InvalidDataException("History detail ownership does not match the exact requested receipt.");
+            }
+            return new AdmittedDetailContent(new(new(record.Id), record.Sequence), DetailContentKind.PlainText,
+                DetailContentOrigin.SessionHistory, DetailSensitivity.DisclosureConfirmationRequired,
+                "Host-committed history receipt",
+                "Persisted session history; availability, baseline and provenance are recorded metadata, not an artifact body or execution authority.",
+                Encoding.UTF8.GetString(SessionCommandResult.Serialize(new("observed", SessionHistoryPage.Scope)
+                { HistoryEvent = record })), historySession: session);
+        }, token);
 
     private ISessionHistoryStore History => store as ISessionHistoryStore
         ?? throw new InvalidOperationException("The admitted store does not provide durable history.");
@@ -108,15 +133,30 @@ public sealed partial class SessionWorkspaceService(
         }
     }
 
-    public Task<WorkSessionAuthorization> ChangeLifecycleAsync(HostId<SessionIdentity> session,
-        HostRevision expectedGeneration, bool active, RequestOrigin origin, CancellationToken token) =>
-        ControlAsync(session, origin,
-            (request, eligible) => store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, eligible, token), token);
+    public async Task<WorkSessionAuthorization> ChangeLifecycleAsync(HostId<SessionIdentity> session,
+        HostRevision expectedGeneration, bool active, RequestOrigin origin, CancellationToken token)
+    {
+        var result = await ControlAsync(session, origin,
+            (request, eligible) => store.ChangeIdleLifecycleAsync(request, expectedGeneration, active, eligible, token), token).ConfigureAwait(false);
+        SessionLifecycleChanged?.Invoke(session);
+        return result;
+    }
+
+    internal Task<MemoryCommandResult> ExecuteMemoryControlAsync(HostId<SessionIdentity> session, RequestOrigin origin,
+        Func<bool> admission, Func<HostRequest, Func<bool>, ValueTask<MemoryCommandResult>> operation, CancellationToken token)
+    {
+        // A callback cannot relabel its existing host/model context as a new local user action.
+        if (HostActivity.Current is { } current) { origin = current.Request.Origin; }
+        return ControlAsync(session, origin, operation, token, admission, existingSubject: true,
+            resolveTerminalReceipt: true,
+            terminalState: result => result.Outcome is "observed" or "Succeeded" ? HostTaskState.Succeeded : HostTaskState.Denied);
+    }
 
     private async Task<T> ControlAsync<T>(HostId<SessionIdentity> session, RequestOrigin origin,
         Func<HostRequest, Func<bool>, ValueTask<T>> mutation, CancellationToken token,
         Func<bool>? additionalAdmission = null, bool inspection = false, bool existingSubject = false,
-        bool terminalCommitted = false)
+        bool terminalCommitted = false, Func<T, HostTaskState>? terminalState = null,
+        bool resolveTerminalReceipt = false)
     {
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
         {
@@ -145,6 +185,25 @@ public sealed partial class SessionWorkspaceService(
                 throw new InvalidOperationException("Session control denied by privacy, call or ownership admission.");
             }
             var intent = await store.RecordControlIntentAsync(request, token).ConfigureAwait(false);
+            async Task RecordTerminalAsync(HostTaskState state)
+            {
+                if (resolveTerminalReceipt)
+                {
+                    var observed = await store.ReadTaskAsync(request.SessionId, request.TaskId, CancellationToken.None).ConfigureAwait(false);
+                    var current = observed?.Task
+                        ?? throw new InvalidDataException("The memory control intent could not be resolved.");
+                    if (current != intent)
+                    {
+                        if (current.Request != request || !current.IsTerminal || current != intent.Next(current.State))
+                        {
+                            throw new InvalidDataException("The authoritative memory control receipt conflicts with its exact intent.");
+                        }
+                        // Memory and its successful terminal receipt share one durable transaction.
+                        return;
+                    }
+                }
+                await tasks.RecordOutcomeAsync(intent, state, CancellationToken.None).ConfigureAwait(false);
+            }
             T result;
             try
             {
@@ -152,14 +211,14 @@ public sealed partial class SessionWorkspaceService(
             }
             catch (InvalidOperationException)
             {
-                await tasks.RecordOutcomeAsync(intent, HostTaskState.Denied, CancellationToken.None).ConfigureAwait(false);
+                await RecordTerminalAsync(HostTaskState.Denied).ConfigureAwait(false);
                 throw;
             }
             // The authoritative lifecycle/audit transaction already committed. A receipt failure
             // must remain visible; it cannot be described as a rollback or replayed automatically.
             if (!terminalCommitted)
             {
-                await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
+                await RecordTerminalAsync(terminalState?.Invoke(result) ?? HostTaskState.Succeeded).ConfigureAwait(false);
             }
             activity.Complete(HostOperationOutcome.Completed);
             return result;

@@ -17,9 +17,57 @@ The exact phrases on this page remain the current-release command reference.
 
 Provider-neutral host controls add no new command or qualified model tool loop.
 Existing bootstrap reasoning and unavailable messages remain unchanged;
-hosted inference, Local only/Local first/Hosted preferred modes, reviewed
-handoff and durable memory are not enabled by this host-only foundation.
+hosted inference is not enabled by this host-only foundation.
+Device-local initial provider mode settings are delivered separately below.
 Clipboard and file preview/search commands still perform no model submission.
+
+## Inspect or change the device-local provider mode
+
+Native **Settings > Providers** Inspect/Save/Reset and exact typed/current-name activated commands share the [provider-mode workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs).
+
+| Exact syntax | Result |
+|---|---|
+| `list provider settings` | Discover the single device-local option, choices, default, revision, timing and recovery |
+| `get providers.default-mode` / `status providers.default-mode` | Confirmed saved/default/unavailable provenance and desired initial mode |
+| `set providers.default-mode to LocalOnly` | Save the privacy-first initial mode |
+| `set providers.default-mode to LocalFirst` | Save local-first semantics for subsequent session initialization |
+| `set providers.default-mode to HostedPreferred` | Save hosted preference only; no adapter or egress permission is enabled |
+| `reset providers.default-mode` | Explicitly save LocalOnly, preserving existing session policies and other preferences |
+
+Unsaved/default/reset is **LocalOnly**. Only a session's first policy-bound turn consumes this device preference; existing volatile policies and per-turn Default/Local/Hosted choices are unchanged. HostedPreferred remains fail-closed with no composed adapter and no egress authority ([consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs), [tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
+
+Original user intent, current owning unlocked host, active control session/generation, unchanged choice/call/preference revisions, required audit, atomic readback and completed control receipt precede confirmation. Protected/Unknown original voice writes refuse. Corrupt or unconfirmed storage never becomes a default; inspect saved state and receipts, explicitly repair, then refresh ([workflow](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs), [storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs)).
+
+## Create and manage reviewed session memories
+
+Native **Sessions > Session memories** and exact typed/current-name activated commands share the [original-user workflow](../src/Kora.Application/Memory/MemoryManagementService.cs). Select an exact active session, choose an allowed classification, enter the exact value, then choose **New session memory from draft**. No existing memory ID is required; Kora issues the identity, lineage and initial revision.
+
+| Exact syntax | Result |
+|---|---|
+| `memory help` / `list memories` | Discover exact syntax; no inventory or body |
+| `memory propose <session-id> <class> "<exact value>"` | Create only a volatile Proposed/Pending user candidate |
+| `memory list <session-id>` | Content-free identity/revision/scope/review/retention/creation metadata |
+| `memory inspect/get <session-id> <memory-id> <revision>` | Explicit exact body, classification and lineage inspection |
+| `memory review <session-id> <memory-id> <revision> accept|reject` | Review the same inspected revision; accept does not admit |
+| `memory admit <session-id> <memory-id> <revision>` | Separately admit only the exact Reviewed/Pending revision |
+| `memory edit/set <session-id> <memory-id> <revision> <class> "<exact value>"` | Replace, clear review and redact earlier durable body; new inspect/review/admit required |
+| `memory disable/forget <session-id> <memory-id> <revision>` | Disable use, or forget content while retaining a non-reusable tombstone |
+
+Use canonical nonempty D GUIDs and displayed positive revisions. Classes are `ExplicitFact`, `ResponsePreference`, `WorkflowPreference`, or `Decision`; classification is not secrecy detection. Values are bounded to 512 UTF-16 code units, 1,024 strict UTF-8 bytes and 2,048 serialized candidate bytes. Double a quote inside the final quoted value. No normalization, truncation or eviction occurs.
+
+After creation, list/select the metadata row, **Inspect exact memory**, explicitly accept/reject its exact content/classification, then separately **Admit reviewed revision**. Proposals and reviewed unadmitted bodies remain volatile; no body reaches disk before admission. The 128-identity bound includes durable shells/tombstones and current volatile proposals. Drafts and unadmitted bodies clear on native closure, session/ownership/privacy changes or restart.
+
+These controls are visual-only; values are not speech, transcript/history, preferences, diagnostics or provider context. There is no model-origin/conversational **Remember this** trigger, automatic review/admit/use/recall, context attachment, hosted transmission or broader memory scope. Stale/foreign/missing original intent and changed admission refuse; inspect durable state after a receipt failure rather than assuming rollback or retrying automatically.
+
+## Native exact handoff review
+
+Open **Settings > Providers > Review pending exact provider handoff**. This original-user local surface consumes only actual pending host-issued offers; production currently shows unavailable/no pending qualified offer. There is no typed/voice/model command that supplies an arbitrary envelope or fabricates an offer.
+
+Select an exact offer and choose **Read complete exact envelope**. The inert complete preview includes session/task/question/offer identities/revisions, destination/model/catalogue revision, typed reason and every evidence item's lineage/disclosure.
+
+**Approve this exact context only**, **Decline**, **Cancel** and **Remove selected evidence** use the existing workflow. Removal retires the old question/offer and requires a fresh complete read; there is no affirmative preselection or inherited approval. Closing/expiry/cancellation/privacy loss never approves.
+
+Review is local and volatile, with no content logging/persistence, copy/export or speech. Typed outcomes state that runtime/account/final-request-egress gates are unavailable and nothing was sent or executed. No provider, adapter, account, send, fallback, retry or grant is enabled. LocalOnly defaults and per-turn choices are unchanged.
 
 ## Trusted local events
 
@@ -92,10 +140,37 @@ All/Active/Done filtering affects only the current bounded session page.
 Five-second passive work refresh never dispatches, reprioritizes, extends
 meaningful activity, moves focus or retargets voice/questions/approvals.
 Dispatch is manual, FIFO within a session and fair across ready sessions;
-the invoking session gains no priority. Capacity is ten pending entries
+the invoking session gains no priority. Default capacity is ten pending entries
 per session and one admitted task per session. The shipped host uses one
 global slot; only the fixed local-read implementation permits a host
 limit of one or two.
+
+## Fixed queue settings
+
+Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated commands use the same [admitted configuration workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
+
+| Exact syntax | Result |
+|---|---|
+| `list queue settings` | Both supported option IDs, ranges/defaults, saved/effective values, revisions and unavailable scope |
+| `get queue.pending-per-session` / `status queue.pending-per-session` | Inspect capacity; integer 1-10, default/reset 10 |
+| `get queue.execution-slots` / `status queue.execution-slots` | Inspect fixed synchronous read-only slots; integer 1-2, default/reset 1 |
+| `set queue.pending-per-session to <integer 1-10>` | Audited future pending-admission capacity; existing entries are never evicted |
+| `set queue.execution-slots to <integer 1-2>` | Audited future fixed-read admission limit; existing active reads are not cancelled |
+| `reset queue.pending-per-session` | Reset only pending capacity; preserve slot override |
+| `reset queue.execution-slots` | Reset only slots; preserve capacity override |
+
+Integers are canonical: no signs, leading zeroes, fractions, extra words or apply-now.
+Native **Refresh** captures a current admitted draft; each **Save**/**Reset** requires that unchanged revision and visible lifetime, then another Refresh.
+Concurrent native/typed edits and hide/reopen retire the old draft; they cannot overwrite a newer preference ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs), [native tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs)).
+
+Confirmed limits actually feed enqueue, fair dispatch and native/exact/event observation.
+Reducing capacity never evicts pending work or changes existing entry deadlines; reducing slots never cancels active work or changes its admission budget.
+Pending lifetime stays **30 minutes** and active budget **5 minutes**, unavailable to edit.
+Automatic dispatch, general execution, workers/resource leases, model tools and real two-slot provider/hardware qualification remain unavailable ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [deadline tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+
+Protected Active/Suspected/Unknown original-voice writes deny without downgrade or deferred application.
+Malformed/unconfirmed/inaccessible preferences or failed required audit/readback/control receipts hold new admissions, not fabricated defaults or rollback.
+Inspect saved state and receipts, explicitly repair, then Refresh; ordinary refresh never clears the unconfirmed marker ([recovery contract](../Design/User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13)).
 
 Pending eligibility expires after 30 minutes; an expired head remains visible
 until explicitly removed/cleared, and blocks later work at that position.
@@ -157,6 +232,10 @@ See [Settings recovery](settings.md#in-call-feedback-override).
 | `preview file` | Open the trusted native picker for one local UTF-8 `.txt`, `.md` or `.markdown` file, then metadata-only review |
 | `clear file preview` | Discard this volatile review/revision; never delete the original |
 | `search file` / `inspect file` | Focus the admitted revision's native lexical search/inspection control; no arguments, path or implicit source selection |
+| `preview folder` | Native picker and complete metadata review of 1–32 immediate UTF-8 text/Markdown files; no subdirectories |
+| `search folder` / `inspect folder` | Focus native lexical search across only the exact complete admitted folder revision |
+| `clear folder preview` | Discard the volatile folder review/revision; never delete originals |
+| `refresh file` / `refresh folder` | Fresh metadata review of only the exact already-admitted physical file/folder; separate new native confirmation required |
 
 The tray's **Preview file (local inspection only)** uses the same host service.
 Current-name activated input can open selection; spoken/typed paths and IDs
@@ -165,6 +244,12 @@ in the native review, before its two-minute expiry. The review discloses the
 canonical path, original host session/origin, identity, exact bytes and bounds.
 The immutable plain-text result shows source/revision/item IDs and SHA-256 of
 original bytes (including BOM). There is no automatic refresh.
+
+Native **Refresh this file preview** / **Refresh this folder preview** and exact `refresh file` / `refresh folder` use the same bounded action. No path, ID, extra words or document instruction can authorize refresh or confirmation. The exact original canonical path and physical file/directory identity must still be valid; missing, replaced, aliased or unsafe roots require a fresh native picker selection, never silent rebinding.
+
+Refresh starts by retiring the old immutable preview and citations. It reads **metadata only** into a new review, with a fresh two-minute deadline; confirm that new review separately before content reads. Source identity is preserved but successful revision/item IDs and digests are new, and old exact references become stale. Folder review shows the complete new inventory and added/removed/metadata-changed members; unchanged metadata does not prove unchanged bytes. Failure/cancel leaves no admitted preview: fix the refusal and use the native picker again. Kora never modifies the original files.
+
+Folders have at most 32 immediate files and 1 MiB combined original bytes, with the same 256 KiB per-file limit and supported formats. Empty folders, subdirectories, unsupported/unsafe items and any capture or strict-decoding failure reject the whole candidate; no recursive or partial admission. Separate confirmation covers every reviewed item.
 
 Maximum: one fixed-drive file, 256 KiB source bytes, 240 path characters,
 32 components; strict UTF-8 only. Unsupported, inaccessible, unstable,
@@ -195,7 +280,7 @@ path or refresh the revision. Closing/revoking/replacing/discarding the source,
 Cancel task and privacy/ownership changes invalidate late results. This is a
 volatile local inspection, not a durable workspace session attachment.
 
-**Unavailable:** folder preview, UNC/removable drives, durable attachments,
+**Unavailable:** recursive folders, automatic refresh/watchers, managed source registry, UNC/removable drives, durable attachments,
 knowledge sources, persistent/vector indexing, local/hosted reasoning or file-model
 tools. Preview neither submits content nor authorizes egress. It never reads
 or changes the clipboard, executes content, logs content/paths or saves the
@@ -486,6 +571,7 @@ assistant-name prefix supported. Use **session help** for the full syntax:
 | `session resume <exact-id> <generation>` | Explicit Active transition; never reruns work or revives approvals |
 | `session history <exact-id> [after <generation>:<snapshot>:<sequence>] [limit <1-50>]` | Passive ordered host interaction history with stable exact citations; no control intent or activity extension |
 | `session get <exact-id> <event-id>` | One exact history event belonging to that session, or explicit unknown; never name lookup or replay |
+| `session search <exact-id> [after <generation>:<snapshot>:<sequence>:<query-digest>] [limit <1-50>] "<query>"` | Passive lexical search of committed retained fields, exact receipt citations and explicit bounded-scan gaps/omissions |
 
 IDs must be nonempty canonical hyphenated GUIDs. Revisions are unsigned decimal
 integers (generation positive, metadata revision zero for absent legacy metadata).
@@ -504,7 +590,7 @@ Lifecycle changes require a fresh history read. Lifecycle results omit
 unobserved metadata; request status to observe it.
 
 Each accepted command has fresh original-user lineage. Except for passive
-`history/get`, legacy controls retain a durable host control
+`history/get/search`, legacy controls retain a durable host control
 intent/terminal receipt; reads do not change lifecycle, metadata, question or
 grant authority. Existing partitions must be present. Errors are explicit:
 refresh after conflict, resolve live/Unknown work or pending questions, or recover
@@ -520,10 +606,26 @@ over-budget unavailable content and disposition-redacted events are explicit.
 Bootstrap user/model messages and response bodies are unavailable, not recovered
 from logs. A task success is not proof of an external effect. Done histories
 are readable; an exact Removed ID returns redacted citations only. There is no
-composer, search, model history reasoning, Ask Evidence, broad export, attachment,
+composer, model history reasoning, Ask Evidence, broad export, attachment,
 queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
+
+Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
+
+The [bounded scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) reads only actual retained question/option labels, final answer/choices and typed kind/task-state/decision/question-status fields. Results stay in ascending session-local sequence, not relevance order. Each call scans at most 200 receipts and returns the requested 1-50 complete receipts within 64 KiB, including JSON overhead. A query-bound SHA-256 continuation preserves the original session/generation/ceiling; equivalent normalized term sets may continue, changed terms require a fresh search.
+
+`scanned`, `gaps`, `omittedMatches` and `next` are explicit [result fields](../src/Kora.Core/Storage/SessionHistorySearchPage.cs). Baseline/gap/redacted/unavailable receipts count as gaps; oversized matching receipts are omitted explicitly, not truncated. An empty page with `next` is an incomplete scan, not proof of no matches. Continue until `next` is absent. A fresh search includes later appends. Removed content never matches; Done reads never resume. Query text is volatile and is not stored, logged or sent to a provider. No indexes, schema changes or persistent query cache are added.
+
+The native history page can open immutable **receipt details** for an exact
+event belonging to the selected session. This freshly resolves the same
+authoritative record as `session get` into the shared native plain-text viewer;
+it adds no new typed/voice/model command, artifact persistence or execution
+route. Availability/redaction/baseline and provenance remain visible.
+Search/source and explicit disclosure-confirmed copy reuse existing viewer
+policy. Work/queue/questions, lexical file citations and skill inspections
+remain distinct; browsing never extends activity, reprioritizes or resumes.
+Privacy closure and pre-deletion retention/disposition retire owned viewers.
 
 Activated voice uses the existing enablement/consent/capture/privacy boundary
 and retains its originating channel and observed call/recovery revision through
@@ -1130,6 +1232,17 @@ tool references, additional uninspected entries and reasons.
 **Recheck selected revision** labels a changed live revision stale without
 changing the displayed old snapshot; list again for a new review.
 
+To stop Kora reading one source, select its registered metadata and choose
+**Withdraw local read consent**. Review and confirm the exact source ID,
+profile-relative root and directory identity in the native **Unregister source**
+confirmation. This removes only Kora's registration and local inspection
+snapshots, not your shared files. It changes no enablement, execution or grants;
+other source registrations remain intact. Even a missing original folder can
+be unregistered without reading or restoring it. A changed registration list
+requires refreshing and confirming again. Re-registering the path requires a
+fresh folder selection and receives a new source ID; old snapshots do not
+regain consent.
+
 The narrow reader requires flat YAML `name`, `version` (for example `1.0.0`)
 and `description`. Unsupported metadata/YAML, scripts or extra package files,
 executable/unknown fenced code and unresolved references remain unavailable,
@@ -1142,6 +1255,16 @@ Registration persists only root consent and directory identity in device-local
 atomic preferences. Corrupt/unknown saved registrations block discovery; restore
 a verified registration file or the original source explicitly. No silent reset,
 repair or rebinding occurs. Closing privacy cancels reads and clears the view.
+Withdrawal cancels in-flight inspection/recheck and clears text/hex snapshots
+immediately; late results cannot redisplay a removed source. A write, read-back,
+audit or admission failure does not prove rollback: the removal may already be
+saved. Read authority and the view remain closed after an unconfirmed mutation
+until **Refresh registrations** freshly observes valid saved state (or the
+host's audit/session evidence boundary is recovered). No successful receipt is
+claimed on failure.
+For the attempted source, refreshing does not revive its old identity in the
+current host: retry unregistering any remaining saved metadata, then select the
+folder afresh to obtain a new source ID if you want to grant local reading again.
 
 **Enable, disable, invoke, Kora-specific authoring and model exposure are
 unavailable here.** Registration/review grants no execution, egress, approval

@@ -1,0 +1,18 @@
+{
+  "observedAtUtc": "2026-10-09T11:10:11.1282689+00:00",
+  "separateCleanSourceDirectory": true,
+  "sourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+  "sdkPackageSha256": "3aff6e89b2335043d75d1a90986de947689cba0bcb2fdc25d210fdfd4583e74d",
+  "reproducedPackageSha256": "e21936ed045680a6e6d240ac6c75c47d3a61763fb220a690dc3d66169bd5dea3",
+  "reproducedAssemblySha256": "5475b874904a5354ef6ca98e2759b114eef5556ee003005a0793dd38e2c44eeb",
+  "packageBytesEqual": false,
+  "reviewedIdentity": {
+    "reviewedPackageSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+    "reviewedAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+    "packageMatchesReviewed": false,
+    "assemblyMatchesReviewed": false,
+    "profileMatchesReviewed": false
+  },
+  "qualification": "BLOCKED: repeatability alone does not qualify the reviewed exact-byte profile",
+  "packaging": "Unmodified SDK entry contents; ZIP timestamps normalized to 1980-01-01 UTC"
+}

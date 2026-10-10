@@ -1,8 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { cpus, platform, release } from "node:os";
 import { cases, type Evidence } from "./cases.js";
-import { candidate } from "./candidate.js";
+import { candidate, validateCandidate } from "./candidate.js";
 
+// A mismatched host must not replace historical evidence with unqualified rows.
+await validateCandidate();
 const rows: Evidence[] = [];
 for (const run of cases) {
     try {
@@ -39,7 +41,7 @@ await writeFile("evidence\\results.json", JSON.stringify({
     executableSha256: candidate.executableSha256,
     payloadSha256: candidate.payloadSha256,
     node: process.version,
-    npm: "11.13.0",
+    npm: process.env.npm_config_user_agent?.match(/^npm\/(\S+)/)?.[1] ?? "unobserved",
     typescript: "5.9.3",
     environment: { platform: platform(), osRelease: release(), arch: process.arch, cpu: cpus()[0]?.model },
     data: "synthetic only",

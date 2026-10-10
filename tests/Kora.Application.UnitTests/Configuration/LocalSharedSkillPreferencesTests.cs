@@ -136,8 +136,9 @@ public sealed class LocalSharedSkillPreferencesTests : IDisposable
         internal string? Text { get; set; }
         internal int Writes { get; private set; }
         internal bool FailWrite { get; set; }
+        internal bool FailRead { get; set; }
         internal Action? AfterWrite { get; set; }
-        public string? ReadText(string fileName) => Text;
+        public string? ReadText(string fileName) => FailRead ? throw new IOException("read failed") : Text;
         public string[]? ReadLines(string fileName) => throw new NotSupportedException();
         public void WriteText(string fileName, string contents)
         {

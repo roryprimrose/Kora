@@ -17,6 +17,7 @@ public sealed record SessionCommandResult(string Outcome, string Message)
     public ImmutableArray<HostTaskObservation> TaskDetails { get; init; } = [];
     public SessionHistoryPage? History { get; init; }
     public SessionHistoryEvent? HistoryEvent { get; init; }
+    public SessionHistorySearchPage? HistorySearch { get; init; }
     public SessionQueueSnapshot? Queue { get; init; }
     public SessionWorkSnapshot? Work { get; init; }
     public SessionQueueEntry? QueueEntry { get; init; }
@@ -30,6 +31,9 @@ public sealed record SessionCommandResult(string Outcome, string Message)
         }
         return bytes;
     }
+
+    public static int GetSerializedSize(SessionCommandResult result) =>
+        JsonSerializer.SerializeToUtf8Bytes(result, Json).Length;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {

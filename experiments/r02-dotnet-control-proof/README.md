@@ -1,12 +1,25 @@
 # R02-RT1 actual .NET public control-point conformance
 
-**RT1 PASS for the explicitly approved exact-tag source-built minimal
+**Historical RT1 PASS for the explicitly approved exact-tag source-built minimal
 HTTP/stdio profile only. Gate 0 remains open; no production adapter is enabled.**
 The runnable tests use the actual public .NET SDK and native runtime, not host
 truth tables, private reflection, patched internals or the Node SDK.
 The historical [Node results](../r02-runtime-proof/evidence/results.json) are
 unchanged. Their hook-only FAIL remains a separate regression witness; this
 fixture reproduces it with a final gate preventing unsafe forwarding.
+
+**2026-10-09 unattended rerun: BLOCKED, not a new RT1 PASS.**
+[Fresh receipt](evidence/unattended-20261009/run.json):
+preparation's locked fixture restore and conformance's no-restore build reject
+the newly built SDK with NU1403. All 45 cases remain in source, but **zero**
+conformance tests executed. The first clean-checkout build repeated locally
+yet differed from both reviewed package and assembly pins. A later attempt
+with experiment edits present also differed from that first build and the
+reviewed profile; no cause or exact-byte qualification is inferred.
+The original historical receipts and locks remain unchanged.
+**19/19 offline artifact/script invariants pass**, independently of SDK
+conformance. No native runtime, account, live provider or production code ran.
+Timing is contended with independent proofs and is not qualification evidence.
 
 **Current disposition:** migrate applicable final-request, all-status,
 denied-effect/marker and cancellation assertions into maintained production
@@ -68,6 +81,32 @@ extra compile inputs and locks. Its public Microsoft feed and local source-build
 feed have explicit package mappings; no private feed credential is supplied.
 `-UpdateFixtureLock` is reserved for an intentionally reviewed manifest or
 packaging change, not routine reproduction.
+
+`Test-Reproduction.ps1` now checks both independent repeatability **and**
+the reviewed package/assembly identities in the preserved historical disposition,
+which agree with `Candidate.cs`'s unchanged runtime gate. A repeatable new build
+cannot qualify itself. By default it writes the attempt to the ignored
+`.candidate\source-reproduction-attempt.json` rather than overwriting the original
+receipt. `-EvidencePath` selects a separate attempt receipt. Observed package and
+assembly bytes are retained in `.candidate\source-reproduction-artifacts`;
+the unique clean-source build child is always removed.
+
+When exact-byte admission blocks the 45 runtime cases, the separate offline
+checks remain useful:
+
+```powershell
+.\experiments\r02-dotnet-control-proof\Test-OfflineInvariants.ps1
+```
+
+These 19 checks use no runtime launch, restore or network: reviewed source/native
+identities, extracted source/compile inputs, minimal assets, seven source-build
+packages' downloaded archive hashes and locked-restore content metadata,
+comparison rejection/acceptance, historical Node identity, the 45 source cases,
+PowerShell parsing, ZIP entry preservation/idempotence and owned cleanup.
+NuGet lock content identities are distinct from raw signed-archive SHA-512
+values; neither is substituted for the other. The ignored offline receipt is
+`.candidate\offline-invariants.json` (`-EvidencePath` can select another file).
+Offline success is never SDK/runtime conformance or profile admission.
 
 The runner builds Release with warnings as errors, runs **all 45** xUnit v3
 tests and rejects zero/filtered/incomplete runs. It records 44 PASS selected

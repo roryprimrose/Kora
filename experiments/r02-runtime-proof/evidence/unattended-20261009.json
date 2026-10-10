@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-09T11:05:44.3585141Z",
+  "disposition": "PARTIAL_UNQUALIFIED_HOST_COMPONENTS",
+  "source": {
+    "baseCommit": "e0692f438a058de0a20021b3420a981849706dbf",
+    "branch": "proof/unattended-20261009-node",
+    "baselineTrackedSourceClean": true,
+    "finalValidationTrackedSourceDirty": true,
+    "finalValidationSource": "Base commit plus the experiment-local implementation and tests published with this receipt; not a run of the pristine base commit.",
+    "scope": "experiments\\r02-runtime-proof",
+    "machineSpecificPaths": "Omitted from this committed summary; raw outputs retain original paths."
+  },
+  "historicalCandidate": {
+    "node": "v24.16.0",
+    "npmUsed": "11.13.0",
+    "platform": "win32",
+    "arch": "x64",
+    "sdk": "1.0.16",
+    "bundledRuntime": "1.0.90",
+    "typescript": "5.9.3",
+    "nodeTypings": "24.19.0",
+    "pinsChanged": false
+  },
+  "installedTools": {
+    "node": "v24.21.0",
+    "npm": "11.19.0",
+    "sdk": "1.0.16",
+    "typescript": "5.9.3",
+    "nodeTypings": "24.19.0",
+    "runtimeBytesValidated": false,
+    "globalRuntimeInstalledOrReplaced": false,
+    "engineWarning": "EBADENGINE: required Node 24.16.0; installed Node v24.21.0 / npm 11.19.0"
+  },
+  "commandsFromRepositoryRoot": [
+    {
+      "command": "npm --prefix '.\\experiments\\r02-runtime-proof' ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0,
+      "addedPackages": 9,
+      "sourceState": "baseline",
+      "qualification": "Locked local dependency installation only; unsupported-engine warning retained."
+    },
+    {
+      "command": "npm --prefix '.\\experiments\\r02-runtime-proof' test",
+      "exitCode": 1,
+      "sourceState": "baseline",
+      "tests": 16,
+      "passed": 7,
+      "failed": 9,
+      "skipped": 0,
+      "qualification": "Build succeeded. Nine runtime cases rejected the exact Node pin before launching the runtime; not runtime capability failures or acceptance."
+    },
+    {
+      "command": "npm --prefix '.\\experiments\\r02-runtime-proof' run proof",
+      "exitCode": 2,
+      "sourceState": "baseline",
+      "rows": { "PASS": 1, "FAIL": 9, "BLOCKED": 3 },
+      "qualification": "Legacy runner caught nine pin-rejection exceptions and regenerated its matrix. Exit 2 is not production acceptance. Its hard-coded npm field is historical, not the installed npm version.",
+      "generatedEvidenceRetainedOnlyAsRawArtifact": true
+    },
+    {
+      "command": "npm --prefix '.\\experiments\\r02-runtime-proof' run test:host",
+      "exitCode": 0,
+      "sourceState": "experiment-local changes",
+      "tests": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "qualification": "Unqualified build, identity/preflight, envelope, volatile-FS and synthetic-provider component checks only.",
+      "syntheticHttpRequestsPerRun": 7,
+      "bundledRuntimeStarted": false
+    },
+    {
+      "command": "npm --prefix '.\\experiments\\r02-runtime-proof' test",
+      "exitCode": 1,
+      "sourceState": "experiment-local changes",
+      "tests": 23,
+      "passed": 14,
+      "failed": 9,
+      "skipped": 0,
+      "qualification": "Host checks pass; nine full-runtime cases remain blocked by the unchanged exact Node pin."
+    },
+    {
+      "command": "npm --prefix '.\\experiments\\r02-runtime-proof' run proof",
+      "exitCode": 1,
+      "sourceState": "experiment-local changes",
+      "qualification": "New exact-candidate preflight rejects Node mismatch before cases, runtime launch or evidence writes.",
+      "historicalEvidenceUnchanged": true
+    },
+    {
+      "command": "git --no-pager diff --check",
+      "exitCode": 0
+    }
+  ],
+  "historicalEvidence": {
+    "path": "evidence\\results.json",
+    "sha256Before": "C1A40817BF37A125C08ABE1EAA1DD31F5EC04FB959CC8CE3890CBFE95B9F0331",
+    "sha256After": "C1A40817BF37A125C08ABE1EAA1DD31F5EC04FB959CC8CE3890CBFE95B9F0331",
+    "generatedBaselineRunSha256": "7BDC7A2E9DCBA03B2E21C36C1697B5D033158527774066E8A1015DFE3FCEEDCB",
+    "restoreCommand": "git restore --source=e0692f4 -- '.\\experiments\\r02-runtime-proof\\evidence\\results.json'",
+    "restoreScope": "Only this run's generated results.json changes; initially verified unchanged at the baseline.",
+    "historicalMatrixReclassified": false
+  },
+  "boundaries": {
+    "data": "synthetic only",
+    "provider": "scripted HTTP/SSE on ephemeral 127.0.0.1 ports",
+    "liveInferenceCalls": 0,
+    "providerCredentialsRead": false,
+    "hostedAccountsUsed": false,
+    "provisionedResources": 0,
+    "modelChargesUSD": 0,
+    "exactProfileProof": "BLOCKED: installed Node differs from enforced historical candidate; historical npm version also differs.",
+    "sdkRuntimeQualification": "BLOCKED: no bundled runtime started or byte identity validated on this host.",
+    "productionReady": false,
+    "hostedProviderAcceptance": "BLOCKED",
+    "productionDotnetParity": "BLOCKED",
+    "globalEgressAndDiagnostics": "BLOCKED",
+    "loopbackListenerCleanupVerified": true,
+    "temporaryTestCodeAdded": false
+  }
+}

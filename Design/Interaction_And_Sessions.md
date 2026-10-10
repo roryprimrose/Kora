@@ -79,6 +79,10 @@ full conversation/composer UI, general concurrent provider/effect scheduler,
 or model-facing session tool API. The bounded history, native work ledger,
 question and passive detail slices do not qualify those broader capabilities.
 
+The [exact native handoff consumer](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10) reads existing successfully audited host-held offers, not generic answers or serialized/model-supplied offers. It binds the immutable original request/session/task/question/offer and all revisions throughout its volatile lifetime.
+
+Approve/decline/cancel and reduced-envelope removal reuse the same workflow and genuine question transaction. Generic submission cannot mint the exact-review capability. Unrelated questions remain unchanged; browsing another session cannot retarget review. Close, expiry, privacy/ownership closure, stale policy/task/control and disposal suppress late replies, never granting runtime or egress authority.
+
 ### R12 Bounded Session Retention Delivered - 2026-10-09
 
 Schema v6 preserves v5 queue authority and adds one durable per-session meaningful-activity timestamp. Default
@@ -190,10 +194,45 @@ attachments or model input. Their paths/text/provenance are never imported.
 History never reconstructs captions or authorizes replay: only fresh separately
 admitted actual playback can create a caption. History content never enters logs,
 activity tags/baggage or model context, and retrieval has no network/model
-dependency. Full composer, search, model history reasoning, Ask Evidence, broad
+dependency. Full composer, model history reasoning, Ask Evidence, broad
 export, queues and scheduler remain unavailable. Unique storage/interruption/
 capacity/copy evidence in the storage experiment is retained, not deleted or
 claimed replaced by this increment.
+
+### Delivered Passive Session-List Name and Exact-ID Search - 2026-10-10
+
+The [metadata-only policy](../src/Kora.Core/Storage/SessionListSearch.cs) and [Application read path](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs) navigate names or an explicitly selected exact immutable ID.
+They reuse the persisted private metadata reader, authoritative name/audit validation and unchanged admission revision, without task intent, activity renewal, grants, model calls, memory use or new storage/index authority.
+
+Names use literal ordinal case-sensitive substring matching, including punctuation as ordinary characters. Queries reuse SessionName's NFC, single-line, no-control/format, no-surrounding-whitespace, 120-scalar/480-UTF-8-byte validation. Invalid text is rejected, never normalized, trimmed, truncated or reinterpreted as All.
+ExactId accepts only a nonempty canonical lowercase D GUID; a name that resembles an ID never supplies authority.
+
+Name scans consume at most 50 metadata rows per click, with the existing bounded reader lookahead and five-second lease/SQLite progress and lock boundaries. Native results are limited to 25 records; the reusable workflow accepts 1–50 and caps the complete serialized page at 64 KiB.
+A byte/result limit preserves continuation before any deferred match. Scanned, unnamed and nonmatch counts and remaining/end scope distinguish an empty bounded result from exhaustion.
+
+All/Active/Done scopes search across pages. Unnamed metadata never matches a name but remains available by exact ID; Removed sessions never browse. Canonical-ID ordering is deterministic and culture-independent.
+Continuations bind the exact query/mode/filter, process-local service/store identity and private admission revision. They cannot silently restart on a changed query, filter, host/source or admission.
+
+Mutable metadata has no committed historical sequence ceiling. Later renames/state/removal are observed only in subsequently read rows; earlier changes and additions behind the cursor require Search again. Later appended IDs can appear, and end describes only that observation. No finite atomic snapshot is fabricated.
+Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled reads are explicit recovery states, never empty-success unfiltered inventories.
+
+The [native surface](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) distinguishes metadata search from history and Evidence. Typing in ordinary list mode preserves selected work; unchanged exact visible results retain work/history/memory presentation without renewing inspected cancellation authority.
+Invalidated/changed selections clear their targets. Query/selection/source/privacy epochs, cancellation and close fence late content.
+
+[Core rules/cursors/bytes](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs), [bounded workflow failures](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs), [actual private SQLite boundaries](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs),
+[late callbacks](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs) and [headless native preservation](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs) are the maintained evidence.
+
+This delivers only passive session-list metadata navigation, not conversation/composer, history lexical expansion, diagnostic Evidence filters, name-based model/voice routing, caption-monitor selection, providers or installed-native R14/A4 acceptance.
+
+### Delivered Passive Exact-Session Lexical History Search - 2026-10-09
+
+The [Application scan](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs) consumes the delivered private ordered history reader, without a new schema, index, content capture or authority write. The [Core matcher](../src/Kora.Core/Storage/SessionHistorySearch.cs) reuses the selected-file lexical query/token rules: NFC invariant-case whole-word OR, 256 characters/512 UTF-8 bytes, 32 distinct terms/64 characters per term. Only committed question/option labels, final answer/choices and typed kind/task/decision/question-status metadata are searchable; bootstrap bodies, reasoning, full conversations/artifacts and volatile previews remain unavailable.
+
+The [result contract](../src/Kora.Core/Storage/SessionHistorySearchPage.cs) returns complete immutable receipts ordered by host sequence, at most 50 results/200 scanned receipts/64 KiB including command JSON overhead. Input reads remain bounded by the existing 64 KiB history page and 200 consumed receipts; no unbounded materialization occurs. Query-bound continuations retain exact session, generation and original sequence ceiling. Empty bounded pages may still have a continuation. Baseline/gap/redacted/unavailable counts and oversized matching omissions are explicit; missing/corrupt storage is not an empty success.
+
+Original typed/current-name activated `session search` and [native controls](../src/Kora/SessionsViewModel.Search.cs) share private admission and content-free Activity instrumentation. Fresh end-of-scan snapshot validation, cancellation and unchanged host control/privacy revision precede publication. Done is readable without renewal; Removed content does not match. Query/subject edits and privacy/source retirement suppress late presentation. Selection opens the existing freshly re-resolved immutable receipt viewer, not a duplicate resolver. No resume/replay, question/voice retarget, model call, grant consumption or persisted/logged query is admitted.
+
+Maintained [scratch SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteHistorySearchTests.cs), [portable workflow tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Search.cs) and [native recovery tests](../tests/Kora.Windows.IntegrationTests/SessionsHistorySearchTests.cs) cover delivered behavior only. Broader R12/R14, model history reasoning, Ask Evidence, general artifact search and installed accessibility qualification remain open.
 
 ### Delivered Minimal Sessions Workspace - 2026-10-07
 
@@ -740,6 +779,8 @@ Its immutable ID survives renaming, selection, archive, and explicit resume.
 Lifecycle is **Active** or **Done**; work state is separate: idle, queued, running, waiting for user/approval, blocked, failed, cancelled, interrupted, or outcome unknown.
 Done means archived, not "every action succeeded". Deleted is irreversible removal, not another browsable status.
 A terminal task result does not automatically mark the whole session Done.
+
+The [bounded reviewed-memory store](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09) retains only exact admitted session-owned candidates. Authoritative Done/retirement, disposition and retention invalidate their bodies/receipts with typed audit in the existing transaction and retain non-reusable tombstones. Restart reads data, not review/use or egress authority; native memory controls and broader scopes remain unavailable.
 
 Host-owned records include:
 

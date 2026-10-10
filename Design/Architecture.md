@@ -21,8 +21,26 @@ The canonical local/hosted provider selection, reviewed handoff, durable user
 memory, and provider-independent knowledge contract is
 [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
+The [reviewed memory admission foundation](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09)
+places strong identity/scope/lineage, payload limits and eligibility policy in
+Core and the host-owned reviewed state workflow in Application. It reuses
+existing host Activity, ownership/privacy, session metadata and typed audit;
+it creates no parallel provider loop. The [session-only durable increment](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09)
+extends the existing private interaction SQLite lease/audit transaction and
+session retention inventory to schema v7. Application resolves the private
+session boundary; broader profile/project/source authority stays closed.
+Native original-input CRUD/review, retrieval/use visibility, model context and
+hosted disclosure remain unavailable; store registration exposes no UI/tool.
+
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.
+
+The [provider policy/review increment](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+keeps mode/selection rules in Core and a volatile revisioned session policy plus
+exact HostQuestionService review workflow in Application. The existing
+ModelTurnHost consumes one-provider choices and revalidates policy changes.
+Review is not egress or qualification; native provider settings, durable
+policy/schema integration and production adapters remain unavailable.
 
 There are two adapter families:
 

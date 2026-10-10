@@ -10,6 +10,52 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered Exact Native Provider-Handoff Review - 2026-10-10
+
+The [native handoff window](../src/Kora/ModelHandoffWindow.axaml) displays actual audited host-issued offers: original session/task/request/origin, question/offer identities/revisions, generation/control/policy/destination/catalogue revisions, typed reason and validity. Production shows unavailable/no pending qualified offer.
+
+The complete exact context/evidence/tool envelope retains the existing 32,768-byte/sixteen-evidence bounds. It is inert non-selectable text with provenance and typed disclosure labels, never Markdown/HTML, authority-bearing display text or fabricated samples.
+
+No copy/export, speech, content logging/persistence, link, provider execution or send controls exist. Approval has no default selection and confirms only exact context. Selected evidence removal retires the old offer/question and requires a fresh complete reduced-envelope read; refresh cannot inherit approval.
+
+Application owns cancellation, one-use and late-response suppression. Close/privacy/ownership/expiry and changed session/task/policy/control clear content rather than retargeting it. Unrelated questions/viewers remain independent. Installed native and provider acceptance stay open ([boundary](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10)).
+
+## Delivered Immutable Selected-Session Receipt Details - 2026-10-09
+
+**Open immutable receipt details** reuses the bounded native-text-v1 viewer
+for an exact persisted host history event from the selected session's bounded
+history page. There is no authoritative persisted artifact-body source; this
+surface truthfully displays the existing complete typed receipt as inert plain
+text, not reconstructed model output, file/skill content or an artifact body.
+The Application resolver freshly reads the exact session/event under unchanged
+private ownership admission; missing/foreign/corrupt/cancelled/over-budget or
+changed-admission results are explicit failures. Availability, baseline/gap,
+generation, source/provenance/audit metadata are not elevated into authority.
+
+Event ID/sequence supplies the immutable reference. Native chrome includes its
+retained session and source digest. Reopening activates the exact existing
+viewer; conflicting content is never substituted. Private copy requires the
+existing explicit disclosure confirmation and fresh ownership/privacy gate;
+native search/source/close reuse the same passive services. The source remains
+bounded to the existing complete 64 KiB history-result limit.
+
+Reads do not disable focused history controls or change selected work/pending
+questions, activity, priority, lifecycle, approval, execution or voice targets.
+An explicit details open may activate its owned viewer, never a work session.
+Native logical disposition retires owned viewers before its transaction;
+automatic retention revokes them before inventoried deletion. Privacy closure
+clears content/selection/search and stale copy targets. A later exact read
+returns only actually retained redacted receipts after logical disposition.
+Inventoried retention purges old event IDs (explicit unavailable), retaining
+only a content-free redacted gap/tombstone. Restart performs no replay.
+
+The delivered lexical file citation surface, volatile file/clipboard previews,
+skill review, queue/status and diagnostic evidence are reused separately, not
+duplicated or persisted here. Artifact bodies, general finalized-response/
+script/diff routing, conversation composer, model history reasoning,
+Ask Evidence, broad export and installed accessibility/DPI acceptance remain
+gated. See [the roadmap/evidence assessment](Implementation_Roadmap.md#r14-immutable-selected-session-receipt-details---2026-10-09).
+
 ## Delivered Bounded Passive Session History - 2026-10-09
 
 The [coordinated work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
@@ -45,9 +91,11 @@ remain unavailable. Shared-profile skill content and local file/clipboard
 previews remain volatile inspections. No history content enters diagnostics,
 activity tags or model context; only fresh admitted actual playback can create
 captions. This is partial R12/R14 delivery, not a full conversation composer,
-history search/model reasoning or Ask Evidence. The separately delivered fixed
+model history reasoning or Ask Evidence. The separately delivered fixed
 queue/native work surface is not a general scheduler. Real installed
 visual/screen-reader/DPI acceptance remains open.
+
+Passive exact-session history search now uses the existing receipt list and detail action. The [search workflow](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) consumes only delivered committed fields and preserves generation/query-bound pagination, exact provenance, gaps and complete byte bounds. Native selection still freshly resolves the immutable event through the existing detail service. Search text/results are volatile, cleared on query/subject/privacy retirement, and never become reply, model, replay or execution authority ([native state](../src/Kora/SessionsViewModel.Search.cs)).
 
 ## Delivered Exact Host-Record Review - 2026-10-07
 
@@ -110,6 +158,31 @@ network, microphone or browser. Search starts a fresh bounded snapshot;
 Next page continues only that snapshot. Selecting a cited record exposes its
 parent/explicit link availability; Read selected trace and Open selected
 segment use the same typed query service, never paths or SQL.
+
+The optional **Advanced filters** area adds exact request, invocation, approval
+and audit-correlation GUIDs, inclusive **From / Until** timestamps, diagnostic
+severity and typed security-audit outcome. Blank fields are unset; GUIDs must
+be nonempty hyphenated values without surrounding whitespace. ISO timestamps
+require `Z` or an explicit offset and normalize to UTC; both edges include the
+boundary instant. SQLite and AuthorityAudit compare commit time; DailyLog
+compares observation time, and CombinedLog preserves those independent time
+semantics. Correlation on an ordinary diagnostic is not a committed audit.
+Severity requires All, Log, Audit, DailyLog or CombinedLog; audit outcome
+requires All, Audit or AuthorityAudit. Unsupported choices fail visibly, not
+as empty success. **Clear advanced filters** unsets the optional fields/choices
+without reading. Malformed values, invalid ranges and undefined enum values
+never fall back to an unfiltered read.
+
+Every basic/advanced filter edit clears previous content, selection and cursor,
+and cancels an in-flight read; late content cannot restore the retired query.
+Search explicitly creates a fresh snapshot; Next uses the same immutable typed
+query and signed continuation. Trace/segment reads retain their existing
+source-specific navigation semantics rather than inheriting unrelated advanced
+search restrictions. The [native filter/parser](../src/Kora/EvidenceViewModel.Filters.cs),
+[query validation](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)
+and [native/real-reader tests](../tests/Kora.Windows.IntegrationTests/EvidenceAdvancedFilterTests.cs)
+are the maintained evidence for this deterministic filtering slice, not
+installed/native accessibility, model reasoning or release qualification.
 
 The complete compact serialized page, including correlation, typed values,
 stable citations and disclosure, is limited to 50 records / 64 KiB UTF-8.

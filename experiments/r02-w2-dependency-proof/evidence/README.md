@@ -20,6 +20,15 @@ and known-change revocation remain mandatory. This removes universal dynamic
 dependency denial as the default grant condition; it does not convert rejected
 strict mechanisms into successful enforcement or waive independent containment.
 
+## New bounded preparation (2026-10-09)
+
+The separate [file-only preparation receipt](preparation-20261009/README.md)
+records the current revision/dirty-source distinction, deterministic full-suite
+results and both managed payload builds. It does not rerun or supersede the
+original live measurements below. **PreparedOnly** is not W2 admission or
+W1/W3/W4 qualification; native loading and protected installed checks remain
+blocked and unperformed.
+
 ## Final safe run
 
 [measured](measured/) is exported from `artifacts\final-03`: **62/62 diagnostic

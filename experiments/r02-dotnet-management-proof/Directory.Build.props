@@ -6,7 +6,7 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <RestorePackagesPath>..\r02-dotnet-control-proof\.candidate\packages</RestorePackagesPath>
+    <RestorePackagesPath>$(MSBuildThisFileDirectory).inputs\packages</RestorePackagesPath>
     <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
     <DefaultItemExcludes>$(DefaultItemExcludes);.regression\**;.scratch\**;.inputs\**</DefaultItemExcludes>
     <BaseIntermediateOutputPath Condition="'$(MSBuildProjectName)' == 'HostTests'">obj\host\</BaseIntermediateOutputPath>

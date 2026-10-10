@@ -21,13 +21,10 @@ internal sealed partial class EvidenceViewModel(
     private string resultText = string.Empty;
     private bool busy;
     private bool closed;
+    private int filterRevision;
+    private CancellationTokenSource? readCancellation;
 
     public static IReadOnlyList<EvidenceSource> Sources { get; } = Enum.GetValues<EvidenceSource>();
-    public EvidenceSource Source { get; set; }
-    public string SafeText { get; set; } = string.Empty;
-    public string SessionFilter { get; set; } = string.Empty;
-    public string TaskFilter { get; set; } = string.Empty;
-    public string TraceFilter { get; set; } = string.Empty;
     public string Status => status;
     public string ResultText => resultText;
     public IReadOnlyList<EvidenceRecord> Records => page?.Records ?? [];
@@ -36,13 +33,7 @@ internal sealed partial class EvidenceViewModel(
     public bool CanNext => CanQuery && page?.Cursor is not null;
     public bool CanReadTrace => CanQuery && (selected?.Trace is not null || selected?.AuthorityProvenance is not null);
 
-    public Task SearchAsync() => RunAsync(() => new()
-    {
-        Source = Source, Text = string.IsNullOrEmpty(SafeText) ? null : SafeText,
-        SessionId = string.IsNullOrWhiteSpace(SessionFilter) ? null : new(Guid.ParseExact(SessionFilter, "D")),
-        TaskId = string.IsNullOrWhiteSpace(TaskFilter) ? null : new(Guid.ParseExact(TaskFilter, "D")),
-        TraceId = string.IsNullOrEmpty(TraceFilter) ? null : TraceFilter,
-    }, next: false);
+    public Task SearchAsync() => RunAsync(CreateQuery, next: false);
 
     public Task NextAsync() => RunAsync(() => currentQuery
         ?? throw new InvalidOperationException("Search before requesting a next page."), next: true);
@@ -80,6 +71,9 @@ internal sealed partial class EvidenceViewModel(
         if (busy || closed) { return; }
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), viewer.SessionId,
             viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Evidence);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        readCancellation = cancellation;
+        var revision = filterRevision;
         busy = true;
         Notify();
         try
@@ -87,8 +81,10 @@ internal sealed partial class EvidenceViewModel(
             if (!canInspect()) { throw new InvalidOperationException("Evidence inspection is denied by host ownership or privacy."); }
             var target = create();
             var cursor = next ? page?.Cursor ?? throw new InvalidOperationException("No continuation page is available.") : null;
-            var result = await query.QueryAsync(target, cursor, lifetime.Token);
-            if (closed || !canInspect()) { throw new OperationCanceledException("Evidence presentation closed."); }
+            Clear("Reading a bounded evidence snapshot.");
+            Notify();
+            var result = await query.QueryAsync(target, cursor, cancellation.Token);
+            if (closed || revision != filterRevision || !canInspect()) { throw new OperationCanceledException("Evidence presentation retired."); }
             currentQuery = target;
             page = result;
             selected = null;
@@ -104,19 +100,32 @@ internal sealed partial class EvidenceViewModel(
         }
         catch (OperationCanceledException)
         {
-            Clear("Evidence query cancelled or privacy closed. No late content was presented.");
+            if (closed || revision == filterRevision)
+            {
+                Clear("Evidence query cancelled or privacy closed. No late content was presented.");
+            }
             activity.Complete(HostOperationOutcome.Cancelled);
+        }
+        catch (NotSupportedException)
+        {
+            Clear("Unsupported filter for this source. Severity requires All, Log, Audit, DailyLog or CombinedLog; audit outcome requires All, Audit or AuthorityAudit. Clear the unsupported filter or select its source, then search again.");
+            Failure(logger, nameof(NotSupportedException));
+            activity.Complete(HostOperationOutcome.Failed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            Clear("Evidence query failed: " + exception.GetType().Name
-                + ". Verify filter format and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
+            if (closed || revision == filterRevision)
+            {
+                Clear("Evidence query failed: " + exception.GetType().Name
+                    + ". Use nonempty hyphenated GUIDs and ISO timestamps with Z or an explicit offset; verify range, typed choices and private storage access, then start a fresh search. No empty success or replacement database is claimed.");
+            }
             Failure(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
         }
         finally
         {
             busy = false;
+            readCancellation = null;
             if (closed) { lifetime.Dispose(); }
             Notify();
         }
@@ -133,6 +142,7 @@ internal sealed partial class EvidenceViewModel(
         SessionFilter = string.Empty;
         TaskFilter = string.Empty;
         TraceFilter = string.Empty;
+        ClearAdvancedFilters();
         Notify();
     }
 

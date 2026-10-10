@@ -83,7 +83,7 @@ Do not install a toolchain or runtime to satisfy this prerequisite.
 Equivalent focused commands:
 
 ```powershell
-dotnet build .\experiments\r02-containment-proof\ContainmentProof.csproj -c Release
+dotnet build .\experiments\r02-containment-proof\ContainmentProof.csproj -c Release --no-restore
 $proof = '.\experiments\r02-containment-proof\bin\Release\net10.0-windows\ContainmentProof.exe'
 & $proof self-test
 # Only after the separately approved live effects:
@@ -351,6 +351,39 @@ separately from historical measured OS proof. The preparation receipt identifies
 the pre-commit dirty-source state truthfully; its file hashes identify the tested
 bytes and do not imply equivalence to a future rebuilt or relocated candidate.
 
+### Unattended preparation repeat (2026-10-09)
+
+The existing `-PrepareOnly` runner completed at source revision
+`e0692f438a058de0a20021b3420a981849706dbf`, with **no locally modified
+preparation inputs**. Missing `obj\project.assets.json` was handled by one
+focused `dotnet restore .\experiments\r02-containment-proof\ContainmentProof.csproj
+--locked-mode`; no toolchain/runtime was installed. The no-restore Release
+build passed with zero warnings/errors, the five deterministic
+receipt/classification assertions passed, and the preparation runner exited `0`.
+The installed SDK was `10.0.401`, PowerShell `7.6.6`, and the observed Windows
+x64 build was `10.0.26300.0`; this does not qualify a supported reference OS.
+
+The new path-free [preparation receipt](evidence/preparation-2026-10-09.json)
+pins the tested source and EXE/DLL bytes. Its
+[validation summary](evidence/preparation-validation-2026-10-09.json) records
+the five assertion meanings and distinguishes preparation success from
+unperformed OS assertions. Original 2026-10-05 and 2026-10-08 receipts are
+unchanged. Publication documentation was edited only after this clean-source
+run; a later commit/rebase is not the tested source revision.
+
+No live trial or administrator observer ran. No temporary AppContainer,
+synthetic credential, local-network endpoint, audit/firewall change,
+privilege/elevation, runtime installation or real computer-control API was
+used. No owned trial scratch or trial process tree was created, so their cleanup
+was not exercised. Raw preparation/build/restore artifacts remain local, outside
+the published receipt. No binaries are committed.
+
+This is **partial preparation only**, not a new measured containment result.
+Preparation exit `0` does not change the historical live proof's `63/71`
+assertions and exit `2`. Network attribution remains **Unproven**;
+supported-reference-OS, protected-runtime-closure and production-profile
+qualification remain false. C01-C07 and W1-W4/R11/R16/R17 gates stay open.
+
 ## What the trials actually do
 
 1. Create a GUID-named owned scratch tree under the new evidence directory
@@ -488,15 +521,23 @@ scratch trials prove only the narrower [recorded observations](evidence/README.m
 
 ### Safe Existing Checks
 
-The existing runner builds, runs five deterministic assertions and uses only
-fixed probes against owned synthetic resources. It creates/deletes a temporary
+For unattended, file-only validation, use `-PrepareOnly` from [Reproduce](#reproduce)
+with a new evidence directory. It builds with `--no-restore`, runs the five
+deterministic assertions and writes preparation pins; it does **not** run the
+owned-scratch trial or observer. If assets are absent, perform only the focused
+locked restore described above. Preparation success closes no containment gate.
+
+The separate live mode uses fixed probes against owned synthetic resources
+and requires fresh, separately scoped approval. It creates/deletes a temporary
 AppContainer profile and a single synthetic Credential Manager entry, copies
 the installed runtime into scratch, opens local listeners and closes its owned
 process tree. It does not capture audio, install/launch Kora, alter installed
 ACLs, change global policy or request lock/power effects.
 
-Run [Reproduce](#reproduce) under a non-elevated Windows x64 token into a new
-evidence directory. No unlock is required for these scratch checks, but the
+Only after that live approval, run the separately marked command in
+[Reproduce](#reproduce) under a non-elevated Windows x64 token into a new evidence
+directory. An unattended preparation approval does not admit this mode.
+No unlock is required for these scratch checks, but the
 read-only desktop-handle observation is session-dependent and never establishes
 computer-control acceptance. Preserve strict exit `2` and every unmet assertion
 when network denial remains unproven; an unexpected error/cleanup failure is

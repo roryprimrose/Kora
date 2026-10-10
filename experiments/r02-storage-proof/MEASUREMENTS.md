@@ -1,5 +1,120 @@
 # Measured Windows Snapshots
 
+## Unattended Rerun - 2026-10-09
+
+**152 automated assertions passed, zero failed or blocked; runner exit 0.**
+The unchanged harness performed **14 actual owned-child kill/recovery trials**
+(four database and three artifact boundaries per candidate), followed by
+successful framework-dependent win-x64 and win-x86 publications with native
+PE architecture checks. This is a rerun of the historical synthetic comparison,
+not production admission or a revived encryption prerequisite.
+
+New, separate receipts:
+[assertions/measurements](evidence/unattended-20261009-run.json) and
+[native publication](evidence/unattended-20261009-native-assets.json).
+All four original/historical receipts remain byte-for-byte unchanged.
+The native report's unchanged `latest.json` reference denotes this rerun's
+assertion receipt; it is not a reference to the older historical snapshots.
+
+### Provenance and commands
+
+- Measured revision: `e0692f438a058de0a20021b3420a981849706dbf` from `origin/main`.
+- Branch at execution: `proof/unattended-20261009-storage`.
+- Experiment tree at execution: `652eb7a36840399111cf5bba52b9262d4eb09a31`.
+- `git status --porcelain=v1 --untracked-files=all` was empty before and after
+  execution. Ignored build outputs and generated evidence are not source edits.
+  Receipt/documentation deliverables were added **after** the measurement;
+  their delivery commit is not the measured source revision.
+- SDK `10.0.401`; PowerShell `7.6.6`; runtime `.NET 10.0.12`;
+  Windows `10.0.26300`, X64, 16 logical processors.
+- Assertion receipt timestamp: `2026-10-09T11:02:33.8624507+00:00`;
+  native receipt timestamp: `2026-10-09T11:02:39.975827+00:00`.
+
+Commands below are relative to the isolated repository root. Absolute worktree
+and raw-output destinations are deliberately omitted from committed receipts.
+
+```powershell
+dotnet --version
+$PSVersionTable.PSVersion.ToString()
+dotnet build .\experiments\r02-storage-proof\StorageProof.csproj -c Release --no-restore
+pwsh -NoLogo -NoProfile -NonInteractive -File .\experiments\r02-storage-proof\Run-Proof.ps1 -PublishAssets
+```
+
+The initial no-restore build exited **1** with `NETSDK1004` because the isolated
+worktree had no `obj\project.assets.json` (0 warnings, 1 error). Only after that
+missing-dependency failure was the existing runner invoked. It performed:
+
+```powershell
+# From experiments\r02-storage-proof, as implemented by Run-Proof.ps1:
+dotnet restore StorageProof.csproj --locked-mode
+dotnet build StorageProof.csproj -c Release --no-restore
+dotnet run --project StorageProof.csproj -c Release --no-build
+dotnet publish StorageProof.csproj -c Release -r win-x64 --self-contained false --no-restore
+dotnet publish StorageProof.csproj -c Release -r win-x86 --self-contained false --no-restore
+```
+
+All five runner commands succeeded. The Release build reported **0 warnings,
+0 errors**; packages, lock file, source, and runner were not changed. There was
+no second restore or machine setup. No temporary code was created.
+
+| Receipt/pin | SHA256 |
+|---|---|
+| `unattended-20261009-run.json` | `72E4AE3D4D7FB359AA3560C20127707BEC362A985D003CC01676891EB75B5FA0` |
+| `unattended-20261009-native-assets.json` | `C2674EEE0DC26306E91AB1BD2C99FAB16B31B855FEB8AFB73C7989DB2300DB30` |
+| Unchanged `packages.lock.json` | `339AB7FE3082CA0BE434D91555778F93A81D195643797CD4A6CFA3809247AADF` |
+
+### Observed workload
+
+Per candidate: 2,000 batched inserts, 100 individual autocommit inserts,
+2,000 verified point reads and one exact fixture-count query; 4,133 synthetic
+bytes per record. FULL-synchronous WAL, disabled pooling and disabled automatic
+checkpointing match the historical workload.
+
+| Metric | AES-GCM + equality token | SQLCipher + FTS5 |
+|---|---:|---:|
+| Initial open/schema, ms | 6.8529 | 1,505.0977 |
+| 2,000-record transaction, ms | 221.5723 | 1,331.9262 |
+| Batched records/second | 9,026.40 | 1,501.58 |
+| Individual write p50 / p95, ms | 1.0182 / 2.7620 | 6.6042 / 35.7973 |
+| Point read p50 / p95, ms | 0.0508 / 0.1294 | 0.1043 / 1.0170 |
+| Exact fixture search/count, ms | 0.4417 | 0.8681 |
+| Live main database bytes | 4,096 | 4,096 |
+| Live WAL bytes | 11,185,832 | 25,164,992 |
+
+**Other proofs were running concurrently on the shared development machine.**
+These observations neither establish a regression against the older snapshots
+nor qualify reference hardware, a performance budget or statistical significance.
+The candidates have different search semantics, and both use the same old
+SQLCipher native engine. Observed versions remain SQLite `3.39.2`, SQLCipher
+`4.5.2 community`, LibTomCrypt `1.18.2`, 4,096-byte cipher pages, KDF 256,000
+iterations and HMAC enabled; memory-only temporary storage was asserted.
+Native hashes and sizes match the historical reports. X64 native loading was
+exercised; x86 was published **but not executed**.
+
+### Boundaries and cleanup
+
+Only synthetic experiment databases, artifacts, keys and owned child processes
+were used. No production database, second-user session, elevation, service,
+account or machine configuration was accessed or changed. CurrentUser DPAPI
+and actual owner-only directory/key-file ACL assertions passed. The runner
+removed its own GUID scratch directory; the scratch root contained no run
+directories afterward. Raw logs, original generated receipts and both published
+output directories were retained outside git for worktree cleanup by the
+coordinator. No keys, wrappers, binary assets or machine-specific paths were
+added to the deliverables.
+
+No operational blocker remains for this bounded automated run. Different-user
+denial remains **unperformed**, not passed. Live SHM byte-locked regions remain
+excluded from scans; marker absence is not general plaintext-absence evidence.
+Installed/clean-machine x86/x64 native load, provenance/admission, physical
+power-loss/fsync guarantees, wrapper/rekey crash recovery, broad temporary-file
+observation and integrated production artifact/backup deletion remain unproven.
+Copied wrappers/backups still preserve the documented deletion/rekey limits.
+The synthetic intent-without-receipt assertion has no effect-dispatch path and
+does not establish production no-replay, approval, grants or lifecycle behavior.
+Existing maintained-production equivalence/disposition assessments below and
+the canonical standard-SQLite decision are unchanged.
+
 ## Revised Profile-Integration Run
 
 After rebasing onto the merged speech and containment outcomes, the Windows

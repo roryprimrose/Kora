@@ -79,6 +79,13 @@ for actual SDK final-request, transport, retry, session-I/O, resource, account
 or all-path lifecycle tests. RT1/RT2/MG1/Node and local-inference experiments
 remain retained with no assertions marked migrated or unique evidence removed.
 
+The [provider policy/exact-review workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+now consumes that host boundary and existing question transactions. It adds no
+SDK, transport or management-runtime subject: approved review still fails
+without qualified exact-profile evidence and independent egress. RT1/RT2/MG1
+executables, derived-fixture consumers and native procedures remain retained;
+these deterministic workflow tests are not exact maintained runtime equivalence.
+
 ### RT1 .NET outcome: selected source-built profile passes
 
 The [RT1 disposition](../experiments/r02-dotnet-control-proof/evidence/disposition.json)

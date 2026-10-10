@@ -106,10 +106,45 @@ tests. A passing test verifies an expected observed limitation too; it does
 **not** mean all capability gates pass.
 
 `npm run proof` regenerates [evidence/results.json](evidence/results.json).
+It first validates the exact host/SDK/runtime candidate. A failed preflight
+exits nonzero before running cases or writing evidence; it does not replace
+historical receipts with results from an unqualified host. New reports record
+npm's invocation user-agent version (or `unobserved` when invoked outside npm),
+not a hard-coded historical version.
 Exit **2** means the evidence matrix contains FAIL/BLOCKED rows and is the
 expected result for this partial proof. Exit 0 is reserved for an all-PASS matrix;
 other nonzero results must be investigated. Never interpret exit 2 as
 production success or suppress it in release validation.
+
+### Unqualified host-component checks
+
+When the installed Node differs from the exact candidate, do **not** edit the
+pins or bypass `validateCandidate`. Build/type checks and isolated host tests
+can still be run as **unqualified partial evidence**:
+
+```powershell
+Set-Location experiments\r02-runtime-proof
+npm ci --ignore-scripts --no-audit --no-fund
+npm run test:host
+```
+
+`test:host` includes candidate identity rejection, historical-evidence
+preservation, management envelopes/budgets, volatile memory FS, host deadline,
+and the synthetic provider's HTTP/SSE/error/shutdown behavior. It does not
+start the bundled runtime, invoke tools, read provider credentials or connect
+to a live model. Its synthetic listeners bind only to ephemeral `127.0.0.1`
+ports; tests verify arrival and closure. Unsupported-host preflight tests are
+explicitly skipped on an exact candidate host to avoid starting runtime cases
+from the host-only command. Passing host tests is not SDK/runtime or production
+qualification; `npm test` retains the full runtime cases and will still reject
+a mismatched host.
+
+The [2026-10-09 unattended receipt](evidence/unattended-20261009.json) records
+installed Node 24.21.0 / npm 11.19.0 separately from historical
+Node 24.16.0 / npm 11.13.0. Dependency installation warned `EBADENGINE`; it did
+not change those pins. The historical matrix remains unchanged. Exact-profile
+runtime/provider validation, hosted-account trials and production acceptance
+remain **BLOCKED**, even though these narrower host checks passed.
 
 Individual cases can be selected without a second test runner:
 

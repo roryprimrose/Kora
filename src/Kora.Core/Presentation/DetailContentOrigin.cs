@@ -4,4 +4,5 @@ public enum DetailContentOrigin
 {
     EmbeddedDocument,
     FinalizedResponse,
+    SessionHistory,
 }

@@ -1,0 +1,86 @@
+[
+  {
+    "path": "global.json",
+    "sha256": "4977ae364d92d2679acc93fcb364eb2d7c990a320edebf034b01b9ed14098d84"
+  },
+  {
+    "path": "dotnet-tools.json",
+    "sha256": "31c1296f8eff88dbbecce68b86f6d0f852534c29fb269b50d17c6e39ed914cfe"
+  },
+  {
+    "path": "Directory.Build.props",
+    "sha256": "df1a91704f81bbd06f0b60722a2f2e13c66c9899cc908cf0e1edd18abffa4e71"
+  },
+  {
+    "path": "Directory.Build.targets",
+    "sha256": "ad98a44faad41a5fd42a335724ab9ca393b5317465aab197b7949a4bae3d8c62"
+  },
+  {
+    "path": "Directory.Packages.props",
+    "sha256": "8ca08c666d0539b4b27fc63b241887211ca0d16045e89e5e20ec9306479072c9"
+  },
+  {
+    "path": ".github/workflows/ci.yml",
+    "sha256": "b08f32ad208a3cbe5cbfc03009c6636b6c40c0571d6ef2f85b48e9e632951257"
+  },
+  {
+    "path": "eng/Inspect-Publish.ps1",
+    "sha256": "664d9c35beb8505c37733f97251a741714dbbfd8a0f418a81f7f2e43d2c37e91"
+  },
+  {
+    "path": "eng/NativeInspection.Common.ps1",
+    "sha256": "a4dfa0b70b1a276c7cdcbe51f8bdd15ef1dbf498d2563ab045d072225df675c8"
+  },
+  {
+    "path": "eng/Distribution.Common.ps1",
+    "sha256": "0c14f4add0bee4cb48a9650c9b8c666455160d30a0da9c5640aafe0c3326f63a"
+  },
+  {
+    "path": "eng/Test-PublishContracts.ps1",
+    "sha256": "71a4eb2e8d78c348db9bb409339a56ee6a44c9da690b3ea62f6cf2e96f37924d"
+  },
+  {
+    "path": "eng/Test-EmbeddedSkillResources.ps1",
+    "sha256": "a9732fb172b37dd5dee8c8f697964e9e391744f58e308cc3c017fc3df6f95ce4"
+  },
+  {
+    "path": "eng/Test-DependencyLicenses.ps1",
+    "sha256": "c60acaeb6de22fb8eba612b9cd75f9bcbff5253dd6f2713f4a0abfb61320f51e"
+  },
+  {
+    "path": "eng/Test-InstallerPayload.ps1",
+    "sha256": "25db4b031865041308de1c43432cc8ade8b1d89bad2df8ddcf1018fd7c580abe"
+  },
+  {
+    "path": "eng/Build-Installer.ps1",
+    "sha256": "a1ded7c053f6df669105010fac186b90643f1f4919552337401dfbfcbca4d31e"
+  },
+  {
+    "path": "eng/Test-Installer.ps1",
+    "sha256": "54dac20cc70956c3be8e866ce932a7a85fb5e56db5387a21300fcc5dc35103b6"
+  },
+  {
+    "path": "installer/Directory.Build.props",
+    "sha256": "6674e2d20816b18278a41310a4e4793c5a377b4cfb21b863693945ae5739ef54"
+  },
+  {
+    "path": "installer/Kora.Msi/Kora.Msi.wixproj",
+    "sha256": "1e09bb22de5e794334cee1dd6758ed123dda916e441cf11657b3b7fcb327ba89"
+  },
+  {
+    "path": "installer/Kora.Bundle/Kora.Bundle.wixproj",
+    "sha256": "b4e8bbd2ff6ba9fdb40821ed05c5141d4366dde5bd566379797f231cbae19ed6"
+  },
+  {
+    "path": "eng/licenses/allowed-licenses.json",
+    "sha256": "03dfee190194800d9c1c69c63ad6c70b9c3ed3754ddbe5bd54078329991e5b53"
+  },
+  {
+    "path": "eng/licenses/license-file-identities.json",
+    "sha256": "dce2e7550f3f35d142e9f1e17bd4d0d5829ab59f3d88a8248e0529048ebef2e2"
+  },
+  {
+    "path": "eng/licenses/package-overrides.json",
+    "sha256": "0dad200dba91a2d6a3b38eb6a7cc31dc908891655187aa68e05520bd8d33c488"
+  }
+]

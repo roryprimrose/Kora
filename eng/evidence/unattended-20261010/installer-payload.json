@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "proof": "maintained-installer-payload-rejection",
+  "result": "passed",
+  "runId": "20261009T204451298Z",
+  "startedUtc": "2026-10-09T20:44:51.5208634+00:00",
+  "endedUtc": "2026-10-09T20:45:02.5386968+00:00",
+  "elapsedMilliseconds": 11018,
+  "sourceRevision": "56df1ee136a687d8cd3e2294ca25e38f9eab75dd",
+  "branchAtExecution": "agents/installer-payload-rejection-validation",
+  "execution": {
+    "command": "pwsh -NoLogo -NoProfile -NonInteractive -File .\\eng\\Test-InstallerPayloadContracts.ps1",
+    "exitCode": 0,
+    "powershellVersion": "7.6.6",
+    "availableDotnetSdk": "10.0.401",
+    "availableDotnetRuntime": "10.0.12",
+    "isolatedWorktreeVerified": true,
+    "cleanAtExecution": true,
+    "unattended": true,
+    "syntheticBytesOnly": true
+  },
+  "counts": {
+    "positiveManifestChecksPassed": 1,
+    "rejectionCasesPassed": 7,
+    "trackedMsiSourcePreconditionsPassed": 3,
+    "compilerCalls": 0,
+    "newInstallerStagingEntries": 0,
+    "newFixtureDirectoriesRemaining": 0
+  },
+  "cases": [
+    {
+      "name": "exact-and-hidden-file-manifest",
+      "result": "passed",
+      "expected": "Two exact synthetic payload files verify, including the Windows hidden notice."
+    },
+    {
+      "name": "changed-application-bytes",
+      "result": "rejected",
+      "expectedError": "*Application payload digest mismatch*"
+    },
+    {
+      "name": "changed-hidden-notice-bytes",
+      "result": "rejected",
+      "expectedError": "*Application payload digest mismatch*"
+    },
+    {
+      "name": "removed-hidden-file",
+      "result": "rejected",
+      "expectedError": "*Application payload file count changed*"
+    },
+    {
+      "name": "added-unexpected-file",
+      "result": "rejected",
+      "expectedError": "*Application payload file count changed*"
+    },
+    {
+      "name": "version-mismatch",
+      "result": "rejected",
+      "expectedError": "*Application payload version or source revision*"
+    },
+    {
+      "name": "source-revision-mismatch",
+      "result": "rejected",
+      "expectedError": "*Application payload version or source revision*"
+    },
+    {
+      "name": "missing-manifest",
+      "result": "rejected",
+      "expectedError": "*payload-manifest.json*"
+    }
+  ],
+  "assertionBasis": "The full maintained suite completed successfully. Its rejection helper requires the expected exception, zero dotnet calls and an unchanged installer staging inventory after every rejection.",
+  "cleanup": {
+    "suiteFinallyRemovedOwnedFixture": true,
+    "externalSnapshotFoundNoNewFixtureDirectories": true,
+    "installerStagingExistedBefore": false,
+    "installerStagingExistsAfter": false,
+    "installerStagingUnchanged": true,
+    "sourceFileHashesUnchanged": true
+  },
+  "sourceHashBasis": "SHA-256 of exact worktree file bytes at execution, not normalized Git blobs.",
+  "sourceFiles": [
+    {
+      "path": "eng\\Test-InstallerPayloadContracts.ps1",
+      "sha256": "FB6E06421AD8C35479C892EEBB0D3BD8D6ED13ED5269E040B82EC7AB66AD9C66"
+    },
+    {
+      "path": "eng\\Test-InstallerPayload.ps1",
+      "sha256": "25DB4B031865041308DE1C43432CC8ADE8B1D89BAD2DF8DDCF1018FD7C580ABE"
+    },
+    {
+      "path": "eng\\Build-Installer.ps1",
+      "sha256": "A1DED7C053F6DF669105010FAC186B90643F1F4919552337401DFBFCBCA4D31E"
+    },
+    {
+      "path": "installer\\Kora.Msi\\Kora.Msi.wixproj",
+      "sha256": "1E09BB22DE5E794334CEE1DD6758ED123DDA916E441CF11657B3B7FCB327BA89"
+    },
+    {
+      "path": "installer\\Kora.Msi\\Package.wxs",
+      "sha256": "455744CE1B6B7EF73055EFB4BAE039C9A4958D482E8B2B6AC029C4C3691F73AE"
+    },
+    {
+      "path": "installer\\Kora.Msi\\packages.lock.json",
+      "sha256": "FC06296DAB7B8BB8D3F83B27F319973520C6BB67FC7B67440E02261C47903503"
+    }
+  ],
+  "rawArtifacts": {
+    "retainedOutsideRepository": true,
+    "logFileName": "contracts-20261009T204451298Z.log",
+    "logSha256": "44E60EB250287F3AF8E9D6906158FE6C7F10A79F91E6D385FF8124695982E941",
+    "runnerReceiptFileName": "run-20261009T204451298Z.json"
+  },
+  "boundaries": {
+    "productionCodeChanged": false,
+    "restoreOrBuildInvoked": false,
+    "applicationPublishedOrStarted": false,
+    "msiSetupOrElevationInvoked": false,
+    "machineConfigurationOrStartupChanged": false,
+    "consentOrLicenseAcceptanceRequested": false,
+    "freshPublishedPayloadInspected": false,
+    "releaseOrInstallerAcceptanceClaimed": false
+  }
+}

@@ -34,7 +34,7 @@ try {
                     $stream.Open($path, 3, $false) # SSFMCreateForWrite
                     $voice.AudioOutputStream = $stream
                     $null = $voice.Speak($entry.Value)
-                    $voice.AudioOutputStream = $null
+                    # Keep the voice file-bound: resetting to null resolves the default audio endpoint.
                 }
                 finally {
                     $stream.Close()

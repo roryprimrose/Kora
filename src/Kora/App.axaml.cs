@@ -59,6 +59,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
             ApplyThemeMode(viewModel.ThemeMode);
             logger = Services.GetRequiredService<ILogger<App>>();
+            BindHandoffPresentation(viewModel);
             DesktopLog.Information(logger, "Initializing the Kora desktop application");
             var window = new MainWindow(
                 viewModel,
@@ -76,6 +77,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<IUserDocumentationProvider>(), viewModel,
                 Services.GetRequiredService<ILogger<DetailWindowController>>(),
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
+            detailWindow.BindHistoryAccess(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().CanInspect);
             documentationWindow = new DocumentationWindowController(
                 Services.GetRequiredService<IUserDocumentationProvider>(),
                 viewModel,
@@ -123,7 +125,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<SessionsViewModel>>(),
-                Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>());
+                Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
+                Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>());
             sessionsWindow.Bind();
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
@@ -131,14 +134,21 @@ public sealed partial class App : Avalonia.Application
             var sessionRetention = Services.GetRequiredService<SessionRetentionService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindRetention(sessionRetention);
             sessionRetention.Revoking += sessionsWindow.RevokeSession;
+            sessionRetention.Revoking += detailWindow.RevokeSession;
             sessionRetention.Revoking += viewModel.RevokeSessionPresentation;
+            var memories = Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>();
+            sessionRetention.Revoking += memories.ExpireSession;
+            Services.GetRequiredService<SessionWorkspaceService>().SessionLifecycleChanged += viewModel.RevokeSessionPresentation;
+            Services.GetRequiredService<SessionWorkspaceService>().SessionRetired += viewModel.RevokeSessionPresentation;
             sessionRetention.Failed += viewModel.ReportHostInteractionFailure;
             sessionRetention.Start();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
+            viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
             fileWindow = new LocalFilePreviewWindowController(viewModel, window);
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
-                Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>());
+                Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,
+                Services.GetRequiredService<Kora.Tools.Files.LocalFileRefresh>());
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
@@ -205,6 +215,7 @@ public sealed partial class App : Avalonia.Application
 
     private void DisposeDesktopControllers()
     {
+        DisposeHandoffPresentation();
         Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();
         if (logger is not null)
         {

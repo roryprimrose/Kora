@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using Kora.Core.Hosting;
 
 namespace Kora.Core.Presentation;
 
@@ -19,7 +20,8 @@ public sealed class AdmittedDetailContent
         string title,
         string provenance,
         string source,
-        DetailSessionSource? sessionSource = null)
+        DetailSessionSource? sessionSource = null,
+        HostId<SessionIdentity>? historySession = null)
     {
         using var admission = ActivitySource.StartActivity("presentation.admit");
         admission?.SetStatus(ActivityStatusCode.Error);
@@ -46,6 +48,11 @@ public sealed class AdmittedDetailContent
             throw new InvalidDataException("Finalized responses require host session/request/task identity; embedded documents must not claim session authority.");
         }
         sessionSource?.Validate();
+        if ((origin == DetailContentOrigin.SessionHistory) != (historySession is not null))
+        {
+            throw new InvalidDataException("History details require their exact retained session ownership.");
+        }
+        historySession?.Validate();
         Reference = reference;
         Kind = kind;
         Origin = origin;
@@ -54,6 +61,7 @@ public sealed class AdmittedDetailContent
         Provenance = provenance;
         Source = source;
         SessionSource = sessionSource;
+        HistorySession = historySession;
         Utf8Bytes = byteCount;
         Digest = Convert.ToHexString(SHA256.HashData(encoding.GetBytes(source)));
         admission?.SetTag("kora.item.id", reference.ItemId.Value);
@@ -72,6 +80,7 @@ public sealed class AdmittedDetailContent
     public string Provenance { get; }
     public string Source { get; }
     public DetailSessionSource? SessionSource { get; }
+    public HostId<SessionIdentity>? HistorySession { get; }
     public int Utf8Bytes { get; }
     public string Digest { get; }
 
@@ -83,6 +92,6 @@ public sealed class AdmittedDetailContent
             && string.Equals(Title, other.Title, StringComparison.Ordinal)
             && string.Equals(Provenance, other.Provenance, StringComparison.Ordinal)
             && string.Equals(Source, other.Source, StringComparison.Ordinal)
-            && SessionSource == other.SessionSource;
+            && SessionSource == other.SessionSource && Nullable.Equals(HistorySession, other.HistorySession);
     }
 }

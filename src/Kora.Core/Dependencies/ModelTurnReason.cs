@@ -19,4 +19,12 @@ public enum ModelTurnReason
     ProviderOutcome,
     InvalidProviderResponse,
     ProviderBusy,
+    InvalidPolicy,
+    PolicyChanged,
+    OriginalUserRequired,
+    HandoffNotPermitted,
+    InvalidHandoffReason,
+    HandoffReviewRequired,
+    HandoffReviewStale,
+    LocalEvidenceNotDisclosable,
 }

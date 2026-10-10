@@ -11,7 +11,7 @@
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
     <TextBlock Text="Evidence - SQLite; DailyLog; opt-in CombinedLog ordinary diagnostics" FontSize="20" FontWeight="SemiBold" />
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <ComboBox ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" MinWidth="130"
@@ -35,9 +35,40 @@
                ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                AutomationProperties.Name="Trace correlation filter" />
     </StackPanel>
-    <controls:NamedTextBlock Grid.Row="3" Text="{Binding Status}" TextWrapping="Wrap"
+    <Expander Grid.Row="3" Header="Advanced filters (optional)" IsExpanded="False"
+              AutomationProperties.Name="Optional advanced evidence filters">
+      <StackPanel Spacing="8">
+        <WrapPanel>
+          <TextBox Text="{Binding RequestFilter}" PlaceholderText="Exact request GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact request ID filter" />
+          <TextBox Text="{Binding InvocationFilter}" PlaceholderText="Exact invocation GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact invocation ID filter" />
+          <TextBox Text="{Binding ApprovalFilter}" PlaceholderText="Exact approval GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact approval ID filter" />
+          <TextBox Text="{Binding CorrelationFilter}" PlaceholderText="Exact audit correlation GUID" Width="300" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Exact audit correlation ID filter" />
+        </WrapPanel>
+        <WrapPanel>
+          <TextBox Text="{Binding FromFilter}" PlaceholderText="From inclusive: 2026-10-10T00:00:00Z" Width="380" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range start" />
+          <TextBox Text="{Binding UntilFilter}" PlaceholderText="Until inclusive: ISO time with Z or offset" Width="380" Margin="0,0,10,8"
+                   ContextMenu="{x:Null}" ContextFlyout="{x:Null}" AutomationProperties.Name="Inclusive evidence time range end" />
+        </WrapPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ComboBox ItemsSource="{Binding Severities}" SelectedItem="{Binding Severity}" PlaceholderText="Any severity"
+                    MinWidth="180" AutomationProperties.Name="Optional exact diagnostic severity filter" />
+          <ComboBox ItemsSource="{Binding AuditOutcomes}" SelectedItem="{Binding AuditOutcome}" PlaceholderText="Any audit outcome"
+                    MinWidth="210" AutomationProperties.Name="Optional exact typed audit outcome filter" />
+          <Button x:Name="ClearAdvanced" Content="Clear advanced filters"
+                  AutomationProperties.Name="Unset all advanced evidence filters without reading" />
+        </StackPanel>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Blank means unset; Clear advanced filters resets typed choices to Any. GUIDs are correlation only, never permission. Both time edges are inclusive; ISO Z or explicit offsets normalize to UTC. SQLite/AuthorityAudit use commit time; DailyLog uses observation time; CombinedLog uses each source's own time, not an atomic snapshot. Severity requires All, Log, Audit, DailyLog or CombinedLog; audit outcome requires All, Audit or AuthorityAudit. Changing any filter clears results; search again." />
+      </StackPanel>
+    </Expander>
+    <controls:NamedTextBlock Grid.Row="4" Text="{Binding Status}" TextWrapping="Wrap"
                AutomationProperties.Name="Evidence status and storage limitations" />
-    <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
+    <Grid Grid.Row="5" ColumnDefinitions="320,*" ColumnSpacing="14">
       <Grid RowDefinitions="*,Auto,*">
         <ListBox x:Name="Records" ItemsSource="{Binding Records}" AutomationProperties.Name="Cited evidence records">
           <ListBox.ItemTemplate>
@@ -63,7 +94,7 @@
                    AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
       </ScrollViewer>
     </Grid>
-    <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="10">
+    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="10">
       <Button x:Name="OpenSegment" Content="Open selected segment" IsEnabled="{Binding CanQuery}" />
       <Button x:Name="CloseView" Content="Close" />
       <TextBlock Text="No copy, export, model, browser, deletion or execution." VerticalAlignment="Center" />

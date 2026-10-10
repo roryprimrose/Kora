@@ -4166,15 +4166,18 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(SessionQueueConfigurationCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
@@ -7746,7 +7749,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableAuditRetention = false, Exception? auditRetentionReadFailure = null,
             bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null,
             bool enableInCallFeedback = false, Exception? feedbackReadFailure = null,
-            bool enableSpeechText = false, Exception? captionReadFailure = null, bool enableSessionRetention = false)
+            bool enableSpeechText = false, Exception? captionReadFailure = null, bool enableSessionRetention = false,
+            bool enableQueueConfiguration = false, Exception? queueReadFailure = null, bool enableProviderModeConfiguration = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -7762,6 +7766,8 @@ public sealed partial class MainViewModelTests : IDisposable
             var audioStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             ManualCallStore = audioStore;
             OutputAdmission = new(audioStore, audioStore, new HostTaskCoordinator(audioStore));
+            QueuePreferences.ReadFailure = queueReadFailure;
+            QueueConfiguration = enableQueueConfiguration ? new(QueuePreferences, OutputAdmission, Audit ??= new FakeSecurityAuditLog()) : null;
             OutputConfiguration = enableOutputConfiguration ? new(
                 AudioPreferences, new Kora.Application.Voice.BoundedAudioOutputCatalog(
                     TextToSpeech, NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
@@ -7884,7 +7890,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
                 AuditConfiguration, RateConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
-                SessionRetentionConfiguration);
+                SessionRetentionConfiguration, QueueConfiguration,
+                enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -7903,6 +7910,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public BuiltInCommandCatalog Catalog { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
+        public FakeProviderPreferences ProviderPreferences { get; } = new();
 
         private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess
         {
@@ -7913,6 +7921,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public Kora.Application.UnitTests.Configuration.AudioControlTestStore ManualCallStore { get; }
         public Kora.Application.Voice.AudioControlAdmission OutputAdmission { get; }
         public OutputDeviceConfigurationService? OutputConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.SessionQueueConfigurationTestFixture.Preferences QueuePreferences { get; } = new();
+        public SessionQueueConfigurationService? QueueConfiguration { get; }
         public FakePlaybackVolumePreferences VolumePreferences { get; }
         public PlaybackVolumeConfigurationService? VolumeConfiguration { get; }
         public SpeechConfigurationService SpeechConfiguration { get; }

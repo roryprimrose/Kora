@@ -235,7 +235,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
         InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
         SpeechTextConfigurationService? speechTextConfiguration = null,
-        SessionRetentionConfigurationService? sessionRetentionConfiguration = null)
+        SessionRetentionConfigurationService? sessionRetentionConfiguration = null,
+        SessionQueueConfigurationService? queueConfiguration = null,
+        ProviderModeConfigurationService? providerModeConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -300,6 +302,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             playbackVolumeConfiguration.Changed += OnPlaybackVolumeChanged;
         }
         this.responseModeConfiguration = responseModeConfiguration;
+        this.providerModeConfiguration = providerModeConfiguration;
         this.inCallFeedbackConfiguration = inCallFeedbackConfiguration;
         if (inCallFeedbackConfiguration is not null)
         {
@@ -322,6 +325,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             speechTextConfiguration.Changed += OnSpeechTextConfigurationChanged;
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
+        this.queueConfiguration = queueConfiguration;
+        if (queueConfiguration is not null)
+        {
+            try { queueConfiguration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                queueConfiguration.HoldUnavailable();
+                ApplicationLog.Error(logger, exception, "Reading fixed local-version queue settings");
+            }
+            queueConfiguration.Changed += OnQueueConfigurationChanged;
+        }
         this.sessionRetentionConfiguration = sessionRetentionConfiguration;
         this.auditRetentionConfiguration = auditRetentionConfiguration;
         if (auditRetentionConfiguration is not null)
@@ -349,6 +363,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (responseModeConfiguration is not null)
         {
             responseModeConfiguration.Changed += OnResponseModeConfigurationChanged;
+        }
+        if (providerModeConfiguration is not null)
+        {
+            providerModeConfiguration.Changed += OnProviderModeConfigurationChanged;
         }
         if (outputConfiguration is not null)
         {
@@ -382,6 +400,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SelectedWindowsSpeechRate.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetWindowsSpeechRateCommand = CreateCommand(() => ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshDiagnosticRetentionCommand = CreateCommand(() => ExecuteDiagnosticRetentionCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        RefreshQueueConfigurationCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveQueuePendingCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
+            Kora.Core.Configuration.SessionQueueOption.PendingPerSession, SelectedQueuePending.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetQueuePendingCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
+            Kora.Core.Configuration.SessionQueueOption.PendingPerSession), SecurityAuditInitiator.LocalUser));
+        SaveQueueSlotsCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
+            Kora.Core.Configuration.SessionQueueOption.ExecutionSlots, SelectedQueueSlots.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetQueueSlotsCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
+            Kora.Core.Configuration.SessionQueueOption.ExecutionSlots), SecurityAuditInitiator.LocalUser));
         RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
@@ -395,6 +422,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Get));
         SaveResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Set));
         ResetResponseModeCommand = CreateCommand(() => RunNativeResponseModeAsync(AppearanceCommandOperation.Reset));
+        RefreshProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Get));
+        SaveProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Set));
+        ResetProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Reset));
         RefreshInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
             new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
         SaveInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
@@ -441,6 +471,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             () => !string.IsNullOrWhiteSpace(CommandText)
                   && (!IsBusy || IsSetupStatusCommand()
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
+                      || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
@@ -846,7 +877,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
-        || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null;
+        || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null
+        || FolderReview is not null || FolderRevision is not null;
 
     public bool IsLocalModelSetupActive
     {
@@ -3836,6 +3868,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
             return;
         }
+        if (SessionQueueConfigurationCommand.Parse(spokenText, AssistantName) is { } queueConfigurationCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no queue-setting control was dispatched.";
+                return;
+            }
+            await ExecuteQueueConfigurationCommandAsync(queueConfigurationCommand, initiator);
+            return;
+        }
         if (WindowsSpeechRateCommand.Parse(spokenText, AssistantName) is { } rateCommand)
         {
             await ExecuteWindowsSpeechRateCommandAsync(rateCommand, initiator);
@@ -3854,6 +3896,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (ResponseModeCommand.Parse(spokenText, AssistantName) is { } responseModeCommand)
         {
             await ExecuteResponseModeCommandAsync(responseModeCommand, initiator);
+            return;
+        }
+        if (ProviderModeCommand.Parse(spokenText, AssistantName) is { } providerModeCommand)
+        {
+            await ExecuteProviderModeCommandAsync(providerModeCommand, initiator);
             return;
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
@@ -3886,6 +3933,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
             await ExecuteSessionCommandAsync(sessionCommand, initiator);
+            return;
+        }
+        if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
+        {
+            await ExecuteMemoryCommandAsync(memoryCommand, initiator);
             return;
         }
         if (string.Equals(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript,
@@ -5359,11 +5411,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
         OnPropertyChanged(nameof(DiagnosticRetentionStatus));
+        SynchronizeQueueConfiguration();
         OnPropertyChanged(nameof(CanChangeAuditRetention));
         OnPropertyChanged(nameof(CanChangeAuditRetentionNative));
         OnPropertyChanged(nameof(AuditRetentionStatus));
         OnPropertyChanged(nameof(CanChangeResponseMode));
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
+        OnPropertyChanged(nameof(CanChangeProviderMode));
+        OnPropertyChanged(nameof(ProviderModeConfigurationStatus));
         OnPropertyChanged(nameof(IsInCallFeedbackOverrideApplied));
         OnPropertyChanged(nameof(InCallFeedbackStatus));
         OnPropertyChanged(nameof(CanInspectInCallFeedback));
@@ -5378,15 +5433,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(SessionQueueConfigurationCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

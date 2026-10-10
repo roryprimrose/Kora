@@ -230,8 +230,10 @@ public sealed partial class MainViewModel
         if (playbackVolumeConfiguration is not null) { playbackVolumeConfiguration.Changed -= OnPlaybackVolumeChanged; }
         if (windowsSpeechRateConfiguration is not null) { windowsSpeechRateConfiguration.Changed -= OnWindowsSpeechRateChanged; }
         if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
+        if (queueConfiguration is not null) { queueConfiguration.Changed -= OnQueueConfigurationChanged; }
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
+        if (providerModeConfiguration is not null) { providerModeConfiguration.Changed -= OnProviderModeConfigurationChanged; }
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
         if (speechTextConfiguration is not null) { speechTextConfiguration.Changed -= OnSpeechTextConfigurationChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
@@ -864,7 +866,7 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (lifecycleAdmissionClosed || IsBusy || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false
+        if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())

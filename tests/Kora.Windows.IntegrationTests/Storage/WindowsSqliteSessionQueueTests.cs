@@ -13,6 +13,39 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteSessionQueueTests
 {
     [WindowsFact]
+    public async Task Lowered_capacity_and_slots_hold_future_admission_without_eviction_reclassification_or_deadline_rewrite()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var session = fixture.Request.SessionId;
+        var first = await EnqueueAsync(fixture, session);
+        var second = await EnqueueAsync(fixture, session);
+        var before = await fixture.Store.ReadQueueAsync(session, fixture.Token);
+        var full = () => EnqueueAsync(fixture, session, pending: 1);
+        await full.Should().ThrowAsync<InvalidOperationException>();
+        (await fixture.Store.ReadQueueAsync(session, fixture.Token)).Should().BeEquivalentTo(before);
+        var other = (await WindowsSqliteSessionWorkspaceTests.Service(fixture, new())
+            .CreateAsync(new("Independent fixed read"), RequestOrigin.LocalUi, fixture.Token)).Authority.SessionId;
+        var otherEntry = await EnqueueAsync(fixture, other);
+        var runningFirst = await AdmitAsync(fixture, first, slots: 2);
+        var runningOther = await AdmitAsync(fixture, otherEntry, slots: 2);
+        var activeBefore = await fixture.Store.ReadWorkAsync(session, 1, new(executionSlots: 2), fixture.Token);
+        fixture.Time.Now = fixture.Time.Now.AddMinutes(1);
+        var activeAfter = await fixture.Store.ReadWorkAsync(session, 1, new(1, 1), fixture.Token);
+        activeAfter.PendingCapacity.Should().Be(1);
+        activeAfter.ExecutionSlots.Should().Be(1);
+        activeAfter.QueueRecords.Single(row => row.Entry.Request.TaskId == first.Request.TaskId).ActiveDeadline
+            .Should().Be(activeBefore.QueueRecords.Single(row => row.Entry.Request.TaskId == first.Request.TaskId).ActiveDeadline);
+        activeAfter.QueueRecords.Single(row => row.Entry.Request.TaskId == second.Request.TaskId).Entry.ExpiresAt.Should().Be(second.ExpiresAt);
+        (await fixture.Store.FindReadyAsync(1, new(1, 1), fixture.Token)).Should().BeNull();
+        await CompleteAsync(fixture, runningFirst);
+        (await fixture.Store.FindReadyAsync(1, new(1, 1), fixture.Token)).Should().BeNull();
+        await CompleteAsync(fixture, runningOther);
+        (await fixture.Store.FindReadyAsync(1, new(1, 1), fixture.Token)).Should().Be(second);
+    }
+
+    [WindowsFact]
     public async Task Fair_exact_FIFO_admission_preserves_history_and_one_current_task_per_session()
     {
         using var fixture = new InteractionStorageFixture();
@@ -208,7 +241,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         await fixture.InitializeAsync();
         await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
         var before = await fixture.Store.ReadHistoryAsync(fixture.Request.SessionId, null, 50, fixture.Token);
-        fixture.Mutate("DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
+        fixture.Mutate("DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
         fixture.Reopen(new InteractionTransactionCheckpoint { Commit = (_, _) => throw new IOException("Migration interrupted") });
         var interrupted = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
         await interrupted.Should().ThrowAsync<IOException>();
@@ -216,7 +249,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         await fixture.Store.InitializeAsync(fixture.Token);
         (await fixture.Store.ReadHistoryAsync(fixture.Request.SessionId, null, 50, fixture.Token)).Should().BeEquivalentTo(before);
         var entry = await EnqueueAsync(fixture, fixture.Request.SessionId);
-        fixture.Mutate("DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
+        fixture.Mutate("DROP TABLE reviewed_memory; DROP TABLE memory_profile; DROP TABLE session_retention; DROP TABLE session_queue; PRAGMA user_version=4;");
         fixture.Reopen();
         var missing = () => fixture.Store.InitializeAsync(fixture.Token).AsTask();
         await missing.Should().ThrowAsync<InvalidDataException>();

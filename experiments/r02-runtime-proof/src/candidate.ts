@@ -17,10 +17,14 @@ async function hash(file: string): Promise<string> {
     return digest.digest("hex");
 }
 
-export async function validateCandidate(): Promise<string> {
-    if (process.platform !== "win32" || process.arch !== "x64" || process.version !== candidate.node) {
+export function assertCandidateHost(platform: string, arch: string, node: string): void {
+    if (platform !== "win32" || arch !== "x64" || node !== candidate.node) {
         throw new Error("This candidate proof requires Windows x64 and exactly Node 24.16.0");
     }
+}
+
+export async function validateCandidate(): Promise<string> {
+    assertCandidateHost(process.platform, process.arch, process.version);
     const metadata: unknown = JSON.parse(await readFile(
         resolve("node_modules\\@github\\copilot-sdk\\package.json"), "utf8"));
     if (typeof metadata !== "object" || metadata === null || !("version" in metadata)

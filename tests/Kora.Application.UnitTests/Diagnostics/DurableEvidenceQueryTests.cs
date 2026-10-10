@@ -423,6 +423,58 @@ public sealed class DurableEvidenceQueryTests
     }
 
     [Theory]
+    [InlineData(EvidenceSource.AuthorityAudit, true)]
+    [InlineData(EvidenceSource.Span, true)]
+    [InlineData(EvidenceSource.Link, true)]
+    [InlineData(EvidenceSource.Log, false)]
+    [InlineData(EvidenceSource.Span, false)]
+    [InlineData(EvidenceSource.Link, false)]
+    [InlineData(EvidenceSource.DailyLog, false)]
+    [InlineData(EvidenceSource.CombinedLog, false)]
+    public async Task UnsupportedTypedFiltersRefuseBeforeReaderInsteadOfEmptySuccess(EvidenceSource source, bool severity)
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        using var host = Root();
+        var query = new EvidenceQuery
+        {
+            Source = source, Severity = severity ? EvidenceSeverity.Warning : null,
+            AuditOutcome = severity ? null : SecurityAuditOutcome.Succeeded,
+        };
+        var unsupported = () => fixture.Service.QueryAsync(query, null, TestContext.Current.CancellationToken).AsTask();
+        await unsupported.Should().ThrowAsync<NotSupportedException>();
+        fixture.Reader.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task EachAdvancedTypedFilterIsBoundIntoAuthenticatedContinuation()
+    {
+        using var listener = Listen();
+        var fixture = new Fixture();
+        fixture.Reader.Batch = Batch(2);
+        var original = new EvidenceQuery { Limit = 1 };
+        using var host = Root();
+        var cursor = (await fixture.Service.QueryAsync(original, null, TestContext.Current.CancellationToken)).Cursor!;
+        EvidenceQuery[] changed =
+        [
+            original with { RequestId = new(Guid.NewGuid()) },
+            original with { InvocationId = new(Guid.NewGuid()) },
+            original with { ApprovalId = Guid.NewGuid() },
+            original with { CorrelationId = Guid.NewGuid() },
+            original with { FromUtc = DateTimeOffset.UnixEpoch },
+            original with { UntilUtc = DateTimeOffset.UnixEpoch },
+            original with { Severity = EvidenceSeverity.Warning },
+            original with { AuditOutcome = SecurityAuditOutcome.Succeeded },
+        ];
+        foreach (var query in changed)
+        {
+            var refused = () => fixture.Service.QueryAsync(query, cursor, TestContext.Current.CancellationToken).AsTask();
+            await refused.Should().ThrowAsync<InvalidDataException>();
+        }
+        fixture.Reader.Calls.Should().Be(1);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("x.y.z")]
     [InlineData("!.!")]

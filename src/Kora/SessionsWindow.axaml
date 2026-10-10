@@ -12,7 +12,7 @@
       <Button x:Name="Refresh" Content="_Refresh" IsEnabled="{Binding CanRead}" />
       <Button x:Name="Next" Content="Next session page" IsEnabled="{Binding CanNext}" />
       <ComboBox ItemsSource="{Binding SessionFilters}" SelectedItem="{Binding SessionFilter, Mode=TwoWay}"
-                IsEnabled="{Binding CanRead}" AutomationProperties.Name="Filter this bounded session page by All, Active or Done; no activity or routing" />
+                IsEnabled="{Binding CanRead}" AutomationProperties.Name="All, Active or Done: ordinary current page filter, or metadata-search scope across pages; no activity or routing" />
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="1" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.Name="Sessions status and unavailable reasons" />
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
@@ -23,12 +23,40 @@
       <Button Grid.Column="2" x:Name="RenameSession" Content="Re_name selected ID" IsEnabled="{Binding CanRename}"
               AutomationProperties.Name="Rename the exact selected session ID using its generation and metadata revision; does not resume" />
     </Grid>
-    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10">
+    <StackPanel Grid.Row="3" Spacing="6">
+    <WrapPanel>
+      <ComboBox ItemsSource="{Binding ListSearchKinds}" SelectedItem="{Binding ListSearchKind, Mode=TwoWay}"
+                IsEnabled="{Binding CanEditListSearch}" AutomationProperties.Name="Session metadata search mode: literal ordinal case-sensitive NameSubstring or canonical lowercase exact immutable ID" />
+      <TextBox x:Name="ListQuery" Text="{Binding ListQuery, Mode=TwoWay}" Width="320"
+               IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Session name substring or exact ID; Enter searches"
+               AutomationProperties.Name="Volatile session-list metadata query, not conversation-history search; NFC name limits, no silent truncation or normalization" />
+      <Button x:Name="SearchList" Content="Search session _metadata" IsEnabled="{Binding CanSearchList}"
+              AutomationProperties.Name="Search names or exact IDs across bounded session metadata pages, never target an action by name" />
+      <Button x:Name="NextListSearch" Content="Next metadata search" IsEnabled="{Binding CanNextListSearch}"
+              AutomationProperties.Name="Continue the query-bound mutable metadata scan, including after zero matches; not an atomic history snapshot" />
+      <Button x:Name="CancelListSearch" Content="Cancel metadata search" IsEnabled="{Binding CanCancelListSearch}" />
+      <Button x:Name="ClearListSearch" Content="Clear metadata search" IsEnabled="{Binding CanEditListSearch}" />
+    </WrapPanel>
+    <WrapPanel>
       <TextBox Text="{Binding HistorySessionId, Mode=TwoWay}" Width="320" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Exact immutable session ID for passive history; names do not select sessions" />
       <Button x:Name="ReadHistory" Content="_Read exact history" IsEnabled="{Binding CanHistory}"
               AutomationProperties.Name="Read bounded ordered session history without resuming, replying, replaying or changing voice target" />
       <Button x:Name="NextHistory" Content="Next history snapshot page" IsEnabled="{Binding CanNextHistory}" />
+      <Button x:Name="OpenHistoryDetail" Content="Open immutable receipt _details" IsEnabled="{Binding CanOpenHistoryDetail}"
+              AutomationProperties.Name="Freshly resolve the exact selected session history receipt into read-only native details; no artifact body or execution authority" />
+    </WrapPanel>
+    <WrapPanel>
+      <TextBox x:Name="HistoryQuery" Text="{Binding HistoryQuery, Mode=TwoWay}" Width="320" MaxLength="256"
+               IsEnabled="{Binding CanRead}" PlaceholderText="Lexical words; Enter searches, Escape clears"
+               AutomationProperties.Name="Volatile exact-session history query; whole-word Unicode OR search, no model or activity renewal" />
+      <Button x:Name="SearchHistory" Content="_Search exact history" IsEnabled="{Binding CanSearchHistory}"
+              AutomationProperties.Name="Search retained committed history for this exact immutable session ID; no resume or reply" />
+      <Button x:Name="NextHistorySearch" Content="Next _search snapshot page" IsEnabled="{Binding CanNextHistorySearch}"
+              AutomationProperties.Name="Continue bounded lexical scan even when the previous search page has no matches" />
+      <Button x:Name="CancelHistorySearch" Content="Cancel search" IsEnabled="{Binding CanCancelHistorySearch}" />
+      <Button x:Name="ClearHistorySearch" Content="Clear query and results" IsEnabled="{Binding CanRead}" />
+    </WrapPanel>
     </StackPanel>
     <Grid Grid.Row="4" ColumnDefinitions="320,*" ColumnSpacing="14">
       <ListBox x:Name="Records" ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
@@ -122,10 +150,78 @@
           </ItemsControl>
           </ScrollViewer>
         </StackPanel>
-        <ScrollViewer Grid.Row="4">
+        <TabControl Grid.Row="4">
+        <TabItem Header="History and evidence">
+        <Grid RowDefinitions="Auto,*" RowSpacing="6">
+          <ListBox x:Name="HistoryRecords" MaxHeight="150" ItemsSource="{Binding HistoryRecords}"
+                   SelectedItem="{Binding SelectedHistoryRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
+                   AutomationProperties.Name="Immutable history receipts for the exact history subject; detail opening requires the selected session">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Sequence}" />
+                  <TextBlock Text="{Binding Kind}" />
+                  <TextBlock Text="{Binding Availability}" />
+                  <TextBlock Text="{Binding Id}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        <ScrollViewer Grid.Row="1">
           <controls:NamedTextBlock Text="{Binding Detail}" TextWrapping="Wrap" FontFamily="Consolas"
                      AutomationProperties.Name="Typed question, exact task and evidence details; inspection is not approval" />
         </ScrollViewer>
+        </Grid>
+        </TabItem>
+        <TabItem Header="Session memories">
+          <ScrollViewer>
+            <StackPanel Spacing="8">
+              <TextBlock Text="Active selected session only. New user proposals stay volatile until separate admission. Classification is not secrecy detection. List contains metadata, not values. Inspect exact content and classification before review. No conversational Remember trigger, model tool, recall or hosted disclosure."
+                         TextWrapping="Wrap" />
+              <Button x:Name="ListMemories" Content="_List selected session memories" IsEnabled="{Binding CanReadMemories}"
+                      AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
+              <ListBox x:Name="MemoryRecords" MaxHeight="160" ItemsSource="{Binding MemoryRecords}"
+                       SelectedItem="{Binding SelectedMemory, Mode=OneWay}" IsEnabled="{Binding CanReadMemories}"
+                       AutomationProperties.Name="Content-free memory inventory; selection is passive">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Id}" />
+                      <TextBlock Text="{Binding Revision, StringFormat='Revision {0}'}" />
+                      <TextBlock Text="{Binding Scope.Kind, StringFormat='Scope {0}'}" />
+                      <TextBlock Text="{Binding Scope.Identity}" />
+                      <TextBlock Text="{Binding Review, StringFormat='Review {0}'}" />
+                      <TextBlock Text="{Binding Retention, StringFormat='Retention {0}'}" />
+                      <TextBlock Text="{Binding CreatedAt, StringFormat='Created {0:O}'}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <WrapPanel>
+                <Button x:Name="InspectMemory" Content="Inspect exact memory" IsEnabled="{Binding CanInspectMemory}" />
+                <Button x:Name="AcceptMemory" Content="Review exact content: accept" IsEnabled="{Binding CanReviewMemory}"
+                        AutomationProperties.Name="Review this inspected exact revision and classification; accept does not admit or enable" />
+                <Button x:Name="RejectMemory" Content="Review exact content: reject" IsEnabled="{Binding CanReviewMemory}" />
+                <Button x:Name="AdmitMemory" Content="Admit reviewed revision" IsEnabled="{Binding CanAdmitMemory}"
+                        AutomationProperties.Name="Explicitly admit only this exact reviewed pending revision under unchanged private session boundary" />
+                <Button x:Name="DisableMemory" Content="Disable admitted memory" IsEnabled="{Binding CanDisableMemory}" />
+                <Button x:Name="ForgetMemory" Content="Forget exact memory" IsEnabled="{Binding CanEditMemory}"
+                        AutomationProperties.Name="Explicitly forget this exact revision; clear body and review, retain non-reusable tombstone; not forensic erasure" />
+              </WrapPanel>
+              <controls:NamedTextBlock Text="{Binding MemoryDetail}" TextWrapping="Wrap"
+                                       AutomationProperties.Name="Explicitly inspected exact memory content, classification, lineage and review receipt or content-free mutation outcome" />
+              <ComboBox ItemsSource="{Binding MemoryClasses}" SelectedItem="{Binding MemoryClass, Mode=TwoWay}"
+                        IsEnabled="{Binding CanProposeMemory}" AutomationProperties.Name="User proposal or replacement classification; not sensitivity proof" />
+              <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanProposeMemory}"
+                       AutomationProperties.Name="Exact user proposal or replacement value; no truncation or normalization; 512 UTF-16 code units, 1024 UTF-8 value bytes, 2048 serialized candidate bytes" />
+              <Button x:Name="ProposeMemory" Content="_New session memory from draft" IsEnabled="{Binding CanProposeMemory}"
+                      AutomationProperties.Name="Create only a volatile Proposed Pending user candidate in the exact active selected session; no review, admission, recall or transmission" />
+              <Button x:Name="EditMemory" Content="Replace exact revision; return to Proposed/Pending" IsEnabled="{Binding CanEditMemory}"
+                      AutomationProperties.Name="Edit clears earlier review and use; replacement stays volatile until new inspect, review and admission" />
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+        </TabControl>
       </Grid>
     </Grid>
     <WrapPanel Grid.Row="5">

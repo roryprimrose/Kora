@@ -28,6 +28,16 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
+The [bounded queue preferences](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) preserve original-input admission through the existing independent configuration-control session.
+Host-held option/configuration/call revisions and native visible-lifetime identity bind proposals.
+Protected original-voice writes deny without channel relabelling or deferred application.
+Required typed audit, atomic save/readback and durable completed intent precede activation; unknown/corrupt/unconfirmed storage holds new admissions without defaulting ([service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs)).
+
+Only pending capacity 1-10 and synchronous read-only slots 1-2 are configurable.
+Short consuming transactions serialize with edits and revalidate confirmed storage at reads/commits, but active callbacks do not hold that configuration gate.
+Lowering limits never removes pending records or revokes existing admissions; fixed pending/active deadlines remain unchanged.
+No grant, execution token, schema migration, automatic dispatch, model configuration tool or general effect/provider authority is created ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [durable invariants](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+
 The native selected-session work surface is a passive consumer of one bounded
 validated authority snapshot. It adds no store/schema, egress, authority grant
 or model-facing tool. IDs/revisions/selection epoch bind admitted controls to
@@ -501,6 +511,15 @@ Re-detect and re-approve after a transformation changes the outgoing content.
 
 ### Runtime Egress Enforcement
 
+The [exact provider handoff workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+binds original-user host intent, immutable complete envelope/evidence lineage,
+destination/catalogue and policy revisions, question revision, session/task
+generation and control revision. LocalOnly cannot propose hosted disclosure,
+and LocalOnly evidence is refused. Removal requires a new review; expired/stale/
+cancelled/declined or audit-failed review returns no disclosure authority.
+An approved one-use confirmation still encounters the independent unavailable
+production qualification and missing final-request egress gates.
+
 The [R02 outcomes](Runtime_Provider_Feasibility.md#evidence-baseline-and-interpretation)
 reject prompt/tool-hook-only mediation: failed tool output bypassed the
 successful-result hook. Every result status and exception must be host-bounded
@@ -518,6 +537,28 @@ Keep uncontrollable collection/persistence and unverified transports disabled.
 SDK memory/transcripts cannot become a second unreviewed store alongside
 Kora's host-owned permitted history. The measured loopback marker filter is
 a test oracle, not a sufficient production classifier or OS sandbox.
+
+The [reviewed memory admission foundation](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09)
+accepts only untrusted candidate class/value from a model; Kora resolves identity,
+scope and lineage. Explicit local-user review and unchanged exact revision/
+boundary precede host admission. Forbidden/unknown classes and unknown
+ownership/privacy/session/source state have typed denials. An allowed model
+class label is not sensitivity proof or an approval. Editing removes prior
+review/use authority; disabled/forgotten state cannot be recalled implicitly.
+Exact local-use ID/provenance receipts are not prompt or hosted disclosure
+authority. Hosted/unknown destinations remain denied.
+
+The [session-only durable increment](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09)
+uses the existing private interaction-store lease and typed authority audit
+transaction. Only exact reviewed admitted candidate bodies persist; edits
+redact prior bodies and keep replacements volatile until fresh admission.
+Restart state is validated, not treated as review/use/egress authority.
+Retirement/disposition/retention include memory tombstones; uninventoried
+interaction-store copies hold explicit redaction and deletion acceptance.
+Global/profile/project/source authority, native CRUD and provider routes remain
+closed. Returned snapshots cannot be retroactively erased; subsequent use
+re-resolves current state. Actual-store tests are not forensic/power-loss or
+experiment/native-runtime isolation qualification.
 
 The [bounded RT2 observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
 passes its 20 safe tests but leaves all-path runtime admission **Blocked**.

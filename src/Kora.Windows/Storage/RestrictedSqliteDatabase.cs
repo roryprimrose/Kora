@@ -19,13 +19,14 @@ internal sealed partial class RestrictedSqliteDatabase
     private readonly RestrictedSqliteMigration? finalMigration;
     private readonly RestrictedSqliteMigration? latestMigration;
     private readonly RestrictedSqliteMigration? retentionMigration;
+    private readonly RestrictedSqliteMigration? memoryMigration;
     private readonly int version;
 
     internal RestrictedSqliteDatabase(IApplicationDataPaths paths, string partition, string fileName,
         int applicationId, IReadOnlyList<string> schema, RestrictedSqliteMigration? migration = null,
         RestrictedSqliteMigration? continuation = null, RestrictedSqliteMigration? finalMigration = null,
         RestrictedSqliteMigration? latestMigration = null, RestrictedSqliteMigration? retentionMigration = null,
-        int? currentVersion = null)
+        int? currentVersion = null, RestrictedSqliteMigration? memoryMigration = null)
     {
         directory = new RestrictedStorageDirectory(paths, includeKeys: false, partitionName: partition);
         databasePath = Path.Combine(directory.Root, fileName);
@@ -37,7 +38,8 @@ internal sealed partial class RestrictedSqliteDatabase
         this.finalMigration = finalMigration;
         this.latestMigration = latestMigration;
         this.retentionMigration = retentionMigration;
-        version = currentVersion ?? retentionMigration?.ToVersion ?? latestMigration?.ToVersion ?? finalMigration?.ToVersion
+        this.memoryMigration = memoryMigration;
+        version = currentVersion ?? memoryMigration?.ToVersion ?? retentionMigration?.ToVersion ?? latestMigration?.ToVersion ?? finalMigration?.ToVersion
             ?? continuation?.ToVersion ?? migration?.ToVersion ?? 1;
     }
 
@@ -244,7 +246,8 @@ internal sealed partial class RestrictedSqliteDatabase
         ApplyMigration(connection, continuation, finalMigration?.PreviousSchema ?? schema, token);
         ApplyMigration(connection, finalMigration, latestMigration?.PreviousSchema ?? schema, token);
         ApplyMigration(connection, latestMigration, retentionMigration?.PreviousSchema ?? schema, token);
-        ApplyMigration(connection, retentionMigration, schema, token);
+        ApplyMigration(connection, retentionMigration, memoryMigration?.PreviousSchema ?? schema, token);
+        ApplyMigration(connection, memoryMigration, schema, token);
     }
 
     private void ApplyMigration(SqliteConnection connection, RestrictedSqliteMigration? step,

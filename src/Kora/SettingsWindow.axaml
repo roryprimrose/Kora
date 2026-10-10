@@ -733,6 +733,25 @@
             <TextBlock Text="Session inactivity retention" FontSize="28" FontWeight="SemiBold" />
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
+                <TextBlock Text="Fixed read-only local-version queue" Classes="settings-title" />
+                <TextBlock Text="Manual fair dispatch only. Defaults: 10 pending per session and 1 global slot. Changes affect future admissions, never evict pending entries or cancel active work. Pending lifetime stays 30 minutes; active budget stays 5 minutes. Deadline editing, automatic dispatch and general/provider/effect execution are unavailable. Refresh before each Save or Reset."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding QueueConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <Button Content="Refresh fixed queue settings" Command="{Binding RefreshQueueConfigurationCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <TextBlock Text="Pending capacity per session (1-10)" />
+                <ComboBox ItemsSource="{Binding QueuePendingChoices}" SelectedItem="{Binding SelectedQueuePending}"
+                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue pending capacity per session" />
+                <Button Content="Save pending capacity" Command="{Binding SaveQueuePendingCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <Button Content="Reset pending capacity to 10" Command="{Binding ResetQueuePendingCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <TextBlock Text="Synchronous read-only slots (1-2; not general two-slot qualification)" />
+                <ComboBox ItemsSource="{Binding QueueSlotChoices}" SelectedItem="{Binding SelectedQueueSlots}"
+                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue synchronous read-only slots" />
+                <Button Content="Save fixed read-only slots" Command="{Binding SaveQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <Button Content="Reset fixed read-only slots to 1" Command="{Binding ResetQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+              </StackPanel>
+            </Border>
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
                 <TextBlock Text="Archive and delete on the same meaningful-activity clock" Classes="settings-title" />
                 <TextBlock Text="Default: archive after 24 hours; delete after 30 idle days. Choose whole days from 1 to 365, with deletion later than archive. Changes apply only to new sessions or subsequent meaningful activity; existing due dates stay unchanged. No apply-now or execution integration. Perpetual sessions and live or uncertain work are held."
                            Classes="settings-description" TextWrapping="Wrap" />
@@ -931,6 +950,27 @@
                     VerticalAlignment="Center" />
               </Grid>
             </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Providers">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <TextBlock Text="Device-local provider mode" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="LocalOnly is the unsaved/reset default. This preference seeds subsequent sessions; existing session policies and per-turn choices are unchanged. No provider adapter, account, network or egress permission is enabled."
+                       Classes="settings-description" TextWrapping="Wrap" />
+            <ComboBox ItemsSource="{Binding ProviderModeChoices}" SelectedItem="{Binding SelectedProviderModeChoice}"
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderMode}"
+                      AutomationProperties.Name="Device-local provider mode" />
+            <Button Content="Inspect provider mode" Command="{Binding RefreshProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+            <Button Content="Save provider mode" Command="{Binding SaveProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+            <Button Content="Reset provider mode to LocalOnly" Command="{Binding ResetProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+            <TextBlock Text="{Binding ProviderModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Review pending exact provider handoff" Click="OnReviewHandoffClicked"
+                    AutomationProperties.Name="Open original-user exact provider handoff review" />
+            <TextBlock Text="Local volatile review only. No pending qualified host offer means unavailable; no sample, send, execution or provider enablement is offered."
+                       Classes="settings-description" TextWrapping="Wrap" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

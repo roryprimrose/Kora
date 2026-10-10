@@ -44,7 +44,8 @@ foreach ($project in @('HostTests.csproj','ManagementProof.csproj')) {
     & dotnet restore (Join-Path $PSScriptRoot $project) --locked-mode --configfile $PackageConfigPath
     if ($LASTEXITCODE -ne 0) { throw "Locked restore failed for $project." }
 }
-$package = Join-Path $rt1 '.candidate\packages\github.copilot.sdk\1.0.16\github.copilot.sdk.1.0.16.nupkg'
+$packages = Join-Path $inputs 'packages'
+$package = Join-Path $packages 'github.copilot.sdk\1.0.16\github.copilot.sdk.1.0.16.nupkg'
 if ((Get-FileHash -LiteralPath $package).Hash -ine 'c5518980b71d0ef0abd39ecdec7834898878222290c7fd1099a9040c8c5bf2ef') {
     throw 'Released package differs from separately approved bytes.'
 }
@@ -73,6 +74,7 @@ foreach ($reference in $project.Project.ItemGroup.PackageReference) {
 }
 $project.Save($projectPath)
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Directory.Packages.props') -Destination (Join-Path $copy 'Directory.Packages.props')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'packages.lock.json') -Destination (Join-Path $copy 'packages.lock.json')
 $evidencePath = Join-Path $copy 'Evidence.cs'
 [IO.File]::WriteAllText($evidencePath, [IO.File]::ReadAllText($evidencePath).
     Replace('exact-tag-source-build, Windows x64', 'Released NuGet 1.0.16, separate MG1-owned RT1 regression, Windows x64'))
@@ -83,6 +85,6 @@ Copy-Item -LiteralPath $package -Destination (Join-Path $feed 'GitHub.Copilot.SD
 foreach ($name in @('copilot-runtime.exe','runtime.node','LICENSE.md')) {
     Copy-Item -LiteralPath (Join-Path $runtime $name) -Destination $native
 }
-& dotnet restore $projectPath --configfile $PackageConfigPath --packages (Join-Path $rt1 '.candidate\packages') --force-evaluate
+& dotnet restore $projectPath --locked-mode --configfile $PackageConfigPath --packages $packages
 if ($LASTEXITCODE -ne 0) { throw 'Derived released-profile RT1 restore failed.' }
 Write-Host 'Released MG1 inputs and independent RT1 regression fixture prepared. Original RT1 source/evidence unchanged.'

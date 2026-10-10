@@ -32,11 +32,14 @@ public sealed partial class SessionWorkspaceServiceTests
     {
         using var fixture = new Fixture();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        HostId<SessionIdentity>? retired = null;
+        fixture.Service.SessionRetired += session => retired = session;
         var preview = await fixture.Service.PreviewDispositionAsync(fixture.Session.SessionId, new(1), 0, fixture.Token);
         fixture.TaskWrites.Should().BeEmpty();
         var receipt = await fixture.Service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, fixture.Token);
         receipt.SessionId.Should().Be(fixture.Session.SessionId);
         receipt.Generation.Value.Should().Be(2);
+        retired.Should().Be(receipt.SessionId);
         receipt.Removed.Should().Be(preview);
         fixture.TaskWrites.Should().HaveCount(2);
         fixture.TaskWrites[0].Request.Should().NotBe(fixture.Request);

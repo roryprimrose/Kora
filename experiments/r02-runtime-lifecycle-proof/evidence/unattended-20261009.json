@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "experiment": "R02-RT2",
+  "startedUtc": "2026-10-09T11:01:53.1054103+00:00",
+  "executionEndedUtc": "2026-10-09T11:06:26.7720650+00:00",
+  "source": {
+    "revision": "e0692f438a058de0a20021b3420a981849706dbf",
+    "branch": "proof/unattended-20261009-rt2",
+    "initialGitStatus": "clean",
+    "trackedSourceDirtyDuringExecution": false,
+    "laterGitStatus": "dirty: untracked owned staging only",
+    "postCleanupGitStatus": "clean",
+    "deliverableEditsAfterExecution": true,
+    "historicalFilesCheckedUnchanged": 48
+  },
+  "tools": {
+    "dotnetSdk": "10.0.401",
+    "powershell": "7.6.6",
+    "installedOrElevated": false
+  },
+  "environment": {
+    "shellWorkingDirectory": "<isolated-proof-worktree>",
+    "processLocalTempAndTmp": "<isolated-proof-worktree>",
+    "originalRecipesUnmodified": true,
+    "pinsAndLocksUnmodified": true,
+    "independentReproductionOverride": false,
+    "fixtureLockUpdate": false
+  },
+  "qualification": {
+    "rt2": "BLOCKED",
+    "testExecution": "NOT RUN: prerequisites rejected",
+    "expectedPostTestBlockedExitCode": 2,
+    "postTestBlockedExitReached": false,
+    "actualObservationRunnerExitCode": 1,
+    "productionEnabled": false,
+    "liveAccounts": 0,
+    "runtimeTrialsStarted": 0,
+    "privilegedObserversStarted": 0,
+    "referenceFloorSlosAsserted": false
+  },
+  "tests": {
+    "receiptLocaleContracts": { "total": 2, "passed": 2, "failed": 0 },
+    "rt1": { "expected": 45, "executed": 0, "passed": null, "failed": null },
+    "rt2": { "expected": 20, "executed": 0, "passed": null, "failed": null },
+    "freshTrxFiles": 0
+  },
+  "commandCounts": {
+    "topLevelValidationCommands": 6,
+    "exitZero": 1,
+    "exitOne": 5,
+    "exitTwo": 0,
+    "nestedLockedRestores": 3,
+    "nestedLockedRestoreSuccesses": 2,
+    "nestedSdkPacks": 2,
+    "stagedRt1Builds": 1,
+    "dotnetTestInvocations": 0
+  },
+  "commands": [
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\experiments\\r02-runtime-lifecycle-proof\\Prepare-Fixture.ps1",
+      "startedUtc": "2026-10-09T11:01:53.1054103+00:00",
+      "endedUtc": "2026-10-09T11:03:34.5307044+00:00",
+      "exitCode": 1,
+      "result": "NU1403: generated SDK package rejected by locked fixture restore"
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\experiments\\r02-runtime-lifecycle-proof\\Test-ApprovedInputs.ps1",
+      "startedUtc": "2026-10-09T11:04:04.5063975+00:00",
+      "endedUtc": "2026-10-09T11:04:06.0206916+00:00",
+      "exitCode": 1,
+      "result": "Historical RT1 input changed: README.md"
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\experiments\\r02-runtime-lifecycle-proof\\Test-ReceiptContracts.ps1",
+      "startedUtc": "2026-10-09T11:04:06.0678489+00:00",
+      "endedUtc": "2026-10-09T11:04:07.1048168+00:00",
+      "exitCode": 0,
+      "result": "2/2 receipt locale contracts passed"
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File <owned-RT1-stage>\\Test-Reproduction.ps1",
+      "startedUtc": "2026-10-09T11:04:30.3935872+00:00",
+      "endedUtc": "2026-10-09T11:06:07.4928290+00:00",
+      "exitCode": 1,
+      "result": "Source package is not byte-reproducible"
+    },
+    {
+      "command": "dotnet build <owned-RT1-stage>\\ControlProof.csproj --configuration Release --no-restore",
+      "startedUtc": "2026-10-09T11:06:22.9403669+00:00",
+      "endedUtc": "2026-10-09T11:06:24.6886570+00:00",
+      "exitCode": 1,
+      "result": "NU1403: 0 warnings, 1 error; regression tests not invoked"
+    },
+    {
+      "command": "pwsh -NoProfile -NonInteractive -File .\\experiments\\r02-runtime-lifecycle-proof\\Run-Observations.ps1",
+      "startedUtc": "2026-10-09T11:06:25.0725615+00:00",
+      "endedUtc": "2026-10-09T11:06:26.7720650+00:00",
+      "exitCode": 1,
+      "result": "Historical RT1 input changed: README.md; stopped before build or tests"
+    }
+  ],
+  "candidate": {
+    "sourceCommit": "f8ae645902b74b62cd47aac1fd9b29adaec3aff2",
+    "version": "1.0.16-rt1.source.f8ae645.1",
+    "approvedPackageSha256": "0b609b73c868099d64e7d5320b927d760d528756ab7c5db0b5692f5dccbf9b3f",
+    "primaryPackageSha256": "3bbb5e12c3a48904b36d086296e5f63009f2cbdeceacbdb0937952dc47fcbd92",
+    "approvedAssemblySha256": "afb0715225f794d1b663ef72da1336b44b665e50b330087e1356380a5eac10d6",
+    "primaryAssemblySha256": "e4fdff721ef41c49c48ac8a6ad0b066073d8a25d7afe366b098687b260b6d1f1",
+    "independentPackageSha256": "3aff6e89b2335043d75d1a90986de947689cba0bcb2fdc25d210fdfd4583e74d",
+    "independentAssemblySha256": "b64272d2a30345c76a597b82b0d1dacde836e467d413f561d60090b71e726330",
+    "independentPackageBytesEqual": false,
+    "primaryPackageApproved": false,
+    "primaryAssemblyApproved": false,
+    "nativeLauncherSha256": "7021cf1f25eb6b75e64c05e8f805747c62dd420dc8760659660291809e92603a",
+    "nativePayloadSha256": "41ebb48367f96c984babde61afb68f22a85ab8fd9c037fdccf1778881c4bba05",
+    "nativePinsMatch": true
+  },
+  "historicalApprovedInputDifferences": [
+    {
+      "file": "README.md",
+      "historicalApprovedSha256": "c7f0900a37978a84e49b0f0f2a823a617d8c1fa94985aa1e62ba87aa5859c556",
+      "currentBaselineSha256": "21c85ab2490dfc8577ee599938c11b5331862fc12aa3ed8efb8751fd1c978fdb",
+      "predatesExecution": true
+    }
+  ],
+  "rawArtifacts": {
+    "location": "assigned session artifact store: proofs\\rt2",
+    "machineSpecificPathsRedactedOnlyInCommittedReceipt": true,
+    "artifacts": [
+      { "file": "historical-inputs-before.json", "sha256": "c5ccf2161ee525e26fe68b46d9ac257d9c7d477c55265bcc40f35f74372427fc" },
+      { "file": "historical-inputs-after-execution.json", "sha256": "0cc0f5ede2394f81d7e65a5859ee831d704c6c805706c088332731fa1d704603" },
+      { "file": "historical-approved-input-differences.json", "sha256": "e3e2d38b7964c70fec3d3713d92ddb9754f237e88c9d9f6852c2ce312b4fac88" },
+      { "file": "rt2-executed-input-hashes.json", "sha256": "62a4133ae2bb74824a2483af409d27434070f04861a79b56312b8b5027d348a5" },
+      { "file": "current-candidate-hashes.json", "sha256": "1d15c2c4f5e0c6ed9375186e20a09343d70896d15aeb19c4942a7af08ed89be3" },
+      { "file": "current-independent-reproduction.json", "sha256": "5f1548e266c60035533b6f35490a742bc34a6a77a65698d36e3baa1e098f68b7" },
+      { "file": "cleanup.json", "sha256": "fa1b27915051b0f1e31e4dccbe47496ad99924cb1c42b7b72904528360b139bc" },
+      { "file": "01-preparation.log", "sha256": "88198a89172c3d5b59b51f5f2e152d4ae6db50c5fcff425e91832a27bc2654ac" },
+      { "file": "02-approved-inputs.log", "sha256": "ff93c32a7e17ff4f5ff4e04e7b0eeb5a9adfec4460e56298ddb478d9c0dfeb31" },
+      { "file": "03-receipt-contracts.log", "sha256": "67a9ca128b48f46151c404ca678ee46f09a92a9023cea166b7ac94ab22735a1b" },
+      { "file": "04-independent-reproduction.log", "sha256": "574136d37e0108fdb7e7da55ac47c7d233187a415f29f766910c5bb718490a85" },
+      { "file": "05-staged-rt1-build.log", "sha256": "eaa7660ab8d89afc57dec3db74d9204adee14e17282ffde5daf8e1030e81c100" },
+      { "file": "06-run-observations.log", "sha256": "ff93c32a7e17ff4f5ff4e04e7b0eeb5a9adfec4460e56298ddb478d9c0dfeb31" }
+    ]
+  },
+  "cleanup": {
+    "completedUtc": "2026-10-09T11:07:25.2000835+00:00",
+    "ownedStagedRt1Removed": true,
+    "ownedRt2StagingMetadataRemoved": true,
+    "ownedNugetScratchRemoved": true,
+    "temporaryCodeRemaining": false,
+    "worktreeRetainedForParent": true
+  }
+}

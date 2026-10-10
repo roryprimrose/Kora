@@ -5,7 +5,7 @@ namespace Kora.Core.Context;
 public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
 {
     private sealed record Chunk(int Start, int Length, string? Heading);
-    private sealed record Match(Chunk Chunk, int Terms, int Frequency);
+    private sealed record Match(LocalFileRevision Revision, int FileOrder, Chunk Chunk, int Terms, int Frequency);
 
     public LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource,
         string query, DateTimeOffset observedAt, CancellationToken cancellationToken)
@@ -14,39 +14,61 @@ public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
         ArgumentNullException.ThrowIfNull(exactSource);
         cancellationToken.ThrowIfCancellationRequested();
         if (revision.Reference != exactSource) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt); }
+        return SearchFiles([revision], query, observedAt, cancellationToken);
+    }
+
+    public LocalFileSearchResult Search(LocalFolderRevision revision, LocalFolderReference exactSource,
+        string query, DateTimeOffset observedAt, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(revision);
+        ArgumentNullException.ThrowIfNull(exactSource);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (revision.Reference != exactSource) { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt); }
+        return SearchFiles(revision.Files, query, observedAt, cancellationToken);
+    }
+
+    private static LocalFileSearchResult SearchFiles(IReadOnlyList<LocalFileRevision> files,
+        string query, DateTimeOffset observedAt, CancellationToken cancellationToken)
+    {
         if (!LocalFileRetrievalPolicy.TryQuery(query, out var terms))
         {
             return LocalFileSearchResult.Empty(LocalFileSearchOutcome.InvalidQuery, observedAt);
         }
-        var text = revision.Text;
         var matches = new List<Match>(LocalFileRetrievalPolicy.MaximumCitations);
         var matchingChunks = 0;
-        foreach (var chunk in Chunks(text, cancellationToken))
+        for (var fileOrder = 0; fileOrder < files.Count; fileOrder++)
         {
-            var frequencies = new Dictionary<string, int>(StringComparer.Ordinal);
-            foreach (var word in LocalFileRetrievalPolicy.Tokens(TokenText(text, chunk), cancellationToken))
+            var revision = files[fileOrder];
+            var text = revision.Text;
+            foreach (var chunk in Chunks(text, cancellationToken))
             {
-                if (terms.Contains(word))
+                var frequencies = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var word in LocalFileRetrievalPolicy.Tokens(TokenText(text, chunk), cancellationToken))
                 {
-                    frequencies[word] = Math.Min(LocalFileRetrievalPolicy.MaximumTermFrequency,
-                        frequencies.GetValueOrDefault(word) + 1);
+                    if (terms.Contains(word))
+                    {
+                        frequencies[word] = Math.Min(LocalFileRetrievalPolicy.MaximumTermFrequency,
+                            frequencies.GetValueOrDefault(word) + 1);
+                    }
+                }
+                if (frequencies.Count != 0)
+                {
+                    matchingChunks++;
+                    matches.Add(new(revision, fileOrder, chunk, frequencies.Count, frequencies.Values.Sum()));
+                    matches.Sort(Compare);
+                    if (matches.Count > LocalFileRetrievalPolicy.MaximumCitations) { matches.RemoveAt(matches.Count - 1); }
                 }
             }
-            if (frequencies.Count != 0)
-            {
-                matchingChunks++;
-                matches.Add(new(chunk, frequencies.Count, frequencies.Values.Sum()));
-                matches.Sort(Compare);
-                if (matches.Count > LocalFileRetrievalPolicy.MaximumCitations) { matches.RemoveAt(matches.Count - 1); }
-            }
         }
-        // OR retrieval: unique query terms, then saturated frequency, then exact source offset.
+        // OR retrieval: unique terms, saturated frequency, canonical file order, then exact source offset.
         var citations = new List<LocalFileCitation>();
         var bytes = 0;
-        var identity = revision.Review.Metadata.CanonicalPath.Split('\\')[^1];
         foreach (var match in matches)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var revision = match.Revision;
+            var text = revision.Text;
+            var identity = revision.Review.Metadata.CanonicalPath.Split('\\')[^1];
             var chunk = match.Chunk;
             var excerpt = text.Substring(chunk.Start, chunk.Length);
             var size = Encoding.UTF8.GetByteCount(excerpt);
@@ -67,7 +89,9 @@ public sealed class LocalFileLexicalRetrieval : ILocalFileRetrieval
         var terms = right.Terms.CompareTo(left.Terms);
         if (terms != 0) { return terms; }
         var frequency = right.Frequency.CompareTo(left.Frequency);
-        return frequency != 0 ? frequency : left.Chunk.Start.CompareTo(right.Chunk.Start);
+        if (frequency != 0) { return frequency; }
+        var file = left.FileOrder.CompareTo(right.FileOrder);
+        return file != 0 ? file : left.Chunk.Start.CompareTo(right.Chunk.Start);
     }
 
     private static string TokenText(string text, Chunk chunk)

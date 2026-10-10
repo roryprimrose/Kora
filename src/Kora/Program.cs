@@ -281,6 +281,9 @@ internal static class Program
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
         services.AddSingleton<OutputDeviceConfigurationService>();
         services.AddSingleton<ResponseModeConfigurationService>();
+        services.AddSingleton<ProviderModeConfigurationService>();
+        services.AddSingleton<IModelProviderModePreferences>(provider =>
+            new LocalModelProviderModePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
@@ -289,6 +292,8 @@ internal static class Program
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton<ISessionQueueStore>(interactions);
         services.AddSingleton<ISessionWorkStore>(interactions);
+        services.AddSingleton<Kora.Core.Memory.IMemoryStore>(interactions);
+        services.AddSingleton<Kora.Application.Memory.MemoryManagementService>();
         services.AddSingleton<Kora.Application.Interaction.ILocalEventSource, Kora.Application.Interaction.AuthorityLocalEventSource>();
         services.AddSingleton<Kora.Application.Interaction.ILocalEventStateStore, Kora.Application.Interaction.LocalEventStateStore>();
         services.AddSingleton<Kora.Application.Interaction.LocalEventBroker>();
@@ -298,7 +303,8 @@ internal static class Program
             provider.GetRequiredService<ISessionQueueStore>(), provider.GetRequiredService<ISessionWorkspaceStore>(),
             provider.GetRequiredService<HostTaskCoordinator>(), provider.GetRequiredService<ISessionWorkspaceAccess>(),
             provider.GetRequiredService<IDeterministicVersionQueueAction>(), provider.GetRequiredService<SessionQueueLimits>(),
-            provider.GetRequiredService<ILogger<SessionQueueService>>()));
+            provider.GetRequiredService<ILogger<SessionQueueService>>(),
+            configuration: provider.GetRequiredService<SessionQueueConfigurationService>()));
         services.AddSingleton(TimeProvider.System);
         services.AddKeyedSingleton("release-metadata", (_, _) => new HttpClient(new HttpClientHandler
         {
@@ -365,6 +371,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
         services.AddSingleton<ModelTurnHost>();
+        services.AddSingleton<ModelProviderHandoffWorkflow>();
+        services.AddSingleton<ModelHandoffPresentation>();
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
         services.AddSingleton<DependencySetupWorkflow>();
         services.AddKeyedSingleton(
@@ -391,6 +399,9 @@ internal static class Program
         services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
             new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DiagnosticRetentionConfigurationService>();
+        services.AddSingleton<ISessionQueuePreferences>(provider =>
+            new LocalSessionQueuePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<SessionQueueConfigurationService>();
         services.AddSingleton<ISessionRetentionPreferences>(provider =>
             new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SessionRetentionConfigurationService>();
@@ -469,6 +480,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
+        services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
         services.AddSingleton<MainViewModel>();
     }

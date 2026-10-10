@@ -3,12 +3,15 @@
 Status: proposed interaction contract, not a shipped tool loop or skill runner.
 
 R21 now provides a native host-only explicit shared-profile registration/list/
-inspect/recheck route. Its strict versioned instruction reader retains exact
+inspect/recheck and exact native local-read-consent withdrawal route. Its strict
+versioned instruction reader retains exact
 source-qualified immutable snapshots and truthful incompatible/unavailable
 reasons. It is **not** a `skills.*` tool, slash artifact route, model catalogue,
 enablement or runner. Ambient personal skill folders no longer feed the startup
 artifact-to-model catalogue. Registration grants only the selected bounded
-local read; no model exposure, source edits, dependency installation, execution,
+local read, and withdrawal removes only that exact saved registration and
+owned snapshots, never shared files or grants. Neither operation is available
+through typed/voice/model tool routing. No model exposure, source edits, dependency installation, execution,
 egress, approval or bundled trust. See
 [Skill Storage](Skill_Storage.md#delivered-bounded-r21-native-inspection).
 
@@ -192,6 +195,19 @@ committed atomically in the consolidated authority store. Dispatched/Unknown
 work is never relabelled stopped. No model descriptor/tool exposure, transcript
 persistence, inferred management, queue/executor, general effect cancellation,
 deletion or retention is delivered.
+
+Delivered exact session-only memory controls: native **Sessions > Session memories**
+and typed/activated `memory help/list/inspect/get/review/admit/edit/set/disable/forget`
+share the [management service](../src/Kora.Application/Memory/MemoryManagementService.cs)
+and [exact-ID/revision grammar](../src/Kora.Core/Commands/MemoryCommand.cs).
+List exposes content-free identity/scope/review/retention/creation metadata;
+inspection explicitly reveals one revision. Review requires that exact inspection;
+acceptance and admission are separate original-user actions. Edits return to
+Proposed/Pending; disable closes use; forget retains a non-reusable tombstone.
+Fresh original host control intent and current private session/ownership gates
+apply to every operation. No model tool, Remember/proposal trigger, recall,
+provider prompt attachment or hosted disclosure is delivered. See
+[the dated delivery contract](Model_Providers_Memory_And_Knowledge.md#delivered-native-memory-management-surface---2026-10-09).
 
 Exact `maintenance status/review/snooze` uses the shared cached native maintenance
 workflow and a dedicated original-user control session, not audio-session or

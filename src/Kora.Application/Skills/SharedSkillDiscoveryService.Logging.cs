@@ -9,4 +9,7 @@ public sealed partial class SharedSkillDiscoveryService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Local shared skill inspection completed: {PackageCount}")]
     private static partial void DiscoveryCompleted(ILogger logger, int packageCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Local shared skill read consent withdrawn: {SourceCount}")]
+    private static partial void RegistrationWithdrawn(ILogger logger, int sourceCount);
 }

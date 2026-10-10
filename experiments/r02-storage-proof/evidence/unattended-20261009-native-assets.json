@@ -1,0 +1,26 @@
+{
+  "generatedUtc": "2026-10-09T11:02:39.975827+00:00",
+  "buildHost": "Microsoft Windows 10.0.26300",
+  "assets": [
+    {
+      "rid": "win-x64",
+      "nativeFile": "e_sqlcipher.dll",
+      "bytes": 1852928,
+      "machine": 34404,
+      "sha256": "895C0F5203352446F159D7780021B69B280DEC6347C434C7A643AD6B7D0D883B",
+      "publish": "passed",
+      "execution": "portable proof exercised Windows x64 native engine; see latest.json"
+    },
+    {
+      "rid": "win-x86",
+      "nativeFile": "e_sqlcipher.dll",
+      "bytes": 1446912,
+      "machine": 332,
+      "sha256": "2B7AD2DA9CA246E1D68BC0762D8AC3AA9BA98F4D071480546B3EBE23D6C6AB21",
+      "publish": "passed",
+      "execution": "not executed"
+    }
+  ],
+  "supportedOperatingSystem": "Windows",
+  "excludedScope": "Linux runtime support and Linux-host cross-build validation are outside this Windows-only proof, not readiness gates."
+}

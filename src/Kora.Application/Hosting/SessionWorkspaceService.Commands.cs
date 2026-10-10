@@ -23,7 +23,7 @@ public sealed partial class SessionWorkspaceService
             return (queue ?? throw new InvalidOperationException("The deterministic queue service is unavailable."))
                 .ExecuteCommandAsync(command, origin, admission, token);
         }
-        if (command.Operation is SessionCommandOperation.History or SessionCommandOperation.HistoryGet)
+        if (command.Operation is SessionCommandOperation.History or SessionCommandOperation.HistoryGet or SessionCommandOperation.HistorySearch)
         {
             return ExecuteHistoryCommandAsync(command, origin, admission, token);
         }
@@ -104,6 +104,7 @@ public sealed partial class SessionWorkspaceService
                 case SessionCommandOperation.Resume:
                     var lifecycle = await store.ChangeIdleLifecycleAsync(request, new(command.Generation),
                         command.Operation == SessionCommandOperation.Resume, eligible, token).ConfigureAwait(false);
+                    SessionLifecycleChanged?.Invoke(subject);
                     result = new("committed", "Lifecycle committed for exact ID. No tasks or approvals replayed; refresh metadata.")
                     {
                         Sessions = [new(lifecycle.SessionId.Value, lifecycle.IsActive, lifecycle.Generation.Value, null, null)],
@@ -140,7 +141,14 @@ public sealed partial class SessionWorkspaceService
             HostActivityLayer.Application, HostOperation.Request);
         try
         {
-            var result = command.Operation == SessionCommandOperation.History
+            var result = command.Operation == SessionCommandOperation.HistorySearch
+                ? new SessionCommandResult("observed", SessionHistorySearchPage.Scope)
+                {
+                    HistorySearch = await SearchHistoryAsync(session, command.HistoryQuery
+                        ?? throw new InvalidOperationException("A lexical query is required."),
+                        command.HistorySearchCursor, command.Limit, token).ConfigureAwait(false),
+                }
+                : command.Operation == SessionCommandOperation.History
                 ? new SessionCommandResult("observed", SessionHistoryPage.Scope)
                 {
                     History = await ReadHistoryAsync(session, command.HistoryCursor, command.Limit, token).ConfigureAwait(false),

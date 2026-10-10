@@ -16,7 +16,11 @@ public static class LocalFilePolicy
         "node_modules", "bin", "obj", ".vs", ".vscode", "credentials", "secrets",
     };
 
-    public static void ValidatePath(string path)
+    public static void ValidatePath(string path) => ValidatePath(path, file: true);
+
+    public static void ValidateFolderPath(string path) => ValidatePath(path, file: false);
+
+    private static void ValidatePath(string path, bool file)
     {
         ArgumentNullException.ThrowIfNull(path);
         try { _ = Utf8.GetByteCount(path); }
@@ -40,7 +44,7 @@ public static class LocalFilePolicy
             throw new InvalidDataException("The path is noncanonical, protected, generated, source-control metadata or too deep.");
         }
         var extension = components[^1].LastIndexOf('.');
-        if (extension < 0 || components[^1][extension..].ToLowerInvariant() is not (".txt" or ".md" or ".markdown"))
+        if (file && (extension < 0 || components[^1][extension..].ToLowerInvariant() is not (".txt" or ".md" or ".markdown")))
         {
             throw new InvalidDataException("Only UTF-8 plain-text and Markdown file extensions are supported.");
         }

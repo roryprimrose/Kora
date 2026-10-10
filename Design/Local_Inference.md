@@ -80,6 +80,13 @@ retain observations, not production capability claims.
 
 ## Outcomes and Their Consequences
 
+The [volatile provider policy and exact handoff workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
+can offer review after a host-audited local Unavailable turn. It neither changes
+the buffered bootstrap reasoner nor silently selects hosted inference.
+No candidate/floor/context/offline/server-cessation evidence is added; the
+local-inference executable and its unique native procedures/receipts remain
+retained.
+
 The evidence was collected against unchanged production code on 2026-10-05.
 The source-linked Release proof built with zero warnings/errors and passed
 31 deterministic tests, including simulated measurement orchestration.

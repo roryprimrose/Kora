@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "startedAtUtc": "2026-10-09T11:03:32.4768104+00:00",
+  "completedAtUtc": "2026-10-09T11:10:48.0010581+00:00",
+  "actualBaseRevision": "e0692f438a058de0a20021b3420a981849706dbf",
+  "branch": "proof/unattended-20261009-mg1",
+  "testedSourceState": "dirty",
+  "trackedChangesAtStart": [
+    "experiments/r02-dotnet-management-proof/Directory.Build.props",
+    "experiments/r02-dotnet-management-proof/Prepare-Fixture.ps1",
+    "experiments/r02-dotnet-management-proof/README.md",
+    "experiments/r02-dotnet-management-proof/evidence/input-verification.json"
+  ],
+  "testedSourceIdentity": "runtime-results.json records all 18 fixture source/script/lock SHA-256 identities; raw pre-run diff retained outside git",
+  "laterDocumentation": "Documentation and this summary were added after testing; no later commit or rebase is claimed tested",
+  "toolchain": {
+    "dotnetSdk": "10.0.401",
+    "dotnetRuntime": "10.0.12",
+    "powerShell": "7.6.6",
+    "architecture": "X64"
+  },
+  "commands": [
+    ".\\experiments\\r02-dotnet-management-proof\\Prepare-Fixture.ps1 -PackageConfigPath <ignored-local-package-config>",
+    ".\\experiments\\r02-dotnet-management-proof\\Run-Proof.ps1 -NoRestore"
+  ],
+  "releaseBuilds": {
+    "projects": 3,
+    "warnings": 0,
+    "errors": 0
+  },
+  "tests": [
+    {
+      "group": "rt1-released",
+      "total": 45,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "rawTrx": "TestResults\\rt1-released\\ControlProof_net10.0_x64.trx",
+      "rawTrxSha256": "157fbf6339e0cc4919568f8830c4dc880587eac85c4ac871e40c8e4d7438dfbb"
+    },
+    {
+      "group": "host",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "rawTrx": "TestResults\\host\\HostTests_net10.0_x64.trx",
+      "rawTrxSha256": "2f790271ab483ab00b5949d5bc764c1a852954f4b98bdae978988b1d18ced181"
+    },
+    {
+      "group": "runtime",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "rawTrx": "TestResults\\runtime\\ManagementProof_net10.0_x64.trx",
+      "rawTrxSha256": "c74c986e2a2bd1b8bd53cd1e4ae7767f9da34a8647afaba49cc2e2bdbefa4959"
+    }
+  ],
+  "expectedRejectedHookOnlyFailWitnesses": 1,
+  "cleanup": {
+    "regressionRowsComplete": 45,
+    "runtimeRowsComplete": 16,
+    "fixtureOwnedNativeSurvivors": 0,
+    "residualTrialScratchEntries": 0,
+    "temporaryDerivativeCodeRemoved": true,
+    "ignoredBuildInputAndTestArtifactsRemoved": true,
+    "rawReceiptsPreservedOutsideGit": true
+  },
+  "provenance": {
+    "profile": "Separately approved released SDK 1.0.16 / unchanged native 1.0.90",
+    "sourceBuiltByteEquivalence": "Not claimed",
+    "originalEvidence": "Unchanged; historical source-build blocker retained",
+    "committedLocks": "Unchanged; derived released regression restored with MG1 lock in locked mode",
+    "rawResultCopies": "Byte-identical copies; no machine-specific path inputs found in committed result JSON",
+    "packageRouting": "Machine-local SDK feed with hash-verified official NuGet V2 bytes and existing dotnet-public source",
+    "initialRestoreBlocker": "NU1900: NuGet.org V3 service-index TLS handshake failure",
+    "freshVulnerabilityAudit": "Not performed; local routing has no advisory service",
+    "machineSpecificInputs": "Omitted from summary only; raw artifacts unchanged"
+  },
+  "limits": {
+    "provider": "Synthetic owned loopback only; no accounts, live providers or billed calls",
+    "physicalComputationTermination": "Unknown",
+    "referenceHardwareQualification": false,
+    "rt2": "Not closed",
+    "pv1": "Not closed",
+    "productionAdmission": false,
+    "rootSolutionValidation": "Not rerun locally; required PR checks and up-to-date branch protection remain authoritative"
+  }
+}

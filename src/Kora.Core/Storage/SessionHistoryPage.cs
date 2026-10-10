@@ -14,7 +14,7 @@ public sealed record SessionHistoryPage(
         "Host-committed questions/final answers, decision metadata and task-state receipts only. "
         + "Task success is not proof of an external effect. Pre-history order/content is unavailable. "
         + "Bootstrap user/model messages and response bodies, captions, file previews and shared skill text are not recorded. "
-        + "No composer, search, model context, Ask Evidence, export, queue, automatic resume or replay.";
+        + "Passive exact-session lexical search is separate. No composer, model context, Ask Evidence, export, queue, automatic resume or replay.";
 
     public static void ValidateLimit(int limit)
     {

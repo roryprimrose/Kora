@@ -12,6 +12,35 @@ Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.
 
 ## Configuration Contract
 
+### Delivered bounded fixed local-version queue settings (R10/R13)
+
+Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated input share the [queue configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
+Only device-local `queue.pending-per-session` (integer **1-10**, default/reset **10**) and `queue.execution-slots` (integer **1-2**, default/reset **1**) are registered.
+Each option resets independently; both reset removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
+
+Use `list queue settings`, `get`/`status <option-id>`, `set <option-id> to <canonical integer>` or `reset <option-id>`; no fuzzy/model setter or whole-profile reset is added ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs)).
+Native Refresh captures the host-held draft revision, call revision, original input and exact visible lifetime; Save/Reset requires that unchanged admitted draft.
+Hiding/reopening, concurrent typed edits, stale session/generation/origin or private ownership changes refuse, rather than overwrite a newer value ([native workflow](../src/Kora.Application/ViewModels/MainViewModel.QueueConfiguration.cs)).
+
+Required typed REQUESTED/terminal audit, atomic save/readback, durable original-input control receipt and confirmed readback precede activation.
+Protected Active/Suspected/Unknown original-voice writes are denied without UI relabelling, downgrade or delayed application ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
+Schema-1 `session-queue.txt` and `session-queue-unconfirmed.txt` use `IApplicationDataPaths` and the shared atomic store.
+Unknown schema/shape, noncanonical values, invalid UTF-8, inaccessible or unconfirmed state is unavailable, never a successful default or rollback.
+Inspect saved state and audit/control receipts, explicitly repair, then refresh; ordinary refresh cannot clear an unconfirmed marker ([storage tests](../tests/Kora.Application.UnitTests/Configuration/LocalSessionQueuePreferencesTests.cs)).
+
+Confirmed limits feed enqueue/fair dispatch ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs)), native/exact work snapshots ([work consumer](../src/Kora.Application/Hosting/SessionWorkspaceService.cs)) and trusted local events ([event consumer](../src/Kora.Application/Interaction/AuthorityLocalEventSource.cs)).
+Short admission/observation transactions serialize with edits and revalidate saved state/revisions at consequential boundaries; the gate is not held through an active read or the dispatch batch.
+Lowering pending capacity never evicts or reclassifies existing entries; enqueue holds until capacity is available.
+Lowering slots never cancels or reinterprets active admissions; subsequent fair admission uses the current limit ([race/capacity tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs)).
+
+This is only the existing synchronous read-only `application.get_version` profile.
+Manual dispatch, FIFO/fairness, one active task per session and no replay remain unchanged.
+Pending lifetime **30 minutes** and active budget **5 minutes** remain fixed and unavailable to edit; existing entry/admission deadlines remain unchanged ([fixed deadline rules](../src/Kora.Core/Hosting/SessionQueuePolicy.cs), [retained deadline tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
+The broader 1-50 capacity and deadline ranges in the proposed table below are not delivered by this profile.
+No schema migration, worker, automatic dispatch, resource lease, model tool, general execution or real two-slot provider/hardware qualification is added ([bounded workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
+
+Validation and retained experiment reasons are recorded in the [dated bounded delivery receipt](Implementation_Roadmap.md#r10r13-bounded-fixed-queue-settings---2026-10-09). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
+
 ### R18 bounded local event suppression
 
 The [local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
@@ -371,6 +400,22 @@ Unavailable ordinary policy explicitly reports source-qualified delivery gaps
 through the independent file/recovery path; mandatory trusted audit and
 authority stores remain admitted under their own rules, never ordinary fallback.
 Full R04/R10/D-009, installed/native, acoustic and forensic acceptance remain open.
+
+### Delivered R10 Durable Provider Mode Preference - 2026-10-09
+
+Native **Settings > Providers** offers explicit Inspect/Save/Reset using host-held choices; exact typed/current-name activated input uses `list provider settings`, `get`/`status providers.default-mode`, `set providers.default-mode to LocalOnly|LocalFirst|HostedPreferred` and `reset providers.default-mode` ([native workflow](../src/Kora.Application/ViewModels/MainViewModel.ProviderModeConfiguration.cs), [parser](../src/Kora.Application/Configuration/ProviderModeCommand.cs)).
+
+Only the device-local initial provider mode is delivered. Unsaved/default/reset means **LocalOnly**. Discovery reports schema, enum choices/default, device scope, revision, saved/default/unavailable provenance, desired mode, timing, reset effect and recovery; it does not claim an effective provider or available hosted adapter ([result contract](../src/Kora.Application/Configuration/ProviderModeCommandResult.cs)).
+
+Schema-1 `provider-mode.txt` and `provider-mode-unconfirmed.txt` use `IApplicationDataPaths` and the shared atomic store. Malformed/unknown/noncanonical/invalid-UTF-8/oversized or unconfirmed state fails explicitly with `InvalidDataException`. Reset saves LocalOnly, not file deletion, following the response-mode convention; no unrelated preference is reset ([storage](../src/Kora.Application/Configuration/LocalModelProviderModePreferences.cs), [private-storage tests](../tests/Kora.Application.UnitTests/Configuration/LocalModelProviderModePreferencesTests.cs)).
+
+Original user intent, active session/generation, unchanged host-held choice and call/preference revisions, trusted REQUESTED/terminal audit, exact atomic readback and durable terminal control receipt precede confirmation. Protected/Unknown original activated-voice writes are denied without relabelling. Failed/interrupted writes retain an unconfirmed marker across restart; inspect saved state and receipts, explicitly repair, then refresh ([service](../src/Kora.Application/Configuration/ProviderModeConfigurationService.cs)).
+
+The confirmed device preference seeds the first policy-bound turn of a session only; later edits do not overwrite existing session policies or admitted turns. Existing Default/Local/Hosted turn semantics and exact handoff review remain authoritative. No account, adapter qualification, network/egress authority or actual hosted dispatch is added; HostedPreferred still fails closed ([host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs), [fail-closed tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderPreference.cs)).
+
+**Review pending exact provider handoff** is a separate original-user native review action, not a preference, setter or permission. It consumes existing audited host-issued offers and displays the complete bounded envelope, identities/revisions, destination, reason and evidence lineage/classification.
+
+Approve/decline/cancel/removal reuse the same workflow; removal requires fresh review, and close/expiry/privacy/ownership changes never approve. Production reports no pending qualified offer. No schema, saved-mode, per-turn, account or egress changes occur ([review contract](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10)).
 
 ### Delivered bounded device-default response mode (R10)
 
@@ -971,6 +1016,8 @@ Hard lock/mute rules always outrank call/proactive preferences.
 Notification settings cannot hide necessary action approval from the visual interface or turn silence into approval.
 
 ## 4. Work and Context
+
+The table is the broader proposed contract, not the enabled fixed local-version queue catalogue. Its shipped subset is only [pending 1-10/default-reset 10 and read-only slots 1-2/default-reset 1](#delivered-bounded-fixed-local-version-queue-settings-r10r13); deadline editing and automatic dispatch remain unavailable.
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|

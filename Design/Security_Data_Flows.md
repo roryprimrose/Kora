@@ -636,14 +636,16 @@ question/grant changes with a typed security audit. Once use increments the
 revision/count and consumes authority in the same commit. Storage/audit
 failure returns no successful receipt. Cancellation certifies rollback only;
 uncertain commits surface a storage error and cannot be automatically replayed.
-These are tested application/core guarantees against an explicit test adapter,
-not a claim of production durable approvals or R04 audit integration.
+Portable serialized fixtures and the shared private SQLite adapter now test
+these guarantees, including retained exact-native revocation and typed atomic
+audit. They are not effect receipts or complete installed R04 qualification.
 
 Session authorization follows the durable work-session lifecycle, not Windows,
 provider, process or selected-window identity. Perpetual records are retained
 independently, without expiry/retention/eviction or session archive/delete/
-restart removal. Actual durable adapter/lifecycle/deletion acceptance remains
-R04/R12 work. No legacy named-action preference is imported or migrated to
+restart removal. The bounded shared private adapter/lifecycle/disposition tests
+preserve those records; complete installed R04/R12 acceptance remains open.
+No legacy named-action preference is imported or migrated to
 these version-bound grants.
 
 Successful admitted intent/approval/audit commits are prerequisites, not

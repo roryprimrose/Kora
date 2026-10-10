@@ -3022,6 +3022,8 @@ The [available native subset and unavailable controls](User_Configuration.md#del
 
 Experiment exact equivalence was assessed: `experiments/r02-containment-proof` has no equivalent grant schema/inventory/revocation path, and its unique runtime/containment/native/hardware/security/history receipts are retained unchanged. This delivery supersedes no runtime/storage/device experiment qualification and does not close full R05, A0–A4, execution or release acceptance. The historical foundation receipt and remaining dispatch gates below remain applicable.
 
+**Automated validation receipt:** rebased on `83230ec82b12a8cf0e6f9f5187e5ff8d4e6b3957`; zero-warning Release solution build. Core **1407**, Application **3798**, Tools **137**, Definitions **6** and Windows **1434** all passed, zero failures/skips. Fresh-only portable line/branch coverage passed the unchanged exact **100% / 100%** gate. Owned TRX and coverage receipts are under `.net-test-artifacts/exact-rebased`; focused native/SQLite and corrected coverage-gate evidence is retained separately.
+
 **Historical foundation receipt - 2026-10-06.** The subsequent
 [durable continuation](#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 supplies production persistence/minimal session authority, not the remaining

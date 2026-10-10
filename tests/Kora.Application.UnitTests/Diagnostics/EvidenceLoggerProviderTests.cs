@@ -554,15 +554,107 @@ public sealed class EvidenceLoggerProviderTests
         await missing.Should().ThrowAsync<ArgumentNullException>();
     }
 
-    [Fact]
-    public void Gap_reporter_failure_still_allows_both_independent_sink_attempts()
+    [Theory]
+    [InlineData("io")]
+    [InlineData("invalid-data")]
+    [InlineData("unauthorized")]
+    [InlineData("invalid-operation")]
+    public void Gap_reporter_failure_preserves_original_error_and_both_independent_sink_attempts(string kind)
     {
-        var failed = new RecordingSink { Fail = true };
-        var healthy = new RecordingSink { FailReport = true };
+        var original = new IOException("Synthetic private sink failure");
+        Exception reporting = kind switch
+        {
+            "io" => new IOException("Synthetic reporting failure"),
+            "invalid-data" => new InvalidDataException("Synthetic fixture gap refusal"),
+            "unauthorized" => new UnauthorizedAccessException("Synthetic reporter access refusal"),
+            _ => new InvalidOperationException("Synthetic reporter unavailable"),
+        };
+        var failed = new RecordingSink { DiagnosticFailure = original };
+        var healthy = new RecordingSink { ReportFailure = reporting };
         using var provider = new EvidenceLoggerProvider([failed, healthy], healthy);
         var log = () => Log(provider.CreateLogger("fixture"), State());
-        log.Should().Throw<IOException>();
+        var failure = log.Should().Throw<IOException>().Which;
+        failure.Message.Should().Be("Required evidence delivery failed; independent sinks were attempted.");
+        failure.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions
+            .Should().Equal(original, reporting);
         healthy.Diagnostics.Should().ContainSingle();
+        healthy.ReportAttempts.Should().ContainSingle().Which.Reason.Should().Be(EvidenceGapReason.SinkFailure);
+        JsonSerializer.Serialize(healthy.Diagnostics.Single()).Should().NotContain(original.Message).And.NotContain(reporting.Message);
+    }
+
+    [Fact]
+    public void Multiple_failed_gap_reports_are_all_attempted_and_preserve_each_sink_and_report_error()
+    {
+        var first = new IOException("Synthetic first sink failure");
+        var second = new IOException("Synthetic second sink failure");
+        var reporting = new InvalidDataException("Synthetic reporting refusal");
+        var reporter = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([
+            new RecordingSink { DiagnosticFailure = first },
+            new RecordingSink { DiagnosticFailure = second },
+            reporter], reporter);
+        var log = () => Log(provider.CreateLogger("fixture"), State());
+        var failure = log.Should().Throw<IOException>().Which;
+        failure.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions
+            .Should().Equal(first, second, reporting, reporting);
+        reporter.Diagnostics.Should().ContainSingle();
+        reporter.ReportAttempts.Should().HaveCount(2).And.OnlyContain(gap => gap.Reason == EvidenceGapReason.SinkFailure);
+    }
+
+    [Fact]
+    public void Activity_gap_report_failure_preserves_original_error_and_releases_ambient_host_context()
+    {
+        var original = new IOException("Synthetic activity sink failure");
+        var reporting = new InvalidDataException("Synthetic fixture gap refusal");
+        var healthy = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([
+            new RecordingSink { ActivityFailure = original }, healthy], healthy);
+        var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        activity.Complete(HostOperationOutcome.Completed);
+        var finish = () => activity.Dispose();
+        var failure = finish.Should().Throw<IOException>().Which;
+        failure.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions
+            .Should().Equal(original, reporting);
+        healthy.Activities.Should().ContainSingle().Which.Outcome.Should().Be(HostOperationOutcome.Completed);
+        healthy.ReportAttempts.Should().ContainSingle().Which.Reason.Should().Be(EvidenceGapReason.SinkFailure);
+        HostActivity.Current.Should().BeNull();
+        Activity.Current.Should().BeNull();
+    }
+
+    [Fact]
+    public void Ordinary_retention_unavailability_still_fails_if_gap_reporting_is_unavailable()
+    {
+        var reporting = new IOException("Synthetic reporter unavailable");
+        var healthy = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([new UnavailablePolicySink(false), healthy], healthy);
+        var log = () => Log(provider.CreateLogger("fixture"), State());
+        var failure = log.Should().Throw<IOException>().Which;
+        failure.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions
+            .Should().ContainSingle().Which.Should().BeSameAs(reporting);
+        healthy.Diagnostics.Should().ContainSingle();
+        healthy.ReportAttempts.Should().ContainSingle().Which.ExceptionType
+            .Should().Be(typeof(DiagnosticRetentionUnavailableException).FullName);
+    }
+
+    [Fact]
+    public void Required_audit_gap_report_failure_retains_both_errors_without_downgrading_audit_authority()
+    {
+        var original = new IOException("Synthetic required audit sink failure");
+        var reporting = new InvalidDataException("Synthetic audit gap refusal");
+        var healthy = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([
+            new RecordingSink { AuditFailure = original }, healthy], healthy);
+        using var factory = LoggerFactory.Create(builder => builder.AddProvider(provider));
+        var bridge = new LoggerSecurityAuditLog(factory.CreateLogger<LoggerSecurityAuditLog>());
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Policy);
+        var write = () => bridge.Write(CreateAudit());
+        var failure = write.Should().Throw<IOException>().Which;
+        failure.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions
+            .Should().Equal(original, reporting);
+        healthy.Audits.Should().ContainSingle();
+        healthy.ReportAttempts.Should().ContainSingle().Which.Reason.Should().Be(EvidenceGapReason.SinkFailure);
     }
 
     private static SecurityAuditEvent CreateAudit() =>
@@ -590,20 +682,36 @@ public sealed class EvidenceLoggerProviderTests
         public ConcurrentQueue<AuditEnvelope> Audits { get; } = new();
         public ConcurrentQueue<CompletedActivityEnvelope> Activities { get; } = new();
         public ConcurrentQueue<EvidenceGap> Gaps { get; } = new();
+        public ConcurrentQueue<EvidenceGap> ReportAttempts { get; } = new();
         public bool Fail { get; init; }
         public bool FailReport { get; init; }
+        public Exception? DiagnosticFailure { get; init; }
+        public Exception? ActivityFailure { get; init; }
+        public Exception? AuditFailure { get; init; }
+        public Exception? ReportFailure { get; init; }
         public void WriteDiagnostic(DiagnosticEnvelope envelope)
         {
+            if (DiagnosticFailure is { } failure) { throw failure; }
             if (Fail)
             {
                 throw new IOException("Synthetic failure.");
             }
             Diagnostics.Enqueue(envelope);
         }
-        public void WriteAudit(AuditEnvelope envelope) => Audits.Enqueue(envelope);
-        public void WriteActivity(CompletedActivityEnvelope envelope) => Activities.Enqueue(envelope);
+        public void WriteAudit(AuditEnvelope envelope)
+        {
+            if (AuditFailure is { } failure) { throw failure; }
+            Audits.Enqueue(envelope);
+        }
+        public void WriteActivity(CompletedActivityEnvelope envelope)
+        {
+            if (ActivityFailure is { } failure) { throw failure; }
+            Activities.Enqueue(envelope);
+        }
         public void Report(EvidenceGap gap)
         {
+            ReportAttempts.Enqueue(gap);
+            if (ReportFailure is { } failure) { throw failure; }
             if (FailReport)
             {
                 throw new IOException("Synthetic reporting failure.");

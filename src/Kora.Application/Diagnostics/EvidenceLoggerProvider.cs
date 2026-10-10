@@ -147,10 +147,17 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
                     identity, exception.GetType().FullName));
             }
         }
-        // Gap-reporting failure must not prevent either independent delivery attempt.
+        // Gap reporting must not replace the original sink failures or prevent later reports.
         foreach (var gap in failures)
         {
-            gaps.Report(gap);
+            try
+            {
+                gaps.Report(gap);
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                errors.Add(exception);
+            }
         }
         if (errors.Count != 0)
         {

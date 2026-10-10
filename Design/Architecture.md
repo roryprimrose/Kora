@@ -267,6 +267,12 @@ log/audit/span/link records retain call-time host/W3C context and independent
 due dates. The daily-file provider remains independent. Required capture,
 file or database delivery failures report gaps and propagate rather than
 allowing dispatch or a success receipt with missing terminal audit evidence.
+Independent sink attempts finish before gap reporting. Expected I/O, invalid-data,
+access or availability failures while reporting a gap are retained alongside the
+original sink exceptions in the propagated aggregate; every remaining gap
+report is still attempted. A reporting failure cannot replace the cause of a
+required delivery failure or turn unavailable reporting into success. Exception
+bodies are not added to diagnostic envelopes or activity tags.
 The interaction store now supplies bounded session authority/metadata and exact
 task controls; full conversation/history UI and a general durable executor remain open.
 Ordinary diagnostics that lack host context are retained only with an explicit

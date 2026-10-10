@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Voice;
@@ -9,7 +9,7 @@ using Kora.Core.Voice;
 
 namespace Kora.Application.ViewModels;
 
-public sealed partial class MainViewModel
+public sealed partial class MainViewModel : ISpeechCaptionPresentation
 {
     private readonly SpeechTextConfigurationService? speechTextConfiguration;
     private readonly SpeechCaption speechCaption = new();
@@ -40,6 +40,16 @@ public sealed partial class MainViewModel
     }
     public bool CanChangeSpeechText => speechTextConfiguration is not null && IsCallMutationHostEligible
         && !speechTextControlActive && !IsResponseInteractionPending;
+    public bool CanChooseSpeechCaptionDisplay => !disposed && CanChangeSpeechText && CanRevealPrivatePresentation;
+
+    public void ReportSpeechCaptionDisplayUnavailable(bool reportRecovery = true)
+    {
+        RetireSpeechCaption();
+        if (!disposed && reportRecovery)
+        {
+            Transcript = "Caption display unavailable. In Speech and audio settings, explicitly choose a current display or Return to primary. Retired text is not restored; required panels and caption preference recovery remain unchanged.";
+        }
+    }
     public string SpeechTextConfigurationStatus => speechTextConfiguration is null
         ? "Speech-text control is unavailable; captions remain off."
         : SpeechTextState.Serialize(speechTextConfiguration.Get());

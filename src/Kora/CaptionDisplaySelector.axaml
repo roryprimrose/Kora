@@ -1,0 +1,21 @@
+<UserControl
+    x:Class="Kora.CaptionDisplaySelector"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel Spacing="4">
+    <TextBlock Text="Caption display — this run only" TextWrapping="Wrap" />
+    <ComboBox x:Name="DisplayChoice" ItemsSource="{Binding Choices}"
+        SelectedItem="{Binding SelectedChoice}" IsEnabled="{Binding CanSelect}"
+        HorizontalAlignment="Stretch" PlaceholderText="Inspect and choose a current display"
+        AutomationProperties.Name="Current caption display"
+        AutomationProperties.HelpText="Live native displays only. Choosing never enables captions, speaks, captures or extends pinning or dismissal." />
+    <WrapPanel>
+      <Button Content="Use selected display" Click="OnSelect" IsEnabled="{Binding CanSelect}"
+          AutomationProperties.Name="Use selected display for captions this run only" />
+      <Button Content="Return to primary" Click="OnReset" IsEnabled="{Binding CanSelect}"
+          AutomationProperties.HelpText="Explicitly return to the current primary display. Does not restore retired text or repair caption preferences." />
+    </WrapPanel>
+    <TextBlock Text="{Binding DisplayStatus}" TextWrapping="Wrap"
+        AutomationProperties.Name="Caption display status and recovery" />
+  </StackPanel>
+</UserControl>

@@ -157,7 +157,7 @@ see [the assessed disposition](Implementation_Roadmap.md#bounded-in-call-feedbac
 
 ## Delivered Bounded Local Caption UX - 2026-10-09
 
-The disabled-by-default R25 local caption adjunct now supports primary-screen
+The disabled-by-default R25 local caption adjunct now supports working-area
 corner placement, a validated 0-30-second normal-completion dismissal delay
 (default 5), and run-only pin/unpin. Native and exact typed/current-name
 ACTIVATED discovery/get/status/set/reset share the
@@ -175,6 +175,12 @@ a retired caption. Original protected-call voice pin/option mutation is denied;
 inspection remains visual and passive. Required full native recovery remains
 independent. Caption content is never persisted, logged, put in history or sent
 to a model.
+
+The [2026-10-10 native run-only display choice](User_Configuration.md#delivered-run-only-native-caption-display-choice-r25---2026-10-10) preserves primary as the untouched default and permits explicit current-source selection/reset only from original native UI.
+Source/snapshot/selection lifetime revalidation and bounded working-area/DPI geometry add no playback, capture, durable setting or authority. Missing/ambiguous explicit displays hide and retire even pinned captions without fallback.
+
+Explicit reselect/Return to primary retains every current host/privacy/call/request/generation gate and never clears unconfirmed preferences or restores retired text. A successfully retained caption can move without changing its original completion deadline or pin semantics.
+Required response/question/recovery panels remain independent. No new installed/native, multimonitor or acoustic acceptance is inferred.
 
 Sentence alignment is still open because actual playback exposes only utterance
 segment 0, without admitted sentence boundaries. No synthesis/playback change,

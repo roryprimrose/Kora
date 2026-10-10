@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 
 using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
@@ -14,6 +14,7 @@ public sealed class SettingsWindowController : IDisposable
     private readonly MainViewModel viewModel;
     private readonly ILogger<SettingsWindowController> logger;
     private readonly Action? chooseMicrophone;
+    private readonly SpeechCaptionWindowController? captionDisplay;
     private SettingsWindow? window;
     private bool disposed;
     private int nativeVisible;
@@ -22,11 +23,13 @@ public sealed class SettingsWindowController : IDisposable
     public SettingsWindowController(
         MainViewModel viewModel,
         ILogger<SettingsWindowController> logger,
-        Action? chooseMicrophone = null)
+        Action? chooseMicrophone = null,
+        SpeechCaptionWindowController? captionDisplay = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
         this.chooseMicrophone = chooseMicrophone;
+        this.captionDisplay = captionDisplay;
         viewModel.SettingsRequested += OnSettingsRequested;
         viewModel.ReadinessRequested += OnReadinessRequested;
         viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
@@ -84,7 +87,7 @@ public sealed class SettingsWindowController : IDisposable
 
     private SettingsWindow CreateWindow()
     {
-        var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone);
+        var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone, captionDisplay);
         settingsWindow.PropertyChanged += OnWindowPropertyChanged;
         settingsWindow.Closed += OnWindowClosed;
         return settingsWindow;

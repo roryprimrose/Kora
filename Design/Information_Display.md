@@ -764,16 +764,22 @@ retains only already-observed text after normal successful completion for a
 validated 0-30-second delay (default 5), or while run-only pinned. Retained text
 is labelled **PREVIOUS SPEECH**; unpin keeps the original completion deadline.
 Interruption and every source/privacy retirement still clear immediately,
-regardless of pinning. Placement persists one primary working-area corner with
+regardless of pinning. Placement persists one working-area corner with
 a 24-DIP margin. It does not activate on show or span the desktop as an
 input-catching overlay. No content is persisted.
 
+The [run-only native display increment](User_Configuration.md#delivered-run-only-native-caption-display-choice-r25---2026-10-10) adds live host-issued display choices in the caption and Speech & audio settings, plus explicit **Return to primary**.
+Primary remains the default; an explicit target stays bound to its actual source lifetime, not ordinal/name/coordinates. Snapshot/selection revisions expire stale choices on topology, working-area/DPI changes or native closure.
+
+Geometry is bounded/clipped inside that source's current working area and scaling, including negative coordinates and tiny areas; native resize/reposition hides first. A missing/ambiguous explicit target hides and retires even pinned text, never silently moving it to another physical display.
+Explicit recovery selects only future eligible text; it cannot repair preferences, clear privacy/call/ownership holds, resurrect a retired source, enable captions or extend completion/pinning.
+
 **Current sentence** and word alignment remain open: the actual adapter supplies
 utterance segment 0 only, so estimated boundaries are not advertised as
-host-admitted playback alignment. Display selection/arbitrary coordinates and
+host-admitted playback alignment. Arbitrary coordinates and
 broader natural caption/navigation commands below remain proposed. Native
 accessibility properties/selection/pin/settings are source-tested, not installed
-accessibility or acoustic qualification. Rich HTML/browser/diagram rendering is
+accessibility, installed multimonitor or acoustic qualification. Rich HTML/browser/diagram rendering is
 not delivered. The acoustic experiment remains maintained and is not retired.
 
 ### Broader proposed contract

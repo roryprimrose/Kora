@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core;
@@ -14,6 +14,69 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task DisplayRecoveryPreservesUnconfirmedPreferencesAndRequiredPanels()
+    {
+        var fixture = new Fixture(enableSpeechText: true, captionReadFailure: new InvalidDataException());
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        fixture.ViewModel.PrepareGrantChange(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+        var title = fixture.ViewModel.ResponseTitle;
+        var body = fixture.ViewModel.ResponseBody;
+        var state = fixture.ViewModel.SpeechTextConfigurationStatus;
+        fixture.ViewModel.ReportSpeechCaptionDisplayUnavailable();
+        fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeFalse();
+        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be(title);
+        fixture.ViewModel.ResponseBody.Should().Be(body);
+        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Be(state);
+        var recoveryNotice = fixture.ViewModel.Transcript;
+        fixture.ViewModel.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false);
+        fixture.ViewModel.Transcript.Should().Be(recoveryNotice);
+        fixture.ViewModel.SpeechCaptionPlacement.Should().BeNull();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        var unavailable = new Fixture();
+        await using var noConfiguration = unavailable.OutputAdmission;
+        unavailable.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DisplayRecoveryRetiresObservedPinnedSourceWithoutPreferenceRepairOrReplay(bool disposed)
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeTrue();
+        await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        fixture.TextToSpeech.ClearSpokenResponse();
+        fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = fixture.RunAsync("show your window");
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        fixture.TextToSpeech.PlaybackFrame = new(true, 0.5, fixture.TextToSpeech.CaptionPlaybackId, 4);
+        fixture.ViewModel.RefreshSpeechPlaybackFrame();
+        await fixture.ViewModel.ToggleSpeechCaptionPinCommand.ExecuteAsync();
+        fixture.ViewModel.IsSpeechCaptionPinned.Should().BeTrue();
+        fixture.ViewModel.ReportSpeechCaptionDisplayUnavailable();
+        fixture.ViewModel.SpeechCaptionText.Should().BeNull();
+        fixture.ViewModel.IsSpeechCaptionPinned.Should().BeFalse();
+        fixture.ViewModel.Transcript.Should().Contain("explicitly choose");
+        fixture.ViewModel.RefreshSpeechPlaybackFrame();
+        fixture.ViewModel.SpeechCaptionText.Should().BeNull();
+        fixture.TextToSpeech.SpeakGate.SetResult();
+        await response;
+        fixture.ViewModel.SpeechCaptionText.Should().BeNull();
+        fixture.CaptionPreferences.Mode.Should().Be(SpeechTextMode.CurrentUtterance);
+        if (disposed) { fixture.ViewModel.Dispose(); }
+        else { fixture.Session.IsUnlocked = false; }
+        fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeFalse();
+        fixture.ViewModel.ReportSpeechCaptionDisplayUnavailable();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
     private sealed class CaptionPreferences : ISpeechTextPreferences
     {
         public SpeechCaptionOptions? Options { get; set; }

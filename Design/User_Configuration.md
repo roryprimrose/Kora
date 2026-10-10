@@ -183,7 +183,7 @@ The same schema-1 native/exact typed/current-name ACTIVATED workflow now exposes
 
 | ID | Type, choices and units | Unsaved/default/reset | Timing and reset |
 |---|---|---|---|
-| `display.speech-text-placement` | Primary working-area corner: `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` | `BottomRight` | Next eligible playback; retires old caption immediately; reset changes only this option |
+| `display.speech-text-placement` | Working-area corner: `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft`; primary by default, or the explicit run-only display below | `BottomRight` | Next eligible playback; retires old caption immediately; reset changes only this option |
 | `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 inclusive | 5 seconds | Delay after normal completion only; reset preserves placement and mode |
 | `display.speech-text-pin` | Boolean `true` / `false`, run-only current-caption state | `false` | Retains already-observed text until unpinned or source retirement; reset unpins, never persists |
 
@@ -217,7 +217,7 @@ Stop/cancel/failure, response replacement, preference revision, call, lock,
 ownership/privacy/input recovery and disposal still retire immediately,
 even when pinned. Unobserved/queued text cannot be pinned or retained.
 
-Placement uses the primary screen's current working area and 24-DIP margin;
+Placement uses the chosen screen's current working area and 24-DIP margin;
 there is no persisted native handle, arbitrary coordinate or display identity.
 Missing working area or unconfirmed placement fails presentation explicitly.
 Sentence alignment remains unavailable: the composed provider reports only
@@ -226,6 +226,23 @@ timing claim or new audio pipeline is introduced. Broader natural caption/viewer
 commands and native/accessibility/acoustic qualification remain open.
 Existing 3-sentence/80-word speech caps remain unchanged; brief spoken offers for
 over-limit detailed results are separate work, not delivered by captions.
+
+### Delivered run-only native caption display choice (R25) - 2026-10-10
+
+**Settings > Speech & audio** and the caption itself expose **Current caption display**, **Use selected display**, and **Return to primary**.
+The untouched default is the current primary display; explicitly choosing even the primary binds that actual source for this run, rather than following a later primary designation. Restart forgets selection. There is no new preference ID, model tool or voice route.
+
+Choices are immutable host-issued objects bound to the live desktop display snapshot, actual source lifetime and selection revision. Primary/ordinal/working-area geometry labels are presentation only, never selection identity.
+Closing the native selection surface, selecting/resetting, or topology/working-area/DPI changes expire old choices. Unknown, missing or ambiguous targets are unavailable, never invented.
+
+The controller revalidates the actual chosen source, sizes/clips the native surface within its current working area and scaling, and applies the saved corner with a 24-DIP inset (reduced only as necessary on tiny areas). Native resize/reposition hides first to avoid transient spill.
+Negative coordinates are valid. No arbitrary coordinates, monitor handles/device IDs or selection data are persisted.
+
+Selection affects only already-observed eligible text or the next eligible caption while captions are Off. It cannot enable captions, play/replay/synthesize, capture audio, extend the original dismissal deadline or pin, reveal unobserved text, or replace required panels.
+A removed/unknown explicit target immediately hides and retires even pinned text; it never falls back to another monitor. Explicitly reselect or **Return to primary** after current owning/unlocked/private/call gates permit it. New captions also retire while target recovery remains pending.
+
+Display recovery does not restore retired text or clear an unconfirmed preference, privacy hold, stale request/generation or ownership failure. Existing lock/call/input/response/stop/failure/disposal retirement remains authoritative.
+No content storage, logging, clipboard expansion, stable admission identity or task/grant authority is added. Headless/fake display observations verify the binding and geometry, not installed multimonitor, accessibility or acoustic acceptance.
 
 ### Delivered bounded Windows-provider-native speech rate (R10)
 

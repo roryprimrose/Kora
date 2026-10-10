@@ -25,6 +25,7 @@ helpers and brokers are not separately advertised actions.
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
 | [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy. |
 | [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
+| [Network](Network) | `WebPageGet`, `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | `WebPageGet` owns bounded redirect-aware retrieval over a pinned-address transport. Core owns URI/network validation and matching; Application owns configuration, native routing and authorization integration. |
 
 Do not add a broad capability class with one method per tool, duplicate broker
 policy across actions, or add classes for speculative unavailable operations.
@@ -88,6 +89,40 @@ not IDs registered by these classes. Explanation and model dispatch remain
 unavailable pending the qualified tool/result loop and clipboard-answering,
 secret and egress gates. Preview does not grant transmission consent. See the
 [delivered boundary](../../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
+
+### Preapproved network addresses
+
+The Network actions converge settings-window, typed-command and activated-voice
+changes on one audited configuration service. A pattern is an absolute HTTP or
+HTTPS URI; host wildcards must occupy a complete DNS label, while path and query
+wildcards are supported. Credentials and fragments are rejected. The policy is
+fail-closed for malformed persistence and exposes `IsPreapproved(Uri)` for an
+admitted retrieval boundary.
+
+The delivered `WebPageGet` action is available to the exact typed/activated
+voice command `get web page <absolute HTTP-or-HTTPS-address>`. That original
+user request is the retrieval authority for its explicit address. The action
+resolves DNS, rejects the complete result if any address is non-public, pins
+the selected public address into the connection, disables proxies, cookies,
+credentials, decompression and automatic redirects, and reauthorizes and
+reresolves every redirect. It accepts only unencoded UTF-8 `text/plain` or
+`text/html`, strips HTML active/non-text content, reads at most 256 KiB and
+returns at most 60 KiB of normalized text within a 64 KiB complete-result
+budget. Network outcomes are audited without logging addresses or content.
+
+The host authorization foundation now accepts destination-bound web-page access
+requests through its normal interaction transaction. A matching preapproved
+address satisfies only the per-address grant requirement after the existing
+session, ownership, expiry, effect and mandatory gates pass. An unmatched
+address presents the ordinary Once/Session/Perpetual grant question. The raw
+host-resolved address must match the proposal's canonical SHA-256 destination
+digest. Redirects are new destinations and require a newly published proposal
+and another policy/grant decision before any redirected request. The canonical model descriptor is `network.get_web_page` schema 1. It remains
+explicitly unavailable with reason `parameterized-model-tool-loop-not-qualified`
+because the production local model protocol cannot yet make parameterized tool
+calls or resume a pending durable approval. When that loop is qualified, it
+must call the same action with `RequestWebPageAccessAsync` as its per-hop
+authorization callback; it must not use the direct-user callback.
 
 ### R26 immutable local file actions
 

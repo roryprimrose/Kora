@@ -45,6 +45,19 @@ the current explicitly admitted immutable preview; no source/query/excerpt
 is serialized to models. Model retrieval, tool/result iteration and all
 source-context egress remain unavailable.
 
+`network.get_web_page` schema 1 is a delivered Kora action and exact
+typed/activated-voice route, but its model-facing descriptor is **Unavailable**
+with reason `parameterized-model-tool-loop-not-qualified`. The current local
+model JSON protocol cannot supply an arbitrary URI tool argument or suspend and
+resume around a durable approval question. Native `get web page <URI>` is an
+original-user request for that exact address. Retrieval rejects non-public or
+mixed DNS answers, pins the admitted address, disables ambient credentials,
+cookies, proxies, decompression and automatic redirects, and reruns DNS and
+authorization for every redirect. Only unencoded UTF-8 text/plain and text/html
+are admitted; HTML is reduced to bounded normalized text. The model descriptor
+must not become Available until its execution lane invokes the same action with
+the host grant callback and has passed the tool-loop qualification gates.
+
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 maps the current bootstrap and every catalogue family to dependency-ordered
 implementation and acceptance work. Roadmap inventory IDs are not tool IDs.
@@ -174,6 +187,18 @@ Operational audit/use events and consumed/ended grant evidence may have separate
 Approval proposals declare `grantScope: Once/Session/Perpetual` and a bound session ID for Session; the current protocol's `Always` maps to Perpetual.
 Short-lived question/proposal deadlines and one-invocation dispatch receipts do not impose expiry on perpetual grants.
 The separate default-On `calls.ignoreReusableGrants` setting temporarily ignores Session/Perpetual reuse during protected calls and requires fresh single-use approval per exact operation.
+Device-local preapproved HTTP/HTTPS URI patterns participate in this same grant
+policy when a host-bound `network.get-web-page` proposal is evaluated. Host
+wildcards occupy entire DNS labels and require at least one literal host label;
+wildcard-only hosts such as `https://*/` and `https://*.*/*` are rejected. A
+matching canonical destination can satisfy only the per-address grant; session,
+ownership, expiry, effect, content, identity, policy and egress gates still
+apply. The host compares the raw resolved URI with its proposal destination
+digest. Every redirect is a new destination requiring a fresh proposal and
+policy decision. Preapproval is reusable authority, so
+`calls.ignoreReusableGrants` ignores it during protected calls and forces a
+fresh Once review. This authorization foundation does not advertise or deliver
+a web-fetch action.
 The host owns call/setting revalidation at dispatch; models cannot self-confirm the operation or switch this protection Off.
 `approvals.inspect`/`approvals.explain` distinguish "ignored during call" from expired/removed/inapplicable and permanently content-revoked grants, while `approvals.request` reports effective required scope Once and the blocker.
 See [Ignoring Reusable Grants During Calls](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls); this changes applicability, not storage or perpetual retention.

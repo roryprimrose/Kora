@@ -544,6 +544,24 @@ Ollama or a remote provider. See [privacy](privacy-safety-and-logs.md#clipboard-
 
 ## Window and application tasks
 
+### Retrieve an explicit web page
+
+Say or type:
+
+- `get web page https://example.com/page`
+
+This is an original-user request for that exact absolute HTTP or HTTPS address.
+Kora retrieves only public-network UTF-8 plain text or HTML, follows at most
+five redirects, and rechecks DNS and authorization for every redirect. It does
+not send cookies, ambient credentials, proxy credentials, referrers, or a model
+conversation. HTML is returned as bounded normalized text; scripts, styles,
+markup and external resources are not executed or loaded.
+
+The canonical future model tool is `network.get_web_page`, but its model-facing
+descriptor remains unavailable until Kora's parameterized tool/result loop and
+durable approval resumption are qualified. Preapproved address patterns will
+apply through the normal grant model when that route becomes available.
+
 ### Inspect existing minimal durable sessions
 
 - **open sessions**

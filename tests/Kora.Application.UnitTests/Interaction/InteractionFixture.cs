@@ -5,6 +5,7 @@ using Kora.Core.Authorization;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Network;
 using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.Interaction;
@@ -17,7 +18,9 @@ internal sealed class InteractionFixture : IDisposable
         Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
     };
 
-    public InteractionFixture(RequestOrigin origin = RequestOrigin.LocalUi)
+    public InteractionFixture(
+        RequestOrigin origin = RequestOrigin.LocalUi,
+        IPreapprovedUriConfiguration? preapprovedUris = null)
     {
         ActivitySource.AddActivityListener(listener);
         Request = NewRequest(origin);
@@ -25,7 +28,7 @@ internal sealed class InteractionFixture : IDisposable
             new(Request.SessionId, new(1), true), new(true, true, false, true),
             new(Request, new(Guid.NewGuid()), new(1), Binding(), HostOperationEffect.BoundedRead, Time.Now.AddMinutes(10)), [], []));
         Questions = new(Store, Time);
-        Authorization = new(Store, Time);
+        Authorization = new(Store, Time, preapprovedUris);
     }
 
     public HostRequest Request { get; private set; }

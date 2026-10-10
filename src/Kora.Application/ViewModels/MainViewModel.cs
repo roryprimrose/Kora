@@ -11,6 +11,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
+using Kora.Application.Network;
 using Kora.Application.Voice;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -237,7 +238,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SpeechTextConfigurationService? speechTextConfiguration = null,
         SessionRetentionConfigurationService? sessionRetentionConfiguration = null,
         SessionQueueConfigurationService? queueConfiguration = null,
-        ProviderModeConfigurationService? providerModeConfiguration = null)
+        ProviderModeConfigurationService? providerModeConfiguration = null,
+        Kora.Tools.Network.PreapprovedUriList? preapprovedUriList = null,
+        Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
+        Kora.Tools.Network.PreapprovedUriRemove? preapprovedUriRemove = null,
+        Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null,
+        Kora.Tools.Network.WebPageGet? webPageGet = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -303,6 +309,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         this.responseModeConfiguration = responseModeConfiguration;
         this.providerModeConfiguration = providerModeConfiguration;
+        this.preapprovedUriList = preapprovedUriList;
+        this.preapprovedUriAdd = preapprovedUriAdd;
+        this.preapprovedUriRemove = preapprovedUriRemove;
+        this.preapprovedUriClear = preapprovedUriClear;
+        this.webPageGet = webPageGet;
         this.inCallFeedbackConfiguration = inCallFeedbackConfiguration;
         if (inCallFeedbackConfiguration is not null)
         {
@@ -429,6 +440,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Get));
         SaveProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Set));
         ResetProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Reset));
+        RefreshPreapprovedUrisCommand = CreateCommand(
+            () => RunNativePreapprovedUriCommandAsync(PreapprovedUriCommandOperation.List),
+            () => CanChangePreapprovedUris);
+        AddPreapprovedUriCommand = CreateCommand(
+            () => RunNativePreapprovedUriCommandAsync(PreapprovedUriCommandOperation.Add, PreapprovedUriInput),
+            () => CanChangePreapprovedUris && !string.IsNullOrWhiteSpace(PreapprovedUriInput));
+        RemovePreapprovedUriCommand = CreateCommand(
+            () => RunNativePreapprovedUriCommandAsync(PreapprovedUriCommandOperation.Remove, SelectedPreapprovedUri),
+            () => CanChangePreapprovedUris && SelectedPreapprovedUri is not null);
+        ClearPreapprovedUrisCommand = CreateCommand(
+            () => RunNativePreapprovedUriCommandAsync(PreapprovedUriCommandOperation.Clear),
+            () => CanChangePreapprovedUris && PreapprovedUriPatterns.Count > 0);
         RefreshInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
             new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
         SaveInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
@@ -2824,6 +2847,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 approvals.RequireAssistantNameForVoiceApproval,
                 nameof(RequireAssistantNameForVoiceApproval));
             OnPropertyChanged(nameof(AlwaysAllowedModelActions));
+            if (preapprovedUriList is not null)
+            {
+                PreapprovedUriPatterns = preapprovedUriList.Execute().Patterns;
+                OnPropertyChanged(nameof(PreapprovedUriStatus));
+            }
 
             var modelExecution = modelExecutionPreferences.Load();
             SetProperty(
@@ -3905,6 +3933,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (ProviderModeCommand.Parse(spokenText, AssistantName) is { } providerModeCommand)
         {
             await ExecuteProviderModeCommandAsync(providerModeCommand, initiator);
+            return;
+        }
+        if (PreapprovedUriCommand.Parse(spokenText, AssistantName) is { } preapprovedUriCommand)
+        {
+            await ExecutePreapprovedUriCommandAsync(preapprovedUriCommand, initiator);
+            return;
+        }
+        if (WebPageCommand.Parse(spokenText, AssistantName) is { } webPageCommand)
+        {
+            await ExecuteWebPageCommandAsync(webPageCommand, initiator);
             return;
         }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
@@ -5423,6 +5461,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ResponseModeConfigurationStatus));
         OnPropertyChanged(nameof(CanChangeProviderMode));
         OnPropertyChanged(nameof(ProviderModeConfigurationStatus));
+        NotifyPreapprovedUriControlChanged();
         OnPropertyChanged(nameof(IsInCallFeedbackOverrideApplied));
         OnPropertyChanged(nameof(InCallFeedbackStatus));
         OnPropertyChanged(nameof(CanInspectInCallFeedback));
@@ -5449,6 +5488,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
+            .Concat(PreapprovedUriCommand.FixedPhrases)
+            .Concat(WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

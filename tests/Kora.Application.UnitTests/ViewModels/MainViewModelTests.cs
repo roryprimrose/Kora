@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Net;
 using System.Reflection;
 using System.Diagnostics;
+using System.Text;
 
 using AwesomeAssertions;
 
@@ -20,6 +22,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Core.Hosting;
+using Kora.Core.Network;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -39,6 +42,186 @@ public sealed partial class MainViewModelTests : IDisposable
     public MainViewModelTests() => ActivitySource.AddActivityListener(hostListener);
 
     public void Dispose() => hostListener.Dispose();
+
+    [Fact]
+    public async Task WebPageCommandReportsUnavailableClarifiedAndIneligibleStates()
+    {
+        var unavailable = new Fixture();
+        await unavailable.RunAsync("get web page https://example.com/");
+        unavailable.ViewModel.ResponseTitle.Should().Be("Web-page retrieval is unavailable.");
+
+        await unavailable.RunAsync("get web page");
+        unavailable.ViewModel.ResponseTitle.Should().Be("Clarify the web-page address.");
+
+        var action = new Kora.Tools.Network.WebPageGet(
+            new ViewModelWebTransport(WebResponse("https://example.com/", "text")),
+            new ViewModelWebAudit());
+        var ineligible = new Fixture(webPageGet: action);
+        ineligible.Session.IsUnlocked = false;
+        await ineligible.ViewModel.ExecuteWebPageCommandAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.TypedCommand,
+            TestContext.Current.CancellationToken);
+        ineligible.ViewModel.ResponseTitle.Should().Be("Web-page retrieval is unavailable.");
+    }
+
+    [Fact]
+    public async Task WebPageCommandPresentsSuccessDenialAndTransportFailures()
+    {
+        var success = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(WebResponse("https://example.com/", "content")),
+            new ViewModelWebAudit()));
+        await success.RunAsync("get web page https://example.com/");
+        success.ViewModel.ResponseTitle.Should().Be("Web page retrieved.");
+        success.ViewModel.ResponseBody.Should().Contain("content");
+        success.ViewModel.IsWebPageRetrievalActive.Should().BeFalse();
+
+        var truncated = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(WebResponse(
+                "https://example.com/",
+                new string('a', WebPageCapability.MaximumTextUtf8Bytes + 1))),
+            new ViewModelWebAudit()));
+        await truncated.RunAsync("get web page https://example.com/");
+        truncated.ViewModel.ResponseBody.Should().EndWith("[Result truncated]");
+
+        var denied = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(
+                WebResponse("https://example.com/", "content"),
+                IPAddress.Loopback),
+            new ViewModelWebAudit()));
+        await denied.RunAsync("get web page https://example.com/");
+        denied.ViewModel.ResponseTitle.Should().Be("Web page was not retrieved.");
+        denied.ViewModel.ResponseBody.Should().Contain("non-public-network-destination");
+
+        var failed = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(new HttpRequestException("transport failed")),
+            new ViewModelWebAudit()));
+        await failed.RunAsync("get web page https://example.com/");
+        failed.ViewModel.ResponseTitle.Should().Be("Web page was not retrieved.");
+        failed.ViewModel.ResponseBody.Should().Be("transport failed");
+    }
+
+    [Fact]
+    public async Task WebPageCommandFailsClosedWhenHostAdmissionChangesBeforePresentation()
+    {
+        var transport = new ViewModelWebTransport(WebResponse("https://example.com/", "content"));
+        var fixture = new Fixture(webPageGet: new(transport, new ViewModelWebAudit()));
+        transport.BeforeSend = () => fixture.Session.IsUnlocked = false;
+
+        await fixture.RunAsync("get web page https://example.com/");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Web page was not retrieved.");
+        fixture.ViewModel.ResponseBody.Should()
+            .Be("Host admission changed before the retrieved page could be presented.");
+    }
+
+    [Fact]
+    public async Task PreapprovedUriControlsUseTheSharedToolsForNativeAndTypedCommands()
+    {
+        var fixture = new Fixture(enablePreapprovedUris: true);
+
+        fixture.ViewModel.CanChangePreapprovedUris.Should().BeTrue();
+        fixture.ViewModel.PreapprovedUriStatus.Should().StartWith("No addresses");
+        fixture.ViewModel.PreapprovedUriInput = "https://b.example.com/";
+        fixture.ViewModel.AddPreapprovedUriCommand.CanExecute(null).Should().BeTrue();
+        await fixture.ViewModel.AddPreapprovedUriCommand.ExecuteAsync();
+
+        fixture.ViewModel.PreapprovedUriInput.Should().BeEmpty();
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Equal("https://b.example.com/");
+        fixture.ViewModel.PreapprovedUriStatus.Should().Be("1 address pattern(s) are preapproved.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses changed.");
+
+        await fixture.RunAsync("Kora, add preapproved address https://a.example.com/");
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Equal(
+            "https://a.example.com/",
+            "https://b.example.com/");
+        fixture.PreapprovedUris.Initiators.Should().Contain(SecurityAuditInitiator.TypedCommand);
+
+        fixture.ViewModel.SelectedPreapprovedUri = "https://a.example.com/";
+        fixture.ViewModel.SelectedPreapprovedUri = "https://a.example.com/";
+        fixture.ViewModel.RemovePreapprovedUriCommand.CanExecute(null).Should().BeTrue();
+        await fixture.ViewModel.RemovePreapprovedUriCommand.ExecuteAsync();
+        fixture.ViewModel.SelectedPreapprovedUri.Should().BeNull();
+
+        await fixture.ViewModel.RefreshPreapprovedUrisCommand.ExecuteAsync();
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses.");
+        fixture.ViewModel.ResponseBody.Should().Be("https://b.example.com/");
+
+        await fixture.ViewModel.ClearPreapprovedUrisCommand.ExecuteAsync();
+        fixture.ViewModel.PreapprovedUriPatterns.Should().BeEmpty();
+        fixture.ViewModel.ResponseBody.Should().Be("No addresses are preapproved.");
+    }
+
+    [Fact]
+    public async Task RefreshLoadsPreapprovedUrisAndVoiceUsesTheVoiceInitiator()
+    {
+        var fixture = new Fixture(enablePreapprovedUris: true);
+        fixture.PreapprovedUris.Settings =
+            PreapprovedUriSettings.Create(["https://saved.example.com/"]);
+
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Equal("https://saved.example.com/");
+
+        await fixture.RaiseActivatedTranscriptAsync(
+            "Kora, add preapproved address https://voice.example.com/",
+            0.9f);
+        fixture.PreapprovedUris.Initiators.Should().Contain(SecurityAuditInitiator.VoiceCommand);
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Contain("https://voice.example.com/");
+    }
+
+    [Fact]
+    public async Task PreapprovedUriControlsFailClosedWhenUnavailableDisposedClarifiedOrInvalid()
+    {
+        var unavailable = new Fixture();
+        unavailable.ViewModel.CanChangePreapprovedUris.Should().BeFalse();
+        unavailable.ViewModel.PreapprovedUriStatus.Should().StartWith("Preapproved address configuration is unavailable");
+        await unavailable.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.List),
+            SecurityAuditInitiator.LocalUser);
+        unavailable.ViewModel.Transcript.Should().Contain("current owning unlocked host");
+
+        var fixture = new Fixture(enablePreapprovedUris: true);
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.Clarify, Error: PreapprovedUriCommand.Syntax),
+            SecurityAuditInitiator.TypedCommand);
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new((PreapprovedUriCommandOperation)100),
+            SecurityAuditInitiator.LocalUser);
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses were not changed.");
+
+        fixture.ViewModel.Dispose();
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.List),
+            SecurityAuditInitiator.LocalUser);
+        fixture.ViewModel.CanChangePreapprovedUris.Should().BeFalse();
+    }
+
+    [Theory]
+    [MemberData(nameof(PreapprovedUriFailures))]
+    public async Task PreapprovedUriControlSurfacesExpectedStorageAndValidationFailures(Exception failure)
+    {
+        var fixture = new Fixture(enablePreapprovedUris: true);
+        fixture.PreapprovedUris.Failure = failure;
+
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.List),
+            SecurityAuditInitiator.LocalUser);
+
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses were not changed.");
+        fixture.ViewModel.CanChangePreapprovedUris.Should().BeTrue();
+    }
+
+    public static TheoryData<Exception> PreapprovedUriFailures() =>
+    [
+        new IOException("I/O failure"),
+        new UnauthorizedAccessException("Access denied"),
+        new InvalidDataException("Invalid data"),
+        new InvalidOperationException("Invalid operation"),
+        new ArgumentException("Invalid argument"),
+    ];
 
     [Fact]
     public void Command_failure_remains_visible_when_required_error_logging_itself_fails()
@@ -4178,6 +4361,8 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
+            .Concat(PreapprovedUriCommand.FixedPhrases)
+            .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
@@ -7739,6 +7924,64 @@ public sealed partial class MainViewModelTests : IDisposable
             ValueTask.FromResult<IReadOnlyList<HostTaskRecord>>([]);
     }
 
+    private static WebPageResponse WebResponse(string address, string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        return new(
+            200,
+            new(address),
+            "text/plain",
+            "utf-8",
+            bytes.Length,
+            null,
+            [],
+            new MemoryStream(bytes));
+    }
+
+    private sealed class ViewModelWebTransport : IWebPageTransport
+    {
+        private readonly Exception? exception;
+        private readonly IPAddress address;
+        private readonly WebPageResponse? response;
+
+        public ViewModelWebTransport(WebPageResponse response, IPAddress? address = null)
+        {
+            this.response = response;
+            this.address = address ?? IPAddress.Parse("93.184.216.34");
+        }
+
+        public ViewModelWebTransport(Exception exception)
+        {
+            this.exception = exception;
+            address = IPAddress.Parse("93.184.216.34");
+        }
+
+        public Action? BeforeSend { get; set; }
+
+        public Task<IReadOnlyList<IPAddress>> ResolveAsync(
+            string host,
+            CancellationToken cancellationToken) =>
+            exception is null
+                ? Task.FromResult<IReadOnlyList<IPAddress>>([address])
+                : Task.FromException<IReadOnlyList<IPAddress>>(exception);
+
+        public Task<WebPageResponse> SendAsync(
+            Uri address,
+            IPAddress endpoint,
+            CancellationToken cancellationToken)
+        {
+            BeforeSend?.Invoke();
+            return Task.FromResult(response!);
+        }
+    }
+
+    private sealed class ViewModelWebAudit : ISecurityAuditLog
+    {
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+        }
+    }
+
     private sealed class Fixture
     {
         public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null,
@@ -7750,7 +7993,13 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null,
             bool enableInCallFeedback = false, Exception? feedbackReadFailure = null,
             bool enableSpeechText = false, Exception? captionReadFailure = null, bool enableSessionRetention = false,
-            bool enableQueueConfiguration = false, Exception? queueReadFailure = null, bool enableProviderModeConfiguration = false)
+            bool enableQueueConfiguration = false, Exception? queueReadFailure = null, bool enableProviderModeConfiguration = false,
+            bool enablePreapprovedUris = false,
+            Kora.Tools.Network.PreapprovedUriList? preapprovedUriList = null,
+            Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
+            Kora.Tools.Network.PreapprovedUriRemove? preapprovedUriRemove = null,
+            Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null,
+            Kora.Tools.Network.WebPageGet? webPageGet = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -7891,7 +8140,12 @@ public sealed partial class MainViewModelTests : IDisposable
                 AuditConfiguration, RateConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
                 SessionRetentionConfiguration, QueueConfiguration,
-                enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null);
+                enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null,
+                preapprovedUriList ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriList(PreapprovedUris) : null),
+                preapprovedUriAdd ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null),
+                preapprovedUriRemove ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriRemove(PreapprovedUris) : null),
+                preapprovedUriClear ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null),
+                webPageGet);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -7911,6 +8165,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public BuiltInCommandCatalog Catalog { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
+        public FakePreapprovedUriConfiguration PreapprovedUris { get; } = new();
 
         private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess
         {
@@ -8037,6 +8292,52 @@ public sealed partial class MainViewModelTests : IDisposable
         public List<WindowAction> WindowActions { get; } = [];
 
         public List<string> Events { get; } = [];
+
+        public sealed class FakePreapprovedUriConfiguration : IPreapprovedUriConfiguration
+        {
+            public PreapprovedUriSettings Settings { get; set; } = PreapprovedUriSettings.Empty;
+            public Exception? Failure { get; set; }
+            public List<SecurityAuditInitiator> Initiators { get; } = [];
+
+            public PreapprovedUriSettings GetSettings() =>
+                Failure is { } failure ? throw failure : Settings;
+
+            public PreapprovedUriSettings Add(string pattern, SecurityAuditInitiator initiator)
+            {
+                ThrowIfFailed();
+                Initiators.Add(initiator);
+                Settings = PreapprovedUriSettings.Create(Settings.Patterns.Append(pattern));
+                return Settings;
+            }
+
+            public PreapprovedUriSettings Remove(string pattern, SecurityAuditInitiator initiator)
+            {
+                ThrowIfFailed();
+                Initiators.Add(initiator);
+                var canonical = PreapprovedUriPattern.Parse(pattern).Value;
+                Settings = PreapprovedUriSettings.Create(Settings.Patterns.Where(item =>
+                    !string.Equals(item, canonical, StringComparison.Ordinal)));
+                return Settings;
+            }
+
+            public PreapprovedUriSettings Clear(SecurityAuditInitiator initiator)
+            {
+                ThrowIfFailed();
+                Initiators.Add(initiator);
+                Settings = PreapprovedUriSettings.Empty;
+                return Settings;
+            }
+
+            public bool IsPreapproved(Uri uri) => Settings.IsPreapproved(uri);
+
+            private void ThrowIfFailed()
+            {
+                if (Failure is { } failure)
+                {
+                    throw failure;
+                }
+            }
+        }
 
         public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence)
         {

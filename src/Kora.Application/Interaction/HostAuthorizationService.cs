@@ -3,11 +3,15 @@ using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Network;
 using Kora.Core.Storage;
 
 namespace Kora.Application.Interaction;
 
-public sealed class HostAuthorizationService(IHostInteractionStore store, TimeProvider time)
+public sealed class HostAuthorizationService(
+    IHostInteractionStore store,
+    TimeProvider time,
+    IPreapprovedUriConfiguration? preapprovedUris = null)
 {
     private readonly InteractionTransaction transaction = new(store);
     private static readonly QuestionSpec ApprovalSpec = new("Approve this exact host-resolved operation?",
@@ -49,9 +53,48 @@ public sealed class HostAuthorizationService(IHostInteractionStore store, TimePr
     public ValueTask<HostInteractionDecision> PresentAsync(HostRequest request, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.present", snapshot => Present(snapshot, request), cancellationToken);
 
-    private (HostInteractionSnapshot, HostInteractionDecision) Present(HostInteractionSnapshot snapshot, HostRequest request)
+    public ValueTask<HostInteractionDecision> RequestWebPageAccessAsync(
+        HostRequest request,
+        Uri address,
+        CancellationToken cancellationToken)
     {
-        if (!Eligible(snapshot, request))
+        ArgumentNullException.ThrowIfNull(address);
+        return transaction.RunAsync(
+            request,
+            "approval.web-page-access",
+            snapshot => RequestWebPageAccess(snapshot, request, address),
+            cancellationToken);
+    }
+
+    private (HostInteractionSnapshot, HostInteractionDecision) RequestWebPageAccess(
+        HostInteractionSnapshot snapshot,
+        HostRequest request,
+        Uri address)
+    {
+        if (!Eligible(snapshot, request)
+            || snapshot.Proposal is not { } proposal
+            || !WebPageAccessBinding.Matches(proposal, address))
+        {
+            return InteractionTransaction.Reject(snapshot, "web-destination-not-admitted");
+        }
+        if (preapprovedUris is null)
+        {
+            return InteractionTransaction.Reject(snapshot, "preapproved-uri-policy-unavailable");
+        }
+        if (snapshot.Policy.AllowsReusableGrants
+            && preapprovedUris.IsPreapproved(address))
+        {
+            return (snapshot, new(HostInteractionOutcome.Approved, "preapproved-address"));
+        }
+        return Present(snapshot, request, eligibilityConfirmed: true);
+    }
+
+    private (HostInteractionSnapshot, HostInteractionDecision) Present(
+        HostInteractionSnapshot snapshot,
+        HostRequest request,
+        bool eligibilityConfirmed = false)
+    {
+        if (!eligibilityConfirmed && !Eligible(snapshot, request))
         {
             return InteractionTransaction.Reject(snapshot, "operation-not-admitted");
         }

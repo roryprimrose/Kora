@@ -2,12 +2,127 @@ using AwesomeAssertions;
 using Kora.Core.Authorization;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Network;
 
 namespace Kora.Application.UnitTests.Interaction;
 
 [Collection("Host tracing")]
 public sealed class HostAuthorizationServiceTests
 {
+    [Fact]
+    public async Task Preapproved_web_destination_satisfies_only_the_address_grant()
+    {
+        var address = new Uri("https://api.example.com/page");
+        using var f = new InteractionFixture(
+            preapprovedUris: new UriConfiguration(["https://*.example.com/*"]));
+        f.ChangeProposal(binding: WebBinding(f.Store.Snapshot.Proposal!.Binding, address));
+
+        var decision = await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None));
+
+        decision.Outcome.Should().Be(HostInteractionOutcome.Approved);
+        decision.Reason.Should().Be("preapproved-address");
+        f.Store.Snapshot.Questions.Should().BeEmpty();
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+        f.Store.Change(snapshot => snapshot with
+        {
+            Policy = snapshot.Policy with { OtherMandatoryGatesSatisfied = false },
+        });
+        (await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None)))
+            .Outcome.Should().Be(HostInteractionOutcome.Denied);
+    }
+
+    [Fact]
+    public async Task Unmatched_web_destination_uses_the_normal_exact_grant_question()
+    {
+        var address = new Uri("https://other.example/page");
+        using var f = new InteractionFixture(
+            preapprovedUris: new UriConfiguration(["https://approved.example/*"]));
+        f.ChangeProposal(binding: WebBinding(f.Store.Snapshot.Proposal!.Binding, address));
+
+        var presented = await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None));
+
+        presented.Outcome.Should().Be(HostInteractionOutcome.Presented);
+        presented.Question!.Proposal.Should().Be(f.Store.Snapshot.Proposal);
+        var grant = await f.RunAsync(() => f.Authorization.ApproveAsync(
+            presented.Question.Key,
+            new(["once"]),
+            RequestOrigin.LocalUi,
+            CancellationToken.None));
+        grant.Outcome.Should().Be(HostInteractionOutcome.Approved);
+    }
+
+    [Fact]
+    public async Task Protected_call_policy_ignores_preapproval_and_requires_fresh_single_use_review()
+    {
+        var address = new Uri("https://approved.example/page");
+        using var f = new InteractionFixture(
+            RequestOrigin.ActivatedVoice,
+            new UriConfiguration(["https://approved.example/*"]));
+        f.ChangeProposal(binding: WebBinding(f.Store.Snapshot.Proposal!.Binding, address));
+        f.Store.Change(snapshot => snapshot with
+        {
+            Policy = snapshot.Policy with
+            {
+                IsProtectedCall = true,
+                IgnoreReusableGrants = true,
+            },
+        });
+
+        var presented = await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None));
+
+        presented.Outcome.Should().Be(HostInteractionOutcome.Presented);
+        var approved = await f.RunAsync(() => f.Authorization.ApproveAsync(
+            presented.Question!.Key,
+            new(["once"]),
+            RequestOrigin.LocalUi,
+            CancellationToken.None));
+        approved.Outcome.Should().Be(HostInteractionOutcome.Approved);
+        approved.Grant!.Scope.Should().Be(OperationGrantScope.Once);
+    }
+
+    [Fact]
+    public async Task Redirect_or_hostile_raw_address_requires_a_fresh_destination_bound_proposal()
+    {
+        var original = new Uri("https://approved.example/start");
+        var redirect = new Uri("https://redirect.example/final");
+        using var f = new InteractionFixture(
+            preapprovedUris: new UriConfiguration(["https://approved.example/*"]));
+        var prior = f.Store.Snapshot.Proposal!.Binding;
+        f.ChangeProposal(binding: WebBinding(prior, original));
+        (await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, original, CancellationToken.None)))
+            .Outcome.Should().Be(HostInteractionOutcome.Approved);
+
+        var denied = await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, redirect, CancellationToken.None));
+        denied.Outcome.Should().Be(HostInteractionOutcome.Denied);
+        denied.Reason.Should().Be("web-destination-not-admitted");
+
+        f.ChangeProposal(binding: WebBinding(prior, redirect), revision: new(2));
+        (await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, redirect, CancellationToken.None)))
+            .Outcome.Should().Be(HostInteractionOutcome.Presented);
+    }
+
+    [Fact]
+    public async Task Corrupt_preapproval_state_fails_without_creating_authority()
+    {
+        var address = new Uri("https://example.com/page");
+        using var f = new InteractionFixture(preapprovedUris: new UriConfiguration([], corrupt: true));
+        f.ChangeProposal(binding: WebBinding(f.Store.Snapshot.Proposal!.Binding, address));
+
+        var request = async () => await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None));
+
+        await request.Should().ThrowAsync<InvalidDataException>();
+        f.Store.Snapshot.Questions.Should().BeEmpty();
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("once", OperationGrantScope.Once)]
     [InlineData("session", OperationGrantScope.Session)]
@@ -405,5 +520,42 @@ public sealed class HostAuthorizationServiceTests
             await f.RunAsync(() => f.Authorization.ObserveContentAsync(f.Request, CancellationToken.None));
             f.Store.Snapshot.Grants[0].Status.Should().Be(OperationGrantStatus.Active);
         }
+    }
+
+    private static ExactOperationBinding WebBinding(ExactOperationBinding binding, Uri address) =>
+        new(
+            WebPageAccessBinding.ActionId,
+            binding.SourcePartition,
+            binding.SkillId,
+            binding.DefinitionDigest,
+            binding.DeclaredResourceDigest,
+            binding.TrackedContentDigest,
+            binding.ImplementationDigest,
+            binding.InvocationDigest,
+            binding.ResourceDigest,
+            binding.IdentityDigest,
+            WebPageAccessBinding.DestinationDigest(address),
+            binding.TransformationDigest,
+            binding.PolicyRevision);
+
+    private sealed class UriConfiguration(
+        IEnumerable<string> patterns,
+        bool corrupt = false) : IPreapprovedUriConfiguration
+    {
+        private readonly PreapprovedUriSettings settings = PreapprovedUriSettings.Create(patterns);
+
+        public PreapprovedUriSettings GetSettings() =>
+            corrupt ? throw new InvalidDataException("Corrupt preapproval state.") : settings;
+
+        public PreapprovedUriSettings Add(string pattern, Kora.Core.Auditing.SecurityAuditInitiator initiator) =>
+            throw new NotSupportedException();
+
+        public PreapprovedUriSettings Remove(string pattern, Kora.Core.Auditing.SecurityAuditInitiator initiator) =>
+            throw new NotSupportedException();
+
+        public PreapprovedUriSettings Clear(Kora.Core.Auditing.SecurityAuditInitiator initiator) =>
+            throw new NotSupportedException();
+
+        public bool IsPreapproved(Uri uri) => GetSettings().IsPreapproved(uri);
     }
 }

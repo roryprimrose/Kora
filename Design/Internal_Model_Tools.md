@@ -174,6 +174,16 @@ Operational audit/use events and consumed/ended grant evidence may have separate
 Approval proposals declare `grantScope: Once/Session/Perpetual` and a bound session ID for Session; the current protocol's `Always` maps to Perpetual.
 Short-lived question/proposal deadlines and one-invocation dispatch receipts do not impose expiry on perpetual grants.
 The separate default-On `calls.ignoreReusableGrants` setting temporarily ignores Session/Perpetual reuse during protected calls and requires fresh single-use approval per exact operation.
+Device-local preapproved HTTP/HTTPS URI patterns participate in this same grant
+policy when a host-bound `network.get-web-page` proposal is evaluated. A
+matching canonical destination can satisfy only the per-address grant; session,
+ownership, expiry, effect, content, identity, policy and egress gates still
+apply. The host compares the raw resolved URI with its proposal destination
+digest. Every redirect is a new destination requiring a fresh proposal and
+policy decision. Preapproval is reusable authority, so
+`calls.ignoreReusableGrants` ignores it during protected calls and forces a
+fresh Once review. This authorization foundation does not advertise or deliver
+a web-fetch action.
 The host owns call/setting revalidation at dispatch; models cannot self-confirm the operation or switch this protection Off.
 `approvals.inspect`/`approvals.explain` distinguish "ignored during call" from expired/removed/inapplicable and permanently content-revoked grants, while `approvals.request` reports effective required scope Once and the blocker.
 See [Ignoring Reusable Grants During Calls](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls); this changes applicability, not storage or perpetual retention.

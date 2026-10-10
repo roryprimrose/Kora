@@ -104,6 +104,16 @@ delivered by this slice. Preapproval only removes a future per-address grant
 when that retrieval boundary calls the shared policy; it does not enable
 network access, provider execution, credentials, redirects, or egress by itself.
 
+The host authorization foundation now accepts destination-bound web-page access
+requests through its normal interaction transaction. A matching preapproved
+address satisfies only the per-address grant requirement after the existing
+session, ownership, expiry, effect and mandatory gates pass. An unmatched
+address presents the ordinary Once/Session/Perpetual grant question. The raw
+host-resolved address must match the proposal's canonical SHA-256 destination
+digest. Redirects are new destinations and require a newly published proposal
+and another policy/grant decision before any redirected request. This is still
+authorization plumbing, not a delivered fetch action.
+
 ### R26 immutable local file actions
 
 R26 file actions are host/native-only: one explicitly admitted immutable

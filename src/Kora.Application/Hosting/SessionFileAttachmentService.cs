@@ -20,6 +20,7 @@ public sealed partial class SessionFileAttachmentService(
     private long revision;
     private readonly Lock sync = new();
     private readonly HashSet<CancellationTokenSource> inspections = [];
+    private readonly HashSet<HostId<SessionIdentity>> replacementControls = [];
     private TaskCompletionSource quiescence = CompletedQuiescence();
     private TaskCompletionSource controlQuiescence = CompletedQuiescence();
     private int controls;
@@ -111,6 +112,7 @@ public sealed partial class SessionFileAttachmentService(
             throw new InvalidOperationException("The exact session generation or current control changed before capture. Select again.");
         }
         using var control = new ControlScope(this);
+        if (captured.Previous is not null) { lock (sync) { replacementControls.Add(captured.Request.SessionId); } }
         var auditEvent = captured.Previous is not null ? new SecurityAuditEvent(Guid.NewGuid(),
             SecurityAuditCategory.ProtectedOperation, "session.file.replace-copy", SecurityAuditOutcome.Requested,
             SecurityAuditInitiator.LocalUser, "session.file.local") : null;
@@ -154,7 +156,11 @@ public sealed partial class SessionFileAttachmentService(
             activity.Complete(HostOperationOutcome.Failed);
             throw;
         }
-        finally { await Clear().ConfigureAwait(false); }
+        finally
+        {
+            await Clear().ConfigureAwait(false);
+            lock (sync) { replacementControls.Remove(captured.Request.SessionId); }
+        }
         activity.Complete(outcome == LocalFileOutcome.Admitted ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
         return outcome;
     }
@@ -177,9 +183,17 @@ public sealed partial class SessionFileAttachmentService(
         Inspect(session, "session.file.read", async cancellation =>
     {
         RequireNative();
+        lock (sync)
+        {
+            if (replacementControls.Contains(session))
+            {
+                throw new InvalidOperationException("Replacement is controlling this source. Explicitly inspect after completion or recovery.");
+            }
+        }
         var control = access.ControlRevision;
         var epoch = revision;
         var result = await sessions.ReadAttachment(session, cancellation).ConfigureAwait(false);
+        cancellation.ThrowIfCancellationRequested();
         if (disposed || !access.CanInspect || control != access.ControlRevision || epoch != revision)
         {
             throw new InvalidOperationException("Snapshot disclosure was revoked during passive inspection.");

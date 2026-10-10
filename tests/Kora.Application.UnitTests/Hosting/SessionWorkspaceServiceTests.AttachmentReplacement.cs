@@ -147,7 +147,7 @@ public sealed partial class SessionWorkspaceServiceTests
         service.Revoked += _ => released.TrySetResult(old);
         (await service.SelectReplacement(new(fixture.Session, null), old, new FilePicker(), () => true, fixture.Token))
             .Should().Be(LocalFileOutcome.Reviewed);
-        await ((Func<Task>)(async () => await read)).Should().ThrowAsync<InvalidOperationException>();
+        await ((Func<Task>)(async () => await read)).Should().ThrowAsync<OperationCanceledException>();
         fixture.RetainedFile.Should().BeSameAs(old);
     }
 
@@ -196,5 +196,26 @@ public sealed partial class SessionWorkspaceServiceTests
         var confirm = () => service.Confirm(Guid.NewGuid(), fixture.Token);
         await confirm.Should().ThrowAsync<InvalidOperationException>();
         fixture.RetainedFile.Should().BeSameAs(old);
+    }
+
+    [Fact]
+    public async Task NewReadersCannotPublishHistoricalBodyWhileReplacementControlsItsSource()
+    {
+        using var fixture = new Fixture { FileReceipts = true };
+        var old = FileRecord(fixture.Request);
+        fixture.RetainedFile = old;
+        var audit = new FileAudit();
+        await using var service = FileService(fixture, FileAction(new FileCapture(), audit), audit);
+        await service.SelectReplacement(new(fixture.Session, null), old, new FilePicker(), () => true, fixture.Token);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.FileReplacer = async () => { entered.SetResult(); await release.Task; };
+        var confirm = service.Confirm(service.Review!.ReviewId, fixture.Token);
+        await entered.Task;
+        var read = () => service.Read(old.Session, fixture.Token);
+        await read.Should().ThrowAsync<InvalidOperationException>().WithMessage("*controlling this source*");
+        release.SetResult();
+        (await confirm).Should().Be(LocalFileOutcome.Admitted);
+        (await service.Read(old.Session, fixture.Token))!.File.Reference.Should().NotBe(old.File.Reference);
     }
 }

@@ -465,6 +465,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal int FileReads { get; private set; }
         internal Func<SessionFileRemoval>? FileInventory { get; set; }
         internal Action? BeforeFileReplace { get; set; }
+        internal Func<Task>? FileReplacer { get; set; }
         internal void AdvanceFileControl() => ControlRevision++;
         public async ValueTask<SessionFileAttachment?> ReadAttachment(HostId<SessionIdentity> session, CancellationToken token)
         {
@@ -485,6 +486,7 @@ public sealed partial class SessionWorkspaceServiceTests
             LocalFileRevision file, ReadOnlyMemory<byte> bytes, Func<bool> admitted, CancellationToken token)
         {
             BeforeFileReplace?.Invoke();
+            if (FileReplacer is not null) { await FileReplacer(); }
             if (RetainedFile?.StorageRevision != previous.StorageRevision || RetainedFile.File.Reference != previous.File)
             {
                 throw new InvalidOperationException("Exact previous attachment changed.");

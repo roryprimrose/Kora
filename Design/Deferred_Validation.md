@@ -30,6 +30,92 @@ Related: [Acceptance Criteria](Acceptance_Criteria.md),
 
 ## Proof Checklists
 
+### Focus-free preparation for interactive native accessibility
+
+The maintained [native UX validation runner](../eng/Invoke-NativeUxValidation.ps1)
+and [operator walkthrough](../tests/Kora.NativeUxFixture/README.md) target the
+remaining screen-reader, text-scale and physical mixed-DPI observations, using
+the existing isolated synthetic fixture. Default preparation opens no windows,
+sends no input and changes no Windows settings. It binds focused headless test
+results, source fingerprints and complete payload hashes in an external local
+evidence bundle. Actual native launch requires a separate explicit operator
+switch when desktop focus is available; Narrator and display changes remain
+manual operator decisions.
+
+Preparation is not native acceptance. Sign-off requires clean exact-payload
+interactive trials and explicit operator outcomes, records Blocked/Fail honestly,
+and does not close full R05/R12/R14/A4 or real privacy/audio/installed gates.
+Previously completed scoped observations and historical receipts below remain
+unchanged. No experiment harness is replaced or retired.
+
+The [PID-scoped mechanical driver](../eng/Invoke-NativeUxMechanics.ps1) can now
+replace repetitive native control and Tab/Shift+Tab input during a separately
+approved, deadline-bounded desktop window. It records disabled maintenance
+consent, complete repeated Appearance cycles, exact question/draft/submit,
+stale-revision refusal and synthetic window closure as separate machine
+observations, without filling operator-only Narrator/readability/display rows.
+Every failed native attempt and cleanup disposition remains evidence.
+
+### 2026-10-10 Automated Interactive Proof Batch
+
+**Disposition: available bounded automated scopes completed; full qualification
+and the protected live trials remain open.** The operator made the desktop
+available for a sixty-minute automation window. The maintained mechanical
+driver ran against a new exact-payload preparation bundle from source base
+`53064f7`, including uncommitted automation changes. The local receipts retain
+the complete build-input fingerprint, separate driver SHA-256, payload inventory,
+test hashes, timestamps, individual outcomes and cleanup. This is not an
+observation of subsequently changed application bytes or a release certification.
+
+Two final complete native repetitions passed all five mechanical rows each
+using identical driver/preparation bytes: disabled/off maintenance network
+consent; all fifteen Appearance cycle entries forward and reverse, each repeated
+twice; immutable same-request/question review, one-revision draft and explicit
+submit with terminal focus/status persistence; stale-question refusal preserving
+the original review; and synthetic private-window closure/reopening without
+replay. Both exited 0, cleaned their exact scratch children and required no
+forced termination. No Narrator, audio, screenshot, model, browser or global
+Windows setting operation was performed by the driver.
+
+| Automated scope | Fresh outcome |
+|---|---|
+| Native driver admission/receipt contracts | 38 passed, including explicit desktop approval, expired/unbounded deadline refusal and no-launch prerequisite mode |
+| Focused native fixture/accessibility tests | 77 passed, zero skips; Release build/publish completed with zero warnings/errors |
+| Windows scratch storage, coordination and privacy-policy tests | 548 passed, zero skips; these do not replace actual audio/OS-transition acceptance |
+| W1/W2 deterministic dependency/containment controls | 97 passed, zero skips |
+| Actual W2 owned-scratch boundary trials | 62/62 diagnostic assertions, zero harness errors, exit 2: strict ACL/no-child admission remains **Rejected**, not certified; exact temporary AppContainer and scratch cleanup recorded |
+| Runtime file-only and receipt-locale contracts | 49 plus 2 passed; no Copilot SDK/native/runtime/account trial admitted |
+| MG1 account-free host-envelope tests | 22 passed, zero skips; temporary external feed mapping resolved the initial NU1100 restore failure without repository package configuration changes |
+| Inference deterministic self-tests | 55 passed without endpoint observation, generation or residency changes |
+| Inference worktree-relative path regressions | 6 passed in the documented ignored checkout scratch layout; the separate external-output attempt failed repository discovery and remains an unsuccessful receipt, not an external-path pass |
+| Installer payload refusal contracts | Passed without compiler invocation, installer staging, installation or elevation |
+
+Nine earlier native driver-development attempts remain failed local receipts,
+not qualifying application findings or relabelled passes. The initial launcher
+discovery failure required owned-PID termination; its synthetic scratch was
+archived locally and the exact leftover child removed afterward. The original
+failure/cleanup receipt remains unchanged. Subsequent harness repairs addressed
+native title/provider readiness, supported textbox value inspection, authoritative
+draft-record validation and guarded exact-window keyboard actions.
+
+Runtime preparation still refused its historical-baseline guard because four
+historical README files differ from its recorded base; that guard was not
+weakened. Approved native SDK/runtime artifact inputs were absent from the
+documented fixture locations. Native loading in W2 remains blocked by the
+missing reviewed compiler/native fixture. An already running Ollama process
+was not started or owned by this session and was left untouched; exclusive
+generation/residency, agreed budgets/reference floor and offline attribution
+were not inferred from desktop availability. Raw receipts, payloads, TRX,
+failure archives and the consolidated summary remain local.
+
+**Minimum remaining operator work:** actual Narrator announcement observation,
+rendered readability at the approved text scales and physical mixed-DPI display
+conditions, followed by one scoped receipt review. Repetitive mechanical control
+input above need not be performed manually to reproduce its recorded machine
+outcomes. Actual privacy/audio/lock/device/handoff/crash and installed trials
+still need prepared, separately scoped boundaries; no full R03/R05/R12/R14/A4,
+runtime/inference/containment or release gate is closed by this batch.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

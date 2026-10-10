@@ -59,11 +59,12 @@ public sealed class PreapprovedUriPattern
 
         var (host, port) = ParseAuthority(authority, scheme, value);
         var labels = host.Split('.');
-        if (labels.Any(label => label.Length == 0
+        if (labels.All(label => string.Equals(label, "*", StringComparison.Ordinal))
+            || labels.Any(label => label.Length == 0
             || label.Contains('*') && !string.Equals(label, "*", StringComparison.Ordinal)))
         {
             throw new ArgumentException(
-                "A host wildcard must occupy an entire DNS label, for example https://*.example.com/.",
+                "A host wildcard must occupy an entire DNS label and the host must include a literal label, for example https://*.example.com/.",
                 nameof(value));
         }
 
@@ -71,7 +72,7 @@ public sealed class PreapprovedUriPattern
             string.Equals(label, "*", StringComparison.Ordinal)
                 ? label
                 : new IdnMapping().GetAscii(label).ToLowerInvariant()));
-        var canonicalResource = CanonicalizeResource(resource, value);
+        var canonicalResource = CanonicalizeResource(resource);
         var canonical = scheme + "://" + canonicalHost + port + canonicalResource;
         var hostExpression = Regex.Escape(scheme + "://" + canonicalHost + port)
             .Replace(@"\*", "[^./]+", StringComparison.Ordinal);
@@ -101,12 +102,12 @@ public sealed class PreapprovedUriPattern
     private static (string Host, string Port) ParseAuthority(string authority, string scheme, string original)
     {
         if (!Uri.TryCreate($"{scheme}://{authority}/", UriKind.Absolute, out var parsed)
-            || parsed.HostNameType is UriHostNameType.Unknown or UriHostNameType.IPv6
+            || parsed.HostNameType is UriHostNameType.IPv6
             || parsed.Host.Contains('*', StringComparison.Ordinal))
         {
             var placeholder = authority.Replace("*", "wildcard", StringComparison.Ordinal);
             if (!Uri.TryCreate($"{scheme}://{placeholder}/", UriKind.Absolute, out parsed)
-                || parsed.HostNameType is UriHostNameType.Unknown or UriHostNameType.IPv6)
+                || parsed.HostNameType is UriHostNameType.IPv6)
             {
                 throw new ArgumentException("The preapproved URI authority is invalid.", nameof(original));
             }
@@ -117,7 +118,7 @@ public sealed class PreapprovedUriPattern
         var host = hasPort ? authority[..colon] : authority;
         var port = hasPort ? authority[(colon + 1)..] : string.Empty;
         if (hasPort && (!int.TryParse(port, NumberStyles.None, CultureInfo.InvariantCulture, out var number)
-            || number is < 1 or > 65535))
+            || number < 1))
         {
             throw new ArgumentException("The preapproved URI port is invalid.", nameof(original));
         }
@@ -130,7 +131,7 @@ public sealed class PreapprovedUriPattern
         return (host, normalizedPort);
     }
 
-    private static string CanonicalizeResource(string resource, string original)
+    private static string CanonicalizeResource(string resource)
     {
         if (resource[0] == '?')
         {
@@ -144,10 +145,7 @@ public sealed class PreapprovedUriPattern
         }
         while (resource.Contains(token, StringComparison.Ordinal));
         var placeholder = resource.Replace("*", token, StringComparison.Ordinal);
-        if (!Uri.TryCreate("https://example.invalid" + placeholder, UriKind.Absolute, out var parsed))
-        {
-            throw new ArgumentException("The preapproved URI path or query is invalid.", nameof(original));
-        }
+        var parsed = new Uri("https://example.invalid" + placeholder, UriKind.Absolute);
         return parsed.PathAndQuery.Replace(token, "*", StringComparison.Ordinal);
     }
 }

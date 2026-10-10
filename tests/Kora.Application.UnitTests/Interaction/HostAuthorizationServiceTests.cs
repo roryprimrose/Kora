@@ -9,6 +9,24 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class HostAuthorizationServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WebRequestsFailClosedWithoutAnExactProposalOrPreapprovalPolicy(bool missingProposal)
+    {
+        var address = new Uri("https://example.com/page");
+        using var f = new InteractionFixture();
+        f.ChangeProposal(binding: WebBinding(f.Store.Snapshot.Proposal!.Binding, address));
+        if (missingProposal) { f.Store.Change(snapshot => snapshot with { Proposal = null }); }
+        var decision = await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None));
+        decision.Reason.Should().Be(missingProposal
+            ? "web-destination-not-admitted" : "preapproved-uri-policy-unavailable");
+        decision.Outcome.Should().Be(HostInteractionOutcome.Denied);
+        f.Store.Snapshot.Questions.Should().BeEmpty();
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Preapproved_web_destination_satisfies_only_the_address_grant()
     {

@@ -7862,7 +7862,11 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableInCallFeedback = false, Exception? feedbackReadFailure = null,
             bool enableSpeechText = false, Exception? captionReadFailure = null, bool enableSessionRetention = false,
             bool enableQueueConfiguration = false, Exception? queueReadFailure = null, bool enableProviderModeConfiguration = false,
-            bool enablePreapprovedUris = false)
+            bool enablePreapprovedUris = false,
+            Kora.Tools.Network.PreapprovedUriList? preapprovedUriList = null,
+            Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
+            Kora.Tools.Network.PreapprovedUriRemove? preapprovedUriRemove = null,
+            Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8004,10 +8008,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
                 SessionRetentionConfiguration, QueueConfiguration,
                 enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null,
-                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriList(PreapprovedUris) : null,
-                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null,
-                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriRemove(PreapprovedUris) : null,
-                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null);
+                preapprovedUriList ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriList(PreapprovedUris) : null),
+                preapprovedUriAdd ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null),
+                preapprovedUriRemove ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriRemove(PreapprovedUris) : null),
+                preapprovedUriClear ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null));
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }

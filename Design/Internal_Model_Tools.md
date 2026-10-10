@@ -188,7 +188,9 @@ Approval proposals declare `grantScope: Once/Session/Perpetual` and a bound sess
 Short-lived question/proposal deadlines and one-invocation dispatch receipts do not impose expiry on perpetual grants.
 The separate default-On `calls.ignoreReusableGrants` setting temporarily ignores Session/Perpetual reuse during protected calls and requires fresh single-use approval per exact operation.
 Device-local preapproved HTTP/HTTPS URI patterns participate in this same grant
-policy when a host-bound `network.get-web-page` proposal is evaluated. A
+policy when a host-bound `network.get-web-page` proposal is evaluated. Host
+wildcards occupy entire DNS labels and require at least one literal host label;
+wildcard-only hosts such as `https://*/` and `https://*.*/*` are rejected. A
 matching canonical destination can satisfy only the per-address grant; session,
 ownership, expiry, effect, content, identity, policy and egress gates still
 apply. The host compares the raw resolved URI with its proposal destination

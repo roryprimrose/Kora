@@ -335,8 +335,9 @@ checks where required. Broadening/restoring grants requires a new exact approval
 
 | Logical operation | Inputs | Result / behavior | Lane | Current host behavior |
 |---|---|---|---|---|
-| `approvals.list` | Optional state/capability/source filter | Safe grant IDs, exact scope/identity/status, not sensitive payloads | M/E | Partial: `ListGrants` shows session/always action-name grants |
-| `approvals.inspect` | Grant ID | Scope, origin, applicability/use history and exact resources/digests; no perpetual expiry | M/E | Partial: action-name inventory only; detailed resource receipts planned |
+| `approvals.list` | Optional state/capability/source filter | Safe grant IDs, exact scope/identity/status, not sensitive payloads | M/E | Native-only exact typed inventory: bounded 50-record/64-KiB pages; optional filters/model/tool exposure unavailable. Legacy `ListGrants` remains a separate named-action display |
+| `approvals.inspect` | Grant ID | Scope, origin, applicability/use history and exact resources/digests; no perpetual expiry | M/E | Native-only exact current ID/revision/status/provenance/use metadata and hashes; current applicability/work evidence and detailed history unavailable, not inferred |
+| `approvals.revoke` | One exact inspected approval ID/revision and explicit original-user confirmation | Retained revision increment and safe revoked state, atomic typed requested/terminal audit; no running-effect rollback | E native only | Delivered separate **Exact operation grants** window; fresh current control session, serialized stale/use/lifecycle checks and readback; no voice/model/tool route or bulk revoke |
 | `approvals.explain` | Capability and resolved resource/provider/skill | Matching grant/reason or required new approval | M/E | Planned |
 | `approvals.propose_edit` | Exact grant/action/resource set, revision and permitted scope edit | Separate host proposal; never execute named action, add perpetual expiry or commit silently | M/E | Partial: `ManageGrants`/model grant proposals support confirmed Add/Remove/Move for action-name grants |
 | `evidence.list` | Required log/audit/session/span/all source, bounded metadata/time/trace/session/task/invocation/approval/correlation filters and cursor | Ordered source-labelled records with authority/retention/gap status | E; M minimal status | Planned; deterministic app capability |
@@ -358,7 +359,7 @@ Current model-action Once/Session/Always grants are not script or hash grants.
 Future Once is consumed once; Session binds an operation to the identified
 durable Kora work session and ends with it. Always/Perpetual records survive
 restart/archive/deletion independently, without expiry, retention or eviction.
-Inapplicable or content-revoked records remain visible until explicitly removed.
+Retained inapplicable/content-revoked/explicitly revoked records remain metadata, not reusable authority; exact revocation does not delete grants, audits or history.
 The future gate binds each executable resource, invocation and context; any
 observed mismatch revokes affected grants and cannot be undone by restoring bytes.
 See [Security](Security_Data_Flows.md) and [Execution Design](../docs/skill-and-task-execution-design.md).

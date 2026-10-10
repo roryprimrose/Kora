@@ -260,6 +260,9 @@ internal static class Program
         services.AddSingleton<IHostTaskStore>(tasks);
         services.AddSingleton(interactions);
         services.AddSingleton<IHostInteractionStore>(interactions);
+        services.AddSingleton<IExactGrantStore>(interactions);
+        services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
+        services.AddSingleton<Kora.Application.Interaction.ExactGrantControlAdmission>();
         services.AddSingleton<ISessionWorkspaceStore>(interactions);
         services.AddSingleton<ISessionRetentionStore>(interactions);
         services.AddSingleton<SessionRetentionService>();

@@ -49,7 +49,8 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectSkillPackages = null,
         Action? inspectSessions = null,
         Action? reviewMaintenance = null,
-        Action? chooseMicrophone = null)
+        Action? chooseMicrophone = null,
+        Action? inspectExactGrants = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -72,6 +73,12 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (inspectExactGrants is not null)
+        {
+            var exactGrantsItem = new NativeMenuItem("Exact operation grants");
+            exactGrantsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectExactGrants);
+            menu.Add(exactGrantsItem);
+        }
         if (inspectSkillPackages is not null)
         {
             var skillsItem = new NativeMenuItem("Skill packages (inspection only)");

@@ -1151,7 +1151,7 @@ Permissions and approvals are host-owned security records, not ordinary preferen
 The current bootstrap provides once/session/always preferences for named
 model-suggested built-in actions and host-validated grant-change proposals.
 This is not an executable/script grant, and exact direct lock does not yet
-use the same gate. The inventory and finer-grained grants below are proposed;
+use the same gate. The broader controls and finer-grained applicability observations below remain proposed;
 future side-effecting built-ins and skills share the content/version-bound
 execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
 The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, content-revoked, consumed, session-ended, and explicitly removed states.
@@ -1164,7 +1164,21 @@ Explicit voice or UI confirmation completes removal, scope narrowing, or bulk re
 Broadening scope, changing identity/destination, choosing session/perpetual scope, or replacing consumed/ended/revoked/removed access requires newly reviewed action-specific approval through either channel and any mandatory OS/provider checks.
 No approvable action category is categorically denied session/always duration; future execution grants bind exact implementation/dependency digests, invocation, and resources, unlike today's named model-action preferences.
 Extending beyond a host maximum, granting unspecified effects, or approving a prohibited action is rejected, not overridable by approval.
-Revocation blocks new calls immediately and reports in-flight work as cancelled, completed, or uncertain.
+Revocation blocks subsequent exact-grant consumption. In-flight work is reported as cancelled, completed, or uncertain only when actual evidence supports it; revocation itself never proves physical cancellation or rollback.
+
+### Delivered native exact operation grants — 2026-10-10
+
+The tray's separate **Exact operation grants** window reads the initialized private interaction store, not the legacy **Approvals** tab or its Markdown named-action list. Refresh and Next return at most **50 retained records / 64 KiB**, with finite stored-row limits and a continuation bound to that store lifetime and unchanged committed snapshot. Source, row or cursor failures are explicit; no empty-success fallback occurs.
+
+Select one exact approval ID, then **Inspect selected exact ID** to reread current immutable metadata. It shows the actual revision, capability/source/skill, binding/content SHA-256 identities, recorded effect classification, scope, original session/generation, creator channel/time, status, count, last use and retained revocation reason. Raw parameters, scripts, bodies, credentials and provider content are not displayed or logged.
+
+Active is a stored status, not a current allow decision. Current applicability and already-running work status remain explicitly **unknown**. Missing or removed scoped records are unavailable; independent Perpetual records remain inspectable and revocable after their originating session is retired, without inventing authority for that old session. Perpetual records have no expiry, retention or eviction.
+
+For one active record, review the displayed ID/revision, tick its explicit confirmation and press **Confirm: revoke this exact inspected ID/revision**. A fresh original native-user request and current host-owned control session are committed. The shared store serializes preview/current revision, use, revocation and lifecycle checks with requested/terminal typed audit and the retained revision increment. Changed selection, ownership/privacy/control lifetime or stale/foreign metadata fails closed.
+
+Success means the exact revocation committed and was read back, denying subsequent consumes through the same authorization policy. It does not stop or roll back an existing effect. Lost commit/readback/receipt certainty requires explicit recovery and current inspection, not automatic retry or a false rollback claim. Close/privacy/ownership changes retire private output and pending callbacks.
+
+This subset has no model/tool execution, approval creation, editing/scope broadening, bulk revoke, export, detailed use-history browser, generic voice/typed command or inferred allow/deny explanation. Named preferences are neither migrated nor promoted, and direct lock/power gates remain unchanged. The wider inventory operations below are not a full R05/A0–A4 or release qualification claim.
 
 Required operations:
 

@@ -3014,6 +3014,14 @@ code, installer or application was executed by these fixture checks.
 
 ### R05 Bounded Authorization/Question Foundation
 
+**Native exact-grant management continuation — 2026-10-10.** A separate tray **Exact operation grants** surface now delivers passive bounded list/current inspection and explicit single approval-ID/revision revocation through the shared private SQLite authority. [Contracts/store](../src/Kora.Core/Storage/IExactGrantStore.cs), [fresh native control admission](../src/Kora.Application/Interaction/ExactGrantControlAdmission.cs), [presenter](../src/Kora.Application/Interaction/ExactGrantsViewModel.cs) and [actual private-store tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteExactGrantTests.cs) retain exact state/provenance and reject stale/use/lifecycle/privacy/control races.
+
+Perpetual records remain independent after origin-session retirement and receive no expiry/eviction. Reads do not create intent or extend meaningful activity. One atomic authority envelope retains the correlated content-free requested/terminal typed audit pair; historical bytes/digests and tables/schema are unchanged. This is not a named-action preference migration or effect/execution authority.
+
+The [available native subset and unavailable controls](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10) explicitly separate stored Active/status from current unknown applicability/in-flight evidence. Lost commit/readback/late-receipt certainty requires recovery; successful revoke blocks subsequent consumes, not already-running effects. No creation, editing, scope broadening, bulk revoke, export, model/tool/voice route or direct lock/power gate change is claimed.
+
+Experiment exact equivalence was assessed: `experiments/r02-containment-proof` has no equivalent grant schema/inventory/revocation path, and its unique runtime/containment/native/hardware/security/history receipts are retained unchanged. This delivery supersedes no runtime/storage/device experiment qualification and does not close full R05, A0–A4, execution or release acceptance. The historical foundation receipt and remaining dispatch gates below remain applicable.
+
 **Historical foundation receipt - 2026-10-06.** The subsequent
 [durable continuation](#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 supplies production persistence/minimal session authority, not the remaining

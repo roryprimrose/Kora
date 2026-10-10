@@ -262,6 +262,18 @@ built-in phrases (including lock). Any model-suggested action that requires
 approval can use any of the three scopes; the model cannot choose the scope
 for you.
 
+## Exact operation grants
+
+Open **Exact operation grants** from the tray menu. This is a separate native window for retained host-issued exact approval records, not the **Approvals** tab or the Markdown named-action preferences. It does not import or promote those preferences.
+
+1. **Refresh inventory** reads a bounded page (at most **50 records / 64 KiB**) from the current private store. **Next bounded page** continues only that unchanged store snapshot; if it changes, refresh instead.
+2. Select the exact approval ID and choose **Inspect selected exact ID**. Review the current ID/revision, capability/source/skill, scope/original session/generation, creator/time/status, use count/last use/reason and SHA-256 binding identities. No raw parameters, scripts, credentials or provider bodies are shown.
+3. For an Active record only, tick **I reviewed the exact displayed ID and revision** and press **Confirm: revoke this exact inspected ID/revision**. Only that unchanged exact record is revoked, audited and read back. Selection/close/privacy/ownership/control changes retire the confirmation; stale or already terminal records require fresh inspection.
+
+Stored Active is **not** proof that an operation is currently allowed. Current applicability and already-running work are **unknown** in this window. Revocation denies subsequent exact-grant consumes; it does **not** stop or roll back an already-running effect. Missing/inapplicable data is not guessed. Failure or lost receipt certainty requires closing/reopening and fresh current inspection before any retry; no rollback is promised.
+
+Perpetual records have no expiry/retention/eviction and remain inspectable/revocable independently after origin-session retirement. Removed scoped records are unavailable. This window cannot create/edit/broaden grants, revive consumed/revoked records, bulk-remove, export, explain a current allow decision, invoke tools/models or accept generic voice/typed management commands. Direct lock/power and named-action gates are unchanged.
+
 ## Readiness and required tools
 
 The setup queue checks local storage, SQLite, PowerShell 7 (`pwsh.exe`), and

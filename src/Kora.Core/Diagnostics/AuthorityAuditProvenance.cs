@@ -1,5 +1,6 @@
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Auditing;
 
 namespace Kora.Core.Diagnostics;
 
@@ -9,4 +10,6 @@ public sealed record AuthorityAuditProvenance(
     HostRevision IntentRevision, HostRevision SessionGeneration,
     HostInteractionOutcome? InteractionOutcome, HostId<QuestionIdentity>? QuestionId,
     HostRevision? QuestionRevision, HostId<ApprovalIdentity>? GrantId, HostRevision? GrantRevision,
-    IReadOnlyList<AuthorityAuditChange> Changes);
+    IReadOnlyList<AuthorityAuditChange> Changes,
+    SecurityAuditEvent? RequestedAudit = null,
+    HostRevision? RequestedGrantRevision = null);

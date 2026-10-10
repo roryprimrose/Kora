@@ -595,6 +595,12 @@ admission are still independent gates.
 
 ### R05 Authorization Foundation
 
+The delivered [native exact-grant management subset](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10) is separate from named model-action preferences. Passive bounded reads are not applicability or effect receipts. One explicit native confirmation admits a fresh original-user control request/session; stored approval/request/trace or model text cannot supply that intent. Independent Perpetual records remain inspectable and exactly revocable after origin-session retirement.
+
+The current revision/status and immutable displayed metadata must still match under the shared private store's serializable transaction. Only an Active exact record can move to retained Revoked at the next revision; a stale, foreign, consumed or revoked preview conflicts. Requested and terminal typed audit are retained atomically as a content-free correlated pair in one envelope, without changing historical bytes or broadening scope. Commit/readback uncertainty fails closed and requires current inspection.
+
+Subsequent consumes through `HostAuthorizationService` reject the retained revoked record. Already-running work remains unknown unless actual receipts prove otherwise; revocation never claims physical cancellation or rollback. No model/tool dispatch, named-preference promotion, new approvals, grant edits/bulk revoke, Perpetual expiry/eviction or direct lock/power gate change is delivered.
+
 The [exact operation binding](../src/Kora.Core/Authorization/ExactOperationBinding.cs)
 binds action/source partition/skill, exact definition and complete declared
 resource identity, observed tracked content, required implementation, typed

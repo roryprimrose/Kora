@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kora.Application.Interaction"
+        xmlns:auth="using:Kora.Core.Authorization"
+        x:Class="Kora.ExactGrantsWindow" x:DataType="vm:ExactGrantsViewModel"
+        Title="Exact operation grants" Width="1050" Height="780" MinWidth="650" MinHeight="480">
+  <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
+    <StackPanel Spacing="8">
+      <TextBlock Text="Exact operation grants — retained host-issued metadata, not legacy named-action preferences"
+                 AutomationProperties.Name="Exact operation grants" FontSize="18" TextWrapping="Wrap" />
+      <TextBlock Text="Stored Active is not a current allow decision. Applicability and running-work status are unknown. Revocation denies subsequent consumes; it does not stop or roll back already-running effects."
+                 AutomationProperties.Name="Exact grant scope and evidence limitations" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
+      <Button Content="Refresh inventory" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh exact grant inventory" />
+      <Button Content="Next bounded page" Command="{Binding NextCommand}" AutomationProperties.Name="Read next bounded exact grant page" />
+      <Button Content="Inspect selected exact ID" Command="{Binding InspectCommand}" AutomationProperties.Name="Inspect current selected exact grant ID" />
+    </StackPanel>
+    <Grid Grid.Row="2" ColumnDefinitions="350,*" ColumnSpacing="12">
+      <ListBox ItemsSource="{Binding Records}" SelectedItem="{Binding Selected}" AutomationProperties.Name="Retained exact operation grants">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="auth:ExactGrantInspection">
+            <StackPanel Margin="4">
+              <TextBlock Text="{Binding Grant.Id.Value}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Grant.ApprovedProposal.Binding.ActionId}" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding Grant.Scope}" />
+                <TextBlock Text="{Binding Grant.Status}" />
+                <TextBlock Text="{Binding Grant.Revision.Value, StringFormat='revision {0}'}" />
+              </StackPanel>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <ScrollViewer Grid.Column="1">
+        <TextBlock Text="{Binding Inspection}" AutomationProperties.Name="Current exact grant inspection" TextWrapping="Wrap" />
+      </ScrollViewer>
+    </Grid>
+    <StackPanel Grid.Row="3" Spacing="8">
+      <CheckBox Content="I reviewed the exact displayed ID and revision. Revoke only this active record."
+                IsChecked="{Binding Reviewed}" AutomationProperties.Name="Explicit confirmation of the displayed exact approval ID and revision" />
+      <Button Content="Confirm: revoke this exact inspected ID/revision" Command="{Binding RevokeCommand}" AutomationProperties.Name="Confirm revocation of only this exact inspected ID and revision" />
+    </StackPanel>
+    <TextBlock Grid.Row="4" Text="{Binding Message}" AutomationProperties.Name="Exact grant operation status" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
+  </Grid>
+</Window>

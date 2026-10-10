@@ -510,6 +510,14 @@ DPAPI or native-provider evidence. Historical receipts remain unchanged.
 
 ### Bounded R05 Foundation Boundary
 
+The [native exact-grant management subset](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10) now adds bounded passive inventory/current inspection and explicit one-ID/revision revocation. Reads create no task intent or meaningful-activity extension. Revocation uses a fresh [original-user control admission](../src/Kora.Application/Interaction/ExactGrantControlAdmission.cs), never the stored proposal/request/trace or a retired origin session as authority.
+
+The [narrow store seam](../src/Kora.Core/Storage/IExactGrantStore.cs) uses the shared initialized private store/read lease. The [SQLite implementation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ExactGrants.cs) updates only the exact unchanged active record under the same committed-intent lease and transaction used by consume/lifecycle. It increments revision, retains safe revoked provenance and preserves unrelated records and all independent Perpetual records.
+
+One atomic authority envelope retains the correlated typed **RequestedAudit** and terminal **Audit**, with the same host request/task/session, approval and W3C lineage. This optional content-free pair is omitted for historical envelopes, preserving their exact bytes/digests; tables/schema and legacy preferences are unchanged. Committed-authority inspection carries the pair in typed provenance; diagnostic sinks are not fallback authority. Cancellation before commit rolls back both state/audit, while uncertain commit/readback is explicit recovery.
+
+The native presenter invalidates immutable preview/confirmation on selection, refresh, close, privacy or control-generation changes and rejects late output. Current applicability/work status is unknown without evidence. This management path neither dispatches nor physically cancels/rolls back effects; general approval creation, source/resource review, generic voice targeting and immediate pre-effect dispatch qualification remain gated.
+
 Questions, answers and drafts use existing host session/request/task/question
 IDs and a positive revision. Every accepted draft edit advances that revision;
 submission of an earlier draft conflicts instead of overwriting newer input.

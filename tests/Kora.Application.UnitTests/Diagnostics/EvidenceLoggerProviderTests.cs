@@ -554,18 +554,122 @@ public sealed class EvidenceLoggerProviderTests
         await missing.Should().ThrowAsync<ArgumentNullException>();
     }
 
-    [Fact]
-    public void Gap_reporter_failure_still_allows_both_independent_sink_attempts()
+    [Theory]
+    [InlineData(nameof(IOException))]
+    [InlineData(nameof(InvalidDataException))]
+    [InlineData(nameof(UnauthorizedAccessException))]
+    [InlineData(nameof(InvalidOperationException))]
+    public void Gap_reporter_failure_preserves_original_sink_cause_and_independent_delivery(string exceptionType)
     {
-        var failed = new RecordingSink { Fail = true };
-        var healthy = new RecordingSink { FailReport = true };
+        var underlying = new IOException("private underlying sink payload");
+        var original = new IOException("private sink payload", underlying);
+        Exception reporting = exceptionType switch
+        {
+            nameof(IOException) => new IOException("private reporting payload"),
+            nameof(InvalidDataException) => new InvalidDataException("private reporting payload"),
+            nameof(UnauthorizedAccessException) => new UnauthorizedAccessException("private reporting payload"),
+            nameof(InvalidOperationException) => new InvalidOperationException("private reporting payload"),
+            _ => throw new ArgumentOutOfRangeException(nameof(exceptionType)),
+        };
+        var failed = new RecordingSink { DiagnosticFailure = original };
+        var healthy = new RecordingSink { ReportFailure = reporting };
         using var provider = new EvidenceLoggerProvider([failed, healthy], healthy);
         var log = () => Log(provider.CreateLogger("fixture"), State());
-        var failure = log.Should().Throw<IOException>().Which;
-        var causes = ((AggregateException)failure.InnerException!).Flatten().InnerExceptions;
-        causes.Should().Contain(error => error.Message == "Synthetic failure.");
-        causes.Should().Contain(error => error.Message == "Synthetic reporting failure.");
+        var error = log.Should().Throw<IOException>().Which;
+        error.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions.Should().Equal(original, reporting);
+        original.InnerException.Should().BeSameAs(underlying);
         healthy.Diagnostics.Should().ContainSingle();
+        healthy.Gaps.Should().ContainSingle().Which.ExceptionType.Should().Be(typeof(IOException).FullName);
+        JsonSerializer.Serialize(healthy.Gaps).Should().NotContain("private underlying sink payload")
+            .And.NotContain("private sink payload").And.NotContain("private reporting payload");
+    }
+
+    [Fact]
+    public void Every_gap_report_is_attempted_and_all_sink_and_reporter_failures_are_retained()
+    {
+        var first = new IOException("First synthetic sink failure.");
+        var second = new UnauthorizedAccessException("Second synthetic sink failure.");
+        var reporting = new InvalidDataException("Synthetic gap reporter failure.");
+        var healthy = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider(
+            [new RecordingSink { DiagnosticFailure = first }, new RecordingSink { DiagnosticFailure = second }, healthy], healthy);
+        var log = () => Log(provider.CreateLogger("fixture"), State());
+        var error = log.Should().Throw<IOException>().Which;
+        error.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions.Should()
+            .Equal(first, second, reporting, reporting);
+        healthy.Diagnostics.Should().ContainSingle();
+        healthy.Gaps.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Activity_gap_reporter_failure_preserves_sink_cause_and_restores_host_context()
+    {
+        var original = new IOException("Synthetic activity sink failure.");
+        var reporting = new InvalidDataException("Synthetic activity reporting failure.");
+        var healthy = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([new RecordingSink { ActivityFailure = original }, healthy], healthy);
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        activity.Complete(HostOperationOutcome.Completed);
+        var finish = () => activity.Dispose();
+        var error = finish.Should().Throw<IOException>().Which;
+        error.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions.Should().Equal(original, reporting);
+        healthy.Activities.Should().ContainSingle().Which.Host.Should().BeSameAs(activity.Request);
+        healthy.Gaps.Should().ContainSingle();
+        HostActivity.Current.Should().BeNull();
+    }
+
+    [Fact]
+    public void Required_audit_gap_reporter_failure_preserves_sink_cause_without_suppressing_the_other_sink()
+    {
+        var original = new IOException("Synthetic audit sink failure.");
+        var reporting = new InvalidDataException("Synthetic audit reporting failure.");
+        var healthy = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([new RecordingSink { AuditFailure = original }, healthy], healthy);
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        var state = new TrustedAuditState(CreateAudit());
+        var write = () => provider.CreateLogger("fixture").Log(LogLevel.Information, new EventId(1), state, null,
+            static (_, _) => "unused");
+        var error = write.Should().Throw<IOException>().Which;
+        error.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions.Should().Equal(original, reporting);
+        healthy.Audits.Should().ContainSingle().Which.Audit.Should().BeSameAs(state.Event);
+        healthy.Gaps.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Invalid_structured_state_and_gap_reporter_failure_are_both_preserved()
+    {
+        var reporting = new IOException("private reporting payload");
+        var sink = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        var state = State();
+        state["Unexpected"] = new UnsafeValue();
+        var log = () => Log(provider.CreateLogger("fixture"), state);
+        var error = log.Should().Throw<InvalidDataException>().Which;
+        var causes = error.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions;
+        causes.Should().HaveCount(2);
+        causes[0].Should().BeOfType<InvalidDataException>();
+        causes[1].Should().BeSameAs(reporting);
+        sink.Diagnostics.Should().BeEmpty();
+        sink.Gaps.Should().ContainSingle().Which.Reason.Should().Be(EvidenceGapReason.InvalidStructuredState);
+        JsonSerializer.Serialize(sink.Gaps).Should().NotContain("private reporting payload");
+    }
+
+    [Fact]
+    public void Ordinary_policy_unavailability_remains_nonfatal_only_when_gap_reporting_succeeds()
+    {
+        var reporting = new IOException("Synthetic policy gap reporting failure.");
+        var healthy = new RecordingSink { ReportFailure = reporting };
+        using var provider = new EvidenceLoggerProvider([new UnavailablePolicySink(failAudit: false), healthy], healthy);
+        var log = () => Log(provider.CreateLogger("fixture"), State());
+        var error = log.Should().Throw<IOException>().Which;
+        var causes = error.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions;
+        causes.Should().HaveCount(2);
+        causes[0].Should().BeOfType<DiagnosticRetentionUnavailableException>();
+        causes[1].Should().BeSameAs(reporting);
+        healthy.Diagnostics.Should().ContainSingle();
+        healthy.Gaps.Should().ContainSingle();
     }
 
     private static SecurityAuditEvent CreateAudit() =>
@@ -594,24 +698,33 @@ public sealed class EvidenceLoggerProviderTests
         public ConcurrentQueue<CompletedActivityEnvelope> Activities { get; } = new();
         public ConcurrentQueue<EvidenceGap> Gaps { get; } = new();
         public bool Fail { get; init; }
-        public bool FailReport { get; init; }
+        public Exception? DiagnosticFailure { get; init; }
+        public Exception? AuditFailure { get; init; }
+        public Exception? ActivityFailure { get; init; }
+        public Exception? ReportFailure { get; init; }
         public void WriteDiagnostic(DiagnosticEnvelope envelope)
         {
+            if (DiagnosticFailure is not null) { throw DiagnosticFailure; }
             if (Fail)
             {
                 throw new IOException("Synthetic failure.");
             }
             Diagnostics.Enqueue(envelope);
         }
-        public void WriteAudit(AuditEnvelope envelope) => Audits.Enqueue(envelope);
-        public void WriteActivity(CompletedActivityEnvelope envelope) => Activities.Enqueue(envelope);
+        public void WriteAudit(AuditEnvelope envelope)
+        {
+            if (AuditFailure is not null) { throw AuditFailure; }
+            Audits.Enqueue(envelope);
+        }
+        public void WriteActivity(CompletedActivityEnvelope envelope)
+        {
+            if (ActivityFailure is not null) { throw ActivityFailure; }
+            Activities.Enqueue(envelope);
+        }
         public void Report(EvidenceGap gap)
         {
-            if (FailReport)
-            {
-                throw new IOException("Synthetic reporting failure.");
-            }
             Gaps.Enqueue(gap);
+            if (ReportFailure is not null) { throw ReportFailure; }
         }
     }
 }

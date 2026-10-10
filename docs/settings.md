@@ -42,7 +42,7 @@ resets only that option. These device-local options do not enable captions:
 
 | ID | Choices / bounds | Default and reset |
 |---|---|---|
-| `display.speech-text-placement` | `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` on the primary working area, 24-DIP margin | `BottomRight` |
+| `display.speech-text-placement` | `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` on the chosen working area, 24-DIP margin | `BottomRight`; primary display unless explicitly selected this run |
 | `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 | 5 |
 | `display.speech-text-pin` | `true` / `false`, current observed caption only; run-only | `false` |
 
@@ -52,6 +52,14 @@ shows its run-only scope. Invalid saved options are rejected, not defaulted.
 Sentence alignment remains unavailable because playback supplies no admitted
 sentence boundaries. Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
+
+**Caption display — this run only** is available in **Settings > Speech & audio** and the caption. Choose an available native display and press **Use selected display**; **Return to primary** explicitly resets to the current primary.
+Labels show ordinal, primary designation and safe working-area geometry; they are not durable display identities. No monitor choice is saved; restart returns to primary.
+
+Choosing while speech text is Off applies only to the next eligible caption; it does not enable captions or speak/capture. Choosing while eligible text is visible moves only that observed caption, keeping its original completion deadline and pin. The saved corner remains relative to the chosen display's current working area/DPI; tiny areas clip rather than spill.
+
+Display changes expire old choices. If the explicit display disappears or is unknown, the caption immediately hides and retires, even when pinned; it does not move private text to another monitor.
+Inspect the display status, then explicitly select a current display or **Return to primary** when the owning unlocked/private/call gates allow it. Retired text never returns. This recovery does not repair caption preferences, clear privacy/ownership/call holds, or replace required response/question/recovery panels.
 
 ## Windows-native speech rate
 

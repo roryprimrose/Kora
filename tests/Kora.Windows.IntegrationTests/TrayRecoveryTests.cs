@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using AwesomeAssertions;
 using Kora.Core.Voice;
 
@@ -54,7 +54,7 @@ public sealed class TrayRecoveryTests
             .And.Contain("RunAfterNativeMenuCloses(chooseMicrophone)");
         Read("SettingsWindow.axaml").Should().Contain("x:Name=\"ChooseMicrophone\"")
             .And.NotContain("SelectedItem=\"{Binding SelectedMicrophone}\"");
-        Read("SettingsWindowController.cs").Should().Contain("new SettingsWindow(viewModel, chooseMicrophone)");
+        Read("SettingsWindowController.cs").Should().Contain("new SettingsWindow(viewModel, chooseMicrophone, captionDisplay)");
         Read("MicrophoneRecoveryWindow.axaml.cs").Should().Contain("var exactChoice = model.Draft")
             .And.Contain("model.SaveAsync(exactChoice)")
             .And.Contain("var exactSelection = model.DisplayedSelection")

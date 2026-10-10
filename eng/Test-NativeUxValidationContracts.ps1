@@ -173,6 +173,27 @@ Reject 'The runner does not launch without a separate explicit approval' {
 Reject 'Headless-only evidence cannot be signed off' {
     & (Join-Path $PSScriptRoot 'Invoke-NativeUxValidation.ps1') -Stage SignOff -OutputDirectory $OutputDirectory
 } 'completed interactive trial'
+$mechanics = Join-Path $PSScriptRoot 'Invoke-NativeUxMechanics.ps1'
+$tokens = $null
+$errors = $null
+$null = [Management.Automation.Language.Parser]::ParseFile($mechanics, [ref]$tokens, [ref]$errors)
+Check ($errors.Count -eq 0) 'Native mechanics script parses'
+Reject 'Native desktop automation requires separate explicit approval' {
+    & $mechanics -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'denied-mechanics') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(5))
+} 'Explicit -ApproveDesktopAutomation'
+Reject 'Expired desktop approval cannot launch' {
+    & $mechanics -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'expired-mechanics') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(-1)) -ApproveDesktopAutomation
+} 'future deadline'
+Reject 'Unbounded desktop approval cannot launch' {
+    & $mechanics -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'unbounded-mechanics') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddHours(2)) -ApproveDesktopAutomation
+} 'future deadline'
+& $mechanics -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'validate-mechanics') `
+    -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(5)) -ValidateOnly
+Check (!(Test-Path -LiteralPath (Join-Path $OutputDirectory 'validate-mechanics')) -and
+    !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'denied-mechanics'))) 'ValidateOnly and denied automation create no native trial or output'
 Write-ProofJson ([ordered]@{ schema = 1; count = $passed.Count; checks = @($passed)
     nativeLaunch = $false; scope = 'Synthetic file-only contracts, not native acceptance.' }) `
     (Join-Path $OutputDirectory 'contracts.json')

@@ -103,6 +103,36 @@ forced termination fails the trial and can leave scratch evidence for inspection
 If a display change requires relaunch, stop cleanly and repeat Stage Launch
 against the same bundle; all trials are retained.
 
+### Automated native mechanics instead of repetitive manual input
+
+The separate [mechanical driver](../../eng/Invoke-NativeUxMechanics.ps1) opens
+only the isolated fixture, finds controls/windows within its exact PID and
+uses native UI Automation for inspection and guarded Space for button actions.
+Keyboard input requires both the foreground PID and exact window handle to
+match; the driver activates only its own verified visible windows.
+Appearance cycles use Tab/Shift+Tab. It checks maintenance's disabled/off consent,
+two complete forward/reverse Appearance cycles, exact question review/draft/
+submit and terminal refresh/focus, stale-revision refusal and synthetic private
+window closure/reopening. It preserves every failed attempt and attempts normal
+owned cleanup, recording any forced termination.
+
+Leave the desktop unused for this run. Approval has an explicit future deadline
+of at most one hour; the driver checks it at operation/wait boundaries. This is
+not a hard real-time watchdog for an unresponsive OS automation API.
+
+```powershell
+$mechanics = Join-Path $env:TEMP ('kora-native-mechanics-' + [guid]::NewGuid().ToString('N'))
+.\eng\Invoke-NativeUxMechanics.ps1 -PreparedDirectory $proof -OutputDirectory $mechanics `
+    -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(10)) -ApproveDesktopAutomation
+```
+
+Use `-ValidateOnly` without desktop approval for prerequisite checks that open
+no windows. A passing `mechanics.json` is machine-observed mechanics only.
+It does not edit `operator.json`, pretend Narrator spoke, measure numerical
+contrast, verify readability or manufacture text-scale/mixed-monitor passes.
+The five human observations above remain independently scoped. Do not run this
+driver alongside a manually launched fixture or another desktop automation.
+
 ## 4. Sign off the observed scope
 
 Fill the integer display fields and set `operatorConfirmed` to `true` only after

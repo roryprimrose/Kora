@@ -3024,6 +3024,8 @@ Experiment exact equivalence was assessed: `experiments/r02-containment-proof` h
 
 **Automated validation receipt:** rebased on `83230ec82b12a8cf0e6f9f5187e5ff8d4e6b3957`; zero-warning Release solution build. Core **1407**, Application **3798**, Tools **137**, Definitions **6** and Windows **1434** all passed, zero failures/skips. Fresh-only portable line/branch coverage passed the unchanged exact **100% / 100%** gate. Owned TRX and coverage receipts are under `.net-test-artifacts/exact-rebased`; focused native/SQLite and corrected coverage-gate evidence is retained separately.
 
+After the independent caption delivery merged, the own branch was rebased onto `b697cfd5381eceb879f8fbad56be8fb76b006bf0`, preserving queue/caption composition. Fresh Release build again had zero warnings/errors; Core **1407**, Application **3801**, Tools **137**, Definitions **6** and default-parallel Windows **1462** passed with zero failures/skips. Fresh exact **100% / 100%** portable coverage passed again; receipts are retained under `.net-test-artifacts/exact-caption-rebase`.
+
 **Historical foundation receipt - 2026-10-06.** The subsequent
 [durable continuation](#r04r05-durable-interaction-and-minimal-session-authority---2026-10-06)
 supplies production persistence/minimal session authority, not the remaining

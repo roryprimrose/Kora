@@ -384,6 +384,31 @@ assertions and exit `2`. Network attribution remains **Unproven**;
 supported-reference-OS, protected-runtime-closure and production-profile
 qualification remain false. C01-C07 and W1-W4/R11/R16/R17 gates stay open.
 
+### Unattended preparation repeat (2026-10-11)
+
+The `-PrepareOnly` runner completed from clean source revision
+`cf44a5f2bc893a5d19f445b4fc4dd31a204b7d18`. Missing focused project assets
+were restored once in locked mode through only the recorded Azure Artifacts
+source. The runner's no-restore Release build passed with zero warnings/errors,
+the five deterministic receipt/classification assertions passed, and the
+preparation runner exited `0`.
+
+The new path-free [preparation receipt](evidence/preparation-2026-10-11.json)
+pins the source and generated EXE/DLL bytes. The
+[validation summary](evidence/preparation-validation-2026-10-11.json) records
+the restore source and bounded outcomes. Earlier preparation and historical
+measured evidence remains unchanged.
+
+No live or owned-scratch mode or administrator observer ran. No AppContainer,
+credential, listener, native fixture, Kora installation/launch, elevation,
+trace, ACL/security-policy change, tool acquisition or lock/power/device effect
+was performed. Cleanup is **Not run** because no live resource was created.
+
+This is **partial preparation only**, not new containment evidence. Historical
+live results remain `63/71` with strict exit `2`; network attribution stays
+**Unproven**, no production profile is certified, and C01-C07 plus
+W1-W4/R11/R16/R17 remain open.
+
 ## What the trials actually do
 
 1. Create a GUID-named owned scratch tree under the new evidence directory

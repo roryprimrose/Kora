@@ -543,11 +543,14 @@ deleted, promoted to production or rerun for this passive slice.
 
 ### R18 trusted local visual broker increment - 2026-10-09
 
-The later [2026-10-10 run-only routine quiet increment](Proactive_Interaction.md#delivered-run-only-routine-notice-quiet-mode---2026-10-10) adds exact native On/Off/Reset/status for Work/Maintenance together. Default Off resets only on explicit clear/reset or process restart; no quiet preference is persisted. Suppression occurs in the shared broker before presentation/fatigue, with distinct routine-suppressed/no-replay receipts, source/choice/control generations and truthful hidden/omitted counts. Failure/Attention and mandatory questions/security/recovery/output remain unchanged.
+The later [2026-10-10 run-only routine quiet increment](Proactive_Interaction.md#delivered-run-only-routine-notice-quiet-mode---2026-10-10) adds exact native On/Off/Reset/status for Work/Maintenance together. Default Off resets only on explicit clear/reset or process restart; no quiet preference is persisted.
+Suppression occurs in the shared broker before presentation/fatigue, with distinct routine-suppressed/no-replay receipts, source/choice/control generations and truthful hidden/omitted counts. Failure/Attention and mandatory questions/security/recovery/output remain unchanged.
 
-Known canonical state schema 1 is preserved on reads; explicit routine suppression uses schema 2 with the same receipt/byte/watermark/budget/retirement rules and no database migration. Clear burns current muted sources under owning leases, never revives a deferral or resets budgets. Live exact native original-user admission and requested/terminal audit are mandatory; model/system/voice relabelling and old callbacks fail closed. No task, approval, grant, activity extension, capture, focus, speech, network or maintenance effect is added.
+Known canonical state schema 1 is preserved on reads; explicit routine suppression uses schema 2 with the same receipt/byte/watermark/budget/retirement rules and no database migration. Clear burns current muted sources under owning leases, never revives a deferral or resets budgets.
+Live exact native original-user admission and requested/terminal audit are mandatory; model/system/voice relabelling and old callbacks fail closed. No task, approval, grant, activity extension, capture, focus, speech, network or maintenance effect is added.
 
-All ten experiment families remain retained: this deterministic broker/native seam supersedes no unique runtime/native/containment/speech/evidence procedure. Scheduled quiet hours, multi-session reminders, proactive speech, installed accessibility and full R18/RC acceptance remain open. Validation evidence is retained in the owned worktree; no live app/device/provider/account/OS trial was run.
+All ten experiment families remain retained: this deterministic broker/native seam supersedes no unique runtime/native/containment/speech/evidence procedure. Scheduled quiet hours, multi-session reminders, proactive speech, installed accessibility and full R18/RC acceptance remain open.
+Validation evidence is retained in the owned worktree; no live app/device/provider/account/OS trial was run.
 
 Merged scheduler #116, selected work surface #118 and retention #117 unblock
 the [bounded host event broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09).

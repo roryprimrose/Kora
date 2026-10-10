@@ -41,9 +41,9 @@ public sealed partial class LocalEventBrokerTests
             item.Category == LocalEventCategory.Failure || item.Category == LocalEventCategory.Attention);
         f.Audits.Should().Contain(item => item.Event.ActionId == "local-event.routine-quiet.on"
             && item.Event.Outcome == SecurityAuditOutcome.Succeeded && item.Session == f.Session.Value);
-        var quietAudit = f.Audits.Where(item => item.Event.ActionId == "local-event.routine-quiet.on").ToArray();
+        var quietAudit = f.Audits.Where(item => item.Event.ActionId is "local-event.routine-quiet.on").ToArray();
         quietAudit.Select(item => item.Event.CorrelationId).Distinct().Should().ContainSingle();
-        f.Audits.Where(item => item.Event.ActionId == "local-event.quiet-suppression")
+        f.Audits.Where(item => item.Event.ActionId is "local-event.quiet-suppression")
             .Should().OnlyContain(item => item.Event.CorrelationId != quietAudit[0].Event.CorrelationId);
         f.Pending.Should().BeFalse();
         broker.IsCurrent(snapshot).Should().BeTrue();
@@ -237,9 +237,10 @@ public sealed partial class LocalEventBrokerTests
         await entered.Task;
         var change = ChangeQuiet(f, broker, true);
         release.SetResult();
-        var old = await observation;
+        var cancelledObservation = () => observation;
+        await cancelledObservation.Should().ThrowAsync<InvalidOperationException>();
         await change;
-        broker.IsCurrent(old).Should().BeFalse();
+        f.Saved!.Budgets.Should().BeEmpty();
         f.BeforeRead = null;
         f.CanControl = false;
         await f.Reading(broker).Should().ThrowAsync<InvalidOperationException>();
@@ -248,7 +249,7 @@ public sealed partial class LocalEventBrokerTests
         var quiet = await f.Observe(broker);
         quiet.Events.Should().BeEmpty();
         quiet.RoutineOmitted.Should().Be(1);
-        f.Saved!.Budgets.Single().Count.Should().Be(1);
+        f.Saved!.Budgets.Should().BeEmpty();
     }
 
     [Fact]
@@ -279,5 +280,69 @@ public sealed partial class LocalEventBrokerTests
         await cancelled.Should().ThrowAsync<OperationCanceledException>();
         var closed = () => ChangeQuiet(f, broker, true);
         await closed.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Theory]
+    [InlineData(LocalEventOperation.Dismiss)]
+    [InlineData(LocalEventOperation.Defer)]
+    public async Task QuietAdmissionRevokesInFlightExactActionsBeforeAnyDispositionCommit(LocalEventOperation operation)
+    {
+        using var f = new Fixture();
+        await using var broker = f.Create();
+        var initial = await f.Observe(broker);
+        var target = initial.Events.Single().Event;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.BeforeRead = async token => { entered.TrySetResult(); await release.Task.WaitAsync(token); };
+        var exact = broker.ExecuteAsync(new(operation, target.Id, target.Revision), RequestOrigin.LocalUi, () => true, f.Token);
+        await entered.Task;
+        var quiet = ChangeQuiet(f, broker, true);
+        broker.IsCurrent(initial).Should().BeFalse();
+        release.SetResult();
+        var action = () => exact;
+        await action.Should().ThrowAsync<InvalidOperationException>();
+        await quiet;
+        f.Saved!.Receipts.Single().Disposition.Should().Be(LocalEventDisposition.Presented);
+        f.Saved.Receipts.Single().DeferredUntil.Should().BeNull();
+        f.Saved.Budgets.Single().Count.Should().Be(1);
+        f.Audits.Should().NotContain(item => item.Event.ActionId == "local-event.dismiss" || item.Event.ActionId == "local-event.defer");
+    }
+
+    [Theory]
+    [InlineData(LocalEventType.Failed)]
+    [InlineData(LocalEventType.Blocked)]
+    [InlineData(LocalEventType.Unknown)]
+    public async Task ANewRequiredSourceRevisionIsNeverMutedByPriorRoutineSuppression(LocalEventType type)
+    {
+        using var f = new Fixture();
+        await using var broker = f.Create();
+        await ChangeQuiet(f, broker, true);
+        var prior = f.Events.Single();
+        f.Events = [prior with { SourceRevision = 2, Type = type }];
+        var required = await f.Observe(broker);
+        required.Events.Should().ContainSingle().Which.Reason.Should().Be(LocalEventReason.Eligible);
+        required.RoutineOmitted.Should().Be(0);
+        required.RoutineSuppressed.Should().Be(0);
+        f.Saved!.Receipts.Single().Disposition.Should().Be(LocalEventDisposition.Presented);
+        f.Saved.Budgets.Single().Category.Should().Be(LocalEventCategory.Failure);
+    }
+
+    [Theory]
+    [InlineData("corrupt")]
+    [InlineData("unconfirmed")]
+    [InlineData("missing-member")]
+    public async Task QuietControlNeverActivatesOverInvalidOrUnconfirmedSuppressionHistory(string boundary)
+    {
+        using var f = new Fixture();
+        f.Saved = LocalEventBrokerState.Empty(f.Time.Now) with { Schema = boundary is "corrupt" ? 99 : 1 };
+        if (boundary is "unconfirmed" or "missing-member") { f.BeginWrite(); }
+        if (boundary is "missing-member") { f.Saved = null; }
+        await using var broker = f.Create();
+        var change = () => ChangeQuiet(f, broker, true);
+        await change.Should().ThrowAsync<InvalidDataException>();
+        broker.RoutineQuiet.Enabled.Should().BeFalse();
+        broker.IsAvailable.Should().BeFalse();
+        f.Saves.Should().Be(0);
+        f.Audits.Should().BeEmpty();
     }
 }

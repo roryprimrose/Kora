@@ -53,7 +53,8 @@ internal sealed partial class SessionsViewModel
         try
         {
             observed = await localEvents.ObserveAsync(session,
-                () => !closed && selectionEpoch == epoch && selected?.Authority.SessionId == session, lifetime.Token);
+                () => !closed && selectionEpoch == epoch && eventChoiceEpoch == choiceEpoch
+                    && selected?.Authority.SessionId == session, lifetime.Token);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
             or InvalidOperationException or OperationCanceledException)

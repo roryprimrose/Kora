@@ -19,14 +19,19 @@ public sealed partial class LocalEventBroker
         { throw new InvalidOperationException("Quiet routine notices requires fresh exact original native selected-session input."); }
         var admission = access.ControlRevision;
         var retirement = Volatile.Read(ref retirementEpoch);
+        var notices = Volatile.Read(ref noticeRevision);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
         var token = linked.Token;
         bool Admitted() => !disposed && !unavailable && !token.IsCancellationRequested
             && access.CanControl && access.ControlRevision == admission && nativeLifetime()
             && Volatile.Read(ref retirementEpoch) == retirement
+            && Volatile.Read(ref noticeRevision) == notices
             && !original.Activity.IsStopped && ReferenceEquals(HostActivity.RequireCurrent().Request, request);
         bool Eligible() => Admitted() && routineQuiet.Revision == choiceRevision;
         Require(Eligible);
+        // Revoke in-flight observations/exact actions before waiting for their source lease or broker gate.
+        // A queued original quiet change cannot leave a late routine presentation or consume its budget.
+        notices = Interlocked.Increment(ref noticeRevision);
         await serial.WaitAsync(token).ConfigureAwait(false);
         try
         {

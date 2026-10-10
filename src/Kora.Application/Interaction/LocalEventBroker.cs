@@ -27,11 +27,13 @@ public sealed partial class LocalEventBroker(
     private volatile bool disposed;
     private volatile bool unavailable;
     private volatile RoutineNoticeQuietState routineQuiet = new(false, 0);
+    private long noticeRevision;
 
     public RoutineNoticeQuietState RoutineQuiet => routineQuiet;
     public bool IsAvailable => !disposed && !unavailable;
     public bool IsCurrent(LocalEventSnapshot snapshot) =>
-        IsAvailable && access.CanControl && snapshot.AdmissionRevision == access.ControlRevision && snapshot.RoutineQuiet == routineQuiet;
+        IsAvailable && access.CanControl && snapshot.AdmissionRevision == access.ControlRevision
+        && snapshot.NoticeRevision == Volatile.Read(ref noticeRevision) && snapshot.RoutineQuiet == routineQuiet;
 
     public async Task<LocalEventSnapshot> ObserveAsync(HostId<SessionIdentity> session,
         Func<bool> nativeLifetime, CancellationToken cancellationToken)
@@ -44,8 +46,10 @@ public sealed partial class LocalEventBroker(
         {
             var revision = access.ControlRevision;
             var epoch = Volatile.Read(ref retirementEpoch);
+            var notices = Volatile.Read(ref noticeRevision);
             bool Eligible() => !disposed && !unavailable && access.CanControl
-                && access.ControlRevision == revision && nativeLifetime() && Volatile.Read(ref retirementEpoch) == epoch;
+                && access.ControlRevision == revision && nativeLifetime() && Volatile.Read(ref retirementEpoch) == epoch
+                && Volatile.Read(ref noticeRevision) == notices;
             Require(Eligible);
             var request = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.HostSystem);
             using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Presentation, Causes());
@@ -58,7 +62,7 @@ public sealed partial class LocalEventBroker(
                 {
                     held = [];
                     activity.Complete(HostOperationOutcome.Failed);
-                    return new([], 0, LocalEventReason.ClockRollback) { RoutineQuiet = routineQuiet, AdmissionRevision = revision };
+                    return new([], 0, LocalEventReason.ClockRollback) { RoutineQuiet = routineQuiet, AdmissionRevision = revision, NoticeRevision = notices };
                 }
                 var observed = await source.ReadAsync(session, token).ConfigureAwait(false);
                 now = time.GetUtcNow();
@@ -66,7 +70,7 @@ public sealed partial class LocalEventBroker(
                 {
                     held = [];
                     activity.Complete(HostOperationOutcome.Failed);
-                    return new([], 0, LocalEventReason.ClockRollback) { RoutineQuiet = routineQuiet, AdmissionRevision = revision };
+                    return new([], 0, LocalEventReason.ClockRollback) { RoutineQuiet = routineQuiet, AdmissionRevision = revision, NoticeRevision = notices };
                 }
                 var snapshot = await source.WithCurrentAsync(session, observed, () =>
                 {
@@ -114,6 +118,7 @@ public sealed partial class LocalEventBroker(
                     {
                         RoutineQuiet = routineQuiet,
                         AdmissionRevision = revision,
+                        NoticeRevision = notices,
                         RoutineOmitted = current.Count(item => routineQuiet.Enabled && RoutineNoticeQuietState.Includes(item.Event.Category)),
                         RoutineSuppressed = current.Count(item => item.Disposition == LocalEventDisposition.RoutineSuppressed),
                     };
@@ -166,8 +171,10 @@ public sealed partial class LocalEventBroker(
         {
             var target = held.SingleOrDefault(item => item.Id == command.Id && item.Revision == command.Revision)
                 ?? throw new InvalidOperationException("No host-held exact event ID/revision. Refresh the native selected work surface.");
+            var notices = Volatile.Read(ref noticeRevision);
             bool Eligible() => !disposed && !unavailable && access.CanControl && originalChannel()
-                && access.ControlRevision == heldAdmission && selected == target.SessionId && heldLifetime();
+                && access.ControlRevision == heldAdmission && selected == target.SessionId && heldLifetime()
+                && Volatile.Read(ref noticeRevision) == notices;
             Require(Eligible);
             var request = new HostRequest(new(Guid.NewGuid()), target.SessionId,
                 new(Guid.NewGuid()), origin);

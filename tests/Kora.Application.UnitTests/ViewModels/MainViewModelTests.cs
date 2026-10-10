@@ -83,6 +83,9 @@ public sealed partial class MainViewModelTests : IDisposable
             new ViewModelWebAudit()));
         await truncated.RunAsync("get web page https://example.com/");
         truncated.ViewModel.ResponseBody.Should().EndWith("[Result truncated]");
+        var truncatedContent = truncated.ViewModel.ResolveWebResultDetails(truncated.ViewModel.WebResultDetailsReference!.Value)!;
+        truncatedContent.WebResult!.Provenance.Truncated.Should().BeTrue();
+        truncatedContent.WebResult.Text.Length.Should().Be(WebPageCapability.MaximumTextUtf8Bytes);
 
         var denied = new Fixture(webPageGet: new(
             new ViewModelWebTransport(
@@ -7957,21 +7960,29 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public Action? BeforeSend { get; set; }
+        public Func<Task>? BeforeSendAsync { get; set; }
+        public int SendCalls { get; private set; }
+        public int ResolveCalls { get; private set; }
 
         public Task<IReadOnlyList<IPAddress>> ResolveAsync(
             string host,
-            CancellationToken cancellationToken) =>
-            exception is null
+            CancellationToken cancellationToken)
+        {
+            ResolveCalls++;
+            return exception is null
                 ? Task.FromResult<IReadOnlyList<IPAddress>>([address])
                 : Task.FromException<IReadOnlyList<IPAddress>>(exception);
+        }
 
-        public Task<WebPageResponse> SendAsync(
+        public async Task<WebPageResponse> SendAsync(
             Uri address,
             IPAddress endpoint,
             CancellationToken cancellationToken)
         {
+            SendCalls++;
             BeforeSend?.Invoke();
-            return Task.FromResult(response!);
+            if (BeforeSendAsync is { } beforeSend) { await beforeSend(); }
+            return response!;
         }
     }
 

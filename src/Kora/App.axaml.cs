@@ -88,7 +88,7 @@ public sealed partial class App : Avalonia.Application
                 detailWindow);
             responseWindow = new ResponseWindowController(
                 viewModel,
-                Services.GetRequiredService<ILogger<ResponseWindowController>>());
+                Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);
             grantListWindow = new GrantListWindowController(viewModel);
             BindExactGrants(viewModel);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),

@@ -14,22 +14,24 @@ public sealed class DetailViewerState : ObservableObject
     private string searchQuery = string.Empty;
     private int matchStart = -1;
     private long generation = 1;
+    private readonly Func<bool>? readAdmission;
 
-    public DetailViewerState(AdmittedDetailContent content)
+    public DetailViewerState(AdmittedDetailContent content, Func<bool>? sourceReadAdmission = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         this.content = content;
+        readAdmission = sourceReadAdmission;
         Reference = content.Reference;
     }
 
     public DetailContentReference Reference { get; }
-    public AdmittedDetailContent? Content => content;
+    public AdmittedDetailContent? Content => CanRead() ? content : null;
     public long Generation => generation;
     public DetailRenderState RenderState => renderState;
     public string Status => status;
     public bool IsSource => isSource;
-    public string ActiveText => content is null ? string.Empty
-        : isSource || renderState != DetailRenderState.Rendered ? content.Source : renderedText;
+    public string ActiveText => !CanRead() ? string.Empty
+        : isSource || renderState != DetailRenderState.Rendered ? content!.Source : renderedText;
     public string SearchQuery => searchQuery;
     public int MatchStart => matchStart;
     public int MatchLength => matchStart < 0 ? 0 : searchQuery.Length;
@@ -38,7 +40,7 @@ public sealed class DetailViewerState : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(semanticText);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
-        if (content is null || renderGeneration != generation)
+        if (!CanRead() || renderGeneration != generation)
         {
             return false;
         }
@@ -60,7 +62,7 @@ public sealed class DetailViewerState : ObservableObject
 
     public void SetSource(bool source)
     {
-        if (content is null)
+        if (!CanRead())
         {
             return;
         }
@@ -72,7 +74,7 @@ public sealed class DetailViewerState : ObservableObject
     public bool Search(string query, bool backwards = false)
     {
         ArgumentNullException.ThrowIfNull(query);
-        if (content is null)
+        if (!CanRead())
         {
             return false;
         }
@@ -116,12 +118,12 @@ public sealed class DetailViewerState : ObservableObject
     public bool TryGetCopySource(bool canAccess, bool disclosureConfirmed, out string? source)
     {
         source = null;
-        if (content is null || !canAccess)
+        if (!CanRead() || !canAccess)
         {
             ReportStatus("Copy blocked: this exact revision is closed or no longer accessible.");
             return false;
         }
-        if (content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired && !disclosureConfirmed)
+        if (content!.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired && !disclosureConfirmed)
         {
             ReportStatus("Confirm disclosure in the native control before copying private content.");
             return false;
@@ -163,6 +165,14 @@ public sealed class DetailViewerState : ObservableObject
         status = "Viewer closed; retained source and work were not changed.";
         ResetSearch();
         NotifyPresentation();
+    }
+
+    private bool CanRead()
+    {
+        if (content is null) { return false; }
+        if (readAdmission is null || readAdmission()) { return true; }
+        Close();
+        return false;
     }
 
     private void ResetSearch()

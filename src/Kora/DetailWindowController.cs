@@ -27,10 +27,14 @@ public sealed partial class DetailWindowController : IDisposable
         new(StringComparer.Ordinal);
     private bool disposed;
     private Func<bool> historyAccess = () => false;
+    private Func<DetailContentReference, AdmittedDetailContent?> webResultSource = _ => null;
 
     internal void BindHistoryAccess(Func<bool> admission) => historyAccess = admission;
+    internal void BindWebResultSource(Func<DetailContentReference, AdmittedDetailContent?> resolve) => webResultSource = resolve;
     private bool CanAccess(AdmittedDetailContent content) =>
-        canAccess() && (content.Origin != DetailContentOrigin.SessionHistory || historyAccess());
+        canAccess() && (content.Origin != DetailContentOrigin.SessionHistory || historyAccess())
+        && (content.Origin != DetailContentOrigin.RetrievedWebResult
+            || ReferenceEquals(webResultSource(content.Reference), content));
 
     internal DetailWindowController(
         IUserDocumentationProvider documentation, MainViewModel viewModel,
@@ -41,6 +45,8 @@ public sealed partial class DetailWindowController : IDisposable
     {
         this.viewModel = viewModel;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
+        BindWebResultSource(viewModel.ResolveWebResultDetails);
+        viewModel.WebResultDetailsChanged += OnWebResultDetailsChanged;
     }
 
     internal DetailWindowController(
@@ -80,20 +86,64 @@ public sealed partial class DetailWindowController : IDisposable
         {
             throw new InvalidDataException("Only freshly resolved retained history may enter this detail route.");
         }
+
         return OpenContent(content, owner);
+    }
+
+    internal string OpenWebResult(DetailContentReference reference, Window? owner)
+    {
+        var content = webResultSource(reference);
+        if (content?.Origin != DetailContentOrigin.RetrievedWebResult || content.WebResult is null
+            || content.Reference != reference)
+        {
+            return "Exact web-result details unavailable: this volatile reference is no longer current.";
+        }
+        return OpenContent(content, owner);
+    }
+
+    private void OnWebResultDetailsChanged(object? sender, EventArgs eventArgs) => RetireUnavailableWebResults();
+
+    internal void RetireUnavailableWebResults()
+    {
+        foreach (var entry in windows.Where(pair => pair.Value.State.Content is not { } content
+            || content.Origin == DetailContentOrigin.RetrievedWebResult && !CanAccess(content)).ToArray())
+        {
+            windows.Remove(entry.Key);
+            registry.Close(entry.Key);
+            entry.Value.View.ClearAndClose();
+        }
     }
 
     private string OpenContent(AdmittedDetailContent content, Window? owner)
     {
         if (disposed || !CanAccess(content)) { return "Details unavailable: the privacy/input gate is closed."; }
         DetailViewerState state;
-        try { state = registry.Open(content, CanAccess(content)); }
+        try
+        {
+            state = registry.Open(content, CanAccess(content),
+                content.Origin == DetailContentOrigin.RetrievedWebResult ? () => CanAccess(content) : null);
+        }
         catch (InvalidDataException) { return "Details unavailable: the immutable receipt changed. Close it and refresh history."; }
         catch (InvalidOperationException) { return "Details unavailable: close a viewer or check the privacy/input gate."; }
         if (windows.TryGetValue(content.Reference, out var existing))
         {
-            existing.View.Activate();
-            return "Activated the existing immutable detail revision.";
+            if (!CanAccess(content) || existing.State.Content is null)
+            {
+                RetireUnavailableWebResults();
+                return "Details unavailable: the exact source admission changed.";
+            }
+            try
+            {
+                existing.View.Activate();
+                return "Activated the existing immutable detail revision.";
+            }
+            catch (InvalidOperationException)
+            {
+                windows.Remove(content.Reference);
+                registry.Close(content.Reference);
+                existing.View.ClearAndClose();
+                return "Native detail activation failed; no viewer or private render state was retained.";
+            }
         }
         var generation = state.Generation;
         var result = renderer.Render(content.Source, content.Kind, content.Reference);
@@ -103,8 +153,23 @@ public sealed partial class DetailWindowController : IDisposable
             return "Details unavailable: the privacy/input gate closed.";
         }
         var reference = content.Reference;
-        var view = createView(state, result,
-            (confirmed, selectionStart, selectionLength) => CopyAsync(reference, generation, confirmed, selectionStart, selectionLength));
+        IDetailView view;
+        try
+        {
+            view = createView(state, result,
+                (confirmed, selectionStart, selectionLength) => CopyAsync(reference, generation, confirmed, selectionStart, selectionLength));
+        }
+        catch (InvalidOperationException)
+        {
+            registry.Close(reference);
+            return "Native detail controls unavailable; no viewer or private render state was retained.";
+        }
+        if (!CanAccess(content) || state.Generation != generation || state.Content is null)
+        {
+            registry.Close(reference);
+            view.ClearAndClose();
+            return "Details unavailable: the exact source admission changed before opening.";
+        }
         view.Closed += (_, _) =>
         {
             windows.Remove(reference);
@@ -114,6 +179,13 @@ public sealed partial class DetailWindowController : IDisposable
         try
         {
             view.ShowOwned(owner);
+            if (!CanAccess(content) || state.Generation != generation || state.Content is null)
+            {
+                windows.Remove(reference);
+                registry.Close(reference);
+                view.ClearAndClose();
+                return "Details unavailable: the exact source admission changed while opening.";
+            }
             view.Activate();
         }
         catch (InvalidOperationException)
@@ -215,7 +287,11 @@ public sealed partial class DetailWindowController : IDisposable
     {
         if (disposed) { return; }
         disposed = true;
-        if (viewModel is not null) { viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested; }
+        if (viewModel is not null)
+        {
+            viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
+            viewModel.WebResultDetailsChanged -= OnWebResultDetailsChanged;
+        }
         ClearForPrivacy();
     }
 }

@@ -208,6 +208,7 @@ public sealed partial class MainViewModel
             return;
         }
         disposed = true;
+        RetireWebResultDetails();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
         // Refresh cancellation can release an awaiting caller before Dispose returns.
@@ -296,6 +297,7 @@ public sealed partial class MainViewModel
     internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
         WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        RetireWebResultDetails();
         speechCaption.Retire();
         uiDispatcher.Post(RetireSpeechCaption);
         if (hidePresentation)
@@ -866,7 +868,8 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
-        if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false
+        if (lifecycleAdmissionClosed || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
+            || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())
@@ -877,6 +880,7 @@ public sealed partial class MainViewModel
 
         Interlocked.Exchange(ref handoffPreparationActive, 1);
         lifecycleAdmissionClosed = true;
+        RetireWebResultDetails();
         ClearClipboardPreview();
         ClearFilePreview();
         HoldVoiceInput("Microphone closed · host handoff");

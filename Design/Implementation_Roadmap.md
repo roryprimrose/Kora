@@ -20,6 +20,22 @@ Update this baseline and the evidence below when implementation changes.
 
 ## Delivery and Qualification Dependency Policy
 
+### R14 Immutable Volatile Web-Result Native Details - 2026-10-10
+
+Delivered subset: actual successful bounded WebPageGet response → explicit exact-item native details → same immutable inert-text viewer/search/source/disclosure-gated copy.
+One current volatile host-issued reference/revision captures original admitted request/session/task/origin/control generation; replaced/private/stale/closed/cancelled sources are unavailable, never silently retargeted.
+
+Complete untrusted external provenance identifies requested/final URI, media type, redirect count, truncation, retrieval time, exact returned normalized text digest and limits. No HTML/body/server-identity or durable-history claim is made. Empty successful text stays empty. Fixed bounded chrome and complete 256 KiB native source preserve all text/metadata or fail explicitly.
+
+[Core snapshot tests](../tests/Kora.Core.UnitTests/Presentation/WebResultSnapshotTests.cs), [actual response/source lifecycle tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.WebDetails.cs) and [headless native response binding](../tests/Kora.Windows.IntegrationTests/WebResultDetailsBindingTests.cs) complement existing renderer/controller tests.
+Opening/reopening/search/close adds zero transport calls. Native failure is explicit; private copy binds the same original source gate.
+
+This does not add fetch permission, browser/resources/navigation, persistence/export/content logging, speech/captions, model context or provider transmission. The network descriptor stays Unavailable.
+Existing #159 transport/DNS/redirect/authorization behavior and #161 passive retained-receipt admission/copy remain unchanged; no transport/privacy-security review or installed native acceptance is claimed.
+
+Exact experiment-equivalence assessment: this slice replaces no complete experiment assertion set or maintained consumer. Preserve unique native privacy/resource/runtime/containment/transport/crypto/storage-copy/recovery receipts and RT1/RT2/management consumers; no experiment code or witness is deleted, rerun or relabelled.
+Durable conversation/knowledge/provider/general detail routing and installed visual/accessibility/DPI acceptance remain open.
+
 ### R12 Native Exact-Session Retention Controls - 2026-10-10
 
 Delivered subset: selected-ID passive UTC activity/archive/delete status and observed hold reasons; native two-step Keep/ordinary review, exact generation/state/exemption-audit CAS, trusted original-user intent/audit/terminal/readback and close/privacy/selection recovery. Done sessions use metadata authority without resume. Ordinary confirmation warns about unchanged soon/already-due recorded dates. No substantive activity, operation-grant/memory/recall authority, foreground cleanup or new policy default is introduced.

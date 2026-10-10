@@ -1023,6 +1023,21 @@ their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
 
+### R26.1g opt-in Markdown structure-aware retrieval - 2026-10-11
+
+Delivered native run-only selection over exact already-admitted volatile file/folder and retained Session snapshots. `lexical-lines-v1` remains the unchanged default; `markdown-structure-v2` is selected explicitly in each exact source view, never a saved/global setting. Unknown modes/returned versions deny rather than falling back.
+
+Bounded deterministic ATX/standalone Setext/fence scanning preserves exact inert lists/tables/code/links/authored alt text and original UTF-16 citations/heading locations. Oversized/incomplete structures are fragments, not false intact blocks. `.txt` uses original line chunks.
+No overlap or per-file result-budget inflation; shared OR ranking and all query/chunk/eight-citation/16 KiB bounds remain unchanged.
+
+Same shared `LocalFileSearch` action and admitted broker/retained validated-snapshot workflow; mode/query/source generations and terminal trust/audit/privacy/cancellation fences suppress stale work. No schema/body/index/preference/model/egress or new filesystem scope is added.
+See the [canonical supported subset](File_And_Folder_Ingestion.md#delivered-opt-in-markdown-structure-aware-retrieval---2026-10-11).
+
+[Golden v2/v1 evidence](../tests/Kora.Core.UnitTests/Context/LocalFileMarkdownRetrievalTests.cs), [run-generation tests](../tests/Kora.Application.UnitTests/Presentation/LocalFileSearchSelectionTests.cs) and [shared action tests](../tests/Kora.Tools.UnitTests/Files/LocalFileSearchTests.cs) cover this slice only.
+The [native selector consumer](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs) does not qualify full CommonMark/rendering, managed sources/model grounding/providers or installed-native acceptance.
+
+Experiment disposition: no detector/experiment/historical receipt is retired. Unique native/runtime/offline/resource, storage/migration/recovery, containment, RT1/RT2/MG1 and quality witnesses are not wholly superseded by pure original-snapshot lexical retrieval.
+
 ### R26.1f reviewed retained attachment replacement - 2026-10-10
 
 The [bounded replacement](File_And_Folder_Ingestion.md#delivered-reviewed-retained-attachment-replacement---2026-10-10) adds a fresh native picker and separate confirmation binding exact old source/storage/inventory to new metadata, original native intent and active session generation/control/lifetime.

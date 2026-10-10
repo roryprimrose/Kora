@@ -6,6 +6,7 @@ namespace Kora.Core.Context;
 public static class LocalFileRetrievalPolicy
 {
     public const string Version = "lexical-lines-v1";
+    public const string MarkdownVersion = "markdown-structure-v2";
     public const int MaximumQueryCharacters = 256;
     public const int MaximumQueryUtf8Bytes = 512;
     public const int MaximumTerms = 32;
@@ -16,6 +17,24 @@ public static class LocalFileRetrievalPolicy
     public const int MaximumExcerptUtf8Bytes = 16 * 1024;
     public const int MaximumTermFrequency = 16;
     private static readonly UTF8Encoding Utf8 = new(false, true);
+
+    public static bool TryVersion(LocalFileRetrievalMode mode, out string version)
+    {
+        version = mode switch
+        {
+            LocalFileRetrievalMode.LexicalLines => Version,
+            LocalFileRetrievalMode.MarkdownStructure => MarkdownVersion,
+            _ => "unsupported",
+        };
+        return mode is LocalFileRetrievalMode.LexicalLines or LocalFileRetrievalMode.MarkdownStructure;
+    }
+
+    internal static bool IsMarkdown(string canonicalPath)
+    {
+        LocalFilePolicy.ValidatePath(canonicalPath);
+        return canonicalPath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+            || canonicalPath.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static bool TryQuery(string query, out IReadOnlySet<string> terms)
     {

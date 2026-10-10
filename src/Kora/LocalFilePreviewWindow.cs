@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Controls;
 using Kora.Core.Context;
 using Kora.Core.Storage;
@@ -15,6 +16,7 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
     private NamedTextBlock content = CreateContent();
     private TextBox? queryBox;
     private NamedTextBlock? searchResults;
+    private LocalFileSearchSelection? searchSelection;
     private const string Disclosure =
         "One immutable volatile local preview only. May contain secrets. Documents and instructions are untrusted data.\n"
         + "Only bounded deterministic lexical retrieval of this exact admitted file or complete folder revision. No model, egress, execution, links, clipboard, history or automatic refresh.\n"
@@ -47,7 +49,8 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
             button, null);
     }
 
-    internal void ShowFolderRevision(LocalFolderRevision revision, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
+    internal void ShowFolderRevision(LocalFolderRevision revision,
+        Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
         Func<Task> refresh)
     {
         Title = "Immutable complete local folder preview (untrusted plain text)";
@@ -70,7 +73,8 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         ShowRefresh(body, refresh, folder: true);
     }
 
-    internal void ShowRevision(LocalFileRevision revision, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
+    internal void ShowRevision(LocalFileRevision revision,
+        Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
         Func<Task> refresh)
     {
         Title = "Immutable local file preview (untrusted plain text)";
@@ -111,7 +115,8 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
             + "\nSame canonical physical folder only; complete new inventory and separate confirmation required. Failure/cancel requires a fresh native selection.";
     }
 
-    private void ShowSearch(DockPanel body, Func<string, Task<LocalFileSearchResult>> search, Func<bool> isCurrent, bool folder)
+    private void ShowSearch(DockPanel body,
+        Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search, Func<bool> isCurrent, bool folder)
     {
         Height = 840;
         var query = new TextBox
@@ -123,14 +128,44 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         AutomationProperties.SetName(query, folder ? "Search only this exact complete admitted local folder revision"
             : "Search only this exact admitted local file revision");
         var results = new NamedTextBlock { TextWrapping = TextWrapping.Wrap };
+        var selection = new LocalFileSearchSelection();
+        searchSelection = selection;
         searchResults = results;
         AutomationProperties.SetName(results, "Exact lexical excerpts and revision citations");
+        var modes = new ComboBox
+        {
+            ItemsSource = new[] { "Lexical lines (default)", "Markdown structure-aware (opt-in, this view only)" },
+            SelectedIndex = 0,
+        };
+        AutomationProperties.SetName(modes, "Run-only retrieval mode for this exact admitted source");
+        modes.SelectionChanged += (_, _) =>
+        {
+            results.Text = null;
+            try
+            {
+                selection.Select(modes.SelectedIndex switch
+                {
+                    0 => LocalFileRetrievalMode.LexicalLines,
+                    1 => LocalFileRetrievalMode.MarkdownStructure,
+                    _ => (LocalFileRetrievalMode)(-1),
+                });
+            }
+            catch (InvalidOperationException)
+            {
+                reportFailure("Unsupported retrieval mode; select a supported mode. No fallback search or result claimed.");
+            }
+        };
+        query.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == TextBox.TextProperty) { selection.Invalidate(); results.Text = null; }
+        };
         var button = new Button { Content = "Search selected immutable revision locally" };
         button.Command = new AsyncCommand(async () =>
         {
             results.Text = null;
-            var result = await search(query.Text ?? string.Empty);
-            if (!isCurrent() || !ReferenceEquals(queryBox, query)) { return; }
+            var result = await selection.Run(query.Text ?? string.Empty, search,
+                () => isCurrent() && ReferenceEquals(queryBox, query));
+            if (result is null) { return; }
             results.Text = $"Outcome: {result.Outcome} / observed: {result.ObservedAt:O}\n"
                 + $"Policy: {result.PolicyVersion}; source observation is admission, not a current-path refresh.\n"
                 + $"Matching chunks: {result.MatchingChunks}; returned: {result.Citations.Count}; truncated: {result.Truncated}\n"
@@ -140,6 +175,8 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
                     $"{citation.DisplayIdentity} / source {citation.Source.SourceId:D} / revision {citation.Source.RevisionId:D} / item {citation.Source.ItemId:D}\n"
                     + $"SHA-256 {citation.Source.Digest} / lines {citation.StartLine}:{citation.StartColumn}–{citation.EndLine}:{citation.EndColumn} "
                     + $"/ UTF-16 [{citation.Start}, {citation.Start + citation.Length}) / heading {citation.Heading ?? "(none)"}\n"
+                    + (citation.HeadingContext is { } heading ? $"Authored heading: {heading.Line}:{heading.Column} / UTF-16 [{heading.Start}, {heading.Start + heading.Length})\n" : string.Empty)
+                    + (citation.IsStructuralFragment ? "Bounded structural fragment; not an intact section/block.\n" : string.Empty)
                     + $"Matched terms: {citation.MatchedTerms}; bounded frequency: {citation.BoundedFrequency}\n{citation.Excerpt}"));
         }, exception =>
         {
@@ -147,8 +184,18 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
             reportFailure("Local search unavailable; no result claimed. Failure type: " + exception.GetType().Name);
         });
         var panel = new StackPanel { Spacing = 4 };
+        panel.Children.Add(modes);
+        panel.Children.Add(new NamedTextBlock
+        {
+            Text = "Markdown opt-in: bounded ATX/standalone Setext sections and fenced code; not full CommonMark. "
+                + ".txt uses original line chunks. Exact inert lists/tables/links/authored alt text; no rendering, fetch, overlap or saved mode.",
+            TextWrapping = TextWrapping.Wrap,
+        });
         panel.Children.Add(query);
         panel.Children.Add(button);
+        var cancel = new Button { Content = "Cancel local search and clear citations" };
+        cancel.Click += (_, _) => { selection.Invalidate(); results.Text = null; };
+        panel.Children.Add(cancel);
         panel.Children.Add(new ScrollViewer { Content = results, Height = 180 });
         DockPanel.SetDock(panel, Dock.Bottom);
         body.Children.Insert(1, panel);
@@ -188,7 +235,8 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
             button, null, AttachmentDisclosure);
     }
 
-    internal void ShowAttachment(SessionFileAttachment attachment, Func<string, Task<LocalFileSearchResult>> search,
+    internal void ShowAttachment(SessionFileAttachment attachment,
+        Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search,
         Func<bool> isCurrent, Func<Task> remove, Func<Task>? replace = null)
     {
         Title = "Exact retained historical Session file (inert source)";
@@ -301,6 +349,8 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
 
     private void ClearContent()
     {
+        searchSelection?.Dispose();
+        searchSelection = null;
         content.Text = null;
         if (queryBox is not null) { queryBox.Text = null; }
         if (searchResults is not null) { searchResults.Text = null; }

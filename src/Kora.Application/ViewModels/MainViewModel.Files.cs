@@ -137,44 +137,52 @@ public sealed partial class MainViewModel
         activity.Complete(outcome == LocalFileOutcome.Reviewed ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
     }
 
-    public async Task<LocalFileSearchResult> SearchFileAsync(LocalFileReference exactSource, string query)
+    public Task<LocalFileSearchResult> SearchFileAsync(LocalFileReference exactSource, string query) =>
+        SearchFileAsync(exactSource, query, LocalFileRetrievalMode.LexicalLines, CancellationToken.None);
+
+    public async Task<LocalFileSearchResult> SearchFileAsync(LocalFileReference exactSource, string query,
+        LocalFileRetrievalMode mode, CancellationToken cancellationToken)
     {
         var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
         var callRevision = CallPolicyRevision;
         if (origin != RequestOrigin.LocalUi || fileSearch is null || FileRevision is not { } admitted
             || admitted.Reference != exactSource || !IsClipboardEligible(origin, callRevision))
         {
-            return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, DateTimeOffset.UtcNow);
+            return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, DateTimeOffset.UtcNow, mode);
         }
         var request = new HostRequest(new(Guid.NewGuid()), admitted.Review.Request.SessionId, admitted.Review.Request.TaskId, origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
             [new ActivityLink(admitted.Review.Cause)]);
-        var result = await fileSearch.ExecuteAsync(exactSource, query,
-            () => IsClipboardEligible(origin, callRevision), CancellationToken.None);
+        var result = await fileSearch.ExecuteAsync(exactSource, query, mode,
+            () => IsClipboardEligible(origin, callRevision), cancellationToken);
         // Native-only text input bypasses transcripts, speech, history and model routing.
         result = FileRevision?.Reference == exactSource && IsClipboardEligible(origin, callRevision)
-            ? result : LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, result.ObservedAt);
+            ? result : LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, result.ObservedAt, mode);
         activity.Complete(result.Outcome is LocalFileSearchOutcome.Matched or LocalFileSearchOutcome.NoMatch
             ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
         return result;
     }
 
-    public async Task<LocalFileSearchResult> SearchFolderAsync(LocalFolderReference exactSource, string query)
+    public Task<LocalFileSearchResult> SearchFolderAsync(LocalFolderReference exactSource, string query) =>
+        SearchFolderAsync(exactSource, query, LocalFileRetrievalMode.LexicalLines, CancellationToken.None);
+
+    public async Task<LocalFileSearchResult> SearchFolderAsync(LocalFolderReference exactSource, string query,
+        LocalFileRetrievalMode mode, CancellationToken cancellationToken)
     {
         var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
         var callRevision = CallPolicyRevision;
         if (origin != RequestOrigin.LocalUi || fileSearch is null || FolderRevision is not { } admitted
             || admitted.Reference != exactSource || !IsClipboardEligible(origin, callRevision))
         {
-            return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, DateTimeOffset.UtcNow);
+            return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, DateTimeOffset.UtcNow, mode);
         }
         var request = new HostRequest(new(Guid.NewGuid()), admitted.Review.Request.SessionId, admitted.Review.Request.TaskId, origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
             [new ActivityLink(admitted.Review.Cause)]);
-        var result = await fileSearch.ExecuteAsync(exactSource, query,
-            () => IsClipboardEligible(origin, callRevision), CancellationToken.None);
+        var result = await fileSearch.ExecuteAsync(exactSource, query, mode,
+            () => IsClipboardEligible(origin, callRevision), cancellationToken);
         result = FolderRevision?.Reference == exactSource && IsClipboardEligible(origin, callRevision)
-            ? result : LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, result.ObservedAt);
+            ? result : LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, result.ObservedAt, mode);
         activity.Complete(result.Outcome is LocalFileSearchOutcome.Matched or LocalFileSearchOutcome.NoMatch
             ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
         return result;

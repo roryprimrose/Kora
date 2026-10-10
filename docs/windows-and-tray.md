@@ -95,6 +95,20 @@ Use native **Refresh this file preview** / **Refresh this folder preview**, or e
 There is no automatic refresh, watcher, recursion, registry, durable attachment, knowledge/persistent-index/reasoning authority. Same privacy/ownership/call/control/lifetime and native release fences apply; unverified release blocks clean handoff/exit until recovery.
 See [commands and limits](commands.md#explicit-local-file-preview).
 
+### Opt-in Markdown search in an exact file view
+
+In an admitted file/folder preview or **Inspect retained attachment**, choose **Markdown structure-aware (opt-in, this view only)**, then **Search selected immutable revision locally**. New/reopened/replaced views always start at **Lexical lines (default)** / `lexical-lines-v1`; no preference/global mode is saved.
+
+The second mode reports `markdown-structure-v2`. Markdown files use bounded top-level ATX/standalone Setext sections and backtick/tilde fences; `.txt` keeps original line chunks. Lists, tables, code, links and authored image alt text stay exact inert text. It is not a full CommonMark parser, renderer, image reader, download or AI answer.
+
+Oversized/incomplete sections/code are labelled **structural fragments**. Citations still show the original exact revision/digest and UTF-16 locations; bounded authored heading locations are separate context. Queries are unchanged and remain native-only, never history/model/log/clipboard data.
+
+Changing query/mode or **Cancel local search and clear citations** clears results and suppresses late old work. Source replacement, privacy/ownership loss and close retain the same revocation fences. Unknown policies fail explicitly, not into defaults. Retained files are historical snapshots, not a new original-path observation.
+
+Unchanged limits: 256 UTF-16 characters / 512 UTF-8 query bytes, 32 unique terms / 64 characters per term; 2,048-character / 128-line chunks; eight citations / 16 KiB combined UTF-8 excerpts **once for a whole folder**. No overlap/duplicate-count inflation or new read/retention/egress permission is added.
+
+See the [precise supported subset, unsupported formats and maintained evidence](../Design/File_And_Folder_Ingestion.md#delivered-opt-in-markdown-structure-aware-retrieval---2026-10-11). Model grounding, managed knowledge, OCR/vector retrieval and installed/accessibility acceptance remain unavailable or separately gated.
+
 ## Kora's presence
 
 Kora's presence is the animated group of dots that communicates the assistant's

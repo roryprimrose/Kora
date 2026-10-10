@@ -2,6 +2,9 @@
 
 A Windows voice-first, local-first assistant.
 
+See the [feature guide](features.md) for a plain-language overview of what is
+delivered, partly delivered, and not yet available, with links to usage instructions.
+
 The runnable bootstrap includes an Avalonia desktop shell with an ambient
 particle-cloud presence, deterministic host-owned C# built-in actions, Windows speech
 and optional local Kokoro speech output, local storage and SQLite, and a

@@ -562,6 +562,15 @@ not send cookies, ambient credentials, proxy credentials, referrers, or a model
 conversation. HTML is returned as bounded normalized text; scripts, styles,
 markup and external resources are not executed or loaded.
 
+After success, select **Open exact web-result details** in the actual response. This opens the same immutable, volatile native plain-text result, not the website. Search, exact source, reopen and close perform no additional network request or navigation.
+The viewer shares the existing eight-window limit and private copy requires explicit disclosure confirmation.
+
+Complete source provenance shows requested/final addresses, media type, redirect count, retrieval time, truncation and the SHA-256 of **exact returned normalized text**, not original HTML or current server content.
+Limits are 256 KiB raw content / 60 KiB normalized text / 64 KiB serialized tool result; complete native source including metadata is bounded to 256 KiB UTF-8 with explicit failure, not further truncation. Empty successful text stays empty.
+
+Only the current result is retained in memory. A later response, dismiss/response close, cancellation, privacy/ownership/call/control change or disposal retires its reference and viewer/copy access; an old button never selects a newer page.
+Closing details alone changes only presentation and allows reopening while that source is still current. No page content is saved, spoken, captioned, logged, exported or sent to a model.
+
 The canonical future model tool is `network.get_web_page`, but its model-facing
 descriptor remains unavailable until Kora's parameterized tool/result loop and
 durable approval resumption are qualified. Preapproved address patterns will

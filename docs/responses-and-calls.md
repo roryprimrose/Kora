@@ -55,6 +55,15 @@ See [Settings and explicit recovery](settings.md#in-call-feedback-override) and
 
 ## Visual response window
 
+Successful [explicit web retrieval](commands.md#retrieve-an-explicit-web-page) offers **Open exact web-result details** only for that actual current host-issued result.
+Its separate native reader displays inert exact normalized text and complete untrusted provenance, never a browser/live page, embedded guide or durable conversation record. Long addresses stay complete in bounded source rather than trusted chrome.
+
+Open/reopen/search/source/close makes no network call and cannot answer questions, consume approval or change tasks/sessions. Private copy requires the existing explicit disclosure control and unchanged original source admission.
+One current volatile web snapshot is discarded on response replacement/close/dismiss, cancellation, privacy/ownership/call/control retirement or disposal; older controls/viewers cannot retarget new results. Closing details alone is presentation-only.
+
+The retrieval's raw/text/serialized bounds are unchanged; complete metadata plus exact text must fit native-text-v1's 256 KiB source or report an explicit failure. An empty successful body stays honestly empty.
+Opening details does not create speech/captions, persistence/export, diagnostic content or model/provider transmission. Ordinary response speech and mandatory question/approval cards remain independent. As a privacy-coupled exception, retiring a web snapshot also clears only its still-matching compact response body, not an unrelated later response.
+
 Optional [local speech text](settings.md#local-speech-text) is separate from the
 answer panel. It defaults to Off and shows only exact host-admitted current
 utterance playback, never queued/failed/suppressed text. It clears immediately

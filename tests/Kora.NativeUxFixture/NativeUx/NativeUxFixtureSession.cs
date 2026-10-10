@@ -120,7 +120,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal MainViewModel Main => main ?? throw new InvalidOperationException("The native fixture has not initialized its presentation state.");
     internal IUserDocumentationProvider Documents { get; } = new EmbeddedUserDocumentationProvider();
 
-    internal async Task InitializeAsync()
+    internal Task InitializeAsync() => InitializeAsync(null);
+
+    internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -178,7 +180,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
-            clipboard, new(clipboard), new(clipboard), new(clipboard), speechTextConfiguration: captionConfiguration);
+            clipboard, new(clipboard), new(clipboard), new(clipboard), speechTextConfiguration: captionConfiguration,
+            webPageGet: webPageGet);
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);
         await Main.InitializeAsync();

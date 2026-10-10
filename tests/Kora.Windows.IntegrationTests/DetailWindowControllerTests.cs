@@ -17,6 +17,84 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed class DetailWindowControllerTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("exact 😀 <script>not code</script> https://example.com/image ![x](https://example.com/x)")]
+    public async Task WebResultOpensSameInertExactViewerSearchSourceAndPrivateCopyWithoutRetrieval(string text)
+    {
+        using var f = new Fixture();
+        var content = WebContent(text);
+        AdmittedDetailContent? current = content;
+        f.Controller.BindWebResultSource(reference => current?.Reference == reference ? current : null);
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("plain text");
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("Activated");
+        var view = f.Views.Single();
+        view.State.Content.Should().BeSameAs(content);
+        view.State.ActiveText.Should().Be(content.Source);
+        view.State.Search("VOLATILE").Should().BeTrue();
+        view.State.SetSource(true);
+        view.State.ActiveText.Should().Be(content.Source);
+        view.Activations.Should().Be(2);
+        await f.Controller.CopyAsync(content.Reference, view.State.Generation, false);
+        f.Clipboard.Writes.Should().BeEmpty();
+        await f.Controller.CopyAsync(content.Reference, view.State.Generation, true);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(content.Source);
+        view.ClearAndClose();
+        content.WebResult!.Text.Should().Be(text);
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("plain text");
+        f.Views.Should().HaveCount(2);
+        current = WebContent("different later response");
+        var generation = f.Views[1].State.Generation;
+        // Resolving/inspecting a stale owner never grants it new content.
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("no longer current");
+        f.Views[1].State.Search("exact").Should().BeFalse();
+        f.Views[1].State.Content.Should().BeNull();
+        await f.Controller.CopyAsync(content.Reference, generation, true);
+        f.Clipboard.Writes.Should().ContainSingle();
+        f.Controller.RetireUnavailableWebResults();
+        f.Views[1].Cleared.Should().BeTrue();
+        f.Controller.OpenWebResult(current.Reference, null).Should().Contain("plain text");
+        f.Views.Should().HaveCount(3);
+        current = null;
+        f.Controller.RetireUnavailableWebResults();
+        f.Views[2].State.ActiveText.Should().BeEmpty();
+        f.Views[2].Cleared.Should().BeTrue();
+    }
+
+    [Fact]
+    public void WebDetailRouteFailsClosedForUnboundForeignReclassifiedAndFailedNativeSources()
+    {
+        using var f = new Fixture();
+        var content = WebContent("text");
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("unavailable");
+        f.Controller.BindWebResultSource(_ => new(content.Reference, DetailContentKind.PlainText,
+            DetailContentOrigin.EmbeddedDocument, DetailSensitivity.Public, "Not web", "Embedded", "other"));
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("unavailable");
+        f.Controller.BindWebResultSource(reference => reference == content.Reference ? content : null);
+        f.Controller.OpenWebResult(new(new(Guid.NewGuid()), 1), null).Should().Contain("unavailable");
+        f.Accessible = false;
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("privacy");
+        f.Views.Should().BeEmpty();
+        f.Accessible = true;
+        f.FailCreate = true;
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("controls unavailable");
+        f.Views.Should().BeEmpty();
+        f.FailCreate = false;
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("plain text");
+        f.Views.Single().FailActivation = true;
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("activation failed");
+        f.Views.Single().Cleared.Should().BeTrue();
+        f.Controller.OpenWebResult(content.Reference, null).Should().Contain("plain text");
+        f.Controller.Dispose();
+        f.Views.Should().OnlyContain(view => view.Cleared);
+    }
+
+    private static AdmittedDetailContent WebContent(string text) =>
+        WebResultSnapshot.Capture(new(new(Guid.NewGuid()), 1), HostRequest.Create(RequestOrigin.LocalUi), 1,
+            new("https://example.com/request"),
+            new(Kora.Core.Network.WebPageGetOutcome.Succeeded, "retrieved", new("https://example.com/final"),
+                "text/plain", text), DateTimeOffset.UtcNow);
+
     [WindowsFact]
     public async Task Due_retention_clears_history_viewers_before_inventoried_deletion_and_never_resolves_purged_identity()
     {
@@ -298,6 +376,7 @@ public sealed class DetailWindowControllerTests
                 new(NullLogger<NativeDetailRenderer>.Instance, rendererAvailable), Clipboard,
                 (state, _, _) =>
                 {
+                    if (FailCreate) { throw new InvalidOperationException("fake unavailable native controls"); }
                     var view = new FakeView(state);
                     Views.Add(view);
                     return view;
@@ -307,6 +386,7 @@ public sealed class DetailWindowControllerTests
         public FakeClipboard Clipboard { get; } = new();
         public List<FakeView> Views { get; } = [];
         public bool Accessible { get; set; } = true;
+        public bool FailCreate { get; set; }
         public Func<bool>? AccessGate { get; set; }
         public DetailWindowController Controller { get; }
         public void Dispose() => Controller.Dispose();
@@ -324,9 +404,14 @@ public sealed class DetailWindowControllerTests
         public DetailViewerState State { get; } = state;
         public bool Cleared { get; private set; }
         public int Activations { get; private set; }
+        public bool FailActivation { get; set; }
         public event EventHandler? Closed;
         public void ShowOwned(Window? owner) { }
-        public void Activate() => Activations++;
+        public void Activate()
+        {
+            if (FailActivation) { throw new InvalidOperationException("fake activation unavailable"); }
+            Activations++;
+        }
         public void ClearAndClose()
         {
             if (Cleared) { return; }

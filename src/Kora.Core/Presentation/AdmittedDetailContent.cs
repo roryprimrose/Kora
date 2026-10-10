@@ -21,7 +21,8 @@ public sealed class AdmittedDetailContent
         string provenance,
         string source,
         DetailSessionSource? sessionSource = null,
-        HostId<SessionIdentity>? historySession = null)
+        HostId<SessionIdentity>? historySession = null,
+        WebResultSnapshot? webResult = null)
     {
         using var admission = ActivitySource.StartActivity("presentation.admit");
         admission?.SetStatus(ActivityStatusCode.Error);
@@ -53,6 +54,16 @@ public sealed class AdmittedDetailContent
             throw new InvalidDataException("History details require their exact retained session ownership.");
         }
         historySession?.Validate();
+        if ((origin == DetailContentOrigin.RetrievedWebResult) != (webResult is not null))
+        {
+            throw new InvalidDataException("Retrieved web details require their exact host-captured snapshot.");
+        }
+        if (webResult is not null && (kind != DetailContentKind.PlainText
+            || sensitivity != DetailSensitivity.DisclosureConfirmationRequired
+            || reference != webResult.Reference || !string.Equals(source, webResult.Source, StringComparison.Ordinal)))
+        {
+            throw new InvalidDataException("Web-result source, reference and inert disclosure classification cannot change.");
+        }
         Reference = reference;
         Kind = kind;
         Origin = origin;
@@ -62,6 +73,7 @@ public sealed class AdmittedDetailContent
         Source = source;
         SessionSource = sessionSource;
         HistorySession = historySession;
+        WebResult = webResult;
         Utf8Bytes = byteCount;
         Digest = Convert.ToHexString(SHA256.HashData(encoding.GetBytes(source)));
         admission?.SetTag("kora.item.id", reference.ItemId.Value);
@@ -81,6 +93,7 @@ public sealed class AdmittedDetailContent
     public string Source { get; }
     public DetailSessionSource? SessionSource { get; }
     public HostId<SessionIdentity>? HistorySession { get; }
+    public WebResultSnapshot? WebResult { get; }
     public int Utf8Bytes { get; }
     public string Digest { get; }
 
@@ -92,6 +105,7 @@ public sealed class AdmittedDetailContent
             && string.Equals(Title, other.Title, StringComparison.Ordinal)
             && string.Equals(Provenance, other.Provenance, StringComparison.Ordinal)
             && string.Equals(Source, other.Source, StringComparison.Ordinal)
-            && SessionSource == other.SessionSource && Nullable.Equals(HistorySession, other.HistorySession);
+            && SessionSource == other.SessionSource && Nullable.Equals(HistorySession, other.HistorySession)
+            && ReferenceEquals(WebResult, other.WebResult);
     }
 }

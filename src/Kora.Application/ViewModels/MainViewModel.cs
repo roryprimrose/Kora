@@ -908,6 +908,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool IsCancelTaskVisible => IsLocalTaskCancellable || IsSpeaking || clipboardPreview.IsReading
+        || IsWebPageRetrievalActive || HasWebResultDetails
         || filePreview?.IsBusy == true || FileReview is not null || FileRevision is not null
         || FolderReview is not null || FolderRevision is not null;
 
@@ -1745,7 +1746,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => responseTitle;
         private set
         {
-            if (SetProperty(ref responseTitle, value)) { RetireSpeechCaptionSource(); }
+            if (SetProperty(ref responseTitle, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(); }
         }
     }
 
@@ -1754,8 +1755,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => responseBody;
         private set
         {
+            Interlocked.Increment(ref webResponseRevision);
             sessionPresentationSources.Clear();
-            if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); }
+            if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(); }
         }
     }
 
@@ -2327,6 +2329,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void HideApplication()
     {
+        RetireWebResultDetails();
         if (IsResponseInteractionPending)
         {
             ClearPendingModelAction("dismissed");
@@ -2348,8 +2351,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public void HidePresentation() =>
+    public void HidePresentation()
+    {
+        RetireWebResultDetails();
         WindowActionRequested?.Invoke(this, WindowAction.Hide);
+    }
 
     public void NotifyPresenceInteraction() =>
         WindowActionRequested?.Invoke(this, WindowAction.ShowPresence);
@@ -2784,6 +2790,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
         lifecycleAdmissionClosed = true;
+        RetireWebResultDetails();
+        await StopWebPageRetrievalAsync();
         ClearClipboardPreview();
         ClearFilePreview();
         HoldVoiceInput("Microphone closed · application exiting");
@@ -4616,6 +4624,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task CancelCurrentTaskAsync()
     {
+        RetireWebResultDetails();
+        if (webPageCancellation is { } webCancellation) { await webCancellation.CancelAsync(); }
         RetireSpeechCaption();
         textToSpeech.InvalidateOutput();
         ClearClipboardPreview();
@@ -5409,8 +5419,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         string title,
         string body,
         bool requestWindow = true,
-        bool refreshOutput = true)
+        bool refreshOutput = true,
+        Action? sourceAssigned = null)
     {
+        RetireWebResultDetails();
         RetireSpeechCaptionSource();
         ClearResponseActions();
         if (!isInitializing && refreshOutput
@@ -5428,6 +5440,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ResponseBody = body;
         forceVisualResponse = ShouldForceVisualResponse(
             IsGrantEditorVisible, IsResponseInteractionPending, responseState);
+        sourceAssigned?.Invoke();
         NotifyOutputPolicyChanged();
         if (!isInitializing
             && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()

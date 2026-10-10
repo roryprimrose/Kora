@@ -774,6 +774,18 @@ Supporting application presentation/failure tests passed 34 and Windows exact
 store/window tests passed 20, with no skips. The root Release build had zero
 warnings/errors. These groups overlap and are not a full-repository pass total.
 
+After merging current main (#164) without rewriting the implementation history,
+fresh preparation passed 110 tests and the application/store/window and no-launch
+checks passed again. Two further identical-byte native runs passed all eight
+exact-grant rows; the unchanged default fixture passed its five native baseline
+rows. All three final processes exited 0, had empty stderr, cleaned their exact
+scratch children, required no force and were absent at sealing. The final
+build-input digest was
+`9076a676d89a45bac6638ff599eaab41f26fe252b24d5d55e87fbee154ac93a9`
+over 1,555 files at merge `baf7cf5`. These runs applied the original precise
+11:57:18.6723718 UTC cutoff; no additional hour was started. The earlier
+accepted source-bound summary remains unchanged rather than repinned.
+
 Earlier preparation and failed native attempts remain unchanged local evidence.
 Native trials exposed stock row names containing multiple correlation IDs, an
 uninitialized stock list scroll provider, cross-thread native visibility

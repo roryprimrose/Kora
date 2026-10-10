@@ -428,7 +428,7 @@ public sealed class NativeUxFixtureContractTests
     }
 
     [Fact]
-    public async Task Native_work_peer_exposes_new_pending_rows_after_retained_terminal_rows_without_window_recreation()
+    public async Task Native_work_peer_exposes_new_pending_rows_by_scrolling_after_retained_terminal_rows_without_window_recreation()
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -455,6 +455,14 @@ public sealed class NativeUxFixtureContractTests
                 await viewer.EnqueueVersionAsync();
                 records.UpdateLayout();
                 var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
+                var provider = peer.GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
+                provider.VerticallyScrollable.Should().BeTrue();
+                foreach (var percent in new double[] { 0, 25, 50, 75, 100 })
+                {
+                    provider.SetScrollPercent(-1, percent);
+                    records.UpdateLayout();
+                    if (records.ContainerFromItem(pending) is not null) { break; }
+                }
                 records.ContainerFromItem(pending).Should().NotBeNull();
                 Descendants(peer).Should().Contain(child => child.GetName().Contains(pending.TaskId.ToString("D"), StringComparison.Ordinal));
             }

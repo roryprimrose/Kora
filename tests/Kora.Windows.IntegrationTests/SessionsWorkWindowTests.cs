@@ -1,5 +1,6 @@
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 
 using AwesomeAssertions;
 
@@ -9,6 +10,7 @@ using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.NativeUxFixture;
 using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
@@ -20,6 +22,53 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SessionsWorkWindowTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Worker_thread_lifecycle_revocation_closes_matching_window_and_preserves_unrelated_work(bool matching)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            using var controller = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence,
+                fixture.Access, NullLogger<SessionsViewModel>.Instance);
+            SessionsWindow? opened = null;
+            using var observation = Window.WindowOpenedEvent.AddClassHandler<SessionsWindow>((window, _) => opened = window);
+            controller.Bind();
+            controller.Open();
+            opened.Should().NotBeNull();
+            var viewer = (SessionsViewModel)opened!.DataContext!;
+            await viewer.RefreshAsync();
+            var target = fixture.LifecycleTarget!;
+            var selected = matching ? viewer.Sessions.Single(entry => entry.Authority.SessionId == target.SessionId)
+                : viewer.Sessions.First(entry => entry.Authority.SessionId != target.SessionId);
+            await viewer.SelectAsync(selected);
+            var selectedObservation = viewer.SelectedSessionRecord;
+            var rows = viewer.WorkRecords.ToArray();
+            var changed = await Task.Run(fixture.AdvanceLifecycleTargetAsync);
+            changed.Generation.Value.Should().Be(target.Generation.Value + 1);
+            if (matching)
+            {
+                opened.IsVisible.Should().BeFalse();
+                viewer.CanRead.Should().BeFalse();
+                viewer.WorkRecords.Should().BeEmpty();
+                viewer.ReferencesSession(target.SessionId).Should().BeFalse();
+            }
+            else
+            {
+                opened.IsVisible.Should().BeTrue();
+                viewer.SelectedSessionRecord.Should().BeSameAs(selectedObservation);
+                viewer.WorkRecords.Should().Equal(rows);
+                viewer.Sessions.Should().BeEmpty("list metadata is revoked without retargeting unrelated work");
+                viewer.Status.Should().Contain("Rows and search continuation revoked");
+            }
+            controller.Dispose();
+            await Task.Run(() => controller.RevokeSession(target.SessionId));
+            opened.IsVisible.Should().BeFalse();
+        });
+    }
+
     [WindowsFact]
     public async Task Retention_invalidation_preserves_unrelated_work_and_closure_clears_matching_live_work()
     {

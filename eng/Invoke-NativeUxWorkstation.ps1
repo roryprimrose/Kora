@@ -147,9 +147,19 @@ function Select-SessionId {
     param([Windows.Automation.AutomationElement] $Window, [string] $Id)
     $list = Get-NamedElement $Window 'Durable session names, exact IDs, lifecycle and optimistic revisions'
     $item = Wait-Native {
-        $matches = @(Get-ListItems $list | Where-Object { (Get-NativeText $_).Contains($Id, [StringComparison]::Ordinal) })
-        if ($matches.Count -gt 1) { throw 'Exact immutable session ID was not unique in the native snapshot.' }
-        if ($matches.Count -eq 1) { $matches[0] }
+        $scroll = $null
+        $hasScroll = $list.TryGetCurrentPattern([Windows.Automation.ScrollPattern]::Pattern, [ref]$scroll)
+        foreach ($percent in 0, 25, 50, 75, 100) {
+            Assert-TrialTime
+            Assert-OwnedElement $list
+            if ($hasScroll -and $scroll.Current.VerticallyScrollable) {
+                $scroll.SetScrollPercent([Windows.Automation.ScrollPattern]::NoScroll, $percent)
+                Start-Sleep -Milliseconds 150
+            }
+            $matches = @(Get-ListItems $list | Where-Object { (Get-NativeText $_).Contains($Id, [StringComparison]::Ordinal) })
+            if ($matches.Count -gt 1) { throw 'Exact immutable session ID was not unique in the native snapshot.' }
+            if ($matches.Count -eq 1) { return $matches[0] }
+        }
     } 'populated native snapshot containing the exact immutable session ID'
     Select-NativeItem $item
     $null = Wait-Native {
@@ -418,19 +428,19 @@ try {
         $window = Open-Window 'Sessions (scratch IDs, guarded Done/resume)' 'Sessions - authoritative work and durable history'
         Invoke-Id $window 'Refresh'
         Select-SessionId $window $id
+        $oldHandle = $window.Current.NativeWindowHandle
         Invoke-Named $script:launcher 'Advance exact synthetic lifecycle target without UI refresh'
         $null = Wait-Native { (Get-NamedElement $script:launcher 'Native fixture status' -Prefix).Current.Name.Contains("generation $($generation + 1), Active False", [StringComparison]::Ordinal) } 'synthetic lifecycle generation advanced'
-        Invoke-Named $window 'Explicitly mark the displayed selected session ID Done using its expected generation'
-        $refusal = Wait-Native {
-            $status = (Get-NamedElement $window 'Sessions status and unavailable reasons' -Prefix).Current.Name
-            if ($status.Contains('Sessions unavailable/denied:', [StringComparison]::Ordinal)) { $status }
-        } 'stale lifecycle action refused'
+        $null = Wait-Native {
+            @(Get-OwnedWindows | Where-Object { $_.Current.NativeWindowHandle -eq $oldHandle }).Count -eq 0
+        } 'old-generation native session window revoked'
+        $window = Open-Window 'Sessions (scratch IDs, guarded Done/resume)' 'Sessions - authoritative work and durable history'
         Invoke-Id $window 'Refresh'
         Select-SessionId $window $id
         $current = Get-SessionDetail $window
-        Check-Native ($current.Contains("Session $id | Done | generation $($generation + 1)", [StringComparison]::Ordinal)) 'Refused stale action must not advance or replace the immutable session.'
+        Check-Native ($current.Contains("Session $id | Done | generation $($generation + 1)", [StringComparison]::Ordinal)) 'Reopening the revoked view must preserve the exact session and observe only its newly committed generation.'
         Close-OwnedWindow $window
-        @{ oldGenerationRefused = $true; immutableIdPreserved = $true; actualGeneration = $generation + 1; explicitRefusal = $refusal }
+        @{ oldGenerationRevoked = $true; referencedWindowClosed = $true; immutableIdPreserved = $true; actualGeneration = $generation + 1 }
     }
     Trial 'W07-native-owned-window-display-mechanics' {
         Add-Type -TypeDefinition @'
@@ -689,15 +699,26 @@ public static class NativeUxWindowPlacement
             if ($text -cmatch 'Committed empty Active session ([a-f0-9-]{36})\.') { $Matches[1] }
         } 'exact new disposable synthetic session ID'
         Check-Native ($id -cne $script:sessionA -and $id -cne $script:sessionB) 'Logical disposition trial must address only its new metadata-only subject.'
+        $oldHandle = $window.Current.NativeWindowHandle
         Invoke-Id $window 'Done'
+        $null = Wait-Native {
+            @(Get-OwnedWindows | Where-Object { $_.Current.NativeWindowHandle -eq $oldHandle }).Count -eq 0
+        } 'Done revokes the exact referenced native window'
+        $window = Open-Window 'Sessions (scratch IDs, guarded Done/resume)' 'Sessions - authoritative work and durable history'
+        Invoke-Id $window 'Refresh'
+        Select-SessionId $window $id
         $null = Wait-Native { (Get-SessionDetail $window).Contains("Session $id | Done | generation 2", [StringComparison]::Ordinal) } 'exact new session made Done before logical disposition'
         Invoke-Id $window 'PreviewDisposition'
         $preview = Wait-Native { $text = Get-SessionDetail $window; if ($text.Contains("Exact session ID: $id", [StringComparison]::Ordinal)) { $text } } 'exact native logical-disposition preview'
         Check-Native ($preview.Contains('Generation: 2', [StringComparison]::Ordinal) -and
             $preview.Contains('Metadata revision: 1', [StringComparison]::Ordinal) -and
             (Get-NamedElement $window 'Sessions status and unavailable reasons' -Prefix).Current.Name.Contains('Preview only; nothing removed.', [StringComparison]::Ordinal)) 'Preview must retain exact revisions and honestly disclose no deletion yet.'
+        $oldHandle = $window.Current.NativeWindowHandle
         Invoke-Id $window 'ConfirmDisposition'
-        $null = Wait-Native { (Get-NamedElement $window 'Sessions status and unavailable reasons' -Prefix).Current.Name.Contains("Committed logical disposition for $id at tombstone generation 3.", [StringComparison]::Ordinal) } 'exact confirmed synthetic logical disposition'
+        $null = Wait-Native {
+            @(Get-OwnedWindows | Where-Object { $_.Current.NativeWindowHandle -eq $oldHandle }).Count -eq 0
+        } 'exact confirmed disposition revokes the referenced native window'
+        $window = Open-Window 'Sessions (scratch IDs, guarded Done/resume)' 'Sessions - authoritative work and durable history'
         Check-Native (!(Get-IdElement $window 'ConfirmDisposition').Current.IsEnabled -and
             !(Get-IdElement $window 'Resume').Current.IsEnabled -and !(Get-IdElement $window 'EnqueueVersion').Current.IsEnabled) 'Cleared disposed selection must not retain lifecycle, confirmation or execution eligibility.'
         Set-NativeValue $window 'Exact immutable session ID for passive history; names do not select sessions' $id
@@ -718,6 +739,7 @@ public static class NativeUxWindowPlacement
         $null = Wait-Native { (Get-NamedElement $window 'Selected exact session work snapshot, revisions, observation time, capacity and gaps' -Prefix).Current.Name.Contains("Exact session $script:sessionA | generation 1", [StringComparison]::Ordinal) } 'unrelated exact native session retained after disposition'
         Close-OwnedWindow $window
         @{ previewWasNonDestructive = $true; deliberateExactConfirmation = $true; tombstoneGeneration = 3
+            referencedWindowsRevoked = $true
             historyCitationCount = @($history.records).Count; metadataOnlyHistoryPreserved = $true
             unrelatedSubjectUnchanged = $true; forbiddenForensicDeletionClaim = $false; privateContentCreated = 0 }
     }

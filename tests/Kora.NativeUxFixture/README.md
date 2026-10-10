@@ -160,11 +160,11 @@ The extended rows cover:
 | W03 | Three guide/detail lifetime cycles, read-only source bytes matching the immutable digest, retained owner and refused closed-generation rendering |
 | W04 | Every default bundled package file tab's source digest, original byte count and read-only value; execution unavailable |
 | W05 | Native retained/missing explicit trace segments and session-confined removal of cross-session navigation authority |
-| W06 | Refuse an old displayed session generation, then explicitly refresh the same immutable subject |
+| W06 | Revoke the native window referencing a changed session generation, then explicitly reopen and read the same immutable subject |
 | W07 | Resize/move only an owned Settings HWND across enumerated work areas; actual native DPI/bounds, exact selector focus and original placement restoration |
 | W08 | Exact pending queue inspection/removal and retained receipt, passive focused work without dispatch, deliberate two-session local-version dispatch and exact terminal observations |
 | W09 | Discover the exact newly added pending task by native scrolling after retained terminal rows; synthetic private-window clearing/no replay and zero dispatch of old-epoch work after reopening; explicitly clear its sole pending entry |
-| W10 | Deliberate metadata-only session disposition after exact preview, retained tombstone/history citations and unaffected unrelated subject |
+| W10 | Deliberate metadata-only session disposition after exact preview, native revocation/reopening, retained tombstone/history citations and unaffected unrelated subject |
 
 Native history completions require the newly addressed ID, not retained JSON
 from a prior read. Window/descendant retirement permits only bounded discovery

@@ -308,7 +308,12 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
                 session.Access, NullLogger<SessionsViewModel>.Instance, session.OverflowEvents);
             sessions.Bind();
             controllers.Add(sessions);
-            if (session.SilentSpeech is not null) { controllers.Add(new SpeechCaptionWindowController(session.Main)); }
+            if (session.SilentSpeech is not null)
+            {
+                var caption = new SpeechCaptionWindow(session.Main);
+                controllers.Add(new SpeechCaptionWindowController(session.Main, caption,
+                    new AvaloniaCaptionDisplaySource(caption.Screens)));
+            }
             session.Main.PrivacyClosureRequested += OnPrivacyClosure;
             session.Main.PropertyChanged += OnMainChanged;
             ready = true;

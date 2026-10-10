@@ -1,3 +1,5 @@
+using Avalonia.Threading;
+
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
 using Kora.Application.Interaction;
@@ -47,6 +49,13 @@ internal sealed class SessionsWindowController(
 
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            // Lifecycle notifications run after storage I/O; revoke native content before the caller observes completion.
+            Dispatcher.UIThread.Invoke(() => RevokeSession(session));
+            return;
+        }
+        if (disposed) { return; }
         if (window?.DataContext is SessionsViewModel state)
         {
             if (state.ReferencesSession(session)) { window.Close(); }

@@ -583,6 +583,69 @@ ownership transfer and installed provider/model/network scopes remain
 unqualified and separately gated. No release/full-accessibility certification
 or publication is implied.
 
+### 2026-10-10 Current-Main Publication Revalidation
+
+After the operator requested commit and PR publication, the validated batch was
+replayed onto main at `d3c0dc5`, excluding the already squash-merged #157 work.
+Earlier byte-bound receipts above remain historical, not evidence for the
+integrated source. Main's stale session-list search guard was preserved during
+work-row reconciliation. The silent fixture now composes the current explicit
+caption window and display source, without changing caption targeting policy.
+
+Native revalidation exposed a lifecycle callback threading defect: storage
+completion invokes session revocation from a worker thread, while the Sessions
+controller accessed its Avalonia window there. With separate operator approval,
+the controller now synchronously marshals revocation to the UI thread before
+reporting lifecycle completion. Two focused cases verify closing a matching
+window and revoking list metadata while preserving unrelated exact work.
+Disposed callbacks cannot reopen or alter a window.
+
+Current main intentionally closes a Sessions window referencing a changed or
+retired session. W06/W10 therefore require exact owned-window revocation,
+explicit reopening, and fresh same-ID generation/history observations.
+They do not retain stale native controls to repeat the old refusal experiment.
+Exact session selection now discovers off-viewport IDs through bounded native
+scrolling. The pending-row test likewise requires scroll-assisted discovery,
+not immediate realization in main's larger Sessions layout. Historical native
+and deterministic old-generation refusal receipts remain separate.
+
+The final integrated preparation passed **105 focused tests**, zero skips,
+with zero build/publish warnings/errors. The full Release solution build also
+passed with zero warnings/errors. Eight relevant session/search/caption/event/
+evidence integration classes passed **70 tests**, including both worker-thread
+revocation cases; four supporting application classes passed **1,359 tests**.
+All **43** admission checks passed without native launch. These scoped groups
+are not summed into repository-wide or release acceptance.
+
+Two final identical-byte workstation repetitions each passed five baseline and
+ten expanded rows. Two strict small-list repetitions each discovered all
+8 event IDs, 12 missing-link IDs and 12 non-executable command names. Additional
+fresh native repetitions passed five silent-caption rows, four assistant-name
+preference/label rows, and exact 9/9 session-ID plus 43/43 evidence-citation
+overflow discovery. Those last three scopes were each repeated once after
+integration; their earlier two-repetition receipts remain unchanged.
+
+All fourteen final owned fixture processes exited 0, cleaned their exact scratch
+children and needed no forced termination. The strict local publication summary
+verified every final PID absent, driver/preparation/source identities and the
+fixed approval cutoff. Prior small-list, extended-list, work-list, workstation,
+caption and name-label bundle manifests remained unchanged.
+
+The initial caption-constructor build failure, pending-row realization test
+failure, lifecycle callback native failure and two stale-window/discovery driver
+failures are preserved locally. A misplaced using directive and an incorrect
+test reference comparison were corrected before the final passing runs; failed
+attempts are not relabeled. Raw scripts, payloads, account/path-bearing logs,
+snapshots and TRX remain local and are excluded from publication.
+
+**Disposition: the operator approved publication of these scoped changes,
+not full accessibility or release qualification.** Actual Narrator,
+rendered text/physical-display acceptance and restoration/attestation remain
+the three operator passes. Real audio, OS transitions, ownership transfer,
+installed-provider/model/network and protected device-list proofs remain
+separately gated. No auto-merge permission was included in this publication
+request.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

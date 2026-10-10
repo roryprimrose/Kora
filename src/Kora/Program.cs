@@ -296,6 +296,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriAdd>();
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriRemove>();
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriClear>();
+        services.AddSingleton<Kora.Core.Network.IWebPageTransport, Kora.Windows.Network.WindowsWebPageTransport>();
+        services.AddSingleton<Kora.Tools.Network.WebPageGet>();
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));

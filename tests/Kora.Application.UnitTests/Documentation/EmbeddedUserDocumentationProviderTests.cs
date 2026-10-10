@@ -91,7 +91,13 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 10);
+        sections.Should().HaveCount(commands.Count + 11);
+        var webPage = sections.Single(section => section.StartsWith(
+            "Retrieve an explicit web page", StringComparison.Ordinal));
+        webPage.Should().Contain("get web page https://example.com/page")
+            .And.Contain("public-network")
+            .And.Contain("network.get_web_page")
+            .And.Contain("remains unavailable");
         var sharedSkills = sections.Single(section => section.StartsWith("Inspect shared profile skills locally", StringComparison.Ordinal));
         sharedSkills.Should().Contain("immutable").And.Contain("model exposure")
             .And.Contain("unavailable").And.Contain("removed/replaced/busy sources fail closed");
@@ -178,7 +184,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, responseMode)
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
-        sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)).ToArray();
+        sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, webPage)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

@@ -25,7 +25,7 @@ helpers and brokers are not separately advertised actions.
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
 | [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy. |
 | [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
-| [Network](Network) | `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | Core owns URI-pattern validation and matching; Application owns atomic device-local persistence, original-user admission and audit. These settings do not deliver or register a network retrieval action. |
+| [Network](Network) | `WebPageGet`, `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | `WebPageGet` owns bounded redirect-aware retrieval over a pinned-address transport. Core owns URI/network validation and matching; Application owns configuration, native routing and authorization integration. |
 
 Do not add a broad capability class with one method per tool, duplicate broker
 policy across actions, or add classes for speculative unavailable operations.
@@ -99,10 +99,16 @@ wildcards are supported. Credentials and fragments are rejected. The policy is
 fail-closed for malformed persistence and exposes `IsPreapproved(Uri)` for an
 admitted retrieval boundary.
 
-No general web retrieval capability or model-callable configuration registry is
-delivered by this slice. Preapproval only removes a future per-address grant
-when that retrieval boundary calls the shared policy; it does not enable
-network access, provider execution, credentials, redirects, or egress by itself.
+The delivered `WebPageGet` action is available to the exact typed/activated
+voice command `get web page <absolute HTTP-or-HTTPS-address>`. That original
+user request is the retrieval authority for its explicit address. The action
+resolves DNS, rejects the complete result if any address is non-public, pins
+the selected public address into the connection, disables proxies, cookies,
+credentials, decompression and automatic redirects, and reauthorizes and
+reresolves every redirect. It accepts only unencoded UTF-8 `text/plain` or
+`text/html`, strips HTML active/non-text content, reads at most 256 KiB and
+returns at most 60 KiB of normalized text within a 64 KiB complete-result
+budget. Network outcomes are audited without logging addresses or content.
 
 The host authorization foundation now accepts destination-bound web-page access
 requests through its normal interaction transaction. A matching preapproved
@@ -111,8 +117,12 @@ session, ownership, expiry, effect and mandatory gates pass. An unmatched
 address presents the ordinary Once/Session/Perpetual grant question. The raw
 host-resolved address must match the proposal's canonical SHA-256 destination
 digest. Redirects are new destinations and require a newly published proposal
-and another policy/grant decision before any redirected request. This is still
-authorization plumbing, not a delivered fetch action.
+and another policy/grant decision before any redirected request. The canonical model descriptor is `network.get_web_page` schema 1. It remains
+explicitly unavailable with reason `parameterized-model-tool-loop-not-qualified`
+because the production local model protocol cannot yet make parameterized tool
+calls or resume a pending durable approval. When that loop is qualified, it
+must call the same action with `RequestWebPageAccessAsync` as its per-hop
+authorization callback; it must not use the direct-user callback.
 
 ### R26 immutable local file actions
 

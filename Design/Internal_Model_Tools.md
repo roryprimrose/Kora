@@ -45,6 +45,19 @@ the current explicitly admitted immutable preview; no source/query/excerpt
 is serialized to models. Model retrieval, tool/result iteration and all
 source-context egress remain unavailable.
 
+`network.get_web_page` schema 1 is a delivered Kora action and exact
+typed/activated-voice route, but its model-facing descriptor is **Unavailable**
+with reason `parameterized-model-tool-loop-not-qualified`. The current local
+model JSON protocol cannot supply an arbitrary URI tool argument or suspend and
+resume around a durable approval question. Native `get web page <URI>` is an
+original-user request for that exact address. Retrieval rejects non-public or
+mixed DNS answers, pins the admitted address, disables ambient credentials,
+cookies, proxies, decompression and automatic redirects, and reruns DNS and
+authorization for every redirect. Only unencoded UTF-8 text/plain and text/html
+are admitted; HTML is reduced to bounded normalized text. The model descriptor
+must not become Available until its execution lane invokes the same action with
+the host grant callback and has passed the tool-loop qualification gates.
+
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
 maps the current bootstrap and every catalogue family to dependency-ordered
 implementation and acceptance work. Roadmap inventory IDs are not tool IDs.

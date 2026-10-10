@@ -11,6 +11,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
+using Kora.Application.Network;
 using Kora.Application.Voice;
 using Kora.Core;
 using Kora.Core.Auditing;
@@ -241,7 +242,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Kora.Tools.Network.PreapprovedUriList? preapprovedUriList = null,
         Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
         Kora.Tools.Network.PreapprovedUriRemove? preapprovedUriRemove = null,
-        Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null)
+        Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null,
+        Kora.Tools.Network.WebPageGet? webPageGet = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -311,6 +313,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         this.preapprovedUriAdd = preapprovedUriAdd;
         this.preapprovedUriRemove = preapprovedUriRemove;
         this.preapprovedUriClear = preapprovedUriClear;
+        this.webPageGet = webPageGet;
         this.inCallFeedbackConfiguration = inCallFeedbackConfiguration;
         if (inCallFeedbackConfiguration is not null)
         {
@@ -3937,6 +3940,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ExecutePreapprovedUriCommandAsync(preapprovedUriCommand, initiator);
             return;
         }
+        if (WebPageCommand.Parse(spokenText, AssistantName) is { } webPageCommand)
+        {
+            await ExecuteWebPageCommandAsync(webPageCommand, initiator);
+            return;
+        }
         var origin = initiator == SecurityAuditInitiator.VoiceCommand
             ? Kora.Core.Hosting.RequestOrigin.ActivatedVoice : Kora.Core.Hosting.RequestOrigin.LocalUi;
         if (AssistantNameCommand.Parse(spokenText, AssistantName) is { } assistantCommand
@@ -5481,6 +5489,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
+            .Concat(WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

@@ -20,6 +20,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Core.Hosting;
+using Kora.Core.Network;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -39,6 +40,114 @@ public sealed partial class MainViewModelTests : IDisposable
     public MainViewModelTests() => ActivitySource.AddActivityListener(hostListener);
 
     public void Dispose() => hostListener.Dispose();
+
+    [Fact]
+    public async Task PreapprovedUriControlsUseTheSharedToolsForNativeAndTypedCommands()
+    {
+        var fixture = new Fixture(enablePreapprovedUris: true);
+
+        fixture.ViewModel.CanChangePreapprovedUris.Should().BeTrue();
+        fixture.ViewModel.PreapprovedUriStatus.Should().StartWith("No addresses");
+        fixture.ViewModel.PreapprovedUriInput = "https://b.example.com/";
+        fixture.ViewModel.AddPreapprovedUriCommand.CanExecute(null).Should().BeTrue();
+        await fixture.ViewModel.AddPreapprovedUriCommand.ExecuteAsync();
+
+        fixture.ViewModel.PreapprovedUriInput.Should().BeEmpty();
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Equal("https://b.example.com/");
+        fixture.ViewModel.PreapprovedUriStatus.Should().Be("1 address pattern(s) are preapproved.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses changed.");
+
+        await fixture.RunAsync("Kora, add preapproved address https://a.example.com/");
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Equal(
+            "https://a.example.com/",
+            "https://b.example.com/");
+        fixture.PreapprovedUris.Initiators.Should().Contain(SecurityAuditInitiator.TypedCommand);
+
+        fixture.ViewModel.SelectedPreapprovedUri = "https://a.example.com/";
+        fixture.ViewModel.SelectedPreapprovedUri = "https://a.example.com/";
+        fixture.ViewModel.RemovePreapprovedUriCommand.CanExecute(null).Should().BeTrue();
+        await fixture.ViewModel.RemovePreapprovedUriCommand.ExecuteAsync();
+        fixture.ViewModel.SelectedPreapprovedUri.Should().BeNull();
+
+        await fixture.ViewModel.RefreshPreapprovedUrisCommand.ExecuteAsync();
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses.");
+        fixture.ViewModel.ResponseBody.Should().Be("https://b.example.com/");
+
+        await fixture.ViewModel.ClearPreapprovedUrisCommand.ExecuteAsync();
+        fixture.ViewModel.PreapprovedUriPatterns.Should().BeEmpty();
+        fixture.ViewModel.ResponseBody.Should().Be("No addresses are preapproved.");
+    }
+
+    [Fact]
+    public async Task RefreshLoadsPreapprovedUrisAndVoiceUsesTheVoiceInitiator()
+    {
+        var fixture = new Fixture(enablePreapprovedUris: true);
+        fixture.PreapprovedUris.Settings =
+            PreapprovedUriSettings.Create(["https://saved.example.com/"]);
+
+        await fixture.ViewModel.RefreshCommand.ExecuteAsync();
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Equal("https://saved.example.com/");
+
+        await fixture.RaiseActivatedTranscriptAsync(
+            "Kora, add preapproved address https://voice.example.com/",
+            0.9f);
+        fixture.PreapprovedUris.Initiators.Should().Contain(SecurityAuditInitiator.VoiceCommand);
+        fixture.ViewModel.PreapprovedUriPatterns.Should().Contain("https://voice.example.com/");
+    }
+
+    [Fact]
+    public async Task PreapprovedUriControlsFailClosedWhenUnavailableDisposedClarifiedOrInvalid()
+    {
+        var unavailable = new Fixture();
+        unavailable.ViewModel.CanChangePreapprovedUris.Should().BeFalse();
+        unavailable.ViewModel.PreapprovedUriStatus.Should().StartWith("Preapproved address configuration is unavailable");
+        await unavailable.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.List),
+            SecurityAuditInitiator.LocalUser);
+        unavailable.ViewModel.Transcript.Should().Contain("current owning unlocked host");
+
+        var fixture = new Fixture(enablePreapprovedUris: true);
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.Clarify, Error: PreapprovedUriCommand.Syntax),
+            SecurityAuditInitiator.TypedCommand);
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new((PreapprovedUriCommandOperation)100),
+            SecurityAuditInitiator.LocalUser);
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses were not changed.");
+
+        fixture.ViewModel.Dispose();
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.List),
+            SecurityAuditInitiator.LocalUser);
+        fixture.ViewModel.CanChangePreapprovedUris.Should().BeFalse();
+    }
+
+    [Theory]
+    [MemberData(nameof(PreapprovedUriFailures))]
+    public async Task PreapprovedUriControlSurfacesExpectedStorageAndValidationFailures(Exception failure)
+    {
+        var fixture = new Fixture(enablePreapprovedUris: true);
+        fixture.PreapprovedUris.Failure = failure;
+
+        await fixture.ViewModel.ExecutePreapprovedUriCommandAsync(
+            new(PreapprovedUriCommandOperation.List),
+            SecurityAuditInitiator.LocalUser);
+
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.ResponseTitle.Should().Be("Preapproved addresses were not changed.");
+        fixture.ViewModel.CanChangePreapprovedUris.Should().BeTrue();
+    }
+
+    public static TheoryData<Exception> PreapprovedUriFailures() =>
+    [
+        new IOException("I/O failure"),
+        new UnauthorizedAccessException("Access denied"),
+        new InvalidDataException("Invalid data"),
+        new InvalidOperationException("Invalid operation"),
+        new ArgumentException("Invalid argument"),
+    ];
 
     [Fact]
     public void Command_failure_remains_visible_when_required_error_logging_itself_fails()
@@ -4179,6 +4288,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(ResponseModeCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
+            .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
@@ -7751,7 +7861,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableWindowsSpeechRate = false, Exception? rateReadFailure = null,
             bool enableInCallFeedback = false, Exception? feedbackReadFailure = null,
             bool enableSpeechText = false, Exception? captionReadFailure = null, bool enableSessionRetention = false,
-            bool enableQueueConfiguration = false, Exception? queueReadFailure = null, bool enableProviderModeConfiguration = false)
+            bool enableQueueConfiguration = false, Exception? queueReadFailure = null, bool enableProviderModeConfiguration = false,
+            bool enablePreapprovedUris = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -7892,7 +8003,11 @@ public sealed partial class MainViewModelTests : IDisposable
                 AuditConfiguration, RateConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
                 SessionRetentionConfiguration, QueueConfiguration,
-                enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null);
+                enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null,
+                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriList(PreapprovedUris) : null,
+                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null,
+                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriRemove(PreapprovedUris) : null,
+                enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
@@ -7912,6 +8027,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public BuiltInCommandCatalog Catalog { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
+        public FakePreapprovedUriConfiguration PreapprovedUris { get; } = new();
 
         private sealed class CapabilityHostAccess(FakeSessionController session) : Kora.Core.Tools.ICapabilityHostAccess
         {
@@ -8038,6 +8154,52 @@ public sealed partial class MainViewModelTests : IDisposable
         public List<WindowAction> WindowActions { get; } = [];
 
         public List<string> Events { get; } = [];
+
+        public sealed class FakePreapprovedUriConfiguration : IPreapprovedUriConfiguration
+        {
+            public PreapprovedUriSettings Settings { get; set; } = PreapprovedUriSettings.Empty;
+            public Exception? Failure { get; set; }
+            public List<SecurityAuditInitiator> Initiators { get; } = [];
+
+            public PreapprovedUriSettings GetSettings() =>
+                Failure is { } failure ? throw failure : Settings;
+
+            public PreapprovedUriSettings Add(string pattern, SecurityAuditInitiator initiator)
+            {
+                ThrowIfFailed();
+                Initiators.Add(initiator);
+                Settings = PreapprovedUriSettings.Create(Settings.Patterns.Append(pattern));
+                return Settings;
+            }
+
+            public PreapprovedUriSettings Remove(string pattern, SecurityAuditInitiator initiator)
+            {
+                ThrowIfFailed();
+                Initiators.Add(initiator);
+                var canonical = PreapprovedUriPattern.Parse(pattern).Value;
+                Settings = PreapprovedUriSettings.Create(Settings.Patterns.Where(item =>
+                    !string.Equals(item, canonical, StringComparison.Ordinal)));
+                return Settings;
+            }
+
+            public PreapprovedUriSettings Clear(SecurityAuditInitiator initiator)
+            {
+                ThrowIfFailed();
+                Initiators.Add(initiator);
+                Settings = PreapprovedUriSettings.Empty;
+                return Settings;
+            }
+
+            public bool IsPreapproved(Uri uri) => Settings.IsPreapproved(uri);
+
+            private void ThrowIfFailed()
+            {
+                if (Failure is { } failure)
+                {
+                    throw failure;
+                }
+            }
+        }
 
         public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence)
         {

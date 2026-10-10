@@ -360,6 +360,12 @@ Validation on `444e7cd` main with code head `0798163`: root Release build had ze
 
 After preserving merged memory #150 on `9d982af`, the root Release build again had zero warnings/errors. Core **1,322**, Application **3,649**, Tools **90**, Definitions **6** and Windows **1,308** passed with zero failures/skips. Clean portable reports confirmed **18,443/18,443 lines** and **11,096/11,096 branches** (100%/100%). The subsequent #147 rebase changes maintained receipts only, not feature code.
 
+Final rebase onto `b127e55` preserves memory, preview refresh, source withdrawal, evidence filters and session-list search. The zero-warning/error Release build and unchanged default-mode suites pass: Core **1,372**, Application **3,737**, Tools **137**, Definitions **6**, Windows **1,396**, with zero failures/skips. Clean portable coverage is **18,719/18,719 lines**, **11,277/11,277 branches** (100%/100%).
+
+Earlier default-parallel Windows failures and exact failing PR-event CI logs are retained, not reclassified as success. The source-withdrawal owner demonstrated a foreign stopped-Activity callback holding a real SQLite database open after listener disposal. Its Windows fixture used an undefined `Host tracing` collection and overlapped unrelated activities.
+
+Parent explicitly authorized only correction `9d341bbb`: that fixture now uses the existing exclusive `DurableStorageCompositionTestGroup`, with deterministic callback/open-database and collection-membership regressions. Default runner settings and production logging/audit/lifecycle code are unchanged. Serialized diagnostics were not acceptance; no global production callback/quiescence fix is claimed.
+
 ### R08/D-014 Volatile Provider Policy and Exact Handoff Workflow - 2026-10-09
 
 The [bounded policy/workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)

@@ -37,7 +37,10 @@ clear leave task receipts/history intact, cannot terminate admitted work and
 never clear another session. Duplicate IDs, stale revisions, full capacity,
 unknown subjects/profiles and authority failures refuse without eviction.
 
-The pending lifetime is 30 minutes. Expired heads remain visible and
+The pending lifetime defaults to 30 minutes, configurable within 1-120 integer
+minutes for future newly enqueued admitted fixed reads only. Each entry captures
+its lifetime at enqueue; later edits never reinterpret or change that deadline.
+Expired heads remain visible and
 non-dispatchable until explicit removal/clear. The five-minute active budget
 starts at admission; a read returning after that budget cannot commit a
 successful receipt. No general asynchronous worker deadline/termination is
@@ -67,7 +70,7 @@ core is not MG1 production inference or two-slot effect/provider qualification.
 
 ### Bounded queue settings
 
-The delivered [R10/R13 configuration workflow](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) admits device-local pending capacity **1-10/default-reset 10** and fixed read-only slots **1-2/default-reset 1** only.
+The delivered [R10/R13 configuration workflow](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) admits device-local pending capacity **1-10/default-reset 10**, fixed read-only slots **1-2/default-reset 1** and future pending lifetime **1-120 integer minutes/default-reset 30** only.
 Native Settings and exact typed/current-name activated commands share host-held revisions, original-input privacy/call/ownership admission, atomic preferences, required audit/readback and durable control receipts.
 
 The [queue service](../src/Kora.Application/Hosting/SessionQueueService.cs) reads current confirmed limits for each enqueue and fair admission, not once per batch; [native/exact work](../src/Kora.Application/Hosting/SessionWorkspaceService.cs) and [event observation](../src/Kora.Application/Interaction/AuthorityLocalEventSource.cs) consume the same configuration.
@@ -76,9 +79,11 @@ The gate is released before active callbacks, preserving independent configurati
 Lowering pending capacity never evicts existing work; lowering slots never cancels active admissions.
 FIFO, fairness and the existing pending/admission deadlines remain unchanged ([deterministic races](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs), [durable deadline checks](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
 
-Pending lifetime remains **30 minutes** and active budget **5 minutes**, both unavailable to edit.
-No automatic dispatch, schema migration, general execution, effect/resource/provider workers or real two-slot qualification is added.
-The broader proposed ranges below are not enabled by these preferences ([domain limits](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [fixed deadline policy](../src/Kora.Core/Hosting/SessionQueuePolicy.cs)).
+Pending lifetime is captured at new enqueue after confirmed activation, never applied to existing pending/cancelled/expired/running work. Active budget remains **5 minutes**, unavailable to edit; user-question expiry is independent.
+Queue payload format 2 binds the chosen lifetime and exact expiry in the committed enqueue change digest. Legacy field-absent records remain exact fixed-30 and keep original bytes/digests; mixed known formats reopen without database schema migration. Partial/unknown/downgraded/unbound records refuse without replacing data.
+Preference schema 2 adds the minutes override; valid known schema 1 preserves capacity/slots and gives the new option default 30 without a refresh-time write. Unknown/malformed/unconfirmed state holds new admissions with explicit recovery, never defaults.
+No apply-now, automatic dispatch, general execution, effect/resource/provider workers or real two-slot qualification is added.
+The broader proposed capacity/active-deadline contract is not enabled ([domain limits](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [record validation](../src/Kora.Core/Hosting/SessionQueueEntry.cs)).
 
 ## Delivered native authority observation
 

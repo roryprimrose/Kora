@@ -20,6 +20,52 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Fact]
+    public async Task Enqueue_racing_confirmed_lifetime_edit_captures_exactly_one_policy_without_dispatch_or_rewriting_old_work()
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        settings.Service.Observe();
+        await using var queue = f.QueueService(configuration: settings.Service);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        var original = f.QueueRows.Single();
+        await settings.Refresh();
+        await settings.Set("1", SessionQueueOption.PendingLifetimeMinutes);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.BeforeEnqueue = async current =>
+        {
+            current.PendingLifetimeMinutes.Should().Be(1);
+            entered.SetResult();
+            await release.Task;
+        };
+        var enqueue = queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = 1 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        await entered.Task;
+        var edit = settings.Set("120", SessionQueueOption.PendingLifetimeMinutes);
+        edit.IsCompleted.Should().BeFalse();
+        f.QueueRows.Should().ContainSingle().Which.Should().Be(original);
+        release.SetResult();
+        await enqueue;
+        await edit;
+        f.BeforeEnqueue = null;
+        var raced = f.QueueRows.Last();
+        raced.PendingLifetimeMinutes.Should().Be(1);
+        raced.ExpiresAt.Should().Be(raced.EnqueuedAt.AddMinutes(1));
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = 2 },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        var following = f.QueueRows.Last();
+        following.PendingLifetimeMinutes.Should().Be(120);
+        following.ExpiresAt.Should().Be(following.EnqueuedAt.AddMinutes(120));
+        await settings.Refresh();
+        await settings.Set(null, SessionQueueOption.PendingLifetimeMinutes);
+        f.QueueRows.Should().Equal(original, raced, following);
+        var observed = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueList),
+            RequestOrigin.LocalUi, () => true, f.Token);
+        observed.Work!.QueueRecords.Select(row => row.Entry).Should().Equal(original, raced, following);
+        f.QueueActions.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Configured_pending_capacity_feeds_admission_and_native_exact_observation_without_eviction_or_deadline_change()
     {
         using var f = new Fixture();
@@ -99,6 +145,8 @@ public sealed partial class SessionWorkspaceServiceTests
         active.Should().HaveCount(2);
         await settings.Refresh();
         await settings.Set("1", SessionQueueOption.ExecutionSlots);
+        await settings.Refresh();
+        await settings.Set("1", SessionQueueOption.PendingLifetimeMinutes);
         f.QueueRows.Where(entry => entry.IsCurrent).Should().Equal(active);
         settings.Service.Get().Effective!.ExecutionSlots.Should().Be(1);
         release.Set();
@@ -361,6 +409,7 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Guid QueueRun => queueRun;
         internal QueueClock QueueTime { get; } = new();
         internal SessionQueueLimits? LastAdmittedLimits { get; private set; }
+        internal Func<SessionQueueLimits, Task>? BeforeEnqueue { get; set; }
         internal SessionQueueService QueueService(int slots = 1, TimeProvider? clock = null, SessionQueueConfigurationService? configuration = null) =>
             new(this, this, new(this), this, this, new(executionSlots: slots), new QueueLogger(this), clock ?? QueueTime, configuration);
         internal SessionCommand QueueCommand(SessionCommandOperation operation) => new(operation, Request.SessionId.Value, 1)
@@ -382,18 +431,20 @@ public sealed partial class SessionWorkspaceServiceTests
             new(session, new(1), QueueRevision, QueueRows.Where(entry => entry.IsPending || entry.IsCurrent).ToArray());
         public ValueTask<SessionQueueEntry?> ReadQueueEntryAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
             ValueTask.FromResult(QueueRows.SingleOrDefault(entry => entry.Request.TaskId == task));
-        public ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
+        public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
             Func<bool> eligible, CancellationToken token)
         {
             QueueCheck("enqueue");
+            if (BeforeEnqueue is { } before) { await before(limits); }
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
             if (QueueRows.Count(entry => entry.IsPending && entry.Request.SessionId == work.SessionId) >= limits.PendingPerSession)
             { throw new InvalidOperationException("The pending queue is full."); }
             var now = QueueTime.GetUtcNow();
             QueueRows.Add(new(work, generation, new(1), ++QueueRevision, SessionQueueState.Pending, queueRun,
-                admissionRevision, now, now.AddMinutes(30), dependency));
-            return ValueTask.FromResult(QueueSnapshot(control.SessionId));
+                admissionRevision, now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
+                RecordVersion: SessionQueueEntry.CapturedLifetimeRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes));
+            return QueueSnapshot(control.SessionId);
         }
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
             long expectedRevision, HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,

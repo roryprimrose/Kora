@@ -68,7 +68,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var now = time.GetUtcNow();
             var entry = new SessionQueueEntry(work, generation, new(1),
                 NextQueuePosition(connection), SessionQueueState.Pending, runId, admissionRevision,
-                now, now.Add(SessionQueuePolicy.PendingLifetime), dependency);
+                now, now.AddMinutes(limits.PendingLifetimeMinutes), dependency,
+                RecordVersion: SessionQueueEntry.CapturedLifetimeRecordVersion, PendingLifetimeMinutes: limits.PendingLifetimeMinutes);
             entry.Validate();
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);
             var sequence = AppendAudit(connection, transaction, intent, RequireSession(connection, control.SessionId).Authority,
@@ -272,14 +273,17 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var entries = new List<SessionQueueEntry>();
         while (reader.Read())
         {
-            var entry = HostInteractionCodec.Decode<SessionQueueEntry>(reader.GetString(3));
+            var payload = reader.GetString(3);
+            var entry = HostInteractionCodec.Decode<SessionQueueEntry>(payload);
             entry.Validate();
-            if (!Same(Id(entry.Request.TaskId), reader.GetString(0)) || !Same(Id(entry.Request.SessionId), reader.GetString(1))
+            if (!Same(HostInteractionCodec.Encode(entry), payload)
+                || !Same(Id(entry.Request.TaskId), reader.GetString(0)) || !Same(Id(entry.Request.SessionId), reader.GetString(1))
                 || entry.Revision.Value != reader.GetInt64(2))
             {
-                throw new InvalidDataException("Queue row identity or revision conflicts with its payload.");
+                throw new InvalidDataException("Queue row format, identity or revision conflicts with its canonical payload.");
             }
-            ValidateRowAuthority(connection, reader.GetInt64(4), QueueChange(entry));
+            ValidateRowAuthority(connection, reader.GetInt64(4),
+                Change("queue", Id(entry.Request.TaskId), entry.Revision.Value, payload));
             entries.Add(entry);
         }
         return entries;

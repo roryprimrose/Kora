@@ -284,14 +284,15 @@ public sealed partial class WindowsSqliteSessionQueueTests
     }
 
     private static async Task<SessionQueueEntry> EnqueueAsync(InteractionStorageFixture fixture, HostId<SessionIdentity> session,
-        int pending = 10, HostRequest? work = null, long? expected = null, HostId<TaskIdentity>? dependency = null, bool fail = false)
+        int pending = 10, HostRequest? work = null, long? expected = null, HostId<TaskIdentity>? dependency = null, bool fail = false,
+        int minutes = SessionQueueLimits.DefaultPendingLifetimeMinutes)
     {
         var snapshot = await fixture.Store.ReadQueueAsync(session, fixture.Token);
         var queued = work ?? new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         try
         {
             var accepted = await ControlAsync(fixture, session, control => fixture.Store.EnqueueAsync(control, queued,
-                new(1), expected ?? snapshot.Revision, 1, dependency, new(pending), () => true, fixture.Token));
+                new(1), expected ?? snapshot.Revision, 1, dependency, new(pending, pendingLifetimeMinutes: minutes), () => true, fixture.Token));
             return accepted.Entries.Single(entry => entry.Request.TaskId == queued.TaskId);
         }
         catch (IOException) when (fail) { return null!; }

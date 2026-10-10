@@ -41,8 +41,8 @@ public sealed class SessionQueueConfigurationServiceTests
         f.Service.IsCurrent(f.Service.Get().Effective!).Should().BeTrue();
         f.Service.IsCurrent(new()).Should().BeFalse();
         SessionQueueConfigurationState.Serialize(f.Service.Get(), 1, "observed").Should()
-            .Contain("\"schema\":1").And.Contain("\"minimum\":1").And.Contain("\"maximum\":10")
-            .And.Contain("\"maximum\":2").And.Contain("fixed 30 minutes").And.Contain("fixed 5 minutes");
+            .Contain("\"schema\":2").And.Contain("\"minimum\":1").And.Contain("\"maximum\":10")
+            .And.Contain("\"maximum\":2").And.Contain("\"maximum\":120").And.Contain("\"default\":30").And.Contain("fixed 5 minutes");
         var tooLarge = () => SessionQueueConfigurationState.Serialize(f.Service.Get() with { Recovery = new('x', 65536) }, 1, "observed");
         tooLarge.Should().Throw<InvalidDataException>();
         var effective = f.Service.Get().Effective!;
@@ -56,6 +56,28 @@ public sealed class SessionQueueConfigurationServiceTests
         f.Service.IsCurrent(effective).Should().BeFalse();
         await f.Service.DisposeAsync();
         f.Service.IsCurrent(effective).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(30)]
+    [InlineData(120)]
+    public async Task Captured_lifetime_confirmation_is_audited_future_only_and_reset_is_independent(int minutes)
+    {
+        await using var f = new SessionQueueConfigurationTestFixture();
+        await f.Refresh();
+        await f.Set("2", SessionQueueOption.ExecutionSlots);
+        await f.Refresh();
+        await f.Set(minutes.ToString(System.Globalization.CultureInfo.InvariantCulture), SessionQueueOption.PendingLifetimeMinutes);
+        f.Service.Get().Effective.Should().Be(new SessionQueueLimits(10, 2, minutes));
+        f.AuditLog.Events.TakeLast(2).Should().OnlyContain(item => item.ActionId == "configuration.queue-pending-lifetime-minutes");
+        await using var restart = f.Create();
+        restart.Observe();
+        restart.Get().Effective.Should().Be(f.Service.Get().Effective);
+        await f.Refresh();
+        await f.Set(null, SessionQueueOption.PendingLifetimeMinutes);
+        f.Service.Get().Saved.Should().Be(new SessionQueuePreferences(null, 2));
+        f.Service.Get().Effective!.PendingLifetimeMinutes.Should().Be(30);
     }
 
     [Theory]
@@ -74,7 +96,7 @@ public sealed class SessionQueueConfigurationServiceTests
     {
         await using var f = new SessionQueueConfigurationTestFixture();
         await f.Refresh();
-        var candidate = f.Propose("1");
+        var candidate = f.Propose("1", SessionQueueOption.PendingLifetimeMinutes);
         await using var other = f.Create();
         if (stage is "foreign") { await other.RefreshAsync(RequestOrigin.LocalUi, () => true, f.Token); candidate = other.Propose(SessionQueueOption.PendingPerSession, "1", other.Get().Revision, f.Policy.Current.Revision); }
         if (stage is "lookalike") { candidate = new(candidate.Value, candidate.Option, candidate.Revision, candidate.CallRevision, candidate.Session, candidate.Origin, candidate.Eligible); }
@@ -134,7 +156,7 @@ public sealed class SessionQueueConfigurationServiceTests
             if (stage is "confirmed-load") { f.PreferencesStore.ReadFailure = new IOException(); }
             if (stage is "confirmed-host") { f.Eligible = false; }
         };
-        var apply = () => f.Set("1");
+        var apply = () => f.Set("1", SessionQueueOption.PendingLifetimeMinutes);
         await apply.Should().ThrowAsync<Exception>();
         f.Service.Get().Available.Should().BeFalse();
         f.Service.Get().Effective.Should().BeNull();
@@ -150,7 +172,7 @@ public sealed class SessionQueueConfigurationServiceTests
         await using var f = new SessionQueueConfigurationTestFixture();
         await f.Refresh(RequestOrigin.ActivatedVoice);
         f.Call.Set(state);
-        (await f.Apply(f.Propose("2", SessionQueueOption.ExecutionSlots), RequestOrigin.ActivatedVoice, SecurityAuditInitiator.VoiceCommand)).Should().BeFalse();
+        (await f.Apply(f.Propose("120", SessionQueueOption.PendingLifetimeMinutes), RequestOrigin.ActivatedVoice, SecurityAuditInitiator.VoiceCommand)).Should().BeFalse();
         f.PreferencesStore.Writes.Should().Be(0);
         f.PreferencesStore.Pending.Should().BeFalse();
         f.AuditLog.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied);
@@ -211,11 +233,13 @@ public sealed class SessionQueueConfigurationServiceTests
         await entered.Task;
         var observe = () => f.Service.Observe();
         observe.Should().Throw<InvalidOperationException>();
-        var edit = f.Set("1");
+        var edit = f.Set("1", SessionQueueOption.PendingLifetimeMinutes);
         edit.IsCompleted.Should().BeFalse();
         release.SetResult();
         (await observation).PendingPerSession.Should().Be(10);
+        (await observation).PendingLifetimeMinutes.Should().Be(30);
         await edit;
+        (await f.Service.WithLimitsAsync(current => Task.FromResult(current), f.Token)).PendingLifetimeMinutes.Should().Be(1);
         var heldDuringRead = () => f.Service.WithLimitsAsync(current => { f.Service.HoldUnavailable(); return Task.FromResult(current); }, f.Token);
         await heldDuringRead.Should().ThrowAsync<InvalidOperationException>();
         await f.Refresh();

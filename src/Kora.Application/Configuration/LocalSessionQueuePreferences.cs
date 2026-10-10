@@ -15,7 +15,7 @@ public sealed class LocalSessionQueuePreferences : ISessionQueuePreferences
 
     public SessionQueuePreferences Load()
     {
-        if (store.ReadText(PendingFileName) is not null)
+        if (store.ReadText(PendingFileName, 16) is not null)
         {
             throw new InvalidDataException("A queue preference write is unconfirmed. Inspect saved state and audit/control receipts, explicitly repair, then refresh.");
         }
@@ -24,16 +24,22 @@ public sealed class LocalSessionQueuePreferences : ISessionQueuePreferences
 
     public SessionQueuePreferences ReadBack()
     {
-        var lines = store.ReadLines(FileName);
-        if (lines is null) { return new(); }
-        if (lines.Length != 3 || !string.Equals(lines[0], "1", StringComparison.Ordinal))
+        var text = store.ReadText(FileName, 256);
+        if (text is null) { return new(); }
+        using var reader = new StringReader(text);
+        var values = new List<string>();
+        while (reader.ReadLine() is { } line) { values.Add(line); }
+        var lines = values.ToArray();
+        var legacy = lines.Length == 3 && string.Equals(lines[0], "1", StringComparison.Ordinal);
+        if (!legacy && (lines.Length != 4 || !string.Equals(lines[0], "2", StringComparison.Ordinal)))
         {
             throw new InvalidDataException("The saved queue preference schema or shape is unknown.");
         }
         try
         {
             return new SessionQueuePreferences().With(SessionQueueOption.PendingPerSession, Decode(lines[1]))
-                .With(SessionQueueOption.ExecutionSlots, Decode(lines[2]));
+                .With(SessionQueueOption.ExecutionSlots, Decode(lines[2]))
+                .With(SessionQueueOption.PendingLifetimeMinutes, legacy ? null : Decode(lines[3]));
         }
         catch (ArgumentOutOfRangeException exception)
         {
@@ -50,9 +56,10 @@ public sealed class LocalSessionQueuePreferences : ISessionQueuePreferences
         if (preferences.IsDefault) { store.Delete(FileName); }
         else
         {
-            store.WriteLines(FileName, ["1",
+            store.WriteLines(FileName, ["2",
                 preferences.PendingPerSession?.ToString(CultureInfo.InvariantCulture) ?? "default",
-                preferences.ExecutionSlots?.ToString(CultureInfo.InvariantCulture) ?? "default"]);
+                preferences.ExecutionSlots?.ToString(CultureInfo.InvariantCulture) ?? "default",
+                preferences.PendingLifetimeMinutes?.ToString(CultureInfo.InvariantCulture) ?? "default"]);
         }
     }
 }

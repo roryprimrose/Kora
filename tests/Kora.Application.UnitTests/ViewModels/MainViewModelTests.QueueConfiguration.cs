@@ -15,6 +15,8 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         f.ViewModel.QueuePendingChoices.Should().Equal(Enumerable.Range(1, 10));
         f.ViewModel.QueueSlotChoices.Should().Equal(1, 2);
+        f.ViewModel.QueueLifetimeMinuteChoices.Should().Equal(Enumerable.Range(1, 120));
+        f.ViewModel.SelectedQueueLifetimeMinutes.Should().Be(30);
         f.ViewModel.CanChangeQueueConfigurationNative.Should().BeFalse();
         await f.ViewModel.SaveQueuePendingCommand.ExecuteAsync();
         f.QueuePreferences.Writes.Should().Be(0);
@@ -35,6 +37,18 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
         await f.ViewModel.ResetQueueSlotsCommand.ExecuteAsync();
         f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
+        f.ViewModel.SelectedQueueLifetimeMinutes = 120;
+        await f.ViewModel.SaveQueueLifetimeCommand.ExecuteAsync();
+        f.QueuePreferences.Value.PendingLifetimeMinutes.Should().Be(120);
+        await f.ViewModel.RefreshQueueConfigurationCommand.ExecuteAsync();
+        await f.ViewModel.ResetQueueLifetimeCommand.ExecuteAsync();
+        f.QueuePreferences.Value.IsDefault.Should().BeTrue();
+        await f.RunAsync("set queue.pending-lifetime-minutes to 1");
+        f.QueuePreferences.Value.PendingLifetimeMinutes.Should().Be(1);
+        await f.RunAsync("status queue.pending-lifetime-minutes");
+        f.ViewModel.ResponseBody.Should().Contain("\"pendingLifetimeMinutes\":1");
+        await f.RunAsync("reset queue.pending-lifetime-minutes");
         await f.RunAsync("list queue settings");
         f.ViewModel.ResponseBody.Should().Contain("queue.execution-slots").And.Contain("queue.pending-per-session");
         await f.RunAsync("set queue.pending-per-session to 10");
@@ -49,6 +63,10 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("Nova, reset queue.execution-slots", 1);
         f.QueuePreferences.Value.IsDefault.Should().BeTrue();
         f.Voice.StartCalls.Should().Be(starts + 2);
+        await f.RaiseActivatedTranscriptAsync("Nova, set queue.pending-lifetime-minutes to 30", 1);
+        f.QueuePreferences.Value.PendingLifetimeMinutes.Should().Be(30);
+        await f.RaiseActivatedTranscriptAsync("Nova, reset queue.pending-lifetime-minutes", 1);
+        f.QueuePreferences.Value.IsDefault.Should().BeTrue();
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.Reasoner.Requests.Should().BeEmpty();
         f.ViewModel.Dispose();
@@ -109,13 +127,17 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("set queue.execution-slots to 3");
         f.ViewModel.ResponseTitle.Should().Contain("Choose queue");
         await f.RunAsync("set queue.pending-per-session to 50");
-        await f.RunAsync("set queue.pending-lifetime-minutes to 60");
+        await f.RunAsync("set queue.pending-lifetime-minutes to 121");
+        f.ViewModel.ResponseTitle.Should().Contain("Choose queue");
+        await f.RunAsync("set queue.active-deadline-minutes to 60");
         f.ViewModel.ResponseTitle.Should().Contain("Clarify");
         f.QueuePreferences.Writes.Should().Be(0);
         var badPending = () => f.ViewModel.SelectedQueuePending = 11;
         badPending.Should().Throw<ArgumentOutOfRangeException>();
         var badSlots = () => f.ViewModel.SelectedQueueSlots = 3;
         badSlots.Should().Throw<ArgumentOutOfRangeException>();
+        var badLifetime = () => f.ViewModel.SelectedQueueLifetimeMinutes = 121;
+        badLifetime.Should().Throw<ArgumentOutOfRangeException>();
         f.ViewModel.Dispose();
     }
 

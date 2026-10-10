@@ -2,7 +2,7 @@ namespace Kora.Core.Hosting;
 
 public static class SessionQueuePolicy
 {
-    public static readonly TimeSpan PendingLifetime = TimeSpan.FromMinutes(30);
+    public static readonly TimeSpan PendingLifetime = TimeSpan.FromMinutes(SessionQueueLimits.DefaultPendingLifetimeMinutes);
     public static readonly TimeSpan ActiveDeadline = TimeSpan.FromMinutes(5);
 
     /// <summary>Round-robin by last successful admission, FIFO within each session; blocked heads never bypass.</summary>

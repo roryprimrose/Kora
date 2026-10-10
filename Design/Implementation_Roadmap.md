@@ -583,7 +583,47 @@ capacity/copy/crypto consumers and runtime/lifecycle/containment/speech/
 distribution or real installed-native evidence. No harness is promoted,
 deleted, archived or reclassified as a production executor by this increment.
 
+### R10/R13 future-only pending lifetime - 2026-10-10
+
+The delivered fixed synchronous read-only local-version queue adds only `queue.pending-lifetime-minutes`: canonical integer **1-120 minutes**, unsaved/default/per-option reset **30**.
+Native Settings and exact typed/current-name activated discovery/get/status/set/reset share the existing original host intent, session/generation/control/call/preference revisions, typed REQUESTED/terminal audit, atomic save/readback, durable unconfirmed marker and confirmed activation gates.
+Only newly enqueued admitted entries after confirmation capture the chosen lifetime; existing pending/cancelled/expired/running deadlines, identity and authority remain exact. Preference changes/refresh never enqueue, dispatch, cancel, expire or extend meaningful activity.
+
+New queue payload format 2 records `RecordVersion=2` and integer `PendingLifetimeMinutes`; validation requires exact expiry equality and canonical payload bytes bound to the original enqueue change digest.
+Known legacy field-absent payloads remain fixed-30 and serialize identically, preserving original committed audit digests. Mixed formats read/reopen without database schema or historical authority migration; unknown/partial/downgraded/corrupt/unbound data refuses without replacement.
+Preference schema 2 adds a fourth minutes line. Valid known schema 1 validates first, preserves capacity/slots and supplies only the new lifetime default 30 without observation-time writes; the next explicit edit uses schema 2. Malformed/unknown/UTF-8/oversize/unconfirmed state holds new admissions and reports recovery.
+
+The existing short configuration transaction gate serializes new enqueues with edits: each captures exactly one old/new confirmed policy. Queue/work/deadline/event/native/exact consumers retain captured deadlines, precise expiry edges, FIFO/fairness, one-per-session, dependencies, Unknown quarantine and no restart replay.
+Active budget **5 minutes** and user-question expiry remain separately fixed. Apply-now, active-deadline edits, automatic dispatch, general effect/worker/model/provider scheduling and expanded slots remain unavailable.
+See [user contract](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13), [commands](../docs/commands.md#fixed-queue-settings), [preferences/races](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs) and [private SQLite serialization/authority/reopen/interruption tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Lifetime.cs).
+
+#### Qualification and experiment assessment
+
+All experiment files and historical receipts remain unchanged. This deterministic TTL increment establishes maintained production policy/serialization/race assertions only; it does not establish exact complete assertion equivalence or replace every experimental consumer.
+The [MG1 management disposition](../experiments/r02-dotnet-management-proof/README.md#profile-and-historical-separation) retains released SDK/runtime HTTP/stdio/identity and provider deadlines absent from this local fixed read.
+The [RT2 lifecycle proof](../experiments/r02-runtime-lifecycle-proof/README.md) retains real native lifecycle/file/socket/quiescence observation, and [containment proof](../experiments/r02-containment-proof/README.md#scope-and-contracts) retains attributable network/token/ACL/child evidence and strict-denial gates.
+Resource/runtime/native/storage/historical proof receipts remain unique: no harness is promoted, retired, deleted or rerun. Deterministic TTL is not provider/hardware concurrency, installed-native accessibility or release qualification; full R10/R13/A3 and remaining physical/runtime gates stay open.
+
+#### Validation receipt
+
+Validated isolated branch against base `e7eae6476d93f232ee0cbb46f131c228a7b5e63b`. Initial no-restore build found NETSDK1004 missing assets; locked restore used only the authorized Azure Artifacts source, without feed/manifest/credential changes.
+Final root Release build: **0 warnings / 0 errors**. Core **1,397**, Application **3,764**, Tools **137**, Definitions **6**, Windows **1,414**: all passed, **zero failures/skips**; default-parallel Windows preserved and real global Activity/evidence fixtures remain in the exclusive durable storage composition group.
+Latest-only portable Cobertura inputs under `.net-test-artifacts/lifetime-final` pass the unchanged exact **100% line / 100% branch** gate. ReportGenerator's existing missing on-disk virtual LoggerMessage generated-source notices do not change the coverage denominator or gate.
+
+```powershell
+dotnet restore .\Kora.slnx --locked-mode --source https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json
+dotnet build .\Kora.slnx --configuration Release --no-restore
+# Each of all five suites: dotnet test --project <project> --configuration Release --no-build --report-trx
+# Portable four additionally: --coverlet --coverlet-output-format cobertura
+# Passed: Core 1397, Application 3764, Tools 137, Definitions 6, Windows 1414; no failed/skipped.
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .\.net-test-artifacts\lifetime-final\coverage-report\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+# Line coverage: 100.0% (minimum 100.0%)
+# Branch coverage: 100.0% (minimum 100.0%)
+```
+
 ### R10/R13 bounded fixed queue settings - 2026-10-09
+
+Historical receipt below describes the initial fixed-30 implementation; the 2026-10-10 future-only option supersedes only its pending-lifetime availability, not its tested evidence or active budget.
 
 The existing synchronous read-only local-version queue now exposes only its authoritative domain ranges: pending capacity **1-10/default-reset 10** and global fixed-read slots **1-2/default-reset 1** ([domain](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [preferences](../src/Kora.Core/Configuration/SessionQueuePreferences.cs)).
 Native **Settings > Sessions** and exact typed/current-name activated list/get/status/set/per-option reset share original-input admission and host-held revisions.

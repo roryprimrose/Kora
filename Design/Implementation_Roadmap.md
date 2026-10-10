@@ -999,6 +999,18 @@ their original snapshots. External #81 is runtime-validation preparation only;
 external presence fade #85 is merged, while pointer hide-timer #86 is still open
 at this reconciliation. Neither is coordinator-owned delivery.
 
+### R26.1f reviewed retained attachment replacement - 2026-10-10
+
+The [bounded replacement](File_And_Folder_Ingestion.md#delivered-reviewed-retained-attachment-replacement---2026-10-10) adds a fresh native picker and separate confirmation binding exact old source/storage/inventory to new metadata, original native intent and active session generation/control/lifetime.
+The same verified capture broker supplies bytes after native release. Every picked source receives a new source/revision/item identity; old views/readers/citations retire and old paths are never automatically read.
+
+One atomic body swap replaces its own slot at sixteen-profile capacity, without eviction or a remove-attach gap. Schema 8/format 1 and earlier audit hashes stay intact.
+Durable content-free requested intent precedes the swap. Requested phases hold disclosure until owned committed-journal/artifact verification and the successful authority/task receipt complete under the same database lease; certified rollback allows only fresh old-record inspection.
+Before-commit failure preserves the exact old record. Post-commit uncertainty holds both bodies after restart; explicit metadata-only reviewed removal of the held new snapshot/copies is recovery, not replacement success or restoration. Live/Unknown work and unregistered copies remain holds.
+
+Evidence: [host old/new admission and quiescence](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AttachmentReplacement.cs), [private SQLite/native capture/capacity/rollback/hold/recovery](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.Replacement.cs), and [native picker/controller/full source](../tests/Kora.Windows.IntegrationTests/SessionAttachmentWindowTests.cs).
+All experiment consumers, unique native/runtime/storage/legacy failures and historical receipts/proofs remain retained; only these asserted bounded equivalents are covered. No full R26, additional format/limit, managed source/version, watcher, model/egress or installed/accessibility acceptance is claimed.
+
 ### R26.1e durable single-file Session attachment - 2026-10-10
 
 The [bounded native attachment](File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10) delivers one immutable strict-UTF-8 `.txt`/`.md`/`.markdown` file per exact session, 256 KiB original bytes including BOM, and sixteen retained private-profile attachments with no eviction. Metadata review, durable-copy disclosure and explicit native confirmation are separate from volatile preview consent.

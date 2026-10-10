@@ -20,18 +20,28 @@ public sealed partial class SessionFileAttachmentService(
     private long revision;
     private readonly Lock sync = new();
     private readonly HashSet<CancellationTokenSource> inspections = [];
+    private readonly HashSet<HostId<SessionIdentity>> replacementControls = [];
     private TaskCompletionSource quiescence = CompletedQuiescence();
     private TaskCompletionSource controlQuiescence = CompletedQuiescence();
     private int controls;
     public LocalFileReview? Review => action.Review;
+    public SessionFileReplacement? ReplacementReview => pending is { Previous: { } previous } captured
+        && Review is { } next ? new(previous, captured.PreviousMetadata!, captured.PreviousCapturedAt, next) : null;
     public bool IsQuiescent { get { lock (sync) { return inspections.Count == 0 && controls == 0 && action.IsQuiescent; } } }
     public event Action<HostId<SessionIdentity>>? Revoked;
     public event Action? InspectionRevoked;
 
     private static void RequireNative() => SessionWorkspaceService.RequireNativeFileInput();
 
-    public async Task<LocalFileOutcome> Select(SessionWorkspaceEntry exactTarget, IUserFilePicker picker,
-        Func<bool> admission, CancellationToken token)
+    public Task<LocalFileOutcome> Select(SessionWorkspaceEntry exactTarget, IUserFilePicker picker,
+        Func<bool> admission, CancellationToken token) => SelectCore(exactTarget, null, picker, admission, token);
+
+    public Task<LocalFileOutcome> SelectReplacement(SessionWorkspaceEntry exactTarget, SessionFileAttachment previous,
+        IUserFilePicker picker, Func<bool> admission, CancellationToken token) =>
+        SelectCore(exactTarget, previous, picker, admission, token);
+
+    private async Task<LocalFileOutcome> SelectCore(SessionWorkspaceEntry exactTarget, SessionFileAttachment? previous,
+        IUserFilePicker picker, Func<bool> admission, CancellationToken token)
     {
         RequireNative();
         if (disposed || !action.IsQuiescent || !access.CanControl || !exactTarget.Authority.IsActive || !admission())
@@ -51,11 +61,32 @@ public sealed partial class SessionFileAttachmentService(
             activity.Complete(HostOperationOutcome.Failed);
             throw new InvalidOperationException("The exact selected active-session generation changed before native file review.");
         }
-        if (await Inspect(exactTarget.Authority.SessionId, "session.file.select-check",
-            cancellation => sessions.ReadAttachment(exactTarget.Authority.SessionId, cancellation), token).ConfigureAwait(false) is not null)
+        var old = await Inspect(exactTarget.Authority.SessionId, "session.file.select-check",
+            cancellation => sessions.ReadAttachment(exactTarget.Authority.SessionId, cancellation), token).ConfigureAwait(false);
+        if (previous is null && old is not null)
         {
             activity.Complete(HostOperationOutcome.Failed);
             throw new InvalidOperationException("Remove the exact existing attachment and Kora copies before another admission.");
+        }
+        if (previous is not null)
+        {
+            if (old is null || previous.Session != exactTarget.Authority.SessionId
+                || previous.StorageRevision != old.StorageRevision || previous.File.Reference != old.File.Reference)
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                throw new InvalidOperationException("The exact historical attachment changed before replacement. Inspect again.");
+            }
+            var inventory = await Inspect(previous.Session, "session.file.replace-review",
+                cancellation => sessions.PreviewAttachmentRemoval(previous.Session, cancellation), token).ConfigureAwait(false);
+            if (!inventory.BodyRetained || inventory.ReplacementCopyVerificationPending || inventory.ReplacementSwapUnconfirmed
+                || inventory.StorageRevision != old.StorageRevision || inventory.File != old.File.Reference
+                || inventory.Generation != exactTarget.Authority.Generation || !Eligible())
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                throw new InvalidOperationException("The exact old attachment or copy inventory changed before replacement review.");
+            }
+            pending = new(exactTarget, original, Eligible, inventory, old.File.Review.Metadata, old.File.AdmittedAt);
+            await RetireInspections(previous.Session).ConfigureAwait(false);
         }
         var result = await action.Select(picker, Eligible, token).ConfigureAwait(false);
         activity.Complete(result == LocalFileOutcome.Reviewed ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
@@ -80,23 +111,89 @@ public sealed partial class SessionFileAttachmentService(
             await Clear().ConfigureAwait(false);
             throw new InvalidOperationException("The exact session generation or current control changed before capture. Select again.");
         }
-        var outcome = await action.Execute(exactReview, captured.Admitted, async (file, bytes, cancellation) =>
+        using var control = new ControlScope(this);
+        if (captured.Previous is not null) { lock (sync) { replacementControls.Add(captured.Request.SessionId); } }
+        var auditEvent = captured.Previous is not null ? new SecurityAuditEvent(Guid.NewGuid(),
+            SecurityAuditCategory.ProtectedOperation, "session.file.replace-copy", SecurityAuditOutcome.Requested,
+            SecurityAuditInitiator.LocalUser, "session.file.local") : null;
+        LocalFileOutcome outcome;
+        try
         {
-            await sessions.CommitAttachment(captured.Request, captured.Target.Authority.Generation, file, bytes, captured.Admitted, cancellation)
-                .ConfigureAwait(false);
-        }, token).ConfigureAwait(false);
+            if (auditEvent is not null)
+            {
+                audit.Write(auditEvent);
+                await RetireInspections(captured.Request.SessionId).ConfigureAwait(false);
+            }
+            outcome = await action.Execute(exactReview, captured.Admitted, async (file, bytes, cancellation) =>
+            {
+                if (captured.Previous is { } old)
+                {
+                    await sessions.ReplaceAttachment(captured.Request, old, file, bytes, captured.Admitted, cancellation)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await sessions.CommitAttachment(captured.Request, captured.Target.Authority.Generation, file, bytes, captured.Admitted, cancellation)
+                        .ConfigureAwait(false);
+                }
+            }, token).ConfigureAwait(false);
+            if (auditEvent is not null)
+            {
+                audit.Write(auditEvent.WithOutcome(outcome == LocalFileOutcome.Admitted ? SecurityAuditOutcome.Succeeded
+                    : outcome == LocalFileOutcome.Cancelled ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed,
+                    outcome == LocalFileOutcome.Admitted ? "old-copies-verified" : "inspect-exact-durable-state"));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            if (auditEvent is not null) { audit.Write(auditEvent.WithOutcome(SecurityAuditOutcome.Cancelled, "inspect-exact-durable-state")); }
+            activity.Complete(HostOperationOutcome.Cancelled);
+            throw;
+        }
+        catch (Exception)
+        {
+            if (auditEvent is not null) { audit.Write(auditEvent.WithOutcome(SecurityAuditOutcome.Failed, "inspect-exact-durable-state")); }
+            activity.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+        finally
+        {
+            await Clear().ConfigureAwait(false);
+            lock (sync) { replacementControls.Remove(captured.Request.SessionId); }
+        }
         activity.Complete(outcome == LocalFileOutcome.Admitted ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-        await Clear().ConfigureAwait(false);
         return outcome;
+    }
+
+    private async Task RetireInspections(HostId<SessionIdentity> session)
+    {
+        Task outstanding;
+        Task cancellation;
+        lock (sync)
+        {
+            cancellation = Task.WhenAll(inspections.Select(inspection => inspection.CancelAsync()));
+            outstanding = quiescence.Task;
+        }
+        Revoked?.Invoke(session);
+        await cancellation.ConfigureAwait(false);
+        await outstanding.ConfigureAwait(false);
     }
 
     public Task<SessionFileAttachment?> Read(HostId<SessionIdentity> session, CancellationToken token) =>
         Inspect(session, "session.file.read", async cancellation =>
     {
         RequireNative();
+        lock (sync)
+        {
+            if (replacementControls.Contains(session))
+            {
+                throw new InvalidOperationException("Replacement is controlling this source. Explicitly inspect after completion or recovery.");
+            }
+        }
         var control = access.ControlRevision;
         var epoch = revision;
         var result = await sessions.ReadAttachment(session, cancellation).ConfigureAwait(false);
+        cancellation.ThrowIfCancellationRequested();
         if (disposed || !access.CanInspect || control != access.ControlRevision || epoch != revision)
         {
             throw new InvalidOperationException("Snapshot disclosure was revoked during passive inspection.");
@@ -290,7 +387,8 @@ public sealed partial class SessionFileAttachmentService(
         await action.DisposeAsync().ConfigureAwait(false);
     }
 
-    private sealed record PendingAttachment(SessionWorkspaceEntry Target, HostRequest Request, Func<bool> Admitted);
+    private sealed record PendingAttachment(SessionWorkspaceEntry Target, HostRequest Request, Func<bool> Admitted,
+        SessionFileRemoval? Previous = null, LocalFileMetadata? PreviousMetadata = null, DateTimeOffset PreviousCapturedAt = default);
     private sealed record PendingRemoval(SessionFileRemoval Review, long Control, DateTimeOffset ExpiresAt);
 
     private sealed class ControlScope : IDisposable

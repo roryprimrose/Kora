@@ -41,6 +41,15 @@ public sealed partial class SessionWorkspaceService
         }, token, admitted, existingSubject: true, resolveTerminalReceipt: true);
     }
 
+    internal Task<SessionFileAttachment> ReplaceAttachment(HostRequest original, SessionFileRemoval previous,
+        LocalFileRevision file, ReadOnlyMemory<byte> bytes, Func<bool> admitted, CancellationToken token)
+    {
+        RequireNativeFileInput();
+        return ControlAsync(original.SessionId, RequestOrigin.LocalUi,
+            (request, eligible) => Files.Replace(request, previous, file, bytes, eligible, token),
+            token, admitted, existingSubject: true, terminalCommitted: true, originalTask: original.TaskId);
+    }
+
     internal static void RequireNativeFileInput()
     {
         var current = HostActivity.Current;

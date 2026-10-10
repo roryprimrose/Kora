@@ -42,11 +42,17 @@ Original user intent, current owning unlocked host, active control session/gener
 
 Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
 
-One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 256 KiB original bytes including BOM; sixteen retained files across the private profile; no eviction or silent overwrite. Explicitly remove the existing attachment before another admission. No typed/voice/model attachment path or confirmation command is delivered.
+One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 262,144 original bytes including BOM; sixteen retained files across the private profile; no eviction or silent overwrite. Attach refuses a second file. No typed/voice/model attachment path or confirmation command is delivered.
 
 **Inspect retained attachment / remove Kora copies** reads full inert historical source and same lexical-lines exact citations after restart, including retained Done sessions. Browsing/search never resume a session, renew activity or trigger cleanup. The snapshot does not watch, refresh or re-read the original file.
 
 Removal reviews the exact session/generation, source/revision/item/digest, storage revision and all owned copies, then requires **Confirm: Remove attachment and Kora copies**. Native use is revoked before secure SQLite body/free-page removal and committed-journal verification. Live/Unknown work and uninventoried copies hold completion; inspect durable state after uncertainty. Original files and unrelated/kept sessions/Perpetual grants remain unchanged.
+
+For an **Active** session with a retained file, choose **Replace retained attachment** from its historical viewer. A fresh picker selects the source; review old identity/digest/captured time/storage and inventory revisions alongside new metadata, persistence and copy-removal consequences.
+Use **Confirm: replace this exact retained attachment with the newly selected file** within two minutes. Picking even the same path creates a new source identity; old consent and citations are never reused.
+Replacement swaps only this one slot, even at the sixteen-file limit, and shows the new captured historical revision only after verifying old owned copies. Old views/search results are retired; no original path is reread automatically and neither original is modified.
+Failure/cancellation before commit preserves the exact old durable record; explicitly inspect it again. A committed but uncertified swap holds both bodies unavailable. Inspect shows metadata-only reviewed removal of the held new snapshot and Kora copies, not refreshed content or restored history.
+Live/Unknown work, unregistered copies, stale reviews or uncertain storage/journal block completion. There is no automatic replay or version history. See the [exact replacement and recovery contract](../Design/File_And_Folder_Ingestion.md#delivered-reviewed-retained-attachment-replacement---2026-10-10).
 
 This is not managed knowledge or model ingestion. No body/query/excerpt enters history, preferences, logs, speech, clipboard or provider context. Folder attachments, multiple versions, model use, OCR/vector/egress and installed acceptance remain deferred. [Canonical limits, known formats and lifecycle](../Design/File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10).
 

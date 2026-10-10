@@ -73,20 +73,30 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
                 {
                     throw new InvalidOperationException("Attachment was not admitted; inspect durable status before retrying.");
                 }
-                await ShowRetained(view, target.Authority.SessionId, Current, cancellation);
+                await ShowRetained(view, target, Current, cancellation);
             });
             reviewing = review.ReviewId;
         }
-        else { await ShowRetained(view, target.Authority.SessionId, Current, cancellation); }
+        else { await ShowRetained(view, target, Current, cancellation); }
         if (!Current()) { Close(); return; }
-        view.Show();
-        view.Activate();
+        window?.Show();
+        window?.Activate();
     }
 
-    private async Task ShowRetained(LocalFilePreviewWindow view, HostId<SessionIdentity> exactSession,
+    private async Task ShowRetained(LocalFilePreviewWindow view, SessionWorkspaceEntry target,
         Func<bool> current, CancellationToken token)
     {
-        var retained = await service.Read(exactSession, token);
+        var exactSession = target.Authority.SessionId;
+        SessionFileAttachment? retained;
+        try { retained = await service.Read(exactSession, token); }
+        catch (SessionFileReplacementHeldException)
+        {
+            // Failed certification never falls back to either body; only reviewed removal is available.
+            var recovery = NewView();
+            await ShowRemoval(recovery, exactSession, current, token);
+            if (current()) { recovery.Show(); recovery.Activate(); }
+            return;
+        }
         if (!current()) { throw new OperationCanceledException(token); }
         if (retained is null)
         {
@@ -97,7 +107,41 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             () => current() && ReferenceEquals(window, view), async () =>
         {
             await ShowRemoval(view, exactSession, current, token);
-        });
+        }, target.Authority.IsActive && access.CanControl ? async () =>
+        {
+            if (!current()) { throw new InvalidOperationException("The selected active session changed. Inspect again."); }
+            var outcome = await service.SelectReplacement(target, retained, this, current, token);
+            if (outcome != LocalFileOutcome.Reviewed || !current() || service.ReplacementReview is not { } replacement)
+            {
+                throw new InvalidOperationException("Replacement not reviewed; the old durable snapshot is unchanged. Inspect again.");
+            }
+            var reviewView = NewView();
+            reviewView.ShowAttachmentReplacement(replacement, async () =>
+            {
+                if (!current()) { throw new InvalidOperationException("The exact old/new replacement review is stale."); }
+                reviewing = Guid.Empty;
+                var result = await service.Confirm(replacement.Next.ReviewId, token);
+                if (result != LocalFileOutcome.Admitted)
+                {
+                    throw new InvalidOperationException("No replacement completion claimed. Inspect exact durable status and copy recovery.");
+                }
+                var completedView = NewView();
+                await ShowRetained(completedView, target, current, token);
+                if (current()) { completedView.Show(); completedView.Activate(); }
+            });
+            reviewing = replacement.Next.ReviewId;
+            reviewView.Show();
+            reviewView.Activate();
+        } : null);
+    }
+
+    private LocalFilePreviewWindow NewView()
+    {
+        RevokeView();
+        var view = new LocalFilePreviewWindow(reportFailure);
+        window = view;
+        view.Closed += OnClosed;
+        return view;
     }
 
     private async Task ShowRemoval(LocalFilePreviewWindow view, HostId<SessionIdentity> exactSession,

@@ -105,15 +105,17 @@ public sealed partial class WindowsSqliteHostInteractionStore
     }
 
     private static void RequireDispositionIdle(SqliteConnection connection, HostId<SessionIdentity> session,
-        HostId<TaskIdentity>? control)
+        HostId<TaskIdentity>? control, HostId<TaskIdentity>? reviewedReplacementIntent = null)
     {
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT 1 FROM host_tasks WHERE session_id=$id AND state IN (0,1,7) AND task_id<>$control
+                AND task_id<>$replacement
             LIMIT 1;
             """;
         command.Parameters.AddWithValue("$id", Id(session));
         command.Parameters.AddWithValue("$control", control is { } task ? Id(task) : string.Empty);
+        command.Parameters.AddWithValue("$replacement", reviewedReplacementIntent is { } replacement ? Id(replacement) : string.Empty);
         if (command.ExecuteScalar() is not null
             || ReadQuestions(connection, session).Any(q => q.Status == QuestionStatus.Pending))
         {

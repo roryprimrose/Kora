@@ -13,6 +13,10 @@ public interface ISessionFileStore
     ValueTask<SessionFileAttachment> Attach(HostRequest request, HostRevision generation, LocalFileRevision revision,
         ReadOnlyMemory<byte> originalBytes, Func<bool> admitted, CancellationToken token);
 
+    /// <summary>Atomically swaps the exact reviewed retained slot; disclosure waits for old-copy verification.</summary>
+    ValueTask<SessionFileAttachment> Replace(HostRequest request, SessionFileRemoval previous, LocalFileRevision revision,
+        ReadOnlyMemory<byte> originalBytes, Func<bool> admitted, CancellationToken token);
+
     /// <summary>Reviews the exact body, revision and complete owned-copy inventory before removal.</summary>
     ValueTask<SessionFileRemoval> PreviewRemoval(HostId<SessionIdentity> session, CancellationToken token);
 

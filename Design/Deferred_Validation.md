@@ -646,6 +646,30 @@ installed-provider/model/network and protected device-list proofs remain
 separately gated. No auto-merge permission was included in this publication
 request.
 
+### 2026-10-10 PR 162 Latest-Main Queue Revalidation
+
+The operator requested updating #162 against newly advanced main. Main
+`1c5bd17` was merged without rewriting the published branch. Its future-only
+captured active admission deadlines, work-row text, queue preferences and
+authoritative event eligibility remain intact.
+
+Fresh Release solution build and fixture publish passed with zero warnings/
+errors. Preparation passed 105 focused tests; targeted changed-queue groups
+passed 66 Core, 1,639 Application and 81 Windows tests with zero skips. All
+43 admission contracts passed without native launch. One new final-payload
+repetition passed all five baseline and ten workstation rows. A separate
+fresh repetition discovered all 8 event IDs, 12 missing links and 12 catalogue
+names while preserving the exact pending task and eight-visible/two-omitted
+event limit.
+
+All four new final fixture PIDs were absent, exited 0, cleaned their exact
+scratch children and required no forced termination. Native operations
+finished within the original fixed approval cutoff. The latest source-bound
+local summary verifies those receipts and targeted TRX counts; the prior
+publication bundle remains unchanged. Earlier caption/name/other-list
+observations above retain their earlier fingerprints and are not reattributed
+to this latest queue update. No additional protected or human proof is claimed.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

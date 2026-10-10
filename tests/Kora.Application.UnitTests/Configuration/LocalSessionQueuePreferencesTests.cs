@@ -18,7 +18,9 @@ public sealed class LocalSessionQueuePreferencesTests : IDisposable
         preferences.Load().Should().Be(new SessionQueuePreferences());
         store.WriteText("session-retention.txt", "independent");
         foreach (var saved in new[] { new SessionQueuePreferences(1, 2), new SessionQueuePreferences(10),
-            new SessionQueuePreferences(null, 1), new SessionQueuePreferences() })
+            new SessionQueuePreferences(null, 1), new SessionQueuePreferences(1, 2, 1),
+            new SessionQueuePreferences(pendingLifetimeMinutes: 30), new SessionQueuePreferences(pendingLifetimeMinutes: 120),
+            new SessionQueuePreferences() })
         {
             preferences.BeginWrite();
             preferences.Save(saved);
@@ -34,6 +36,30 @@ public sealed class LocalSessionQueuePreferencesTests : IDisposable
     }
 
     [Theory]
+    [InlineData("1\n1\n2", 1, 2)]
+    [InlineData("1\ndefault\ndefault", null, null)]
+    [InlineData("1\n10\n1", 10, 1)]
+    public void Known_schema_one_preserves_overrides_without_writing_until_explicit_confirmed_edit(string content, int? capacity, int? slots)
+    {
+        var store = new LocalPreferenceStore(new Paths(root));
+        store.WriteText("session-queue.txt", content);
+        var before = store.ReadText("session-queue.txt");
+        var preferences = new LocalSessionQueuePreferences(store);
+        preferences.Load().Should().Be(new SessionQueuePreferences(capacity, slots));
+        preferences.Load().Limits.PendingLifetimeMinutes.Should().Be(30);
+        store.ReadText("session-queue.txt").Should().Be(before);
+        var edited = preferences.Load().With(SessionQueueOption.PendingLifetimeMinutes, "120");
+        preferences.BeginWrite();
+        preferences.Save(edited);
+        preferences.ReadBack().Should().Be(edited);
+        store.ReadLines("session-queue.txt").Should().Equal("2",
+            capacity?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "default",
+            slots?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "default", "120");
+        preferences.ConfirmWrite();
+        new LocalSessionQueuePreferences(store).Load().Should().Be(edited);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("1")]
     [InlineData("2\n10\n1")]
@@ -45,11 +71,30 @@ public sealed class LocalSessionQueuePreferencesTests : IDisposable
     [InlineData("1\n10\n01")]
     [InlineData("1\nDefault\n1")]
     [InlineData("1\n10\n")]
+    [InlineData("2\n10\n1\n0")]
+    [InlineData("2\n10\n1\n121")]
+    [InlineData("2\n10\n1\n030")]
+    [InlineData("2\n10\n1\n30.0")]
+    [InlineData("2\n10\n1\nDefault")]
+    [InlineData("2\n10\n1\n")]
+    [InlineData("2\n10\n1\n30\nextra")]
+    [InlineData("3\n10\n1\n30")]
     public void Unknown_corrupt_and_noncanonical_saved_values_never_default(string content)
     {
         var store = new LocalPreferenceStore(new Paths(root));
         store.WriteText("session-queue.txt", content);
         new LocalSessionQueuePreferences(store).Invoking(item => item.Load()).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void Oversize_saved_lifetime_and_durable_marker_fail_closed_without_replacing_bytes()
+    {
+        var store = new LocalPreferenceStore(new Paths(root));
+        var content = "2\n10\n1\n" + new string('1', 131072);
+        store.WriteText("session-queue.txt", content);
+        var preferences = new LocalSessionQueuePreferences(store);
+        preferences.Invoking(item => item.Load()).Should().Throw<InvalidDataException>();
+        File.ReadAllText(Path.Combine(root, "Preferences", "session-queue.txt")).Should().Be(content);
     }
 
     [Theory]

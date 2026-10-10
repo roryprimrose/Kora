@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:configuration="clr-namespace:Kora.Core.Configuration;assembly=Kora.Core"
     xmlns:controls="using:Kora.Controls"
+    xmlns:local="using:Kora"
     Title="{Binding SettingsWindowTitle}"
     Icon="/Assets/Kora.ico"
     Width="1040"
@@ -657,6 +658,7 @@
                       PlaceholderText="Inspect and choose exact caption option" AutomationProperties.Name="Speech caption option value" />
                   <Button Content="Save caption option only" Command="{Binding SaveSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
                   <Button Content="Reset selected caption option" Command="{Binding ResetSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                  <local:CaptionDisplaySelector x:Name="CaptionDisplaySelector" />
                 </StackPanel>
               </Grid>
             </Border>
@@ -734,7 +736,7 @@
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Text="Fixed read-only local-version queue" Classes="settings-title" />
-                <TextBlock Text="Manual fair dispatch only. Defaults: 10 pending per session and 1 global slot. Changes affect future admissions, never evict pending entries or cancel active work. Pending lifetime stays 30 minutes; active budget stays 5 minutes. Deadline editing, automatic dispatch and general/provider/effect execution are unavailable. Refresh before each Save or Reset."
+                <TextBlock Text="Manual fair dispatch only. Defaults: 10 pending per session, 1 global slot and 30 minutes pending lifetime. Changes affect future admissions only. Lifetime 1-120 integer minutes is captured by newly enqueued entries after confirmed activation; existing pending/cancelled/expired/running deadlines never change. Active budget stays 5 minutes. Apply-now, active deadline editing, automatic dispatch and general/provider/effect execution are unavailable. Refresh before each Save or Reset."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding QueueConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 <Button Content="Refresh fixed queue settings" Command="{Binding RefreshQueueConfigurationCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
@@ -748,6 +750,11 @@
                           IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue synchronous read-only slots" />
                 <Button Content="Save fixed read-only slots" Command="{Binding SaveQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
                 <Button Content="Reset fixed read-only slots to 1" Command="{Binding ResetQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <TextBlock Text="Pending lifetime for future new entries (integer minutes, 1-120; default 30)" Classes="settings-description" />
+                <ComboBox ItemsSource="{Binding QueueLifetimeMinuteChoices}" SelectedItem="{Binding SelectedQueueLifetimeMinutes}"
+                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue future pending lifetime in minutes" />
+                <Button Content="Save future pending lifetime" Command="{Binding SaveQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
+                <Button Content="Reset future pending lifetime to 30 minutes" Command="{Binding ResetQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
               </StackPanel>
             </Border>
             <Border Classes="settings-card">

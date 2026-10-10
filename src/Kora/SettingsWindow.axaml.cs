@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -25,7 +25,8 @@ public sealed partial class SettingsWindow : Window
     {
     }
 
-    public SettingsWindow(MainViewModel viewModel, Action? chooseMicrophone = null)
+    public SettingsWindow(MainViewModel viewModel, Action? chooseMicrophone = null,
+        SpeechCaptionWindowController? captionDisplay = null)
     {
         AvaloniaXamlLoader.Load(this);
         settingsTabs = this.FindControl<TabControl>("SettingsTabs")
@@ -59,6 +60,10 @@ public sealed partial class SettingsWindow : Window
             handledEventsToo: true);
 #pragma warning restore MA0147
         DataContext = viewModel;
+        if (captionDisplay is not null)
+        {
+            this.FindControl<CaptionDisplaySelector>("CaptionDisplaySelector")!.Bind(captionDisplay);
+        }
         var recovery = this.FindControl<Button>("ChooseMicrophone")
             ?? throw new InvalidOperationException("The microphone recovery control is unavailable.");
         recovery.IsEnabled = chooseMicrophone is not null;

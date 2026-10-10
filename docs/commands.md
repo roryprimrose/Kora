@@ -151,13 +151,16 @@ Native **Settings > Sessions > Fixed read-only local-version queue** and exact t
 
 | Exact syntax | Result |
 |---|---|
-| `list queue settings` | Both supported option IDs, ranges/defaults, saved/effective values, revisions and unavailable scope |
+| `list queue settings` | All three supported option IDs, ranges/defaults, saved/effective values, minutes unit, revisions and unavailable scope; advertised schema 2 |
 | `get queue.pending-per-session` / `status queue.pending-per-session` | Inspect capacity; integer 1-10, default/reset 10 |
 | `get queue.execution-slots` / `status queue.execution-slots` | Inspect fixed synchronous read-only slots; integer 1-2, default/reset 1 |
 | `set queue.pending-per-session to <integer 1-10>` | Audited future pending-admission capacity; existing entries are never evicted |
 | `set queue.execution-slots to <integer 1-2>` | Audited future fixed-read admission limit; existing active reads are not cancelled |
-| `reset queue.pending-per-session` | Reset only pending capacity; preserve slot override |
-| `reset queue.execution-slots` | Reset only slots; preserve capacity override |
+| `get queue.pending-lifetime-minutes` / `status queue.pending-lifetime-minutes` | Inspect future pending lifetime; canonical integer 1-120 minutes, unsaved/default/reset 30 |
+| `set queue.pending-lifetime-minutes to <integer 1-120>` | Capture only in newly enqueued admitted fixed reads after confirmed activation; all existing deadlines remain exact |
+| `reset queue.pending-per-session` | Reset only pending capacity; preserve slots/lifetime |
+| `reset queue.execution-slots` | Reset only slots; preserve capacity/lifetime |
+| `reset queue.pending-lifetime-minutes` | Reset only future pending lifetime to 30 minutes; preserve capacity/slots |
 
 Integers are canonical: no signs, leading zeroes, fractions, extra words or apply-now.
 Native **Refresh** captures a current admitted draft; each **Save**/**Reset** requires that unchanged revision and visible lifetime, then another Refresh.
@@ -165,14 +168,14 @@ Concurrent native/typed edits and hide/reopen retire the old draft; they cannot 
 
 Confirmed limits actually feed enqueue, fair dispatch and native/exact/event observation.
 Reducing capacity never evicts pending work or changes existing entry deadlines; reducing slots never cancels active work or changes its admission budget.
-Pending lifetime stays **30 minutes** and active budget **5 minutes**, unavailable to edit.
+Pending lifetime defaults to **30 minutes**; its **1-120 integer minutes** option affects future new enqueues only. Active budget stays **5 minutes**, unavailable to edit. No apply-now or existing-deadline shortening/extension is available.
 Automatic dispatch, general execution, workers/resource leases, model tools and real two-slot provider/hardware qualification remain unavailable ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [deadline tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
 
 Protected Active/Suspected/Unknown original-voice writes deny without downgrade or deferred application.
 Malformed/unconfirmed/inaccessible preferences or failed required audit/readback/control receipts hold new admissions, not fabricated defaults or rollback.
 Inspect saved state and receipts, explicitly repair, then Refresh; ordinary refresh never clears the unconfirmed marker ([recovery contract](../Design/User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13)).
 
-Pending eligibility expires after 30 minutes; an expired head remains visible
+Pending eligibility expires at each entry's recorded deadline; an expired head remains visible
 until explicitly removed/cleared, and blocks later work at that position.
 The five-minute active budget starts at admission; late read results cannot
 be successful receipts. Existing pre-dispatch user questions have their own
@@ -187,6 +190,12 @@ unrelated sessions remain eligible. Restart restores status/history only:
 pending work is Interrupted and prior dispatch is Unknown, never replayed.
 Do not blindly retry a failed audit/storage/receipt operation; a commit may
 already exist. Inspect exact durable IDs/revisions before a new decision.
+
+Known preference schema 1 validates and preserves capacity/slots, introducing
+only lifetime default 30 without rewriting on observation; explicit saves use
+schema 2. Legacy queue payloads remain exact fixed-30 with original bytes/digests;
+new format 2 captures integer minutes under committed enqueue authority. Unknown,
+partial, downgraded or unbound payloads refuse without replacing history/authority.
 
 No script, power, write connector, arbitrary resource/effect, hosted provider
 or local-model reasoning descriptor is schedulable. This is a deterministic

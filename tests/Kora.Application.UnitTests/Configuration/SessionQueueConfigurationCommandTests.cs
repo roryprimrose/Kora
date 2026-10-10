@@ -17,6 +17,12 @@ public sealed class SessionQueueConfigurationCommandTests
     [InlineData("Nova, set queue.execution-slots to 2", AppearanceCommandOperation.Set, SessionQueueOption.ExecutionSlots, "2")]
     [InlineData("reset queue.pending-per-session", AppearanceCommandOperation.Reset, SessionQueueOption.PendingPerSession, null)]
     [InlineData("RESET QUEUE.EXECUTION-SLOTS", AppearanceCommandOperation.Reset, SessionQueueOption.ExecutionSlots, null)]
+    [InlineData("get queue.pending-lifetime-minutes", AppearanceCommandOperation.Get, SessionQueueOption.PendingLifetimeMinutes, null)]
+    [InlineData("status queue.pending-lifetime-minutes", AppearanceCommandOperation.Get, SessionQueueOption.PendingLifetimeMinutes, null)]
+    [InlineData("Nova, set queue.pending-lifetime-minutes to 1", AppearanceCommandOperation.Set, SessionQueueOption.PendingLifetimeMinutes, "1")]
+    [InlineData("set queue.pending-lifetime-minutes to 30", AppearanceCommandOperation.Set, SessionQueueOption.PendingLifetimeMinutes, "30")]
+    [InlineData("set queue.pending-lifetime-minutes to 120", AppearanceCommandOperation.Set, SessionQueueOption.PendingLifetimeMinutes, "120")]
+    [InlineData("reset queue.pending-lifetime-minutes", AppearanceCommandOperation.Reset, SessionQueueOption.PendingLifetimeMinutes, null)]
     public void Exact_current_name_commands_remain_original_bounded_values(string text, AppearanceCommandOperation operation,
         SessionQueueOption? option, string? value)
     {
@@ -27,7 +33,9 @@ public sealed class SessionQueueConfigurationCommandTests
     [Theory]
     [InlineData("set queue.execution-slots to ")]
     [InlineData("list queue settings extra")]
-    [InlineData("set queue.pending-lifetime-minutes to 120")]
+    [InlineData("set queue.active-deadline-minutes to 120")]
+    [InlineData("set queue.pending-lifetime-minutes to ")]
+    [InlineData("set queue.pending-lifetime-minutes to \t30")]
     [InlineData("reset queue.settings")]
     [InlineData("status queue.unknown")]
     [InlineData("get queue.execution-slots\n")]

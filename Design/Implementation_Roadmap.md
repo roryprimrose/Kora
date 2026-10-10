@@ -583,7 +583,47 @@ capacity/copy/crypto consumers and runtime/lifecycle/containment/speech/
 distribution or real installed-native evidence. No harness is promoted,
 deleted, archived or reclassified as a production executor by this increment.
 
+### R10/R13 future-only pending lifetime - 2026-10-10
+
+The delivered fixed synchronous read-only local-version queue adds only `queue.pending-lifetime-minutes`: canonical integer **1-120 minutes**, unsaved/default/per-option reset **30**.
+Native Settings and exact typed/current-name activated discovery/get/status/set/reset share the existing original host intent, session/generation/control/call/preference revisions, typed REQUESTED/terminal audit, atomic save/readback, durable unconfirmed marker and confirmed activation gates.
+Only newly enqueued admitted entries after confirmation capture the chosen lifetime; existing pending/cancelled/expired/running deadlines, identity and authority remain exact. Preference changes/refresh never enqueue, dispatch, cancel, expire or extend meaningful activity.
+
+New queue payload format 2 records `RecordVersion=2` and integer `PendingLifetimeMinutes`; validation requires exact expiry equality and canonical payload bytes bound to the original enqueue change digest.
+Known legacy field-absent payloads remain fixed-30 and serialize identically, preserving original committed audit digests. Mixed formats read/reopen without database schema or historical authority migration; unknown/partial/downgraded/corrupt/unbound data refuses without replacement.
+Preference schema 2 adds a fourth minutes line. Valid known schema 1 validates first, preserves capacity/slots and supplies only the new lifetime default 30 without observation-time writes; the next explicit edit uses schema 2. Malformed/unknown/UTF-8/oversize/unconfirmed state holds new admissions and reports recovery.
+
+The existing short configuration transaction gate serializes new enqueues with edits: each captures exactly one old/new confirmed policy. Queue/work/deadline/event/native/exact consumers retain captured deadlines, precise expiry edges, FIFO/fairness, one-per-session, dependencies, Unknown quarantine and no restart replay.
+Active budget **5 minutes** and user-question expiry remain separately fixed. Apply-now, active-deadline edits, automatic dispatch, general effect/worker/model/provider scheduling and expanded slots remain unavailable.
+See [user contract](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13), [commands](../docs/commands.md#fixed-queue-settings), [preferences/races](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs) and [private SQLite serialization/authority/reopen/interruption tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Lifetime.cs).
+
+#### Qualification and experiment assessment
+
+All experiment files and historical receipts remain unchanged. This deterministic TTL increment establishes maintained production policy/serialization/race assertions only; it does not establish exact complete assertion equivalence or replace every experimental consumer.
+The [MG1 management disposition](../experiments/r02-dotnet-management-proof/README.md#profile-and-historical-separation) retains released SDK/runtime HTTP/stdio/identity and provider deadlines absent from this local fixed read.
+The [RT2 lifecycle proof](../experiments/r02-runtime-lifecycle-proof/README.md) retains real native lifecycle/file/socket/quiescence observation, and [containment proof](../experiments/r02-containment-proof/README.md#scope-and-contracts) retains attributable network/token/ACL/child evidence and strict-denial gates.
+Resource/runtime/native/storage/historical proof receipts remain unique: no harness is promoted, retired, deleted or rerun. Deterministic TTL is not provider/hardware concurrency, installed-native accessibility or release qualification; full R10/R13/A3 and remaining physical/runtime gates stay open.
+
+#### Validation receipt
+
+Validated isolated branch against base `e7eae6476d93f232ee0cbb46f131c228a7b5e63b`. Initial no-restore build found NETSDK1004 missing assets; locked restore used only the authorized Azure Artifacts source, without feed/manifest/credential changes.
+Final root Release build: **0 warnings / 0 errors**. Core **1,397**, Application **3,764**, Tools **137**, Definitions **6**, Windows **1,414**: all passed, **zero failures/skips**; default-parallel Windows preserved and real global Activity/evidence fixtures remain in the exclusive durable storage composition group.
+Latest-only portable Cobertura inputs under `.net-test-artifacts/lifetime-final` pass the unchanged exact **100% line / 100% branch** gate. ReportGenerator's existing missing on-disk virtual LoggerMessage generated-source notices do not change the coverage denominator or gate.
+
+```powershell
+dotnet restore .\Kora.slnx --locked-mode --source https://msazure.pkgs.visualstudio.com/One/_packaging/Networking-AAA/nuget/v3/index.json
+dotnet build .\Kora.slnx --configuration Release --no-restore
+# Each of all five suites: dotnet test --project <project> --configuration Release --no-build --report-trx
+# Portable four additionally: --coverlet --coverlet-output-format cobertura
+# Passed: Core 1397, Application 3764, Tools 137, Definitions 6, Windows 1414; no failed/skipped.
+.\eng\Assert-CodeCoverage.ps1 -ReportPath .\.net-test-artifacts\lifetime-final\coverage-report\Cobertura.xml -MinimumLine 100 -MinimumBranch 100
+# Line coverage: 100.0% (minimum 100.0%)
+# Branch coverage: 100.0% (minimum 100.0%)
+```
+
 ### R10/R13 bounded fixed queue settings - 2026-10-09
+
+Historical receipt below describes the initial fixed-30 implementation; the 2026-10-10 future-only option supersedes only its pending-lifetime availability, not its tested evidence or active budget.
 
 The existing synchronous read-only local-version queue now exposes only its authoritative domain ranges: pending capacity **1-10/default-reset 10** and global fixed-read slots **1-2/default-reset 1** ([domain](../src/Kora.Core/Hosting/SessionQueueLimits.cs), [preferences](../src/Kora.Core/Configuration/SessionQueuePreferences.cs)).
 Native **Settings > Sessions** and exact typed/current-name activated list/get/status/set/per-option reset share original-input admission and host-held revisions.
@@ -3373,7 +3413,7 @@ Do not advertise any deferred capability solely because an interface/schema is d
 | ID and work package | State/priority | Needs | Separate delivery gate |
 |---|---|---|---|
 | R24 - Local frequent-speaker learning and enrolled verification | Optional; P3 | R03, R04, R05, R09, R10, R15 | Separate learning consent and verifier enrollment; protected per-SID/device storage, minimization/reset/delete, drift/playback/predominant-speaker tests and verifier FAR/FRR/anti-spoof/secure-OS proof. Learning is personalization, never identity/authority; missing either never blocks baseline voice. Close D-006 only for the advertised capability. |
-| R25 - Optional speech captions and richer browser/static HTML/diagram results | Bounded disabled-by-default local current-utterance captions plus run-only pinning, primary-screen corner placement and 0-30-second normal-completion delay delivered; sentence alignment/richer rendering/broader UX remain optional/separately gated P3 | R05, R08, R09, R14, R15 for remaining integration/proof, not blanket implementation prerequisites | Exact native/typed/activated local discovery/get/set/reset, actual matching host-admitted playback identity/generation/segment and immediate stop/cancel/response/privacy/call/ownership retirement even when pinned. Normal completion retains only observed text labelled previous speech; default delay 5 seconds, unpin preserves original deadline. Atomic typed placement/delay preferences never enable captions. No caption content persistence/logging/model egress or speech/capture/authority changes. Sentence alignment remains unavailable without admitted sentence boundaries; display selection/arbitrary placement and broader natural caption/viewer commands remain separate. Rich viewers still require immutable content, renderer isolation, disabled bridges/active content, finite approved assets/navigation and resource bounds. R10 acoustic proof and installed/native accessibility acceptance remain open; neither is claimed or retired by this slice. |
+| R25 - Optional speech captions/rich results | Off-default utterance captions, run-only pin/display choice, corner and completion delay delivered | R05, R08, R09, R14, R15 | Live native source/snapshot/selection binding; missing targets retire without fallback. See R25 below. Alignment, coordinates, rich rendering, installed multimonitor/accessibility and acoustic proof remain open. |
 | R26 - File/folder/screen/image context and knowledge retrieval/indexing | R26.1a local inspection, R26.1b selected immutable revision lexical retrieval, R26.1c bounded folder-scoped lexical retrieval and R26.1d explicit volatile preview refresh delivered; broader stages deferred/P3; [refresh boundary](File_And_Folder_Ingestion.md#delivered-explicit-volatile-preview-refresh---2026-10-10); [provider/memory/knowledge direction](Model_Providers_Memory_And_Knowledge.md) and [staged plan](File_And_Folder_Ingestion.md#r26-file-and-folder-ingestion-delivery-plan) remain specified | R03, R04, R05, R06, R07, R08, R10, R12, R14; connector-backed retrieval also R20; R26.1c/d use delivered host boundaries, not blocked R08 | Native picker + metadata-only review + exact confirmation admit one immutable volatile UTF-8 text/Markdown file (256 KiB) or one complete reviewed immediate-folder set (1–32 files, 1 MiB combined, 256 KiB per file). Any subdirectory/inadmissible item or exceeded bound rejects the whole folder. Shared lexical-lines-v1 scan/ranking applies the existing eight-citation/16 KiB total excerpt budget; native citations revalidate original session/task/privacy/ownership/call/generation and required terminal audit. Fixed-drive canonical verified handles deny reparse/hard-link/protected/generated/source-control/unstable paths and revalidate complete membership before/after capture. Explicit refresh binds the host-held exact reference and original canonical physical root, reviews complete fresh metadata and requires separate new native confirmation before content reads. Same source ID, fresh revision/items/digests; the old single-slot preview/citations retire at start. Missing/replaced/aliased roots deny; failure/cancel requires fresh picker recovery, never silent rebinding. [Broker tests](../tests/Kora.Tools.UnitTests/Files/LocalFileRefreshTests.cs), [host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.FileRefresh.cs), [native fixtures](../tests/Kora.Windows.IntegrationTests/LocalFileTests.Refresh.cs). No recursion, watcher/scheduler, durable cross-session attachment/registry, managed disable/remove lifecycle, persistent/vector index, embeddings, model/egress, clipboard or execution authority. R26.2 lifecycle, R26.3 qualified local reasoning, R26.4 hosted egress and R26.5 later formats/hybrid retrieval remain separately gated; R08 remains blocked. No ambient collection, view-model path reads, whole-file prompt stuffing, blanket enterprise cache, model-chosen paths or silent context reuse. All experiments retained. Installed native/accessibility acceptance and broader R26.1–5 gates remain outstanding. |
 | R27 - General executable imports and standalone application execution | Deferred; P3 | I: consumed R01/R05/R10/R11/R12/R13/R21 contracts; E/Q: applicable R02 execution profiles only | Resolve standalone-binary rollback policy; prove complete dependency discovery and immutable folder snapshots, registered execution profiles, real OS containment and content-bound applicability/revocation. Do not extend fixed bundled scripts into arbitrary shell strings or user-supplied executable authority. |
 | R28 - Write-capable connectors, repository/Git or broader desktop automation | Deferred; P3 | R05, R08, R12, R13, R20, R26 | Add explicit versioned tools and per-domain policy/resource/identity/recovery proofs. Revalidate external changes and uncertain writes; no self-modification, model-selected executable handlers or silent automatic write retries. Declarative authoring is not authorization for these capabilities. |
@@ -3992,6 +4032,30 @@ proof gate or claim of real installed/user/native accessibility qualification
 is removed or promoted. R19, full R21/R23 and Slice B execution/authoring gates
 remain open.
 
+
+## R25 Run-only Native Caption Display Selection - 2026-10-10
+
+The isolated bounded increment adds original-native-user choice among actual live displays and explicit **Return to primary** in Speech & audio settings and the caption. Untouched default/reset/restart remains primary.
+Explicit selection binds actual source lifetime, live snapshot and selection revisions; it never uses labels, ordinals, provider text, persisted handles, device IDs or coordinates as identity.
+
+Topology/reorder/working-area/DPI changes expire choices and revalidate the selected source. Current native geometry is sized/clipped inside that source's working area, with the existing 24-DIP corner inset reduced only on tiny areas. Resize/reposition hides first.
+Missing, overlapping/ambiguous or unknown explicit targets hide and retire even pinned text without physical-monitor fallback; native reselect/reset permits only future eligible captions.
+
+No saved bytes/schema/mode/default/delay/pin semantics change. Off remains Off.
+Selection neither starts output/capture nor reveals unobserved text, extends a completion deadline, clears unconfirmed preferences or private/owner/call/request/generation holds, replaces required panels, or acquires stable admission/task/grant authority.
+No model/voice route, clipboard expansion, caption content storage/logging or audio-adapter change is added.
+
+Maintained deterministic headless native source-selection/controller tests cover actual source binding, default/reset/restart, negative coordinates, DPI/corners/clipping/tiny areas, reorder/add/remove/geometry revisions, stale selections, unknown targets, eligibility holds and closure/disposal/late events.
+Portable caption tests retain observed-only and successful-completion/pin/original-deadline invariants and verify display-loss retirement without replay/preference repair.
+
+Experiment-equivalence assessment: this addresses desktop caption placement only; it cannot replace the unique speech/runtime/native/hardware or acoustic receipts. No experiment files/evidence are removed or reclassified.
+Installed multimonitor/native accessibility and acoustic acceptance remain open, along with sentence/word alignment, arbitrary coordinates, rich rendering and broader natural caption navigation.
+
+See [authoritative run-only choice/recovery](User_Configuration.md#delivered-run-only-native-caption-display-choice-r25---2026-10-10) and [native settings](../docs/settings.md#local-speech-text).
+
+Direct isolated-worktree validation: zero-warning/zero-error Release solution build; Core **1,372**, Application **3,740**, Tools **137**, Definitions **6**, Windows **1,424** passed (**6,679** total, no failures/skips in corrected final suites). Latest-only portable line/branch coverage remains exactly **100%/100%**.
+The initial Windows run exposed one constructor-string source-contract assertion coupled to the optional caption-selector wiring; that assertion was updated without changing microphone behavior, and the complete Windows suite reran successfully. Original failed and corrected local receipts are retained separately. No test deadlines, parallelism or suppressions were changed.
+
 ## R25 Bounded Local Caption UX Delivered - 2026-10-09
 
 This follows merged #109's disabled-by-default current-utterance slice after
@@ -4024,8 +4088,8 @@ admitted to history or sent to a model. Required native recovery stays separate.
 
 **Still open:** sentence-level alignment needs real host-admitted sentence
 boundaries; the composed playback adapter reports only utterance segment 0.
-This slice adds no heuristic timing, splitting or audio pipeline. Display
-selection/arbitrary positions, broad natural caption/navigation aliases,
+This slice adds no heuristic timing, splitting or audio pipeline. Run-only native display
+selection is added in the 2026-10-10 increment below; arbitrary positions, broad natural caption/navigation aliases,
 word alignment, rich browser/static HTML/diagram rendering, installed/native
 accessibility and acoustic qualification remain separately gated. Existing
 ordinary-speech **3-sentence/80-word** caps and over-limit full visual refusal

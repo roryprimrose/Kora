@@ -409,6 +409,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Kora.Core.Configuration.SessionQueueOption.ExecutionSlots, SelectedQueueSlots.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
         ResetQueueSlotsCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
             Kora.Core.Configuration.SessionQueueOption.ExecutionSlots), SecurityAuditInitiator.LocalUser));
+        SaveQueueLifetimeCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Set,
+            Kora.Core.Configuration.SessionQueueOption.PendingLifetimeMinutes, SelectedQueueLifetimeMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)), SecurityAuditInitiator.LocalUser));
+        ResetQueueLifetimeCommand = CreateCommand(() => ExecuteQueueConfigurationCommandAsync(new(AppearanceCommandOperation.Reset,
+            Kora.Core.Configuration.SessionQueueOption.PendingLifetimeMinutes), SecurityAuditInitiator.LocalUser));
         RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));

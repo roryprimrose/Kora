@@ -42,7 +42,7 @@ resets only that option. These device-local options do not enable captions:
 
 | ID | Choices / bounds | Default and reset |
 |---|---|---|
-| `display.speech-text-placement` | `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` on the primary working area, 24-DIP margin | `BottomRight` |
+| `display.speech-text-placement` | `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` on the chosen working area, 24-DIP margin | `BottomRight`; primary display unless explicitly selected this run |
 | `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 | 5 |
 | `display.speech-text-pin` | `true` / `false`, current observed caption only; run-only | `false` |
 
@@ -52,6 +52,14 @@ shows its run-only scope. Invalid saved options are rejected, not defaulted.
 Sentence alignment remains unavailable because playback supplies no admitted
 sentence boundaries. Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
+
+**Caption display — this run only** is available in **Settings > Speech & audio** and the caption. Choose an available native display and press **Use selected display**; **Return to primary** explicitly resets to the current primary.
+Labels show ordinal, primary designation and safe working-area geometry; they are not durable display identities. No monitor choice is saved; restart returns to primary.
+
+Choosing while speech text is Off applies only to the next eligible caption; it does not enable captions or speak/capture. Choosing while eligible text is visible moves only that observed caption, keeping its original completion deadline and pin. The saved corner remains relative to the chosen display's current working area/DPI; tiny areas clip rather than spill.
+
+Display changes expire old choices. If the explicit display disappears or is unknown, the caption immediately hides and retires, even when pinned; it does not move private text to another monitor.
+Inspect the display status, then explicitly select a current display or **Return to primary** when the owning unlocked/private/call gates allow it. Retired text never returns. This recovery does not repair caption preferences, clear privacy/ownership/call holds, or replace required response/question/recovery panels.
 
 ## Windows-native speech rate
 
@@ -809,6 +817,40 @@ the microphone.
 
 Select **Open Windows microphone settings** to manage Kora's Windows microphone
 permission without navigating through Windows Settings manually.
+
+## Sessions: fixed read-only local-version queue
+
+**Settings > Sessions > Fixed read-only local-version queue** provides pending
+capacity (1-10, default/reset 10), fixed synchronous read-only slots (1-2,
+default/reset 1) and **future pending lifetime in integer minutes** (1-120,
+unsaved/default/reset 30). Highlighting a choice does not save or enqueue work.
+Use **Refresh fixed queue settings**, then the option's **Save** or **Reset**.
+Each option resets independently; another Refresh is required before a new edit.
+The [exact typed/current-name commands](commands.md#fixed-queue-settings) use
+the same original-input host admission, revisions and audited confirmation.
+
+Only newly enqueued admitted fixed reads after confirmed activation capture
+the chosen pending lifetime. Existing pending/cancelled/expired/running entries
+keep their exact recorded deadlines and identities. The five-minute active
+budget and separate user-question expiry do not change. No apply-now,
+automatic dispatch, worker/model/provider/effect scheduler or expanded slot
+qualification is available. Refresh and preference edits never dispatch,
+cancel, expire old work or extend meaningful activity.
+
+Protected original activated-voice mutations remain denied without UI
+relabelling. Hidden/reopened settings, stale revisions, changed ownership/privacy,
+failed required audit/control receipt or mismatched readback cannot activate
+a draft. Unconfirmed writes remain unavailable across restart: inspect saved
+state and receipts, explicitly repair, then refresh; no automatic retry or false
+rollback. Existing queue authority remains independently inspectable.
+
+Schema-2 `session-queue.txt` adds the minutes override to capacity/slots.
+Known valid schema 1 preserves those overrides and supplies the new lifetime
+default 30; observation never rewrites it. Unknown/malformed/noncanonical,
+oversize or invalid UTF-8 data never becomes a default. Legacy queue records
+remain exact fixed-30 with original payloads/digests; format-2 entries capture
+the configured minutes and exact expiry under committed enqueue authority,
+without a database schema or historical authority migration.
 
 ## Where settings are stored
 

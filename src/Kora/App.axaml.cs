@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 using Avalonia;
 using Avalonia.Controls;
@@ -67,10 +67,13 @@ public sealed partial class App : Avalonia.Application
             desktop.MainWindow = window;
             microphoneRecovery = new MicrophoneRecoveryWindowController(viewModel,
                 Services.GetRequiredService<ILogger<MicrophoneRecoveryWindow>>());
+            var captionView = new SpeechCaptionWindow(viewModel);
+            speechCaptionWindow = new SpeechCaptionWindowController(viewModel, captionView,
+                new AvaloniaCaptionDisplaySource(captionView.Screens));
             settingsWindow = new SettingsWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SettingsWindowController>>(),
-                microphoneRecovery.Open);
+                microphoneRecovery.Open, speechCaptionWindow);
             MarkdownDocumentRenderer.Renderer = new NativeDetailRenderer(
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
             detailWindow = new DetailWindowController(
@@ -86,7 +89,6 @@ public sealed partial class App : Avalonia.Application
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>());
-            speechCaptionWindow = new SpeechCaptionWindowController(viewModel);
             grantListWindow = new GrantListWindowController(viewModel);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
                 Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>());

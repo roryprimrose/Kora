@@ -37,6 +37,10 @@ clear use the same workflow as typed/current-name activated commands. Selection
 alone neither enqueues nor dispatches. New work in Done/Removed sessions is denied.
 Passive history/queue inspection never renews activity or restores authority.
 
+The [future-only pending lifetime option](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) adds canonical integer 1-120 minutes, default/reset 30, only for new admitted fixed local-version entries after confirmed activation.
+Native/exact settings share original-input/session/generation/control/call/preference revision gates, required audit and durable save/readback receipts. No setting edit or refresh dispatches, cancels or extends activity; existing recorded deadlines/identities, five-minute active budget and user-question expiry remain unchanged.
+Known legacy fixed-30 queue payloads preserve their bytes and original authority digests; new format-2 payloads bind chosen lifetime and exact expiry to enqueue authority. Preference schema 1 validates capacity/slots and supplies the new option's default before a later explicit schema-2 save. Unknown/corrupt/unconfirmed state fails closed, without replay or automatic repair.
+
 The [R14 coordinated native work increment](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)
 delivers list-plus-selected-session work, atomic bounded queue/task/question
 observation, stable identity/revision/order, observed eligibility/deadlines/

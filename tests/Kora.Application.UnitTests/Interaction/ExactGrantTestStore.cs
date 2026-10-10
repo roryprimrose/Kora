@@ -5,6 +5,8 @@ using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
 
+using System.Collections.Immutable;
+
 namespace Kora.Application.UnitTests.Interaction;
 
 internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGrantInspection initial) : IExactGrantStore, IHostInteractionStore
@@ -24,18 +26,23 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     internal HostRequest? RevokeRequest { get; private set; }
     internal SecurityAuditEvent? Audit { get; private set; }
     internal Func<bool>? CapturedAdmission { get; private set; }
+    internal ImmutableArray<ExactGrantInspection> Additional { get; set; } = [];
+    internal ExactGrantBatchDecision? BatchResult { get; set; }
+    internal Action? BeforePreview { get; set; }
+    internal ExactGrantBatch? PreviewResult { get; set; }
 
     public ValueTask<ExactGrantPage> ReadExactGrantPageAsync(ExactGrantCursor? cursor, CancellationToken cancellationToken)
     {
         BeforePage?.Invoke();
         return PendingPage is { } pending ? new(pending)
-            : ValueTask.FromResult(new ExactGrantPage(Current is { } current ? [current] : [], Next));
+            : ValueTask.FromResult(new ExactGrantPage(Current is { } current ? [current, .. Additional] : Additional, Next));
     }
     public ValueTask<ExactGrantInspection?> InspectExactGrantAsync(HostId<ApprovalIdentity> id, CancellationToken cancellationToken)
     {
         BeforeRead?.Invoke();
         if (ReadFailure is { } failure) { throw failure; }
-        return PendingRead is { } pending ? new(pending) : ValueTask.FromResult(Current);
+        return PendingRead is { } pending ? new(pending)
+            : ValueTask.FromResult(Current?.Grant.Id == id ? Current : Additional.FirstOrDefault(item => item.Grant.Id == id));
     }
     public ValueTask<WorkSessionAuthorization> CreateExactGrantControlSessionAsync(
         HostRequest request, Func<bool> admitted, CancellationToken cancellationToken) =>
@@ -60,4 +67,32 @@ internal sealed class ExactGrantTestStore(AudioControlTestStore intents, ExactGr
     public ValueTask<HostInteractionDecision> TransactAsync(HostRequest request,
         Func<HostInteractionSnapshot, HostInteractionCommit> transition, CancellationToken cancellationToken) =>
         throw new NotSupportedException("Exact-grant test reads/revocation must never call an operation proposal or effect route.");
+
+    public ValueTask<ExactGrantBatch> PreviewExactGrantBatchAsync(ExactGrantBatch selection, CancellationToken cancellationToken)
+    {
+        BeforePreview?.Invoke();
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(PreviewResult ?? selection with { PreviewId = Guid.NewGuid() });
+    }
+
+    public ValueTask<ExactGrantBatchDecision> RevokeExactGrantBatchAsync(HostRequest request, HostRevision controlGeneration,
+        ExactGrantBatch preview, SecurityAuditEvent requested, Func<bool> admitted, CancellationToken cancellationToken)
+    {
+        RevokeRequest = request;
+        Audit = requested;
+        CapturedAdmission = admitted;
+        BeforeRevoke?.Invoke();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!admitted()) { throw new InvalidOperationException("Admission changed."); }
+        if (RevokeFailure is { } failure) { throw failure; }
+        if (BatchResult is { } result) { return ValueTask.FromResult(result); }
+        if (Conflict) { return ValueTask.FromResult(new ExactGrantBatchDecision(HostInteractionOutcome.Conflict, "preview-changed", [])); }
+        var changed = preview.Records.Select(item => item with { Grant = item.Grant.Revoke("explicit-user-revocation") }).ToImmutableArray();
+        Current = changed[0];
+        Additional = changed.RemoveAt(0);
+        Revokes++;
+        AfterRevoke?.Invoke();
+        return ValueTask.FromResult(new ExactGrantBatchDecision(HostInteractionOutcome.Revoked, "explicit-user-revocation",
+            changed.Select(item => item.Grant).ToImmutableArray()));
+    }
 }

@@ -154,7 +154,7 @@ the response window visible; idle presence still uses its own timeout.
 
 ## Tray icon
 
-**Exact operation grants** opens a distinct native retained-metadata inventory, current exact-ID inspection and explicit one-ID/revision revocation. It is not the legacy Approvals named-action list and creates no execution authority. [Exact grant instructions and limits](settings.md#exact-operation-grants) explain bounded pages, safe hashes/provenance, stale confirmations, independent Perpetual records and explicit unknown running-work status.
+**Exact operation grants** opens a distinct native retained-metadata inventory, exact-ID inspection, one-ID revocation and separately reviewed atomic revocation of an explicitly selected bounded batch. It is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#exact-operation-grants) cover bounds, safe provenance, stale confirmation and unknown running work.
 
 **Evidence (read-only)** offers an explicit **AuthorityAudit** source for
 committed typed interaction-store audits, separately from diagnostic **Audit**,

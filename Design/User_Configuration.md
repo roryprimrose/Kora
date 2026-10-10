@@ -1197,7 +1197,13 @@ For one active record, review the displayed ID/revision, tick its explicit confi
 
 Success means the exact revocation committed and was read back, denying subsequent consumes through the same authorization policy. It does not stop or roll back an existing effect. Lost commit/readback/receipt certainty requires explicit recovery and current inspection, not automatic retry or a false rollback claim. Close/privacy/ownership changes retire private output and pending callbacks.
 
-This subset has no model/tool execution, approval creation, editing/scope broadening, bulk revoke, export, detailed use-history browser, generic voice/typed command or inferred allow/deny explanation. Named preferences are neither migrated nor promoted, and direct lock/power gates remain unchanged. The wider inventory operations below are not a full R05/A0–A4 or release qualification claim.
+**Selected exact batch continuation — 2026-10-11.** Use Ctrl/Shift to select explicit stable IDs in the admitted current page, then **Preview exact selected batch**. The complete immutable preview enumerates every ID/revision/scope/action/status and binding/provenance; it is limited to **50 selections / 64 KiB of complete serialized batch**, including its preview identity. Oversized selections are refused, never truncated.
+
+Separately tick **I reviewed EVERY displayed exact batch ID** and press **Confirm: revoke entire reviewed exact batch**. A fresh original native control intent/session supplies current authority, not the grants' old sessions. Every selected record must remain exactly unchanged and Active; one duplicate, foreign, missing, consumed, revoked or changed target rejects the whole batch. Selection order/page, window/privacy/ownership/control changes retire review and late output.
+
+All revocations and content-free requested/terminal audit plus exact before/after revision references commit under one shared-store lease/transaction and admission fence. No loop of single commits or partial-success receipt is used. Subsequent consumes deny every committed target; running work is not cancelled or rolled back. Unrelated grants, named preferences, scope, reasons and use history remain unchanged except each selected grant's canonical retained revocation revision/reason.
+
+This subset has no global/provider/account/resource/skill/capability **revoke all** scan, model/tool execution, approval creation, editing/scope broadening, export, detailed use-history browser, generic voice/typed command or inferred allow/deny explanation. Named preferences are neither migrated nor promoted, and direct lock/power gates remain unchanged. The separately owned action-level permission design and full R05/A0–A4/release qualification remain open.
 
 Required operations:
 

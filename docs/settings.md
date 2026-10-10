@@ -302,9 +302,13 @@ Open **Exact operation grants** from the tray menu. This is a separate native wi
 2. Select the exact approval ID and choose **Inspect selected exact ID**. Review the current ID/revision, capability/source/skill, scope/original session/generation, creator/time/status, use count/last use/reason and SHA-256 binding identities. No raw parameters, scripts, credentials or provider bodies are shown.
 3. For an Active record only, tick **I reviewed the exact displayed ID and revision** and press **Confirm: revoke this exact inspected ID/revision**. Only that unchanged exact record is revoked, audited and read back. Selection/close/privacy/ownership/control changes retire the confirmation; stale or already terminal records require fresh inspection.
 
+For an explicit batch, select exact IDs from the current page with Ctrl/Shift, then choose **Preview exact selected batch**. Review EVERY enumerated ID/revision/scope/action/status and its safe binding/provenance. The complete serialized preview, including its identity, must fit **50 records / 64 KiB**; excess is refused, not truncated.
+
+Tick the separate **I reviewed EVERY displayed exact batch ID** confirmation and press **Confirm: revoke entire reviewed exact batch**. All unchanged Active targets and requested/terminal audit commit atomically, or NONE are revoked by the batch. A stale, missing, foreign, terminal or changed target requires fresh inventory/review. Reordering selection, changing pages or current control, privacy/ownership loss and closing the window invalidate the batch and late output.
+
 Stored Active is **not** proof that an operation is currently allowed. Current applicability and already-running work are **unknown** in this window. Revocation denies subsequent exact-grant consumes; it does **not** stop or roll back an already-running effect. Missing/inapplicable data is not guessed. Failure or lost receipt certainty requires closing/reopening and fresh current inspection before any retry; no rollback is promised.
 
-Perpetual records have no expiry/retention/eviction and remain inspectable/revocable independently after origin-session retirement. Removed scoped records are unavailable. This window cannot create/edit/broaden grants, revive consumed/revoked records, bulk-remove, export, explain a current allow decision, invoke tools/models or accept generic voice/typed management commands. Direct lock/power and named-action gates are unchanged.
+Perpetual records have no expiry/retention/eviction and remain inspectable/revocable independently after origin-session retirement, using a fresh CURRENT native control session. Removed scoped records are unavailable. No global **revoke all** scan, creation/edit/broadening, revival, export, current allow-decision explanation, tool/model invocation or generic voice/typed management is available. Direct lock/power and named-action gates are unchanged.
 
 ## Readiness and required tools
 

@@ -11,7 +11,8 @@ public sealed class ExactGrantsWindowContractTests
     {
         var source = Read("ExactGrantsWindow.axaml");
         var document = XDocument.Parse(source);
-        foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "Selected", "Inspection", "Reviewed", "Message" })
+        foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "Selected", "Inspection", "Reviewed", "Message",
+            "PreviewBatchCommand", "RevokeBatchCommand", "BatchInspection", "BatchReviewed" })
         {
             var control = document.Descendants().Single(element => element.Attributes().Any(attribute =>
                 attribute.Value.Contains("{Binding " + binding, StringComparison.Ordinal)));
@@ -27,7 +28,9 @@ public sealed class ExactGrantsWindowContractTests
             string.Equals(element.Attribute("AutomationProperties.Name")?.Value, "Retained exact operation grants", StringComparison.Ordinal))
             .Name.LocalName.Should().Be("ScrollableListBox");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
-            .Should().HaveCount(4);
+            .Should().HaveCount(6);
+        source.Should().Contain("SelectionMode=\"Multiple\"").And.Contain("EVERY displayed exact batch ID")
+            .And.Contain("SelectionChanged=\"OnSelectionChanged\"");
         Read("GrantListWindow.axaml").Should().NotContain("RevokeCommand");
         Read("App.ExactGrants.cs").Should().Contain("IExactGrantStore").And.Contain("ExactGrantControlAdmission");
         Read("SystemTrayController.cs").Should().Contain("Exact operation grants");

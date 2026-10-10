@@ -23,11 +23,16 @@ public sealed class ExactGrantsWindowContractTests
         var status = document.Descendants().Single(element =>
             string.Equals(element.Attribute("Text")?.Value, "{Binding Message}", StringComparison.Ordinal));
         status.Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Polite");
+        document.Descendants().Single(element =>
+            string.Equals(element.Attribute("AutomationProperties.Name")?.Value, "Retained exact operation grants", StringComparison.Ordinal))
+            .Name.LocalName.Should().Be("ScrollableListBox");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
             .Should().HaveCount(4);
         Read("GrantListWindow.axaml").Should().NotContain("RevokeCommand");
         Read("App.ExactGrants.cs").Should().Contain("IExactGrantStore").And.Contain("ExactGrantControlAdmission");
         Read("SystemTrayController.cs").Should().Contain("Exact operation grants");
+        Read("ExactGrantsWindowController.cs").Should().Contain("Dispatcher.UIThread.Invoke(WindowAdmitted)")
+            .And.Contain("WindowAdmitted, logger");
     }
 
     private static string Read(string name)

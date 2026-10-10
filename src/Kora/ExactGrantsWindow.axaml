@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Kora.Application.Interaction"
         xmlns:auth="using:Kora.Core.Authorization"
+        xmlns:controls="using:Kora.Controls"
         x:Class="Kora.ExactGrantsWindow" x:DataType="vm:ExactGrantsViewModel"
         Title="Exact operation grants" Width="1050" Height="780" MinWidth="650" MinHeight="480">
   <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
@@ -17,7 +18,7 @@
       <Button Content="Inspect selected exact ID" Command="{Binding InspectCommand}" AutomationProperties.Name="Inspect current selected exact grant ID" />
     </StackPanel>
     <Grid Grid.Row="2" ColumnDefinitions="350,*" ColumnSpacing="12">
-      <ListBox ItemsSource="{Binding Records}" SelectedItem="{Binding Selected}" AutomationProperties.Name="Retained exact operation grants">
+      <controls:ScrollableListBox ItemsSource="{Binding Records}" SelectedItem="{Binding Selected}" AutomationProperties.Name="Retained exact operation grants">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="auth:ExactGrantInspection">
             <StackPanel Margin="4">
@@ -31,9 +32,9 @@
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
-      </ListBox>
+      </controls:ScrollableListBox>
       <ScrollViewer Grid.Column="1">
-        <TextBlock Text="{Binding Inspection}" AutomationProperties.Name="Current exact grant inspection" TextWrapping="Wrap" />
+        <controls:NamedTextBlock Text="{Binding Inspection}" AutomationProperties.Name="Current exact grant inspection" TextWrapping="Wrap" />
       </ScrollViewer>
     </Grid>
     <StackPanel Grid.Row="3" Spacing="8">
@@ -41,6 +42,6 @@
                 IsChecked="{Binding Reviewed}" AutomationProperties.Name="Explicit confirmation of the displayed exact approval ID and revision" />
       <Button Content="Confirm: revoke this exact inspected ID/revision" Command="{Binding RevokeCommand}" AutomationProperties.Name="Confirm revocation of only this exact inspected ID and revision" />
     </StackPanel>
-    <TextBlock Grid.Row="4" Text="{Binding Message}" AutomationProperties.Name="Exact grant operation status" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
+    <controls:NamedTextBlock Grid.Row="4" Text="{Binding Message}" AutomationProperties.Name="Exact grant operation status" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap" />
   </Grid>
 </Window>

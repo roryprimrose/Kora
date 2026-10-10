@@ -744,6 +744,54 @@ batch. Raw snapshots, receipts, payloads, TRX, immutable approval and sealed
 summary remain local. Publication of this driver/documentation does not
 broaden the recorded qualification or relabel historical receipts.
 
+### 2026-10-10 Automated Native Exact-Grant Inspection and Revocation
+
+After the unattended child batch completed, the operator-authorized parent
+recorded a fixed scratch-only interactive window from 10:57:18.6723718 UTC to
+11:57:18.6723718 UTC. The initial accepted runs applied the slightly earlier
+11:57:18 UTC cutoff; neither preparation nor a retry renewed that authority.
+The [exact-grant driver](../eng/Invoke-NativeUxExactGrants.ps1) uses the optional
+fixture's 51 genuinely host-issued scratch grants, exact owned PID/HWND and
+foreground-input checks, current displayed IDs/revisions and explicit review.
+It never dispatches effects or reads the normal application profile.
+
+Two identical-byte native runs passed all eight rows: bounded passive discovery
+of all 51 IDs, genuine native overflow with endpoint readback, selection/refresh
+review retirement, stale use-revision refusal, stale origin-lifecycle refusal,
+synthetic privacy retirement and fresh-window review, single-record revoke with
+revision-2 readback and subsequent consume denial, and unchanged 48 unrelated
+grants including Perpetual with preserved recorded retention clocks.
+The accepted source build-input digest was
+`3ba358359482aa2b0daa4b05a6709ebef9e3d3df61d0769229422746dde28214`
+over 1,550 files at base `f1478b5`; the driver digest was
+`730b4527b02852416872db2d8f2e4e1de82eaed68bd125c7b1272719c58aec81`.
+Both fixture processes exited 0, had empty stderr, cleaned their exact scratch
+children, required no force and were absent when the source-bound summary sealed.
+
+Fresh preparation passed 109 focused headless tests, the exact-grant no-launch
+suite passed 20 checks, and the baseline admission suite passed 48 checks.
+Supporting application presentation/failure tests passed 34 and Windows exact
+store/window tests passed 20, with no skips. The root Release build had zero
+warnings/errors. These groups overlap and are not a full-repository pass total.
+
+Earlier preparation and failed native attempts remain unchanged local evidence.
+Native trials exposed stock row names containing multiple correlation IDs, an
+uninitialized stock list scroll provider, cross-thread native visibility
+revalidation and a missing failure-report activity. Discovery now reads displayed
+approval-ID text, uses the existing scroll-provider control, resolves current
+native visibility/privacy on the UI thread and retains correlated failure
+diagnostics. An enumerated HWND that retires before provider resolution is
+recorded only after Windows confirms no remaining owner; failures for live
+handles still abort and no consequential action is retried.
+
+**Disposition: bounded native exact-grant mechanics are machine-verified without
+operator control input.** Native revocation denies later consumes, not already-
+running effect execution or rollback. Window reopen is not process-restart
+persistence. Real privacy/ownership transitions, acoustic/Narrator/readability,
+physical displays, installed behavior and full runtime/authorization
+qualification remain open. Raw IDs, payloads, logs, TRX, approval and sealed
+receipts remain local; publishing the implementation does not broaden acceptance.
+
 ### 2026-10-09 Bounded Native UX and Light-Text Continuation
 
 **Disposition: scoped native observations recorded; light-mode secondary-text

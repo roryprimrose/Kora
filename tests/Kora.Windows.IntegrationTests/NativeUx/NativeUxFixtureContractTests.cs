@@ -21,7 +21,7 @@ using static Kora.NativeUxFixture.FixtureBoundaries;
 namespace Kora.Windows.IntegrationTests.NativeUx;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class NativeUxFixtureContractTests
+public sealed partial class NativeUxFixtureContractTests
 {
     [Theory]
     [InlineData()]

@@ -20,7 +20,8 @@ public static class NativeUxFixtureHost
             }
             using var session = new NativeUxFixtureSession(scratchParent,
                 args.Length == 4 && string.Equals(args[3], "--silent-caption-fixture", StringComparison.Ordinal),
-                args.Length == 4 && string.Equals(args[3], "--list-overflow-fixture", StringComparison.Ordinal));
+                args.Length == 4 && string.Equals(args[3], "--list-overflow-fixture", StringComparison.Ordinal),
+                args.Length == 4 && string.Equals(args[3], "--exact-grants-fixture", StringComparison.Ordinal));
             using var clipboard = new NativeUxClipboardGuard();
             Console.WriteLine($"Synthetic native UX fixture. PID: {Environment.ProcessId}. Scratch: {session.LocalRoot}");
             Console.WriteLine("No production startup, instance handoff, audio, model, network, browser, shared clipboard or installed artifact discovery.");
@@ -38,7 +39,7 @@ public static class NativeUxFixtureHost
     {
         scratchParent = string.Empty;
         if (args.Length is not (3 or 4)
-            || args.Length == 4 && args[3] is not ("--silent-caption-fixture" or "--list-overflow-fixture")
+            || args.Length == 4 && args[3] is not ("--silent-caption-fixture" or "--list-overflow-fixture" or "--exact-grants-fixture")
             || !string.Equals(args[0], "--launch-native-fixtures", StringComparison.Ordinal)
             || !string.Equals(args[1], "--scratch-parent", StringComparison.Ordinal)
             || !IsLocalScratchParent(args[2]))

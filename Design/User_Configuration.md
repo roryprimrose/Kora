@@ -15,8 +15,8 @@ Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.
 ### Delivered bounded fixed local-version queue settings (R10/R13)
 
 Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated input share the [queue configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
-Only device-local `queue.pending-per-session` (integer **1-10**, default/reset **10**) and `queue.execution-slots` (integer **1-2**, default/reset **1**) are registered.
-Each option resets independently; both reset removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
+Only device-local `queue.pending-per-session` (integer **1-10**, default/reset **10**), `queue.execution-slots` (integer **1-2**, default/reset **1**) and `queue.pending-lifetime-minutes` (canonical integer **1-120 minutes**, unsaved/default/reset **30**) are registered.
+Each option resets independently; resetting all three removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
 
 Use `list queue settings`, `get`/`status <option-id>`, `set <option-id> to <canonical integer>` or `reset <option-id>`; no fuzzy/model setter or whole-profile reset is added ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs)).
 Native Refresh captures the host-held draft revision, call revision, original input and exact visible lifetime; Save/Reset requires that unchanged admitted draft.
@@ -24,7 +24,9 @@ Hiding/reopening, concurrent typed edits, stale session/generation/origin or pri
 
 Required typed REQUESTED/terminal audit, atomic save/readback, durable original-input control receipt and confirmed readback precede activation.
 Protected Active/Suspected/Unknown original-voice writes are denied without UI relabelling, downgrade or delayed application ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
-Schema-1 `session-queue.txt` and `session-queue-unconfirmed.txt` use `IApplicationDataPaths` and the shared atomic store.
+Schema-2 `session-queue.txt` has four lines: `2`, capacity, slots and pending lifetime in minutes; overrides are canonical integers or exact `default`.
+Known schema-1 three-line files validate first, preserve capacity/slots and supply only the newly introduced lifetime default 30; observation never rewrites them. The next explicit confirmed edit writes schema 2.
+The file (256-byte ceiling) and durable `session-queue-unconfirmed.txt` marker use `IApplicationDataPaths` and the shared atomic store.
 Unknown schema/shape, noncanonical values, invalid UTF-8, inaccessible or unconfirmed state is unavailable, never a successful default or rollback.
 Inspect saved state and audit/control receipts, explicitly repair, then refresh; ordinary refresh cannot clear an unconfirmed marker ([storage tests](../tests/Kora.Application.UnitTests/Configuration/LocalSessionQueuePreferencesTests.cs)).
 
@@ -35,9 +37,11 @@ Lowering slots never cancels or reinterprets active admissions; subsequent fair 
 
 This is only the existing synchronous read-only `application.get_version` profile.
 Manual dispatch, FIFO/fairness, one active task per session and no replay remain unchanged.
-Pending lifetime **30 minutes** and active budget **5 minutes** remain fixed and unavailable to edit; existing entry/admission deadlines remain unchanged ([fixed deadline rules](../src/Kora.Core/Hosting/SessionQueuePolicy.cs), [retained deadline tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
-The broader 1-50 capacity and deadline ranges in the proposed table below are not delivered by this profile.
-No schema migration, worker, automatic dispatch, resource lease, model tool, general execution or real two-slot provider/hardware qualification is added ([bounded workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
+Pending lifetime affects **only newly enqueued admitted entries after confirmed activation**. Editing or refreshing preferences never enqueues, dispatches, cancels, expires or extends meaningful activity. Existing pending/cancelled/expired/running entries retain their exact deadlines and identities.
+New queue payload format 2 captures `RecordVersion=2` and integer `PendingLifetimeMinutes`; exact `ExpiresAt - EnqueuedAt` must match that captured value under the original enqueue intent/revision and committed change digest.
+Legacy payloads without either field still require exactly 30 minutes and retain their original serialized bytes/digests; no database schema or historical authority migration occurs. Unknown/partial/downgraded formats and changed raw payload bytes fail closed ([serialization tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Lifetime.cs)).
+Active budget **5 minutes** and separate user-question expiry remain unchanged/unavailable to edit. Apply-now and the broader 1-50 capacity contract are not delivered.
+No worker, automatic dispatch, resource lease, model tool, general execution or real two-slot provider/hardware qualification is added ([bounded workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
 
 Validation and retained experiment reasons are recorded in the [dated bounded delivery receipt](Implementation_Roadmap.md#r10r13-bounded-fixed-queue-settings---2026-10-09). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
 
@@ -1023,7 +1027,7 @@ The table is the broader proposed contract, not the enabled fixed local-version 
 |---|---|---|
 | Pending queue capacity | 10; 1-50 entries | "Set the queue limit to twenty" |
 | Successful-completion dispatch | Automatic next ready item; manual mode optional | "Ask before starting each queued task" |
-| Pending request lifetime | 30 minutes; 1-120 minutes | "Keep queued requests for an hour" |
+| Pending request lifetime | Delivered fixed local-version subset: canonical integer 1-120 minutes, default/reset 30, future newly enqueued entries only; broader routing remains proposed | `set queue.pending-lifetime-minutes to 60` |
 | Active-task deadline | 5 minutes excluding user waits; 1-60 minutes within tool/provider limits | "Give tasks ten minutes by default" |
 | Session automatic archive inactivity | 24 hours; configurable finite positive duration | "Mark sessions done after two idle days" |
 | Session automatic deletion inactivity | 30 days from last meaningful activity; configurable and later than archive | "Delete sessions after sixty idle days" |

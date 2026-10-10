@@ -810,6 +810,40 @@ the microphone.
 Select **Open Windows microphone settings** to manage Kora's Windows microphone
 permission without navigating through Windows Settings manually.
 
+## Sessions: fixed read-only local-version queue
+
+**Settings > Sessions > Fixed read-only local-version queue** provides pending
+capacity (1-10, default/reset 10), fixed synchronous read-only slots (1-2,
+default/reset 1) and **future pending lifetime in integer minutes** (1-120,
+unsaved/default/reset 30). Highlighting a choice does not save or enqueue work.
+Use **Refresh fixed queue settings**, then the option's **Save** or **Reset**.
+Each option resets independently; another Refresh is required before a new edit.
+The [exact typed/current-name commands](commands.md#fixed-queue-settings) use
+the same original-input host admission, revisions and audited confirmation.
+
+Only newly enqueued admitted fixed reads after confirmed activation capture
+the chosen pending lifetime. Existing pending/cancelled/expired/running entries
+keep their exact recorded deadlines and identities. The five-minute active
+budget and separate user-question expiry do not change. No apply-now,
+automatic dispatch, worker/model/provider/effect scheduler or expanded slot
+qualification is available. Refresh and preference edits never dispatch,
+cancel, expire old work or extend meaningful activity.
+
+Protected original activated-voice mutations remain denied without UI
+relabelling. Hidden/reopened settings, stale revisions, changed ownership/privacy,
+failed required audit/control receipt or mismatched readback cannot activate
+a draft. Unconfirmed writes remain unavailable across restart: inspect saved
+state and receipts, explicitly repair, then refresh; no automatic retry or false
+rollback. Existing queue authority remains independently inspectable.
+
+Schema-2 `session-queue.txt` adds the minutes override to capacity/slots.
+Known valid schema 1 preserves those overrides and supplies the new lifetime
+default 30; observation never rewrites it. Unknown/malformed/noncanonical,
+oversize or invalid UTF-8 data never becomes a default. Legacy queue records
+remain exact fixed-30 with original payloads/digests; format-2 entries capture
+the configured minutes and exact expiry under committed enqueue authority,
+without a database schema or historical authority migration.
+
 ## Where settings are stored
 
 Device-local settings are written under:

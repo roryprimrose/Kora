@@ -20,6 +20,26 @@ namespace Kora.Application.UnitTests.Interaction;
 public sealed class AuthorityLocalEventSourceTests
 {
     [Theory]
+    [InlineData(1)]
+    [InlineData(30)]
+    [InlineData(120)]
+    public void Captured_queue_lifetime_is_the_event_deadline_and_never_extended_by_observation(int minutes)
+    {
+        using var f = new Fixture();
+        var snapshot = f.Snapshot();
+        var row = snapshot.QueueRecords[0];
+        var entry = row.Entry with
+        {
+            RecordVersion = SessionQueueEntry.CapturedLifetimeRecordVersion, PendingLifetimeMinutes = minutes,
+            ExpiresAt = row.Entry.EnqueuedAt.AddMinutes(minutes),
+        };
+        snapshot = snapshot with { QueueRecords = [row with { Entry = entry }] };
+        AuthorityLocalEventSource.FromWork(snapshot, entry.ExpiresAt.AddTicks(-1)).Single().ExpiresAt.Should().Be(entry.ExpiresAt);
+        AuthorityLocalEventSource.FromWork(snapshot, entry.ExpiresAt).Should().BeEmpty();
+        snapshot.QueueRecords[0].Entry.Should().Be(entry);
+    }
+
+    [Theory]
     [InlineData(SessionQueueState.Pending, SessionQueueEligibility.Ready, LocalEventType.Queued)]
     [InlineData(SessionQueueState.Running, SessionQueueEligibility.Current, LocalEventType.Current)]
     [InlineData(SessionQueueState.Succeeded, SessionQueueEligibility.Completed, LocalEventType.Completed)]

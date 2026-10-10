@@ -9,13 +9,18 @@ public sealed record SessionQueueConfigurationCommand(AppearanceCommandOperation
 {
     public const string PendingOptionId = "queue.pending-per-session";
     public const string SlotsOptionId = "queue.execution-slots";
+    public const string LifetimeOptionId = "queue.pending-lifetime-minutes";
     public const string Syntax = "list queue settings | get/status queue.pending-per-session | get/status queue.execution-slots"
         + " | set queue.pending-per-session to <integer 1-10> | set queue.execution-slots to <integer 1-2>"
-        + " | reset queue.pending-per-session | reset queue.execution-slots. Default/reset 10 pending and 1 slot."
-        + " Fixed synchronous read-only local-version work only; manual dispatch. Deadlines remain fixed/unavailable.";
+        + " | get/status queue.pending-lifetime-minutes | set queue.pending-lifetime-minutes to <integer 1-120>"
+        + " | reset queue.pending-per-session | reset queue.execution-slots | reset queue.pending-lifetime-minutes."
+        + " Default/reset 10 pending, 1 slot and 30 minutes."
+        + " Fixed synchronous read-only local-version work only; manual dispatch. Pending lifetime is captured only for newly enqueued entries"
+        + " after confirmed activation; existing deadlines never change. Active deadline remains fixed 5 minutes; apply-now and automatic dispatch unavailable.";
     public static IReadOnlyList<string> FixedPhrases { get; } =
         ["list queue settings", "get " + PendingOptionId, "status " + PendingOptionId, "reset " + PendingOptionId,
-            "get " + SlotsOptionId, "status " + SlotsOptionId, "reset " + SlotsOptionId];
+            "get " + SlotsOptionId, "status " + SlotsOptionId, "reset " + SlotsOptionId,
+            "get " + LifetimeOptionId, "status " + LifetimeOptionId, "reset " + LifetimeOptionId];
 
     public static SessionQueueConfigurationCommand? Parse(string input, string assistantName)
     {
@@ -36,7 +41,8 @@ public sealed record SessionQueueConfigurationCommand(AppearanceCommandOperation
             return new(AppearanceCommandOperation.Clarify, Error: "Queue settings input exceeds 1024 UTF-8 bytes or contains controls. " + Syntax);
         }
         if (text.Equals("list queue settings", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.List); }
-        foreach (var (id, option) in new[] { (PendingOptionId, SessionQueueOption.PendingPerSession), (SlotsOptionId, SessionQueueOption.ExecutionSlots) })
+        foreach (var (id, option) in new[] { (PendingOptionId, SessionQueueOption.PendingPerSession),
+            (SlotsOptionId, SessionQueueOption.ExecutionSlots), (LifetimeOptionId, SessionQueueOption.PendingLifetimeMinutes) })
         {
             if (text.Equals("get " + id, StringComparison.OrdinalIgnoreCase)
                 || text.Equals("status " + id, StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Get, option); }

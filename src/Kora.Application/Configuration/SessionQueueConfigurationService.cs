@@ -64,7 +64,8 @@ public sealed class SessionQueueConfigurationService(
     }
 
     // Only short admission/observation transactions hold this gate, never an admitted callback or dispatch batch.
-    // Thus capacity edits cannot race a commit or cancel/reinterpret running work.
+    // Thus each enqueue captures one confirmed set of limits, including its future-only lifetime.
+    // Preference edits never cancel, extend or reinterpret existing work.
     internal async Task<T> WithLimitsAsync<T>(Func<SessionQueueLimits, Task<T>> operation, CancellationToken token)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
@@ -184,6 +185,7 @@ public sealed class SessionQueueConfigurationService(
                     applying = true;
                     var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
                         candidate.Option == SessionQueueOption.PendingPerSession ? "configuration.queue-pending-per-session"
+                            : candidate.Option == SessionQueueOption.PendingLifetimeMinutes ? "configuration.queue-pending-lifetime-minutes"
                             : "configuration.queue-execution-slots", SecurityAuditOutcome.Requested,
                         request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
                         "preferences.device-local");

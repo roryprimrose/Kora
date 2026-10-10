@@ -18,6 +18,7 @@ public sealed partial class MainViewModel
     private long queueNativeCallRevision;
     private int selectedQueuePending = SessionQueueLimits.MaximumPendingPerSession;
     private int selectedQueueSlots = SessionQueueLimits.DefaultExecutionSlots;
+    private int selectedQueueLifetimeMinutes = SessionQueueLimits.DefaultPendingLifetimeMinutes;
     private bool queueConfigurationActive;
 
     public void BindQueueConfigurationNativeLifetime(Func<bool> lifetime)
@@ -29,6 +30,7 @@ public sealed partial class MainViewModel
 
     public IReadOnlyList<int> QueuePendingChoices { get; } = Enumerable.Range(1, SessionQueueLimits.MaximumPendingPerSession).ToArray();
     public IReadOnlyList<int> QueueSlotChoices { get; } = Enumerable.Range(1, SessionQueueLimits.MaximumExecutionSlots).ToArray();
+    public IReadOnlyList<int> QueueLifetimeMinuteChoices { get; } = Enumerable.Range(1, SessionQueueLimits.MaximumPendingLifetimeMinutes).ToArray();
     public int SelectedQueuePending
     {
         get => selectedQueuePending;
@@ -39,11 +41,18 @@ public sealed partial class MainViewModel
         get => selectedQueueSlots;
         set => SetProperty(ref selectedQueueSlots, new SessionQueueLimits(executionSlots: value).ExecutionSlots);
     }
+    public int SelectedQueueLifetimeMinutes
+    {
+        get => selectedQueueLifetimeMinutes;
+        set => SetProperty(ref selectedQueueLifetimeMinutes, new SessionQueueLimits(pendingLifetimeMinutes: value).PendingLifetimeMinutes);
+    }
     public AsyncCommand RefreshQueueConfigurationCommand { get; }
     public AsyncCommand SaveQueuePendingCommand { get; }
     public AsyncCommand ResetQueuePendingCommand { get; }
     public AsyncCommand SaveQueueSlotsCommand { get; }
     public AsyncCommand ResetQueueSlotsCommand { get; }
+    public AsyncCommand SaveQueueLifetimeCommand { get; }
+    public AsyncCommand ResetQueueLifetimeCommand { get; }
     public bool CanChangeQueueConfiguration => queueConfiguration is not null && IsCallMutationHostEligible
         && !queueConfigurationActive && !IsResponseInteractionPending;
     public bool CanChangeQueueConfigurationNative => CanChangeQueueConfiguration && queueNativeLifetime();
@@ -100,6 +109,7 @@ public sealed partial class MainViewModel
                     queueNativeCallRevision = CallPolicyRevision;
                     SelectedQueuePending = queueConfiguration.Get().Effective!.PendingPerSession;
                     SelectedQueueSlots = queueConfiguration.Get().Effective!.ExecutionSlots;
+                    SelectedQueueLifetimeMinutes = queueConfiguration.Get().Effective!.PendingLifetimeMinutes;
                 }
             }
             var saved = false;
@@ -122,7 +132,7 @@ public sealed partial class MainViewModel
         }
         catch (ArgumentOutOfRangeException exception)
         {
-            PresentQueueConfigurationFailure("Choose queue pending capacity 1-10 or fixed read-only slots 1-2.", exception.Message);
+            PresentQueueConfigurationFailure("Choose queue pending capacity 1-10, fixed read-only slots 1-2 or future pending lifetime 1-120 minutes.", exception.Message);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
             or InvalidOperationException or OperationCanceledException or TimeoutException)

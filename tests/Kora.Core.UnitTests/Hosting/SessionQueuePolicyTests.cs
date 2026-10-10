@@ -9,6 +9,43 @@ public sealed class SessionQueuePolicyTests
     private static readonly DateTimeOffset Now = new(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
     private static readonly Guid Run = Guid.NewGuid();
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(30)]
+    [InlineData(120)]
+    public void Captured_lifetime_has_exact_expiry_edge_independent_of_current_limits(int minutes)
+    {
+        var entry = Entry(new(Guid.NewGuid()), 1) with
+        {
+            RecordVersion = SessionQueueEntry.CapturedLifetimeRecordVersion, PendingLifetimeMinutes = minutes,
+            ExpiresAt = Now.AddMinutes(minutes),
+        };
+        var tasks = new Dictionary<HostId<TaskIdentity>, HostTaskState>();
+        entry.Validate();
+        SessionQueuePolicy.SelectReady([entry], tasks, Run, entry.ExpiresAt.AddTicks(-1), 4,
+            new(pendingLifetimeMinutes: minutes == 1 ? 120 : 1)).Should().Be(entry);
+        SessionQueuePolicy.SelectReady([entry], tasks, Run, entry.ExpiresAt, 4, new()).Should().BeNull();
+        SessionQueuePolicy.Eligibility(entry, [entry], tasks, Run, entry.ExpiresAt, 4, new())
+            .Should().Be(SessionQueueEligibility.Expired);
+        (entry with { ExpiresAt = entry.ExpiresAt.AddTicks(1) }).Invoking(item => item.Validate()).Should().Throw<InvalidDataException>();
+        SessionQueuePolicy.ActiveDeadline.Should().Be(TimeSpan.FromMinutes(5));
+    }
+
+    [Theory]
+    [InlineData(null, 1)]
+    [InlineData(1, null)]
+    [InlineData(1, 30)]
+    [InlineData(2, null)]
+    [InlineData(3, 30)]
+    [InlineData(0, 30)]
+    [InlineData(2, 0)]
+    [InlineData(2, 121)]
+    public void Unknown_partial_or_invalid_captured_format_never_reinterprets_legacy_deadlines(int? version, int? minutes)
+    {
+        var entry = Entry(new(Guid.NewGuid()), 1) with { RecordVersion = version, PendingLifetimeMinutes = minutes };
+        entry.Invoking(item => item.Validate()).Should().Throw<InvalidDataException>();
+    }
+
     [Fact]
     public void Round_robin_is_FIFO_and_bounds_starvation_to_one_turn_per_ready_session()
     {

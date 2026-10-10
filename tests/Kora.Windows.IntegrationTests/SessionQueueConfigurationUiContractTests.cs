@@ -10,14 +10,15 @@ public sealed class SessionQueueConfigurationUiContractTests
     {
         var root = SourceRoot();
         var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
-        foreach (var (selected, choices) in new[] { ("SelectedQueuePending", "QueuePendingChoices"), ("SelectedQueueSlots", "QueueSlotChoices") })
+        foreach (var (selected, choices) in new[] { ("SelectedQueuePending", "QueuePendingChoices"), ("SelectedQueueSlots", "QueueSlotChoices"),
+            ("SelectedQueueLifetimeMinutes", "QueueLifetimeMinuteChoices") })
         {
             var selector = controls.Single(control => string.Equals(control.Attribute("SelectedItem")?.Value, "{Binding " + selected + "}", StringComparison.Ordinal));
             selector.Attribute("ItemsSource")!.Value.Should().Be("{Binding " + choices + "}");
             selector.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeQueueConfigurationNative}");
         }
         foreach (var command in new[] { "RefreshQueueConfigurationCommand", "SaveQueuePendingCommand", "ResetQueuePendingCommand",
-            "SaveQueueSlotsCommand", "ResetQueueSlotsCommand" })
+            "SaveQueueSlotsCommand", "ResetQueueSlotsCommand", "SaveQueueLifetimeCommand", "ResetQueueLifetimeCommand" })
         {
             controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeQueueConfigurationNative}");

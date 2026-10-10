@@ -95,16 +95,25 @@ public sealed partial class SessionWorkspaceService(
         return result;
     }
 
-    private async Task<T> ReadAsync<T>(Func<ValueTask<T>> read, CancellationToken token)
+    private async Task<T> ReadAsync<T>(Func<ValueTask<T>> read, CancellationToken token,
+        bool retentionStatusOnly = false)
     {
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Storage);
         try
         {
             RequireInspection();
-            if (retention is not null) { await retention.RunAsync(token).ConfigureAwait(false); }
             var revision = access.ControlRevision;
+            retention?.RequirePassiveInspection();
+            var retentionRevision = retention is not null && !retentionStatusOnly
+                ? await RetentionControls.ValidatePassiveInspectionAsync(token).ConfigureAwait(false) : (long?)null;
             var page = await read().ConfigureAwait(false);
             RequireInspection();
+            retention?.RequirePassiveInspection();
+            if (retentionRevision is { } expected
+                && await RetentionControls.ValidatePassiveInspectionAsync(token).ConfigureAwait(false) != expected)
+            {
+                throw new InvalidOperationException("Session source authority changed during inspection. Refresh before disclosing content.");
+            }
             if (access.ControlRevision != revision)
             {
                 throw new InvalidOperationException("Session inspection requires unchanged private admission during retrieval.");

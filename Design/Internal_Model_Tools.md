@@ -235,6 +235,8 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 ### Sessions and History
 
+The delivered [native exact-session retention status and Keep/ordinary review](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) has no qualified model descriptor or typed/voice mutation adapter. Native original-user confirmation is mandatory; `sessions.list/get` below remain proposed model tools. A SESSION retention hold is never a Perpetual OPERATION grant or model memory/recall permission.
+
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
 | `sessions.list`, `sessions.get` | Lifecycle/work-state filter or session ID; metadata, due dates, grounded status and permitted summary | M/E | Proposed A3; M receives minimal routing descriptors only |

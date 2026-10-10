@@ -89,8 +89,9 @@ sessions retain their snapshotted archive/deletion intervals and due dates;
 shortening or resetting never silently applies an immediate purge on a later
 tick. Status discloses future-only behavior and unavailable apply-now. Ordinary
 diagnostic/audit retention, independent Perpetual grants and other preference
-files are unchanged. Host-only audited Perpetual session marking is a separate
-exemption, with no new marking UI.
+files are unchanged. Audited Perpetual session marking is a separate
+exemption, now exposed by the [exact native per-session controls](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10), not by these future-only preferences.
+Native status shows recorded UTC inactivity/due dates. Keep/ordinary requires a separate exact preview/confirmation; ordinary warns about unchanged soon/already-due dates. The exemption is session retention only, not an operation grant, consent, memory/recall or execution. No typed/voice/model or apply-now route is available.
 
 Live/dispatched/Unknown work, unresolved questions, current-run control
 authorities and uncertain copy inventories hold maintenance. See the

@@ -27,6 +27,9 @@ Session file attachments are separate native controls, not a new preference. In 
 
 **Inspect retained attachment / remove Kora copies** reads that session's exact historical snapshot after restart, including retained Done sessions, without resuming or renewing activity. It shows full inert text and exact lexical citations. Removal requires another exact source/session/revision/copy-inventory review and confirmation; original files remain untouched. Existing Keep/ordinary retention and source-copy holds apply.
 
+An Active session's historical viewer also offers **Replace retained attachment**: fresh native picker, exact old/new metadata and inventory review, then separate confirmation. It atomically replaces this slot, even at sixteen retained files, with a new source identity and captured historical revision.
+Old views and citations retire; no automatic old-path read, consent reuse or original-file modification occurs. Pre-commit failure preserves the old durable record. A committed but uncertified swap holds disclosure and offers separately confirmed removal of the held snapshot/copies, never restoration or silent refresh.
+
 No limit/format override, folder/version/knowledge setting, model inclusion, OCR/vector, watcher/refresh, provider upload or export is added. Bodies never enter preferences. See the [complete attachment/storage/removal boundary](../Design/File_And_Folder_Ingestion.md#delivered-durable-single-file-session-attachment---2026-10-10).
 
 Open **Sessions**, select one exact immutable session ID, then expand **Selected-session retention: status and exact review**. The panel shows actual recorded UTC last meaningful activity, archive due and delete due dates, kept/purged state and observed work/control holds.

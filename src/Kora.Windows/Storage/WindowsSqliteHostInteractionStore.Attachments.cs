@@ -52,6 +52,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
             ValidateAuthority(connection);
             RequireAttachmentReadable(connection, session);
             var row = ReadAttachmentRow(connection, session);
+            if (row is { CopyVerificationPending: true } || PendingReplacementRequest(connection, session) is not null)
+            {
+                throw new SessionFileReplacementHeldException();
+            }
             token.ThrowIfCancellationRequested();
             database.VerifyFiles();
             if (!Same(identity, RequireInspectionIdentity())) { throw new InvalidDataException("Attachment storage changed during inspection."); }
@@ -153,14 +157,19 @@ public sealed partial class WindowsSqliteHostInteractionStore
             using var connection = database.OpenReadOnly(token);
             ValidateAuthority(connection);
             RequireAttachmentReadable(connection, session);
-            RequireDispositionIdle(connection, session, null);
             database.RequireEmptyArtifactInventory();
             var row = ReadAttachmentRow(connection, session)
                 ?? throw new InvalidOperationException("This exact session has no attachment.");
+            var pending = PendingReplacementRequest(connection, session) is not null;
+            RequireDispositionIdle(connection, session, null, PendingReplacementIntent(connection, session));
             var generation = RequireSession(connection, session).Authority.Generation;
             return new SessionFileRemoval(Guid.NewGuid(), session, generation, new(row.Revision),
                 row.Data.Reference, DispositionRevision(connection, session, null))
-            { BodyRetained = row.Attachment is not null };
+            {
+                BodyRetained = row.Attachment is not null,
+                ReplacementCopyVerificationPending = row.CopyVerificationPending || pending,
+                ReplacementSwapUnconfirmed = pending && !row.CopyVerificationPending,
+            };
         }, token));
 
     public async ValueTask Remove(HostRequest request, SessionFileRemoval review, Func<bool> admitted, CancellationToken token)
@@ -171,14 +180,18 @@ public sealed partial class WindowsSqliteHostInteractionStore
             RequireFreshMetadataIntent(intent);
             _ = RequireInspectionIdentity();
             var owner = RequireSession(connection, request.SessionId);
-            RequireDispositionIdle(connection, request.SessionId, request.TaskId);
             database.RequireEmptyArtifactInventory();
             var row = ReadAttachmentRow(connection, request.SessionId);
+            var pendingRequest = PendingReplacementRequest(connection, request.SessionId);
+            var pendingIntent = PendingReplacementIntent(connection, request.SessionId);
+            RequireDispositionIdle(connection, request.SessionId, request.TaskId, pendingIntent);
             if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null
                 || review.ConfirmationId == Guid.Empty || request.SessionId != review.Session
                 || owner.State == 2 || owner.Authority.Generation != review.Generation
                 || row is null || row.Revision != review.StorageRevision.Value || row.Data.Reference != review.File
-                || review.BodyRetained != (row.Attachment is not null)
+                || review.BodyRetained != (row.Data.Metadata is not null)
+                || review.ReplacementCopyVerificationPending != (row.CopyVerificationPending || pendingRequest is not null)
+                || review.ReplacementSwapUnconfirmed != (pendingRequest is not null && !row.CopyVerificationPending)
                 || !Same(review.InventoryRevision, DispositionRevision(connection, request.SessionId, request.TaskId)))
             {
                 throw new InvalidOperationException("The exact attachment, session, revision or owned-copy inventory changed. Review again.");
@@ -187,12 +200,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var tombstone = row.Data with { Metadata = null };
             var revision = checked(row.Revision + 1);
             var completed = intent.Next(HostTaskState.Succeeded);
+            var interrupted = pendingIntent is { } pendingTask
+                ? ReadTask(connection, pendingTask)!.Next(HostTaskState.Interrupted) : null;
             var sequence = AppendAudit(connection, transaction, intent, owner.Authority, audit,
-                changes: [AttachmentChange(tombstone, revision), TaskChange(completed)]);
+                changes: [AttachmentChange(tombstone, revision), TaskChange(completed),
+                    .. interrupted is null ? Array.Empty<AuthorityChange>() : [TaskChange(interrupted)]]);
             WriteAttachment(connection, transaction, tombstone, revision, null, sequence);
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
+            if (interrupted is not null) { WindowsSqliteHostTaskStore.WriteTask(connection, transaction, interrupted); }
             return true;
-        }, token, admitted).ConfigureAwait(false);
+        }, token, admitted, requireIdle: false).ConfigureAwait(false);
         // Revocation is committed. Cancellation cannot restore body; a failed journal verification holds completion.
         using var lease = database.AcquireReadLease(CancellationToken.None);
         database.ClearCommittedJournal();
@@ -243,6 +260,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             throw new InvalidDataException("The retained snapshot format, profile, scope, projection or original lineage is invalid.");
         }
         ValidateRowAuthority(connection, reader.GetInt64(3), AttachmentChange(data, revision));
+        var copyPending = AttachmentCopyVerificationPending(connection, reader.GetInt64(3), data);
+        if (copyPending && data.Metadata is null)
+        {
+            throw new InvalidDataException("A pending replacement cannot be a removed snapshot.");
+        }
         LocalFileRevision? file = null;
         if (data.Metadata is { } metadata)
         {
@@ -250,7 +272,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
             if (metadata.CanonicalPath is null
                 || !Same(data.MediaType, AttachmentMediaType(metadata.CanonicalPath))
                 || task is null || task.Request.SessionId != session || task.Request.Origin != RequestOrigin.LocalUi
-                || task.Request.InvocationId is not null || task.State != HostTaskState.Succeeded)
+                || task.Request.InvocationId is not null
+                || (copyPending ? task.State is not (HostTaskState.IntentRecorded or HostTaskState.Interrupted)
+                    : task.State != HostTaskState.Succeeded))
             {
                 throw new InvalidDataException("The retained attachment lost its original committed capture task or exact type/metadata provenance.");
             }
@@ -270,7 +294,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 throw new InvalidDataException("Removed session authority retains an unrevoked body.");
             }
         }
-        return new(data, revision, file is null ? null : new(session, data.Generation, new(revision), file));
+        return new(data, revision, file is null ? null : new(session, data.Generation, new(revision), file), copyPending);
     }
 
     private static void ValidateAttachments(SqliteConnection connection)
@@ -301,6 +325,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             throw new InvalidDataException("Committed attachment or removal provenance is missing or stale.");
         }
+        command.CommandText = "SELECT session_id FROM session_file;";
+        using var sessions = command.ExecuteReader();
+        while (sessions.Read()) { _ = PendingReplacementRequest(connection, new(ParseId(sessions.GetString(0)))); }
     }
 
     private static void RevokeAttachment(SqliteConnection connection, SqliteTransaction transaction,
@@ -319,7 +346,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
         return row?.Attachment is null ? [] : [AttachmentChange(row.Data with { Metadata = null }, checked(row.Revision + 1))];
     }
 
-    private sealed record AttachmentRow(AttachmentData Data, long Revision, SessionFileAttachment? Attachment);
+    private sealed record AttachmentRow(AttachmentData Data, long Revision, SessionFileAttachment? Attachment,
+        bool CopyVerificationPending);
     private static string AttachmentMediaType(string path) =>
         path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? "text/plain" : "text/markdown";
     private sealed record AttachmentData(int Format, HostId<DeviceProfileIdentity> Profile, HostId<SessionIdentity> Session,

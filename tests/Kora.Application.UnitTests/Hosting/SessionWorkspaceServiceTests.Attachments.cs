@@ -463,6 +463,8 @@ public sealed partial class SessionWorkspaceServiceTests
         internal Func<Task>? FileRemover { get; set; }
         internal Exception? FileRemoveFailure { get; set; }
         internal int FileReads { get; private set; }
+        internal Func<SessionFileRemoval>? FileInventory { get; set; }
+        internal Action? BeforeFileReplace { get; set; }
         internal void AdvanceFileControl() => ControlRevision++;
         public async ValueTask<SessionFileAttachment?> ReadAttachment(HostId<SessionIdentity> session, CancellationToken token)
         {
@@ -479,8 +481,23 @@ public sealed partial class SessionWorkspaceServiceTests
             await CommitAsync(new(request, new(2), HostTaskState.Succeeded), 1, token);
             return RetainedFile;
         }
+        public async ValueTask<SessionFileAttachment> Replace(HostRequest request, SessionFileRemoval previous,
+            LocalFileRevision file, ReadOnlyMemory<byte> bytes, Func<bool> admitted, CancellationToken token)
+        {
+            BeforeFileReplace?.Invoke();
+            if (RetainedFile?.StorageRevision != previous.StorageRevision || RetainedFile.File.Reference != previous.File)
+            {
+                throw new InvalidOperationException("Exact previous attachment changed.");
+            }
+            admitted().Should().BeTrue();
+            file.Digest.Should().Be(LocalFilePolicy.Digest(bytes.Span));
+            RetainedFile = new(request.SessionId, previous.Generation, new(previous.StorageRevision.Value + 1), file);
+            await CommitAsync(new(request, new(2), HostTaskState.Succeeded), 1, token);
+            return RetainedFile;
+        }
         public ValueTask<SessionFileRemoval> PreviewRemoval(HostId<SessionIdentity> session, CancellationToken token) =>
-            ValueTask.FromResult(new SessionFileRemoval(Guid.NewGuid(), session, new(1), new(1), RetainedFile!.File.Reference, "inventory"));
+            ValueTask.FromResult(FileInventory?.Invoke()
+                ?? new SessionFileRemoval(Guid.NewGuid(), session, new(1), new(1), RetainedFile!.File.Reference, "inventory"));
         public async ValueTask Remove(HostRequest request, SessionFileRemoval review, Func<bool> admitted, CancellationToken token)
         {
             if (FileRemoveFailure is { } failure) { throw failure; }
@@ -503,11 +520,13 @@ public sealed partial class SessionWorkspaceServiceTests
         private readonly byte[] bytes = [0xef, 0xbb, 0xbf, .. Encoding.UTF8.GetBytes("original café source")];
         internal int Disposals { get; private set; }
         internal bool ReadFailure { get; init; }
+        internal bool ReadCancellation { get; init; }
         public LocalFileMetadata Metadata => new(@"C:\Team\source.md", "native", bytes.Length, DateTimeOffset.UnixEpoch);
         public Task<ILocalFileSelection> InspectAsync(string selectedPath, CancellationToken cancellationToken) =>
             Task.FromResult<ILocalFileSelection>(this);
         public Task<byte[]> ReadAsync(CancellationToken cancellationToken) =>
-            ReadFailure ? Task.FromException<byte[]>(new IOException("source unavailable")) : Task.FromResult(bytes);
+            ReadCancellation ? Task.FromException<byte[]>(new OperationCanceledException("native capture cancellation"))
+                : ReadFailure ? Task.FromException<byte[]>(new IOException("source unavailable")) : Task.FromResult(bytes);
         public void Dispose() => Disposals++;
     }
 

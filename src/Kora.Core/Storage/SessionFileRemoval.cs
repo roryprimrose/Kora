@@ -7,4 +7,6 @@ public sealed record SessionFileRemoval(Guid ConfirmationId, HostId<SessionIdent
     HostRevision Generation, HostRevision StorageRevision, LocalFileReference File, string InventoryRevision)
 {
     public bool BodyRetained { get; init; } = true;
+    public bool ReplacementCopyVerificationPending { get; init; }
+    public bool ReplacementSwapUnconfirmed { get; init; }
 }

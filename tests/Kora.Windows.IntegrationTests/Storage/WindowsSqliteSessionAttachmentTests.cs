@@ -15,7 +15,7 @@ using Microsoft.Data.Sqlite;
 namespace Kora.Windows.IntegrationTests.Storage;
 
 [Collection(nameof(DurableStorageCompositionTestGroup))]
-public sealed class WindowsSqliteSessionAttachmentTests
+public sealed partial class WindowsSqliteSessionAttachmentTests
 {
     [Theory]
     [InlineData("")]
@@ -390,7 +390,14 @@ public sealed class WindowsSqliteSessionAttachmentTests
     {
         internal Action? Audit { get; set; }
         internal Action? Commit { get; set; }
+        internal Action? Copies { get; set; }
+        internal Action<SqliteConnection, SqliteTransaction>? CommitBoundary { get; set; }
         public void BeforeAudit(SqliteConnection connection, SqliteTransaction transaction) => Audit?.Invoke();
-        public void BeforeCommit(SqliteConnection connection, SqliteTransaction transaction) => Commit?.Invoke();
+        public void BeforeCommit(SqliteConnection connection, SqliteTransaction transaction)
+        {
+            Commit?.Invoke();
+            CommitBoundary?.Invoke(connection, transaction);
+        }
+        public void BeforeAttachmentCopyVerification() => Copies?.Invoke();
     }
 }

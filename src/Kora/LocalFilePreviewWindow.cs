@@ -189,7 +189,7 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
     }
 
     internal void ShowAttachment(SessionFileAttachment attachment, Func<string, Task<LocalFileSearchResult>> search,
-        Func<bool> isCurrent, Func<Task> remove)
+        Func<bool> isCurrent, Func<Task> remove, Func<Task>? replace = null)
     {
         Title = "Exact retained historical Session file (inert source)";
         var file = attachment.File;
@@ -204,6 +204,39 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
             "Removal held; no full-copy removal claimed. Failure type: " + exception.GetType().Name));
         DockPanel.SetDock(button, Dock.Top);
         body.Children.Insert(1, button);
+        if (replace is not null)
+        {
+            var replacement = new Button { Content = "Replace retained attachment" };
+            AutomationProperties.SetName(replacement, "Pick a new source and review exact old and new attachments before replacement");
+            replacement.Command = new AsyncCommand(replace, exception => reportFailure(
+                "Replacement not completed. Old views retired; inspect exact durable state. Failure type: " + exception.GetType().Name));
+            DockPanel.SetDock(replacement, Dock.Top);
+            body.Children.Insert(1, replacement);
+        }
+    }
+
+    internal void ShowAttachmentReplacement(SessionFileReplacement review, Func<Task> confirm)
+    {
+        Title = "Review replacement of this exact retained Session attachment";
+        var old = review.Previous;
+        var button = new Button { Content = "Confirm: replace this exact retained attachment with the newly selected file" };
+        AutomationProperties.SetName(button, "Confirm exact old copy revocation and separately reviewed new durable Session capture");
+        button.Command = new AsyncCommand(confirm, exception => reportFailure(
+            "Replacement incomplete or held. Inspect exact durable status; no old body is restored. Failure type: " + exception.GetType().Name));
+        Compose($"OLD historical snapshot — not a current filesystem observation:\n"
+            + $"Session: {old.Session.Value:D} / current active generation: {old.Generation.Value}\n"
+            + $"Historical origin: {review.PreviousMetadata.CanonicalPath} / identity: {review.PreviousMetadata.FileIdentity}\n"
+            + $"Captured: {review.PreviousCapturedAt:O} / bytes: {review.PreviousMetadata.ByteLength}\n"
+            + $"Storage revision: {old.StorageRevision.Value} / source: {old.File.SourceId:D}\n"
+            + $"Revision: {old.File.RevisionId:D} / item: {old.File.ItemId:D} / SHA-256: {old.File.Digest}\n"
+            + $"Exact old inventory revision: {old.InventoryRevision}\n\nNEW picker selection — metadata only, content not yet read:\n"
+            + Describe(review.Next) + "\nSeparate explicit consent: capture and retain the newly selected source, revoke the old source, "
+            + "and verify removal of its inventoried Kora copies. Every fresh picker selection receives a new source identity, even at the same path.\n"
+            + "One slot is replaced atomically; sixteen retained attachments still permits replacement of this slot. No eviction or version history.\n"
+            + "262,144 original UTF-8 bytes including BOM; .txt/.md/.markdown only. Review expires after two minutes.\n"
+            + "Before commit failure/cancel preserves the exact old durable record, not its retired views. After commit uncertainty or failed copy "
+            + "verification holds disclosure; explicitly inspect and review removal of the held snapshot. Neither original file is modified.",
+            button, null, AttachmentDisclosure);
     }
 
     internal void ShowAttachmentRemoval(SessionFileRemoval review, Func<Task> confirm)
@@ -214,6 +247,10 @@ internal sealed class LocalFilePreviewWindow(Action<string> reportFailure) : Win
         button.Command = new AsyncCommand(confirm, exception => reportFailure(
             "Removal incomplete or held. Body may already be revoked; inspect exact durable status. Failure type: " + exception.GetType().Name));
         Compose($"Exact session: {review.Session.Value:D} / generation: {review.Generation.Value}\n"
+            + (review.ReplacementSwapUnconfirmed
+                ? "REPLACEMENT HELD: a requested replacement has uncertain swap status. This is the exact current durable record, not a replacement result. Confirmation removes that record and verifies owned copies; no source is disclosed or restored.\n"
+                : review.ReplacementCopyVerificationPending
+                    ? "REPLACEMENT HELD: the swap committed but old-copy certification did not complete. Neither source is disclosed. This confirmation removes the held new snapshot and verifies the owned-copy inventory; it does not finish or restore replacement.\n" : string.Empty)
             + (review.BodyRetained ? "Body retained: confirmation revokes it before copy cleanup.\n"
                 : "Body already revoked: confirmation retries only the exact inventoried Kora-copy cleanup; no source is restored.\n")
             + $"Storage revision: {review.StorageRevision.Value} / confirmation: {review.ConfirmationId:D}\n"

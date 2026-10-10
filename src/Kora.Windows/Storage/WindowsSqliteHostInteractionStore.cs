@@ -406,9 +406,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 {
                     using var storage = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
                     ValidateAuthority(connection);
-                    using var transaction = connection.BeginTransaction();
-                    var value = mutation(connection, transaction, intent, audit);
-                    Commit(transaction, request, cancellationToken, canControl);
+                    T value;
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        value = mutation(connection, transaction, intent, audit);
+                        Commit(transaction, request, cancellationToken, canControl);
+                    }
                     storage.Complete(HostOperationOutcome.Completed);
                     return value;
                 }
@@ -449,9 +452,13 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         catch (SqliteException exception)
         {
             // Cancellation during COMMIT cannot certify rollback. Never report it as cancellation or admission.
-            throw new IOException("Interaction commit certainty was lost; inspect durable authority before retrying.", exception);
+            throw new InteractionCommitUncertainException(exception);
         }
+
     }
+
+    private sealed class InteractionCommitUncertainException(SqliteException exception)
+        : IOException("Interaction commit certainty was lost; inspect durable authority before retrying.", exception);
 
     private SqliteConnection Open(bool created, CancellationToken cancellationToken)
     {

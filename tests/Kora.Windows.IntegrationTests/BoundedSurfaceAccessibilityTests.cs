@@ -20,6 +20,43 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class BoundedSurfaceAccessibilityTests
 {
     [Fact]
+    public async Task Assistant_name_editor_has_a_stable_label_and_authoritative_help_after_save_and_reset()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var window = new SettingsWindow(fixture.Main);
+            try
+            {
+                window.Show();
+                window.ShowVoiceRecovery();
+                window.UpdateLayout();
+                var editor = window.GetVisualDescendants().OfType<TextBox>()
+                    .Single(control => string.Equals(control.Text, "Kora", StringComparison.Ordinal));
+                var peer = ControlAutomationPeer.CreatePeerForElement(editor)!;
+                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription);
+
+                await fixture.Main.SetAssistantNameAsync("Nova Ray");
+                window.UpdateLayout();
+                editor.Text.Should().Be("Nova Ray");
+                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription)
+                    .And.Contain("Nova Ray");
+
+                await fixture.Main.ResetAssistantNameCommand.ExecuteAsync();
+                window.UpdateLayout();
+                editor.Text.Should().Be("Kora");
+                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription);
+                fixture.Main.IsVoiceEnabled.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
     public async Task Light_navigation_uses_secondary_text_without_changing_dark_navigation()
     {
         await HeadlessSession.RunAsync(async () =>

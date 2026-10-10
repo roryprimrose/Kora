@@ -133,7 +133,153 @@ contrast, verify readability or manufacture text-scale/mixed-monitor passes.
 The five human observations above remain independently scoped. Do not run this
 driver alongside a manually launched fixture or another desktop automation.
 
+### Extended workstation automation
+
+The [workstation driver](../../eng/Invoke-NativeUxWorkstation.ps1) executes the
+maintained five-row baseline, then a fresh owned fixture for ten additional
+scoped observations. It reuses the baseline's PID/HWND, keyboard and deadline
+admission helpers; it does not extract source or invent a separate input path.
+Both processes must exit cleanly and delete only their own scratch child.
+
+```powershell
+$workstation = Join-Path $env:TEMP ('kora-native-workstation-' + [guid]::NewGuid().ToString('N'))
+.\eng\Invoke-NativeUxWorkstation.ps1 -PreparedDirectory $proof -OutputDirectory $workstation `
+    -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(15)) -ApproveDesktopAutomation
+```
+
+Run from the checkout root. From another working directory, invoke the script
+by its absolute checkout path using PowerShell's `&` call operator; a relative
+`.\eng` command resolves against the terminal's directory, not VS Code's repo.
+
+The extended rows cover:
+
+| Row | Machine observation |
+|---|---|
+| W01 | Create/rename a metadata-only session, preserving its exact ID/generation and advancing its metadata revision |
+| W02 | Alternating exact-ID bounded history reads, metadata-only ordered records, unchanged repeated snapshots and passive field focus |
+| W03 | Three guide/detail lifetime cycles, read-only source bytes matching the immutable digest, retained owner and refused closed-generation rendering |
+| W04 | Every default bundled package file tab's source digest, original byte count and read-only value; execution unavailable |
+| W05 | Native retained/missing explicit trace segments and session-confined removal of cross-session navigation authority |
+| W06 | Revoke the native window referencing a changed session generation, then explicitly reopen and read the same immutable subject |
+| W07 | Resize/move only an owned Settings HWND across enumerated work areas; actual native DPI/bounds, exact selector focus and original placement restoration |
+| W08 | Exact pending queue inspection/removal and retained receipt, passive focused work without dispatch, deliberate two-session local-version dispatch and exact terminal observations |
+| W09 | Discover the exact newly added pending task by native scrolling after retained terminal rows; synthetic private-window clearing/no replay and zero dispatch of old-epoch work after reopening; explicitly clear its sole pending entry |
+| W10 | Deliberate metadata-only session disposition after exact preview, native revocation/reopening, retained tombstone/history citations and unaffected unrelated subject |
+
+Native history completions require the newly addressed ID, not retained JSON
+from a prior read. Window/descendant retirement permits only bounded discovery
+retries, with counters; consequential actions are never automatically retried.
+Native display enumeration and window DPI are mechanical evidence, not proof
+of readable rendering on physical monitors. No global display/text settings
+are changed. No copy/disclosure control, audio, screenshot, real profile source,
+model, network or installation operation is admitted.
+
+The fixture now composes the real bounded local-version queue service, using
+its existing native version capability and scratch stores. Its queue lifecycle
+is drained before scratch deletion. Stable exact work-row containers preserve
+focus during passive observation; changed observation time alone does not
+reannounce unchanged row fields or renew inspected task cancellation authority.
+The work list forwards native ScrollPattern to its current template's real
+scroll viewer. This preserves virtualization and passive selection while making
+off-viewport rows discoverable through the list's bounded native scroll range.
+The durable-session and cited-evidence record lists use the same provider
+forwarding after separate synthetic overflow observations. Scrolling does not
+select a session, navigate evidence, disclose content or renew authority.
+
+Inspect `baseline\mechanics.json` and `expanded\workstation.json`. The latter
+binds the expanded driver, baseline driver and prepared payload receipt hashes.
+Keep failed attempts unchanged. Earlier development trials did not discover a
+new pending row below retained terminal rows because the stock list peer
+advertised no native scroll range. W09 now requires discovery of that exact row
+through the list's ScrollPattern before synthetic gate closure. Discovery is
+not an observation that Narrator announced it; actual announcement and
+readability remain operator-only.
+
+These results reduce repetitive manual input; **none populates the human
+observation template or signs off Narrator/readability/physical displays**.
+
+### Separate silent caption fixture
+
+The default fixture still refuses all speech. A separately approved launch may
+append the exact `--silent-caption-fixture` flag after its scratch-parent argument.
+This mode uses an in-memory Windows-provider contract with a synthetic voice and
+output ID, not System.Speech, a device, a synthesis engine or a render endpoint.
+It leaves microphone consent denied, models disabled and real effects refused.
+Never describe these observations as audible playback or native provider acceptance.
+
+The additional launcher actions arm one ordinary typed `show your window`
+response, observe its synthetic playback identity, complete normally, stop/retire,
+inspect metadata, and set one of the four caption placements through the admitted
+preference commands. The real caption policy and window controller receive these
+frames. Queueing alone must show no caption; only an exact admitted playback
+frame reveals text. Pinning may retain already-observed text after normal
+completion, but stop/privacy/source retirement must clear it without replay.
+Structured snapshots include the completed fixture operation and a monotonic
+snapshot revision. An unchanged placement or absent queued window alone is
+not proof that an async Save or Stop completed; wait for its fresh exact receipt.
+
+Prepare a new payload after changing fixture code; never overwrite a previously
+qualified preparation or reuse its result for the new bytes. Native focus,
+read-only value, placement, expiry, pin and synthetic gate measurements are
+mechanical scopes only. Actual Narrator, rendered clipping/readability and
+physical/acoustic acceptance remain human or separately approved live trials.
+
+### Separate synthetic list-overflow fixture
+
+An independently approved launch may append the exact `--list-overflow-fixture`
+flag after the scratch-parent argument. It cannot be combined with the silent
+caption flag. Default preparation and launch do not enable this mode.
+
+Initialization explicitly enqueues and dispatches nine scratch local-version
+tasks through the ordinary bounded queue, then leaves one exact pending task.
+The real local-event broker admits eight visible observations and reports two
+omitted observations; trailing ineligible work is not fabricated into events.
+The mode also records twelve missing synthetic trace links through the host
+activity path and adds twelve non-executable `/overflow-01` through
+`/overflow-12` catalogue entries. It retains denied voice consent and the normal
+fixture's refused external effects.
+
+Select the exact synthetic session in Sessions to inspect local events. In
+Evidence, filter by the trace ID from **Inspect synthetic list overflow state**,
+search and select the source span to expose the missing links. Open the typed
+slash window and enter `/overflow` to expose the catalogue. Native scrolling
+must make every admitted event ID, missing-link trace ID and command name
+discoverable without event controls, link navigation, command application,
+Run/Enter or dispatch of the remaining pending task.
+
+All six bounded lists now forward native scrolling to their current template
+scroll viewers: sessions, work, local events, cited evidence, trace links and
+artifact commands. Limits, virtualization, passive selection and execution
+boundaries are unchanged. Exact native discovery is machine evidence, not a
+claim that Narrator announced the rows or that their rendering is readable.
+
+### Minimum operator walkthrough after automated mechanics
+
+Do not manually repeat the machine-only queue, history, source-hash, stale-ID
+or disposition assertions. Keep the five observation rows, but group the
+remaining human work into three passes:
+
+1. **Listen:** launch the prepared fixture using Stage Launch, turn Narrator on
+   yourself and perform SR01/SR02 above. Only a person listening can judge the
+   names/roles, understandable outcome/refusal and non-disruptive refresh.
+2. **Look:** perform TXT01/DPI01/DPI02 above together, using the same open
+   windows. Inspect both themes at the original text size, move the windows
+   between the already configured displays, then repeat at an independently
+   approved enlarged text size. Do not change topology. Mark an unperformed
+   enlarged-text or physical-monitor scope Blocked rather than Pass.
+3. **Restore and attest:** restore the original text/display and Narrator
+   settings, stop the fixture cleanly, enter factual outcomes in `operator.json`
+   and run Stage SignOff below. A machine-only trial is not a replacement for
+   the clean Stage Launch receipt required for this human sign-off.
+
 ## 4. Sign off the observed scope
+
+The assistant-name editor now has the native label
+"Display and push-to-talk command-prefix name" and help bound to its authoritative
+configuration description. Machine trials check native Name/HelpText across
+default, normalized save and reset. In the Listen pass, still confirm that
+Narrator presents the field and its description understandably; UIA property
+equivalence does not substitute for listening.
 
 Fill the integer display fields and set `operatorConfirmed` to `true` only after
 reviewing all five factual notes. `secondDisplayScalePercent` may remain `null`

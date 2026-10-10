@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Collections.ObjectModel;
 
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
@@ -9,7 +10,7 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private SessionWorkSnapshot? workSnapshot;
-    private IReadOnlyList<SessionWorkRow> workRecords = [];
+    private readonly ObservableCollection<SessionWorkRow> workRecords = [];
     private SessionWorkRow? selectedWork;
     private long selectionEpoch;
     private bool presentingWork;
@@ -80,13 +81,37 @@ internal sealed partial class SessionsViewModel
             Notify();
             return;
         }
-        var selectedId = selectedWork?.TaskId;
+        var previousSelection = selectedWork;
         workSnapshot = snapshot;
         selected = snapshot.Session;
         queueSnapshot = snapshot.Queue;
-        workRecords = [.. snapshot.QueueRecords.Select(record => new SessionWorkRow(record, null, snapshot.ObservedAt)),
+        SessionWorkRow[] observations = [.. snapshot.QueueRecords.Select(record => new SessionWorkRow(record, null, snapshot.ObservedAt)),
             .. snapshot.Tasks.Select(task => new SessionWorkRow(null, task, snapshot.ObservedAt))];
-        selectedWork = workRecords.FirstOrDefault(row => row.TaskId == selectedId);
+        presentingWork = true;
+        try
+        {
+            var retained = new List<SessionWorkRow>(observations.Length);
+            foreach (var observation in observations)
+            {
+                var row = workRecords.FirstOrDefault(existing => existing.TaskId == observation.TaskId
+                    && (existing.Queue is null) == (observation.Queue is null));
+                if (row is null) { row = observation; }
+                else { row.Update(observation); }
+                retained.Add(row);
+            }
+            for (var index = workRecords.Count - 1; index >= 0; index--)
+            {
+                if (!retained.Contains(workRecords[index])) { workRecords.RemoveAt(index); }
+            }
+            for (var index = 0; index < retained.Count; index++)
+            {
+                var existing = workRecords.IndexOf(retained[index]);
+                if (existing < 0) { workRecords.Insert(index, retained[index]); }
+                else if (existing != index) { workRecords.Move(existing, index); }
+            }
+        }
+        finally { presentingWork = false; }
+        selectedWork = previousSelection is not null && workRecords.Contains(previousSelection) ? previousSelection : null;
         selectedQueueEntry = selectedWork?.Queue?.Entry;
         selectedTask = selectedWork?.Task?.Task;
         // New observations never silently renew an inspected cancellation target.

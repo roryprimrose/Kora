@@ -194,6 +194,27 @@ Reject 'Unbounded desktop approval cannot launch' {
     -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(5)) -ValidateOnly
 Check (!(Test-Path -LiteralPath (Join-Path $OutputDirectory 'validate-mechanics')) -and
     !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'denied-mechanics'))) 'ValidateOnly and denied automation create no native trial or output'
+$workstation = Join-Path $PSScriptRoot 'Invoke-NativeUxWorkstation.ps1'
+$null = [Management.Automation.Language.Parser]::ParseFile($workstation, [ref]$tokens, [ref]$errors)
+Check ($errors.Count -eq 0) 'Expanded workstation driver parses'
+Reject 'Expanded workstation automation needs its own explicit desktop approval' {
+    & $workstation -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'denied-workstation') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(5))
+} 'Explicit desktop automation approval'
+Reject 'Expanded workstation automation refuses an expired deadline before any baseline launch' {
+    & $workstation -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'expired-workstation') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(-1)) -ApproveDesktopAutomation
+} 'future deadline'
+Reject 'Expanded workstation automation refuses unbounded approval before any baseline launch' {
+    & $workstation -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'unbounded-workstation') `
+        -DeadlineUtc ([DateTimeOffset]::UtcNow.AddHours(2)) -ApproveDesktopAutomation
+} 'future deadline'
+& $workstation -PreparedDirectory $OutputDirectory -OutputDirectory (Join-Path $OutputDirectory 'validate-workstation') `
+    -DeadlineUtc ([DateTimeOffset]::UtcNow.AddMinutes(5)) -ValidateOnly
+Check (!(Test-Path -LiteralPath (Join-Path $OutputDirectory 'validate-workstation')) -and
+    !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'denied-workstation')) -and
+    !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'expired-workstation')) -and
+    !(Test-Path -LiteralPath (Join-Path $OutputDirectory 'unbounded-workstation'))) 'Expanded validation and refused admission create no trial, baseline, process or input'
 Write-ProofJson ([ordered]@{ schema = 1; count = $passed.Count; checks = @($passed)
     nativeLaunch = $false; scope = 'Synthetic file-only contracts, not native acceptance.' }) `
     (Join-Path $OutputDirectory 'contracts.json')

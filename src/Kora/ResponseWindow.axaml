@@ -2,6 +2,7 @@
     x:Class="Kora.ResponseWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
     Title="{Binding AssistantName}"
     Width="560"
     Height="650"
@@ -151,7 +152,7 @@
               BorderBrush="{DynamicResource KoraBorderBrush}"
               BorderThickness="1"
               CornerRadius="7">
-        <ListBox x:Name="ArtifactCommandList"
+        <controls:ScrollableListBox x:Name="ArtifactCommandList"
                  ItemsSource="{Binding ArtifactCommandOptions}"
                  AutomationProperties.Name="Available artifact slash commands">
           <ListBox.Styles>
@@ -178,7 +179,7 @@
               </Button>
             </DataTemplate>
           </ListBox.ItemTemplate>
-        </ListBox>
+        </controls:ScrollableListBox>
       </Border>
 
       <Grid Grid.Row="9" ColumnDefinitions="*,Auto" ColumnSpacing="9">

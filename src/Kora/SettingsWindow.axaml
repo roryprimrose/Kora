@@ -375,7 +375,9 @@
                 <StackPanel Grid.Column="1" Spacing="8">
                   <TextBox
                       Text="{Binding AssistantNameInput, Mode=TwoWay}"
-                      PlaceholderText="Assistant name" />
+                      PlaceholderText="Assistant name"
+                      AutomationProperties.Name="Display and push-to-talk command-prefix name"
+                      AutomationProperties.HelpText="{Binding AssistantNameConfigurationDescription}" />
                   <Button
                       Classes="primary"
                       Content="Apply name"

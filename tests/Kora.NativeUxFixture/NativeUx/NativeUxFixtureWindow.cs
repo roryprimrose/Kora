@@ -17,6 +17,7 @@ using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Controls;
 using Kora.Core.Configuration;
+using Kora.Core.Voice;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -37,6 +38,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
     private bool stopping;
     private bool canClose;
     private bool failed;
+    private long overflowSnapshotRevision;
 
     internal NativeUxFixtureWindow(NativeUxFixtureSession session, IClassicDesktopStyleApplicationLifetime desktop)
     {
@@ -104,6 +106,65 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
             window.ShowResponse();
             return Task.CompletedTask;
         });
+        if (session.ListOverflow)
+        {
+            AddAction(content, "Inspect synthetic list overflow state", async () =>
+            {
+                var viewer = desktop.Windows.OfType<SessionsWindow>().SingleOrDefault()?.DataContext as SessionsViewModel;
+                var snapshot = await session.Interactions.ReadQueueAsync(session.LifecycleTarget!.SessionId, session.Token);
+                status.Text = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    listOverflow = true,
+                    revision = checked(++overflowSnapshotRevision),
+                    sessionId = session.LifecycleTarget!.SessionId.Value,
+                    queueCount = snapshot.Entries.Count,
+                    pendingTaskIds = snapshot.Entries.Select(item => item.Request.TaskId.Value).ToArray(),
+                    eventIds = viewer?.LocalEvents.Select(item => item.Event.Id).ToArray() ?? [],
+                    eventStatus = viewer?.LocalEventStatus,
+                    traceId = session.OverflowTrace!.TraceId,
+                    linkedTraceIds = session.OverflowLinks,
+                    slashCommands = Enumerable.Range(1, 12).Select(index => $"/overflow-{index:00}").ToArray(),
+                    realAudioOperations = 0,
+                });
+            });
+        }
+        if (session.SilentSpeech is not null)
+        {
+            AddAction(content, "Inspect silent synthetic caption state", () =>
+            {
+                status.Text = session.SyntheticCaptionStatus("inspect");
+                return Task.CompletedTask;
+            });
+            AddAction(content, "Queue silent synthetic caption response", async () =>
+            {
+                await session.QueueSyntheticCaptionAsync();
+                status.Text = session.SyntheticCaptionStatus("queued");
+            });
+            AddAction(content, "Observe silent synthetic caption playback", () =>
+            {
+                session.ObserveSyntheticCaption();
+                status.Text = session.SyntheticCaptionStatus("observed");
+                return Task.CompletedTask;
+            });
+            AddAction(content, "Complete silent synthetic caption normally", async () =>
+            {
+                await session.CompleteSyntheticCaptionAsync();
+                status.Text = session.SyntheticCaptionStatus("completed");
+            });
+            AddAction(content, "Stop and retire silent synthetic caption", async () =>
+            {
+                await session.StopSyntheticCaptionAsync();
+                status.Text = session.SyntheticCaptionStatus("stopped");
+            });
+            foreach (var placement in Enum.GetValues<SpeechCaptionPlacement>())
+            {
+                AddAction(content, $"Set silent caption placement {placement}", async () =>
+                {
+                    await session.SetSyntheticCaptionPlacementAsync(placement);
+                    status.Text = session.SyntheticCaptionStatus("placement-saved");
+                });
+            }
+        }
         AddAction(content, "Notify-only maintenance (network disabled)", () =>
         {
             var window = new MaintenanceWindow(session.CreateMaintenance());
@@ -244,9 +305,15 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
             evidence.Bind();
             controllers.Add(evidence);
             var sessions = new SessionsWindowController(session.Main, session.Sessions, session.Evidence,
-                session.Access, NullLogger<SessionsViewModel>.Instance);
+                session.Access, NullLogger<SessionsViewModel>.Instance, session.OverflowEvents);
             sessions.Bind();
             controllers.Add(sessions);
+            if (session.SilentSpeech is not null)
+            {
+                var caption = new SpeechCaptionWindow(session.Main);
+                controllers.Add(new SpeechCaptionWindowController(session.Main, caption,
+                    new AvaloniaCaptionDisplaySource(caption.Screens)));
+            }
             session.Main.PrivacyClosureRequested += OnPrivacyClosure;
             session.Main.PropertyChanged += OnMainChanged;
             ready = true;
@@ -275,7 +342,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         details?.ClearForPrivacy();
         foreach (var window in desktop.Windows.ToArray())
         {
-            if (!ReferenceEquals(window, this)) { window.Close(); }
+            if (!ReferenceEquals(window, this) && window is not SpeechCaptionWindow) { window.Close(); }
         }
     }
 
@@ -317,6 +384,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         stopping = true;
         NotifyCommands();
         status.Text = "Stopping fixture: closing private windows and awaiting pending operations.";
+        await session.StopSyntheticCaptionAsync();
         ClearPrivateWindows();
         await Task.WhenAll(pending.ToArray());
         await session.SharedAdmission.DisposeAsync();

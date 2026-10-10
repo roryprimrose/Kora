@@ -786,6 +786,23 @@ over 1,555 files at merge `baf7cf5`. These runs applied the original precise
 11:57:18.6723718 UTC cutoff; no additional hour was started. The earlier
 accepted source-bound summary remains unchanged rather than repinned.
 
+At published HEAD `448a78f`, pull-request CI passed but feature-push Windows CI
+failed in two headless fixture cases with an authoritative SQLite evidence-sink
+`IOException`; the gap reporter did not preserve its lower-level cause.
+The identical-head full Windows suite subsequently passed all 1,550 tests
+locally, zero failures/skips. This is an unreproduced CI failure, not a confirmed
+root-cause fix; the failed run remains historical evidence.
+
+After merging current main (#165), fresh preparation passed 110 tests, the
+application and SQLite/window checks passed 34 and 20 respectively, and the
+root Release build again had zero warnings/errors. Updated build-input digest
+`322f7313a7dd6f2953f612e479a4c5a41b1b059475091e85e9c348ede4b5e5f0`
+over 1,569 files belongs to merge `03a1c84`. The original desktop cutoff had
+expired before this preparation completed; no native trial was launched with
+these bytes and no hour was renewed. The operator explicitly approved
+publication with this fresh headless evidence and the earlier source-scoped
+native proof kept separate. These later bytes do not inherit native acceptance.
+
 Earlier preparation and failed native attempts remain unchanged local evidence.
 Native trials exposed stock row names containing multiple correlation IDs, an
 uninitialized stock list scroll provider, cross-thread native visibility

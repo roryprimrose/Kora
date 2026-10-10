@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Net;
 using System.Reflection;
 using System.Diagnostics;
+using System.Text;
 
 using AwesomeAssertions;
 
@@ -40,6 +42,78 @@ public sealed partial class MainViewModelTests : IDisposable
     public MainViewModelTests() => ActivitySource.AddActivityListener(hostListener);
 
     public void Dispose() => hostListener.Dispose();
+
+    [Fact]
+    public async Task WebPageCommandReportsUnavailableClarifiedAndIneligibleStates()
+    {
+        var unavailable = new Fixture();
+        await unavailable.RunAsync("get web page https://example.com/");
+        unavailable.ViewModel.ResponseTitle.Should().Be("Web-page retrieval is unavailable.");
+
+        await unavailable.RunAsync("get web page");
+        unavailable.ViewModel.ResponseTitle.Should().Be("Clarify the web-page address.");
+
+        var action = new Kora.Tools.Network.WebPageGet(
+            new ViewModelWebTransport(WebResponse("https://example.com/", "text")),
+            new ViewModelWebAudit());
+        var ineligible = new Fixture(webPageGet: action);
+        ineligible.Session.IsUnlocked = false;
+        await ineligible.ViewModel.ExecuteWebPageCommandAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.TypedCommand,
+            TestContext.Current.CancellationToken);
+        ineligible.ViewModel.ResponseTitle.Should().Be("Web-page retrieval is unavailable.");
+    }
+
+    [Fact]
+    public async Task WebPageCommandPresentsSuccessDenialAndTransportFailures()
+    {
+        var success = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(WebResponse("https://example.com/", "content")),
+            new ViewModelWebAudit()));
+        await success.RunAsync("get web page https://example.com/");
+        success.ViewModel.ResponseTitle.Should().Be("Web page retrieved.");
+        success.ViewModel.ResponseBody.Should().Contain("content");
+        success.ViewModel.IsWebPageRetrievalActive.Should().BeFalse();
+
+        var truncated = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(WebResponse(
+                "https://example.com/",
+                new string('a', WebPageCapability.MaximumTextUtf8Bytes + 1))),
+            new ViewModelWebAudit()));
+        await truncated.RunAsync("get web page https://example.com/");
+        truncated.ViewModel.ResponseBody.Should().EndWith("[Result truncated]");
+
+        var denied = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(
+                WebResponse("https://example.com/", "content"),
+                IPAddress.Loopback),
+            new ViewModelWebAudit()));
+        await denied.RunAsync("get web page https://example.com/");
+        denied.ViewModel.ResponseTitle.Should().Be("Web page was not retrieved.");
+        denied.ViewModel.ResponseBody.Should().Contain("non-public-network-destination");
+
+        var failed = new Fixture(webPageGet: new(
+            new ViewModelWebTransport(new HttpRequestException("transport failed")),
+            new ViewModelWebAudit()));
+        await failed.RunAsync("get web page https://example.com/");
+        failed.ViewModel.ResponseTitle.Should().Be("Web page was not retrieved.");
+        failed.ViewModel.ResponseBody.Should().Be("transport failed");
+    }
+
+    [Fact]
+    public async Task WebPageCommandFailsClosedWhenHostAdmissionChangesBeforePresentation()
+    {
+        var transport = new ViewModelWebTransport(WebResponse("https://example.com/", "content"));
+        var fixture = new Fixture(webPageGet: new(transport, new ViewModelWebAudit()));
+        transport.BeforeSend = () => fixture.Session.IsUnlocked = false;
+
+        await fixture.RunAsync("get web page https://example.com/");
+
+        fixture.ViewModel.ResponseTitle.Should().Be("Web page was not retrieved.");
+        fixture.ViewModel.ResponseBody.Should()
+            .Be("Host admission changed before the retrieved page could be presented.");
+    }
 
     [Fact]
     public async Task PreapprovedUriControlsUseTheSharedToolsForNativeAndTypedCommands()
@@ -7850,6 +7924,64 @@ public sealed partial class MainViewModelTests : IDisposable
             ValueTask.FromResult<IReadOnlyList<HostTaskRecord>>([]);
     }
 
+    private static WebPageResponse WebResponse(string address, string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        return new(
+            200,
+            new(address),
+            "text/plain",
+            "utf-8",
+            bytes.Length,
+            null,
+            [],
+            new MemoryStream(bytes));
+    }
+
+    private sealed class ViewModelWebTransport : IWebPageTransport
+    {
+        private readonly Exception? exception;
+        private readonly IPAddress address;
+        private readonly WebPageResponse? response;
+
+        public ViewModelWebTransport(WebPageResponse response, IPAddress? address = null)
+        {
+            this.response = response;
+            this.address = address ?? IPAddress.Parse("93.184.216.34");
+        }
+
+        public ViewModelWebTransport(Exception exception)
+        {
+            this.exception = exception;
+            address = IPAddress.Parse("93.184.216.34");
+        }
+
+        public Action? BeforeSend { get; set; }
+
+        public Task<IReadOnlyList<IPAddress>> ResolveAsync(
+            string host,
+            CancellationToken cancellationToken) =>
+            exception is null
+                ? Task.FromResult<IReadOnlyList<IPAddress>>([address])
+                : Task.FromException<IReadOnlyList<IPAddress>>(exception);
+
+        public Task<WebPageResponse> SendAsync(
+            Uri address,
+            IPAddress endpoint,
+            CancellationToken cancellationToken)
+        {
+            BeforeSend?.Invoke();
+            return Task.FromResult(response!);
+        }
+    }
+
+    private sealed class ViewModelWebAudit : ISecurityAuditLog
+    {
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+        }
+    }
+
     private sealed class Fixture
     {
         public Fixture(bool subscribeToWindowActions = true, ILogger<MainViewModel>? logger = null,
@@ -7866,7 +7998,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Tools.Network.PreapprovedUriList? preapprovedUriList = null,
             Kora.Tools.Network.PreapprovedUriAdd? preapprovedUriAdd = null,
             Kora.Tools.Network.PreapprovedUriRemove? preapprovedUriRemove = null,
-            Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null)
+            Kora.Tools.Network.PreapprovedUriClear? preapprovedUriClear = null,
+            Kora.Tools.Network.WebPageGet? webPageGet = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8011,7 +8144,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 preapprovedUriList ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriList(PreapprovedUris) : null),
                 preapprovedUriAdd ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null),
                 preapprovedUriRemove ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriRemove(PreapprovedUris) : null),
-                preapprovedUriClear ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null));
+                preapprovedUriClear ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriClear(PreapprovedUris) : null),
+                webPageGet);
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }

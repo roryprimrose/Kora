@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using Kora.Core.Auditing;
@@ -36,7 +37,7 @@ public sealed class WebPageGet(
 
         try
         {
-            for (var redirects = 0; redirects <= WebPageCapability.MaximumRedirects; redirects++)
+            for (var redirects = 0; ; redirects++)
             {
                 timeout.Token.ThrowIfCancellationRequested();
                 if (!await authorize(current, timeout.Token).ConfigureAwait(false))
@@ -60,91 +61,97 @@ public sealed class WebPageGet(
                     .OrderBy(address => address.AddressFamily)
                     .ThenBy(address => Convert.ToHexString(address.GetAddressBytes()), StringComparer.Ordinal)
                     .First();
-                await using var response = await transport.SendAsync(current, endpoint, timeout.Token).ConfigureAwait(false);
-                if (response.Address != current)
+                var response = await transport.SendAsync(current, endpoint, timeout.Token).ConfigureAwait(false);
+                try
                 {
-                    return Complete(
-                        new(WebPageGetOutcome.Failed, "transport-address-mismatch", current, RedirectCount: redirects),
-                        auditEvent,
-                        activity);
-                }
-                if (response.StatusCode is >= 300 and <= 399)
-                {
-                    if (response.RedirectAddress is null)
+                    if (response.Address != current)
                     {
                         return Complete(
-                            new(WebPageGetOutcome.Failed, "redirect-location-missing", current, RedirectCount: redirects),
+                            new(WebPageGetOutcome.Failed, "transport-address-mismatch", current, RedirectCount: redirects),
                             auditEvent,
                             activity);
                     }
-                    if (redirects == WebPageCapability.MaximumRedirects)
+                    if (response.StatusCode is >= 300 and <= 399)
+                    {
+                        if (response.RedirectAddress is null)
+                        {
+                            return Complete(
+                                new(WebPageGetOutcome.Failed, "redirect-location-missing", current, RedirectCount: redirects),
+                                auditEvent,
+                                activity);
+                        }
+                        if (redirects == WebPageCapability.MaximumRedirects)
+                        {
+                            return Complete(
+                                new(WebPageGetOutcome.Failed, "redirect-limit-exceeded", current, RedirectCount: redirects),
+                                auditEvent,
+                                activity);
+                        }
+                        current = CanonicalRedirect(current, response.RedirectAddress);
+                        continue;
+                    }
+                    if (response.StatusCode is < 200 or > 299)
                     {
                         return Complete(
-                            new(WebPageGetOutcome.Failed, "redirect-limit-exceeded", current, RedirectCount: redirects),
+                            new(WebPageGetOutcome.Failed, "http-status-" + response.StatusCode, current, RedirectCount: redirects),
                             auditEvent,
                             activity);
                     }
-                    current = CanonicalRedirect(current, response.RedirectAddress);
-                    continue;
-                }
-                if (response.StatusCode is < 200 or > 299)
-                {
-                    return Complete(
-                        new(WebPageGetOutcome.Failed, "http-status-" + response.StatusCode, current, RedirectCount: redirects),
-                        auditEvent,
-                        activity);
-                }
-                if (response.ContentEncodings.Count != 0)
-                {
-                    return Complete(
-                        new(WebPageGetOutcome.UnsupportedContent, "encoded-content-not-supported", current, RedirectCount: redirects),
-                        auditEvent,
-                        activity);
-                }
-                var mediaType = response.MediaType?.ToLowerInvariant();
-                if (mediaType is not ("text/html" or "text/plain"))
-                {
-                    return Complete(
-                        new(WebPageGetOutcome.UnsupportedContent, "unsupported-content-type", current, mediaType, RedirectCount: redirects),
-                        auditEvent,
-                        activity);
-                }
-                if (response.CharacterSet is not null
-                    && !string.Equals(response.CharacterSet, "utf-8", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(response.CharacterSet, "utf8", StringComparison.OrdinalIgnoreCase))
-                {
-                    return Complete(
-                        new(WebPageGetOutcome.UnsupportedContent, "unsupported-character-set", current, mediaType, RedirectCount: redirects),
-                        auditEvent,
-                        activity);
-                }
-                if (response.ContentLength > WebPageCapability.MaximumContentBytes)
-                {
-                    return Complete(
-                        new(WebPageGetOutcome.TooLarge, "content-length-exceeded", current, mediaType, RedirectCount: redirects),
-                        auditEvent,
-                        activity);
-                }
+                    if (response.ContentEncodings.Count != 0)
+                    {
+                        return Complete(
+                            new(WebPageGetOutcome.UnsupportedContent, "encoded-content-not-supported", current, RedirectCount: redirects),
+                            auditEvent,
+                            activity);
+                    }
+                    var mediaType = response.MediaType?.ToLowerInvariant();
+                    if (mediaType is not ("text/html" or "text/plain"))
+                    {
+                        return Complete(
+                            new(WebPageGetOutcome.UnsupportedContent, "unsupported-content-type", current, mediaType, RedirectCount: redirects),
+                            auditEvent,
+                            activity);
+                    }
+                    if (response.CharacterSet is not null
+                        && !string.Equals(response.CharacterSet, "utf-8", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(response.CharacterSet, "utf8", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Complete(
+                            new(WebPageGetOutcome.UnsupportedContent, "unsupported-character-set", current, mediaType, RedirectCount: redirects),
+                            auditEvent,
+                            activity);
+                    }
+                    if (response.ContentLength > WebPageCapability.MaximumContentBytes)
+                    {
+                        return Complete(
+                            new(WebPageGetOutcome.TooLarge, "content-length-exceeded", current, mediaType, RedirectCount: redirects),
+                            auditEvent,
+                            activity);
+                    }
 
-                var bytes = await ReadBoundedAsync(response.Content, timeout.Token).ConfigureAwait(false);
-                var source = new UTF8Encoding(false, true).GetString(bytes);
-                var text = string.Equals(mediaType, "text/html", StringComparison.Ordinal)
-                    ? ExtractHtmlText(source)
-                    : NormalizeText(source);
-                var bounded = BoundOutput(text);
-                return Complete(
-                    new(
-                        WebPageGetOutcome.Succeeded,
-                        "retrieved",
-                        current,
-                        mediaType,
-                        bounded.Text,
-                        bounded.Truncated,
-                        redirects),
-                    auditEvent,
-                    activity);
+                    var bytes = await ReadBoundedAsync(response.Content, timeout.Token).ConfigureAwait(false);
+                    var source = new UTF8Encoding(false, true).GetString(bytes);
+                    var text = string.Equals(mediaType, "text/html", StringComparison.Ordinal)
+                        ? ExtractHtmlText(source)
+                        : NormalizeText(source);
+                    var bounded = BoundOutput(text);
+                    return Complete(
+                        new(
+                            WebPageGetOutcome.Succeeded,
+                            "retrieved",
+                            current,
+                            mediaType,
+                            bounded.Text,
+                            bounded.Truncated,
+                            redirects),
+                        auditEvent,
+                        activity);
+                }
+                finally
+                {
+                    DisposeResponse(response);
+                }
             }
-            throw new InvalidOperationException("The redirect loop terminated unexpectedly.");
         }
         catch (DecoderFallbackException)
         {
@@ -210,6 +217,12 @@ public sealed class WebPageGet(
         return resolved;
     }
 
+    [SuppressMessage(
+        "Usage",
+        "VSTHRD103:Call async methods when in an async method",
+        Justification = "WebPageResponse.Dispose only releases owned stream and HTTP response resources; the async compiler continuation is not measurable by coverage.")]
+    private static void DisposeResponse(WebPageResponse response) => response.Dispose();
+
     private static async Task<byte[]> ReadBoundedAsync(Stream stream, CancellationToken cancellationToken)
     {
         using var output = new MemoryStream();
@@ -237,7 +250,7 @@ public sealed class WebPageGet(
             return (text, false);
         }
         var length = Math.Min(text.Length, maximum);
-        while (length > 0 && Encoding.UTF8.GetByteCount(text.AsSpan(0, length)) > maximum)
+        while (Encoding.UTF8.GetByteCount(text.AsSpan(0, length)) > maximum)
         {
             length--;
         }

@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using AwesomeAssertions;
 using Kora.Core.Auditing;
+using Kora.Core.Diagnostics;
 using Kora.Core.Network;
 using Kora.Tools.Network;
 
@@ -170,6 +172,338 @@ public sealed class WebPageGetTests
         truncatedResult.Truncated.Should().BeTrue();
         Encoding.UTF8.GetByteCount(truncatedResult.Text!).Should()
             .Be(WebPageCapability.MaximumTextUtf8Bytes);
+
+        var unicode = new Transport(PublicAddress);
+        unicode.Responses.Enqueue(Response(
+            "https://example.com/",
+            new string('é', WebPageCapability.MaximumTextUtf8Bytes),
+            mediaType: "text/plain"));
+        var unicodeResult = await new WebPageGet(unicode, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+        unicodeResult.Truncated.Should().BeTrue();
+        Encoding.UTF8.GetByteCount(unicodeResult.Text!).Should()
+            .Be(WebPageCapability.MaximumTextUtf8Bytes);
+    }
+
+    [Fact]
+    public async Task ValidatesArgumentsAndRejectsEmptyDnsResults()
+    {
+        var action = new WebPageGet(new Transport(), new Audit());
+
+        await FluentActions.Awaiting(() => action.ExecuteAsync(
+                null!,
+                SecurityAuditInitiator.LocalUser,
+                static (_, _) => ValueTask.FromResult(true),
+                CancellationToken.None))
+            .Should().ThrowAsync<ArgumentNullException>();
+        await FluentActions.Awaiting(() => action.ExecuteAsync(
+                new(new("https://example.com/")),
+                SecurityAuditInitiator.LocalUser,
+                null!,
+                CancellationToken.None))
+            .Should().ThrowAsync<ArgumentNullException>();
+
+        var result = await action.ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be(WebPageGetOutcome.Denied);
+        result.Reason.Should().Be("non-public-network-destination");
+    }
+
+    [Fact]
+    public async Task SelectsTheDeterministicPublicEndpoint()
+    {
+        var ipv6 = IPAddress.Parse("2606:4700:4700::1111");
+        var ipv4 = IPAddress.Parse("8.8.8.8");
+        var transport = new Transport(ipv6, ipv4);
+        transport.Responses.Enqueue(Response("https://example.com/", "ok", mediaType: "text/plain"));
+
+        var result = await new WebPageGet(transport, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be(WebPageGetOutcome.Succeeded);
+        transport.Endpoints.Should().Equal(ipv4);
+    }
+
+    [Theory]
+    [InlineData(200, "https://other.example/", null, "transport-address-mismatch")]
+    [InlineData(302, "https://example.com/", null, "redirect-location-missing")]
+    [InlineData(404, "https://example.com/", null, "http-status-404")]
+    public async Task RejectsInvalidTransportResponses(
+        int status,
+        string responseAddress,
+        string? redirect,
+        string reason)
+    {
+        var transport = new Transport(PublicAddress);
+        transport.Responses.Enqueue(new(
+            status,
+            new(responseAddress),
+            "text/plain",
+            "utf-8",
+            0,
+            redirect is null ? null : new Uri(redirect),
+            [],
+            new MemoryStream()));
+
+        var result = await new WebPageGet(transport, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be(WebPageGetOutcome.Failed);
+        result.Reason.Should().Be(reason);
+    }
+
+    [Fact]
+    public async Task ResolvesRelativeRedirectsAndEnforcesTheRedirectLimit()
+    {
+        var relative = new Transport(PublicAddress);
+        relative.Responses.Enqueue(Response(
+            "https://example.com/start",
+            string.Empty,
+            302,
+            new Uri("/final", UriKind.Relative)));
+        relative.Responses.Enqueue(Response(
+            "https://example.com/final",
+            "done",
+            mediaType: "text/plain"));
+
+        var followed = await new WebPageGet(relative, new Audit()).ExecuteAsync(
+            new(new("https://example.com/start")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+        followed.Outcome.Should().Be(WebPageGetOutcome.Succeeded);
+        followed.FinalAddress.Should().Be(new Uri("https://example.com/final"));
+
+        var looping = new Transport(PublicAddress);
+        for (var index = 0; index <= WebPageCapability.MaximumRedirects; index++)
+        {
+            var address = $"https://example.com/{index}";
+            looping.Responses.Enqueue(Response(
+                address,
+                string.Empty,
+                302,
+                new Uri($"https://example.com/{index + 1}")));
+        }
+        var limited = await new WebPageGet(looping, new Audit()).ExecuteAsync(
+            new(new("https://example.com/0")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+        limited.Outcome.Should().Be(WebPageGetOutcome.Failed);
+        limited.Reason.Should().Be("redirect-limit-exceeded");
+        limited.RedirectCount.Should().Be(WebPageCapability.MaximumRedirects);
+    }
+
+    [Theory]
+    [InlineData("text/plain", "latin1", 4, "unsupported-character-set", WebPageGetOutcome.UnsupportedContent)]
+    [InlineData("text/plain", null, 262145, "content-length-exceeded", WebPageGetOutcome.TooLarge)]
+    [InlineData(null, null, 0, "unsupported-content-type", WebPageGetOutcome.UnsupportedContent)]
+    public async Task RejectsUnsupportedResponseMetadata(
+        string? mediaType,
+        string? characterSet,
+        long contentLength,
+        string reason,
+        WebPageGetOutcome outcome)
+    {
+        var transport = new Transport(PublicAddress);
+        transport.Responses.Enqueue(new(
+            200,
+            new("https://example.com/"),
+            mediaType,
+            characterSet,
+            contentLength,
+            null,
+            [],
+            new MemoryStream()));
+
+        var result = await new WebPageGet(transport, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be(outcome);
+        result.Reason.Should().Be(reason);
+    }
+
+    [Fact]
+    public async Task RejectsInvalidUtf8AndAcceptsUtf8Alias()
+    {
+        var invalid = new Transport(PublicAddress);
+        invalid.Responses.Enqueue(new(
+            200,
+            new("https://example.com/"),
+            "text/plain",
+            "utf8",
+            1,
+            null,
+            [],
+            new MemoryStream([0xff])));
+
+        var result = await new WebPageGet(invalid, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be(WebPageGetOutcome.UnsupportedContent);
+        result.Reason.Should().Be("invalid-utf8");
+    }
+
+    [Fact]
+    public async Task NormalizesPlainTextAndExercisesHtmlEdgeCases()
+    {
+        var plain = new Transport(PublicAddress);
+        plain.Responses.Enqueue(Response(
+            "https://example.com/",
+            "  cafe\u0301 \t value\r\nnext  ",
+            mediaType: "text/plain"));
+        var plainResult = await new WebPageGet(plain, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+        plainResult.Text.Should().Be("café value\nnext");
+
+        var html = new Transport(PublicAddress);
+        html.Responses.Enqueue(Response(
+            "https://example.com/",
+            "<div><script><script>hidden</script></script><br><li> item </li>"
+            + "<h2>heading</h2><h3>subheading</h3><style>hidden</style>"
+            + "<abcdefghijklmnopqrstuvwxyz123456789>tail</abcdefghijklmnopqrstuvwxyz123456789></div>"));
+        var htmlResult = await new WebPageGet(html, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+        htmlResult.Text.Should().Be("item\nheading\nsubheading\ntail");
+    }
+
+    [Fact]
+    public async Task AuditsCancellationDeadlineAndUnhandledFailure()
+    {
+        var ambientFreeCancellation = new Audit();
+        using (var ambientFreeToken = new CancellationTokenSource())
+        {
+            ambientFreeToken.Cancel();
+            await FluentActions.Awaiting(() => new WebPageGet(
+                    new Transport(PublicAddress),
+                    ambientFreeCancellation).ExecuteAsync(
+                    new(new("https://example.com/")),
+                    SecurityAuditInitiator.LocalUser,
+                    static (_, _) => ValueTask.FromResult(true),
+                    ambientFreeToken.Token))
+                .Should().ThrowAsync<OperationCanceledException>();
+        }
+        var ambientFreeFailure = new Audit();
+        await FluentActions.Awaiting(() => new WebPageGet(
+                new ThrowingTransport(new HttpRequestException("failed")),
+                ambientFreeFailure).ExecuteAsync(
+                new(new("https://example.com/")),
+                SecurityAuditInitiator.LocalUser,
+                static (_, _) => ValueTask.FromResult(true),
+                CancellationToken.None))
+            .Should().ThrowAsync<HttpRequestException>();
+        await FluentActions.Awaiting(() => new WebPageGet(
+                new ThrowingSendTransport(),
+                new Audit()).ExecuteAsync(
+                new(new("https://example.com/")),
+                SecurityAuditInitiator.LocalUser,
+                static (_, _) => ValueTask.FromResult(true),
+                CancellationToken.None))
+            .Should().ThrowAsync<HttpRequestException>();
+        await FluentActions.Awaiting(() => new WebPageGet(
+                new NullResponseTransport(),
+                new Audit()).ExecuteAsync(
+                new(new("https://example.com/")),
+                SecurityAuditInitiator.LocalUser,
+                static (_, _) => ValueTask.FromResult(true),
+                CancellationToken.None))
+            .Should().ThrowAsync<NullReferenceException>();
+        var disposalFailure = new Transport(PublicAddress);
+        disposalFailure.Responses.Enqueue(new(
+            200,
+            new("https://example.com/"),
+            "text/plain",
+            "utf-8",
+            0,
+            null,
+            [],
+            new ThrowingDisposeStream()));
+        await FluentActions.Awaiting(() => new WebPageGet(
+                disposalFailure,
+                new Audit()).ExecuteAsync(
+                new(new("https://example.com/")),
+                SecurityAuditInitiator.LocalUser,
+                static (_, _) => ValueTask.FromResult(true),
+                CancellationToken.None))
+            .Should().ThrowAsync<InvalidOperationException>();
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var activity = HostActivity.BeginOperation(
+            HostActivityLayer.Application,
+            HostOperation.Tool);
+        var successTransport = new Transport(PublicAddress);
+        successTransport.Responses.Enqueue(Response(
+            "https://example.com/",
+            "ok",
+            mediaType: "text/plain"));
+        (await new WebPageGet(successTransport, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None)).Outcome.Should().Be(WebPageGetOutcome.Succeeded);
+        var cancelledAudit = new Audit();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await FluentActions.Awaiting(() => new WebPageGet(
+                new Transport(PublicAddress),
+                cancelledAudit).ExecuteAsync(
+                new(new("https://example.com/")),
+                SecurityAuditInitiator.LocalUser,
+                static (_, _) => ValueTask.FromResult(true),
+                cancellation.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        cancelledAudit.Events[^1].Outcome.Should().Be(SecurityAuditOutcome.Cancelled);
+
+        var deadlineAudit = new Audit();
+        var deadline = await new WebPageGet(
+            new ThrowingTransport(new OperationCanceledException()),
+            deadlineAudit).ExecuteAsync(
+            new(new("https://example.com/")),
+            SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true),
+            CancellationToken.None);
+        deadline.Reason.Should().Be("deadline-exceeded");
+
+        var failedAudit = new Audit();
+        await FluentActions.Awaiting(() => new WebPageGet(
+                new ThrowingTransport(new HttpRequestException("failed")),
+                failedAudit).ExecuteAsync(
+                new(new("https://example.com/")),
+                SecurityAuditInitiator.LocalUser,
+                static (_, _) => ValueTask.FromResult(true),
+                CancellationToken.None))
+            .Should().ThrowAsync<HttpRequestException>();
+        failedAudit.Events[^1].Outcome.Should().Be(SecurityAuditOutcome.Failed);
     }
 
     private static WebPageResponse Response(
@@ -219,5 +553,54 @@ public sealed class WebPageGetTests
         public List<SecurityAuditEvent> Events { get; } = [];
 
         public void Write(SecurityAuditEvent auditEvent) => Events.Add(auditEvent);
+    }
+
+    private sealed class ThrowingTransport(Exception exception) : IWebPageTransport
+    {
+        public Task<IReadOnlyList<IPAddress>> ResolveAsync(string host, CancellationToken cancellationToken) =>
+            Task.FromException<IReadOnlyList<IPAddress>>(exception);
+
+        public Task<WebPageResponse> SendAsync(
+            Uri address,
+            IPAddress endpoint,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class ThrowingSendTransport : IWebPageTransport
+    {
+        public Task<IReadOnlyList<IPAddress>> ResolveAsync(
+            string host,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<IPAddress>>([PublicAddress]);
+
+        public Task<WebPageResponse> SendAsync(
+            Uri address,
+            IPAddress endpoint,
+            CancellationToken cancellationToken) =>
+            Task.FromException<WebPageResponse>(new HttpRequestException("send failed"));
+    }
+
+    private sealed class NullResponseTransport : IWebPageTransport
+    {
+        public Task<IReadOnlyList<IPAddress>> ResolveAsync(
+            string host,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<IPAddress>>([PublicAddress]);
+
+        public Task<WebPageResponse> SendAsync(
+            Uri address,
+            IPAddress endpoint,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<WebPageResponse>(null!);
+    }
+
+    private sealed class ThrowingDisposeStream : MemoryStream
+    {
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            throw new InvalidOperationException("dispose failed");
+        }
     }
 }

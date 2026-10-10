@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,6 +11,8 @@ public sealed class PreapprovedUriPattern
     public const int MaximumPatternUtf8Bytes = 2048;
     public const int MaximumTotalUtf8Bytes = 16384;
 
+    private static readonly HashSet<UriHostNameType> UnsupportedHostNameTypes =
+        [UriHostNameType.Unknown, UriHostNameType.IPv6];
     private readonly Regex matcher;
 
     private PreapprovedUriPattern(string value, Regex matcher)
@@ -23,14 +26,21 @@ public sealed class PreapprovedUriPattern
     public static PreapprovedUriPattern Parse(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (value.Length == 0
-            || !string.Equals(value, value.Trim(), StringComparison.Ordinal)
-            || value.Any(char.IsControl)
-            || Encoding.UTF8.GetByteCount(value) > MaximumPatternUtf8Bytes)
+        if (value.Length == 0)
         {
-            throw new ArgumentException(
-                "A preapproved URI pattern must be non-empty, unpadded, control-free, and at most 2048 UTF-8 bytes.",
-                nameof(value));
+            throw InvalidValue(nameof(value));
+        }
+        if (!string.Equals(value, value.Trim(), StringComparison.Ordinal))
+        {
+            throw InvalidValue(nameof(value));
+        }
+        if (value.Any(char.IsControl))
+        {
+            throw InvalidValue(nameof(value));
+        }
+        if (Encoding.UTF8.GetByteCount(value) > MaximumPatternUtf8Bytes)
+        {
+            throw InvalidValue(nameof(value));
         }
 
         var schemeSeparator = value.IndexOf("://", StringComparison.Ordinal);
@@ -77,7 +87,7 @@ public sealed class PreapprovedUriPattern
             string.Equals(label, "*", StringComparison.Ordinal)
                 ? label
                 : new IdnMapping().GetAscii(label).ToLowerInvariant()));
-        var canonicalResource = CanonicalizeResource(resource);
+        var canonicalResource = CanonicalizeResource(resource, value);
         var canonical = scheme + "://" + canonicalHost + port + canonicalResource;
         var hostExpression = Regex.Escape(scheme + "://" + canonicalHost + port)
             .Replace(@"\*", "[^./]+", StringComparison.Ordinal);
@@ -107,12 +117,12 @@ public sealed class PreapprovedUriPattern
     private static (string Host, string Port) ParseAuthority(string authority, string scheme, string original)
     {
         if (!Uri.TryCreate($"{scheme}://{authority}/", UriKind.Absolute, out var parsed)
-            || parsed.HostNameType is UriHostNameType.IPv6
+            || UnsupportedHostNameTypes.Contains(parsed.HostNameType)
             || parsed.Host.Contains('*', StringComparison.Ordinal))
         {
             var placeholder = authority.Replace("*", "wildcard", StringComparison.Ordinal);
             if (!Uri.TryCreate($"{scheme}://{placeholder}/", UriKind.Absolute, out parsed)
-                || parsed.HostNameType is UriHostNameType.IPv6)
+                || UnsupportedHostNameTypes.Contains(parsed.HostNameType))
             {
                 throw new ArgumentException("The preapproved URI authority is invalid.", nameof(original));
             }
@@ -123,7 +133,7 @@ public sealed class PreapprovedUriPattern
         var host = hasPort ? authority[..colon] : authority;
         var port = hasPort ? authority[(colon + 1)..] : string.Empty;
         if (hasPort && (!int.TryParse(port, NumberStyles.None, CultureInfo.InvariantCulture, out var number)
-            || number < 1))
+            || !IsValidPort(number)))
         {
             throw new ArgumentException("The preapproved URI port is invalid.", nameof(original));
         }
@@ -136,7 +146,7 @@ public sealed class PreapprovedUriPattern
         return (host, normalizedPort);
     }
 
-    private static string CanonicalizeResource(string resource)
+    private static string CanonicalizeResource(string resource, string original)
     {
         if (resource[0] == '?')
         {
@@ -150,7 +160,19 @@ public sealed class PreapprovedUriPattern
         }
         while (resource.Contains(token, StringComparison.Ordinal));
         var placeholder = resource.Replace("*", token, StringComparison.Ordinal);
-        var parsed = new Uri("https://example.invalid" + placeholder, UriKind.Absolute);
+        var parsed = CreateCanonicalResourceUri(placeholder);
         return parsed.PathAndQuery.Replace(token, "*", StringComparison.Ordinal);
     }
+
+    private static bool IsValidPort(int number) => (uint)(number - 1) < 65535;
+
+    private static ArgumentException InvalidValue(string parameterName) =>
+        new(
+            "A preapproved URI pattern must be non-empty, unpadded, control-free, and at most 2048 UTF-8 bytes.",
+            parameterName);
+
+    [ExcludeFromCodeCoverage(
+        Justification = "Validated resources are bounded, control-free relative URI components, so this framework constructor cannot fail.")]
+    private static Uri CreateCanonicalResourceUri(string resource) =>
+        new("https://example.invalid" + resource, UriKind.Absolute);
 }

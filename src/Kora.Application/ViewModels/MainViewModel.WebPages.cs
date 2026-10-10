@@ -66,7 +66,7 @@ public sealed partial class MainViewModel
             {
                 ShowFailure(
                     "Web page was not retrieved.",
-                    $"{result.Reason}. Address: {result.FinalAddress ?? address}");
+                    $"{result.Reason}. Address: {result.FinalAddress}");
             }
         }
         catch (Exception exception) when (exception is HttpRequestException

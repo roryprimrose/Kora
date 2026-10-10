@@ -28,6 +28,69 @@ public sealed class HostAuthorizationServiceTests
     }
 
     [Fact]
+    public async Task MissingPreapprovalPolicyRejectsWebAccessAndNullAddressIsInvalid()
+    {
+        var address = new Uri("https://example.com/page");
+        using var f = new InteractionFixture();
+        f.ChangeProposal(binding: WebBinding(f.Store.Snapshot.Proposal!.Binding, address));
+
+        var decision = await f.RunAsync(() =>
+            f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None));
+
+        decision.Outcome.Should().Be(HostInteractionOutcome.Denied);
+        decision.Reason.Should().Be("preapproved-uri-policy-unavailable");
+        var proposal = f.Store.Snapshot.Proposal!;
+        WebPageAccessBinding.Matches(
+                new(
+                    proposal.Request,
+                    proposal.ProposalId,
+                    proposal.Revision,
+                    proposal.Binding,
+                    HostOperationEffect.BoundedWrite,
+                    proposal.ExpiresAt),
+                address)
+            .Should().BeFalse();
+        var otherAction = new ExactOperationBinding(
+            "other",
+            proposal.Binding.SourcePartition,
+            proposal.Binding.SkillId,
+            proposal.Binding.DefinitionDigest,
+            proposal.Binding.DeclaredResourceDigest,
+            proposal.Binding.TrackedContentDigest,
+            proposal.Binding.ImplementationDigest,
+            proposal.Binding.InvocationDigest,
+            proposal.Binding.ResourceDigest,
+            proposal.Binding.IdentityDigest,
+            proposal.Binding.DestinationDigest,
+            proposal.Binding.TransformationDigest,
+            proposal.Binding.PolicyRevision);
+        WebPageAccessBinding.Matches(
+                new(
+                    proposal.Request,
+                    proposal.ProposalId,
+                    proposal.Revision,
+                    otherAction,
+                    proposal.Effect,
+                    proposal.ExpiresAt),
+                address)
+            .Should().BeFalse();
+        FluentActions.Invoking(() => WebPageAccessBinding.Matches(null!, address))
+            .Should().Throw<ArgumentNullException>();
+        FluentActions.Invoking(() =>
+                f.Authorization.RequestWebPageAccessAsync(f.Request, null!, CancellationToken.None))
+            .Should().Throw<ArgumentNullException>();
+
+        using var missing = new InteractionFixture();
+        missing.Store.Change(snapshot => snapshot with { Proposal = null });
+        var missingProposal = await missing.RunAsync(() =>
+            missing.Authorization.RequestWebPageAccessAsync(
+                missing.Request,
+                address,
+                CancellationToken.None));
+        missingProposal.Reason.Should().Be("web-destination-not-admitted");
+    }
+
+    [Fact]
     public async Task Preapproved_web_destination_satisfies_only_the_address_grant()
     {
         var address = new Uri("https://api.example.com/page");

@@ -71,8 +71,12 @@ public sealed class HostAuthorizationService(
         HostRequest request,
         Uri address)
     {
-        if (!Eligible(snapshot, request)
-            || !WebPageAccessBinding.Matches(snapshot.Proposal!, address))
+        if (!Eligible(snapshot, request))
+        {
+            return InteractionTransaction.Reject(snapshot, "web-destination-not-admitted");
+        }
+        var proposal = snapshot.Proposal!;
+        if (!WebPageAccessBinding.Matches(proposal, address))
         {
             return InteractionTransaction.Reject(snapshot, "web-destination-not-admitted");
         }

@@ -26,8 +26,7 @@ public static class WebPageNetworkPolicy
                 && !(bytes[0] == 198 && bytes[1] == 51 && bytes[2] == 100)
                 && !(bytes[0] == 203 && bytes[1] == 0 && bytes[2] == 113);
         }
-        if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6
-            || IPAddress.IsLoopback(address)
+        if (IPAddress.IsLoopback(address)
             || address.IsIPv6LinkLocal
             || address.IsIPv6Multicast
             || address.IsIPv6SiteLocal

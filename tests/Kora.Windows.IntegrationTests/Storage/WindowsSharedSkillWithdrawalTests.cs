@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Reflection;
 
 using AwesomeAssertions;
 
@@ -9,6 +10,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Skills;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.Core.Skills;
 using Kora.Windows.Storage;
 
@@ -18,9 +20,46 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-[Collection("Host tracing")]
+// Real sinks subscribe process-wide; the existing composition group excludes foreign test callbacks at teardown.
+[Collection(nameof(DurableStorageCompositionTestGroup))]
 public sealed class WindowsSharedSkillWithdrawalTests
 {
+    [Fact]
+    public void Real_global_evidence_fixture_uses_existing_exclusive_composition_collection()
+    {
+        typeof(WindowsSharedSkillWithdrawalTests).GetCustomAttribute<CollectionAttribute>()!.Name
+            .Should().Be(nameof(DurableStorageCompositionTestGroup));
+        typeof(DurableStorageCompositionTestGroup).GetCustomAttribute<CollectionDefinitionAttribute>()!
+            .DisableParallelization.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Foreign_global_activity_can_hold_private_database_after_listener_disposal_until_callback_finishes()
+    {
+        using var paths = new OwnedStorageFixture();
+        using var checkpoint = new PausedCommit(TestContext.Current.CancellationToken);
+        var sink = new WindowsSqliteEvidenceSink(paths, null, null, checkpoint);
+        sink.Initialize();
+        using var provider = new EvidenceLoggerProvider([sink], new Gaps());
+        var foreignRequest = HostRequest.Create(RequestOrigin.LocalUi);
+        var foreign = Task.Run(() =>
+        {
+            using var activity = HostActivity.BeginRoot(foreignRequest, HostActivityLayer.Application, HostOperation.Request);
+            activity.Complete(HostOperationOutcome.Completed);
+        }, TestContext.Current.CancellationToken);
+        try
+        {
+            (await Task.WhenAny(checkpoint.Entered.Task, foreign)).Should().BeSameAs(checkpoint.Entered.Task);
+            checkpoint.Request.Should().BeSameAs(foreignRequest);
+            provider.Dispose();
+            foreign.IsCompleted.Should().BeFalse();
+            // Removing a process-global listener does not join an already executing foreign callback.
+            var remove = () => File.Delete(Path.Combine(paths.LocalRoot, WindowsSqliteEvidenceSink.PartitionName, "evidence.db"));
+            remove.Should().Throw<IOException>();
+        }
+        finally { checkpoint.Release(); await foreign; }
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -116,5 +155,21 @@ public sealed class WindowsSharedSkillWithdrawalTests
     {
         internal List<EvidenceGap> Values { get; } = [];
         public void Report(EvidenceGap gap) => Values.Add(gap);
+    }
+
+    private sealed class PausedCommit(CancellationToken token) : ISqliteTransactionCheckpoint, IDisposable
+    {
+        private readonly ManualResetEventSlim released = new();
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal HostRequest? Request { get; private set; }
+        public void BeforeWrite(SqliteConnection connection, SqliteTransaction transaction) { }
+        public void BeforeCommit(SqliteConnection connection, SqliteTransaction transaction)
+        {
+            Request = HostActivity.RequireCurrent().Request;
+            Entered.SetResult();
+            released.Wait(token);
+        }
+        internal void Release() => released.Set();
+        public void Dispose() => released.Dispose();
     }
 }

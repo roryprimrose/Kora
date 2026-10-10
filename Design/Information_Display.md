@@ -10,6 +10,16 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+## Delivered Exact Native Provider-Handoff Review - 2026-10-10
+
+The [native handoff window](../src/Kora/ModelHandoffWindow.axaml) displays actual audited host-issued offers: original session/task/request/origin, question/offer identities/revisions, generation/control/policy/destination/catalogue revisions, typed reason and validity. Production shows unavailable/no pending qualified offer.
+
+The complete exact context/evidence/tool envelope retains the existing 32,768-byte/sixteen-evidence bounds. It is inert non-selectable text with provenance and typed disclosure labels, never Markdown/HTML, authority-bearing display text or fabricated samples.
+
+No copy/export, speech, content logging/persistence, link, provider execution or send controls exist. Approval has no default selection and confirms only exact context. Selected evidence removal retires the old offer/question and requires a fresh complete reduced-envelope read; refresh cannot inherit approval.
+
+Application owns cancellation, one-use and late-response suppression. Close/privacy/ownership/expiry and changed session/task/policy/control clear content rather than retargeting it. Unrelated questions/viewers remain independent. Installed native and provider acceptance stay open ([boundary](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10)).
+
 ## Delivered Immutable Selected-Session Receipt Details - 2026-10-09
 
 **Open immutable receipt details** reuses the bounded native-text-v1 viewer

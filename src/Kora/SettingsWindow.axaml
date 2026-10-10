@@ -967,6 +967,10 @@
             <Button Content="Save provider mode" Command="{Binding SaveProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
             <Button Content="Reset provider mode to LocalOnly" Command="{Binding ResetProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
             <TextBlock Text="{Binding ProviderModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Review pending exact provider handoff" Click="OnReviewHandoffClicked"
+                    AutomationProperties.Name="Open original-user exact provider handoff review" />
+            <TextBlock Text="Local volatile review only. No pending qualified host offer means unavailable; no sample, send, execution or provider enablement is offered."
+                       Classes="settings-description" TextWrapping="Wrap" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

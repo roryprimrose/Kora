@@ -27,8 +27,11 @@ public sealed class ModelHandoffOffer
     public ModelHandoffReason Reason { get; }
     public HostQuestionRecord Question { get; }
     internal ModelTurnHost Host { get; }
-    internal HostRevision Generation { get; }
-    internal HostRevision TaskRevision { get; }
-    internal long ControlRevision { get; }
+    public Guid Id { get; } = Guid.NewGuid();
+    public HostRevision Revision { get; } = new(1);
+    public HostRevision Generation { get; }
+    public HostRevision TaskRevision { get; }
+    public long ControlRevision { get; }
     internal int Used;
+    internal int Retired;
 }

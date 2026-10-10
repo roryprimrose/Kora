@@ -342,6 +342,30 @@ tests passed, none skipped. Current portable reports cover all 16,170 lines
 and 9,528 branches (100%/100%). No real provider/native qualification trial,
 installation, account or network-policy change was performed.
 
+### R08/D-014 Bounded Exact Native Handoff Review - 2026-10-10
+
+The [local consumer](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-exact-native-handoff-review---2026-10-10) wires **Settings > Providers > Review pending exact provider handoff** to actual audited host-issued pending offers. Application owns bounded volatile publication/revocation and one exact presentation lifetime.
+
+Native chrome shows original identity/revision/destination/reason bindings and the immutable complete 32,768-byte/sixteen-evidence envelope, without truncation or active content. No arbitrary-context/model-serialized/sample route is exposed.
+
+Approve/decline/cancel and evidence removal call the same workflow. Old question/offer retirement and fresh reduced-envelope review prevent approval inheritance. Original intent, session/task/generation, question, destination/policy/privacy/control revisions, one-use, deferred Activity links, required audit and late-callback/close/cancel/disposal checks remain fail-closed.
+
+Unrelated questions and work/voice targets are not retargeted. Production shows unavailable/no pending qualified offer; confirmation claims exact context review only, not transmission or execution.
+
+Scope closes the native **review consumer** gap, not D-014/R08 acceptance. Production adapters/qualification/account/final-request-egress remain absent; LocalOnly defaults and per-turn semantics are unchanged. Deterministic wiring/hostile/stale/lifecycle/limit tests, genuine private SQLite question/audit rollback and XAML contracts are not installed native/provider acceptance.
+
+RT1 source-built bytes and RT2 all-path gates stay BLOCKED. MG1's released-runtime repeat is narrower evidence, not production/account acceptance. Unique runtime/native/account/local-floor/offline procedures and all experiment receipts/executables remain **retain**. No maintained-proof owner files, experiments, preferences or schemas change.
+
+Validation on `444e7cd` main with code head `0798163`: root Release build had zero warnings/errors. Core **1,314**, Application **3,616**, Tools **90**, Definitions **6** and Windows **1,299** passed, with zero failures/skips. Clean reports and the existing coverage gate confirmed **18,387/18,387 portable lines** and **11,058/11,058 branches** (100%/100%).
+
+After preserving merged memory #150 on `9d982af`, the root Release build again had zero warnings/errors. Core **1,322**, Application **3,649**, Tools **90**, Definitions **6** and Windows **1,308** passed with zero failures/skips. Clean portable reports confirmed **18,443/18,443 lines** and **11,096/11,096 branches** (100%/100%). The subsequent #147 rebase changes maintained receipts only, not feature code.
+
+Final rebase onto `b127e55` preserves memory, preview refresh, source withdrawal, evidence filters and session-list search. The zero-warning/error Release build and unchanged default-mode suites pass: Core **1,372**, Application **3,737**, Tools **137**, Definitions **6**, Windows **1,396**, with zero failures/skips. Clean portable coverage is **18,719/18,719 lines**, **11,277/11,277 branches** (100%/100%).
+
+Earlier default-parallel Windows failures and exact failing PR-event CI logs are retained, not reclassified as success. The source-withdrawal owner demonstrated a foreign stopped-Activity callback holding a real SQLite database open after listener disposal. Its Windows fixture used an undefined `Host tracing` collection and overlapped unrelated activities.
+
+Parent explicitly authorized only correction `9d341bbb`: that fixture now uses the existing exclusive `DurableStorageCompositionTestGroup`, with deterministic callback/open-database and collection-membership regressions. Default runner settings and production logging/audit/lifecycle code are unchanged. Serialized diagnostics were not acceptance; no global production callback/quiescence fix is claimed.
+
 ### R08/D-014 Volatile Provider Policy and Exact Handoff Workflow - 2026-10-09
 
 The [bounded policy/workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)

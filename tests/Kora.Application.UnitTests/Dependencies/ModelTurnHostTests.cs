@@ -535,7 +535,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
                 new(ModelProviderSelection.CopilotCandidate, Gates(ModelProviderSelection.CopilotCandidate), Time.Now.AddMinutes(5), Adapter)], ProviderConfiguration);
             ownedHosts.Add(PolicyHost);
             Questions = new(new(Task.Task, Session, new(true, true, false, true), null, [], []));
-            Workflow = new(PolicyHost, new(Questions, Time), this, this);
+            Workflow = new(PolicyHost, new(Questions, Time), this, this, new(Questions, Time));
         }
         internal HostActivity Root() => HostActivity.BeginRoot(Request, HostActivityLayer.Application, HostOperation.Request);
         internal ModelTurnHost Production()

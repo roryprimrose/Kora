@@ -59,6 +59,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
             ApplyThemeMode(viewModel.ThemeMode);
             logger = Services.GetRequiredService<ILogger<App>>();
+            BindHandoffPresentation(viewModel);
             DesktopLog.Information(logger, "Initializing the Kora desktop application");
             var window = new MainWindow(
                 viewModel,
@@ -214,6 +215,7 @@ public sealed partial class App : Avalonia.Application
 
     private void DisposeDesktopControllers()
     {
+        DisposeHandoffPresentation();
         Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();
         if (logger is not null)
         {

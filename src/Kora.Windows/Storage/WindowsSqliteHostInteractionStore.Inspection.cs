@@ -95,7 +95,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 var provenance = new AuthorityAuditProvenance(HostInteractionSchema.Version, "security_audit_events", sequence, rows.GetString(3),
                     audit.TraceId, audit.SpanId, audit.IntentRevision, audit.SessionGeneration,
                     audit.Outcome, audit.QuestionId, audit.QuestionRevision, audit.ApprovalId, audit.GrantRevision,
-                    audit.Changes.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray());
+                    audit.Changes.Select(change => new AuthorityAuditChange(change.Kind, change.Id, change.Revision, change.Digest)).ToArray(),
+                    audit.RequestedAudit, audit.RequestedGrantRevision);
                 var record = new EvidenceRecord(new(EvidenceSource.AuthorityAudit, new(audit.Audit.CorrelationId)),
                     audit.CommittedAt, audit.DueAt,
                     audit.DueAt <= now ? EvidenceSegmentStatus.ExpiredButPresent : EvidenceSegmentStatus.Present,

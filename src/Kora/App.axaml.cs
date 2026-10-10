@@ -90,6 +90,7 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>());
             grantListWindow = new GrantListWindowController(viewModel);
+            BindExactGrants(viewModel);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
                 Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>());
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
@@ -116,7 +117,8 @@ public sealed partial class App : Avalonia.Application
                 () => skillPackagesWindow.Open(),
                 () => sessionsWindow?.Open(),
                 () => maintenanceWindow?.Open(),
-                microphoneRecovery.Open);
+                microphoneRecovery.Open,
+                () => exactGrants?.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -245,6 +247,8 @@ public sealed partial class App : Avalonia.Application
         responseWindow = null;
         grantListWindow?.Dispose();
         grantListWindow = null;
+        exactGrants?.Dispose();
+        exactGrants = null;
         questionWindow?.Dispose();
         questionWindow = null;
         evidenceWindow?.Dispose();

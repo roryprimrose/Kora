@@ -1,4 +1,6 @@
 using Kora.Core.Authorization;
+using Kora.Core.Auditing;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -11,6 +13,38 @@ public sealed class HostAuthorizationService(IHostInteractionStore store, TimePr
     private static readonly QuestionSpec ApprovalSpec = new("Approve this exact host-resolved operation?",
         QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This work session"), new("perpetual", "Until explicitly removed or edited")],
         purpose: "authorization", sourceId: "host-operation");
+
+    public async ValueTask<HostInteractionDecision> RevokeExactAsync(HostRequest request, HostRevision controlGeneration,
+        ExactGrantInspection preview, Func<bool> admitted, CancellationToken cancellationToken)
+    {
+        if (store is not IExactGrantStore exact || request.Origin != RequestOrigin.LocalUi
+            || !ReferenceEquals(HostActivity.RequireCurrent().Request, request))
+        {
+            throw new InvalidOperationException("Exact revocation requires fresh host-resolved original native user intent.");
+        }
+        var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
+            "approval.revoke-exact", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
+            request.TaskId.Value.ToString("D"), preview.Grant.Id.Value);
+        using var activity = HostActivity.BeginAudit(request, requested);
+        try
+        {
+            var result = await exact.RevokeExactGrantAsync(request, controlGeneration, preview, requested,
+                admitted, cancellationToken).ConfigureAwait(false);
+            activity.Complete(result.Outcome == HostInteractionOutcome.Revoked
+                ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            activity.Complete(HostOperationOutcome.Cancelled);
+            throw;
+        }
+        catch
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
 
     public ValueTask<HostInteractionDecision> PresentAsync(HostRequest request, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.present", snapshot => Present(snapshot, request), cancellationToken);

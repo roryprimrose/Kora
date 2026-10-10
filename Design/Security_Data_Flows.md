@@ -595,6 +595,12 @@ admission are still independent gates.
 
 ### R05 Authorization Foundation
 
+The delivered [native exact-grant management subset](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10) is separate from named model-action preferences. Passive bounded reads are not applicability or effect receipts. One explicit native confirmation admits a fresh original-user control request/session; stored approval/request/trace or model text cannot supply that intent. Independent Perpetual records remain inspectable and exactly revocable after origin-session retirement.
+
+The current revision/status and immutable displayed metadata must still match under the shared private store's serializable transaction. Only an Active exact record can move to retained Revoked at the next revision; a stale, foreign, consumed or revoked preview conflicts. Requested and terminal typed audit are retained atomically as a content-free correlated pair in one envelope, without changing historical bytes or broadening scope. Commit/readback uncertainty fails closed and requires current inspection.
+
+Subsequent consumes through `HostAuthorizationService` reject the retained revoked record. Already-running work remains unknown unless actual receipts prove otherwise; revocation never claims physical cancellation or rollback. No model/tool dispatch, named-preference promotion, new approvals, grant edits/bulk revoke, Perpetual expiry/eviction or direct lock/power gate change is delivered.
+
 The [exact operation binding](../src/Kora.Core/Authorization/ExactOperationBinding.cs)
 binds action/source partition/skill, exact definition and complete declared
 resource identity, observed tracked content, required implementation, typed
@@ -630,14 +636,16 @@ question/grant changes with a typed security audit. Once use increments the
 revision/count and consumes authority in the same commit. Storage/audit
 failure returns no successful receipt. Cancellation certifies rollback only;
 uncertain commits surface a storage error and cannot be automatically replayed.
-These are tested application/core guarantees against an explicit test adapter,
-not a claim of production durable approvals or R04 audit integration.
+Portable serialized fixtures and the shared private SQLite adapter now test
+these guarantees, including retained exact-native revocation and typed atomic
+audit. They are not effect receipts or complete installed R04 qualification.
 
 Session authorization follows the durable work-session lifecycle, not Windows,
 provider, process or selected-window identity. Perpetual records are retained
 independently, without expiry/retention/eviction or session archive/delete/
-restart removal. Actual durable adapter/lifecycle/deletion acceptance remains
-R04/R12 work. No legacy named-action preference is imported or migrated to
+restart removal. The bounded shared private adapter/lifecycle/disposition tests
+preserve those records; complete installed R04/R12 acceptance remains open.
+No legacy named-action preference is imported or migrated to
 these version-bound grants.
 
 Successful admitted intent/approval/audit commits are prerequisites, not

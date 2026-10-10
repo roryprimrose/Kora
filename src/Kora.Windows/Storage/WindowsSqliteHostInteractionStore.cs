@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
@@ -546,7 +547,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
 
     private long AppendAudit(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord intent,
         WorkSessionAuthorization session, SecurityAuditEvent audit, HostInteractionDecision? decision = null,
-        IReadOnlyList<AuthorityChange>? changes = null)
+        IReadOnlyList<AuthorityChange>? changes = null, SecurityAuditEvent? requestedAudit = null,
+        HostRevision? requestedGrantRevision = null)
     {
         var live = HostActivity.RequireCurrent();
         if (live.Request.RequestId != intent.Request.RequestId || live.CorrelationId != audit.CorrelationId
@@ -580,7 +582,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt,
             auditPolicy is null ? retentionPolicy.AuditDue(committedAt) : auditPolicy.Due(committedAt), decision?.Outcome,
             decision?.Question?.Key.QuestionId, decision?.Question?.Key.Revision,
-            decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? []);
+            decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? [], requestedAudit, requestedGrantRevision);
         var json = HostInteractionCodec.Encode(envelope);
         var hash = Hash(sequence, previousHash, json);
         checkpoint?.BeforeAudit(connection, transaction);
@@ -663,6 +665,21 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 || !Same(change.Id, id.ToString("D"))))
         {
             throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
+        }
+        if (Same(audit.Audit.ActionId, "approval.revoke-exact") != (audit.RequestedAudit is not null)
+            || (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
+            || audit.RequestedGrantRevision is { Value: <= 0 })
+        {
+            throw new InvalidDataException("Exact revocation is missing its requested audit and inspected revision.");
+        }
+        if (audit.RequestedAudit is { } requested && (requested.Outcome != SecurityAuditOutcome.Requested
+            || requested.CorrelationId != audit.Audit.CorrelationId || requested.Category != audit.Audit.Category
+            || !Same(requested.ActionId, audit.Audit.ActionId) || requested.Initiator != audit.Audit.Initiator
+            || !Same(requested.TargetId, audit.Audit.TargetId) || requested.ApprovalId != audit.Audit.ApprovalId
+            || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
+            || !Same(requested.ActionId, "approval.revoke-exact") || audit.Request.Origin != RequestOrigin.LocalUi))
+        {
+            throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }
         return audit;
     }
@@ -893,7 +910,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     private sealed record AuthorityAudit(HostRequest Request, HostRevision IntentRevision, HostRevision SessionGeneration,
         SecurityAuditEvent Audit, string TraceId, string SpanId, DateTimeOffset CommittedAt, DateTimeOffset DueAt,
         HostInteractionOutcome? Outcome, HostId<QuestionIdentity>? QuestionId, HostRevision? QuestionRevision,
-        HostId<ApprovalIdentity>? ApprovalId, HostRevision? GrantRevision, AuthorityChange[] Changes);
+        HostId<ApprovalIdentity>? ApprovalId, HostRevision? GrantRevision, AuthorityChange[] Changes,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SecurityAuditEvent? RequestedAudit = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] HostRevision? RequestedGrantRevision = null);
 
     private sealed record AuthorityChange(string Kind, string Id, long Revision, string Digest);
 

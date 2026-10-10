@@ -35,6 +35,7 @@ public sealed record LocalEventBrokerState(
         if (now >= receipt.Event.ExpiresAt) { return LocalEventReason.Expired; }
         if (receipt.Disposition == LocalEventDisposition.Dismissed) { return LocalEventReason.Dismissed; }
         if (receipt.Disposition == LocalEventDisposition.Presented) { return LocalEventReason.PresentedNoReplay; }
+        if (receipt.Disposition == LocalEventDisposition.RoutineSuppressed) { return LocalEventReason.RoutineSuppressedNoReplay; }
         if (receipt.DeferredUntil > now) { return LocalEventReason.Deferred; }
         var budget = Budgets.SingleOrDefault(item => item.Category == receipt.Event.Category);
         return budget is not null && now - budget.WindowStart < Window
@@ -44,7 +45,7 @@ public sealed record LocalEventBrokerState(
 
     public void Validate()
     {
-        if (Schema != 1 || HighWatermark.Offset != TimeSpan.Zero || Receipts is null || Budgets is null
+        if (Schema is not (1 or 2) || HighWatermark.Offset != TimeSpan.Zero || Receipts is null || Budgets is null
             || Receipts.Count > MaximumReceipts || Budgets.Count > 4
             || Receipts.Select(item => item.Event.Id).Distinct().Count() != Receipts.Count
             || Budgets.Select(item => item.Category).Distinct().Count() != Budgets.Count)
@@ -52,7 +53,10 @@ public sealed record LocalEventBrokerState(
         foreach (var receipt in Receipts)
         {
             receipt.Event.Validate();
-            if (!Enum.IsDefined(receipt.Disposition) || receipt.Event.ObservedAt > HighWatermark
+            if (!Enum.IsDefined(receipt.Disposition)
+                || receipt.Disposition == LocalEventDisposition.RoutineSuppressed
+                    && (Schema != 2 || !RoutineNoticeQuietState.Includes(receipt.Event.Category))
+                || receipt.Event.ObservedAt > HighWatermark
                 || receipt.ChangedAt.Offset != TimeSpan.Zero || receipt.ChangedAt < receipt.Event.ObservedAt || receipt.ChangedAt > HighWatermark
                 || (receipt.Disposition == LocalEventDisposition.Deferred
                     ? receipt.DeferredUntil is not { } deferred || deferred.Offset != TimeSpan.Zero

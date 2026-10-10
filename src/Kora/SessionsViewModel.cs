@@ -421,15 +421,16 @@ internal sealed partial class SessionsViewModel(
     }
 
     private async Task RunAsync(Func<Task> operation, bool passive = false,
-        HostId<SessionIdentity>? activitySession = null)
+        HostId<SessionIdentity>? activitySession = null, bool routineNoticeControl = false)
     {
-        if (busy || closed || passive && refreshingWork) { return; }
+        if (busy || closed || passive && refreshingWork || routineNoticeControl && changingRoutineQuiet) { return; }
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
         var clearedPresentation = false;
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), activitySession ?? viewer.SessionId,
             viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
-        if (passive) { refreshingWork = true; }
+        if (routineNoticeControl) { changingRoutineQuiet = true; NotifyLocalEvents(); }
+        else if (passive) { refreshingWork = true; }
         else { busy = true; Notify(); }
         try
         {
@@ -440,7 +441,12 @@ internal sealed partial class SessionsViewModel(
         }
         catch (OperationCanceledException)
         {
-            if (!passive || closed || !access.CanInspect
+            if (routineNoticeControl && !closed && access.CanInspect)
+            {
+                ClearLocalEvents();
+                status = "Routine quiet control cancelled/unconfirmed. Refresh exact notice recovery; no rollback, default or backlog replay is claimed. Authoritative work remains independent.";
+            }
+            else if (!passive || closed || !access.CanInspect
                 || !busy && selected?.Authority.SessionId == subject && selectionEpoch == epoch)
             {
                 sessions = null;
@@ -454,7 +460,13 @@ internal sealed partial class SessionsViewModel(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (!passive || !busy && selected?.Authority.SessionId == subject)
+            if (routineNoticeControl)
+            {
+                ClearLocalEvents();
+                eventUnavailable = "Routine quiet control held/unavailable: " + exception.GetType().Name + ". No confirmed choice is inferred; restart/refresh recovery and independent work remain available.";
+                status = eventUnavailable;
+            }
+            else if (!passive || !busy && selected?.Authority.SessionId == subject)
             {
                 sessions = null;
                 RevokeListSearchPresentation();
@@ -468,12 +480,19 @@ internal sealed partial class SessionsViewModel(
         }
         finally
         {
-            if (passive)
+            if (routineNoticeControl)
+            {
+                changingRoutineQuiet = false;
+                NotifyLocalEvents();
+                OnPropertyChanged(nameof(Status));
+            }
+            else if (passive)
             {
                 refreshingWork = false;
                 if (clearedPresentation) { Notify(); }
                 NotifyWork();
                 NotifyQueue();
+                NotifyLocalEvents();
                 OnPropertyChanged(nameof(CanInspectTask));
                 OnPropertyChanged(nameof(CanCancelTask));
                 OnPropertyChanged(nameof(Status));
@@ -481,7 +500,7 @@ internal sealed partial class SessionsViewModel(
                 NotifyHistory();
             }
             else { busy = false; Notify(); }
-            if (closed && !busy && !refreshingWork) { lifetime.Dispose(); }
+            if (closed && !busy && !refreshingWork && !changingRoutineQuiet) { lifetime.Dispose(); }
         }
     }
 
@@ -521,7 +540,7 @@ internal sealed partial class SessionsViewModel(
         InvalidateListSearch();
         listQuery = string.Empty;
         lifetime.Cancel();
-        if (!busy && !refreshingWork) { lifetime.Dispose(); }
+        if (!busy && !refreshingWork && !changingRoutineQuiet) { lifetime.Dispose(); }
         sessions = null;
         ClearSelection();
         Notify();

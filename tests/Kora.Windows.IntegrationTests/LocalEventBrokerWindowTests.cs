@@ -54,6 +54,15 @@ public sealed class LocalEventBrokerWindowTests
                 refresh.Focus().Should().BeTrue();
                 await viewer.RefreshWorkAsync();
                 window.FocusManager!.GetFocusedElement().Should().BeSameAs(refresh);
+                await viewer.QuietRoutineNoticesAsync();
+                viewer.RoutineQuietStatus.Should().Contain("On").And.Contain("Work and Maintenance").And.Contain("required questions");
+                broker.RoutineQuiet.Enabled.Should().BeTrue();
+                viewer.LocalEvents.Should().ContainSingle().Which.Event.Category.Should().Be(LocalEventCategory.Attention);
+                viewer.PendingQuestions.Single().Key.Should().Be(question.Key);
+                await viewer.ClearRoutineQuietAsync();
+                await viewer.ResetRoutineQuietAsync();
+                broker.RoutineQuiet.Enabled.Should().BeFalse();
+                window.FocusManager!.GetFocusedElement().Should().BeSameAs(refresh);
                 viewer.LocalEvents.Single().Reason.Should().Be(LocalEventReason.PresentedNoReplay);
                 viewer.LocalEvents.Single().DisplaySummary.Should().Contain("No new notification");
                 viewer.SelectLocalEvent(viewer.LocalEvents.Single());
@@ -85,6 +94,125 @@ public sealed class LocalEventBrokerWindowTests
                 await closed.Should().ThrowAsync<InvalidOperationException>();
             }
             finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
+    public async Task NativeQuietBindingsHideOnlyRoutineRowsAndPersistNoRunChoiceOrWorkEffect()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Storage.InitializeAsync();
+            await WindowsSqliteSessionWorkspaceTests.FinishAsync(f.Storage, HostTaskState.Succeeded);
+            await using var queue = f.Queue();
+            var service = f.Service(queue);
+            await using var broker = f.Broker();
+            var viewer = f.Viewer(broker, service);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single());
+            viewer.CanChangeRoutineQuiet.Should().BeFalse();
+            await viewer.QuietRoutineNoticesAsync();
+            broker.RoutineQuiet.Enabled.Should().BeFalse();
+            viewer.Status.Should().Contain("InvalidOperationException");
+            var window = new SessionsWindow(viewer);
+            window.Show();
+            try
+            {
+                var quietButton = window.FindControl<Button>("QuietRoutineNotices")!;
+                quietButton.IsEnabled.Should().BeTrue();
+                ControlAutomationPeer.CreatePeerForElement(quietButton)!.GetName().Should().Contain("Kora restarts");
+                window.FindControl<Button>("ClearRoutineQuiet")!.IsEnabled.Should().BeTrue();
+                window.FindControl<Button>("ResetRoutineQuiet")!.IsEnabled.Should().BeTrue();
+                using (var nonUser = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+                    HostActivityLayer.Application, HostOperation.Request))
+                {
+                    await viewer.QuietRoutineNoticesAsync();
+                    broker.RoutineQuiet.Enabled.Should().BeFalse();
+                    viewer.Status.Should().Contain("InvalidOperationException");
+                    nonUser.Complete(HostOperationOutcome.Completed);
+                }
+                await viewer.QuietRoutineNoticesAsync();
+                broker.RoutineQuiet.Enabled.Should().BeTrue();
+                var current = await f.Storage.Store.ReadQueueAsync(f.Storage.Request.SessionId, f.Token);
+                await service.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, f.Storage.Request.SessionId.Value, 1)
+                { QueueRevision = current.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() },
+                    RequestOrigin.LocalUi, () => true, f.Token);
+                var before = await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Token);
+                var tasks = f.Storage.Count("host_tasks");
+                var history = await f.Storage.Store.ReadHistoryAsync(f.Storage.Request.SessionId, null, 50, f.Token);
+                await viewer.RefreshWorkAsync();
+                viewer.LocalEvents.Should().BeEmpty();
+                viewer.LocalEventStatus.Should().Contain("1 routine rows hidden").And.Contain("1 current routine sources suppressed");
+                viewer.WorkRecords.Should().Contain(row => row.Queue!.Entry.State == SessionQueueState.Pending);
+                await viewer.ClearRoutineQuietAsync();
+                viewer.LocalEvents.Should().ContainSingle().Which.Reason.Should().Be(LocalEventReason.RoutineSuppressedNoReplay);
+                await viewer.ResetRoutineQuietAsync();
+                var shownRevision = broker.RoutineQuiet.Revision;
+                window.Hide();
+                viewer.CanChangeRoutineQuiet.Should().BeFalse();
+                await viewer.QuietRoutineNoticesAsync();
+                broker.RoutineQuiet.Revision.Should().Be(shownRevision);
+                window.Show();
+                viewer.CanChangeRoutineQuiet.Should().BeTrue();
+                await viewer.RefreshWorkAsync();
+                (await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Token)).Should().Be(before);
+                (await f.Storage.Store.ReadHistoryAsync(f.Storage.Request.SessionId, null, 50, f.Token)).Should().BeEquivalentTo(history);
+                f.Storage.Count("host_tasks").Should().Be(tasks);
+                f.State.Load()!.Budgets.Should().BeEmpty();
+                File.ReadAllText(Path.Combine(f.Storage.Paths.LocalRoot, "Preferences", "local-events.json"))
+                    .Should().NotContain("Enabled").And.NotContain("RoutineQuiet");
+                await using var restarted = f.Broker();
+                restarted.RoutineQuiet.Enabled.Should().BeFalse();
+                (await restarted.ObserveAsync(f.Storage.Request.SessionId, () => true, f.Token))
+                    .Events.Should().ContainSingle().Which.Reason.Should().Be(LocalEventReason.RoutineSuppressedNoReplay);
+                window.Close();
+                viewer.CanChangeRoutineQuiet.Should().BeFalse();
+                viewer.LocalEvents.Should().BeEmpty();
+                var revision = broker.RoutineQuiet.Revision;
+                await viewer.QuietRoutineNoticesAsync();
+                broker.RoutineQuiet.Revision.Should().Be(revision);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [WindowsFact]
+    public async Task HideAndReopenDuringQuietSourceReadCannotReviveOldNativeCallbackOrHideIndependentWork()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Storage.InitializeAsync();
+            await WindowsSqliteSessionWorkspaceTests.FinishAsync(f.Storage, HostTaskState.Succeeded);
+            var source = new PausedSource(f.Source());
+            await using var broker = new LocalEventBroker(source, f.State, f.Access, f.Storage.Time,
+                f, NullLogger<LocalEventBroker>.Instance);
+            var viewer = f.Viewer(broker);
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single());
+            var window = new SessionsWindow(viewer);
+            window.Show();
+            try
+            {
+                var work = viewer.WorkRecords.ToArray();
+                source.Pause = true;
+                var pending = viewer.QuietRoutineNoticesAsync();
+                await source.Entered.Task;
+                window.Hide();
+                window.Show();
+                source.Release.SetResult();
+                await pending;
+                broker.RoutineQuiet.Enabled.Should().BeFalse();
+                broker.IsAvailable.Should().BeFalse();
+                viewer.RoutineQuietStatus.Should().Contain("held/unavailable");
+                viewer.LocalEventStatus.Should().Contain("No confirmed choice");
+                viewer.WorkRecords.Should().BeEquivalentTo(work);
+                viewer.CanRefreshWork.Should().BeTrue();
+                viewer.LocalEvents.Should().BeEmpty();
+                viewer.CanChangeRoutineQuiet.Should().BeFalse();
+            }
+            finally { window.Close(); source.Release.TrySetResult(); }
         });
     }
 
@@ -222,5 +350,23 @@ public sealed class LocalEventBrokerWindowTests
     private sealed class NoExecution : IDeterministicVersionQueueAction
     {
         public Kora.Core.Tools.CapabilityReply Observe(CancellationToken token) => throw new InvalidOperationException("Broker cannot dispatch.");
+    }
+
+    private sealed class PausedSource(ILocalEventSource source) : ILocalEventSource
+    {
+        internal bool Pause { get; set; }
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<IReadOnlyList<LocalEvent>> ReadAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
+        {
+            var observed = await source.ReadAsync(session, cancellationToken);
+            if (Pause) { Entered.TrySetResult(); await Release.Task.WaitAsync(cancellationToken); }
+            return observed;
+        }
+
+        public Task<T> WithCurrentAsync<T>(HostId<SessionIdentity> session, IReadOnlyList<LocalEvent> expected,
+            Func<T> observation, CancellationToken cancellationToken) =>
+            source.WithCurrentAsync(session, expected, observation, cancellationToken);
     }
 }

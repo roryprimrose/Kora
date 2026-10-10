@@ -102,7 +102,7 @@ public sealed class LocalEventBrokerStateTests
         var state = LocalEventBrokerState.Empty(now) with { Receipts = [receipt], Budgets = [budget] };
         state = field switch
         {
-            "schema" => state with { Schema = 2 },
+            "schema" => state with { Schema = 99 },
             "offset" => state with { HighWatermark = now.ToOffset(TimeSpan.FromHours(1)) },
             "receipts" => state with { Receipts = null! },
             "budgets" => state with { Budgets = null! },

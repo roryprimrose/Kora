@@ -59,8 +59,14 @@ Validation and retained experiment reasons are recorded in the [active-deadline 
 
 ### R18 bounded local event suppression
 
+The [run-only routine quiet increment](Proactive_Interaction.md#delivered-run-only-routine-notice-quiet-mode---2026-10-10) adds native Sessions On/Off/Reset/status, **Work and Maintenance combined only**. It starts Off and lasts until explicit clear/reset or restart, with no saved quiet choice.
+First delivery is suppressed before budget consumption; routine rows disappear while On, with truthful omitted/suppressed counts. Failures, Attention, mandatory output, questions/approvals, authoritative work and private recovery are unchanged.
+
+Exact live original native session/control/choice/lifetime admission and requested/terminal typed audit precede activation. Clear permits future new notices, not old deferred/muted backlog.
+Canonical schema 1 remains readable without a write; known schema 2 adds only routine suppression history in the same files/bounds, never the quiet flag. Corrupt/unknown/unconfirmed state holds with explicit recovery; no fatigue, expiry, clock or retention policy is reset.
+
 The [local visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
-adds no speech/network consent or preference editor. Fixed category budgets
+adds no speech/network consent or durable quiet preference editor. Fixed category budgets
 and fifteen-minute exact defer are host policy, not a reminder scheduler.
 Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use the shared
 atomic device-local preference store. They retain only 64 bounded content-free

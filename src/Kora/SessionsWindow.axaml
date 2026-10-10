@@ -130,6 +130,16 @@
                   AutomationProperties.Name="Explicitly confirm removal of the displayed pending queue at its exact revision; active work and history remain" />
         </WrapPanel>
         <StackPanel Grid.Row="3" Spacing="4">
+          <controls:NamedTextBlock Text="{Binding RoutineQuietStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Run-only routine quiet status; Work and Maintenance only, failures and required questions unchanged" />
+          <WrapPanel>
+            <Button x:Name="QuietRoutineNotices" Content="Quiet routine notices for this run" IsEnabled="{Binding CanChangeRoutineQuiet}"
+                    AutomationProperties.Name="Enable quiet for Work and Maintenance notices and rows until explicitly cleared or Kora restarts; no speech or work changes" />
+            <Button x:Name="ClearRoutineQuiet" Content="Turn routine quiet off" IsEnabled="{Binding CanChangeRoutineQuiet}"
+                    AutomationProperties.Name="Clear run-only routine quiet; future new notices only, no suppressed backlog replay" />
+            <Button x:Name="ResetRoutineQuiet" Content="Reset routine quiet to Off" IsEnabled="{Binding CanChangeRoutineQuiet}"
+                    AutomationProperties.Name="Reset run-only routine quiet to default Off; no preference saved and no backlog replay" />
+          </WrapPanel>
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
           <controls:ScrollableListBox x:Name="EventRecords" MaxHeight="130" ItemsSource="{Binding LocalEvents}"

@@ -12,6 +12,11 @@ defer uses the [same broker as commands](commands.md#trusted-local-events).
 No question target, voice output, task/approval deadline, grant or dispatch
 changes. Maintenance Check/Open remains in its native window.
 
+**Quiet routine notices for this run** turns off first **Work and Maintenance** notice deliveries and hides their notice rows together. **Turn routine quiet off** or **Reset routine quiet to Off** clears it; Kora also starts Off after restart. Status shows the choice, all omitted rows, routine rows hidden and sources suppressed without presentation. Nothing is saved as a quiet preference.
+
+Failures, Attention, required questions/approvals, authoritative work/status, citations and recovery stay available. Quiet never speaks or changes focus, capture, grants, dispatch or deadlines.
+Clear permits future new notices only; muted records may return as `RoutineSuppressedNoReplay` passive status, never a backlog. Admission/audit/storage failures show recovery instead of claiming success. Scheduled quiet hours, multi-session reminders and proactive speech remain unavailable.
+
 Open **Tray > Sessions**, **open sessions**, or the existing compact keyboard
 shortcut. The bounded All/Active/Done list sits beside selected exact-session
 work: queued/current/waiting/blocked/cancelled/removed/Unknown receipts, stable

@@ -517,8 +517,8 @@ the same applicable authorisation path, including direct command/UI routes:
 1. Resolve the tool/version and validate parameters.
 2. Resolve canonical target resources and identity.
 3. Verify intent lineage and reject resources/actions introduced only by untrusted content.
-4. Evaluate grants, host-assigned risk, owner presence, and any required approval.
-5. Bind approval to the resolved action and content.
+4. Apply mandatory host policy and current exact grants, then the proposed originating-session Review all / Model review / Approve all level for missing ordinary action authority.
+5. Bind the grant, explicit approval/consent, isolated reviewer verdict, or level-based admission to the resolved action/content and current policy revision.
 6. Revalidate immediately before execution.
 7. Execute with deadline and output limits.
 8. Produce an action receipt and provenance-bearing result.
@@ -528,6 +528,8 @@ bounded result data to the task runtime for continued reasoning; direct local
 commands can present the same result without inference. A skill/script cannot
 open approval controls, classify its own effect, or invent a successful receipt.
 Tool names and descriptions are untrusted metadata. Policy bindings are maintained by Kora and reviewed when tools change.
+
+[Session Permission Levels](Session_Permission_Levels.md#architecture-and-delivery) owns the proposed extension. Core holds typed policy; Application coordinates reviewer, consent, lifecycle and audit; Windows supplies admitted storage/execution/call mechanisms; desktop delegates presentation. Automatic admissions are one-invocation receipts, never synthetic grants.
 
 ## Storage and Processes
 

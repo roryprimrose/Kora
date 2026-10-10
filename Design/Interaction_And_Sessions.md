@@ -771,6 +771,8 @@ Presentation and answer receipts record the channel and exact IDs; model-generat
 
 ## Approval and Risk: Session Trust, Not Mouse Superiority
 
+The proposed [Session Permission Levels](Session_Permission_Levels.md) contract adds grant-first Review all / Model review / Approve all to each admitted action route. The risk treatment below describes review when required, not an unconditional prompt under every level. Mandatory prohibited-effect, consent, OS/provider and execution boundaries always apply.
+
 The baseline is the active unlocked Windows user session and the user's choice to enable verbal instructions, not protection against someone controlling that already-unlocked account.
 Deliberate activated speech and deliberate native UI interaction are both supported expressions of user intent.
 Who speaks an activated command is not itself a baseline authorization condition; residual indistinguishable external speech/playback is accepted without compulsory speaker authentication or blanket voice blocking.
@@ -801,6 +803,7 @@ Unknown or mixed effects receive the highest applicable permitted review class.
 Administrator elevation is neither necessary nor sufficient for high risk.
 Registered constrained actions may have lower risk only when their effects are actually enforced.
 Static analysis/model review is advisory; arbitrary PowerShell may import code or construct effects dynamically.
+In Model review, a valid separate tools-disabled reviewer Safe verdict may satisfy ordinary action authority for that exact invocation; it cannot lower host risk, prove arbitrary code safe, create a grant, or supply independent consent. Approve all skips discretionary analysis, not mandatory boundaries.
 General script execution remains separately gated, not newly enabled by adding a `.ps1` viewer.
 
 A high-risk spoken confirmation names the action and target, not just "yes".
@@ -816,6 +819,8 @@ See [Skill and task execution design](../docs/skill-and-task-execution-design.md
 The host owns trusted question/approval controls and readback; Markdown/HTML/script comments and model/tool statements are not grants.
 A historical grant reference is not a live dispatch token; inspect the independent grant store and fresh host policy.
 See [Internal Model Tools](Internal_Model_Tools.md#grant-and-feedback-rules) for the shared grant and in-call feedback boundaries.
+
+Show the session level and spoken-approval eligibility separately. Calls default to UI approval without ignoring grants or changing the level. Changes need exact user confirmation; Active restart preserves the level, Done resets it, and resume restores no old level. [Lifecycle/race rules](Session_Permission_Levels.md#session-ux-lifecycle-and-races) bind pending decisions to policy revision.
 
 ## Session Identity, State, and Contents
 

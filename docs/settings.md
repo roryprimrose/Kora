@@ -840,6 +840,8 @@ grants without changing storage; new grant-ignore disabling, temporary overrides
 and speak-once exceptions are unavailable. This is bounded manual behavior, not
 full call/provider/native/audio acceptance.
 
+[The proposed session permission-level design](../Design/Session_Permission_Levels.md#voice-approval-and-protected-calls) will instead keep grants and levels effective during calls and add default-disabled configurable spoken approvals. That migration and selector are not current settings behavior.
+
 ## Readiness
 
 Shows each dependency as Ready, Unavailable, or needing attention, with an

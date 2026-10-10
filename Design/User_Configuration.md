@@ -896,7 +896,7 @@ Exact basic settings commands remain usable without a model/network.
 Changing a supported preference is not permission to alter policy implementation, install software, grant tools, or execute an action.
 Model-facing discovery/get/change/reset/undo operations are inventoried in [Internal Model Tools](Internal_Model_Tools.md#grants-settings-and-evidence).
 The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated changes to voice settings and every in-call-related option while protected call evidence applies.
-This includes reset/undo, detector/manual-state changes, grant-ignore and temporary/speak-once call overrides; a new UI-originated request is required, not UI confirmation of the rejected voice request.
+This includes reset/undo, detector/manual-state changes, spoken-approval enablement and temporary/speak-once call overrides; a new UI-originated request is required, not UI confirmation of the rejected voice request. Current grant-ignore enforcement remains unchanged until the proposed call-policy migration.
 Deterministic safety controls and read-only inspection remain available; this is an explicit exception to ordinary verbal-setting availability.
 
 ## Voice Interaction
@@ -1025,7 +1025,7 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 |---|---|---|
 | Call speech mode | Suppress automatic requested/proactive speech; one-shot override allowed | "Only suppress unsolicited suggestions during calls" |
 | In-call feedback override (`calls.feedback-mode`) | **Bounded delivered** UI default; Voice / UI / Both / Inherit; Active/Suspected only, ahead of ordinary response mode with all hard speech/privacy gates | Exact `set calls.feedback-mode to UI`; natural-language example remains proposed |
-| Ignore reusable grants during calls (`calls.ignoreReusableGrants`) | On by default; Boolean device-local setting; require fresh single-use approval instead of Session/Perpetual reuse while call protection applies; Off requires exact protection-downgrade confirmation | "Ignore saved grants while I'm in a call" |
+| Allow spoken approvals during calls (`calls.allowSpokenApprovals`) | **Proposed**, Off by default; Boolean device-local setting; UI approval remains available, grants and session levels unchanged; enabling during a protected call requires fresh UI initiation and confirmation | "Allow spoken approvals during calls" outside protected calls; otherwise use UI |
 | Voice activation during calls | On; independently configurable and does not reopen capture without explicit listening consent | "Disable voice activation during calls" |
 | Unknown enabled-detector behaviour | Suppress automatic speech | "Use normal speech when detection is unavailable" |
 | Detector enablement/account | Explicitly configured supported sources only | "Use Teams presence to decide when to stay quiet" |
@@ -1043,8 +1043,8 @@ delivered here. Other table entries, including general proactive/quiet-hours/
 notification/temporary-exception configuration, remain proposed.
 The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
 Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
-The grant-ignore setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention.
-Its evidence, dispatch-race, and approval rules are defined in [Ignoring Reusable Grants During Calls](Call_Aware_Speech.md#ignoring-reusable-grants-during-calls).
+The proposed spoken-approval setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention, or the selected session permission level.
+Its evidence, answer-acceptance races, migration and approval rules are defined in [Spoken Approvals During Calls](Call_Aware_Speech.md#spoken-approvals-during-calls). It supersedes the future grant-ignore setting; current reusable-grant suppression is still implemented, not removed by this design.
 When no detector is configured, Kora reports automatic call detection as unavailable and preserves the ordinary response and listening configuration.
 Hard lock/mute rules always outrank call/proactive preferences.
 Notification settings cannot hide necessary action approval from the visual interface or turn silence into approval.
@@ -1160,6 +1160,16 @@ recovery still require explicit Enable listening.
 
 ## 8. Permissions and Approvals
 
+### Proposed session permission levels
+
+[Session Permission Levels](Session_Permission_Levels.md) owns the three levels, separate from Once/Session/Always grant duration and provider mode. The compact/workspace selector names the session and warns that Approve all runs eligible ungranted actions without ordinary review, saves no grants, and cannot bypass independent consent or mandatory boundaries.
+
+New sessions default Review all. Persist levels in Active-session policy across restart; Done resets Review all and resume restores no old level. Changes require revision-safe audited user confirmation, never model self-approval. Show spoken-approval eligibility separately, default disabled during calls, while grants and the level remain effective.
+
+Where action approval and disclosure consent cover the same exact operation, offer one host-owned card with distinct typed authority/audit records and explicit scope. Microphone consent and OS/provider authentication remain separate. These controls, reviewer and call migration are proposed, not delivered by the existing grant inventory.
+
+### Grant inventory and existing implementation
+
 Permissions and approvals are host-owned security records, not ordinary preference values.
 The current bootstrap provides once/session/always preferences for named
 model-suggested built-in actions and host-validated grant-change proposals.
@@ -1224,4 +1234,4 @@ Closed microphone, locked session, missing recogniser, and signed-out OS prevent
 This is a physical/security constraint, not a reason to omit voice setters from ready capabilities.
 OS sign-in/OAuth/credential entry and required OS elevation remain separate secure workflows, not user-option values dictated to the model.
 Kora risk determines review and confirmation specificity, not mandatory mouse use. Optional speaker matching and baseline UI input are not reauthentication.
-No option can enable self-modification, disable mandatory lock policy, bypass executable isolation/egress/action approvals, or change "Kora" into a hidden always-transcribing microphone.
+No option can enable self-modification, disable mandatory lock policy, bypass executable isolation/egress/independent consent, or change "Kora" into a hidden always-transcribing microphone. Proposed session levels may satisfy ordinary action authority under their exact host policy; they never bypass these mandatory boundaries.

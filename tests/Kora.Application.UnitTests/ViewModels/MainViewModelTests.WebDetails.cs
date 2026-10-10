@@ -15,6 +15,29 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task ReentrantResponseBodyCallbackCannotReissueWebDetailsAfterControlClosureAndReveal()
+    {
+        var fixture = new Fixture(webPageGet: new(new ViewModelWebTransport(WebResponse("https://example.com/", "exact text")),
+            new ViewModelWebAudit()));
+        var closed = false;
+        fixture.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (!closed && string.Equals(args.PropertyName, nameof(Kora.Application.ViewModels.MainViewModel.ResponseBody),
+                StringComparison.Ordinal) && fixture.ViewModel.ResponseBody.Contains("exact text", StringComparison.Ordinal))
+            {
+                closed = true;
+                fixture.ViewModel.HideApplication();
+                fixture.ViewModel.ShowApplication();
+            }
+        };
+        await fixture.RunAsync("get web page https://example.com/");
+        closed.Should().BeTrue();
+        fixture.ViewModel.HasWebResultDetails.Should().BeFalse();
+        fixture.ViewModel.ResponseBody.Should().NotContain("exact text");
+        fixture.ViewModel.Dispose();
+    }
+
+    [Fact]
     public async Task WebRetrievalBlocksHandoffAndExitWaitsForActualCancelledTransportRelease()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

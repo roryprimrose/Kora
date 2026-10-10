@@ -19,6 +19,7 @@ public sealed partial class MainViewModel
     private Func<bool> webResultAdmission = static () => false;
     private string? webResultResponseBody;
     private long webPresentationGeneration = 1;
+    private long webControlGeneration = 1;
     private long webResponseRevision;
 
     public event EventHandler? WebResultDetailsChanged;
@@ -48,8 +49,9 @@ public sealed partial class MainViewModel
         return null;
     }
 
-    internal void RetireWebResultDetails()
+    internal void RetireWebResultDetails(bool retireControl = true)
     {
+        if (retireControl) { Interlocked.Increment(ref webControlGeneration); }
         Interlocked.Increment(ref webPresentationGeneration);
         var retiredBody = webResultResponseBody;
         var retiredResponseRevision = Interlocked.Read(ref webResponseRevision);
@@ -116,22 +118,22 @@ public sealed partial class MainViewModel
         }
 
         var original = HostActivity.RequireCurrent().Request;
-        var controlGeneration = Interlocked.Read(ref webPresentationGeneration);
-        var presentationGeneration = controlGeneration;
+        RetireWebResultDetails();
+        var controlGeneration = Interlocked.Read(ref webControlGeneration);
+        var presentationGeneration = Interlocked.Read(ref webPresentationGeneration);
         var privacyRevision = privacyObservation.Current.TopologyRevision;
         var recoveryRevision = Interlocked.Read(ref voiceRecoveryRevision);
         var callRevision = CallPolicyRevision;
         bool Eligible() => IsCallMutationHostEligible && !IsResponseInteractionPending
             && original.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice
             && !cancellationToken.IsCancellationRequested
+            && Interlocked.Read(ref webControlGeneration) == controlGeneration
             && Interlocked.Read(ref webPresentationGeneration) == presentationGeneration
             && privacyObservation.Current.TopologyRevision == privacyRevision
             && Interlocked.Read(ref voiceRecoveryRevision) == recoveryRevision
             && CallPolicyRevision == callRevision
             && (original.Origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation);
-        RetireWebResultDetails();
-        presentationGeneration = Interlocked.Read(ref webPresentationGeneration);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         webPageCancellation = cancellation;
         var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -172,8 +174,17 @@ public sealed partial class MainViewModel
                         // Publish before window/output callbacks: any later closure retires this
                         // actual source, rather than issuing a fresh snapshot after that closure.
                         presentationGeneration = Interlocked.Read(ref webPresentationGeneration);
-                        if (!Eligible() || !string.Equals(ResponseTitle, "Web page retrieved.", StringComparison.Ordinal)
-                            || !string.Equals(ResponseBody, body, StringComparison.Ordinal))
+                        var isExactResponse = string.Equals(ResponseTitle, "Web page retrieved.", StringComparison.Ordinal)
+                            && string.Equals(ResponseBody, body, StringComparison.Ordinal);
+                        if (!Eligible())
+                        {
+                            if (isExactResponse)
+                            {
+                                ResponseBody = "The web-result presentation was retired before admission completed. No native details were issued.";
+                            }
+                            return;
+                        }
+                        if (!isExactResponse)
                         {
                             return;
                         }

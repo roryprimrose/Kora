@@ -1746,7 +1746,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         get => responseTitle;
         private set
         {
-            if (SetProperty(ref responseTitle, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(); }
+            if (SetProperty(ref responseTitle, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(retireControl: false); }
         }
     }
 
@@ -1757,7 +1757,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Interlocked.Increment(ref webResponseRevision);
             sessionPresentationSources.Clear();
-            if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(); }
+            if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(retireControl: false); }
         }
     }
 
@@ -5422,7 +5422,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         bool refreshOutput = true,
         Action? sourceAssigned = null)
     {
-        RetireWebResultDetails();
+        RetireWebResultDetails(retireControl: false);
         RetireSpeechCaptionSource();
         ClearResponseActions();
         if (!isInitializing && refreshOutput

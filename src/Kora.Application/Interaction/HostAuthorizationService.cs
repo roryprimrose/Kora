@@ -18,6 +18,39 @@ public sealed class HostAuthorizationService(
         QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This work session"), new("perpetual", "Until explicitly removed or edited")],
         purpose: "authorization", sourceId: "host-operation");
 
+    public async ValueTask<ExactGrantBatchDecision> RevokeExactBatchAsync(HostRequest request, HostRevision controlGeneration,
+        ExactGrantBatch preview, Func<bool> admitted, CancellationToken cancellationToken)
+    {
+        preview.Validate();
+        if (store is not IExactGrantStore exact || request.Origin != RequestOrigin.LocalUi
+            || !ReferenceEquals(HostActivity.RequireCurrent().Request, request))
+        {
+            throw new InvalidOperationException("Exact batch revocation requires fresh original native user intent.");
+        }
+        var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
+            "approval.revoke-exact-batch", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
+            request.TaskId.Value.ToString("D"));
+        using var activity = HostActivity.BeginAudit(request, requested);
+        try
+        {
+            var result = await exact.RevokeExactGrantBatchAsync(request, controlGeneration, preview, requested,
+                admitted, cancellationToken).ConfigureAwait(false);
+            activity.Complete(result.Outcome == HostInteractionOutcome.Revoked
+                ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            activity.Complete(HostOperationOutcome.Cancelled);
+            throw;
+        }
+        catch
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
+
     public async ValueTask<HostInteractionDecision> RevokeExactAsync(HostRequest request, HostRevision controlGeneration,
         ExactGrantInspection preview, Func<bool> admitted, CancellationToken cancellationToken)
     {

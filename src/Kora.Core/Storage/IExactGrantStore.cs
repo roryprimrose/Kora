@@ -5,7 +5,7 @@ using Kora.Core.Interaction;
 
 namespace Kora.Core.Storage;
 
-/// <summary>Bounded passive exact-grant metadata and one serializable, audited original-user revocation.</summary>
+/// <summary>Bounded passive exact-grant metadata and serializable, audited original-user revocation.</summary>
 public interface IExactGrantStore
 {
     /// <summary>Reads at most 50 records/64 KiB without refreshing activity or creating intent.</summary>
@@ -18,4 +18,9 @@ public interface IExactGrantStore
     /// <summary>Commits only the unchanged preview's revocation and correlated requested/terminal audit.</summary>
     ValueTask<HostInteractionDecision> RevokeExactGrantAsync(HostRequest request, HostRevision controlGeneration,
         ExactGrantInspection preview, SecurityAuditEvent requested, Func<bool> admitted, CancellationToken cancellationToken);
+    /// <summary>Rereads every explicitly selected current inventory record as one complete bounded preview.</summary>
+    ValueTask<ExactGrantBatch> PreviewExactGrantBatchAsync(ExactGrantBatch selection, CancellationToken cancellationToken);
+    /// <summary>Commits all unchanged selected records and their typed audit atomically, or revokes none.</summary>
+    ValueTask<ExactGrantBatchDecision> RevokeExactGrantBatchAsync(HostRequest request, HostRevision controlGeneration,
+        ExactGrantBatch preview, SecurityAuditEvent requested, Func<bool> admitted, CancellationToken cancellationToken);
 }

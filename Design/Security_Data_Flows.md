@@ -603,7 +603,13 @@ The delivered [native exact-grant management subset](User_Configuration.md#deliv
 
 The current revision/status and immutable displayed metadata must still match under the shared private store's serializable transaction. Only an Active exact record can move to retained Revoked at the next revision; a stale, foreign, consumed or revoked preview conflicts. Requested and terminal typed audit are retained atomically as a content-free correlated pair in one envelope, without changing historical bytes or broadening scope. Commit/readback uncertainty fails closed and requires current inspection.
 
-Subsequent consumes through `HostAuthorizationService` reject the retained revoked record. Already-running work remains unknown unless actual receipts prove otherwise; revocation never claims physical cancellation or rollback. No model/tool dispatch, named-preference promotion, new approvals, grant edits/bulk revoke, Perpetual expiry/eviction or direct lock/power gate change is delivered.
+The 2026-10-11 selected-batch extension rereads only explicit current inventory identities under one passive lease. A host-issued immutable preview binds the complete ordered selection, original provenance and exact revisions to the initialized store lifetime; native confirmation additionally binds current control revision and selection/window/privacy lifetime. Complete serialized preview is bounded by 50 records / 64 KiB and refuses excess without truncation.
+
+Confirmation admits a fresh original-user control intent, never old originating-session authority. All current selected rows are validated before any write, then all canonical revocations and a single correlated requested/terminal typed audit commit in one transaction under the shared lease and current admission fence. One changed/terminal/foreign/missing target rejects every change. No single-revoke loop, global scan, name/path matching or model-supplied selection is admitted.
+
+The batch audit uses additive optional exact requested-grant revision/digest references; old single-grant envelopes and historical bytes remain unchanged, with no database migration. Before/after references contain no parameters or payloads. Commit/audit/cancellation/readback uncertainty never produces partial success, automatic retry or a false rollback claim. Current inspection is required for recovery.
+
+Subsequent consumes through `HostAuthorizationService` reject every retained revoked target. Already-running work remains unknown unless actual receipts prove otherwise; revocation never claims physical cancellation or rollback. No model/tool dispatch, named-preference promotion, new approvals, grant edits, global revoke-all, Perpetual expiry/eviction or direct lock/power gate change is delivered.
 
 The [exact operation binding](../src/Kora.Core/Authorization/ExactOperationBinding.cs)
 binds action/source partition/skill, exact definition and complete declared
